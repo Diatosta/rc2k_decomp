@@ -113,7 +113,7 @@ fn refusal(
     reason = "the effects' groups and the owners"
 )]
 fn step(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     frame: &Frame,
     view_matrix: &[crate::memory::session::PlainFloat; 16],

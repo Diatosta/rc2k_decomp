@@ -321,7 +321,11 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
         let sound = race.shared.replay_file().viewer_sound.get();
         race.shared.replay_file().viewer_sound.set(0);
         crate::sound::play_menu_sound::play_menu_sound_in_game(
-            o.sound, o.audio, o.menus, o.system, sound,
+            o.sound,
+            o.audio,
+            o.menus,
+            &o.system.session.picture_clock,
+            sound,
         );
         if list_state.list_leave.get() == 1 {
             return Ok(Viewed::Left);

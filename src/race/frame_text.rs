@@ -157,7 +157,7 @@ pub fn roll_credits(
 ) -> Result<(), Refused> {
     let session = &system.session;
     // Logic in `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
-    let tick_count = || crate::system::tick_count::tick_count(&session.picture_clock);
+    let tick_count = || crate::clock::tick_count::tick_count(&session.picture_clock);
     use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};
     let width = session.screen.get().width.get() as i32;
     let height: u32 = session.screen.get().height.get();

@@ -7,10 +7,10 @@
 //! The x87 run is plain Rust on the x87 model (`math::x87_float`); the picks run under the same
 //! rounding.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_drops::pick_windscreen_drop;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 
 const MOST: i32 = 0x80;

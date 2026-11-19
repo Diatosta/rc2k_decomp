@@ -9,12 +9,12 @@
 //! game's variables; the fog likewise. Refuses, before anything (the walk simulated), null
 //! settings, a null entry or link on the way, and a colour index out of its table.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_entries::{entry, ld, set, st, walk_ring};
 use crate::effects::ring_store::Ring;
 use crate::effects::setup::MarksClock;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::scene::fog_at::fog_at;
 

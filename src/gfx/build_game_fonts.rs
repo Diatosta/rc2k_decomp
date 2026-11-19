@@ -72,7 +72,7 @@ pub fn build_game_fonts(
         .wrapping_mul(system.session.screen.get().bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
-    crate::race::load_times::mark("begin_glyph_tables");
+    crate::logfile::load_times::mark("begin_glyph_tables");
     begin_glyph_tables(vars, gfx, system, strings)?;
     gfx.pictures
         .decoder
@@ -88,14 +88,14 @@ pub fn build_game_fonts(
     let palette_b = crate::gfx::build_fonts::palette_place(&gfx.fonts, list)?;
     gfx.fonts.font_block.game_fonts[3].update(|f| f.palette = palette_b);
     begin_glyph_table(&gfx.fonts, vars, list)?;
-    crate::race::load_times::mark("build_glyphs fnt22");
+    crate::logfile::load_times::mark("build_glyphs fnt22");
     build_glyphs(vars, &crate::gfx::texts::FNT22, list, gfx, system, strings)?;
     let table = vars.table.get();
     gfx.fonts.font_block.game_fonts[0].update(|f| f.glyph_table = table);
     if vars.table_size.get() == 0 {
         return Err(fatal(0x80E4_8062));
     }
-    crate::race::load_times::mark("alpha_palette, palette_to_pixels");
+    crate::logfile::load_times::mark("alpha_palette, palette_to_pixels");
     alpha_palette(gfx);
     palette_to_pixels(
         gfx.fonts.font_block.game_fonts[0].get().palette,
@@ -115,7 +115,7 @@ pub fn build_game_fonts(
         });
     }
 
-    crate::race::load_times::mark("brighter palette");
+    crate::logfile::load_times::mark("brighter palette");
     // The sheet's palette made brighter where it lies, and its pixels.
     let to: u32 = pixels_b.get();
     let layout = gfx.pictures.decoder.format.get();

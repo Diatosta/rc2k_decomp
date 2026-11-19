@@ -21,7 +21,7 @@ The work buffers (a 64 KB scratch the loaders share, the open stream) are in
 | `read_file_into` | `src/files/read_file.rs` | Reads part of a file into a buffer. |
 | `write_file_from` | `src/files/write_file.rs` | Writes a buffer to a file. |
 | `read_packed_file` | `src/files/read_packed_file.rs` | Reads and unpacks a packed (`.SQ`) file. |
-| `read_level_file` | `src/files/read_level_file.rs` | Reads a file from the current stage's folder. |
+| `read_level_file` | `src/files/read_level_file.rs` | Reads a file as named, or, when it is not there, its packed copy under `files\levels`. |
 | `open_stream`, `read_stream_block`, `read_stream_byte` | `src/files/open_stream.rs`, ... | A buffered file, as the picture readers use it. |
 | `file_exists`, `file_size`, `copy_file` | files of the same names | Small queries and a copy. |
 | `handle.rs` | `src/files/handle.rs` | Open files by number, over the standard library. |

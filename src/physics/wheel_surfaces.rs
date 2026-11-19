@@ -25,8 +25,8 @@
 //! Refuses no faces, a table index (`tyre_kind`) past 5 (before anything) and a surface past 15
 //! (what was written by then is put back).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::memory::session::{PlainDword, PlainFloat};
@@ -456,7 +456,7 @@ fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::view;
+    use crate::math::x87_mem::view;
     use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 

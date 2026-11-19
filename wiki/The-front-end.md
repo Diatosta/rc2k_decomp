@@ -208,7 +208,7 @@ stops and the program leaves through its normal save-and-close.
 
 | To change or understand | Start in |
 | --- | --- |
-| What is special about one screen | its `src/menu/..._loop.rs` |
+| What is special about one screen | its own file in `src/menu/`, named after the screen with `_loop.rs` (`advanced_loop.rs`) |
 | The loop itself, `Screen`, `Step` | `src/menu/screen_loop.rs` |
 | A menu's items, positions, links | `rc2k_core/src/menu/tables.rs` (data in `tables_data.rs`), `src/menu/menus_store.rs` |
 | Which function an item runs | `src/menu/table_routes.rs` |

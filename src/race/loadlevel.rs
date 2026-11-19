@@ -85,7 +85,7 @@ struct Steps<'a> {
 impl Steps<'_> {
     /// Logs the step's word.
     fn log(&mut self, word: Word) {
-        crate::race::load_times::phase(word.text().to_str().unwrap_or("?"));
+        crate::logfile::load_times::phase(word.text().to_str().unwrap_or("?"));
         crate::logfile::log_write::log_nul(&word.text(), true, 1);
     }
 

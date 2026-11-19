@@ -47,7 +47,7 @@ mod reference_vectors {
     use crate::sound::sets_store::SoundSet;
     use crate::sound::store::{SoundObject, SurfaceSounds};
 
-    use crate::scene::x87_mem::view;
+    use crate::math::x87_mem::view;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_locked};
 
     // The blocks: the pitch, the volume (on the road: times the surface's gain), the place.

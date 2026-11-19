@@ -99,6 +99,7 @@ pub fn begin(switches: &Switches) -> Result<(), String> {
 }
 
 fn set_job(job: Option<Job>) {
+    crate::clock::tick_count::use_video_clock(clock);
     *JOB.write()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = job.map(Arc::new);
 }

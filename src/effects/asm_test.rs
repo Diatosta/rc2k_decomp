@@ -175,7 +175,7 @@ impl std::ops::Sub<usize> for Operand {
     }
 }
 
-impl crate::scene::x87_mem::Base for Operand {
+impl crate::math::x87_mem::Base for Operand {
     #[track_caller]
     fn dword(self, off: usize) -> u32 {
         u32::from_le_bytes(self.bytes(off))

@@ -10,12 +10,12 @@
 //! The x87 blocks are plain Rust on the x87 model (`math::x87_float`). Refuses, before anything, a
 //! cell past 0x40, an angle of 0x1000 or more, a null entry, and the fog's and the clip's refusals.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::scene::fog_at::fog_at;
 
 const CELLS: u32 = 0x41;
@@ -35,7 +35,7 @@ fn turn(
 /// `DrawWork.sprite_half[1]` cell between its two stores.
 fn square(
     front: &crate::scene::polygon_work::PolygonWork,
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: u32,
     angle: u32,
@@ -133,9 +133,9 @@ pub fn draw_cell_sprite(
 use crate::effects::blocks::CornerSlopes;
 use crate::effects::frame_state::DrawWork;
 use crate::effects::plain::{ld_cell, st_cell};
+use crate::math::engine_tables::{cosine, sine};
 use crate::math::x87_float as bh;
 use crate::memory::session::PlainFloat;
-use crate::scene::engine_tables_store::{cosine, sine};
 
 /// `turn`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_x87(
@@ -196,7 +196,7 @@ fn slope_at(cs: &CornerSlopes, k: usize) -> &PlainFloat {
 /// table's cell (the cosine is the cell 0x400 on).
 fn square_x87(
     front: &crate::scene::polygon_work::PolygonWork,
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: usize,
     angle: usize,
@@ -275,7 +275,7 @@ mod reference_vectors {
     use crate::effects::blocks::CornerSlopes;
     use crate::effects::frame_state::DrawWork;
     use crate::effects::ring_store::RingWork;
-    use crate::scene::engine_tables_store::{cosine, sine};
+    use crate::math::engine_tables::{cosine, sine};
 
     use crate::effects::asm_test::vertex_cell;
 

@@ -83,11 +83,11 @@ pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
 pub fn finish_timing(
     race: &Race,
     scene: &crate::scene::owner::Scene,
-    system: &crate::system::owner::System,
+    picture_clock: &crate::clock::tick_count::PictureClock,
 ) {
     let now = crate::scene::restart_clock::restart_clock(
         &race.shared,
-        crate::system::tick_count::tick_count(&system.session.picture_clock),
+        crate::clock::tick_count::tick_count(picture_clock),
     );
     timing_from(race, now, scene);
 }

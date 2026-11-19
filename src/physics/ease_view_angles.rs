@@ -2,7 +2,7 @@
 //! the record's three angle changes, times `k65536`, rounded and shifted left 16, is added to
 //! `camera_offset_turns`.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
@@ -72,7 +72,7 @@ mod reference_vectors {
                 x87_1(
                     race().course.numbers.get(),
                     race().shared.tables(),
-                    crate::scene::x87_mem::Base::dword(a[0], 0),
+                    crate::math::x87_mem::Base::dword(a[0], 0),
                     crate::test_support::own::scene(),
                 );
             },

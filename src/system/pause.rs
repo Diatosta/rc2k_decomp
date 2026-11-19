@@ -21,8 +21,8 @@ enum Key {
 /// Waits `milliseconds`, the window's events pumped meanwhile; the game's quitting ends the
 /// wait, and a key as `key` says.
 fn wait(o: Owners<'static>, milliseconds: u32, key: Key) {
+    use crate::clock::tick_count::tick_count;
     use crate::input::take_key::{pending_key, take_key};
-    use crate::system::tick_count::tick_count;
     use std::sync::atomic::Ordering;
     let clock = &o.system.session.picture_clock;
     let end = wait_end(tick_count(clock), milliseconds);
@@ -37,7 +37,7 @@ fn wait(o: Owners<'static>, milliseconds: u32, key: Key) {
         if ended || o.system.session.flags.quitting.is_set() || time_up(now, end) {
             return;
         }
-        crate::system::sleep::sleep(end.wrapping_sub(now).min(LOOK_MS));
+        crate::clock::sleep::sleep(end.wrapping_sub(now).min(LOOK_MS));
     }
 }
 

@@ -567,7 +567,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .clock_base
         .set(crate::scene::restart_clock::restart_clock(
             &race.shared,
-            crate::system::tick_count::tick_count(&system.session.picture_clock),
+            crate::clock::tick_count::tick_count(&system.session.picture_clock),
         ));
     // The window of the whole screen: the front end's (the loading bar, the HUD, the effects) and
     // the views' (a view's own is set again before it is drawn).

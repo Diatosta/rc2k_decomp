@@ -25,6 +25,7 @@ pub struct SampleFile {
     pub frames: u32,
 }
 
+crate::memory::cells::plain_record!(SampleFile = 0x20);
 const _: () = assert!(std::mem::size_of::<SampleFile>() == 0x20);
 
 /// Reads and parses a sample file into `buffer`: true when a sample was found. The

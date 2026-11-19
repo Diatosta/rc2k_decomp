@@ -11,7 +11,7 @@ const OUT_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - out";
 /// Plays the replay between the two log lines.
 pub fn play_movie(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::logfile::log_write::log_nul(&IN_TEXT, false, 1);
-    crate::drive::race_parts::restart_clock(race, o.system);
+    crate::drive::race_parts::restart_clock(race, &o.system.session.picture_clock);
     race.shared
         .physics_tables
         .get()

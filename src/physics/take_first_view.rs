@@ -4,7 +4,7 @@
 //! (`car_pitch`, `car_roll`), halved (arithmetic shift) when the mode's record has `halve_tilt`
 //! set, into `view_a_pitch` and `view_a_roll`.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::ld;
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::camera_store::CameraWork;
@@ -96,7 +96,7 @@ mod reference_vectors {
             plain: |a| {
                 x87_1(
                     crate::test_support::own::race().physics.camera(),
-                    [4, 8, 0xC].map(|o| crate::scene::x87_mem::Base::dword(a[0], o)),
+                    [4, 8, 0xC].map(|o| crate::math::x87_mem::Base::dword(a[0], o)),
                     crate::test_support::own::scene(),
                 );
             },

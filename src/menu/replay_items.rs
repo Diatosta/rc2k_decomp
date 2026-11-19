@@ -18,7 +18,13 @@ pub fn replay_item_a(
         return crate::race::replay_mode::replay_mode(race, o, Mode::LastRace).map(|_| ());
     }
     crate::system::pause::pause_keeping_key(o, 500);
-    crate::sound::play_menu_sound::play_menu_sound_in_game(o.sound, o.audio, o.menus, o.system, 8);
+    crate::sound::play_menu_sound::play_menu_sound_in_game(
+        o.sound,
+        o.audio,
+        o.menus,
+        &o.system.session.picture_clock,
+        8,
+    );
     Ok(())
 }
 

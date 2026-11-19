@@ -117,7 +117,11 @@ pub fn option_item(o: Owners<'static>, item: Item) -> Result<(), Refused> {
                 Then::Store(other) => set(&o, other, value),
                 Then::Sound(sound) => {
                     crate::sound::play_menu_sound::play_menu_sound_in_game(
-                        o.sound, o.audio, o.menus, o.system, sound,
+                        o.sound,
+                        o.audio,
+                        o.menus,
+                        &o.system.session.picture_clock,
+                        sound,
                     );
                 }
             }

@@ -32,12 +32,12 @@ received messages, the lobby screens' variables. Parts are in `src/net/store.rs`
 | `shut_down` | `src/net/shut_down.rs` | Ends the network at the game's end. |
 | `Session` | `src/net/dp_session/mod.rs` | A session: its host, players and groups. |
 | `find_sessions` | `src/net/dp_session/discovery.rs` | Finds games on the local network. |
-| `protocol.rs` | `src/net/dp_session/protocol.rs` | How this project's messages are written and read. |
+| `protocol.rs` | `rc2k_core/src/net/protocol.rs` | How this project's messages are written and read. |
 
 ## How it is laid out
 
-Flat, one function per file, with `dp_session/` (`host.rs`, `peer.rs`, `discovery.rs`,
-`protocol.rs`) for the session layer. Groups: `*_frame.rs`, `*_loop.rs` and `draw_*` (the
+Flat, one function per file, with `dp_session/` (`host.rs`, `peer.rs`, `discovery.rs`) for the session layer
+(its wire protocol is `rc2k_core/src/net/protocol.rs`). Groups: `*_frame.rs`, `*_loop.rs` and `draw_*` (the
 lobby's screens), `send_*` (messages), `*_found.rs` (what a search reports),
 `dplay*.rs` and `dp_objects.rs` (the seam where the session layer stands in for DirectPlay).
 

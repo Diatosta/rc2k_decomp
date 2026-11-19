@@ -19,7 +19,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::X;
 use crate::math::x87_float::{ld, stf, to_int};
-use crate::scene::x87_mem::{Base, fld, mov};
+use crate::math::x87_mem::{Base, fld, mov};
 use crate::sound::sets_store::SoundRequest;
 use crate::sound::store::SoundObject;
 use crate::system::owner::System;

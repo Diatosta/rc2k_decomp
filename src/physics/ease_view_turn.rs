@@ -6,7 +6,7 @@
 //! Returns the last step.
 
 use crate::drive::replay_frames_store::ReplayFrames;
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::memory::session::Cell32;
@@ -73,7 +73,7 @@ fn x87_1(s: &impl Cell32, scene: &crate::scene::owner::Scene) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::HostCell;
+    use crate::math::x87_mem::HostCell;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {

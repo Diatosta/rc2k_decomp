@@ -876,9 +876,9 @@ impl Callee {
                 return Ok(false);
             }
             Self::SetUpFrontEnd => {
-                crate::race::load_times::begin("front end: sprites, names, best times");
+                crate::logfile::load_times::begin("front end: sprites, names, best times");
                 crate::menu::set_up_front_end::set_up_front_end(entry.owners)?;
-                crate::race::load_times::end();
+                crate::logfile::load_times::end();
             }
             Self::SetUpEngine => {
                 crate::scene::set_up_engine::set_up_engine_in(

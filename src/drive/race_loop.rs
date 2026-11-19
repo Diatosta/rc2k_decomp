@@ -146,7 +146,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     race.shared.vars.get().scene_switch.set(0);
     #[cfg(feature = "remote")]
     crate::remote::race_loop_begins();
-    restart_clock(race, system);
+    restart_clock(race, &system.session.picture_clock);
     let _racing = crate::race::blend::Racing::begin();
     race.frame
         .clock_ticks()
@@ -163,7 +163,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     let mut pause_binding = PauseBinding::new();
     let pad_at_start = input.pad_marker();
     loop {
-        restart_clock(race, system);
+        restart_clock(race, &system.session.picture_clock);
         race.shared
             .physics_tables
             .get()

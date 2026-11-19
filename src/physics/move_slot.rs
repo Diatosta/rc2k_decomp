@@ -19,8 +19,8 @@
 //!
 //! Refuses (before anything) what `find_ground` would refuse where the slot moves to.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::{abs_compare, abs_of, mul, mul2_to_int, negated};
 use crate::math::x87_float as bh;

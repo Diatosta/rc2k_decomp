@@ -1,6 +1,7 @@
-//! With `receiver.posting` 1, hands the given Rust function to the receiving thread, which calls it,
-//! and waits (sleeping a tenth of a second and pumping the window's messages) until it has
-//! answered or the game is closing; returns its result. DirectPlay calls that may show a dialog
+//! With `receiver.posting` 1, hands the given Rust function to the receiving thread (its event is
+//! signalled, so it takes the call at once rather than at the end of its wait), and waits (pumping
+//! the window's messages every few milliseconds) until it has answered or the game is closing;
+//! returns its result. DirectPlay calls that may show a dialog
 //! (modem, serial link) are made on the receiving thread this way. Without posting it just
 //! calls `code`.
 
@@ -14,6 +15,9 @@ use std::sync::atomic::Ordering;
 /// lines's texts.
 pub type PostedCall = fn(&Net, &NetTexts) -> u32;
 
+/// How often the poster looks for the answer, pumping the window's messages in between.
+const POLL_MS: u32 = 5;
+
 /// The call posted, while `posted_call` is 1.
 static POSTED: Mutex<Option<PostedCall>> = Mutex::new(None);
 pub fn post_call(o: crate::owners::Owners<'static>, code: PostedCall) -> u32 {
@@ -23,6 +27,7 @@ pub fn post_call(o: crate::owners::Owners<'static>, code: PostedCall) -> u32 {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(code);
         net.vars.receiver.posted_call.set(1);
+        crate::platform::sync::set_event(net.vars.event.get());
         loop {
             let answered = net
                 .vars
@@ -33,7 +38,7 @@ pub fn post_call(o: crate::owners::Owners<'static>, code: PostedCall) -> u32 {
             if answered != 0 {
                 break;
             }
-            crate::system::sleep::sleep(100);
+            crate::clock::sleep::sleep(POLL_MS);
             crate::platform::pump_messages_now(o);
             if o.system.session.flags.quitting.is_set() {
                 break;

@@ -155,6 +155,9 @@ pub struct StagePrefs {
     pub surface_scale: [PlainDword; 2],
 }
 
+#[cfg(test)]
+crate::memory::cells::plain_cells_only!(StagePrefs);
+
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 

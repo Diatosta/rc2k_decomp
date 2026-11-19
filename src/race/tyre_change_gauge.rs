@@ -1,7 +1,7 @@
 //! `race::tyre_change_gauge`: the roadside tyre change's gauge, timed by a button (the low byte
 //! of the input device's `bits`). The state is the device's (`input_devices[player]`): `gauge`
 //! (0 .. 0xFFFF), `stage` (-1 waiting for the button to be let go, 0 running, 1 done) and `clock` (the start's clock, then the time).
-//! - Mode 0 starts it: the clock (`system::tick_count`) goes into `clock`, `gauge` is 0, `stage`
+//! - Mode 0 starts it: the clock (`clock::tick_count`) goes into `clock`, `gauge` is 0, `stage`
 //!   -1 and `race::draw_tyre_change` draws; then as -1.
 //! - -1: the button is read; let go, `stage` becomes 0. Result 0.
 //! - 0: the button is read; pressed: it is done. Not pressed: running.
@@ -68,7 +68,7 @@ impl GameIo {
 impl Io for GameIo {
     type Error = Refused;
     fn tick(&mut self) -> Result<u32, Refused> {
-        Ok(crate::system::tick_count::tick_count(
+        Ok(crate::clock::tick_count::tick_count(
             &self.o.system.session.picture_clock,
         ))
     }

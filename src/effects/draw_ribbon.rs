@@ -9,10 +9,10 @@
 //! The x87 block is plain Rust on the x87 model (`math::x87_float`). Refuses, before anything, a
 //! cell past 0x40 and null marks settings (the clip's refusal).
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 
 const CELLS: u32 = 0x41;

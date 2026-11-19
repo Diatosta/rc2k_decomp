@@ -436,7 +436,10 @@ fn seed_clock_and_random(system: &'static System, random: &crate::math::next_ran
     rust("system::keep_start_time");
     crate::system::keep_start_time::keep_start_time(system);
     rust("math::seed_random");
-    crate::math::seed_random::seed_random(random, system);
+    crate::math::seed_random::seed_random(
+        random,
+        crate::system::keep_start_time::start_time(system),
+    );
     // One more step of the generator, with nothing stirred in.
     rust("math::stir_random");
     crate::math::stir_random::stir_random(random, 0);

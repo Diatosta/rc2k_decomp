@@ -12,7 +12,7 @@ use rc2k_core::hud::disc;
 /// `vertex`, turned by `angle`. The scratch y goes nowhere (it is written before it is read
 /// everywhere): 0 here.
 pub fn turned_vertex(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     hud: &Hud,
     vertex: &Vertex,
     angle: u32,

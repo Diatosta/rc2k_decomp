@@ -6,6 +6,7 @@
 //! turned by the crash matrix (`scene::rotate_point`), times 65536 and
 //! rounded, plus `camera_car`, and added to it.
 
+use crate::math::engine_tables::EngineTables;
 use crate::math::x87_float::{f80, int, ld};
 use crate::physics::camera_store::CameraWork;
 use crate::race::frame_store::FrameWork;
@@ -14,7 +15,6 @@ use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_vars_store::ViewVars;
-use crate::scene::engine_tables_store::EngineTables;
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
 /// The turns: `math::rotate_point_about_y_ebx`, `_ecx` and `rotate_point_about_y`, exact or plain.
@@ -191,7 +191,7 @@ fn view_turn_part(v: i32, numbers: &Numbers) -> [u8; 10] {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::{Base, view};
+    use crate::math::x87_mem::{Base, view};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {

@@ -75,7 +75,7 @@ pub fn reload_system_textures(
     grading.reading.set(0u32);
     grading.scale.set(0x100);
     grading.saturation.set(0x100);
-    crate::race::load_times::mark("load_hud_car_icons");
+    crate::logfile::load_times::mark("load_hud_car_icons");
     load_hud_car_icons(scene, race, gfx, system, &o.net.race_slot)?;
     crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
     crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);

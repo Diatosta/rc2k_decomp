@@ -94,17 +94,14 @@ fn known(written: &Table, path: &[String], value: Value) -> bool {
     }
 }
 
-/// The keys `read` left at their defaults because their values were bad, as paths
-/// (`display.menu_mode`), for the program to tell the player. Taken once.
-static SKIPPED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
-
-/// The keys the last reads reset to their defaults (the list is emptied).
-pub fn take_skipped() -> Vec<String> {
-    std::mem::take(
-        &mut *SKIPPED
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner),
-    )
+/// What `read` made of a file.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Read {
+    /// The options the file gives.
+    pub options: Options,
+    /// The keys left at their defaults because their values were bad, as paths
+    /// (`display.menu_mode`), for the program to tell the player.
+    pub skipped: Vec<String>,
 }
 
 /// Every value of `table` that is not a table, with its path.
@@ -197,8 +194,8 @@ fn read_by_value(
 ///
 /// A value that is not valid (the wrong type, an out-of-range number, a text too long) is not
 /// a reason to refuse the file: it is left at its value in `base` and its path noted for
-/// `take_skipped`. A file that is not TOML at all, or has a bad `version`, is still refused.
-pub fn read(text: &str, base: &Options) -> Result<Option<Options>, OptionsError> {
+/// the result's `skipped`. A file that is not TOML at all, or has a bad `version`, is still refused.
+pub fn read(text: &str, base: &Options) -> Result<Option<Read>, OptionsError> {
     let given = text.parse::<Table>().map_err(text_error)?;
     match version_of(&given)? {
         Some(v) if v > VERSION => return Err(OptionsError::TooNew(v)),
@@ -212,15 +209,14 @@ pub fn read(text: &str, base: &Options) -> Result<Option<Options>, OptionsError>
         .map_err(text_error)
         .and_then(Document::into_options)
     {
-        Ok(options) => Ok(Some(options)),
+        Ok(options) => Ok(Some(Read {
+            options,
+            skipped: Vec::new(),
+        })),
         Err(_) => {
             let mut skipped = Vec::new();
             let options = read_by_value(&given, base, &mut skipped)?;
-            SKIPPED
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .extend(skipped);
-            Ok(Some(options))
+            Ok(Some(Read { options, skipped }))
         }
     }
 }
@@ -228,6 +224,11 @@ pub fn read(text: &str, base: &Options) -> Result<Option<Options>, OptionsError>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The options `read` gives, without the keys it skipped.
+    fn read_options(text: &str, base: &Options) -> Result<Option<Options>, OptionsError> {
+        read(text, base).map(|read| read.map(|read| read.options))
+    }
 
     fn sample() -> Options {
         let mut o = Options::default();
@@ -263,7 +264,7 @@ mod tests {
         let o = sample();
         let text = write(&o, None).unwrap();
         assert!(text.starts_with("version = 2\n"));
-        assert_eq!(read(&text, &Options::default()).unwrap(), Some(o));
+        assert_eq!(read_options(&text, &Options::default()).unwrap(), Some(o));
     }
 
     #[test]
@@ -271,9 +272,12 @@ mod tests {
         for salt in [0, 3, 1000] {
             let o = full_sample(salt);
             let text = write(&o, None).unwrap();
-            assert_eq!(read(&text, &Options::default()).unwrap(), Some(o.clone()));
+            assert_eq!(
+                read_options(&text, &Options::default()).unwrap(),
+                Some(o.clone())
+            );
             // The old file's bytes are the same from the model read back.
-            let back = read(&text, &Options::default()).unwrap().unwrap();
+            let back = read_options(&text, &Options::default()).unwrap().unwrap();
             assert_eq!(back.to_pieces(), o.to_pieces());
         }
     }
@@ -297,7 +301,7 @@ mod tests {
         assert!(text.contains("[[players.player_2.profiles]]"), "{text}");
         assert!(text.contains("[players.player_2.profiles.bindings.steering_axis]"));
         assert!(!text.contains("player_1.profiles"));
-        assert_eq!(read(&text, &Options::default()).unwrap(), Some(o));
+        assert_eq!(read_options(&text, &Options::default()).unwrap(), Some(o));
     }
 
     #[test]
@@ -336,7 +340,7 @@ mod tests {
         ] {
             assert!(text.contains(wanted), "{wanted} is not in\n{text}");
         }
-        let back = read(&text, &Options::default()).unwrap().unwrap();
+        let back = read_options(&text, &Options::default()).unwrap().unwrap();
         assert_eq!(back, o);
         assert_eq!(back.cars.first_numbers.0[3], u32::MAX);
     }
@@ -348,13 +352,13 @@ mod tests {
         base.players.records[0].0[4] = 9;
         let text = "version = 2\nfuture = 3\n[display]\nrace_mode = 9\nfuture_key = 'x'\n[later]\na = 1\n\
                     [players.player_2]\nnationality = 5\n";
-        let o = read(text, &base).unwrap().unwrap();
+        let o = read_options(text, &base).unwrap().unwrap();
         assert_eq!(o.display.race_mode, 9);
         assert_eq!(o.display.menu_mode, 3);
         assert_eq!(o.sound.master_volume, 11);
         assert_eq!(o.players.records[0].0[4], 9);
         assert_eq!(o.players.records[1].0[4], 5);
-        assert_eq!(read("", &base).unwrap(), Some(base));
+        assert_eq!(read_options("", &base).unwrap(), Some(base));
     }
 
     #[test]
@@ -363,7 +367,7 @@ mod tests {
         let base = sample();
         for value in ["true", "false", "1"] {
             let text = format!("version = 2\n[sound]\nmaster_volume = 4\nreverb = {value}\n");
-            let o = read(&text, &base).unwrap().unwrap();
+            let o = read_options(&text, &base).unwrap().unwrap();
             assert_eq!(o.sound.master_volume, 4);
         }
     }
@@ -373,7 +377,7 @@ mod tests {
         // Files written while the advanced page had an engine-loops row still have its key.
         let base = sample();
         let text = "version = 2\n[display]\nrace_mode = 9\nsmooth_engine = false\n";
-        let o = read(text, &base).unwrap().unwrap();
+        let o = read_options(text, &base).unwrap().unwrap();
         assert_eq!(o.display.race_mode, 9);
     }
 
@@ -382,7 +386,7 @@ mod tests {
         let base = sample();
         // The old advanced page's switch is read and ignored.
         let text = "version = 2\n[display]\nrace_mode = 9\nsplit_many = true\n";
-        let o = read(text, &base).unwrap().unwrap();
+        let o = read_options(text, &base).unwrap().unwrap();
         assert_eq!(o.display.race_mode, 9);
         assert_eq!(o.display.split_layout, 0);
         // The first layout is left out of the file; another is written and read back.
@@ -391,7 +395,14 @@ mod tests {
         chosen.display.split_layout = 2;
         let text = write(&chosen, None).unwrap();
         assert!(text.contains("split_layout = 2"));
-        assert_eq!(read(&text, &base).unwrap().unwrap().display.split_layout, 2);
+        assert_eq!(
+            read_options(&text, &base)
+                .unwrap()
+                .unwrap()
+                .display
+                .split_layout,
+            2
+        );
     }
 
     #[test]
@@ -399,7 +410,10 @@ mod tests {
         let old = "version = 2\nfuture = 3\n[later]\na = 1\n";
         let text = write(&sample(), Some(old)).unwrap();
         assert!(text.contains("future = 3") && text.contains("[later]"));
-        assert_eq!(read(&text, &Options::default()).unwrap(), Some(sample()));
+        assert_eq!(
+            read_options(&text, &Options::default()).unwrap(),
+            Some(sample())
+        );
     }
 
     #[test]
@@ -417,29 +431,35 @@ mod tests {
             "{text}"
         );
         assert!(text.contains("future = 3"), "{text}");
-        assert_eq!(read(&text, &Options::default()).unwrap(), Some(sample()));
+        assert_eq!(
+            read_options(&text, &Options::default()).unwrap(),
+            Some(sample())
+        );
     }
 
     #[test]
     fn a_file_of_the_first_version_is_not_read_nor_kept() {
         let first = "version = 1\nfuture = 3\n[display]\nmenu_mode = 7\n[players]\n\
                      names = [\"41\", \"42\", \"43\", \"44\"]\n";
-        assert_eq!(read(first, &Options::default()).unwrap(), None);
+        assert_eq!(read_options(first, &Options::default()).unwrap(), None);
         let text = write(&sample(), Some(first)).unwrap();
         assert!(text.starts_with("version = 2\n"));
         assert!(!text.contains("future") && !text.contains("names ="));
-        assert_eq!(read(&text, &Options::default()).unwrap(), Some(sample()));
+        assert_eq!(
+            read_options(&text, &Options::default()).unwrap(),
+            Some(sample())
+        );
     }
 
     #[test]
     fn bad_values_and_newer_versions_are_errors() {
         let base = Options::default();
         assert!(matches!(
-            read("version = 3", &base),
+            read_options("version = 3", &base),
             Err(OptionsError::TooNew(3))
         ));
         assert!(matches!(
-            read("version = 'x'", &base),
+            read_options("version = 'x'", &base),
             Err(OptionsError::Text(_))
         ));
         for bad in [
@@ -454,15 +474,18 @@ mod tests {
         ] {
             if bad == "[[" {
                 assert!(
-                    matches!(read(bad, &base), Err(OptionsError::Text(_))),
+                    matches!(read_options(bad, &base), Err(OptionsError::Text(_))),
                     "{bad}"
                 );
             } else {
                 // A bad value is reset to its default, not a reason to refuse the file.
-                assert_eq!(read(bad, &base).unwrap(), Some(base.clone()), "{bad}");
+                assert_eq!(
+                    read_options(bad, &base).unwrap(),
+                    Some(base.clone()),
+                    "{bad}"
+                );
             }
         }
-        let _ = take_skipped();
     }
 
     #[test]
@@ -471,14 +494,13 @@ mod tests {
         base.sound.master_volume = 77;
         let text = "version = 2\n[display]\nmenu_mode = \"wide\"\n[sound]\nmaster_volume = 90\n";
         let got = read(text, &base).unwrap().unwrap();
-        assert_eq!(got.sound.master_volume, 90);
-        assert_eq!(got.display.menu_mode, base.display.menu_mode);
-        // Other tests read bad values too: the list may hold theirs.
-        assert!(take_skipped().contains(&"display.menu_mode".to_string()));
+        assert_eq!(got.options.sound.master_volume, 90);
+        assert_eq!(got.options.display.menu_mode, base.display.menu_mode);
+        assert_eq!(got.skipped, ["display.menu_mode"]);
     }
 
     #[test]
     fn a_file_that_is_not_toml_is_still_refused() {
-        assert!(read("[display\nmenu_mode = ", &Options::default()).is_err());
+        assert!(read_options("[display\nmenu_mode = ", &Options::default()).is_err());
     }
 }

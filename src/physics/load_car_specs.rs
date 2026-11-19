@@ -14,8 +14,8 @@
 //! Refuses (before anything) a drive kind past 3 (`rev_limits` holds two floats; kinds 0 ..= 2 are
 //! read, kind 2 into `camera_drop`).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;

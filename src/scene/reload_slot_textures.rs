@@ -18,7 +18,7 @@ pub fn reload_slot_textures(
     crate::logfile::log_write::log_nul(c"------------------------------------", true, 1);
     crate::logfile::log_write::log_nul(c"reload video plates - start", true, 1);
     clear_slot_textures(scene);
-    crate::race::load_times::mark("load_wanted_textures");
+    crate::logfile::load_times::mark("load_wanted_textures");
     load_wanted_textures(frame, scene)?;
     crate::logfile::log_write::log_nul(c"reload video plates - finis", true, 1);
     crate::logfile::log_write::log_nul(c"------------------------------------", true, 1);

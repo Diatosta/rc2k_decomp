@@ -78,7 +78,11 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
         }
         if !sideways || screens.flow.quiet.get() != 1 {
             crate::sound::play_menu_sound::play_menu_sound_in_game(
-                o.sound, o.audio, o.menus, o.system, 1,
+                o.sound,
+                o.audio,
+                o.menus,
+                &o.system.session.picture_clock,
+                1,
             );
         }
         match to {

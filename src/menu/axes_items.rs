@@ -181,6 +181,11 @@ pub fn row_label(row: Row) -> u32 {
 pub fn learn_row(o: crate::owners::Owners<'static>, slot: u8) {
     let controls = &o.menus.screens.controls;
     if let Some(row) = row_at(controls, shifter_on(o.menus, o.input), slot as usize) {
-        crate::menu::learn_bindings::learn_binding(controls, o.system, o.input, row.control());
+        crate::menu::learn_bindings::learn_binding(
+            controls,
+            &o.system.session.picture_clock,
+            o.input,
+            row.control(),
+        );
     }
 }

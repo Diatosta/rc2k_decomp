@@ -5,7 +5,7 @@
 
 use crate::math::cells::{Cells, load};
 use crate::math::x87_float::{ONE, compare, ld, stf};
-use crate::scene::x87_mem::{Base, cells, fld, fnstsw, fstp80};
+use crate::math::x87_mem::{Base, cells, fld, fnstsw, fstp80};
 
 /// `scene::normalise_vector3`: the three floats each times 1 over their length (the root of the
 /// squares, the last two added first).

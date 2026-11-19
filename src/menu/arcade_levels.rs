@@ -17,7 +17,7 @@ pub fn arcade_level(o: Owners<'static>, level: u32) -> Result<(), Refused> {
             o.sound,
             o.audio,
             o.menus,
-            o.system,
+            &o.system.session.picture_clock,
             CLOSED_SOUND,
         );
         return Ok(());

@@ -53,7 +53,7 @@ pub fn draw_distance_settings(course: &Course) {
 /// corners are blended along x and then along z, each step a product shifted right by 16; the
 /// result shifted left 8 is returned.
 pub fn sample_noise(
-    tables: &crate::scene::engine_tables_store::EngineTables,
+    tables: &crate::math::engine_tables::EngineTables,
     car: &crate::physics::car_store::Car<impl crate::memory::session::CellKind>,
     map: usize,
 ) -> Result<u32, BadInput> {
@@ -89,7 +89,7 @@ pub fn sample_noise(
 /// value (held). The step (`fog_step`) and the near value (`fog_near`) are not stored: nothing
 /// reads them. Refused (before anything): a table length of 0 or past 0x1000.
 pub fn fog_table(
-    tables: &crate::scene::engine_tables_store::EngineTables,
+    tables: &crate::math::engine_tables::EngineTables,
     prefs: &crate::race::prefs_store::StagePrefs,
     fog: &crate::scene::fog::Fog,
     car: &crate::physics::car_store::ViewCar,
@@ -128,7 +128,7 @@ pub fn fog_table(
 /// into the view's `fog`; the colour with 0xFF000000 goes to the device. Refused (before anything):
 /// what `fog_table` would refuse.
 pub fn set_up_fog(
-    tables: &crate::scene::engine_tables_store::EngineTables,
+    tables: &crate::math::engine_tables::EngineTables,
     prefs: &crate::race::prefs_store::StagePrefs,
     fog: &crate::scene::fog::Fog,
     poly: &crate::scene::polygon_work::PolygonWork,
@@ -169,7 +169,7 @@ pub fn set_up_fog(
 /// `race().frame.view_and_records.view_vars.view_angles[2]` ..
 /// `race().frame.view_and_records.view_vars.view_angles[5]` 0 both ways.
 pub fn place_view(
-    tables: &crate::scene::engine_tables_store::EngineTables,
+    tables: &crate::math::engine_tables::EngineTables,
     course: crate::race::owner_course::CourseReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {

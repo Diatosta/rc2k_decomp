@@ -31,7 +31,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     let input = o.input;
     #[cfg(feature = "remote")]
     crate::race::course_hash::reset_texture_hash();
-    crate::race::load_times::begin("load_stage: loading picture, car sounds");
+    crate::logfile::load_times::begin("load_stage: loading picture, car sounds");
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
             .atomic()
@@ -48,7 +48,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     log();
     log();
     indent(3);
-    crate::race::load_times::mark("show loading picture");
+    crate::logfile::load_times::mark("show loading picture");
     if !race.shared.work.get().in_credits.is_set() {
         // The same picture as `menu::show_loading_picture` shows.
         crate::gfx::show_picture_file::show_picture_file(o, &o.menus.texts.loading_pcx)?;
@@ -56,8 +56,8 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     }
     race.shared.view.get().lights_follow_view.set(0u32);
     race.replay.replay_frames().last_kept.set(u32::MAX);
-    crate::race::load_times::mark("wake car sounds");
-    crate::race::sounds::wake_car_sounds(race, o.sound, o.audio, o.system)?;
+    crate::logfile::load_times::mark("wake car sounds");
+    crate::race::sounds::wake_car_sounds(race, o.sound, o.audio, &o.system.session.picture_clock)?;
     indent(-3);
     log();
     indent(3);
@@ -85,7 +85,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     indent(-3);
     log();
     indent(3);
-    crate::race::load_times::phase("load_stage: music");
+    crate::logfile::load_times::phase("load_stage: music");
     if race.replay.finish.get().no_place.get() != 0 {
         crate::race::music::game_music(&race.shared, o);
     } else {
@@ -94,17 +94,17 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     indent(-3);
     log();
     indent(3);
-    crate::race::load_times::phase("load_stage: create controls");
+    crate::logfile::load_times::phase("load_stage: create controls");
     crate::race::create_controls::create_controls(input, race.shared.view.get().players.get());
     indent(-3);
     log();
     indent(3);
-    crate::race::load_times::phase("load_stage: race init");
+    crate::logfile::load_times::phase("load_stage: race init");
     crate::drive::race_init::race_init(o, race)?;
-    crate::race::load_times::phase("load_stage: starting values");
+    crate::logfile::load_times::phase("load_stage: starting values");
     crate::scene::restart_clock::restart_clock(
         &race.shared,
-        crate::system::tick_count::tick_count(&o.system.session.picture_clock),
+        crate::clock::tick_count::tick_count(&o.system.session.picture_clock),
     );
     let clock: u32 = race.shared.physics_tables.get().scene_clock.get();
     race.frame.clock_ticks().clock_b.set(clock);
@@ -140,6 +140,6 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     newline();
     #[cfg(feature = "remote")]
     crate::race::course_hash::log_started_hashes(race);
-    crate::race::load_times::end();
+    crate::logfile::load_times::end();
     Ok(())
 }

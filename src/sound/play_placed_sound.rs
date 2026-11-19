@@ -14,7 +14,7 @@
 //! a sound past the 0x1CD sample records.
 
 use crate::errors::BadInput;
-use crate::scene::x87_mem::{Base, cells, fistp, fld, fstp};
+use crate::math::x87_mem::{Base, cells, fistp, fld, fstp};
 use crate::sound::sets_store::SoundRequest;
 use rc2k_core::sound::placed::{self, MODE_3D};
 

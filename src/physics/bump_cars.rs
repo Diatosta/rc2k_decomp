@@ -11,8 +11,8 @@
 //! Refuses a null block (before anything), and what `place_sound_e1_other` refuses (what was
 //! written is put back).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::ZERO_BITS as ZERO;
@@ -164,7 +164,7 @@ fn add_push(car: &Car, contact: &ContactWork, d: &[impl FloatLike; 3]) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::view;
+    use crate::math::x87_mem::view;
     use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 

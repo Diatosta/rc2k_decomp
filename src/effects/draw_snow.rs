@@ -13,12 +13,12 @@
 //! dry pass, its scratch put back), more than 0x800 flakes, null marks settings with a flake, a
 //! curve index past the 4095 entries and a fade index past the 17.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::rain::Weather;
 use crate::effects::snow::{SnowLight, SnowState, SnowTables};
 use crate::effects::tuning::MarksFloats;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 
 const MOST: i32 = 0x800;
 const CURVE: u32 = 4095;
@@ -43,7 +43,7 @@ fn square(
     let mut w = [0u32; 32];
     square_x87(
         front,
-        crate::scene::x87_mem::cells(&mut w),
+        crate::math::x87_mem::cells(&mut w),
         i as usize,
         &weather.snow_tables,
         &weather.snow,
@@ -166,7 +166,7 @@ pub fn draw_snow(
 }
 
 use crate::math::x87_float as bh;
-use crate::scene::x87_mem::{Base, fild as ldi, fld as ld, fstp as st};
+use crate::math::x87_mem::{Base, fild as ldi, fld as ld, fstp as st};
 
 /// `turn`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_x87(v: impl Base, s: &SnowState) {

@@ -6,7 +6,7 @@
 //!
 //! The x87 run is plain Rust over `X` (`math/x87_float.rs`).
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87_float::int;
 use crate::physics::car_store::Car;

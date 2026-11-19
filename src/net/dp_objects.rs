@@ -994,7 +994,7 @@ mod tests {
                 crate::net::take_messages::take_messages(
                     &net,
                     lines,
-                    &crate::system::tick_count::PictureClock::new()
+                    &crate::clock::tick_count::PictureClock::new()
                 )
                 .is_ok()
             );

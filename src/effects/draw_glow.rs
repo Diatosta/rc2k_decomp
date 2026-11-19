@@ -12,7 +12,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 /// The render states (`scene::set_render_state`), the texture (`scene::set_texture`),
 /// `draw_turned_sprite`.
 pub fn draw_glow(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,

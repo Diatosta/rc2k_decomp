@@ -191,8 +191,11 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     };
     let seal_fault = crate::menu::event_flow::Fault::default();
     let mut seal_code = |a: u32, b: u32| {
+        let seal_work = o.race.replay.seal_work();
+        seal_work.sealed[0].set(a);
+        seal_work.sealed[1].set(b);
         seal_fault.ok(crate::strings::format_seal_code::format_seal_code(
-            o.race, o.strings, a, b,
+            o.strings, a, b,
         ));
         let text = o.strings.text.seal_text.read();
         seal_fault

@@ -1,7 +1,7 @@
 //! `race::start_frame_pictures`: starts saving the replay's frames as pictures
 //! (`race::replay_screenshot` saves one each frame). The rate is held to 1 .. 100 (signed); the
 //! time a picture takes is the given ms, or for 0 1000 / the rate. The folder `rpl` is made,
-//! `replay_recording` is set to 1, and the picture clock (`system::tick_count::PICTURE_CLOCK`)
+//! `replay_recording` is set to 1, and the picture clock (`clock::tick_count::PICTURE_CLOCK`)
 //! is reset to 0.
 //!
 //! Takes the ms a picture takes, or 0 for the rate's.
@@ -12,7 +12,7 @@ use crate::race::owner::Race;
 /// Starts the picture series; `picture_ms` is the ms a picture takes, or 0 for the rate's.
 pub fn start_frame_pictures(
     race: &Race,
-    clock: &crate::system::tick_count::PictureClock,
+    clock: &crate::clock::tick_count::PictureClock,
     picture_ms: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::race::viewer::{picture_rate, picture_time};

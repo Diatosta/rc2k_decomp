@@ -3,8 +3,8 @@
 //! car blocks reset, a two-player rule, the two players' kinds) and the cars' data file read
 //! (`race::read_stage_car_numbers`: per stage, three-digit numbers into `stage_numbers`).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float as bh;
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;

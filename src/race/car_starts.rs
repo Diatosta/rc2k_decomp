@@ -46,7 +46,7 @@ fn settle_step(low: u32, high: u32, angle: &impl DwordLike, step: &impl DwordLik
 
 /// The matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`).
 fn matrix_and_wheels(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     ground: &GroundInputs<'_>,
     matrices: &SceneMatrices,
     scene: &crate::scene::owner::Scene,

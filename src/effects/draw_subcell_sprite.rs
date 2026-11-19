@@ -10,12 +10,12 @@
 //! The x87 blocks are plain Rust on the x87 model (`math::x87_float`). Refuses, before anything, a
 //! subcell past the table's 0x400, a null entry, and the fog's and the clip's refusals.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::scene::fog_at::fog_at;
 
 /// The sub-cell places in the surface's table. The bursts, the only entries drawn this way,

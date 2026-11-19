@@ -3,7 +3,7 @@
 //! unordered value is left); d = (n - the car's `gear_ratio_setting`) / n; `torque_share` = d +
 //! (1 - d) s, and `drive_torque` is multiplied by it.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::toward_one;
 use crate::math::x87_float as bh;

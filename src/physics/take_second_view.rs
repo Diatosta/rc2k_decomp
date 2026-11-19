@@ -4,7 +4,7 @@
 //! unless the mode before (`camera_blend_view`) is 1, 2 or 3, into `view_b_pitch` and
 //! `view_b_roll`.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::ld;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
@@ -80,7 +80,7 @@ mod reference_vectors {
             plain: |a| {
                 x87_1(
                     race().physics.camera(),
-                    [4, 8, 0xC].map(|o| crate::scene::x87_mem::Base::dword(a[0], o)),
+                    [4, 8, 0xC].map(|o| crate::math::x87_mem::Base::dword(a[0], o)),
                     crate::test_support::own::scene(),
                 );
             },

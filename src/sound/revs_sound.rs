@@ -136,7 +136,7 @@ fn linear(input: &PlainFloat, slope: &PlainDword, start: &PlainDword) -> X {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::view;
+    use crate::math::x87_mem::view;
     use crate::sound::asm_layout::{Laid, with_laid};
     use crate::sound::store::{SoundObject, SurfaceSounds};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_locked};

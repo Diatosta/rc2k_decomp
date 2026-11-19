@@ -63,7 +63,7 @@ fn step_shape(
         // The phase advances: in the list's order, after the views before this one have
         // stepped the face (the mirror then finds the view's new state and does not advance
         // it again, as when one thread draws them in turn).
-        crate::scene::workers::wait_for_earlier_runs();
+        crate::memory::draw_order::wait_for_earlier_runs();
         [last, time, length, phase] = read()?;
     }
     time = time.wrapping_add(clock.wrapping_sub(last).min(100));

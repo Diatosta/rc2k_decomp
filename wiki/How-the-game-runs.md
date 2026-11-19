@@ -231,7 +231,7 @@ Most functions return `Result<_, Refused>`, where `Refused` is either of these.
 
 | If you want to change or understand | Start in |
 | --- | --- |
-| A menu screen's layout or items | its `src/menu/..._loop.rs`, and the drawing routine it names in `src/screens/` |
+| A menu screen's layout or items | its own file in `src/menu/`, named after the screen with `_loop.rs` (`arcade_results_loop.rs`), and the drawing routine it names in `src/screens/` |
 | The order of screens in an event | `rc2k_core/src/menu/rounds.rs`, `championship.rs`; `src/menu/event_flow.rs` |
 | Starting a race from the command line | `src/menu/launch.rs`, `rc2k_core/src/menu/launch.rs` |
 | How a car drives | `src/physics/` (start at `car_physics_step.rs`) |

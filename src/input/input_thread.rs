@@ -38,7 +38,7 @@ fn wait_while_unfocused(system: &System) {
         if flags.window_focused.get() == 1 || flags.quitting.is_set() {
             return;
         }
-        crate::system::sleep::sleep(UNFOCUSED_LOOK_MS);
+        crate::clock::sleep::sleep(UNFOCUSED_LOOK_MS);
     }
 }
 
@@ -68,14 +68,14 @@ pub fn input_thread(
         }
         crate::input::list_joysticks::list_joysticks(input, system);
         set_priority(2);
-        let mut last = crate::system::tick_count::tick_count(&system.session.picture_clock);
+        let mut last = crate::clock::tick_count::tick_count(&system.session.picture_clock);
         input.devices.last_tick.set(last);
         loop {
             let mut gone;
             loop {
-                crate::system::sleep::sleep(5);
+                crate::clock::sleep::sleep(5);
                 last = input.devices.last_tick.get();
-                gone = crate::system::tick_count::tick_count(&system.session.picture_clock)
+                gone = crate::clock::tick_count::tick_count(&system.session.picture_clock)
                     .wrapping_sub(last);
                 if gone >= TICK_MS {
                     break;

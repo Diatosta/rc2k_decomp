@@ -230,6 +230,31 @@ pub fn anchor_of(x: f32, rule: Rule) -> Anchor {
     }
 }
 
+/// How the pieces drawn next keep to the screen where it is wider than 4:3 (`hud::place`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Keep {
+    /// Each piece to the third of the layout it lies in.
+    Thirds = 0,
+    /// Each piece to its own half of the screen (two players side by side: each half is a part
+    /// of its own, its layout kept in the shape of the part, `rc2k_core::hud::anchor::Beside`).
+    Halves = 1,
+    /// All to the middle.
+    Middle = 2,
+    /// Stretched over the whole width (the divider of two players one above the other).
+    Whole = 3,
+    /// The top bar over the whole width of the screen, whatever the HUD's box: its end caps and
+    /// what lies on them keep to the edges, its middle stretches (`rc2k_core::hud::anchor::bar_x`).
+    Bar = 4,
+    /// A small piece on the top bar's middle part: its middle goes where the bar puts it and it
+    /// keeps its shape.
+    BarMarker = 5,
+    /// Already in screen pixels (the HUD of three or four players, `hud::layout_many`).
+    Pixels = 6,
+    /// The middle of its own half of the screen (two players side by side), as one piece with
+    /// what is drawn beside it under this rule.
+    PartMiddle = 7,
+}
+
 /// Where the top bar's middle part begins and ends in the layout: the bar's two end caps, which
 /// hold the clocks and names, lie left and right of it.
 pub const BAR_WINDOW: (f32, f32) = (137.0, 687.0);

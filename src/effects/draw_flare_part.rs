@@ -32,7 +32,7 @@ fn abs16(a: u32, b: u32) -> u32 {
     reason = "the original's registers, the effects' groups and the owners"
 )]
 pub fn draw_flare_part(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     corner: u32,
     angle: u32,
@@ -86,8 +86,8 @@ pub fn draw_flare_part(
             (x87::sub(width, sw), x87::sub(height, sh)),
             (x87::sub(0, sw), x87::sub(height, sh)),
         ];
-        let sin = crate::scene::engine_tables_store::sine(engine_tables, turn as usize).get();
-        let cos = crate::scene::engine_tables_store::cosine(engine_tables, turn as usize).get();
+        let sin = crate::math::engine_tables::sine(engine_tables, turn as usize).get();
+        let cos = crate::math::engine_tables::cosine(engine_tables, turn as usize).get();
         let depth = x87::mul(&effects.frame.draw_work.near, &effects.frame.draw_work.z_k);
         for (n, (x, y)) in corners.into_iter().enumerate() {
             let vertex = &buffer.vertices[n];

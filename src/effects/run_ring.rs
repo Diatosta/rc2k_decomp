@@ -9,7 +9,6 @@
 //! the game's variables. Refuses, before anything, null settings, a null entry or link on the way,
 //! a null object where one is read, and the draws' own refusals for an entry that may be drawn.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::emitters::matrix_float;
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_entries::{entry, ld, set, st, walk_ring};
@@ -18,6 +17,7 @@ use crate::effects::ring_store::RingWork;
 use crate::effects::setup::MarksClock;
 use crate::effects::tuning::MarksFloats;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::scene::matrix3::extended;

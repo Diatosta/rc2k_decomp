@@ -16,8 +16,8 @@
 //! See `race/mud.rs`. Refuses (before anything) a texture past 3 and no mud, and its callees'
 //! refusals (the counts, the throws and the random state are put back).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::{int, to_int};
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::flow::c0;
@@ -174,8 +174,8 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     round_units(
-                        crate::scene::x87_mem::view::<PlainFloat>(a[0], 0),
-                        crate::scene::x87_mem::view::<PlainDword>(a[1], 0),
+                        crate::math::x87_mem::view::<PlainFloat>(a[0], 0),
+                        crate::math::x87_mem::view::<PlainDword>(a[1], 0),
                     );
                 },
             },
@@ -194,8 +194,8 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     subtract_units(
-                        crate::scene::x87_mem::view::<PlainFloat>(a[0], 0),
-                        crate::scene::x87_mem::view::<PlainDword>(a[1], 0),
+                        crate::math::x87_mem::view::<PlainFloat>(a[0], 0),
+                        crate::math::x87_mem::view::<PlainDword>(a[1], 0),
                     );
                 },
             },

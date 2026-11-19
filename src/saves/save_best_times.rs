@@ -6,10 +6,10 @@
 //! the size its pair of variables holds; the file is closed. A file that cannot be opened, or a write that falls short, is a failure
 //! (logged; the result is false). Refuses what `resolve_path` refuses.
 
+use crate::clock::packed_local_time::packed_local_time;
 use crate::errors::Refused;
 use crate::files::handle::{close, open_by_mode};
 use crate::saves::owner::Saves;
-use crate::system::packed_local_time::packed_local_time;
 
 /// The tables of `allocate_best_times` the file holds, in the file's order.
 const WRITTEN: [usize; 6] = [1, 2, 3, 4, 7, 8];

@@ -1,5 +1,5 @@
 //! `menu::list_take_key`: a list menu's key: the pending key taken (`input::take_key`); none: a
-//! millisecond's sleep (`system::sleep`). A key: the key repeat count is reset unless it is the
+//! millisecond's sleep (`clock::sleep`). A key: the key repeat count is reset unless it is the
 //! last key again and the time since the last key (less 6) is negative, then one more; the key
 //! is kept as the last key.
 
@@ -10,7 +10,7 @@ pub fn list_take_key(
 ) -> u8 {
     let key = crate::input::take_key::take_key(input);
     if key == 0 {
-        crate::system::sleep::sleep(1);
+        crate::clock::sleep::sleep(1);
     } else {
         let repeated = key == list_state.last_key.get();
         let (mut frame, mut moved) = (0, 0);

@@ -20,7 +20,7 @@
 //! - `damage_failed` = 0 when five figures are all below `DamageModel.gauge_top`, else 1, and then
 //!   `engine_power_factor` = 0 unless `electrics_damage` is below it.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::{compare_full, ext_times, one_less_products, ramp};
 use crate::math::x87_float as bh;

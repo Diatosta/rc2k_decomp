@@ -93,11 +93,11 @@ pub struct ViewerPanelBlock {
     pub kept_patch_switches: [PlainDword; 13],
     /// +0x3b0: the frames are saved as pictures (`race::viewer`, `race::replay_screenshot`).
     pub replay_recording: PlainDword,
-    /// +0x3b4: the picture clock, moved to `system::tick_count::PICTURE_CLOCK.clock`; the bytes
+    /// +0x3b4: the picture clock, moved to `clock::tick_count::PICTURE_CLOCK.clock`; the bytes
     /// stay, unused.
     pub picture_clock_unused: PlainDword,
     /// +0x3b8: whether the pictures have started, moved to
-    /// `system::tick_count::PICTURE_CLOCK.started`; the bytes stay, unused.
+    /// `clock::tick_count::PICTURE_CLOCK.started`; the bytes stay, unused.
     pub pictures_started_unused: PlainDword,
     /// +0x3bc: the pictures' folder: the text rpl and a NUL (`race::start_frame_pictures`).
     pub picture_folder: PlainDword,

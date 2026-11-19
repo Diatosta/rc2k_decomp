@@ -3,8 +3,8 @@
 //! +0x30 / +0x38 and +0x1C / +0x34 / +0x3C its two triangles' normals (as `face_turned_to_view`
 //! reads them), +0x20 / +0x21 the second's flags and object. This file holds its leaves.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::memory::session::byte_of;
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::face_work::FaceWork;

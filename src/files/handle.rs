@@ -57,7 +57,7 @@ pub const NO_HANDLE: u32 = u32::MAX;
 /// open-or-create and a truncation, so a hidden or system file is replaced where
 /// `CREATE_ALWAYS` with normal attributes would fail. `path` is without its NUL.
 pub fn open_by_mode(path: &[u8], mode: u32) -> Result<Option<u32>, BadInput> {
-    let _timed = crate::race::load_times::scope(crate::race::load_times::Category::FileRead);
+    let _timed = crate::logfile::load_times::scope(crate::logfile::load_times::Category::FileRead);
     if mode >= MODE_COUNT {
         return Err(BadInput("a file mode past the table"));
     }
@@ -112,7 +112,7 @@ fn with_file<R>(
 /// (the bytes read, whether the read succeeded): one `ReadFile` into a Rust buffer. A
 /// short read is not a failure.
 pub fn read_slice(file: u32, into: &mut [u8]) -> (u32, bool) {
-    let _timed = crate::race::load_times::scope(crate::race::load_times::Category::FileRead);
+    let _timed = crate::logfile::load_times::scope(crate::logfile::load_times::Category::FileRead);
     match with_file(file, |f| f.read(into)) {
         Ok(n) => (n as u32, true),
         Err(_) => (0, false),

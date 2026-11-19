@@ -25,8 +25,8 @@
 //! Refuses (before anything) a current car past 7, and what its calls refuse; the work car and the
 //! physics' variables are put back then (the callees put back their own other writes).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87::loaded;
 use crate::memory::session::DwordLike;
 use crate::physics as ph;

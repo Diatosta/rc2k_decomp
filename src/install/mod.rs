@@ -63,6 +63,7 @@ pub mod list_drives;
 pub mod list_files;
 pub mod list_folder;
 pub mod list_folder_tree;
+pub mod list_pages;
 pub mod make_folders;
 pub mod mark_main_page;
 pub mod mark_page;

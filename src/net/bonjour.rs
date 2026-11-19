@@ -16,6 +16,7 @@
 use std::net::SocketAddr;
 
 /// The service type announced and listened for.
+#[cfg_attr(web, allow(dead_code, reason = "the web build has no network"))]
 const SERVICE: &str = "_rc2k._udp";
 
 /// A session announced until this is dropped.

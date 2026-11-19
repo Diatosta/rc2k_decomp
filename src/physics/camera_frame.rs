@@ -6,8 +6,8 @@
 //!
 //! Refuses what `update_camera` refuses (everything written is put back).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::physics::step_families::CameraInputs;

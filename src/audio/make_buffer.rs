@@ -31,6 +31,7 @@ pub struct BufferDescription {
     pub format: u32,
 }
 
+crate::memory::cells::plain_record!(BufferDescription = 0x14);
 /// True when it worked.
 pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Refused> {
     let mode = state.sound_mode.get();

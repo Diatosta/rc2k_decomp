@@ -14,6 +14,7 @@ pub mod messages;
 pub mod net_race;
 pub mod password;
 pub mod players;
+pub mod protocol;
 pub mod race;
 pub mod record;
 pub mod screens;

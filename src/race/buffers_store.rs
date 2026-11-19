@@ -3,9 +3,9 @@
 //! not seven: the checkpoint tables are read by a number held to the count
 //! (`race::checkpoints_store::nth`), and the pieces of the read tables stay together.
 
+use crate::math::engine_tables::EngineTables;
 use crate::memory::session::DrawShared;
 use crate::race::checkpoints_store::Checkpoints;
-use crate::scene::engine_tables_store::EngineTables;
 use crate::scene::faces_store::Faces;
 use crate::scene::polygon_store::PolygonTables;
 
@@ -26,7 +26,7 @@ pub struct BufferReads {
     pub faces: Faces,
     /// `race::checkpoints_store`.
     pub checkpoints: Checkpoints,
-    /// `scene::engine_tables_store`.
+    /// `math::engine_tables`.
     pub engine_tables: EngineTables,
 }
 

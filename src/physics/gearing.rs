@@ -6,8 +6,8 @@
 //! both set: by the look of it four-wheel drive (a reading, not seen in a race). The exact x87
 //! versions (`*_at`) serve the Rust callers in the gearbox.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::memory::session::{PlainDword, PlainFloat, PlainInt};

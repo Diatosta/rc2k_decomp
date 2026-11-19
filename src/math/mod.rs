@@ -2,7 +2,9 @@
 //! `stir_random`), and the arithmetic that reproduces the x87 unit's rounding (`x87_float::X` and
 //! the operations in `x87`), on which replays depend bit for bit.
 
+pub mod cell_x87;
 pub mod cells;
+pub mod engine_tables;
 pub mod nearest_on_segment;
 pub mod next_random;
 pub mod normalise_vector;
@@ -21,6 +23,7 @@ mod x87_frozen_a;
 mod x87_frozen_b;
 #[cfg(test)]
 mod x87_frozen_c;
+pub(crate) mod x87_mem;
 #[cfg(test)]
 mod x87_merged_tests;
 #[cfg(test)]

@@ -13,7 +13,7 @@ use rc2k_core::physics::camera_ground::SIDES;
 /// Whether the camera and both sides are over ground.
 // Core: `rc2k_core::physics::camera_ground::SIDES`.
 pub fn camera_over_ground(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     c: &CameraGroundInputs<'_>,
 ) -> Result<bool, Refused> {
     if !probe_at(

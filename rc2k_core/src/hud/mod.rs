@@ -5,6 +5,7 @@ pub mod batch;
 pub mod disc;
 pub mod icons;
 pub mod panels;
+pub mod place;
 pub mod quads;
 pub mod signs;
 pub mod stage_bars;

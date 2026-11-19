@@ -11,8 +11,8 @@
 //!
 //! Refuses (before anything) what the two calls refuse.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::ext_to_int;
 use crate::math::x87_float::stf;

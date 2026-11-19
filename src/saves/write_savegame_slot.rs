@@ -6,6 +6,7 @@
 //! caller: `menu::edit_savegame_name`. Refuses a slot past 99 and what `gather_savegame`
 //! refuses.
 
+use crate::clock::packed_local_time::packed_local_time;
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::write_file::write_file_from;
@@ -14,7 +15,6 @@ use crate::menu::name_lists::NAME_LEN;
 use crate::menu::owner::Menus;
 use crate::saves::gather_savegame::gather_savegame;
 use crate::saves::owner::Saves;
-use crate::system::packed_local_time::packed_local_time;
 
 pub const FILE_LEN: usize = 0x8000;
 pub const SLOTS: u32 = 100;

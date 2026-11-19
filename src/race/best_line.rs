@@ -3,8 +3,8 @@
 //! shares. `best_line` reads the loaded course and returns everything as a `BestLine`;
 //! `store_best_line` writes it into the race's tables.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::memory::session::{PlainDword, PlainFloat};
@@ -636,12 +636,12 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         |at: &std::ffi::CStr, newline: bool| crate::logfile::log_write::log_nul(&at, newline, 1);
     text(RULE, true);
     let line = best_line(race, &mut |step| {
-        crate::race::load_times::mark(step.mark());
+        crate::logfile::load_times::mark(step.mark());
         if let Some(word) = step.word() {
             text(word, false);
         }
     })?;
-    crate::race::load_times::mark("best_line store");
+    crate::logfile::load_times::mark("best_line store");
     store_best_line(race, scene, &line)?;
     *race
         .course
@@ -649,7 +649,7 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         .best_line
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(line);
-    crate::race::load_times::mark("best_line summary");
+    crate::logfile::load_times::mark("best_line summary");
     text(c"best line completed", true);
     let summary = [
         (c"dir", race.shared.work.get().stage_direction.get()),

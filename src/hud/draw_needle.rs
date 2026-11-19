@@ -66,7 +66,7 @@ fn turn_plain(a: [f32; 6]) -> u32 {
 
 /// The runs over the test's operand buffers (`[a + 4 k]`, the result at `[o]`).
 #[cfg(test)]
-fn x87_1(a: impl crate::scene::x87_mem::Base, o: impl crate::scene::x87_mem::Base) {
+fn x87_1(a: impl crate::math::x87_mem::Base, o: impl crate::math::x87_mem::Base) {
     o.set_dword(
         0,
         turn_less(std::array::from_fn(|k| f32::from_bits(a.dword(4 * k)))),
@@ -74,7 +74,7 @@ fn x87_1(a: impl crate::scene::x87_mem::Base, o: impl crate::scene::x87_mem::Bas
 }
 
 #[cfg(test)]
-fn x87_2(a: impl crate::scene::x87_mem::Base, o: impl crate::scene::x87_mem::Base) {
+fn x87_2(a: impl crate::math::x87_mem::Base, o: impl crate::math::x87_mem::Base) {
     o.set_dword(
         0,
         turn_plain(std::array::from_fn(|k| {

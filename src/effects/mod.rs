@@ -20,7 +20,6 @@ pub mod blend_points;
 pub mod blocks;
 pub mod burst_particles;
 pub mod cars_particles;
-pub mod cell_x87;
 pub mod clip;
 pub mod clip_quad;
 pub mod copy_first_point;

@@ -6,6 +6,7 @@
 #![deny(clippy::undocumented_unsafe_blocks, clippy::missing_safety_doc)]
 
 mod audio;
+mod clock;
 mod d3d;
 mod debug;
 mod drive;

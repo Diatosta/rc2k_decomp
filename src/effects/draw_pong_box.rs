@@ -7,10 +7,10 @@
 //!
 //! The x87 runs are plain Rust on the x87 model (`math::x87_float`).
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::pong::{Pong, PongState};
 use crate::effects::tuning::MarksFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 
 /// The sides, from the four values; the place's two values (left untouched) popped after.

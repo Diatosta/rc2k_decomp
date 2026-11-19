@@ -55,7 +55,7 @@ When it returns, the main loop asks the program to quit. What the pages asked to
 A page is a **list menu**: a title and a column of items, each of which leaves the page with an
 answer, does something, is a choice between values, or is a line of text to edit. The pages'
 lists are typed records in `src/install/vars.rs`; the record layout is described in
-`src/memory/list_handle.rs`.
+`src/memory/list_handle.rs` (the layout) and `src/install/list_pages.rs` (the installer's lists and their links).
 
 `install::run_page` (`src/install/run_page.rs`) runs one page until it is left. Each frame it
 lays the page out, draws it over the backdrop, and takes a key. The key is offered first to
@@ -211,7 +211,7 @@ environment variable `RC2K_DOWNLOAD`. See [Testing](Testing).
 | --- | --- |
 | When the installer runs | `src/system/main_loop.rs`, `src/install/portable.rs` |
 | The installer's outline | `src/install/run_installer.rs`, `run_pages.rs`, `rc2k_core/src/install/flow.rs` |
-| How a page works | `src/install/run_page.rs`, `page_key.rs`, `src/memory/list_handle.rs` |
+| How a page works | `src/install/run_page.rs`, `page_key.rs`, `src/memory/list_handle.rs`, `src/install/list_pages.rs` |
 | The pages' lists, pieces and links | `src/install/vars.rs`, `page_records.rs`, `page_links.rs` |
 | What gets copied | `src/install/run_script.rs`, `install_files.rs` |
 | Per-system folder rules | `src/install/folders/` |

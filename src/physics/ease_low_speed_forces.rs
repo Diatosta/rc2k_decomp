@@ -2,7 +2,7 @@
 //! compare counts as below), `low_speed_share` = (|speed| / `low_speed_limit` +
 //! `low_speed_add`) x `low_speed_scale` and the two `drive_forces` are multiplied by it.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::abs_compare;
 use crate::physics::car_store::Car;

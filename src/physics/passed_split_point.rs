@@ -12,8 +12,8 @@
 //! Raises fatal error 0x80601843 as above. Refuses (before anything) a split past 0x40, a
 //! checkpoint past 0x1418, no faces or points.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;

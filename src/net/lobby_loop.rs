@@ -29,7 +29,7 @@ pub fn all_states(vars: &NetShared, bits: State, count: u32) -> State {
 /// Shared with `net::race_wait`.
 pub fn sync(
     net: &Net,
-    clock: &crate::system::tick_count::PictureClock,
+    clock: &crate::clock::tick_count::PictureClock,
     ready: bool,
 ) -> Result<bool, Refused> {
     let first = net.vars.sync_first.get();
@@ -38,7 +38,7 @@ pub fn sync(
         net.vars.clear_synced();
         net.vars.set_synced(net.race_slot.player() as usize, true)?;
     }
-    let now = crate::system::tick_count::tick_count(clock);
+    let now = crate::clock::tick_count::tick_count(clock);
     if (now
         .wrapping_sub(net.lobby().sync_clock.get())
         .wrapping_sub(1000) as i32)
@@ -113,7 +113,7 @@ fn settle_keys(input: &crate::input::owner::Input) {
     let until = std::time::Instant::now() + std::time::Duration::from_millis(400);
     while std::time::Instant::now() < until {
         if crate::input::take_key::take_key(input) == 0 {
-            crate::system::sleep::sleep(5);
+            crate::clock::sleep::sleep(5);
         }
     }
 }
@@ -137,7 +137,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     // which would open the chat before anyone asked for it.
     settle_keys(o.input);
     list_state.choice.set(3);
-    let tick = crate::system::tick_count::tick_count(&system.session.picture_clock);
+    let tick = crate::clock::tick_count::tick_count(&system.session.picture_clock);
     net.lobby().listed_at.set(tick);
     net.lobby().sync_clock.set(tick);
     net.vars.sync_first.set(1);
@@ -157,7 +157,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         if !net.link.has_dplay() {
             break;
         }
-        let tick = crate::system::tick_count::tick_count(&system.session.picture_clock);
+        let tick = crate::clock::tick_count::tick_count(&system.session.picture_clock);
         if (tick
             .wrapping_sub(net.lobby().listed_at.get())
             .wrapping_sub(1000) as i32)

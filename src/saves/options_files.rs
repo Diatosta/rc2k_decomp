@@ -10,8 +10,9 @@ use crate::saves::load_options::load_game_options;
 use crate::saves::options_state::{self, capture};
 use crate::saves::owner::Saves;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
-use rc2k_core::options::files::{self, Asked, Paths};
+use rc2k_core::options::files::{self, Asked, Paths, Store};
 use rc2k_core::options::{Options, OptionsError};
+use std::path::{Path, PathBuf};
 
 /// Puts the options into the game's stores, as reading the old file does.
 fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
@@ -27,6 +28,28 @@ pub fn apply_and_save(o: Owners<'static>, options: &Options) -> Result<(), Refus
     apply(o, options)?;
     save(o)?;
     Ok(())
+}
+
+/// The options files on the disk.
+struct Disk;
+
+impl Store for Disk {
+    fn read(&self, path: &Path) -> std::io::Result<Option<Vec<u8>>> {
+        match std::fs::read(path) {
+            Ok(bytes) => Ok(Some(bytes)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Written to a name beside the file, then put in place.
+    fn write_whole(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+        let mut temporary = path.as_os_str().to_owned();
+        temporary.push(".tmp");
+        let temporary = PathBuf::from(temporary);
+        std::fs::write(&temporary, bytes)?;
+        std::fs::rename(&temporary, path)
+    }
 }
 
 fn paths(saves: &Saves) -> Result<Paths, Refused> {
@@ -87,21 +110,25 @@ pub fn load(o: Owners<'static>) -> Result<bool, Refused> {
             Err(OptionsError::Io("the old options".into()))
         }
     };
-    let got = files::load(&paths, asked(), &base, &mut read_old);
+    let got = files::load(&Disk, &paths, asked(), &base, &mut read_old);
     if let Some(e) = trouble {
         return Err(e);
     }
+    let got = got.map_err(|e| refusal(&e))?;
     // Values of the new file that were not valid are at their defaults: the player is told
     // (once the window is there).
-    let skipped = rc2k_core::options::toml_file::take_skipped();
-    if !skipped.is_empty() {
+    if let Some(loaded) = &got
+        && !loaded.skipped.is_empty()
+    {
         crate::error_dialog::notice(&crate::error_dialog::text_with(
             rc2k_core::strings::own::id::SETTINGS_RESET,
-            &skipped.join(", "),
+            &loaded.skipped.join(", "),
         ));
     }
-    match got.map_err(|e| refusal(&e))? {
-        Some((options, files::Source::New)) => apply(o, &options).map(|()| true),
+    match got {
+        Some(loaded) if loaded.source == files::Source::New => {
+            apply(o, &loaded.options).map(|()| true)
+        }
         // The old file's values are in the stores already.
         Some(_) => Ok(true),
         None => Ok(false),
@@ -119,7 +146,7 @@ pub fn save(o: Owners<'static>) -> Result<bool, Refused> {
             OptionsError::Io("the old options".into())
         })
     };
-    let done = files::save(&paths, asked(), &options, &mut write_old);
+    let done = files::save(&Disk, &paths, asked(), &options, &mut write_old);
     if let Some(e) = trouble {
         return Err(e);
     }
@@ -130,6 +157,22 @@ pub fn save(o: Owners<'static>) -> Result<bool, Refused> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The options file is written whole through a name beside it, which does not stay, and is
+    /// read back; a missing file is nothing.
+    #[test]
+    fn the_disk_store_writes_whole_and_reads_back() {
+        let dir = std::env::temp_dir().join(format!("rc2k_options_disk_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("rc2k.toml");
+        assert_eq!(Disk.read(&file).unwrap(), None);
+        Disk.write_whole(&file, b"one").unwrap();
+        Disk.write_whole(&file, b"two").unwrap();
+        assert_eq!(Disk.read(&file).unwrap().as_deref(), Some(&b"two"[..]));
+        assert!(!dir.join("rc2k.toml.tmp").exists());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     /// The stores' options taken and put back are the same options.
     #[test]
@@ -216,7 +259,9 @@ mod tests {
             .into_options()
             .unwrap();
         assert_eq!(
-            toml_file::read(&text, &Options::default()).unwrap(),
+            toml_file::read(&text, &Options::default())
+                .unwrap()
+                .map(|read| read.options),
             Some(held)
         );
         let sum = crate::test_support::hash(text.as_bytes());
@@ -234,7 +279,8 @@ mod tests {
         let before = capture(o).unwrap();
         let wanted = toml_file::read("[display]\nmenu_mode = 5\n", &before)
             .unwrap()
-            .unwrap();
+            .unwrap()
+            .options;
         apply(o, &wanted).unwrap();
         let after = capture(o).unwrap();
         apply(o, &before).unwrap();

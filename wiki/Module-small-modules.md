@@ -84,6 +84,10 @@ See [Threads and shared state](Threads-and-shared-state).
 | `src/standalone.rs` | Start-up and shutdown: `run` sets up the platform, builds the owners and walks the start-up steps to `system::main_loop`. |
 | `src/bin/rc2k.rs` | `main`: picks the log's name and calls `standalone::run`. |
 | `src/lib.rs` | The list of modules, and the crate-wide rule that unsafe code is denied outside the places that allow it one by one. |
+| `src/first_run.rs` | The first run: when the program's folder holds no game data, a page asks for the folder or zip it is in (or `--game-data` names it), then goes on in it as an installed game, the installer's source, or an unpacked zip. |
+| `src/single_copy.rs` | One copy of the program per game folder (a lock on `rc2k.lock`), unless `--allow-another`. |
+| `src/error_dialog.rs`, `src/error_dialog/` | The error dialog: a panel with the message and the ways on, in the game's fonts, where the program would otherwise end with only a log line. |
+| `src/video.rs`, `src/video/` | A replay rendered to a video (`--render-replay`), on a clock of its own, and the encoder. |
 | `src/remote.rs` | Only in builds with the `remote` feature: lets `tools/remote.py` drive the game (keys, pad, screenshots, held races) for automated runs. |
 | `src/test_support/` | Only in tests: owners for a test thread, snapshots of the game's state, recorded vectors to compare against. |
 

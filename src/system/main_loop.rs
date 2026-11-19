@@ -45,7 +45,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
         if session.flags.window_active.is_set() && session.key_clock.ticks.is_set() {
             break;
         }
-        crate::system::sleep::sleep(10);
+        crate::clock::sleep::sleep(10);
     }
     crate::platform::set_menu_mode_now(gfx, o.system);
     crate::sound::apply_settings::apply_settings(o)?;

@@ -61,7 +61,6 @@ pub mod level_init;
 pub mod level_paths_store;
 pub mod light_records_store;
 pub mod lights_store;
-pub mod load_times;
 pub mod loading_bar_frame;
 pub mod loading_bar_quad;
 pub mod loadlevel;

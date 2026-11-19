@@ -47,7 +47,10 @@ Platforms:
 | Linux, x86-64 | Built and run. One program with SDL linked in; it needs only glibc. |
 | macOS, Intel and Apple silicon | Builds as `Rally Championship.app`. Tested less than the others. |
 | Anbernic RG34XXSP (handheld, aarch64 Linux) | Built and run on Knulli and on the stock system. See [tools/anbernic/README.md](tools/anbernic/README.md). |
-| Web (WebAssembly) | Experimental: it builds and starts, but does not show a picture yet. |
+| Steam Deck (and other x86-64 Linux with glibc 2.35 or later) | Built in a container of Ubuntu 22.04, with Steam network play. Not yet run on a real Deck. |
+| Android (x86-64 and 64-bit ARM) | Built and run on phones, with touch controls. See [wiki: Android](wiki/Android.md). |
+| iPhone and iPad (iOS 13 or later) | Built and run on an iPhone, with touch controls; signed and installed by hand. See [wiki: iOS](wiki/iOS.md). |
+| Web (WebAssembly) | Experimental: menus and races play in a desktop browser (WebGL 2, gamepads, sound); no network play. |
 
 Races are drawn on the GPU where one can be started (SDL's GPU device on the desktop,
 OpenGL on a PC without one, OpenGL ES on the handheld), otherwise by a software rasteriser. `--renderer software`
@@ -69,6 +72,9 @@ Measured figures:
 | Linux, x86-64 | glibc only; which version depends on the system the program was built on. The workflow's builds are made on Ubuntu 24.04 (glibc 2.38); a build made on a current rolling distribution needed 2.43. `./build.sh linux` prints the version its build needs. |
 | macOS | macOS 11.0 (Big Sur) or later, Intel or Apple silicon. |
 | Anbernic RG34XXSP | Knulli or the stock system; glibc 2.35 or later. |
+| Steam Deck | SteamOS 3 (glibc 2.35 or later) and a processor with AVX2. |
+| Android | Android 8.0 or later. |
+| iPhone / iPad | iOS 13 or later. |
 
 Graphics: on the desktop the GPU renderer goes through SDL's GPU device with Vulkan
 (Windows, Linux) or Metal (macOS). Where no such device starts, OpenGL 3.3 draws the 3D
@@ -158,7 +164,10 @@ repository's top folder:
 | Windows, 32 bits | `./build.sh windows` | Linux (cargo-xwin) | `dist/windows/`: `rc2k.exe` and three DLLs |
 | Windows, either | `build.ps1 -Target windows-x64` (or `windows`) | Windows | the same folders |
 | macOS | `./build.sh mac` | a Mac (or Linux, on a Mac over SSH) | `dist/mac/Rally Championship.app` |
+| Steam Deck (and older Linux systems) | `./build.sh deck` | Linux (Docker) | `dist/deck/`: `rc2k`, `rally.sh` |
 | Anbernic RG34XXSP | `./build.sh handheld` | Linux (Docker) | `dist/handheld/`: `rc2k`, `Rally.sh` |
+| Android | `tools/android/build.sh` | Linux (Android SDK and NDK) | `dist/android/rc2k-<abi>.apk` |
+| iPhone / iPad | `./build.sh ios` | Linux with the iOS SDK, or a Mac | `dist/ios/Rally Championship.ipa`, unsigned |
 | Web (experimental) | `./build.sh web` | Linux (Emscripten) | `dist/web/`: `rc2k.js`, `rc2k.wasm`, the page |
 
 `./build.sh` alone lists the targets. Every target's `dist/<target>/` holds the program

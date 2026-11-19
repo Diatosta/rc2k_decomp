@@ -82,12 +82,12 @@ pub fn choose_session(
     list_state.choice_before.set(0);
     net.sessions()
         .listed_at
-        .set(crate::system::tick_count::tick_count(
+        .set(crate::clock::tick_count::tick_count(
             &system.session.picture_clock,
         ));
     loop {
         run_frame(o, || crate::net::sessions_frame::sessions_frame(o))?;
-        let tick = crate::system::tick_count::tick_count(&system.session.picture_clock);
+        let tick = crate::clock::tick_count::tick_count(&system.session.picture_clock);
         if (tick
             .wrapping_sub(net.sessions().listed_at.get())
             .wrapping_sub(1000) as i32)

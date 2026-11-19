@@ -7,8 +7,8 @@
 //!
 //! The x87 compares are plain Rust over `X` (`math/x87_float.rs`).
 
-use crate::effects::cell_x87::CellX87;
 use crate::logfile::log_float::log_float;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::compare;
 use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
@@ -96,8 +96,8 @@ mod reference_vectors {
             ulps: 0,
             plain: |a| {
                 hold(
-                    &crate::scene::x87_mem::HostCell(a[0]),
-                    &crate::scene::x87_mem::HostCell(a[1]),
+                    &crate::math::x87_mem::HostCell(a[0]),
+                    &crate::math::x87_mem::HostCell(a[1]),
                 );
             },
         }];

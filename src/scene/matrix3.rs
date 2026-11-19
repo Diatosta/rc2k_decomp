@@ -189,7 +189,7 @@ pub fn rounded_value(v: [u8; 10]) -> f32 {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::Base;
+    use crate::math::x87_mem::Base;
     use crate::test_support::vectors::{Differential, Kind, differential, put_t80};
 
     /// The angle (an 80-bit value, dwords 0 .. 3), then the nine floats at dword 4. The sine

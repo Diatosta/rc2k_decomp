@@ -84,6 +84,7 @@ pub struct ReplayIndex {
     pub block_places: [PlainDword; 2 * MOST_BLOCKS as usize],
 }
 
+crate::memory::cells::plain_cells_only!(ReplayIndex);
 impl ReplayFileBlock {
     /// The piece, with its first values.
     pub const fn new() -> Self {

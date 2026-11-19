@@ -7,7 +7,7 @@
 //!
 //! Returns i on the curve's path.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::{lerp_table, trunc_mul_to_int};
 use crate::physics::flow::{FloatView, ZERO_BITS as ZERO};

@@ -6,7 +6,7 @@
 //! The graphics page's frame limit can set another rate or take the wait off.
 //!
 //! Only the frames wait: the simulation's ticks come from the game's clock
-//! (`system::tick_count`), a hundred a second whatever the pace.
+//! (`clock::tick_count`), a hundred a second whatever the pace.
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering::Relaxed};

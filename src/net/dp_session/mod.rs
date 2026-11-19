@@ -14,7 +14,7 @@
 //!
 //! Nothing here knows the game: it is tested on its own over loopback.
 
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs, UdpSocket};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
@@ -23,19 +23,20 @@ use std::time::{Duration, Instant};
 mod discovery;
 mod host;
 mod peer;
-mod protocol;
 #[cfg(test)]
 mod tests;
 pub(crate) mod wire;
 
 pub use discovery::{find_sessions, session_address};
-pub use protocol::MESSAGE_MOST;
-use protocol::*;
+use rc2k_core::net::protocol::*;
+pub use rc2k_core::net::protocol::{Desc, Group, Id, MESSAGE_MOST, Player, World};
+
+/// A machine that takes no more for this long has its connection ended (each has a thread
+/// that reads whatever comes, so a machine busy loading does not stop reading).
+const WRITE_WAIT: Duration = Duration::from_secs(5);
 #[cfg(test)]
 pub use wire::Pipe;
 pub use wire::Wire;
-
-pub type Id = u32;
 
 #[cfg(steam_support)]
 /// The protocol's version as text (Steam lobbies carry it, so that only machines of the same
@@ -67,49 +68,6 @@ pub const DPSESSION_NEWPLAYERSDISABLED: u32 = 0x1;
 pub const DPSESSION_JOINDISABLED: u32 = 0x20;
 /// The session is locked by a password (DirectPlay's own flag), shown in the session list.
 pub const DPSESSION_PASSWORDREQUIRED: u32 = 0x400;
-
-// DirectPlay's system messages (their first dword).
-pub const DPSYS_CREATEPLAYERORGROUP: u32 = 0x3;
-pub const DPSYS_DESTROYPLAYERORGROUP: u32 = 0x5;
-pub const DPSYS_ADDPLAYERTOGROUP: u32 = 0x7;
-pub const DPSYS_DELETEPLAYERFROMGROUP: u32 = 0x21;
-pub const DPSYS_SESSIONLOST: u32 = 0x31;
-pub const DPSYS_SETPLAYERORGROUPDATA: u32 = 0x102;
-
-/// A session's description (DirectPlay's `DPSESSIONDESC2` but the password).
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Desc {
-    pub flags: u32,
-    pub instance: [u8; 16],
-    pub application: [u8; 16],
-    pub max_players: u32,
-    pub current_players: u32,
-    pub name: String,
-    pub user: [u32; 4],
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Player {
-    pub name: String,
-    pub data: Vec<u8>,
-    pub machine: u32,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Group {
-    pub name: String,
-    pub data: Vec<u8>,
-    pub machine: u32,
-    pub members: Vec<Id>,
-}
-
-/// What every machine holds of the session.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct World {
-    pub desc: Desc,
-    pub players: BTreeMap<Id, Player>,
-    pub groups: BTreeMap<Id, Group>,
-}
 
 /// A message for this machine's players: from a player or 0 (a system message), to the
 /// player it is for.

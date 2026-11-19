@@ -11,8 +11,8 @@
 //! Refuses a probe point past 0x3F on the edge path (the tables' room), and what its calls refuse
 //! (what was written is put back).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::rotate_float_point_about_y::rotate_float_point_about_y;
 use crate::math::x87::mul;
 use crate::math::x87_float::int;
@@ -39,7 +39,7 @@ fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
 /// `wall_heading`; (0, 0, 1) turned by it (`math::rotate_float_point_about_y`) goes into
 /// `contact_normal`.
 pub fn edge_normal(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     contact: &ContactWork,
     course: &Course,
     physics_tables: &PhysicsTables,
@@ -150,7 +150,7 @@ fn x87_1(numbers: &Numbers, d: [u32; 2], scene: &crate::scene::owner::Scene) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::view;
+    use crate::math::x87_mem::view;
     use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 

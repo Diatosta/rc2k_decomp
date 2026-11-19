@@ -1,8 +1,6 @@
-//! The game's millisecond clock: `GetTickCount`, unless the
-//! override switch (`pictures_started`) is 1, in which case it is `picture_clock`.
-//!
-//! What sets the override has not been read.
-//!
+//! The game's millisecond clock: the machine's, unless a replay is rendered to a video (the
+//! video's own clock), a remote run holds the clock, or the replay viewer is saving its frames
+//! as pictures (the `PictureClock` override).
 
 use crate::memory::session::Dword;
 
@@ -24,9 +22,19 @@ impl PictureClock {
     }
 }
 
+/// Where a replay rendered to a video gets its time from; none while no video is rendered.
+static VIDEO_CLOCK: std::sync::OnceLock<fn() -> Option<u32>> = std::sync::OnceLock::new();
+
+/// Names the video's clock: while it gives a time, that is the game's time. Set once, by the
+/// module that renders the video.
+pub fn use_video_clock(source: fn() -> Option<u32>) {
+    // A second call names the same function: the first stays.
+    let _ = VIDEO_CLOCK.set(source);
+}
+
 pub fn tick_count(picture_clock: &PictureClock) -> u32 {
     // A replay rendered to a video runs on the video's own clock.
-    if let Some(video) = crate::video::clock() {
+    if let Some(video) = VIDEO_CLOCK.get().and_then(|source| source()) {
         return video;
     }
     #[cfg(feature = "remote")]

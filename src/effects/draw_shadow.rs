@@ -15,11 +15,11 @@
 //! Rust too. Refuses, before anything, a corner past the mark corners table and an angle with no
 //! sine and cosine.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork};
 use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::memory::session::PlainFloat;
 use crate::scene::cross_product3::cross;

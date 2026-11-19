@@ -46,7 +46,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     sound_tables::set_up_race_sound_objects(o, &sound_tables::ObjectVars::of(sound))?;
     crate::sound::set_up_race_sounds::set_up_race_sounds(o)?;
     crate::net::set_up_race::set_up_race(race, &net.vars, o)?;
-    let tick = crate::system::tick_count::tick_count(&o.system.session.picture_clock);
+    let tick = crate::clock::tick_count::tick_count(&o.system.session.picture_clock);
     net.lobby().listed_at.set(tick);
     net.lobby().sync_clock.set(tick);
     net.vars.sync_first.set(1);

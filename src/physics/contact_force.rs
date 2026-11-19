@@ -16,7 +16,7 @@
 //!
 //! Takes: the record the force goes to (`contact_record`, set by each caller just before).
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87::{compare_80, neg_rounded};
 use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
@@ -288,7 +288,7 @@ fn x87_8(contact: &ContactWork, tables: &PhysicsTables, d: &[PlainFloat; 3]) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::{Base, view};
+    use crate::math::x87_mem::{Base, view};
     use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 

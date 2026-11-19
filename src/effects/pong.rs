@@ -515,7 +515,7 @@ use crate::math::x87_float as bh;
 mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Operand, Spec, recorded_buffer_writes};
-    use crate::scene::x87_mem::Base;
+    use crate::math::x87_mem::Base;
 
     /// The float at `base + off` of a test buffer.
     fn at(base: Operand, off: usize) -> f32 {

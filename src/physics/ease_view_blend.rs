@@ -3,7 +3,7 @@
 //! `view_shift_b` goes into `camera_zoom`, and between `view_shift_c` and `view_shift_d`, times
 //! `k65536`, negated and rounded, into `camera_offset_z`.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::X;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};

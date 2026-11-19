@@ -14,12 +14,12 @@
 //! The x87 runs are plain Rust on the x87 model (`math::x87_float`). Refuses null settings, before
 //! anything.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
 use crate::effects::plain::{ld_cell, ldi_cell, st_cell};
 use crate::effects::setup::MarksClock;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::memory::session::PlainFloat;
 use crate::race::effects_settings_store::EffectsSettings;

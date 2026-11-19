@@ -101,7 +101,7 @@ pub fn plan(o: Owners<'static>, state: PlayerState) -> Result<Plan, Problem> {
 }
 
 fn now_packed() -> u32 {
-    crate::system::packed_local_time::packed_local_time()
+    crate::clock::packed_local_time::packed_local_time()
 }
 
 /// Writes the plan: the options as the options pages save them, the best times' file, the

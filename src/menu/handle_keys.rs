@@ -69,7 +69,7 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
             o.sound,
             o.audio,
             o.menus,
-            o.system,
+            &o.system.session.picture_clock,
             keys::ENTER_CLICK,
         );
         return Ok(Pressed::Enter);

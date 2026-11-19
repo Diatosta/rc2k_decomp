@@ -8,7 +8,7 @@
 //! unrounded between its uses. Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! tests compare against recorded vectors (`data/vectors`).
 use crate::math::x87_float::{Rounds, at_rounding};
-use crate::scene::x87_mem::{Base, cells, fld_with, fstp_with};
+use crate::math::x87_mem::{Base, cells, fld_with, fstp_with};
 
 pub fn reflect_vector(
     m: &crate::scene::view_matrices::ViewMatrices,

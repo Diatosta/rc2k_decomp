@@ -11,8 +11,8 @@
 //! Refuses (before anything) a gear outside -1 ..= 7 (`revs_from_wheels` refuses it; the gear is
 //! not written here).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::{abs_compare, abs_of, neg_rounded};
 use crate::math::x87_float::X;
@@ -789,7 +789,7 @@ fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::{Base, view};
+    use crate::math::x87_mem::{Base, view};
     use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 

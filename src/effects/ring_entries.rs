@@ -275,7 +275,7 @@ pub fn with_entry_at<R>(
     hi: u32,
     f: impl FnOnce(u32) -> R,
 ) -> R {
-    use crate::scene::x87_mem::Base;
+    use crate::math::x87_mem::Base;
     let kept = ring.entries.with(std::mem::take).ok();
     let mut w = [0u32; (ENTRY_LEN / 4) as usize];
     for o in (lo..hi).step_by(4) {

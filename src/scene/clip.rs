@@ -144,7 +144,7 @@ fn cut(
                 &poly.window,
                 course.course.flat_depth.get(),
                 flat,
-                &crate::scene::x87_mem::cells(&mut w)[CHECKED / 4..],
+                &crate::math::x87_mem::cells(&mut w)[CHECKED / 4..],
             );
             (w[OUT_1 / 4], w[OUT_1 / 4 + 1]) = (point[3], point[7]);
         }

@@ -217,7 +217,7 @@ mod reference_vectors {
     fn dm(base: usize) -> &'static DamageModel {
         crate::physics::store::model_in_test_buffer(base)
     }
-    use crate::scene::x87_mem::view;
+    use crate::math::x87_mem::view;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_at};
 
     fn blocks() -> Vec<Block> {

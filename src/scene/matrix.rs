@@ -6,10 +6,10 @@
 //! The two turning matrices keep their other floats (an identity's).
 
 use crate::math::cells::Cells;
+use crate::math::engine_tables::EngineTables;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::memory::session::FloatLike;
-use crate::scene::engine_tables_store::EngineTables;
 use crate::scene::project_point::rotate_at;
 use crate::scene::view_matrices::ViewMatrices;
 
@@ -18,8 +18,8 @@ use crate::scene::view_matrices::ViewMatrices;
 fn sine_cosine(tables: &EngineTables, angle: u32) -> (f32, f32) {
     let place = ((angle & 0xFFFF) >> 4) as usize;
     (
-        crate::scene::engine_tables_store::sine(tables, place).get(),
-        crate::scene::engine_tables_store::cosine(tables, place).get(),
+        crate::math::engine_tables::sine(tables, place).get(),
+        crate::math::engine_tables::cosine(tables, place).get(),
     )
 }
 

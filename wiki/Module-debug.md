@@ -16,7 +16,7 @@ in statics (the freeze flag in `src/debug/overlay.rs`, timings in `src/debug/tim
 
 | Item | File | What it does |
 | --- | --- | --- |
-| `toggle`, `event`, `draw`, `is_open` | `src/debug/mod.rs` | The doors the rest of the game uses: open or close, pass an input event, draw the window. |
+| `toggle`, `event`, `draw`, `is_open` | `src/debug/imgui_sdl.rs` (stand-ins in `src/debug/mod.rs` where the window is not built) | The doors the rest of the game uses: open or close, pass an input event, draw the window. |
 | `take_keys`, `frozen` | `src/debug/overlay.rs` | The two key combinations, and whether the race is frozen. |
 | `build` | `src/debug/ui.rs` | Builds the window's pages each frame. |
 | `imgui_sdl` | `src/debug/imgui_sdl.rs` | Dear ImGui on SDL: the window, its input and drawing. |

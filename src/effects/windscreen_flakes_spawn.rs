@@ -5,11 +5,11 @@
 //! (times 0xC5 plus 0x5D) are at most its fraction times a constant. The x87 run is plain Rust on
 //! the x87 model (`math::x87_float`).
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes::pick_windscreen_flake;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::race::owner_shared::RaceShared;
 

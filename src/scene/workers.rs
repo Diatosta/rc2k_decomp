@@ -19,26 +19,16 @@
 //! at its place in the part's order, as `draw_parts` puts a part's after the earlier ones.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::draw_order::{
+    ASIDE_INDEX, COUNT, DrawScope, ScopeClaims, begin_list, ended, in_scope, index, set_aside_turn,
+    set_index,
+};
 use crate::memory::part_cell::{PartCell, PartTurn};
 use crate::memory::session::GameThread;
 use crate::race::view_scratch::{PART_SLOTS, ViewScratch};
 use std::cell::Cell;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Condvar, Mutex, OnceLock};
-
-/// The most drawing threads, the game's own one with them.
-pub const COUNT: usize = 4;
-
-thread_local! {
-    /// The running thread's copy: 0 unless it is one of the drawing threads.
-    static INDEX: Cell<usize> = const { Cell::new(0) };
-}
-
-/// The running thread's copy number.
-#[inline(always)]
-pub fn index() -> usize {
-    INDEX.get()
-}
+use std::sync::{Mutex, OnceLock};
 
 /// What a drawing part makes for itself before reading (see the module's header): neither
 /// copied in nor merged, each part's work on its own (the replays' every flush the same as on
@@ -194,16 +184,6 @@ impl DrawingScratch {
         self.views[slot].claim(turn)
     }
 
-    /// The scope ending: the parts and the slots are the game's thread's again.
-    fn end_claims(&self, ending: &DrawScope<'_>) {
-        for part in &self.parts {
-            part.end_claim(ending);
-        }
-        for view in &self.views {
-            view.end_claim(ending);
-        }
-    }
-
     /// Slot `n` (below `SLOT_COUNT`), on the game's thread.
     pub fn slot(&self, n: usize) -> &ViewScratch {
         match self.views.get(n) {
@@ -266,6 +246,18 @@ impl DrawingScratch {
     }
 }
 
+impl ScopeClaims for DrawingScratch {
+    /// The scope ending: the parts and the slots are the game's thread's again.
+    fn end_claims(&self, ending: &DrawScope<'_>) {
+        for part in &self.parts {
+            part.end_claim(ending);
+        }
+        for view in &self.views {
+            view.end_claim(ending);
+        }
+    }
+}
+
 impl Default for DrawingScratch {
     fn default() -> Self {
         Self::new()
@@ -273,15 +265,6 @@ impl Default for DrawingScratch {
 }
 
 // ---- the stores the parts read ----
-
-/// Whether a drawing scope is open (`DrawScope`): the parts are being drawn.
-static IN_SCOPE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// Whether the parts of a drawing are being drawn: between `draw_parts`' start of the parts
-/// and the end of the last (`session::DrawShared::get` is not taken then).
-pub fn in_scope() -> bool {
-    IN_SCOPE.load(std::sync::atomic::Ordering::Relaxed)
-}
 
 // r40course
 /// Whether a race is on (`race::numbers_store::Numbers::in_race`), as part `part`'s drawing
@@ -310,31 +293,6 @@ pub fn set_game_part_screen(scratch: &DrawingScratch, width: u32, height: u32, b
     }
 }
 // end r40course
-
-/// The parts of one drawing being drawn (`draw_parts`): opened on the game's thread before
-/// the first part starts, ended once every part has ended. The stores lent to the parts
-/// (`session::PhaseRead`) borrow it, so none outlives it. Only `draw_parts` opens one.
-pub struct DrawScope<'o> {
-    /// The scratch whose parts and slots the runs claim, freed when the scope ends.
-    scratch: &'o DrawingScratch,
-}
-
-impl<'o> DrawScope<'o> {
-    fn open(scratch: &'o DrawingScratch) -> Self {
-        crate::memory::session::assert_game_thread();
-        let was = IN_SCOPE.swap(true, std::sync::atomic::Ordering::Relaxed);
-        debug_assert!(!was, "a drawing scope opened inside another");
-        Self { scratch }
-    }
-}
-
-impl Drop for DrawScope<'_> {
-    fn drop(&mut self) {
-        crate::memory::session::end_lending();
-        self.scratch.end_claims(self);
-        IN_SCOPE.store(false, std::sync::atomic::Ordering::Relaxed);
-    }
-}
 
 /// The owners whose draw-shared stores a drawing reads: lent to the parts of a drawing scope
 /// (`draw_parts`), or read from on the game's thread (`DrawReads::on_game_thread`).
@@ -802,44 +760,6 @@ fn pool() -> Option<&'static rayon::ThreadPool> {
     .as_ref()
 }
 
-/// The runs of the list being drawn that have ended (by run number). A static, with `BESIDE`,
-/// `IN_SCOPE` and the aside turn: they are the drawing threads' own coordination, read by code
-/// that holds no context (`math::next_random`'s wait for the earlier runs, `session::DrawShared`'s
-/// check), and they hold no drawing data.
-static ENDED: Mutex<[bool; COUNT]> = Mutex::new([false; COUNT]);
-static ENDED_CHANGED: Condvar = Condvar::new();
-
-fn ended(n: usize) {
-    let mut e = ENDED
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    e[n] = true;
-    ENDED_CHANGED.notify_all();
-}
-
-/// Waits until the runs before this thread's have ended: what must be done in the list's
-/// order (the random numbers, `math::next_random`) is then done after them, as by one
-/// thread. Nothing to wait for on the game's thread (run 0) or outside a list.
-pub fn wait_for_earlier_runs() {
-    let n = index();
-    if n == 0 {
-        return;
-    }
-    if n == ASIDE_INDEX {
-        // A piece drawn aside (`draw_aside`): after what its part draws before it.
-        wait_for_aside_turn();
-        return;
-    }
-    let mut e = ENDED
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    while e[..n].iter().any(|&done| !done) {
-        e = ENDED_CHANGED
-            .wait(e)
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-    }
-}
-
 /// `first` drawn on the game's thread and `second` beside it on a drawing thread, each from
 /// the working state as it is now (the mirror beside its view, `race::draw_race_scene`), then
 /// `then` on the game's thread: `then`'s drawing goes after `first`'s, which may flush, and
@@ -950,9 +870,7 @@ fn draw_parts(
     let point_count = owners.race.course.course.get().scene_point_count.get();
     let matrices = &owners.race.frame.matrices;
     let columns_start = crate::scene::view_matrices::columns(matrices.get());
-    *ENDED
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = [false; COUNT];
+    begin_list();
     let control = crate::math::x87::control_word();
     // r40course
     // Whether a race is on, as the parts' noted drawing reads it inside the scope (`in_race`).
@@ -973,7 +891,7 @@ fn draw_parts(
     let scope_ref = &scope;
     // Run `n` of the others, on the thread it is called on, with its own noted drawing.
     let other = |n: usize| {
-        INDEX.set(n);
+        set_index(n);
         let turn = PartTurn::new(scope_ref, n);
         let scratch = scratch_owner.claim_part(n, &turn);
         let view = scratch_owner.claim_view(slots[n], &turn);
@@ -995,7 +913,7 @@ fn draw_parts(
         ended(n);
         scratch.points.end_run();
         let noted = crate::platform::direct3d::take_noted(scratch);
-        INDEX.set(0);
+        set_index(0);
         OtherRun {
             result,
             noted,
@@ -1139,33 +1057,6 @@ impl<'a> Helper<'a> {
             None if serial() => Some(Self { pool: None, lent }),
             _ => None,
         }
-    }
-}
-
-/// The run number of a piece drawn aside (`INDEX` on its thread): past the parts'.
-const ASIDE_INDEX: usize = COUNT;
-
-/// Whether the part drawing a piece aside has come to the piece's place in its drawing
-/// (`Aside::join`): what the piece must do in the drawing's order (`wait_for_earlier_runs`)
-/// waits for it.
-static ASIDE_TURN: Mutex<bool> = Mutex::new(false);
-static ASIDE_TURN_CHANGED: Condvar = Condvar::new();
-
-fn set_aside_turn(reached: bool) {
-    *ASIDE_TURN
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = reached;
-    ASIDE_TURN_CHANGED.notify_all();
-}
-
-fn wait_for_aside_turn() {
-    let mut reached = ASIDE_TURN
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    while !*reached {
-        reached = ASIDE_TURN_CHANGED
-            .wait(reached)
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
     }
 }
 
@@ -1370,12 +1261,12 @@ pub fn draw_aside<'a, R>(
     let begin = &aside.start;
     pool.in_place_scope(|s| {
         s.spawn(move |_| {
-            INDEX.set(ASIDE_INDEX);
+            set_index(ASIDE_INDEX);
             let run = {
                 let scratch = lent.scratch.aside();
                 run_aside(&scratch, begin, lent.reads(), piece)
             };
-            INDEX.set(0);
+            set_index(0);
             let _ = send.send(run);
         });
         let _turn = GiveTurn;

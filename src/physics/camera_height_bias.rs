@@ -2,7 +2,7 @@
 //! (1 less it for a negative flag), times `k65536` times `camera_bias_scale`, rounded to an
 //! integer into `camera_height_bias` and added to the camera's height.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::X;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::record;

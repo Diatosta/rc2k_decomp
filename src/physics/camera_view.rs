@@ -6,7 +6,7 @@
 //! steps `share_done` and `record` run on plain floats (`rc2k_core::physics::camera_view`). The
 //! names of the variables (mode, place, turns, a view's figures) are a reading.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::physics::car_store::Car;
 use crate::race::groups_store::ViewAndRecords;
@@ -80,7 +80,7 @@ mod reference_vectors {
             plain: |a| {
                 x87_1(
                     &race().shared,
-                    crate::scene::x87_mem::Base::dword(a[1], 0x3C),
+                    crate::math::x87_mem::Base::dword(a[1], 0x3C),
                     crate::test_support::own::scene(),
                 );
             },

@@ -467,7 +467,7 @@ impl flow::Game for Game<'_> {
     fn stream_playing(&mut self) -> Result<bool, Refused> {
         self.fault.check()?;
         // The welcome polls this until a key comes: the window goes on meanwhile.
-        crate::system::sleep::sleep(10);
+        crate::clock::sleep::sleep(10);
         crate::platform::pump_messages_now(self.owners);
         let (playing, _) = crate::sound::stream_playing::stream_playing(self.owners.audio);
         Ok(playing)

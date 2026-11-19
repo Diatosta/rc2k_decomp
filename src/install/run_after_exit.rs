@@ -115,7 +115,7 @@ pub fn run_after_exit(
     }
     // The program and its DLLs from its own folder (not a CD's copy of `ral.exe`).
     crate::install::shortcuts::copy_program();
-    crate::system::sleep::sleep(1000);
+    crate::clock::sleep::sleep(1000);
     let started = run(RC2K);
     end_with_installed_game(started);
     Ok(())

@@ -29,7 +29,7 @@ pub fn learn_axis(
     };
     // The logic is in `rc2k_core::screens::learning` (`timed_out`, `CANCEL_KEY`).
     use rc2k_core::screens::learning as l;
-    let since = crate::system::tick_count::tick_count(&o.system.session.picture_clock)
+    let since = crate::clock::tick_count::tick_count(&o.system.session.picture_clock)
         .wrapping_sub(controls.learn_start.get());
     if l::timed_out(since) {
         controls.learned.set(l::TIMED_OUT);
@@ -81,7 +81,7 @@ pub fn learn_axis(
     if kind == rc2k_core::input::profile::Kind::Pad {
         // A pad's Back held for a second cancels, as Space does; let go sooner it is a button
         // like another to learn. While it is down nothing else is looked at.
-        let ticks = crate::system::tick_count::tick_count(&o.system.session.picture_clock);
+        let ticks = crate::clock::tick_count::tick_count(&o.system.session.picture_clock);
         match back_hold(input, now.buttons >> BACK_BUTTON & 1 != 0, ticks) {
             BackHold::Held => return Ok(()),
             BackHold::Cancelled => {

@@ -7,7 +7,7 @@
 
 use crate::math::cells::{Cells, load};
 use crate::math::x87_float::{Rounds, at_rounding};
-use crate::scene::x87_mem::{Base, fld_with, fld80_with, fstp80_with};
+use crate::math::x87_mem::{Base, fld_with, fld80_with, fstp80_with};
 
 /// `p` the point's three 80-bit values, the result the same way.
 pub fn rotate_point(m: &(impl Cells + ?Sized), p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {

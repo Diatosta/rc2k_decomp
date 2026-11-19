@@ -241,8 +241,8 @@ fn volume_factor_by_distance(so: &SoundObject) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
+    use crate::math::x87_mem::{HostCell, view};
     use crate::memory::session::Cell32;
-    use crate::scene::x87_mem::{HostCell, view};
     use crate::sound::asm_layout::{Laid, with_laid};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 

@@ -15,7 +15,7 @@ use rc2k_core::physics::progress::checkpoint_ahead;
 // Core: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::rotate_point_about_y`'s).
 pub fn checkpoint_offset(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     course: &Course,
     vars: &RaceVars,
     checkpoints: &crate::race::checkpoints_store::Checkpoints,

@@ -303,8 +303,8 @@ Later, in a race, the joined machine's player (id 2) sends its inputs to everyon
 
 ## Code
 
-`src/net/dp_session/` (the session layer: `protocol.rs` frames and changes, `host.rs`,
-`peer.rs`, `discovery.rs`, `tests.rs`), `src/net/dp_objects.rs` (the DirectPlay-shaped
+`src/net/dp_session/` (the session layer: `host.rs`, `peer.rs`, `discovery.rs`,
+`tests.rs`; the frames and changes are `rc2k_core/src/net/protocol.rs`), `src/net/dp_objects.rs` (the DirectPlay-shaped
 interface the game's code calls), `rc2k_core/src/net/message.rs` and `messages.rs` (the
 game's messages by first byte), `rc2k_core/src/net/race.rs` (race message kinds, timing,
 arrival), `src/net/send_inputs.rs` (which of the car's values each kind carries),

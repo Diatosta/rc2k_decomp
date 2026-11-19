@@ -411,7 +411,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     }
     header.set_u32(0, MAGIC);
     header.set_u32(8, VERSION);
-    header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
+    header.set_u32(0xC, crate::clock::packed_local_time::packed_local_time());
     for (k, &w) in HEADER_NAME.iter().enumerate() {
         header.set_u32(0x10 + 4 * k, w);
     }

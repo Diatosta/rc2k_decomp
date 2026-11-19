@@ -7,8 +7,8 @@
 //!
 //! Refuses what `restore_saved_car` and `bump_cars` refuse (what was written is put back).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87::{abs_compare, ext_times};
 use crate::math::x87_float::from_f80;
 use crate::memory::session::Cell32;
@@ -62,7 +62,7 @@ fn x87_1(numbers: &Numbers, e: &[u8; 10], o: &impl Cell32) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::{HostCell, view};
+    use crate::math::x87_mem::{HostCell, view};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {

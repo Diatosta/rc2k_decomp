@@ -1,5 +1,5 @@
 //! `race::save_viewed_replay`: the viewed (and edited) replay saved as a replay slot: with blocks
-//! to save, the header made ("REPL", 0, version 0x50400 (0x50401 for a replay with the extra tape), the date `system::packed_local_time`, the
+//! to save, the header made ("REPL", 0, version 0x50400 (0x50401 for a replay with the extra tape), the date `clock::packed_local_time`, the
 //! slot's name: 32 bytes of the slot-name table); the last race's file (`var\tmprpl`) opened to
 //! read (mode 0, `from_file`) and the slot's (`race::replay_path`) made (mode 1, `to_file`); the
 //! undo emptied (`undo_blocks` 0, its places zeroed: they become the new index); the header
@@ -144,7 +144,7 @@ fn save_file(
         Format::Old { .. } => Vec::new(),
     };
     header.set_u32(EXT_LEN_AT, extension.len() as u32);
-    header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
+    header.set_u32(0xC, crate::clock::packed_local_time::packed_local_time());
     let name =
         shared
             .replays()

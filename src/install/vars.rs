@@ -8,10 +8,11 @@
 
 use crate::gfx::typefaces::{FontId, fonts};
 use crate::install::installer::{END_TEXT_LINE, GO_ON_ANYWAY};
+use crate::install::list_pages::{BoxRect, EditRecord};
 use crate::install::page_links::{LinkCell, PageLink};
 use crate::memory::list_handle::{
-    BoxRect, EditRecord, Item, ListData3, ListData4, ListData5, ListData6, ListData10, ListData18,
-    ListData26, ListHeader,
+    Item, ListData3, ListData4, ListData5, ListData6, ListData10, ListData18, ListData26,
+    ListHeader,
 };
 use crate::memory::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 

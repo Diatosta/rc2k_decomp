@@ -22,8 +22,8 @@
 //! Refuses a mode past 0x33 on the blending path (past `view_records`), and what the ground checks
 //! refuse; everything written is put back.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
@@ -482,7 +482,7 @@ fn x87_9(camera: &CameraWork, course_work: &CourseWork) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::view;
+    use crate::math::x87_mem::view;
     use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
@@ -592,7 +592,7 @@ mod reference_vectors {
                         race().frame.view_and_records.get(),
                         &core::array::from_fn(|k| {
                             if k < 10 {
-                                crate::scene::x87_mem::Base::dword(a[0], 4 * k)
+                                crate::math::x87_mem::Base::dword(a[0], 4 * k)
                             } else {
                                 0
                             }

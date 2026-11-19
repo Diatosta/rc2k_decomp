@@ -72,12 +72,13 @@ pub fn upload_texture_picture(
     if pixels == 0 {
         return Ok(());
     }
-    let _timed = crate::race::load_times::scope(crate::race::load_times::Category::TextureConvert);
+    let _timed =
+        crate::logfile::load_times::scope(crate::logfile::load_times::Category::TextureConvert);
     let record = Record::of(texture, gfx)?;
     let levels = uploads::levels(record.get().levels).map_err(BadInput::from)?;
     {
         let _preparing =
-            crate::race::load_times::scope(crate::race::load_times::Category::TexturePrepare);
+            crate::logfile::load_times::scope(crate::logfile::load_times::Category::TexturePrepare);
         ready_picture(&record, pixels, width, height, gfx)?;
     }
     let apart = halvings_apart(
@@ -102,14 +103,16 @@ pub fn upload_texture_picture(
     for level in 0..levels {
         let times = uploads::halvings_before(level, apart);
         if times != 0 {
-            let _halving =
-                crate::race::load_times::scope(crate::race::load_times::Category::TextureHalve);
+            let _halving = crate::logfile::load_times::scope(
+                crate::logfile::load_times::Category::TextureHalve,
+            );
             (width, height) = halve_texture(&gfx.pictures.buffers, pixels, width, height, times)?;
         }
         let surface = record.get().surfaces[level as usize];
         let (target, pitch) = {
-            let _locking =
-                crate::race::load_times::scope(crate::race::load_times::Category::SurfaceLock);
+            let _locking = crate::logfile::load_times::scope(
+                crate::logfile::load_times::Category::SurfaceLock,
+            );
             surfaces
                 .lock(surface)
                 .map_err(|_| direct_draw_failed(0x8021_8772, gfx))?
@@ -146,8 +149,9 @@ pub fn upload_texture_picture(
             rows.write(y, 0, &row, "a texture's row")?;
         }
         {
-            let _unlocking =
-                crate::race::load_times::scope(crate::race::load_times::Category::SurfaceUnlock);
+            let _unlocking = crate::logfile::load_times::scope(
+                crate::logfile::load_times::Category::SurfaceUnlock,
+            );
             surfaces
                 .unlock(surface)
                 .map_err(|_| direct_draw_failed(0x8021_8773, gfx))?;

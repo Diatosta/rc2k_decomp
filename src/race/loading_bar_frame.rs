@@ -119,7 +119,8 @@ fn loading_bar_frame(o: crate::owners::Owners<'static>, share: u32) -> Result<()
         *last = Some(begun);
     }
     let result = {
-        let _timed = crate::race::load_times::scope(crate::race::load_times::Category::BarFrame);
+        let _timed =
+            crate::logfile::load_times::scope(crate::logfile::load_times::Category::BarFrame);
         frame(o, share)
     };
     #[cfg(feature = "remote")]
@@ -184,7 +185,8 @@ fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
         crate::net::loading::draw(o)?;
         unlock_frame::unlock_frame(&race.frame, gfx);
         // A refused present is skipped as well.
-        let _timed = crate::race::load_times::scope(crate::race::load_times::Category::Present);
+        let _timed =
+            crate::logfile::load_times::scope(crate::logfile::load_times::Category::Present);
         present_frame::present_frame(o);
     }
     Ok(())

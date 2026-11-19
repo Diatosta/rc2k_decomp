@@ -11,10 +11,10 @@
 //! The arithmetic is plain Rust on the x87 model (`math::x87_float`). Refuses null marks settings
 //! (`clip_quad`'s refusal), before anything.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::rain::{RainRules, RainState, Weather};
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 
 /// The point scaled and turned, and the last place.

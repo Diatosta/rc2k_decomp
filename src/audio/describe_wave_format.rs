@@ -20,6 +20,7 @@ pub struct WaveFormat {
     pub extra: u16,
 }
 
+crate::memory::cells::plain_record!(WaveFormat = 0x12);
 const _: () = assert!(std::mem::size_of::<WaveFormat>() == WAVE_FORMAT_LEN);
 
 /// The value a table of two {flag, value} entries has for the flag (`system::find_entry`).

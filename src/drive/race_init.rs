@@ -32,7 +32,7 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
 pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let (sound, scene, effects) = (o.sound, o.scene, o.race.effects.get());
     let race_owner = race;
-    crate::race::load_times::mark("setbestline");
+    crate::logfile::load_times::mark("setbestline");
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
     crate::race::best_line::store_loaded_best_line(race, scene)?;
@@ -47,13 +47,13 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
         .into());
     }
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
-    crate::race::load_times::mark("initcarpositions");
+    crate::logfile::load_times::mark("initcarpositions");
     log(c"RACEINIT : initcarpositions");
     indented(&mut || crate::race::car_starts::start_cars(race, scene, &o.net.race_slot))?;
-    crate::race::load_times::mark("initobjectsoncourse");
+    crate::logfile::load_times::mark("initobjectsoncourse");
     log(c"RACEINIT : initobjectsoncourse");
     indented(&mut || crate::race::course_data::reset_face_lights(race))?;
-    crate::race::load_times::mark("gamemodestuff_init");
+    crate::logfile::load_times::mark("gamemodestuff_init");
     log(c"RACEINIT : gamemodestuff_init");
     indented(&mut || {
         { crate::race::race_cars::set_up_cars(race, scene, &o.net.race_slot) }.map(drop)?;
@@ -61,19 +61,19 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
         crate::net::bots::make_drivers(race, o.net, scene)?;
         Ok(())
     })?;
-    crate::race::load_times::mark("messagesystem_init");
+    crate::logfile::load_times::mark("messagesystem_init");
     log(c"RACEINIT : messagesystem_init");
     indented(&mut || {
         crate::race::race_init::reset_car_race_state(race)?;
         Ok(())
     })?;
-    crate::race::load_times::mark("carparts_init");
+    crate::logfile::load_times::mark("carparts_init");
     log(c"RACEINIT : carparts_init");
     indented(&mut || {
         crate::race::race_init::clear_race_slots(&race.shared);
         Ok(())
     })?;
-    crate::race::load_times::mark("resettimers");
+    crate::logfile::load_times::mark("resettimers");
     log(c"RACEINIT : resettimers");
     indented(&mut || {
         {
@@ -82,7 +82,7 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
         }
         Ok(())
     })?;
-    crate::race::load_times::mark("singlecarinit");
+    crate::logfile::load_times::mark("singlecarinit");
     log(c"RACEINIT : singlecarinit");
     indent_by(race_steps::LOG_INDENT);
     for _ in 0..race_steps::SETTLING_STEPS {
@@ -109,13 +109,13 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
     }
     crate::race::race_init::clear_race_slots(&race.shared);
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
-    crate::race::load_times::mark("resetalldamagemessages");
+    crate::logfile::load_times::mark("resetalldamagemessages");
     log(c"RACEINIT : resetalldamagemessages");
     indented(&mut || {
         crate::race::car_grades::grade_all_cars(&race.shared, scene)?;
         Ok(())
     })?;
-    crate::race::load_times::mark("end");
+    crate::logfile::load_times::mark("end");
     log(c"RACEINIT : end");
     Ok(())
 }

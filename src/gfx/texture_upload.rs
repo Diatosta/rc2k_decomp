@@ -26,6 +26,7 @@ pub struct TextureFormat {
     pub dd: [u32; 8],
 }
 
+crate::memory::cells::plain_record!(TextureFormat = 3 * 4 + 5 * 4 + 8 * 4);
 /// A texture's record, 0x78 bytes (the system and video textures).
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -52,6 +53,7 @@ pub struct TextureRecord {
     pub material_handle: u32,
 }
 
+crate::memory::cells::plain_record!(TextureRecord = (5 + 9 + 9 + 7) * 4);
 impl TextureRecord {
     /// The record's dwords, in the game's order.
     const fn words(&self) -> [u32; 30] {

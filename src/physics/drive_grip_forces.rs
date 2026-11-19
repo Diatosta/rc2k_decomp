@@ -17,7 +17,8 @@
 //! The flow, the compares and the integer steps are Rust; each straight x87 run is plain Rust
 //! over `X` in the named helpers below.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
+use crate::math::engine_tables::EngineTables;
 use crate::math::x87;
 use crate::math::x87::mul_status;
 use crate::math::x87_float::X;
@@ -33,7 +34,6 @@ use crate::physics::flow::{
 };
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::scene::engine_tables_store::EngineTables;
 
 /// The steer angle's table index (the angle >> 20).
 fn steer_index(car: &Car) -> u32 {
@@ -456,8 +456,8 @@ fn ease_yaw_twist(
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
+    use crate::math::x87_mem::{HostCell, view};
     use crate::memory::session::Cell32;
-    use crate::scene::x87_mem::{HostCell, view};
     use crate::test_support::own::race;
     use crate::test_support::own::scene;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};

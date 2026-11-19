@@ -3,13 +3,13 @@
 *Category: [Module reference](Modules)*
 
 The program's outer shell and its small services: the main loop that chooses between the
-installer and the game, the command line, the clocks, sleeping and waiting, and what the game
+installer and the game, the command line, the waiting that pumps the window's events, and what the game
 wants to know about the machine it runs on.
 
 ## State
 
 The owner is `System` (`src/system/owner.rs`): session flags (quitting, whether the window is
-active), start-up values, the clocks, facts about the machine and processor, and the file work
+active), start-up values, the picture clock (whose type lives in [`clock`](Module-clock)), facts about the machine and processor, and the file work
 buffers that [`files`](Module-files) uses.
 
 ## Main entry points
@@ -20,12 +20,11 @@ buffers that [`files`](Module-files) uses.
 | `read_command_line` | `src/system/read_command_line.rs` | The game's own command-line switches. |
 | `load_game_data` | `src/system/load_game_data.rs` | Loads options, best times and the lists of saved games at start-up. |
 | `test_processor` | `src/system/test_processor.rs` | Notes what the processor is. |
-| `tick_count` | `src/system/tick_count.rs` | The millisecond clock. |
-| `sleep` | `src/system/sleep.rs` | Sleeps. |
 | `pause` | `src/system/pause.rs` | The screens' fixed pauses: the window's events go on meanwhile, and a key ends one early (`pause` takes the key, `pause_keeping_key` leaves it for the menu, `hold` ignores keys). |
 | `wait_or_key` | `src/system/wait_or_key.rs` | Waits for a time or a key, whichever is first. |
-| `packed_local_time` | `src/system/packed_local_time.rs` | The date and time as one number (as stored in replays and saves). |
 | `checked_reads.rs` | `src/system/checked_reads.rs` | Bounds-checked reads used by loaders. |
+
+The clock, `sleep` and `packed_local_time` are in [`clock`](Module-clock).
 
 ## How it is laid out
 

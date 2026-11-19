@@ -20,8 +20,8 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
 use crate::math::x87_float::{ONE, Rounds, at_rounding, int, ld, st};
+use crate::math::x87_mem::{Base, fstp};
 use crate::scene::point_records;
-use crate::scene::x87_mem::{Base, fstp};
 
 // ---- game data ----
 

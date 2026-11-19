@@ -9,9 +9,9 @@
 //! place.
 
 use crate::audio::owner::Audio;
+use crate::clock::tick_count::tick_count;
 use crate::menu::owner::Menus;
 use crate::sound::owner::Sound;
-use crate::system::tick_count::tick_count;
 
 /// `sound` the menu's sound (0: none); `now` is asked for the clock.
 pub fn play_menu_sound(
@@ -47,12 +47,12 @@ pub fn play_menu_sound_in_game(
     sounds: &Sound,
     audio: &Audio,
     menus: &Menus,
-    system: &crate::system::owner::System,
+    picture_clock: &crate::clock::tick_count::PictureClock,
     sound: u32,
 ) {
     play_menu_sound(
         sound,
-        &mut || tick_count(&system.session.picture_clock),
+        &mut || tick_count(picture_clock),
         sounds,
         audio,
         menus,

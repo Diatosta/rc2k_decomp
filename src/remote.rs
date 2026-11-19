@@ -477,7 +477,7 @@ fn run(o: &Owners<'static>, line: &str) {
     // When a key or button is let go: its hold in the game's clock, which a held race counts in
     // frames and `RC2K_SPEED` runs fast, so a hold lasts the same number of game ticks at any speed.
     let due = |w: Option<&&str>| {
-        crate::system::tick_count::tick_count(&o.system.session.picture_clock)
+        crate::clock::tick_count::tick_count(&o.system.session.picture_clock)
             .wrapping_add(w.and_then(|m| m.parse().ok()).unwrap_or(100))
     };
     let answer = match (*command, rest) {
@@ -662,7 +662,7 @@ pub fn poll(o: &Owners<'static>, course: &Course) {
     note_screen(o.menus, o.gfx, course);
     let now = Instant::now();
     note_slow_frame(o.race, o.gfx, course, now);
-    let clock = crate::system::tick_count::tick_count(&o.system.session.picture_clock);
+    let clock = crate::clock::tick_count::tick_count(&o.system.session.picture_clock);
     pending().releases.retain(|(when, release)| {
         if (clock.wrapping_sub(*when) as i32) < 0 {
             return true;
@@ -741,7 +741,7 @@ pub fn shots_on() -> bool {
 pub fn shots_loading(
     race: &Race,
     effects: &crate::effects::owner::Effects,
-    clock: &crate::system::tick_count::PictureClock,
+    clock: &crate::clock::tick_count::PictureClock,
 ) {
     if !shots_on() {
         return;
@@ -828,7 +828,7 @@ pub fn race_loop_begins() {
     }
 }
 
-/// The game's clock while a race is held (`system::tick_count`).
+/// The game's clock while a race is held (`clock::tick_count`).
 pub fn held_clock() -> Option<u32> {
     let held = HELD_CLOCK.load(std::sync::atomic::Ordering::Relaxed);
     (held != 0).then_some(held)
@@ -841,7 +841,7 @@ fn reseed(random: &crate::math::next_random::Randoms, effects: &crate::effects::
 
 /// A race frame drawn (`drive::race_frame`): the held clock 10 ms on, unless the game is
 /// recording pictures itself (`race::replay_screenshot` moves it then).
-pub fn shot_frame_drawn(race: &Race, picture_clock: &crate::system::tick_count::PictureClock) {
+pub fn shot_frame_drawn(race: &Race, picture_clock: &crate::clock::tick_count::PictureClock) {
     if held_race() && race.course.numbers.get().in_race.is_set() {
         use std::sync::atomic::Ordering::Relaxed;
         let held = HELD_CLOCK.load(Relaxed);

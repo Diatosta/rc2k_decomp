@@ -62,7 +62,7 @@ fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
             o.sound,
             o.audio,
             o.menus,
-            o.system,
+            &o.system.session.picture_clock,
             UNREADABLE_SOUND,
         );
         go_back::go_back(menus);

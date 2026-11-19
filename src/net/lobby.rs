@@ -138,7 +138,11 @@ pub fn other_key(o: crate::owners::Owners<'static>, key: u8) -> Result<(), Refus
     if o.gfx.shots.on.get() != 0 && key == 0x52 {
         crate::gfx::take_screenshot::take_screenshot(o.gfx, o.system)?;
     }
-    crate::strings::maybe_compile_lexicon::maybe_compile_lexicon(o.input, o.strings, o.system)
+    crate::strings::maybe_compile_lexicon::maybe_compile_lexicon(
+        o.input.devices.keys_down.get(0x4E),
+        o.strings,
+        o.system,
+    )
 }
 
 /// `gfx::lock_surface`: whether it is locked.

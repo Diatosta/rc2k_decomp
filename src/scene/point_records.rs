@@ -124,7 +124,7 @@ pub fn first_records_everywhere<'a>(
     }
     // Beside each other: the part's own. Otherwise the game's thread draws alone and reaches
     // every part's (no scope is open: no run holds one).
-    let copies: [Option<&'a crate::scene::workers::PartScratch>; crate::scene::workers::COUNT] =
+    let copies: [Option<&'a crate::scene::workers::PartScratch>; crate::memory::draw_order::COUNT] =
         if crate::scene::workers::beside() {
             std::array::from_fn(|k| (k == 0).then_some(part))
         } else {

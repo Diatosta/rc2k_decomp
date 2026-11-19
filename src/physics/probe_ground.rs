@@ -27,8 +27,8 @@
 //! Refuses (before anything: what it wrote is put back) a count above 0x40 (the lists' room), and
 //! what `find_ground` refuses on any point.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::less_plus_less_product_80;
 use crate::math::x87_float as bh;
@@ -52,7 +52,7 @@ pub struct ProbeInputs<'a> {
     pub numbers: &'a crate::race::numbers_store::Numbers,
     pub tables: &'a crate::physics::tables_store::PhysicsTables,
     pub course: crate::race::owner_course::CourseReads<'a>,
-    pub engine_tables: &'a crate::scene::engine_tables_store::EngineTables,
+    pub engine_tables: &'a crate::math::engine_tables::EngineTables,
 }
 
 impl<'a> ProbeInputs<'a> {

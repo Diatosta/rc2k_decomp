@@ -8,8 +8,9 @@
 //! Reads and writes are checked: a place outside its buffer ends the program.
 
 use crate::install::installer::{rb, rd, refuse, rw, wb, wd, ww};
+use crate::install::list_pages::BoxRect;
 use crate::install::page_links::PageLink;
-use crate::memory::list_handle::{BoxRect, ListItem};
+use crate::memory::list_handle::ListItem;
 use crate::memory::place::BytePlace;
 
 /// The pieces' number (the layout's first dword).
@@ -177,8 +178,8 @@ mod tests {
                 let item = Piece::nth(install, n).item(install);
                 let made_from = item.installer_position(install).unwrap();
                 assert!(
-                    made_from == crate::memory::list_handle::ItemPosition::Title
-                        || matches!(made_from, crate::memory::list_handle::ItemPosition::In(l, _) if l == id),
+                    made_from == crate::install::list_pages::ItemPosition::Title
+                        || matches!(made_from, crate::install::list_pages::ItemPosition::In(l, _) if l == id),
                     "{id:?} piece {n}: {made_from:?}"
                 );
             }

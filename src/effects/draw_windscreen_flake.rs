@@ -9,9 +9,9 @@
 //!
 //! The x87 runs are plain Rust on the x87 model (`math::x87_float`).
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::tuning::MarksKindFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
+use crate::math::cell_x87::CellX87;
 use crate::memory::session::PlainFloat;
 
 const FAR_ENOUGH: f32 = 4096.0;

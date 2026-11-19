@@ -3,6 +3,7 @@
 //! `list_handle`, `shared_memory`).
 
 pub mod cells;
+pub mod draw_order;
 pub mod free_list;
 pub mod list_handle;
 pub mod owned;

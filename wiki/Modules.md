@@ -14,7 +14,7 @@ Two habits hold everywhere and make the folders easy to read:
   `..._store.rs` files that define the owner's parts. See [State and memory](State-and-memory)
   and the [Glossary](Glossary).
 
-For how the modules work together, start at [How the game runs](How-the-game-runs).
+For how the modules work together, start at [How the game runs](How-the-game-runs). Which modules may use which: [Code layers](Code-layers).
 
 ## The game
 
@@ -46,6 +46,7 @@ For how the modules work together, start at [How the game runs](How-the-game-run
 | [`render`](Module-render) | The renderers: the command list and the three backends (GPU, OpenGL ES, software). |
 | [`platform`](Module-platform) | Everything between the game and the computer: window, events, sound output, controllers, films, threads, the operating system. |
 | [`debug`](Module-debug) | The developers' debug window. |
+| [`video`](Module-small-modules) | A replay rendered to a video file (`--render-replay`), and its encoder. |
 
 ## Support
 
@@ -53,9 +54,10 @@ For how the modules work together, start at [How the game runs](How-the-game-run
 | --- | --- |
 | [`files`](Module-files) | Paths, file reading and writing, packed files, buffered streams. |
 | [`strings`](Module-strings) | The language's texts, the lexicon, number and time formatting. |
+| [`clock`](Module-clock) | The game's millisecond clock, sleeping, the packed local time. |
 | [`system`](Module-system) | The main loop, the command line, clocks, facts about the machine. |
 | [`memory`](Module-memory) | The typed cells and stores the game's data lives in. |
-| [Small modules](Module-small-modules) | `errors.rs`, `fatal`, `logfile`, `math`, `records`, `settings`, `threading`, `owners.rs`, `standalone.rs`, `remote.rs`, `lib.rs`, `bin/`, `test_support`. |
+| [Small modules](Module-small-modules) | `errors.rs`, `fatal`, `logfile`, `math`, `records`, `settings`, `threading`, `owners.rs`, `standalone.rs`, `remote.rs`, `first_run.rs`, `single_copy.rs`, `error_dialog`, `video`, `lib.rs`, `bin/`, `test_support`. |
 
 ## The other crates
 

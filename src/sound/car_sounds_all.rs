@@ -115,7 +115,7 @@ mod reference_vectors {
                 with_laid::<SoundObject, _>(a[0], |so| {
                     x87_1(
                         so,
-                        crate::scene::x87_mem::view::<crate::memory::session::PlainFloat>(
+                        crate::math::x87_mem::view::<crate::memory::session::PlainFloat>(
                             a[1], 0x2578,
                         ),
                     );

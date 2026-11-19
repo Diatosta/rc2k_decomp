@@ -233,7 +233,7 @@ pub fn hold(o: crate::owners::Owners<'static>, milliseconds: u32) {
 }
 
 pub fn sleep(milliseconds: u32) {
-    crate::system::sleep::sleep(milliseconds);
+    crate::clock::sleep::sleep(milliseconds);
 }
 
 /// The pending key (0: none).

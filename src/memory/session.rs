@@ -1168,7 +1168,7 @@ impl<T> DrawShared<T> {
     /// The store, on the game's thread outside a drawing scope (debug builds check both).
     pub fn get(&self) -> &T {
         debug_assert!(
-            !crate::scene::workers::in_scope(),
+            !crate::memory::draw_order::in_scope(),
             "a drawing store reached by its owner while the parts read it (take the part's reads)"
         );
         self.0.get()
@@ -1191,7 +1191,7 @@ impl<'s, T: crate::memory::cells::Cells> PhaseRead<'s, T> {
     /// (`plain_written` then stops at a write into them) until the scope ends.
     pub(crate) fn lend(
         store: &'s DrawShared<T>,
-        scope: &'s crate::scene::workers::DrawScope,
+        scope: &'s crate::memory::draw_order::DrawScope,
     ) -> Self {
         let _ = scope;
         #[cfg(debug_assertions)]

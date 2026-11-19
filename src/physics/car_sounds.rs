@@ -165,7 +165,7 @@ fn x87_2(v: [u32; 3]) -> [u8; 10] {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::{Base, view};
+    use crate::math::x87_mem::{Base, view};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {

@@ -7,7 +7,7 @@
 //! `steering` + it, `steer_angle_visual` = `steering_raw` + 4 x it; both 0 unless
 //! `steering_damage` is below `hundred` (or unordered).
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::memory::session::{DwordLike, FloatLike};

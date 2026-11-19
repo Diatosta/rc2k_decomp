@@ -67,7 +67,7 @@ fn x87_1(sf: &crate::sound::store::SurfaceSounds, volume: &impl Cell32) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::HostCell;
+    use crate::math::x87_mem::HostCell;
     use crate::sound::asm_layout::{Laid, with_laid};
     use crate::sound::store::SurfaceSounds;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};

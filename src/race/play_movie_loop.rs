@@ -36,7 +36,7 @@ pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result
     race.course.numbers.get().replay_mode.set(2);
     // A replay rendered to a video runs on the video's clock from here on.
     crate::video::race_loop_begins();
-    race_parts::restart_clock(race, o.system);
+    race_parts::restart_clock(race, &o.system.session.picture_clock);
     race.shared
         .physics_tables
         .get()

@@ -6,7 +6,7 @@ use crate::physics::car_store::Car;
 
 /// `point` is the three floats (x, y, z); x and z are turned.
 pub fn turn_by_heading(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     car: &Car,
     point: &[impl crate::memory::session::FloatLike; 3],
     ebx: u32,

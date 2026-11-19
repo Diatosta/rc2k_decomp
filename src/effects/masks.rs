@@ -190,21 +190,21 @@ pub fn make_masks(
     masks
         .work
         .take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
-    crate::race::load_times::mark("masks: make_shape_sets");
+    crate::logfile::load_times::mark("masks: make_shape_sets");
     crate::effects::shape_points::make_shape_sets(course, faces_table, drops, scene, effects)?;
-    crate::race::load_times::mark("masks: make_corners");
+    crate::logfile::load_times::mark("masks: make_corners");
     crate::effects::corners::make_corners(masks, drops, effects)?;
     reset_mask_cursor(masks);
-    crate::race::load_times::mark("masks: span_ring");
+    crate::logfile::load_times::mark("masks: span_ring");
     for (n, (shape, angles)) in masks.vars.shapes.iter().zip(ring_angles).enumerate() {
         masks.vars.ring_corners.set(n as u32);
         crate::effects::rings::span_ring(masks, shape, angles, effects)?;
     }
-    crate::race::load_times::mark("masks: draw_mask");
+    crate::logfile::load_times::mark("masks: draw_mask");
     for n in 0..2 {
         draw_mask(masks, drops, n as u32)?;
     }
-    crate::race::load_times::mark("masks: map_shapes");
+    crate::logfile::load_times::mark("masks: map_shapes");
     for n in 0..2 {
         crate::effects::pixels::map_shapes(masks, drops, n as u32, effects)?;
     }

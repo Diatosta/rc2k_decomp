@@ -6,8 +6,8 @@
 //! records of 0x20 bytes at `work.points` (+0 x, +4 y, +8 z as whole numbers, +0xC the angle, +0x10
 //! the distance, +0x14 0), their count `work.point_count`, the hull's `work.hull_count`, ...
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::memory::session::{PlainByte, PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::ground_probe_store::GroundProbe;

@@ -1,7 +1,7 @@
 //! The steps the physics' long functions share: the x87 compares (the status word's C0 / C3)
 //! and the holds and eases whose patterns repeat.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float::{compare, ld, stf};
@@ -238,7 +238,7 @@ pub fn fill_cells(to: &[impl FloatView], v: f32) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::{Base, view};
+    use crate::math::x87_mem::{Base, view};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {

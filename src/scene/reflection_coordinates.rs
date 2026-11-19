@@ -12,8 +12,8 @@
 use crate::errors::BadInput;
 use crate::math::normalise_vector::normalise_vector;
 use crate::math::x87;
+use crate::math::x87_mem::{Base, cells, fistp, fld, fstp};
 use crate::scene::reflect_vector::reflect_vector;
-use crate::scene::x87_mem::{Base, cells, fistp, fld, fstp};
 
 /// One coordinate: `a` times `half` plus `half`, times both scales, rounded.
 fn coordinate(a: u32, half: f32, scales: [f32; 2]) -> i32 {
@@ -65,7 +65,11 @@ pub fn reflection_coordinates(
     let point = table.place(object.reflection_point_number.get().wrapping_neg())?;
     crate::memory::session::write_bits(&m.reflect_vector, normal);
     crate::memory::session::write_first(&m.work_vector, &point.map(negated));
-    normalise_vector(reads.course_lists, &m.work_vector)?;
+    normalise_vector(
+        &reads.course_lists.root_table,
+        &reads.course_lists.exponent_root_table,
+        &m.work_vector,
+    )?;
     let to_eye: [u32; 3] = crate::memory::session::read_first(&m.work_vector);
     crate::memory::session::write_bits(&m.reflect_normal, to_eye);
     reflect_vector(m, &m.view_back_matrix);
@@ -78,7 +82,11 @@ pub fn reflection_coordinates(
             x87::loaded(mirrored[2]).to_bits(),
         ],
     );
-    normalise_vector(reads.course_lists, &m.work_vector)?;
+    normalise_vector(
+        &reads.course_lists.root_table,
+        &reads.course_lists.exponent_root_table,
+        &m.work_vector,
+    )?;
     let looks: [u32; 3] = crate::memory::session::read_first(&m.work_vector);
     let half = reads.numbers.half.get();
     let scales = [reads.numbers.k65536.get(), reads.numbers.k256.get()];

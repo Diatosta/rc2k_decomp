@@ -10,8 +10,8 @@
 //! `contact_speed_length`, `contact_depth` is raised to its size, `contact_flag` = 1 and
 //! `wall_hit_timer` = 0x32.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::X;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;

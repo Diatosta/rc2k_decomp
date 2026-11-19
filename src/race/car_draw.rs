@@ -3,8 +3,8 @@
 //! six matrices (four parts', the body's, the turn) and +0xF04 the shown parts' mask. The entry
 //! points are `draw_car_entry`, `draw_car_shined` and `draw_car`.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::cells::Cells;
 use crate::memory::session::PlainFloat;
 use crate::race::car_draw_state::CarDrawState;

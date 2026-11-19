@@ -57,7 +57,7 @@ pub struct GroundInputs<'a> {
     pub contact: &'a ContactWork,
     pub ground: &'a GroundWork,
     pub probe: &'a GroundProbe,
-    pub engine_tables: &'a crate::scene::engine_tables_store::EngineTables,
+    pub engine_tables: &'a crate::math::engine_tables::EngineTables,
 }
 
 /// What the camera's ground checks read: the car's camera place, the ground search and

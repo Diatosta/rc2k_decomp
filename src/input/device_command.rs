@@ -92,7 +92,11 @@ pub fn device_command(
                         state.car(n).controls.controller.set(0);
                     }
                 }
-                BeginEffects => crate::input::begin_effects::begin_effects(input, sound, system)?,
+                BeginEffects => crate::input::begin_effects::begin_effects(
+                    input,
+                    sound,
+                    &system.session.picture_clock,
+                )?,
             }
         }
     }

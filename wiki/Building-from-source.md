@@ -18,7 +18,8 @@ All commands are run from the repository's top folder. The repository and the cr
 | Windows, 32 bits | `./build.sh windows` | Linux | `dist/windows/`: the same two files |
 | Windows, 64 or 32 bits | `build.ps1 -Target windows-x64` or `-Target windows` | Windows | the same two folders |
 | macOS | `./build.sh mac` | a Mac, or Linux with a Mac reached over SSH | `dist/mac/Rally Championship.app` |
-| iPhone / iPad (begun, not yet run) | `./build.sh ios` | Linux, with Apple's iOS SDK from Xcode (`tools/ios/README.md`) | `dist/ios/Rally Championship.ipa`, unsigned |
+| iPhone / iPad | `./build.sh ios` | Linux, with Apple's iOS SDK from Xcode (`tools/ios/README.md`), or a Mac with Xcode | `dist/ios/Rally Championship.ipa`, unsigned |
+| Android | `tools/android/build.sh [x86_64] [arm64]` | Linux, with the Android SDK and NDK (`tools/android/README.md`) | `dist/android/rc2k-<abi>.apk` |
 | Steam Deck (and older Linux systems) | `./build.sh deck` | Linux, with Docker | `dist/deck/`: `rc2k`, `rally.sh`, `libsteam_api.so` with `RC2K_STEAM=1` |
 | Anbernic RG34XXSP | `./build.sh handheld` | Linux, with Docker | `dist/handheld/`: `rc2k`, `Rally.sh` |
 | Web (experimental) | `./build.sh web` | Linux, with Emscripten | `dist/web/`: `rc2k.js`, `rc2k.wasm`, `index.html`, `unzip.js`, `coi-serviceworker.js`, `serve.py` |

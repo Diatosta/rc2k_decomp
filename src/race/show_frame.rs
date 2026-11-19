@@ -47,7 +47,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
     }
     let clock = crate::scene::restart_clock::restart_clock(
         &race.shared,
-        crate::system::tick_count::tick_count(&system.session.picture_clock),
+        crate::clock::tick_count::tick_count(&system.session.picture_clock),
     );
     let time = clock.wrapping_sub(race.shared.view.get().clock_base.get());
     race.shared.view.get().frame_time.set(time);

@@ -8,12 +8,12 @@ use crate::net::owner::Net;
 use rc2k_core::net::players::State;
 pub fn race_wait(
     net: &Net,
-    clock: &crate::system::tick_count::PictureClock,
+    clock: &crate::clock::tick_count::PictureClock,
 ) -> Result<u32, Refused> {
     let vars = &net.vars;
     vars.own.set_state(vars.own.state().waiting());
     vars.own.race_time.set(u32::MAX);
-    let now = crate::system::tick_count::tick_count(clock);
+    let now = crate::clock::tick_count::tick_count(clock);
     if (now
         .wrapping_sub(net.lobby().listed_at.get())
         .wrapping_sub(1000) as i32)

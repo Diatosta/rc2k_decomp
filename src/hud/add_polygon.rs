@@ -14,9 +14,8 @@ use crate::race::owner_frame::Frame;
 
 pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     let system = pen.system;
-    use rc2k_core::hud::anchor;
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
-    use rc2k_core::hud::quads::screen_scaled;
+    use rc2k_core::hud::place::{Place, Placement};
     {
         let count: u32 = pen.polygons.polygon_vertex_count.get();
         let texture = hud.block.texture.get();
@@ -36,9 +35,10 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
                 system.session.screen.get().height.get(),
             ],
         };
+        let rule = hud.block.anchor_rule.get();
         // Where a phone's notch and home indicator leave the HUD room (the whole screen or part
         // elsewhere): the layout is made for that, and put where it is.
-        let [ox, oy, iw, ih] = if hud.block.anchor_rule.get() >= 3 {
+        let inset = if rule >= 3 {
             [0, 0, w, h]
         } else {
             crate::hud::safe_inset::get(
@@ -49,106 +49,34 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
                 part,
             )
         };
-        let [kx, ky] = [
-            hud.block.virtual_screen[0].get(),
-            hud.block.virtual_screen[1].get(),
-        ];
         let vertices = || pen.vertices.vertices.iter().take(count as usize);
+        let span = |of: fn(&crate::d3d::vertices_store::Vertex) -> f32| {
+            vertices().fold((f32::MAX, f32::MIN), |(low, high), v| {
+                (low.min(of(v)), high.max(of(v)))
+            })
+        };
         // On a screen wider than 4:3 the layout keeps its shape and the piece keeps to an edge
-        // or the middle (`rc2k_core::hud::anchor`); the divider of two players one above the
-        // other is stretched over the whole width.
-        let rule = hud.block.anchor_rule.get();
-        // The pieces keep to the HUD's box, centred on the screen (all of it by default); the
-        // divider's own rule stretches over the whole screen.
-        let (box_left, box_width) = if rule >= 3 {
-            (0, w)
-        } else {
-            let (left, width) = crate::hud::box_ratio::get().area(iw, ih);
-            (ox + left, width)
-        };
-        let wide = anchor::is_wide(box_width, ih) && (kx, ky) == (800.0, 600.0);
-        // Two players side by side on a wide screen: each half is a part of its own.
-        let keep = crate::hud::layout_common::Keep::Halves as u32;
-        let part_middle = crate::hud::layout_common::Keep::PartMiddle as u32;
-        let beside = (rule == keep || rule == part_middle)
-            && anchor::is_wide(iw, ih)
-            && (kx, ky) == (800.0, 600.0);
-        let middle_of = || {
-            let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
-                (lo.min(v.x.get()), hi.max(v.x.get()))
-            });
-            (low + high) / 2.0
-        };
-        let x_of: Box<dyn Fn(f32) -> f32> = if beside {
-            let map = anchor::Beside::new(
-                middle_of(),
-                iw,
-                ih,
-                crate::hud::box_ratio::get(),
-                rule == part_middle,
-            );
-            Box::new(move |x| ox as f32 + map.x(x))
-        } else if wide && rule == crate::hud::layout_common::Keep::Whole as u32 {
-            // Stretched over the whole width, as the divider of two players one above the other.
-            Box::new(move |x| x * w as f32 / 800.0)
-        } else if wide && rule == 4 {
-            Box::new(move |x| ox as f32 + anchor::bar_x(x, box_width, ih))
-        } else if wide && rule == 5 {
-            // The marker keeps its shape and puts its right edge at the bar's place for its
-            // progress (`anchor::marker_edge_x`), where the bar's parts end.
-            let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
-                (lo.min(v.x.get()), hi.max(v.x.get()))
-            });
-            let (at, s) = (
-                ox as f32
-                    + anchor::marker_edge_x(
-                        low,
-                        hud.block.marker_k[0].get(),
-                        hud.block.marker_k[1].get(),
-                        box_width,
-                        ih,
-                    ),
-                ih as f32 / 600.0,
-            );
-            Box::new(move |x| at + (x - high) * s)
-        } else if !wide {
-            Box::new(move |x| box_left as f32 + screen_scaled(x, box_width, kx))
-        } else {
-            let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
-                (lo.min(v.x.get()), hi.max(v.x.get()))
-            });
-            let rule = match rule {
-                1 => anchor::Rule::Halves,
-                2 => anchor::Rule::Centre,
-                _ => anchor::Rule::Thirds,
-            };
-            let at = anchor::anchor_of((low + high) / 2.0, rule);
-            Box::new(move |x| box_left as f32 + anchor::screen_x(x, box_width, ih, at))
-        };
+        // or the middle; the divider of two players one above the other is stretched over the
+        // whole width (`rc2k_core::hud::place`).
+        let placement = Placement::of(&Place {
+            rule,
+            width: w,
+            inset,
+            hud_box: crate::hud::box_ratio::get(),
+            virtual_screen: (
+                hud.block.virtual_screen[0].get(),
+                hud.block.virtual_screen[1].get(),
+            ),
+            marker_k: [hud.block.marker_k[0].get(), hud.block.marker_k[1].get()],
+            x_span: span(|v| v.x.get()),
+            y_span: span(|v| v.y.get()),
+            in_part: part.is_some(),
+        });
         // Pieces that are already in screen pixels are left where they are.
-        if rule != crate::hud::layout_common::Keep::Pixels as u32 {
-            // A part narrower than 4:3 keeps the layout's shape too: one factor (the part's
-            // width over 800) down as across, a piece keeping to the part's top, bottom or middle
-            // by where its own middle lies in the layout (`anchor::narrow_y`).
-            let narrow_part = part.is_some() && !wide && !beside && (kx, ky) == (800.0, 600.0);
-            let middle_y = {
-                let (low, high) = vertices().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
-                    (lo.min(v.y.get()), hi.max(v.y.get()))
-                });
-                (low + high) / 2.0
-            };
+        if !placement.keeps_pixels() {
             for v in vertices() {
-                v.x.set(x_of(v.x.get()));
-                v.y.set(
-                    oy as f32
-                        + if narrow_part {
-                            anchor::narrow_y(v.y.get(), middle_y, box_width, ih)
-                        } else if wide || beside {
-                            anchor::screen_y(v.y.get(), box_width, ih)
-                        } else {
-                            screen_scaled(v.y.get(), ih, ky)
-                        },
-                );
+                v.x.set(placement.x(v.x.get()));
+                v.y.set(placement.y(v.y.get()));
             }
         }
         if let Some(part) = part {

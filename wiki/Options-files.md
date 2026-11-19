@@ -550,6 +550,5 @@ times:
 ```
 
 Code: `rc2k_core/src/options/` (`model.rs`: every value and the old file's order;
-`old_file.rs`, `toml_file.rs`: the two formats, `document.rs`: the new file's readable form of the values; `files.rs`: which file is used when),
-`src/saves/options_files.rs`, `src/saves/options_state.rs` (where each value lives in the
+`old_file.rs`, `toml_file.rs`: the two formats, `document.rs`: the new file's readable form of the values; `files.rs`: which file is used when, with the reading and writing of the files left to the program), `src/saves/options_files.rs` (reads and writes them, the new file whole or not at all), `src/saves/options_state.rs` (where each value lives in the
 game), `src/records/stages_store.rs` (the record of a record table).

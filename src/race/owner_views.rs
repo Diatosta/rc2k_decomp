@@ -1,6 +1,7 @@
 //! The race's stores that sit inside its groups, as views from the owner.
 
 use crate::errors::BadInput;
+use crate::math::engine_tables::EngineTables;
 use crate::physics::gear_store::GearFigures;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::checkpoints_store::Checkpoints;
@@ -11,7 +12,6 @@ use crate::race::owner::Race;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::scene::engine_tables_store::EngineTables;
 use crate::scene::faces_store::Faces;
 use crate::scene::polygon_store::PolygonTables;
 

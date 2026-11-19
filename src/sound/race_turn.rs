@@ -20,7 +20,7 @@ pub fn race_turn(
     if sound.race.clock.get().started.get() != 1 {
         return Ok(());
     }
-    if crate::sound::turn_parts::step_clock(sound, system) {
+    if crate::sound::turn_parts::step_clock(sound, &system.session.picture_clock) {
         crate::platform::timing::note_sound_turn();
         use crate::sound::*;
         mark_car_voices::mark_car_voices(sound, race)?;

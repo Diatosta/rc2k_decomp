@@ -39,8 +39,8 @@ pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
         menu_sounds,
     } = inputs;
     use crate::audio::*;
+    use crate::clock::tick_count::tick_count;
     use crate::platform::sync::set_priority;
-    use crate::system::tick_count::tick_count;
     use std::sync::atomic::Ordering;
     // The thread's own variables (`audio::own`): made here, so that no other thread has them.
     let audio = &crate::audio::own::AudioThread::new(owner);
@@ -71,7 +71,7 @@ pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
             // commands it queued.
             crate::sound::queue::pause_between_turns(
                 owner,
-                crate::system::sleep::duration(rc2k_core::audio::device::turn_sleep(last, now)),
+                crate::clock::sleep::duration(rc2k_core::audio::device::turn_sleep(last, now)),
             );
             let begun = crate::debug::timing::start();
             // The turn's feeds (action 1, which reads nothing else).

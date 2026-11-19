@@ -2,8 +2,8 @@
 //!
 //! The vector is three floats; its length is left in `SoundSpotBlock.work_vector_length`
 //! (not kept here: nothing reached reads it). The squares' sum as a float; its square root from
-//! two tables (the float's bits 15 .. 22 pick one of 0x100 at `CourseLists.root_table[0]`, its
-//! exponent one at `CourseLists.exponent_root_table[0]`), the two multiplied; each of the three
+//! two tables (the float's bits 15 .. 22 pick one of 0x100 at the root table, its
+//! exponent one at the exponent table), the two multiplied; each of the three
 //! times 1 over that; a component that comes out as minus zero is made zero. A length that
 //! compares equal to `Numbers.zero` (0.0), or is no number, is refused.
 //!
@@ -11,8 +11,7 @@
 
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
-use crate::memory::session::PlainDword;
-use crate::race::course_lists_store::CourseLists;
+use crate::memory::session::{PlainDword, PlainFloat};
 
 // The work vector (the race's) and the root tables
 // (`scene::fill_engine_tables` makes them) are the game's; the squares and the length are
@@ -45,11 +44,15 @@ pub(crate) fn scaled_by_inverse(
 }
 
 /// Normalises the work vector: gives the squares' sum (the bits of a float).
-pub fn normalise_vector(lists: &CourseLists, work: &[PlainDword; 4]) -> Result<u32, BadInput> {
+pub fn normalise_vector(
+    root_table: &[PlainFloat; 256],
+    exponent_root_table: &[PlainFloat; 256],
+    work: &[PlainDword; 4],
+) -> Result<u32, BadInput> {
     let v: [u32; 4] = crate::memory::session::read_bits(work);
     let sum = squares_sum([v[0], v[1], v[2]]);
-    let root: f32 = lists.root_table[((sum >> 15) & 0xFF) as usize].get();
-    let exponent_root: f32 = lists.exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].get();
+    let root: f32 = root_table[((sum >> 15) & 0xFF) as usize].get();
+    let exponent_root: f32 = exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].get();
     // The product of two floats is exact in a double, as it is in the x87.
     let length = ld(root) * ld(exponent_root);
     if compare(length, ld(NOTHING)) & 0x4000 != 0 {

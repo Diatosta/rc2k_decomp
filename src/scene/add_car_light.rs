@@ -7,8 +7,8 @@
 //! `LightTables.car_light_table`, added to the light colour byte by byte without overflow. The
 //! arithmetic runs on `X`, the x87's double-precision stand-in.
 
+use crate::math::x87_mem::{Base, cells, fild, fistp, fld};
 use crate::scene::vertex_light::plus;
-use crate::scene::x87_mem::{Base, cells, fild, fistp, fld};
 
 /// Three whole numbers through a matrix and back to whole numbers: `fild` three times,
 /// `scene::rotate_point`, `fistp` three times.

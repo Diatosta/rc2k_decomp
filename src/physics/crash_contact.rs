@@ -14,8 +14,8 @@
 //! Refuses a point past 0x3F on the long path (the tables' room), and what its calls refuse; what
 //! was written is put back.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87::neg_rounded;
 use crate::math::x87::{loaded, mul};
 use crate::memory::session::FloatLike;

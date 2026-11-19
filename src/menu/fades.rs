@@ -33,7 +33,7 @@ pub fn fade(o: Owners<'static>, out: bool) -> Result<(), Refused> {
             .state
             .menus
             .fade_start
-            .set(crate::system::tick_count::tick_count(
+            .set(crate::clock::tick_count::tick_count(
                 &o.system.session.picture_clock,
             ));
         screens.state.menus.fade_see.set(fades::first_see(
@@ -42,7 +42,7 @@ pub fn fade(o: Owners<'static>, out: bool) -> Result<(), Refused> {
         ));
         frame(o)?;
         loop {
-            let gone = crate::system::tick_count::tick_count(&o.system.session.picture_clock)
+            let gone = crate::clock::tick_count::tick_count(&o.system.session.picture_clock)
                 .wrapping_sub(screens.state.menus.fade_start.get());
             screens.state.menus.fade_gone.set(gone);
             // The length and the full see-through are read only where they are needed.

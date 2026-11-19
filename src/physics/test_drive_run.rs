@@ -12,8 +12,8 @@
 //! Refuses a gear outside -1 ..= 7 (past `gear_ratios`) and what its calls refuse; everything
 //! written is put back.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
@@ -177,7 +177,7 @@ fn x87_3(car: &Car, figures: &GearFigures, numbers: &Numbers) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::view;
+    use crate::math::x87_mem::view;
     use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 

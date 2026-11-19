@@ -32,7 +32,7 @@ pub fn show_picture_file(
     gfx.pictures.showing.set(1);
     crate::gfx::picture::set_size(&gfx.pictures, sizes::READ);
     // A refused picture is not read, as `read_picture_file`'s callers see it.
-    crate::race::load_times::mark("picture: read");
+    crate::logfile::load_times::mark("picture: read");
     let read = match crate::gfx::read_picture_file::read_picture_file(path, gfx, system) {
         Ok(read) => read,
         Err(Refused::BadInput(_)) => false,
@@ -43,7 +43,7 @@ pub fn show_picture_file(
         system.session.screen.get().height.get(),
     );
     crate::gfx::picture::set_size(&gfx.pictures, sizes::screen(width, height));
-    crate::race::load_times::mark("picture: set up");
+    crate::logfile::load_times::mark("picture: set up");
     if !read {
         crate::gfx::clear_picture::clear_picture(&gfx.pictures)?;
     } else {
@@ -62,7 +62,7 @@ pub fn show_picture_file(
             )?;
         }
         if sizes::rescaled(gfx.pictures.decoder.width.get(), width) {
-            crate::race::load_times::mark("picture: rescale");
+            crate::logfile::load_times::mark("picture: rescale");
             // Not locked.
             if lock_surface(gfx, system) < 1 {
                 return Ok(());
@@ -75,16 +75,16 @@ pub fn show_picture_file(
                 &mut None,
             )?;
             unlock_surface(gfx);
-            crate::race::load_times::mark("picture: show frame");
+            crate::logfile::load_times::mark("picture: show frame");
             show_frame_now(o);
             return Ok(());
         }
     }
-    crate::race::load_times::mark("picture: convert");
+    crate::logfile::load_times::mark("picture: convert");
     crate::gfx::convert_picture::convert_picture_now_in(gfx)?;
-    crate::race::load_times::mark("picture: copy");
+    crate::logfile::load_times::mark("picture: copy");
     copy_picture_to_surface(&mut GameSurface(gfx, system))?;
-    crate::race::load_times::mark("picture: show frame");
+    crate::logfile::load_times::mark("picture: show frame");
     show_frame_now(o);
     Ok(())
 }

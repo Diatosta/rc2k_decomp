@@ -558,8 +558,8 @@ fn gauge_totals(car: &Car, m: &DamageModel) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
+    use crate::math::x87_mem::view;
     use crate::physics::store::laid;
-    use crate::scene::x87_mem::view;
     use crate::test_support::own::race;
 
     /// The damage model as the test's buffer holds it.

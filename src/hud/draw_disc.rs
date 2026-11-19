@@ -39,21 +39,22 @@ pub fn draw_disc(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         let table = |cell: &crate::memory::session::PlainFloat| x87::loaded(cell);
         for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
             let n = k + 1;
-            hud.block.ring_sines[n].set(table(crate::scene::engine_tables_store::sine(
+            hud.block.ring_sines[n].set(table(crate::math::engine_tables::sine(
                 pen.engine_tables,
                 a as usize,
             )));
-            hud.block.ring_cosines[n].set(table(crate::scene::engine_tables_store::cosine(
+            hud.block.ring_cosines[n].set(table(crate::math::engine_tables::cosine(
                 pen.engine_tables,
                 a as usize,
             )));
-            hud.block.texture_ring_sines[n].set(table(crate::scene::engine_tables_store::sine(
+            hud.block.texture_ring_sines[n].set(table(crate::math::engine_tables::sine(
                 pen.engine_tables,
                 b as usize,
             )));
-            hud.block.texture_ring_cosines[n].set(table(
-                crate::scene::engine_tables_store::cosine(pen.engine_tables, b as usize),
-            ));
+            hud.block.texture_ring_cosines[n].set(table(crate::math::engine_tables::cosine(
+                pen.engine_tables,
+                b as usize,
+            )));
         }
         hud.block.fistp_scratch.set(t);
         for k in 0..SEGMENTS {
@@ -69,7 +70,7 @@ pub fn draw_disc(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
 /// `negated_times_times_to_int` over the test's operand buffers (`[v + 4 k]`, the result at
 /// `[o]`), for the comparison with the recorded x87 run.
 #[cfg(test)]
-fn x87_1(v: impl crate::scene::x87_mem::Base, o: impl crate::scene::x87_mem::Base) {
+fn x87_1(v: impl crate::math::x87_mem::Base, o: impl crate::math::x87_mem::Base) {
     o.set_dword(
         0,
         negated_times_times_to_int(

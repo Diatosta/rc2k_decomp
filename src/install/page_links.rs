@@ -13,8 +13,8 @@
 
 use crate::errors::BadInput;
 use crate::gfx::typefaces::FontId;
+use crate::install::list_pages::{BoxRect, EditRecord};
 use crate::install::owner::Install;
-use crate::memory::list_handle::{BoxRect, EditRecord};
 use crate::memory::place::BytePlace;
 
 const KIND_SHIFT: u32 = 24;

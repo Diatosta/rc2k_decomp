@@ -147,7 +147,7 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     set_cdat_number(course, 0);
     load_log(0);
     let mut data = vec![0u8; FIRST_PART];
-    crate::race::load_times::mark("read_level_file");
+    crate::logfile::load_times::mark("read_level_file");
     let out = read_level_file::read_level_file(&course.level_paths().cdat_src.text(), &mut data)?;
     if out.carry {
         // The path named, for the reports.
@@ -159,7 +159,7 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     }
     load_log(1);
     load_log(2);
-    crate::race::load_times::mark("read_course, store header and parts");
+    crate::logfile::load_times::mark("read_course, store header and parts");
     let parts =
         rc2k_core::race::loading::read_course(&data).map_err(|e| crate::errors::Recover(e.0))?;
     drop(data);
@@ -168,7 +168,7 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     crate::race::course_places::take(&course.stage.course, &parts.faces, &parts.records)?;
     load_log(3);
     load_log(4);
-    crate::race::load_times::mark("reset_face_lights");
+    crate::logfile::load_times::mark("reset_face_lights");
     reset_face_lights(race)?;
     load_log(5);
     Ok(())
@@ -182,10 +182,10 @@ pub fn locate_current_course(
 ) -> Result<(), Refused> {
     let course = &race.course;
     course.stage_prefs.get().cdat_number.set(0u32);
-    crate::race::load_times::mark("load_level");
+    crate::logfile::load_times::mark("load_level");
     load_level(race)?;
-    crate::race::load_times::mark("group_records_by_kind");
+    crate::logfile::load_times::mark("group_records_by_kind");
     group_records_by_kind(course)?;
-    crate::race::load_times::mark("build_best_line");
+    crate::logfile::load_times::mark("build_best_line");
     crate::race::best_line::build_best_line(race, scene)
 }

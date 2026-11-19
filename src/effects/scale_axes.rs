@@ -13,9 +13,9 @@ pub fn scale_axes(fl: &WindscreenFlakes) {
     scale_axes_x87(&fl.tables, &fl.state);
 }
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTables};
+use crate::math::cell_x87::CellX87;
 
 /// `scale_axes`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn scale_axes_x87(sq: &WindscreenFlakeTables, ss: &WindscreenFlakeState) {

@@ -81,7 +81,7 @@ fn options_of(files: &Files) -> Result<Options, String> {
     };
     let text = std::str::from_utf8(bytes).map_err(|_| "var/rc2k.toml is not text".to_owned())?;
     match toml_file::read(text, &base) {
-        Ok(Some(options)) => Ok(options),
+        Ok(Some(read)) => Ok(read.options),
         Ok(None) => Ok(base),
         Err(e) => Err(format!("var/rc2k.toml: {e:?}")),
     }

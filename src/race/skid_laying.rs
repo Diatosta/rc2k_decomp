@@ -10,7 +10,7 @@ use crate::race::owner_shared::RaceShared;
 
 /// The edges' offset for an angle (`math::rotate_point_about_y` of (0x1555, y, 0) by angle << 16).
 fn offsets(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     angle: u32,
     y: u32,
 ) -> (u32, u32) {

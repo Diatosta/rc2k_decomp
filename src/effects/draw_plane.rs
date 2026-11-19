@@ -14,12 +14,12 @@
 //! The x87 runs are plain Rust on the x87 model (`math::x87_float`). Refuses null settings and a
 //! corner past the mark corners table, before anything.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::kind_store::QuadWork;
 use crate::effects::plain::ldi_cell;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::scene::cross_product3::cross;

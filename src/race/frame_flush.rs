@@ -2,8 +2,8 @@
 //! batches of triangles flushed by the device (the platform's draw), and a quad over the view
 //! window.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::memory::session::PlainDword;
 use crate::race::owner_course::CourseReads;
 use crate::race::owner_frame::Frame;

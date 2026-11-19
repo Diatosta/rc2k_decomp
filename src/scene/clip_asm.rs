@@ -5,7 +5,7 @@
 //! The tests compare against recorded vectors (`data/vectors`).
 
 use crate::math::x87_float::X;
-use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
+use crate::math::x87_mem::{Base, cells, fild, fistp, fld, fstp};
 
 /// The block the arithmetic works in, in dwords. Offsets: 0 the first point's record, 0x20 the
 /// second's, 0x40 and 0x88 their entries, 0xD0 and 0xE4 the entries' five bytes (+0x18, +0x19,

@@ -3,7 +3,8 @@
 //! past the choices with every choice marked.
 
 use crate::errors::Refused;
-use crate::memory::list_handle::{ItemByte, ListItem};
+use crate::install::list_pages::ItemByte;
+use crate::memory::list_handle::ListItem;
 use rc2k_core::install::items::{self, MARKS};
 
 /// An item of choices' chosen byte; and whether choice `cl` is free.

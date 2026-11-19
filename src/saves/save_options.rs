@@ -1,15 +1,15 @@
 //! Writes the game's kept options, `var\ral.dat`.
 //!
 //! The file is put together in the scratch block: "R5CI", 0, 0x50004, the time
-//! (`system::packed_local_time`), the 69 pieces of `saves::options_state` in the same order, taken
+//! (`clock::packed_local_time`), the 69 pieces of `saves::options_state` in the same order, taken
 //! from the captured options, and "####"; then `files::write_file`. Refuses what `write_file`
 //! refuses.
 
+use crate::clock::packed_local_time::packed_local_time;
 use crate::errors::Refused;
 use crate::files::write_file::write_file_from_store;
 use crate::owners::Owners;
 use crate::saves::options_state::capture;
-use crate::system::packed_local_time::packed_local_time;
 
 const HEAD_LEN: usize = 0x10;
 /// The whole file's length.

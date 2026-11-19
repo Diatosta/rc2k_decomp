@@ -56,7 +56,7 @@ program, not with the 1999 game.
   they are addressed to. They are never sent back to the sender.
 - **If the host goes**, the session is lost. It does not move to another machine.
 
-`protocol.rs` defines the frames: join, welcome or refuse, a request and its reply, a change,
+`rc2k_core/src/net/protocol.rs` defines the frames: join, welcome or refuse, a request and its reply, a change,
 a message to send and one delivered, and goodbye.
 
 ## Before the race
@@ -237,6 +237,7 @@ view, the cockpit, the sound listener and the HUD follow that car
 | --- | --- |
 | The overall picture | the comment at the top of `src/net/mod.rs` |
 | Sockets, hosting, joining | `src/net/dp_session/` |
+| The frames, ops and changes, and their limits | `rc2k_core/src/net/protocol.rs` |
 | The operations the game asks for | `src/net/dp_objects.rs` |
 | The lobby | `src/net/lobby_loop.rs`, `lobby.rs` |
 | Starting a race together | `src/net/lets_rally.rs`, `race_wait.rs`, `set_up_race.rs` |

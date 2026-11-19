@@ -50,6 +50,8 @@ the threads, and where each part lives in `src/`. Then:
 
 [Modules](Modules): one line per folder of `src/`, with a short page for each.
 
+[Code layers](Code-layers): which modules may use which, and the script that checks it.
+
 ## Data formats
 
 [Data formats](Data-formats) lists every file the game reads or writes, with a page for each

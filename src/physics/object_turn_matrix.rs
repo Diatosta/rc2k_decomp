@@ -15,7 +15,7 @@ use crate::race::matrices_store::SceneMatrices;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
 
 pub fn object_turn_matrix(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: &crate::math::engine_tables::EngineTables,
     contact: &ContactWork,
     matrices: &SceneMatrices,
     scene: &crate::scene::owner::Scene,

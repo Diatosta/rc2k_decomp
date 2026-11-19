@@ -10,11 +10,11 @@
 //! The float steps run on the x87 model (`math::x87_float`), rounding as the control word says.
 //! Refuses, before anything, null settings and a live item of a kind past 7.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_drops::{ITEM_LEN, ITEMS};
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
 /// The vertex batch's bytes, past the 0x40 records of 0xC0 bytes.

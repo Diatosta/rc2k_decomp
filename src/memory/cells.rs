@@ -1216,25 +1216,24 @@ pub(crate) fn bytes_of<T: Plain>(value: &T) -> &[u8] {
     unsafe { std::slice::from_raw_parts(std::ptr::from_ref(value).cast(), size_of::<T>()) }
 }
 
-/// `#[repr(C)]` records of integers, their sizes the sums of their fields (no padding).
+/// `#[repr(C)]` records of integers, their sizes the sums of their fields (no padding): each
+/// pair is a type and its size in bytes. Used beside the record's definition.
 macro_rules! plain_record {
     ($($t:ty = $size:expr),* $(,)?) => { $(
         const _: () = assert!(size_of::<$t>() == $size, "padding in a plain record");
         // SAFETY: integers and arrays of them only (each record's fields, read at the type), so
         // any bits are a value; no padding (asserted above).
-        unsafe impl Plain for $t {}
+        #[allow(unsafe_code)]
+        unsafe impl $crate::memory::cells::Plain for $t {}
     )* };
 }
+pub(crate) use plain_record;
+
 plain_record!(
     rc2k_core::strings::text::Font = 4 + 7 * 4,
     rc2k_core::memory::List = 4 * 4,
     rc2k_core::gfx::pixels::PixelFormat = 5 * 4,
-    crate::gfx::texture_upload::TextureFormat = 3 * 4 + 5 * 4 + 8 * 4,
-    crate::gfx::texture_upload::TextureRecord = (5 + 9 + 9 + 7) * 4,
-    crate::audio::samples::SampleFile = 0x20,
     rc2k_core::audio::streams::AudioStream = 0x2C,
-    crate::audio::make_buffer::BufferDescription = 0x14,
-    crate::audio::describe_wave_format::WaveFormat = 0x12,
     rc2k_core::audio::modes::AudioOptions = 0x34,
     rc2k_core::audio::voices::SampleRecord = 0x40,
     rc2k_core::audio::voices::Voice = 0x70,
@@ -1447,11 +1446,16 @@ pub fn plain_dwords_in<T: PlainCellsOnly, const N: usize>(
 /// record of `Cell`s (`!Sync`) is reached from.
 pub unsafe trait PlainCellsOnly: ByteView {}
 
-// SAFETY: every field is a `PlainDword` (a `Cell<u32>`): no atomic among its bytes.
-unsafe impl PlainCellsOnly for crate::race::replay_file_store::ReplayIndex {}
-// SAFETY: every field is a `PlainDword` or an array of them: no atomic among its bytes.
-#[cfg(test)]
-unsafe impl PlainCellsOnly for crate::race::prefs_store::StagePrefs {}
+/// `unsafe impl PlainCellsOnly` for records whose every field is a `PlainDword` (or an array
+/// of them), used beside the record's definition.
+macro_rules! plain_cells_only {
+    ($($t:ty),* $(,)?) => { $(
+        // SAFETY: every field is a `PlainDword` or an array of them: no atomic among its bytes.
+        #[allow(unsafe_code)]
+        unsafe impl $crate::memory::cells::PlainCellsOnly for $t {}
+    )* };
+}
+pub(crate) use plain_cells_only;
 
 /// A cell over one dword, any bits valid: `Dword` and `PlainDword` (`dwords_as`'s kinds).
 trait DwordCell {}

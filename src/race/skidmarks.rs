@@ -3,9 +3,9 @@
 //! views it shows in, a bit each) with two points each (`skid_points`, 0xC bytes a point: x, y, z
 //! whole numbers); each link and the one before it give a quad.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::BadInput;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 
 /// A whole number plus a float, as an 80-bit extended value.
 #[cfg(test)]

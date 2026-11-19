@@ -70,7 +70,7 @@ pub struct PartTurn<'s> {
 
 impl<'s> PartTurn<'s> {
     /// Run `run`'s turn in `scope` (only `scene::workers::draw_parts` opens one).
-    pub(crate) fn new(_scope: &'s crate::scene::workers::DrawScope, run: usize) -> Self {
+    pub(crate) fn new(_scope: &'s crate::memory::draw_order::DrawScope, run: usize) -> Self {
         Self {
             run,
             _scope: PhantomData,
@@ -122,7 +122,7 @@ impl<T> PartCell<T> {
     }
 
     /// The scope ending (`scene::workers::DrawScope`'s drop): the element is free again.
-    pub(crate) fn end_claim(&self, _ending: &crate::scene::workers::DrawScope) {
+    pub(crate) fn end_claim(&self, _ending: &crate::memory::draw_order::DrawScope) {
         self.claimed.store(0, Relaxed);
     }
 
