@@ -5,11 +5,17 @@
 use crate::errors::Refused;
 use crate::menu::advanced_items;
 use crate::menu::axes_items::{set_look, shown_look};
+use crate::menu::item_sprites_store::ItemSprite;
 use crate::strings::append_string_by_id::own_text;
 use crate::text::draw_text::Canvas;
 use rc2k_core::options::advanced::{Kind, ROW_SLOTS, ROWS, Renderer, rows_on_page};
 use rc2k_core::strings::format::{Pad, decimal};
 use rc2k_core::strings::own::id;
+
+/// The sprite of a setting's row (the left / right arrows) and the one of an action (the single
+/// right arrow of the menus' entries that open something).
+const SETTING_SPRITE: u32 = 2;
+const ACTION_SPRITE: u32 = 1;
 
 /// The text id of a row's name.
 fn row_name(row: usize) -> u32 {
@@ -20,6 +26,7 @@ fn row_name(row: usize) -> u32 {
         Kind::Threads => first(0),
         Kind::Renderer => first(1),
         Kind::QuitPictures => first(10),
+        Kind::DeleteData => id::DELETE_DATA,
         Kind::SmoothFrames => id::SMOOTH_FRAMES,
         Kind::Flag { key, .. } => match key {
             "framecounter" => first(2),
@@ -69,6 +76,16 @@ pub fn draw_advanced(
             shown_look(name),
             row >= shown_rows.end,
         )?;
+        // A setting's row has the left / right arrows; the deletion row is an action, which
+        // the buttons' single arrow says (the slots are shared by both parts of the page).
+        let sprite = if row < shown_rows.end && matches!(ROWS[row].kind, Kind::DeleteData) {
+            ItemSprite::Sprite(ACTION_SPRITE)
+        } else {
+            ItemSprite::Sprite(SETTING_SPRITE)
+        };
+        crate::menu::item_at::item_at(o.menus, 2 + slot as u32)?
+            .sprites
+            .set(sprite)?;
     }
     let turn = if page == 0 {
         id::ADVANCED_MORE
@@ -115,6 +132,8 @@ pub fn draw_advanced(
                 id::OFF
             }),
             Kind::Flag { .. } => own(if values.flags[n] { id::ON } else { id::OFF }),
+            // An action: no value beside the name.
+            Kind::DeleteData => Vec::new(),
         });
     }
     let mut screen = SettingsScreen::new(canvas, o);

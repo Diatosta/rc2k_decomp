@@ -115,6 +115,29 @@ patchgripmud=$50
 The log is at its fullest, screenshots and the frame counter are on, gravity is at 80 percent
 and grip on mud at `0x50` (80) percent.
 
+## Deleting saved data
+
+The advanced page's last row, "delete all saved data", removes everything the player has made,
+so that the next start is a first run (default settings, no saved games, replays or best
+times), without the folders being reachable: on a phone, in the browser's storage or on a
+handheld. It asks one question, No being the answer chosen to begin with and Escape's (Yes is dimmed
+with a 5-second countdown and cannot be chosen until it ends), and then closes the game. What goes:
+
+- everything under `savedata/`: saved games (`savegame/`), car set-ups (`carsetup/`),
+  replays (`replay/`), screenshots (`snapshot/`), rendered videos (`videos/`) and any other file
+  or folder in it; the four folders the game expects stay, empty;
+- every file in `var/` except the three below: `ral.cfg`, `name.cfg`, `ral.dat`, `rc2k.toml`
+  (the options, the last host, the lobby password, the render dialog's choices), `hst.dat` (best
+  times), `imgui.ini`, `tmprpl` and `tmprpl.2` (the replay in progress), and whatever else the
+  game wrote there.
+
+What stays: `var/ral.zog` and `var/install.cfg` (the installation's records; without them the
+program takes the folder for a download and starts the installer), `var/logfile.txt` (the log
+of the run), `files/` (the game's data and the language files), the program and its libraries,
+and `rc2k.log`. Links are removed, never followed. The deletion is made again as the program
+ends, so that a file written while it closes (the options) does not bring anything back; and
+nothing is saved on the way out.
+
 ## `var/name.cfg`
 
 Up to 180 lines with the keys `name000` .. `name179`, one for each computer driver. A value is

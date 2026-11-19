@@ -178,6 +178,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
         ItemFn::AdvancedStep { row, up } => crate::menu::advanced_items::step(o, row, up),
         ItemFn::ApplyAdvanced => crate::menu::advanced_items::apply(o),
         ItemFn::AdvancedTurnPage => crate::menu::advanced_items::turn_page(),
+        ItemFn::DeleteSavedData => crate::menu::advanced_items::delete_saved_data(o),
         ItemFn::TurnControlsPage => {
             axes_items::turn_controls_page(
                 &menus.screens.controls,

@@ -110,7 +110,7 @@ mod tests {
         );
     }
 
-    const FROZEN_MENUS: u64 = 0x2717_f675_2cd1_814b;
+    const FROZEN_MENUS: u64 = 0xba44_a6b1_311c_0434;
     const FROZEN_LISTS: u64 = 0xa9db_5fd8_cdce_a49a;
 
     /// The options menu: its items from advanced to back follow in both directions.

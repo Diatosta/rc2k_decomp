@@ -13,6 +13,7 @@ pub mod default_class_times;
 pub mod default_stage_times;
 pub mod default_stage_times_alt;
 pub mod default_times;
+pub mod delete_all;
 pub mod drivers;
 pub mod free_best_times;
 pub mod gather_savegame;

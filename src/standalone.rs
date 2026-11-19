@@ -276,6 +276,7 @@ pub fn leave_on_close(o: Owners<'static>) -> ! {
     let tables = &saves.best_times;
     // A render made the program's own way of drawing (its size, its clock): it saves nothing.
     if !crate::video::active()
+        && !crate::saves::delete_all::deleted()
         && [tables.allocated.get(), tables.loaded.get()] == [1, 1]
         && let Err(e) = crate::saves::save_game_data::save_in_game(o, saves)
     {
@@ -320,6 +321,8 @@ fn end(code: u32) -> ! {
         (0, Some(damaged)) => damaged,
         (code, _) => code,
     };
+    // Whatever was written after the deletion (the options, the windows' layouts) goes too.
+    crate::saves::delete_all::delete_again_at_end();
     #[cfg(rc2k_pgo)]
     {
         crate::platform::ffi::pgo::write_profile();
