@@ -68,9 +68,13 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   scaled down, which smooths the edges (supersampling). The dashboard and the texts stay at full
   size. The handheld no longer draws at half size by itself: set the row to 50 %.
 - **Screen sizes.** The resolution list holds the monitor's own modes, the usual sizes of 4:3,
-  16:10, 16:9, 21:9 and 32:9 that fit the desktop and those of the game's eight that fit it (a larger one only while it is the size in use), each with its ratio, listed by width, then height (the
+  16:10, 16:9, 21:9 and 32:9 that fit the desktop and those of the game's eight that fit it, each with its ratio, listed by width, then height (the
   same order on every platform, a phone's or a page's own size included). Any
-  other size can be set with `custom_width` / `custom_height` in `var/rc2k.toml`. 16-bit screen
+  other size can be set with `custom_width` / `custom_height` in `var/rc2k.toml`. No size larger
+  than the desktop is offered: a saved race size that is (the game's 1920 x 1280 on a 1080p
+  screen, say) is replaced at start by the largest size that fits, shown as chosen on the page and
+  kept in `rc2k.toml` from then on (the log says "the saved race size ... is larger than the
+  desktop"); when the desktop's size is not known nothing is changed. 16-bit screen
   modes are gone: the screen always has 32 bits a pixel (an old 16-bit choice becomes the same
   size at 32 bits).
 - **Wide screens.** On a screen wider than 4:3 the 3D keeps its field of view up and down and

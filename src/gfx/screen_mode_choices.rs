@@ -239,12 +239,38 @@ fn rebuild(
             });
         }
         // The game's own table has sizes up to 1920 x 1280 whatever the screen: one larger than
-        // the desktop could only be shown shrunk, with bars, so it is left out unless it is the
-        // mode in use (a saved choice stays listed and chosen).
+        // the desktop could only be shown shrunk, with bars, so it is left out (the size set by
+        // hand stays). A saved race size that is left out is replaced by the largest size listed.
         if let Some((dw, dh)) = desktop {
-            let fits = |l: &mc::Listed| (l.width <= dw && l.height <= dh) || l.mode == current;
+            let custom = crate::gfx::monitor_sizes::custom();
+            let fits = |l: &mc::Listed| {
+                (l.width <= dw && l.height <= dh) || custom == Some((l.width, l.height))
+            };
             if all.iter().any(fits) {
+                let race = display.mode.race_mode.get();
+                let saved = all
+                    .iter()
+                    .find(|l| (l.mode ^ race) & mc::SAME_SIZE == 0)
+                    .copied();
                 all.retain(fits);
+                all.sort_by_key(|l| rc2k_core::gfx::resolutions::order(l.width, l.height));
+                if let (Some(saved), Some(used)) = (
+                    saved,
+                    all.iter()
+                        .rev()
+                        .find(|l| l.width <= dw && l.height <= dh)
+                        .copied(),
+                ) && !fits(&saved)
+                {
+                    crate::logfile::program_log::log(&format!(
+                        "screen: the saved race size {} x {} is larger than the desktop {dw} x {dh}: {} x {} used",
+                        saved.width, saved.height, used.width, used.height
+                    ));
+                    display
+                        .mode
+                        .race_mode
+                        .set((race & !mc::SAME_SIZE) | (used.mode & mc::SAME_SIZE));
+                }
             }
         }
         all.sort_by_key(|l| rc2k_core::gfx::resolutions::order(l.width, l.height));
