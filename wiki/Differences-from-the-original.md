@@ -29,6 +29,9 @@ the switches of the command line are on [Running and options](Running-and-option
 - **Playing through Steam** (in progress): [Network play](#network-play).
 - **Replays rendered to a video**, from the viewer's camera button in a third row and from the command line:
   [Replays](#replays).
+- **The render dialog, its progress panel and the notices scale with the screen** (laid out for 600
+  lines and enlarged on a taller one, so they are not tiny on a 1440-line or a phone's screen); video
+  rendering is a desktop feature for now: phones, the web build and the Vita show no render button.
 - **The replay viewer names the highlighted button**: when the highlight moves, its name shows above the
   buttons for a second: [Replays](#replays).
 - **A replay format of its own** that records every car of a race, up to eight, the computer's and the other

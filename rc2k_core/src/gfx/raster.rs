@@ -59,6 +59,17 @@ fn step(bits: u32) -> i32 {
 
 /// Rectangle x, y, width, height filled, clipped, at the surface's depth.
 pub fn fill(rect: [i32; 4], clip: &Clip, s: &Surface) -> Result<Plan, Invalid> {
+    let (mut plan, rows) = fill_runs(rect, clip, s)?;
+    plan.pixels = expand(&rows, s);
+    Ok(plan)
+}
+
+/// `fill` as a plan without pixels and a run of pixels for each row: (first offset, pixels).
+pub fn fill_runs(
+    rect: [i32; 4],
+    clip: &Clip,
+    s: &Surface,
+) -> Result<(Plan, Vec<(i32, usize)>), Invalid> {
     if !matches!(s.bits, 8 | 16 | 32) {
         return Err(Invalid("a rectangle on a surface of an unknown depth"));
     }
@@ -80,7 +91,7 @@ pub fn fill(rect: [i32; 4], clip: &Clip, s: &Surface) -> Result<Plan, Invalid> {
     }
     width = width.wrapping_sub(left_skip);
     if width <= 0 {
-        return Ok(plan);
+        return Ok((plan, Vec::new()));
     }
     plan.work.width = Some(width);
     let top_skip = if y.wrapping_sub(clip.top) < 0 {
@@ -96,7 +107,7 @@ pub fn fill(rect: [i32; 4], clip: &Clip, s: &Surface) -> Result<Plan, Invalid> {
     }
     rows = rows.wrapping_sub(top_skip);
     if rows <= 0 {
-        return Ok(plan);
+        return Ok((plan, Vec::new()));
     }
     plan.work.rows = Some(rows);
     let px = x.wrapping_add(left_skip).wrapping_mul(s.bytes_per_pixel);
@@ -104,23 +115,45 @@ pub fn fill(rect: [i32; 4], clip: &Clip, s: &Surface) -> Result<Plan, Invalid> {
         .wrapping_add(top_skip)
         .wrapping_mul(s.pitch)
         .wrapping_add(px);
+    let mut runs = Vec::with_capacity(rows as usize);
     for _ in 0..rows {
-        plan.pixels
-            .extend((0..width).map(|k| row.wrapping_add(step(s.bits) * k)));
+        runs.push((row, width as usize));
         row = row.wrapping_add(s.pitch);
     }
-    Ok(plan)
+    Ok((plan, runs))
+}
+
+/// The pixels' byte offsets of runs (first offset, pixels) at the surface's depth.
+fn expand(runs: &[(i32, usize)], s: &Surface) -> Vec<i32> {
+    runs.iter()
+        .flat_map(|&(first, count)| {
+            (0..count as i32).map(move |k| first.wrapping_add(step(s.bits) * k))
+        })
+        .collect()
 }
 
 /// `length` pixels from x, y rightwards, clipped. Kept: at the left clip what is cut is -x,
 /// which is right only for a left edge of 0.
 pub fn hline(x: i32, y: i32, length: i32, clip: &Clip, s: &Surface) -> Plan {
+    let (mut plan, runs) = hline_runs(x, y, length, clip, s);
+    plan.pixels = expand(&runs, s);
+    plan
+}
+
+/// `hline` as a plan without pixels and its one run of pixels (none when nothing is drawn).
+pub fn hline_runs(
+    x: i32,
+    y: i32,
+    length: i32,
+    clip: &Clip,
+    s: &Surface,
+) -> (Plan, Vec<(i32, usize)>) {
     let mut plan = Plan {
         bits: s.bits,
         ..Plan::default()
     };
     if y < clip.top || y > clip.bottom {
-        return plan;
+        return (plan, Vec::new());
     }
     let left_skip = if x < clip.left { x.wrapping_neg() } else { 0 };
     plan.work.left_skip = Some(left_skip);
@@ -134,15 +167,12 @@ pub fn hline(x: i32, y: i32, length: i32, clip: &Clip, s: &Surface) -> Plan {
     }
     width = width.wrapping_sub(left_skip);
     if width <= 0 {
-        return plan;
+        return (plan, Vec::new());
     }
     plan.work.width = Some(width);
     let px = x.wrapping_add(left_skip).wrapping_mul(s.bytes_per_pixel);
     let start = y.wrapping_mul(s.pitch).wrapping_add(px);
-    plan.pixels = (0..width)
-        .map(|k| start.wrapping_add(step(s.bits) * k))
-        .collect();
-    plan
+    (plan, vec![(start, width as usize)])
 }
 
 /// `length` pixels from x, y downwards, clipped; at the top clip what is cut is -y.
@@ -196,6 +226,24 @@ pub fn frame(rect: [i32; 4], dx: i32, dy: i32, clip: &Clip, s: &Surface) -> [Pla
     ]
 }
 
+/// A plan's pixel offsets as runs of (first offset, pixels): neighbours `step` bytes apart, in the
+/// order listed, join into one run, so a solid shape is written a row at a time instead of a pixel
+/// at a time. Writing each run's pixels in order is writing each offset's pixel in order.
+pub fn runs(offsets: &[i32], step: i32) -> Vec<(i32, usize)> {
+    let mut runs: Vec<(i32, usize)> = Vec::new();
+    for &offset in offsets {
+        match runs.last_mut() {
+            Some((first, count))
+                if first.wrapping_add(step.wrapping_mul(*count as i32)) == offset =>
+            {
+                *count += 1;
+            }
+            _ => runs.push((offset, 1)),
+        }
+    }
+    runs
+}
+
 /// The pixels at byte `offsets` of a surface (`bytes_per_pixel` each, rows `pitch` bytes apart,
 /// `rows` rows) as rectangles (x, y, width, height) that cover exactly those pixels when the
 /// offsets come as a plan lists them: a row's neighbours join into a run, and runs of one width
@@ -245,6 +293,67 @@ pub fn pixel_rectangles(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A tiny generator for the tests: the same numbers each run.
+    fn next(state: &mut u64) -> u64 {
+        *state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        *state >> 33
+    }
+
+    /// Every pixel written alone (what the canvas did before) and every run written whole come out
+    /// the same on random rectangles, lines and clip windows at the three depths.
+    #[test]
+    fn runs_paint_what_pixels_paint() {
+        let mut rng = 7u64;
+        for bits in [8u32, 16, 32] {
+            let bpp = (bits / 8) as i32;
+            let s = Surface {
+                bits,
+                bytes_per_pixel: bpp,
+                // Some rows with a gap after the pixels, one packed.
+                pitch: if bits == 16 { 64 * 2 } else { 64 * bpp + 8 },
+            };
+            let size = (s.pitch * 40) as usize;
+            for _ in 0..400 {
+                let mut r = |n: u64| next(&mut rng) as i32 % n as i32;
+                let clip = Clip {
+                    left: r(20),
+                    right: 30 + r(34),
+                    top: r(10),
+                    bottom: 15 + r(25),
+                };
+                let rect = [r(90) - 20, r(60) - 10, r(80) - 5, r(50) - 5];
+                let mut plans = vec![fill(rect, &clip, &s).unwrap()];
+                plans.push(hline(rect[0], rect[1], rect[2], &clip, &s));
+                plans.push(vline(rect[0], rect[1], rect[3], &clip, &s));
+                plans.extend(frame(rect, 1, 2, &clip, &s));
+                let pixel: Vec<u8> = (0..bpp as u8).map(|k| 0xA0 + k).collect();
+                for plan in plans {
+                    let (mut alone, mut whole) = (vec![0x11u8; size], vec![0x11u8; size]);
+                    for &offset in &plan.pixels {
+                        alone[offset as usize..][..pixel.len()].copy_from_slice(&pixel);
+                    }
+                    for (offset, count) in runs(&plan.pixels, bpp) {
+                        whole[offset as usize..][..pixel.len() * count]
+                            .copy_from_slice(&pixel.repeat(count));
+                    }
+                    assert_eq!(alone, whole, "{bits} bits {rect:?} {clip:?}");
+                }
+                // The shapes made as runs are the shapes made as pixels.
+                let (plan, rows) = fill_runs(rect, &clip, &s).unwrap();
+                let whole = fill(rect, &clip, &s).unwrap();
+                assert_eq!((plan.work, plan.bits), (whole.work, whole.bits));
+                assert_eq!(expand(&rows, &s), whole.pixels);
+                let (plan, rows) = hline_runs(rect[0], rect[1], rect[2], &clip, &s);
+                let whole = hline(rect[0], rect[1], rect[2], &clip, &s);
+                assert_eq!((plan.work, plan.bits), (whole.work, whole.bits));
+                assert_eq!(expand(&rows, &s), whole.pixels);
+                {}
+            }
+        }
+    }
 
     const CLIP: Clip = Clip {
         left: 0,

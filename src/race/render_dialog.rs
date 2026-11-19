@@ -152,7 +152,7 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
         if crate::platform::lock_surface(o.gfx, o.system) < 1 {
             return None;
         }
-        let places = draw(o, &dialog, encoder, target);
+        let (places, panel) = draw(o, &dialog, encoder, target);
         crate::platform::unlock_surface(o.gfx);
         if !crate::platform::show_frame_now(o) {
             return None;
@@ -165,6 +165,8 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
         // The mouse: a click on a row chooses it; on a value it also steps it, and on a button it
         // presses it.
         let (buttons, x, y) = crate::input::keys::unpack_mouse(&o.input.devices);
+        // The rows are where the panel was laid out.
+        let (x, y) = panel.point(x, y);
         let down = buttons & 1 != 0;
         if down
             && !was_down
@@ -217,12 +219,15 @@ fn draw(
     dialog: &Dialog,
     encoder: bool,
     target: &Target,
-) -> Vec<(Row, [i32; 4])> {
+) -> (Vec<(Row, [i32; 4])>, crate::gfx::ui_scale::Panel) {
     use crate::gfx::button_hints::width_of;
     let mut canvas = GameCanvas::new(o.gfx);
     let screen = o.system.session.screen.get();
-    let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
-    fill(o, [0, 0, w, h], SCREEN);
+    // Laid out on the virtual screen, enlarged to the real one at the end.
+    let view = crate::gfx::ui_scale::View::now(o);
+    let (w, h) = (view.width, view.height);
+    // The background at the real size, the panel on the virtual screen.
+    fill(o, [0, 0, view.screen.0, view.screen.1], SCREEN);
     let measure = |s: &str| {
         width_of(
             fonts::LIST,
@@ -265,7 +270,8 @@ fn draw(
         + line_h * keys_lines.len() as i32
         + MARGIN)
         .min(h - 10);
-    let (left, top) = ((w - panel_w) / 2, (h - panel_h) / 2);
+    let panel = view.panel(panel_w, panel_h);
+    let (left, top) = panel.origin();
     fill(o, [left, top, panel_w, panel_h], PANEL);
     let put = |text: &str, x: i32, y: i32, canvas: &mut GameCanvas| {
         let mut bytes = rc2k_core::files::ansi::ansi_bytes(text);
@@ -394,7 +400,8 @@ fn draw(
         put(line, left + (panel_w - measure(line)) / 2, ky, &mut canvas);
         ky += line_h;
     }
-    places
+    panel.finish(o, SCREEN);
+    (places, panel)
 }
 
 #[cfg(test)]

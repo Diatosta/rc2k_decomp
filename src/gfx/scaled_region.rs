@@ -40,29 +40,42 @@ pub fn enlarged(
     (width, height): (usize, usize),
     (to_width, to_height): (usize, usize),
 ) -> Vec<u8> {
+    use rayon::prelude::*;
     let mut out = vec![0u8; to_width * to_height * bytes];
-    let at = |x: usize, y: usize| unpack(&pixels[(y * width + x) * bytes..][..bytes]);
-    for y in 0..to_height {
-        // the source place of the output pixel's centre, less half a pixel
-        let sy = ((y as f32 + 0.5) * height as f32 / to_height as f32 - 0.5)
-            .clamp(0.0, (height - 1) as f32);
-        let (y0, fy) = (sy as usize, sy.fract());
-        let y1 = (y0 + 1).min(height - 1);
-        for x in 0..to_width {
+    // The source read once, and each output column's two source columns and the weight between.
+    let source: Vec<[f32; 3]> = pixels.chunks_exact(bytes).map(unpack).collect();
+    let columns: Vec<(usize, usize, f32)> = (0..to_width)
+        .map(|x| {
             let sx = ((x as f32 + 0.5) * width as f32 / to_width as f32 - 0.5)
                 .clamp(0.0, (width - 1) as f32);
-            let (x0, fx) = (sx as usize, sx.fract());
-            let x1 = (x0 + 1).min(width - 1);
-            let (a, b, c, d) = (at(x0, y0), at(x1, y0), at(x0, y1), at(x1, y1));
-            let mut rgb = [0f32; 3];
-            for k in 0..3 {
-                let top = a[k] + (b[k] - a[k]) * fx;
-                let bottom = c[k] + (d[k] - c[k]) * fx;
-                rgb[k] = top + (bottom - top) * fy;
+            let x0 = sx as usize;
+            (x0, (x0 + 1).min(width - 1), sx.fract())
+        })
+        .collect();
+    // Each output row is made on its own: the rows are shared out over the threads.
+    out.par_chunks_mut(to_width * bytes)
+        .enumerate()
+        .for_each(|(y, row)| {
+            // the source place of the output pixel's centre, less half a pixel
+            let sy = ((y as f32 + 0.5) * height as f32 / to_height as f32 - 0.5)
+                .clamp(0.0, (height - 1) as f32);
+            let (y0, fy) = (sy as usize, sy.fract());
+            let y1 = (y0 + 1).min(height - 1);
+            let (upper, lower) = (
+                &source[y0 * width..][..width],
+                &source[y1 * width..][..width],
+            );
+            for (pixel, &(x0, x1, fx)) in row.chunks_exact_mut(bytes).zip(&columns) {
+                let (a, b, c, d) = (upper[x0], upper[x1], lower[x0], lower[x1]);
+                let mut rgb = [0f32; 3];
+                for k in 0..3 {
+                    let top = a[k] + (b[k] - a[k]) * fx;
+                    let bottom = c[k] + (d[k] - c[k]) * fx;
+                    rgb[k] = top + (bottom - top) * fy;
+                }
+                pack(rgb, bytes, pixel);
             }
-            pack(rgb, bytes, &mut out[(y * to_width + x) * bytes..][..bytes]);
-        }
-    }
+        });
     out
 }
 

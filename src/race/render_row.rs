@@ -44,6 +44,16 @@ fn file_name(t: &rc2k_core::system::time::LocalTime) -> String {
     )
 }
 
+/// Whether this build offers rendering a replay to a video: it starts a child process of the
+/// program and `ffmpeg`, which phones, the web build and the Vita cannot do, so the viewer shows no
+/// render button there.
+pub const OFFERED: bool = cfg!(not(any(
+    target_os = "ios",
+    target_os = "android",
+    target_os = "emscripten",
+    target_os = "vita"
+)));
+
 /// The lower row's snapshot button, whose camera picture the render button shows.
 const CAMERA_ITEM: u32 = 23;
 
@@ -57,6 +67,9 @@ pub fn draw_button(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};
+    if !OFFERED {
+        return Ok(());
+    }
     let replay = &race.replay;
     let panel = race.viewer_panel();
     let ViewerPicture::Rectangle(ida) = ReplayViewBlock::item_picture(replay, CAMERA_ITEM)? else {
