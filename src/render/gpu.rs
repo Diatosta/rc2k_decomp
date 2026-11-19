@@ -10,6 +10,7 @@
 //! wants the true picture in the canvas asks `bring_back`, which is slow on a handheld.
 
 mod check;
+mod nv12;
 mod quads;
 
 use super::batches::{Batch, Batches, PipelineKey};
@@ -45,6 +46,9 @@ const SCENE_FRAG: ShaderCode = shader_code!("scene.frag");
 const OVERLAY_VERT: ShaderCode = shader_code!("overlay.vert");
 const OVERLAY_FRAG: ShaderCode = shader_code!("overlay.frag");
 const MERGE_FRAG: ShaderCode = shader_code!("merge.frag");
+/// The video's conversion to NV12 (`nv12`).
+const Y_FRAG: ShaderCode = shader_code!("nv12_y.frag");
+const UV_FRAG: ShaderCode = shader_code!("nv12_uv.frag");
 
 const COLOUR_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
 const DEPTH_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
@@ -166,6 +170,8 @@ pub struct Gpu {
     video_read: Option<(Transfer, Fence)>,
     /// The buffer the video's frames come through, one at a time.
     video_transfer: Transfer,
+    /// The targets of the video's conversion to NV12 (`nv12`), once a frame asked for it.
+    planes: Option<nv12::Planes>,
     /// The diagnostic cuts of the flush last drawn (`gpu_cut`), to log their changes.
     cuts: Cuts,
 }
@@ -265,6 +271,7 @@ impl Gpu {
             download: Transfer::NONE,
             video_read: None,
             video_transfer: Transfer::NONE,
+            planes: None,
             cuts: Cuts::default(),
         };
         if let Some(line) = Cuts::start_from_env() {
@@ -398,6 +405,9 @@ impl Gpu {
         }
         if !self.video_transfer.is_none() {
             device.release_transfer(self.video_transfer);
+        }
+        if let Some(planes) = self.planes.take() {
+            planes.release(device);
         }
     }
 
@@ -1333,11 +1343,15 @@ impl Gpu {
     /// The frame's end, and the colour target's picture started on its way to the CPU: the
     /// copy is queued behind the frame's drawing and not waited for, so the game goes on with
     /// the next frame; `collect_video_read` takes the picture when it is there.
+    ///
+    /// With `nv12` the picture is converted on the card first and comes as the planes of NV12
+    /// at the even size (`nv12::even_size`), 1.5 bytes a pixel.
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     pub fn start_video_read(
         &mut self,
         rows: Option<Vec<bool>>,
         canvas: &mut [u8],
+        nv12: bool,
     ) -> Result<(), String> {
         debug_assert!(
             self.video_read.is_none(),
@@ -1347,7 +1361,22 @@ impl Gpu {
         // The frame comes as its own picture: the larger 3D of the frame so far is dropped.
         self.frame_high = None;
         self.high_shown = false;
-        let bytes = self.width * self.height * 4;
+        let fence = if nv12 {
+            self.queue_nv12_read()?
+        } else {
+            self.video_transfer_of(self.width * self.height * 4)?;
+            let buffer = self.device.acquire_command_buffer()?;
+            let copy = buffer.begin_copy_pass();
+            copy.download_texture(self.colour, self.width, self.height, self.video_transfer);
+            copy.end();
+            buffer.submit_with_fence()?
+        };
+        self.video_read = Some((self.video_transfer, fence));
+        Ok(())
+    }
+
+    /// `video_transfer` made of `bytes` bytes (kept when it already is).
+    fn video_transfer_of(&mut self, bytes: u32) -> Result<(), String> {
         if self.video_transfer.is_none() || self.video_transfer.size() != bytes {
             if !self.video_transfer.is_none() {
                 self.device.release_transfer(self.video_transfer);
@@ -1356,12 +1385,6 @@ impl Gpu {
             self.video_transfer =
                 self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, bytes)?;
         }
-        let buffer = self.device.acquire_command_buffer()?;
-        let copy = buffer.begin_copy_pass();
-        copy.download_texture(self.colour, self.width, self.height, self.video_transfer);
-        copy.end();
-        let fence = buffer.submit_with_fence()?;
-        self.video_read = Some((self.video_transfer, fence));
         Ok(())
     }
 
@@ -1594,7 +1617,7 @@ mod comparison {
                 !gpu.collect_video_read(&mut queued).unwrap(),
                 "nothing is queued yet"
             );
-            gpu.start_video_read(None, &mut beside).unwrap();
+            gpu.start_video_read(None, &mut beside, false).unwrap();
             assert!(gpu.collect_video_read(&mut queued).unwrap());
             assert!(
                 queued == canvas,

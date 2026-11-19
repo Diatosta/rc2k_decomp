@@ -14,8 +14,9 @@
 //! half of the 5120 x 1440 renders at a quantiser of 17 and a quarter at 24, its H.264 encoder
 //! none in 11 renders up to 3840 x 2160.
 //!
-//! The picture is converted to the encoder's pixel format on the processor in every case, with
-//! the same conversion the software encoder gets, so the colours do not depend on the encoder.
+//! The picture reaches the encoder as NV12 (converted on the card when the renderer can, else on
+//! the processor with the same numbers, `rc2k_core::gfx::nv12`), so the colours do not depend on
+//! the encoder.
 
 use rc2k_core::race::render_dialog::Quality;
 use std::process::{Command, Stdio};
@@ -28,6 +29,8 @@ enum Kind {
     Amf,
     Vaapi,
     Qsv,
+    /// Apple's, on macOS.
+    VideoToolbox,
 }
 
 /// A hardware encoder of `ffmpeg`.
@@ -42,7 +45,7 @@ pub struct Hardware {
 
 /// The hardware encoders worth a try, in the order they are tried: H.264 first, as the most
 /// compatible, then AV1.
-const CANDIDATES: [Hardware; 8] = [
+const CANDIDATES: [Hardware; 9] = [
     Hardware::new("h264_nvenc", Kind::Nvenc, false),
     Hardware::new("h264_amf", Kind::Amf, false),
     Hardware::new("h264_vaapi", Kind::Vaapi, false),
@@ -51,6 +54,8 @@ const CANDIDATES: [Hardware; 8] = [
     Hardware::new("av1_amf", Kind::Amf, true),
     Hardware::new("av1_vaapi", Kind::Vaapi, true),
     Hardware::new("av1_qsv", Kind::Qsv, true),
+    // The only one macOS has: it comes last, and is the only candidate there.
+    Hardware::new("h264_videotoolbox", Kind::VideoToolbox, false),
 ];
 
 impl Hardware {
@@ -59,10 +64,11 @@ impl Hardware {
     }
 
     /// Whether this kind of encoder can exist on the system the program runs on (VAAPI is a
-    /// Linux interface; the macOS build keeps the software encoder).
+    /// Linux interface, VideoToolbox a macOS one).
     fn possible_here(self) -> bool {
         match self.kind {
             Kind::Vaapi => cfg!(target_os = "linux"),
+            Kind::VideoToolbox => cfg!(target_os = "macos"),
             Kind::Nvenc | Kind::Amf | Kind::Qsv => cfg!(any(target_os = "linux", windows)),
         }
     }
@@ -92,7 +98,7 @@ impl Encoder {
 }
 
 /// Which of `CANDIDATES` the list `ffmpeg -encoders` printed holds, as a bit for each.
-pub fn found_in(listed: &str) -> u8 {
+pub fn found_in(listed: &str) -> u16 {
     CANDIDATES
         .iter()
         .enumerate()
@@ -119,6 +125,16 @@ fn quantiser(quality: Quality) -> u32 {
         Quality::Medium => 27,
         Quality::High => 22,
         Quality::Best => 17,
+    }
+}
+
+/// VideoToolbox's quality number at a quality (1 to 100; higher keeps more of the picture).
+fn quality_videotoolbox(quality: Quality) -> u32 {
+    match quality {
+        Quality::Low => 40,
+        Quality::Medium => 55,
+        Quality::High => 70,
+        Quality::Best => 85,
     }
 }
 
@@ -229,6 +245,13 @@ pub fn encode_args(encoder: Encoder, quality: Quality) -> Vec<String> {
                     }
                     args.extend(strings(&["-pix_fmt", "nv12"]));
                 }
+                Kind::VideoToolbox => {
+                    // The card's chips only: a constant quality (1 to 100, higher keeps more), no
+                    // software fallback inside it, and no real-time shortcuts.
+                    args.extend(strings(&["-allow_sw", "0", "-realtime", "0", "-q:v"]));
+                    args.push(quality_videotoolbox(quality).to_string());
+                    args.extend(strings(&["-pix_fmt", "nv12"]));
+                }
                 Kind::Qsv => {
                     args.extend(strings(&["-preset", "slow", "-global_quality"]));
                     args.push(q);
@@ -252,7 +275,7 @@ fn works(hardware: Hardware, width: u32, height: u32, quality: Quality) -> Resul
     command.args(["-hide_banner", "-loglevel", "error", "-y"]);
     command.args(device_args(encoder));
     command.args(["-f", "lavfi", "-i"]);
-    command.arg(format!("color=c=gray:s={width}x{height}:r=30,format=bgr0"));
+    command.arg(format!("color=c=gray:s={width}x{height}:r=30,format=nv12"));
     command.args(["-frames:v", "3"]);
     command.args(encode_args(encoder, quality));
     command.args(["-f", "null", "-"]);
@@ -306,7 +329,7 @@ fn works(hardware: Hardware, width: u32, height: u32, quality: Quality) -> Resul
 pub fn choose(
     automatic: bool,
     h264: bool,
-    found: u8,
+    found: u16,
     (width, height): (u32, u32),
     quality: Quality,
     log: &dyn Fn(&str),
@@ -402,13 +425,33 @@ mod tests {
         assert_eq!(flag(&amf, "-qp_b"), None);
         // H.264 keeps the order ahead of AV1 and the AV1 ones all write AV1.
         assert!(CANDIDATES[..4].iter().all(|h| !h.av1));
-        assert!(CANDIDATES[4..].iter().all(|h| h.av1));
+        assert!(CANDIDATES[4..8].iter().all(|h| h.av1));
+    }
+
+    #[test]
+    fn videotoolbox_gets_a_constant_quality_and_no_software_fallback() {
+        let toolbox = Encoder::Hardware(CANDIDATES[8]);
+        let args = encode_args(toolbox, Quality::Best);
+        assert_eq!(flag(&args, "-c:v"), Some("h264_videotoolbox"));
+        assert_eq!(flag(&args, "-q:v"), Some("85"));
+        assert_eq!(flag(&args, "-allow_sw"), Some("0"));
+        assert_eq!(flag(&args, "-realtime"), Some("0"));
+        assert_eq!(flag(&args, "-pix_fmt"), Some("nv12"));
+        // The picture goes to it as it is: no upload filter and no device.
+        assert_eq!(flag(&args, "-vf"), Some(EVEN));
+        assert!(device_args(toolbox).is_empty());
+        assert_eq!(
+            flag(&encode_args(toolbox, Quality::Low), "-q:v"),
+            Some("40")
+        );
+        let listed = " V....D h264_videotoolbox VideoToolbox H.264\n";
+        assert_eq!(found_in(listed) != 0, cfg!(target_os = "macos"));
     }
 
     #[test]
     fn software_is_chosen_when_asked_for_or_when_nothing_is_found() {
         let log = |_: &str| {};
-        let all = 0xFF;
+        let all = 0xFFFF;
         assert_eq!(
             choose(false, true, all, (1280, 720), Quality::High, &log),
             Encoder::Software

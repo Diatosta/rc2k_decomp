@@ -1044,7 +1044,11 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
         if let Some(target) = &screen_target {
             let began = std::time::Instant::now();
             if video_wanted && !shot_wanted {
-                queued = crate::render::video_read_next(target, crate::video::spare_buffer());
+                queued = crate::render::video_read_next(
+                    target,
+                    crate::video::spare_buffer(),
+                    crate::video::nv12(),
+                );
             }
             if !queued.started {
                 crate::render::bring_back(target);
