@@ -549,7 +549,7 @@ fn run(o: &Owners<'static>, line: &str) {
                     screen.window.set_size(w, h);
                 }
                 // The handheld's GL draws on its panel, not on a window of its own.
-                #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+                #[cfg(not(handheld))]
                 if let Some(gl) = crate::render::gles::window() {
                     gl.set_size(w, h);
                 }
@@ -586,9 +586,9 @@ fn run(o: &Owners<'static>, line: &str) {
         }
         // The 3D's renderer swapped in game: `gpu`, `gl` or `software`.
         ("renderer", [name]) => crate::render::choice::parse(name).map(|wish| {
-            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            #[cfg(not(handheld))]
             let done = crate::platform::swap_renderer(o, wish);
-            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            #[cfg(handheld)]
             let done: Result<(), String> = {
                 let _ = wish;
                 Err("the handheld swaps at its next start".into())

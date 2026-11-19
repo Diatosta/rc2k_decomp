@@ -36,7 +36,7 @@ macro_rules! shader_code {
     ($name:literal) => {
         ShaderCode {
             spirv: include_bytes!(concat!("shaders/", $name, ".spv")),
-            #[cfg(target_vendor = "apple")]
+            #[cfg(apple)]
             msl: include_bytes!(concat!("shaders/", $name, ".msl")),
         }
     };
@@ -187,7 +187,7 @@ pub static GPU: Mutex<Option<Gpu>> = Mutex::new(None);
 /// Whether a device is to be tried: unless `--renderer software` or `RC2K_RENDERER=software`.
 pub fn wanted() -> bool {
     // The browser has no GPU device API; its GPU is the WebGL of `gles`.
-    cfg!(not(target_os = "emscripten")) && super::choice::gpu_wanted()
+    cfg!(not(web)) && super::choice::gpu_wanted()
 }
 
 fn sdl_error() -> String {
@@ -1418,7 +1418,7 @@ impl Gpu {
     ///
     /// With `nv12` the picture is converted on the card first and comes as the planes of NV12
     /// at the even size (`nv12::even_size`), 1.5 bytes a pixel.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     pub fn start_video_read(
         &mut self,
         rows: Option<Vec<bool>>,
@@ -1688,7 +1688,7 @@ mod comparison {
         Gpu::draw(&mut gpu, &mut canvas, None, &commands).unwrap();
         gpu.bring_back(None, &mut canvas).unwrap();
         // The frame queued to come back later is the picture brought back at once.
-        #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+        #[cfg(not(handheld))]
         {
             // The game's screen holds no written pixel at a frame's start (`bring_back` filled
             // `canvas` with the picture, whose alpha bytes would blend over itself).

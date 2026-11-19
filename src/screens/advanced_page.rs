@@ -118,9 +118,7 @@ pub fn draw_advanced(
             }
             Kind::Renderer => {
                 let mut text = own(match values.renderer {
-                    Renderer::Gpu if cfg!(all(target_os = "linux", target_arch = "aarch64")) => {
-                        id::RENDERER_GLES
-                    }
+                    Renderer::Gpu if cfg!(handheld) => id::RENDERER_GLES,
                     Renderer::Gpu => id::RENDERER_GPU,
                     Renderer::Gl => id::RENDERER_GL,
                     Renderer::Software => id::RENDERER_SOFTWARE,
@@ -129,8 +127,7 @@ pub fn draw_advanced(
                 // counts at the next start; on the desktop the swap is made at Apply, so the
                 // note is only for a renderer that was asked for and did not start.
                 let waits = values.renderer != running()
-                    && (cfg!(all(target_os = "linux", target_arch = "aarch64"))
-                        || advanced_items::applied_renderer(o) == values.renderer);
+                    && (cfg!(handheld) || advanced_items::applied_renderer(o) == values.renderer);
                 if waits {
                     text.extend(b" - ");
                     text.extend(own(id::NEXT_START));

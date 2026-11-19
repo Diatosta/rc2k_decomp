@@ -12,17 +12,17 @@ pub mod dns_sd;
 pub mod gl;
 #[cfg(debug_ui)]
 pub mod imgui;
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub mod linux_handheld;
 #[cfg(rc2k_pgo)]
 pub mod pgo;
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 pub mod phone_vibrator;
 pub mod photo_library;
 pub mod sdl;
 pub mod sdl_camera;
 pub mod sdl_clipboard;
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub mod sdl_gpu;
 pub mod sdl_input;
 #[cfg(unix)]

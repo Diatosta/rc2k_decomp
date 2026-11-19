@@ -92,26 +92,26 @@ fn next_event() -> Option<Event> {
         } else if kind == SDL_EVENT_DID_ENTER_FOREGROUND {
             Event::Focus(true)
         } else if kind == SDL_EVENT_JOYSTICK_ADDED {
-            #[cfg(any(target_os = "android", target_os = "ios"))]
+            #[cfg(phone)]
             crate::platform::touch::pad_added(event.joystick_id());
             crate::platform::input::pad_added(event.joystick_id());
             Event::Other
         } else if kind == SDL_EVENT_JOYSTICK_REMOVED {
-            #[cfg(any(target_os = "android", target_os = "ios"))]
+            #[cfg(phone)]
             crate::platform::touch::pad_removed(event.joystick_id());
             crate::platform::input::pad_removed(event.joystick_id());
             Event::Other
         } else if let Some(finger) = finger_event(&event) {
             finger
         } else if let Some((id, button, down)) = event.gamepad_button() {
-            #[cfg(any(target_os = "android", target_os = "ios"))]
+            #[cfg(phone)]
             if down {
                 crate::platform::touch::pad_used(id);
             }
             Event::Pad { id, button, down }
         } else if let Some((axis, value)) = event.gamepad_axis() {
             // A stick pushed well off its rest, or a trigger pressed, is the controller used.
-            #[cfg(any(target_os = "android", target_os = "ios"))]
+            #[cfg(phone)]
             if value.unsigned_abs() > 16000
                 && let Some(id) = event.gamepad_axis_joystick()
             {
@@ -226,7 +226,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     #[cfg(feature = "remote")]
     crate::remote::poll(&o, &o.race.course);
     // The browser's gamepads copied into SDL's virtual ones (the page's API is not on this thread).
-    #[cfg(target_os = "emscripten")]
+    #[cfg(web)]
     {
         crate::platform::web::run_queued_calls();
         crate::platform::web_pads::poll();
@@ -246,7 +246,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
             // As the window's procedure on `WM_ACTIVATE`: the input thread reads the devices
             // (and does not sleep a second a tick) while it is 1.
             Event::Resized => {
-                #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+                #[cfg(not(handheld))]
                 crate::platform::window_follow::note_resize(
                     u64::from(crate::platform::os::ticks()),
                 );
@@ -320,7 +320,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
         }
     }
     let now = u64::from(crate::platform::os::ticks());
-    #[cfg(any(target_os = "android", target_os = "ios"))]
+    #[cfg(phone)]
     {
         // Player 1's controls changed hands (a controller used, a finger down in a race, a
         // controller gone): the game's device for the car follows.
@@ -331,7 +331,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     }
     #[cfg(touch_screen)]
     touch_tick(&o, now);
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     crate::platform::window_follow::follow(o, now);
     if let Some(action) = lock_menu_pad().tick(now) {
         menu_action(input, action);
@@ -380,7 +380,7 @@ pub(crate) fn touch_controls_live(race: &crate::race::owner::Race) -> bool {
 /// What the race waits for while its touch controls are off: the quit question's yes and no, or
 /// the plain pause's key. A finger then presses the answer buttons drawn over the frame (and
 /// nothing else answers: a tap elsewhere does nothing).
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 pub(crate) fn touch_asked(
     race: &crate::race::owner::Race,
 ) -> Option<rc2k_core::input::touch::Asked> {
@@ -406,7 +406,7 @@ fn lock_menu_pad() -> std::sync::MutexGuard<'static, crate::input::menu_pad::Men
 
 /// A gamepad's button, for the menus.
 #[cfg_attr(
-    not(all(target_os = "linux", target_arch = "aarch64")),
+    not(handheld),
     allow(
         unused_variables,
         reason = "only the handheld's way out sets the quit switch"
@@ -422,7 +422,7 @@ fn pad_button(
 ) {
     use crate::input::menu_pad::PadButton as B;
     // The handheld's way out: it has no window to close.
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     {
         use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
         static GUIDE: AtomicBool = AtomicBool::new(false);
@@ -834,7 +834,7 @@ fn touch_tick(o: &crate::owners::Owners<'static>, now: u64) {
             .and_then(|screen| screen.as_ref())
             .map(|screen| crate::platform::input_window(screen.window))
     };
-    #[cfg(any(target_os = "android", target_os = "ios"))]
+    #[cfg(phone)]
     if touch_asked(o.race).is_some() {
         return;
     }
@@ -872,11 +872,11 @@ fn touch_finger(
     };
     if touch_controls_live(o.race) {
         crate::platform::touch_menu::release_all();
-        #[cfg(any(target_os = "android", target_os = "ios"))]
+        #[cfg(phone)]
         crate::platform::touch::finger(window, id, phase, x, y, now);
         return;
     }
-    #[cfg(any(target_os = "android", target_os = "ios"))]
+    #[cfg(phone)]
     if let Some(asked) = touch_asked(o.race) {
         crate::platform::touch_menu::release_all();
         let answer = crate::platform::touch::answer_finger(window, asked, id, phase, x, y);

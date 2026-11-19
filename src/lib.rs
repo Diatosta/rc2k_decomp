@@ -50,5 +50,5 @@ mod threading;
 mod video;
 #[cfg(target_os = "android")]
 pub use platform::android;
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 pub use platform::web;

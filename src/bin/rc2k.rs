@@ -51,7 +51,7 @@ fn main() {
 }
 
 fn game() {
-    #[cfg(target_os = "emscripten")]
+    #[cfg(web)]
     rc2k_decomp::web::enter_game_folder();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if let Some(code) = rc2k_decomp::standalone::answer_command_line(&args) {

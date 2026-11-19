@@ -24,10 +24,8 @@ pub enum Wish {
 pub fn parse(value: &str) -> Option<Wish> {
     match value.trim().to_ascii_lowercase().as_str() {
         "gpu" => Some(Wish::GpuFirst),
-        "gles" if cfg!(all(target_os = "linux", target_arch = "aarch64")) => Some(Wish::GpuFirst),
-        "gl" | "opengl" if cfg!(not(all(target_os = "linux", target_arch = "aarch64"))) => {
-            Some(Wish::Gl)
-        }
+        "gles" if cfg!(handheld) => Some(Wish::GpuFirst),
+        "gl" | "opengl" if cfg!(not(handheld)) => Some(Wish::Gl),
         "software" => Some(Wish::Software),
         _ => None,
     }
@@ -35,7 +33,7 @@ pub fn parse(value: &str) -> Option<Wish> {
 
 /// The names `--renderer` takes on this platform, for the message that refuses another.
 pub fn names() -> &'static str {
-    if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+    if cfg!(handheld) {
         "gpu, gles or software"
     } else {
         "gpu, gl or software"
@@ -97,7 +95,7 @@ pub fn set_wanted(name: Option<String>) {
 static SWAPPED_TO: std::sync::Mutex<Option<Wish>> = std::sync::Mutex::new(None);
 
 /// A swap in game asks for `wish` from now on.
-#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld swaps nothing
+#[cfg_attr(handheld, allow(dead_code))] // the handheld swaps nothing
 pub fn set_swapped_to(wish: Wish) {
     if let Ok(mut w) = SWAPPED_TO.lock() {
         *w = Some(wish);
@@ -131,7 +129,7 @@ pub fn gpu_wanted() -> bool {
     wish() == Wish::GpuFirst
 }
 
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 /// Whether the OpenGL renderer is to be tried (after the GPU API's, in the default order).
 pub fn gl_wanted() -> bool {
     matches!(wish(), Wish::GpuFirst | Wish::Gl)
@@ -162,10 +160,7 @@ mod tests {
         assert_eq!(parse(" Software "), Some(Wish::Software));
         assert_eq!(parse("vulkan"), None);
         // OpenGL is a desktop backend; the handheld's GL is its `gpu`.
-        assert_eq!(
-            parse("GL"),
-            cfg!(not(all(target_os = "linux", target_arch = "aarch64"))).then_some(Wish::Gl)
-        );
+        assert_eq!(parse("GL"), cfg!(not(handheld)).then_some(Wish::Gl));
     }
 
     #[test]

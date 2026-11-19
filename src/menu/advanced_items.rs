@@ -136,10 +136,7 @@ pub fn step(o: Owners<'static>, row: u8, up: bool) -> Result<(), Refused> {
         let most = crate::scene::workers::most_threads() as u32;
         // OpenGL alone is a desktop choice: the handheld's GPU renderer is GL ES already, and a
         // phone's one window is the GPU renderer's.
-        let gl = cfg!(not(any(
-            all(target_os = "linux", target_arch = "aarch64"),
-            target_os = "android"
-        )));
+        let gl = cfg!(not(any(handheld, target_os = "android")));
         state.shown.step(usize::from(row), up, most, gl);
     }
     Ok(())
@@ -163,7 +160,7 @@ pub const DELETE_SLOT: usize = ROWS.len() - 2 - rc2k_core::options::advanced::PA
 /// swap's failure is logged and the page keeps saying "next start" beside the renderer, as the
 /// one that runs is not the one chosen.
 fn swap_renderer(o: &Owners<'static>, renderer: Renderer) {
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     {
         use crate::render::choice::Wish;
         let wish = match renderer {
@@ -180,7 +177,7 @@ fn swap_renderer(o: &Owners<'static>, renderer: Renderer) {
     }
     // The handheld's GL ES context is made once for the program's life (the panel's EGL
     // surface): its renderer is tried first at the next start.
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     let _ = (o, renderer);
 }
 

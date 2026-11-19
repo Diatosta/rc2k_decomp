@@ -251,7 +251,7 @@ pub fn set_up_carousel(
                     }
                 }
                 // The web build's main menu has no network entry in its carousel.
-                #[cfg(target_os = "emscripten")]
+                #[cfg(web)]
                 if menu == 0 {
                     let kinds = &parts.carousel.kinds;
                     kinds[2].set(kinds[3].get());

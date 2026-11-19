@@ -17,7 +17,22 @@ fn main() {
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     let bits = std::env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
     let handheld = os == "linux" && arch == "aarch64";
-    if bits == "64" && !handheld && os != "android" && os != "ios" {
+    let phone = matches!(os.as_str(), "android" | "ios");
+    // The systems the code tells apart by name, each decided here once: `handheld` (the Anbernic
+    // handheld: Linux on arm64, its frames on the framebuffer through GLES), `phone` (Android or
+    // iOS), `web` (the browser build, Emscripten) and `apple` (macOS or iOS).
+    for (name, on) in [
+        ("handheld", handheld),
+        ("phone", phone),
+        ("web", os == "emscripten"),
+        ("apple", matches!(os.as_str(), "macos" | "ios")),
+    ] {
+        println!("cargo:rustc-check-cfg=cfg({name})");
+        if on {
+            println!("cargo:rustc-cfg={name}");
+        }
+    }
+    if bits == "64" && !handheld && !phone {
         println!("cargo:rustc-cfg=debug_ui");
     }
     println!("cargo:rerun-if-changed=build.rs");
@@ -26,7 +41,7 @@ fn main() {
     // laptop, trying it out).
     println!("cargo:rustc-check-cfg=cfg(touch_screen)");
     println!("cargo:rerun-if-env-changed=RC2K_TOUCH_BUILD");
-    if matches!(os.as_str(), "android" | "ios") || std::env::var_os("RC2K_TOUCH_BUILD").is_some() {
+    if phone || std::env::var_os("RC2K_TOUCH_BUILD").is_some() {
         println!("cargo:rustc-cfg=touch_screen");
     }
     // Network play through Steam: the desktop systems (not the handheld, which has no Steam, nor

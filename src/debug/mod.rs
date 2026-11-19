@@ -16,7 +16,7 @@ pub mod imgui_sdl {
     }
 
     /// Nothing to let go.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld swaps nothing
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld swaps nothing
     pub fn renderer_going() {}
 
     /// No event taken.
@@ -32,13 +32,13 @@ pub mod imgui_sdl {
     }
 
     /// Never open.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld has neither
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld has neither
     pub fn is_open() -> bool {
         false
     }
 
     /// Nothing drawn.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld has neither
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld has neither
     pub fn draw(
         _owners: &crate::owners::Owners<'static>,
         _renderer: crate::platform::ffi::sdl::Renderer,

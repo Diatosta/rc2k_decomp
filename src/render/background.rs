@@ -147,7 +147,7 @@ pub fn take() -> Option<Pending> {
 }
 
 /// The noted background dropped (the canvas is written over it, or the GPU is given up).
-#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's GPU is never given up
+#[cfg_attr(handheld, allow(dead_code))] // the handheld's GPU is never given up
 pub fn clear() {
     *PENDING.lock().unwrap() = None;
 }

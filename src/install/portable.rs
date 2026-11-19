@@ -17,7 +17,7 @@ pub const FILE: &str = "var\\install.cfg";
 /// the folder in place of a CD). Never on a phone or tablet.
 pub fn is_source_folder() -> bool {
     // A phone has no installer: the folder's files are played where they are.
-    if cfg!(any(target_os = "android", target_os = "ios")) {
+    if cfg!(phone) {
         return false;
     }
     let here = |p: &str| crate::files::host_path(p.as_bytes()).exists();

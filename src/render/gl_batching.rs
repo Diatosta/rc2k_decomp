@@ -74,7 +74,7 @@ pub enum Job<Draw> {
         menu: bool,
     },
     /// The menu's wash, a small picture (32-bit, blue first), shown beside the menus' frames.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
+    #[cfg_attr(handheld, allow(dead_code))]
     // the handheld's panel is the frame's size: no side space
     Wash {
         pixels: Vec<u8>,

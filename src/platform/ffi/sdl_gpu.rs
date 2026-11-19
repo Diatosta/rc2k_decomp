@@ -138,7 +138,7 @@ pub struct PipelineSpec<'a> {
 #[derive(Clone, Copy)]
 pub struct ShaderCode {
     pub spirv: &'static [u8],
-    #[cfg(target_vendor = "apple")]
+    #[cfg(apple)]
     pub msl: &'static [u8],
 }
 
@@ -177,7 +177,7 @@ impl Device {
                 SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN,
                 true,
             );
-            #[cfg(target_vendor = "apple")]
+            #[cfg(apple)]
             SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, true);
             SDL_SetBooleanProperty(
                 props,
@@ -221,7 +221,7 @@ impl Device {
         self,
         code: ShaderCode,
     ) -> (SDL_GPUShaderFormat, &'static [u8], &'static CStr) {
-        #[cfg(target_vendor = "apple")]
+        #[cfg(apple)]
         {
             // SAFETY: no pointers.
             let formats = unsafe { SDL_GetGPUShaderFormats(self.0) };

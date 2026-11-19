@@ -22,7 +22,7 @@ const SERVICE: &str = "_rc2k._udp";
 pub struct Announcement {
     #[cfg(target_os = "ios")]
     _service: crate::platform::ffi::dns_sd::Announcement,
-    #[cfg(not(any(target_os = "ios", target_os = "emscripten")))]
+    #[cfg(not(any(target_os = "ios", web)))]
     full_name: String,
 }
 
@@ -64,7 +64,7 @@ mod system {
     }
 }
 
-#[cfg(not(any(target_os = "ios", target_os = "emscripten")))]
+#[cfg(not(any(target_os = "ios", web)))]
 mod system {
     use super::*;
     use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
@@ -188,7 +188,7 @@ mod system {
     }
 }
 
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 mod system {
     use super::*;
 

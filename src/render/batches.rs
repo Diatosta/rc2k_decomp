@@ -85,7 +85,7 @@ pub struct PixelValues {
 
 impl PixelValues {
     /// The values' dwords as the shader's uniform block holds them.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     pub fn to_words(self) -> [u32; 8] {
         let [red, green, blue, alpha] = self.fog_colour;
         [

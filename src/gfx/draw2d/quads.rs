@@ -40,11 +40,11 @@ struct Config {
     /// canvas with a replay of the commands).
     quads: bool,
     /// `RC2K_QUAD_CHECK`: each frame is also drawn the canvas way and the pictures compared.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     check: bool,
     /// `RC2K_QUAD_CHECK=2d`: both drawings leave out the 3D, so that only the 2D is compared
     /// (the GPU's drawing of the 3D differs from itself by a few pixels a frame).
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     check_2d_only: bool,
 }
 
@@ -55,23 +55,23 @@ fn config() -> &'static Config {
         let asked = std::env::var("RC2K_2D_QUADS").map_or(true, |v| v != "0");
         Config {
             // macOS's Metal draws the canvas way until its backend draws quads.
-            quads: cfg!(not(target_vendor = "apple")) && asked && !set("RC2K_2D_CHECK"),
-            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            quads: cfg!(not(apple)) && asked && !set("RC2K_2D_CHECK"),
+            #[cfg(not(handheld))]
             check: set("RC2K_QUAD_CHECK"),
-            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            #[cfg(not(handheld))]
             check_2d_only: std::env::var("RC2K_QUAD_CHECK").is_ok_and(|v| v == "2d"),
         }
     })
 }
 
 /// Whether `RC2K_QUAD_CHECK` is set: the GPU backend draws each frame twice and compares.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn check_wanted() -> bool {
     config().quads && config().check
 }
 
 /// Whether the check leaves the 3D out of both drawings (`RC2K_QUAD_CHECK=2d`).
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn check_2d_only() -> bool {
     check_wanted() && config().check_2d_only
 }

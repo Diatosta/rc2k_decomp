@@ -12,13 +12,13 @@ pub fn add(path: &Path) {
     backend::add(path);
 }
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 /// Logs one line about the outcome.
 fn note(what: &str) {
     crate::logfile::program_log::log(&format!("platform: photo library: {what}"));
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[cfg(not(phone))]
 mod backend {
     pub fn add(_path: &std::path::Path) {}
 }

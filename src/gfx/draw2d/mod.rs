@@ -107,7 +107,7 @@ struct Recorder {
     outside: bool,
     /// With the quad check: what the funnels wrote since the GPU last took it, as the pixels
     /// the canvas would hold, the overlay's "unwritten" pixel where nothing.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     interval: Vec<u8>,
 }
 
@@ -124,7 +124,7 @@ static RECORDER: Mutex<Recorder> = Mutex::new(Recorder {
     latest: std::collections::BTreeMap::new(),
     written: Vec::new(),
     outside: false,
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     interval: Vec::new(),
 });
 
@@ -189,7 +189,7 @@ pub fn mirror(offset: u32, bytes: &[u8]) {
         Some(place) => place.copy_from_slice(bytes),
         None => rec.outside = true,
     }
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     if quads::check_wanted() {
         if rec.interval.is_empty() {
             let len = rec.written.len();
@@ -208,7 +208,7 @@ pub fn mirror(offset: u32, bytes: &[u8]) {
 
 /// What the funnels wrote since the last call, as the canvas would hold it (the overlay's
 /// "unwritten" pixel where nothing was written); `None` when nothing was.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn take_interval() -> Option<Vec<u8>> {
     let interval = std::mem::take(&mut recorder().interval);
     (!interval.is_empty()).then_some(interval)

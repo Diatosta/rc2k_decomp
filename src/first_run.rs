@@ -186,7 +186,7 @@ pub fn find_game_data(given: Option<&str>) {
     if crate::files::redirect::active() {
         return;
     }
-    if cfg!(target_os = "emscripten") || kind_of(Path::new(".")) != Kind::Nothing {
+    if cfg!(web) || kind_of(Path::new(".")) != Kind::Nothing {
         return;
     }
     // The app's folder held a zip of the game's folder: the game is the folder just inside.

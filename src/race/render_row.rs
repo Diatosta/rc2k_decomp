@@ -50,7 +50,7 @@ fn file_name(t: &rc2k_core::system::time::LocalTime) -> String {
 pub const OFFERED: bool = cfg!(not(any(
     target_os = "ios",
     target_os = "android",
-    target_os = "emscripten",
+    web,
     target_os = "vita"
 )));
 

@@ -64,7 +64,7 @@ pub fn memory_stats() -> Option<MemoryStats> {
 }
 
 /// The value of `sysctlbyname(name)`, of type `T`; None when it fails or has another size.
-#[cfg(target_vendor = "apple")]
+#[cfg(apple)]
 fn sysctl_value<T: Copy>(name: &CStr) -> Option<T> {
     let mut value = std::mem::MaybeUninit::<T>::uninit();
     let mut size = size_of::<T>();
@@ -85,7 +85,7 @@ fn sysctl_value<T: Copy>(name: &CStr) -> Option<T> {
 /// The memory figures from `sysctl`: the machine's memory (`hw.memsize`), its free pages
 /// (`vm.page_free_count`, Activity Monitor's "free") and the swap files' use
 /// (`vm.swapusage`); None when one cannot be read.
-#[cfg(target_vendor = "apple")]
+#[cfg(apple)]
 pub fn memory_stats() -> Option<MemoryStats> {
     let total_ram: u64 = sysctl_value(c"hw.memsize")?;
     let free_pages: u32 = sysctl_value(c"vm.page_free_count")?;
@@ -166,7 +166,7 @@ pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
 ///
 /// # Safety
 /// `at` and `len` are a mapping of `map_pages` (whole pages).
-#[cfg(target_vendor = "apple")]
+#[cfg(apple)]
 pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
     // SAFETY: the caller's mapping, replaced in place by one of the same kind.
     let mapped = unsafe {
@@ -187,7 +187,7 @@ pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
 ///
 /// # Safety
 /// `at` and `len` are a mapping of `map_pages` (whole pages).
-#[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+#[cfg(not(any(target_os = "linux", target_os = "android", apple)))]
 pub unsafe fn discard_pages(_at: *mut u8, _len: usize) -> bool {
     false
 }
@@ -195,9 +195,9 @@ pub unsafe fn discard_pages(_at: *mut u8, _len: usize) -> bool {
 /// The process ended at once with `code` (no library's leave-taking).
 pub fn exit_now(code: u32) -> ! {
     // The browser's page is told (its `onExit`): `_exit` would leave it with the last frame.
-    #[cfg(target_os = "emscripten")]
+    #[cfg(web)]
     crate::platform::web::end_program(code);
-    #[cfg(not(target_os = "emscripten"))]
+    #[cfg(not(web))]
     // SAFETY: ends the process.
     unsafe {
         libc::_exit(code as i32)
@@ -240,7 +240,7 @@ pub fn with_module_of_address<T>(address: usize, f: impl FnOnce(&[u8], usize) ->
 ///
 /// # Safety
 /// The system's signal handler: `info` and `context` are the system's, live during the call.
-#[cfg(not(target_os = "emscripten"))]
+#[cfg(not(web))]
 unsafe extern "C" fn on_signal(
     _signal: libc::c_int,
     info: *mut libc::siginfo_t,
@@ -299,7 +299,7 @@ unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usi
 ///
 /// # Safety
 /// `context` is the signal handler's, live during the call.
-#[cfg(all(target_vendor = "apple", target_arch = "x86_64"))]
+#[cfg(all(apple, target_arch = "x86_64"))]
 unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usize) {
     // SAFETY: the caller's context and the machine context it points to.
     let m = unsafe { &*(*context).uc_mcontext };
@@ -316,7 +316,7 @@ unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usi
 ///
 /// # Safety
 /// `context` is the signal handler's, live during the call.
-#[cfg(all(target_vendor = "apple", target_arch = "aarch64"))]
+#[cfg(all(apple, target_arch = "aarch64"))]
 unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usize) {
     // SAFETY: the caller's context and the machine context it points to.
     let m = unsafe { &*(*context).uc_mcontext };
@@ -359,7 +359,7 @@ pub fn own_stack_word(at: usize) -> Option<usize> {
 /// The word at `at` on this thread's stack, for the fault report (`standalone::stack_returns`):
 /// None outside the thread's stack (`pthread_get_stackaddr_np`, its top, and
 /// `pthread_get_stacksize_np` below it), so a walk up the stack stops at its end.
-#[cfg(target_vendor = "apple")]
+#[cfg(apple)]
 pub fn own_stack_word(at: usize) -> Option<usize> {
     // SAFETY: plain reads of the running thread's own record (no lock, no allocation in
     // Apple's libpthread; they are not on POSIX's async-signal-safe list, being Apple's own).
@@ -383,14 +383,14 @@ pub fn own_stack_word(at: usize) -> Option<usize> {
 }
 
 /// No fault report in the web build (`install_fault_reporter` installs nothing).
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 pub fn own_stack_word(_at: usize) -> Option<usize> {
     None
 }
 
 /// The fault reporter installed for SIGSEGV and SIGBUS (on the thread's alternate stack,
 /// which std gives its threads, so a stack overflow is reported too).
-#[cfg(not(target_os = "emscripten"))]
+#[cfg(not(web))]
 pub fn install_fault_reporter() {
     // SAFETY: a handler of the system's signature, for the program's life.
     unsafe {
@@ -407,13 +407,13 @@ pub fn install_fault_reporter() {
 // ---- the web build (Emscripten): what a browser has no counterpart for ----
 
 /// The browser says nothing of the machine's memory.
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 pub fn memory_stats() -> Option<MemoryStats> {
     None
 }
 
 /// No signals for a fault: a trap ends the module, and the browser's console shows it.
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 pub fn install_fault_reporter() {}
 
 // ---- iOS: the main thread's run loop ----

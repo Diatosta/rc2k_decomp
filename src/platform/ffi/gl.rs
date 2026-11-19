@@ -43,7 +43,7 @@ macro_rules! library {
         }
     };
 }
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 library! { Egl {
     eglGetDisplay: fn(P) -> P;
     eglInitialize: fn(P, *mut i32, *mut i32) -> u32;
@@ -126,20 +126,17 @@ library! { Table {
 /// Where the context's frames go, and what keeps the context alive.
 enum Surface {
     /// The handheld's framebuffer device through libmali's EGL.
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     Panel { egl: Egl, display: P, surface: P },
     /// An SDL window's context (a hidden one: the frames are read back).
-    #[cfg(not(any(
-        all(target_os = "linux", target_arch = "aarch64"),
-        target_os = "emscripten"
-    )))]
+    #[cfg(not(any(handheld, web)))]
     Window(
         *mut sdl3_sys::everything::SDL_Window,
         sdl3_sys::everything::SDL_GLContext,
     ),
     /// A WebGL 2 context on the page's GL canvas, drawn into an off-screen frame buffer the
     /// frame's commit copies onto the canvas (`web_gl`).
-    #[cfg(target_os = "emscripten")]
+    #[cfg(web)]
     Web(web_gl::Context),
 }
 
@@ -155,26 +152,17 @@ pub struct Gles {
     _one_thread: std::marker::PhantomData<*const ()>,
 }
 
-#[cfg(not(any(
-    all(target_os = "linux", target_arch = "aarch64"),
-    target_os = "emscripten"
-)))]
+#[cfg(not(any(handheld, web)))]
 /// An SDL window made for an OpenGL context, hidden until the game shows it in place of its own, handed to the thread that makes the context
 /// current there (`Gles::open_window`).
 pub struct GlWindow(*mut sdl3_sys::everything::SDL_Window);
 
-#[cfg(not(any(
-    all(target_os = "linux", target_arch = "aarch64"),
-    target_os = "emscripten"
-)))]
+#[cfg(not(any(handheld, web)))]
 // SAFETY: the pointer is a window nothing else uses; it moves to the one thread that makes the
 // context on it and keeps it.
 unsafe impl Send for GlWindow {}
 
-#[cfg(not(any(
-    all(target_os = "linux", target_arch = "aarch64"),
-    target_os = "emscripten"
-)))]
+#[cfg(not(any(handheld, web)))]
 impl GlWindow {
     /// A hidden window of `size` with an OpenGL 3.3 core context asked for, made on the calling thread
     /// (the one that made the game's window). `Err` when SDL cannot, with its message.
@@ -217,10 +205,7 @@ impl GlWindow {
     }
 }
 
-#[cfg(not(any(
-    all(target_os = "linux", target_arch = "aarch64"),
-    target_os = "emscripten"
-)))]
+#[cfg(not(any(handheld, web)))]
 impl GlWindow {
     /// The window as the platform's window handle, for the calls that belong to the game's
     /// thread (showing it, its size, its icon, the keyboard). It lives until `destroy`.
@@ -229,10 +214,7 @@ impl GlWindow {
     }
 }
 
-#[cfg(not(any(
-    all(target_os = "linux", target_arch = "aarch64"),
-    target_os = "emscripten"
-)))]
+#[cfg(not(any(handheld, web)))]
 /// SDL's last error message.
 fn sdl_error() -> String {
     // SAFETY: SDL gives a NUL-ended string that stays valid until its next call; copied here.
@@ -249,10 +231,7 @@ fn pixel_bytes(width: i32, height: i32) -> usize {
     width.max(0) as usize * height.max(0) as usize * 4
 }
 
-#[cfg(not(any(
-    all(target_os = "linux", target_arch = "aarch64"),
-    target_os = "emscripten"
-)))]
+#[cfg(not(any(handheld, web)))]
 impl Gles {
     /// Makes an OpenGL context on `window` current on this thread and finds the entry points
     /// by SDL.
@@ -295,10 +274,7 @@ impl Gles {
     }
 }
 
-#[cfg(not(any(
-    all(target_os = "linux", target_arch = "aarch64"),
-    target_os = "emscripten"
-)))]
+#[cfg(not(any(handheld, web)))]
 impl Gles {
     /// The context destroyed (it is current on the calling thread, the one that made it),
     /// and its window handed back: it is destroyed on the thread that made it.
@@ -315,10 +291,7 @@ impl Gles {
     }
 }
 
-#[cfg(not(any(
-    all(target_os = "linux", target_arch = "aarch64"),
-    target_os = "emscripten"
-)))]
+#[cfg(not(any(handheld, web)))]
 impl GlWindow {
     /// The hidden window destroyed, on the thread that made it, once the context on it is gone.
     pub fn destroy(self) {
@@ -327,7 +300,7 @@ impl GlWindow {
     }
 }
 
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 impl Gles {
     /// The panel's context stays for the program's life: nothing comes back.
     pub fn close_after_failure(self) -> Option<()> {
@@ -335,7 +308,7 @@ impl Gles {
     }
 }
 
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 impl Gles {
     /// `close`, for a start that failed after the context was made.
     pub fn close_after_failure(self) -> Option<GlWindow> {
@@ -346,7 +319,7 @@ impl Gles {
 impl Gles {
     /// Opens the library, makes an OpenGL ES 3 context current on the framebuffer device's
     /// `width` x `height` window (leaked: libmali holds on to it).
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     pub fn open_panel(width: u16, height: u16) -> Result<Gles, String> {
         // SAFETY: a constant name; each symbol is looked up by name and the library stays open
         // for the program's life.
@@ -414,10 +387,7 @@ impl Gles {
     /// The size in pixels of what the context draws to, when it is a window (the panel's is
     /// fixed). SDL's own record, read from the GL's thread while the game's thread only changes
     /// it between frames.
-    #[cfg(not(any(
-        all(target_os = "linux", target_arch = "aarch64"),
-        target_os = "emscripten"
-    )))]
+    #[cfg(not(any(handheld, web)))]
     pub fn drawable_size(&self) -> Option<(i32, i32)> {
         let Surface::Window(window, _) = &self.surface;
         let (mut width, mut height) = (0, 0);
@@ -433,14 +403,14 @@ impl Gles {
         (known && width > 0 && height > 0).then_some((width, height))
     }
 
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     pub fn drawable_size(&self) -> Option<(i32, i32)> {
         None
     }
 
     /// The game's window size in pixels, which the GL canvas takes (the page scales the canvas to
     /// its place).
-    #[cfg(target_os = "emscripten")]
+    #[cfg(web)]
     pub fn drawable_size(&self) -> Option<(i32, i32)> {
         let Surface::Web(context) = &self.surface;
         context.sized()
@@ -449,7 +419,7 @@ impl Gles {
     #[inline]
     pub fn swap_buffers(&self) {
         match &self.surface {
-            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            #[cfg(handheld)]
             Surface::Panel {
                 egl,
                 display,
@@ -458,15 +428,12 @@ impl Gles {
                 // SAFETY: the display and surface made in `open_panel`, current on this thread.
                 unsafe { (egl.eglSwapBuffers)(*display, *surface) };
             }
-            #[cfg(not(any(
-                all(target_os = "linux", target_arch = "aarch64"),
-                target_os = "emscripten"
-            )))]
+            #[cfg(not(any(handheld, web)))]
             Surface::Window(window, _) => {
                 // SAFETY: the window `open_window` made the context on, current on this thread.
                 unsafe { sdl3_sys::everything::SDL_GL_SwapWindow(*window) };
             }
-            #[cfg(target_os = "emscripten")]
+            #[cfg(web)]
             Surface::Web(context) => context.commit_frame(),
         }
     }
@@ -1024,14 +991,14 @@ impl Gles {
     }
 }
 
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 pub use web_gl::GlWindow;
 
 /// The browser's WebGL 2 through Emscripten: its entry points are found by name like the
 /// handheld's, and the context is made on the page's GL canvas (`tools/web/index.html`) from the
 /// GL's own thread, drawing into an off-screen frame buffer that `commit_frame` copies onto the
 /// canvas on the page's thread (`-sOFFSCREEN_FRAMEBUFFER`).
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 mod web_gl {
     use super::{CStr, Gles, P, Surface, Table, c_char};
     use std::cell::Cell;

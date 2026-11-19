@@ -80,7 +80,7 @@ pub fn give_chosen(menus: &Menus, input: &Input) {
         // A phone has no keyboard to drive with: the first player's keyboard is the touch
         // screen's controls, or the controller last used (`platform::touch`). The touch pad
         // is never a choice kept for the player: it is what stands in for none.
-        #[cfg(any(target_os = "android", target_os = "ios"))]
+        #[cfg(phone)]
         let wanted = if n == 0 {
             let touch_pad = crate::platform::touch::is_touch_pad(&list, wanted);
             if touch_pad {
@@ -124,7 +124,7 @@ pub fn keep(input: &Input, ids: [Option<DeviceId>; 4]) {
 /// a race, a controller gone): the menus' record is worked out again, and in a race the car's
 /// device is set up for the new controls as the race's start does it (effects ended and begun
 /// again, the old device given back), so no pedal stays held.
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 pub fn source_changed(
     menus: &Menus,
     input: &Input,

@@ -207,16 +207,16 @@ fn padded<const N: usize>(text: &str) -> [u8; N] {
 /// The network game the launch asked for: the settings set, the host or join item's own
 /// function run, the settings put back; after it the main menu goes on, or the program ends.
 fn run_net(o: Owners<'static>, launch: &NetLaunch) -> Result<(), Refused> {
-    #[cfg(target_os = "emscripten")]
+    #[cfg(web)]
     {
         let _ = (o, launch);
         return Err(BadInput("the web build has no network play").into());
     }
-    #[cfg(not(target_os = "emscripten"))]
+    #[cfg(not(web))]
     run_net_game(o, launch)
 }
 
-#[cfg(not(target_os = "emscripten"))]
+#[cfg(not(web))]
 fn run_net_game(o: Owners<'static>, launch: &NetLaunch) -> Result<(), Refused> {
     crate::logfile::program_log::log(&format!("menu::launch: {launch:?}"));
     let kept = Kept::take(o)?;

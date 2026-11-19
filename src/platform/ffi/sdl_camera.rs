@@ -24,7 +24,7 @@ pub enum Permission {
             windows,
             target_os = "ios",
             target_os = "android",
-            target_os = "emscripten",
+            web,
             all(target_os = "linux", not(target_arch = "aarch64"))
         )),
         allow(
@@ -34,7 +34,7 @@ pub enum Permission {
     )]
     Pending,
     #[cfg_attr(
-        all(target_os = "linux", target_arch = "aarch64"),
+        handheld,
         allow(dead_code, reason = "the handheld has no camera to approve")
     )]
     Approved,
@@ -45,7 +45,7 @@ pub enum Permission {
     windows,
     target_os = "ios",
     target_os = "android",
-    target_os = "emscripten",
+    web,
     all(target_os = "linux", not(target_arch = "aarch64"))
 ))]
 mod real {
@@ -305,7 +305,7 @@ mod real {
     windows,
     target_os = "ios",
     target_os = "android",
-    target_os = "emscripten",
+    web,
     all(target_os = "linux", not(target_arch = "aarch64"))
 )))]
 mod real {

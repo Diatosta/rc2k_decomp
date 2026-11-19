@@ -11,9 +11,9 @@
 
 use sdl3_sys::everything::*;
 use std::ffi::CStr;
-#[cfg(any(feature = "remote", all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(any(feature = "remote", handheld))]
 use std::ffi::CString;
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 use std::ffi::c_char;
 
 /// SDL's last error text.
@@ -26,7 +26,7 @@ pub fn last_error() -> String {
 
 /// The handheld's joystick hints set (before the subsystem starts): events while the window
 /// has no focus, and the joystick node SDL reads its pad from.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub fn set_handheld_joystick_hints() {
     // SAFETY: SDL's own hint names and NUL-ended values, read during the calls.
     unsafe {
@@ -70,7 +70,7 @@ pub fn joystick_name_for_id(id: SDL_JoystickID, fallback: &str) -> String {
 }
 
 /// A joystick's GUID by id, as SDL's hex text.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub fn joystick_guid_text_for_id(id: SDL_JoystickID) -> String {
     let mut text = [0 as c_char; 33];
     // SAFETY: a buffer of the 33 bytes given, which SDL ends with a NUL.
@@ -104,7 +104,7 @@ pub fn pad_family(id: SDL_JoystickID) -> rc2k_core::input::icons::Family {
 }
 
 /// A gamepad mapping added (SDL's mapping string); false when the text has a NUL.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub fn add_gamepad_mapping(mapping: String) -> bool {
     let Ok(mapping) = CString::new(mapping) else {
         return false;
@@ -245,14 +245,14 @@ impl Joystick {
     }
 
     /// A virtual joystick's axis set (the remote driver's stand-in stick).
-    #[cfg(any(feature = "remote", target_os = "android", target_os = "ios"))]
+    #[cfg(any(feature = "remote", phone))]
     pub fn set_virtual_axis(self, axis: i32, value: i16) -> bool {
         // SAFETY: an open joystick; SDL refuses one that is not virtual.
         unsafe { SDL_SetJoystickVirtualAxis(self.0, axis, value) }
     }
 
     /// A virtual joystick's button set.
-    #[cfg(any(feature = "remote", target_os = "android", target_os = "ios"))]
+    #[cfg(any(feature = "remote", phone))]
     pub fn set_virtual_button(self, button: i32, down: bool) -> bool {
         // SAFETY: an open joystick; SDL refuses one that is not virtual.
         unsafe { SDL_SetJoystickVirtualButton(self.0, button, down) }
@@ -287,7 +287,7 @@ pub fn attach_virtual_stick(
 
 /// A virtual gamepad in SDL's standard layout (all its axes and buttons), attached as if
 /// plugged in: the touch screen's controls (`platform::touch`). Its id, or none.
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 pub fn attach_virtual_gamepad(
     vendor: u16,
     product: u16,
@@ -311,7 +311,7 @@ pub fn attach_virtual_gamepad(
 
 /// SDL's call to rumble the touch screen's virtual gamepad: the phone pulses for it when the
 /// player has switched that on.
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 unsafe extern "C" fn phone_rumble(_: *mut std::ffi::c_void, low: u16, high: u16) -> bool {
     crate::platform::vibrate::rumble(low, high);
     true
@@ -531,7 +531,7 @@ pub fn push_quit_event() {
 /// A virtual joystick standing for a browser gamepad (`platform::web_pads`): the page's Gamepad
 /// API cannot be read from the game's worker, so its pads are copied into SDL's virtual ones,
 /// which the rest of the game meets as ordinary joysticks and gamepads.
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 pub struct VirtualPad {
     id: SDL_JoystickID,
     joystick: *mut SDL_Joystick,
@@ -539,10 +539,10 @@ pub struct VirtualPad {
 
 // SAFETY: the joystick handle is used by one thread at a time (the bridge's lock); SDL's joystick
 // functions take SDL's own lock.
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 unsafe impl Send for VirtualPad {}
 
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 impl VirtualPad {
     /// A virtual gamepad of SDL's layout (six axes: the sticks, then the two triggers; the fifteen
     /// buttons from the south one to the pad's right), attached as if plugged in.

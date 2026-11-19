@@ -16,9 +16,9 @@ pub mod wash;
 pub mod gpu_cut;
 pub mod gpu_time;
 // The handheld has no Vulkan: its GPU is reached through `gles`, by the same name here.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub use gles as gpu;
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub mod gpu;
 pub mod rasteriser;
 #[cfg(target_arch = "aarch64")]
@@ -393,7 +393,7 @@ pub fn draw(screen: (usize, usize), racing: bool, target: &Target, commands: Com
             return;
         }
     }
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     if target.bits == 32
         && let Some(gl) = gles::GPU.lock().unwrap().as_mut()
     {
@@ -429,7 +429,7 @@ pub fn bring_back(target: &Target) {
 
 /// `bring_back`, when the GPU holds the frame.
 fn bring_back_now(target: &Target) {
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     if GPU_HOLDS_FRAME.load(Relaxed)
         && let Some(gl) = gles::GPU.lock().unwrap().as_mut()
     {
@@ -447,9 +447,9 @@ fn bring_back_now(target: &Target) {
         // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
         let canvas = unsafe { target.bytes() };
         let began = std::time::Instant::now();
-        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        #[cfg(handheld)]
         gpu.bring_back(target, canvas);
-        #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+        #[cfg(not(handheld))]
         {
             let rows = canvas_rows::written_rows(target, canvas);
             if let Err(why) = gpu.bring_back(Some(rows), canvas) {
@@ -475,7 +475,7 @@ fn bring_back_now(target: &Target) {
 /// when the GPU does not hold the frame or its backend cannot (the caller then brings the frame
 /// back and reads the canvas).
 pub fn stretched_frame(target: &Target, size: (u32, u32)) -> Option<Vec<u32>> {
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     {
         if !GPU_HOLDS_FRAME.load(Relaxed) {
             return None;
@@ -519,7 +519,7 @@ pub fn stretched_frame(target: &Target, size: (u32, u32)) -> Option<Vec<u32>> {
             }
         }
     }
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     {
         let _ = (target, size);
         None
@@ -539,7 +539,7 @@ pub struct VideoRead {
 
 /// Collects the frame queued by the last call into `spare` (the buffer is kept in `previous`) and
 /// queues the frame now drawn. Only the Vulkan backend queues; any other leaves `started` false.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn video_read_next(target: &Target, spare: Vec<u8>, nv12: bool) -> VideoRead {
     let mut read = VideoRead {
         previous: None,
@@ -577,7 +577,7 @@ pub fn video_read_next(target: &Target, spare: Vec<u8>, nv12: bool) -> VideoRead
 }
 
 /// The handheld's panel has no pipelined read-back: every frame is brought back at once.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub fn video_read_next(_target: &Target, _spare: Vec<u8>, _nv12: bool) -> VideoRead {
     VideoRead {
         previous: None,
@@ -587,20 +587,20 @@ pub fn video_read_next(_target: &Target, _spare: Vec<u8>, _nv12: bool) -> VideoR
 
 /// Whether the video's frames can come from the card as NV12 (`video_read_next`'s `nv12`): the
 /// Vulkan renderer is the one in use and the panel is not the handheld's.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn video_nv12_possible() -> bool {
     gles::GPU.lock().unwrap().is_none() && gpu::GPU.lock().unwrap().is_some()
 }
 
 /// The handheld's panel queues no frame: its frames stay 32 bits a pixel.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub fn video_nv12_possible() -> bool {
     false
 }
 
 /// The last frame `video_read_next` queued, collected into `spare`; `None` when none is queued.
 /// The GPU is only tried, never waited for, so that a program ending in a fault cannot hang here.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn video_read_last(spare: Vec<u8>) -> Option<Vec<u8>> {
     let mut gpu = gpu::GPU.try_lock().ok()?;
     let mut buffer = spare;
@@ -608,7 +608,7 @@ pub fn video_read_last(spare: Vec<u8>) -> Option<Vec<u8>> {
 }
 
 /// The handheld's panel queues no frame (`video_read_next`): nothing is left to collect.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub fn video_read_last(_spare: Vec<u8>) -> Option<Vec<u8>> {
     None
 }
@@ -630,7 +630,7 @@ fn give_frame_back(target: &Target) {
 /// The frame's end, before it is shown. The GPU's colour target when that is what to show, the
 /// canvas's written pixels over it, with the number of its set of targets and its size
 /// (`Gpu::colour_texture`).
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn finish_frame(
     course: &Course,
     target: &Target,
@@ -669,7 +669,7 @@ pub fn finish_frame(
 /// The frame on the panel, by the GPU when it is running: the target during a race, else
 /// the canvas's picture, which `with_frame` hands over (taken only after the GPU's writes to the
 /// canvas here, so that no slice of it is held across them). False: it is not running.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub fn show_on_panel(
     course: &Course,
     target: &Target,
@@ -701,7 +701,7 @@ pub fn show_on_panel(
 /// through the canvas: the target during a race (and in the menus that keep their background on
 /// the GPU), else the canvas's picture, which `with_frame` hands over. False: the backend does
 /// not show a window (it is not running), and the caller shows the frame.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn show_on_gl_window(
     course: &Course,
     target: &Target,
@@ -775,7 +775,7 @@ pub(crate) fn gpu_started() {
 
 /// A GPU backend that had started is given up (the screen's targets could not be made): its
 /// texture changes are no longer kept.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub(crate) fn gpu_stopped() {
     GPU_STARTED.store(false, Relaxed);
     crate::gfx::draw2d::quads::gpu_changed();
@@ -786,11 +786,11 @@ pub(crate) fn gpu_stopped() {
 /// Whether the desktop's OpenGL backend is the one running (the handheld's GL ES is its GPU
 /// renderer, `gpu_running`).
 pub fn gl_running() -> bool {
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     {
         gles::GPU.lock().unwrap().is_some()
     }
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     {
         false
     }
@@ -815,7 +815,7 @@ pub fn running_wish() -> choice::Wish {
 
 /// Whether the GPU's frame may be given up: a frame the GPU holds is brought back into the
 /// canvas, and the rasteriser draws from here. For the renderer's swap.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub(crate) fn release_frame(target: Option<&Target>) {
     if let Some(target) = target {
         give_frame_back(target);

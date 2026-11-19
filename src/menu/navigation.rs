@@ -91,7 +91,7 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
 
 /// The item a sideways move lands on: the one its link names, but the web build's hidden
 /// item is passed by along the same link (`None`: nothing beyond it).
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 fn passing_hidden(
     menus: &crate::menu::owner::Menus,
     n: u32,
@@ -108,7 +108,7 @@ fn passing_hidden(
     })
 }
 
-#[cfg(not(target_os = "emscripten"))]
+#[cfg(not(web))]
 #[allow(clippy::unnecessary_wraps)] // the web build's version looks the item up and can refuse
 fn passing_hidden(
     _menus: &crate::menu::owner::Menus,

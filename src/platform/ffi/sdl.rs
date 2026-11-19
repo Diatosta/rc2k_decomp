@@ -14,7 +14,7 @@
 use sdl3_sys::everything::*;
 
 /// How a window is shown on its display.
-#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is always the whole screen
+#[cfg_attr(handheld, allow(dead_code))] // the handheld's panel is always the whole screen
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum FullScreen {
     /// As a window.
@@ -36,7 +36,7 @@ pub struct Window(pub(super) *mut SDL_Window);
 pub struct Renderer(pub(super) *mut SDL_Renderer);
 
 /// A streaming texture of a renderer (its size kept for the upload's check).
-#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld shows frames on its framebuffer
+#[cfg_attr(handheld, allow(dead_code))] // the handheld shows frames on its framebuffer
 pub struct Texture {
     raw: *mut SDL_Texture,
     width: usize,
@@ -130,7 +130,7 @@ impl Window {
     }
 
     /// The window shown (and raised, so that it takes the keyboard).
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     pub fn show_raised(self) {
         // SAFETY: as `restore_if_minimised`.
         unsafe {
@@ -140,27 +140,27 @@ impl Window {
     }
 
     /// Whether both handles are the one window.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     pub fn is_same(self, other: Window) -> bool {
         self.0 == other.0
     }
 
     /// Whether the window is hidden.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     pub fn is_hidden(self) -> bool {
         // SAFETY: as `restore_if_minimised`.
         unsafe { SDL_GetWindowFlags(self.0).0 & SDL_WINDOW_HIDDEN.0 != 0 }
     }
 
     /// The window hidden.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     pub fn hide(self) {
         // SAFETY: as `restore_if_minimised`.
         unsafe { SDL_HideWindow(self.0) };
     }
 
     /// Where the window is on the desktop.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     pub fn position(self) -> (i32, i32) {
         let (mut x, mut y) = (0, 0);
         // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
@@ -169,7 +169,7 @@ impl Window {
     }
 
     /// The window moved to `(x, y)` on the desktop.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     pub fn set_position(self, (x, y): (i32, i32)) {
         // SAFETY: as `restore_if_minimised`.
         unsafe { SDL_SetWindowPosition(self.0, x, y) };
@@ -182,7 +182,7 @@ impl Window {
     }
 
     /// The window's size in the screen's pixels, as `set_size` takes it.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     pub fn window_size(self) -> Option<(u32, u32)> {
         let (mut width, mut height) = (0, 0);
         // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
@@ -191,14 +191,14 @@ impl Window {
     }
 
     /// The least size the player can drag the window to.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     pub fn set_minimum_size(self, width: usize, height: usize) {
         // SAFETY: as `restore_if_minimised`.
         unsafe { SDL_SetWindowMinimumSize(self.0, width as i32, height as i32) };
     }
 
     /// The window's size in its own pixels (what it is drawn on), if SDL knows it.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel has no window
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld's panel has no window
     pub fn pixel_size(self) -> Option<(u32, u32)> {
         let (mut width, mut height) = (0, 0);
         // SAFETY: as `restore_if_minimised`; SDL writes the two integers.
@@ -243,22 +243,22 @@ impl Window {
     }
 
     /// The window's full-screen state set. False when SDL refuses (the window stays as it was).
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is always the whole screen
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld's panel is always the whole screen
     pub fn set_full_screen(self, how: FullScreen) -> bool {
         // The browser's full screen takes the whole page, both canvases (SDL's own request
         // would take only the window's canvas, leaving the GL's out: a black picture).
-        #[cfg(target_os = "emscripten")]
+        #[cfg(web)]
         {
             crate::platform::web::set_full_screen(how != FullScreen::Off)
         }
-        #[cfg(not(target_os = "emscripten"))]
+        #[cfg(not(web))]
         {
             self.set_full_screen_sdl(how)
         }
     }
 
-    #[cfg(not(target_os = "emscripten"))]
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is always the whole screen
+    #[cfg(not(web))]
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld's panel is always the whole screen
     fn set_full_screen_sdl(self, how: FullScreen) -> bool {
         // SAFETY: as `restore_if_minimised`; the mode is a record of this call's own that SDL
         // fills in (all zero is the "none" it starts from) and reads during the call.
@@ -287,11 +287,11 @@ impl Window {
 
     /// Whether the window is full screen now.
     pub fn is_full_screen(self) -> bool {
-        #[cfg(target_os = "emscripten")]
+        #[cfg(web)]
         {
             crate::platform::web::is_full_screen()
         }
-        #[cfg(not(target_os = "emscripten"))]
+        #[cfg(not(web))]
         {
             // SAFETY: as `restore_if_minimised`.
             unsafe { SDL_GetWindowFlags(self.0).0 & SDL_WINDOW_FULLSCREEN.0 != 0 }
@@ -301,17 +301,17 @@ impl Window {
     /// The refreshes a second of the display the window is on, if SDL knows them.
     pub fn display_refresh(self) -> Option<f64> {
         // The browser's display is not SDL's to know: the page measures its frames.
-        #[cfg(target_os = "emscripten")]
+        #[cfg(web)]
         {
             crate::platform::web::display_refresh()
         }
-        #[cfg(not(target_os = "emscripten"))]
+        #[cfg(not(web))]
         {
             self.display_refresh_sdl()
         }
     }
 
-    #[cfg(not(target_os = "emscripten"))]
+    #[cfg(not(web))]
     fn display_refresh_sdl(self) -> Option<f64> {
         // SAFETY: as `restore_if_minimised`; the mode is SDL's own record, read at once and
         // only when not null.
@@ -413,7 +413,7 @@ impl Renderer {
     }
 
     /// A rectangle blended over what is drawn (red, green, blue, alpha).
-    #[cfg(any(target_os = "android", target_os = "ios"))]
+    #[cfg(phone)]
     pub fn fill_blended(self, [r, g, b, a]: [u8; 4], [x, y, w, h]: [f32; 4]) {
         let rect = SDL_FRect { x, y, w, h };
         // SAFETY: the renderer SDL made; a rectangle that lives over the call. The blend mode is
@@ -428,7 +428,7 @@ impl Renderer {
 
     /// SDL's built-in font `text` at `scale` times its size (a text of 8 pixels a letter at 1),
     /// with its top left corner at (x, y), in a colour with alpha.
-    #[cfg(any(target_os = "android", target_os = "ios"))]
+    #[cfg(phone)]
     pub fn text_blended(self, [r, g, b, a]: [u8; 4], x: f32, y: f32, scale: f32, text: &str) {
         let Ok(text) = std::ffi::CString::new(text.replace('\0', "")) else {
             return;
@@ -469,7 +469,7 @@ impl Renderer {
     /// The pixels the renderer has drawn on its target, BGRA, top row first (a test run's shot of
     /// the window).
     #[cfg(feature = "remote")]
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is the frame's size: its frames are not on an SDL window
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld's panel is the frame's size: its frames are not on an SDL window
     pub fn read_window(self) -> Option<(u32, u32, Vec<u8>)> {
         // SAFETY: the renderer SDL made; the surface it returns is ours, converted into a second
         // one, and both are destroyed after their rows are copied (rows of `pitch` bytes,
@@ -510,7 +510,7 @@ impl Renderer {
     }
 
     /// The texture drawn over the whole target.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld shows frames on its framebuffer
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld shows frames on its framebuffer
     pub fn draw_whole(self, texture: &Texture) {
         // SAFETY: the renderer and the texture made by it, both alive (null rectangles
         // mean the whole texture and the whole target).
@@ -520,7 +520,7 @@ impl Renderer {
     }
 
     /// The size of the target the renderer draws on (the window's pixels), if SDL knows it.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld shows frames on its framebuffer
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld shows frames on its framebuffer
     pub fn window_pixels(self) -> Option<(u32, u32)> {
         let (mut width, mut height) = (0, 0);
         // SAFETY: the renderer SDL made; SDL writes the two integers.
@@ -531,7 +531,7 @@ impl Renderer {
 
     /// `part` of the texture (x, y, width, height; `None`: all of it) drawn over `to`, a
     /// rectangle of the target.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld shows frames on its framebuffer
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld shows frames on its framebuffer
     pub fn draw_part(self, texture: &Texture, part: Option<[u32; 4]>, to: [u32; 4]) {
         let rect = |[x, y, w, h]: [u32; 4]| SDL_FRect {
             x: x as f32,
@@ -571,7 +571,7 @@ impl Renderer {
     /// `colour` is a texture of the GPU device the renderer shares; nothing in Rust
     /// dereferences it.
     #[allow(clippy::not_unsafe_ptr_arg_deref)] // an opaque handle only SDL reads
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld shows frames on its framebuffer
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld shows frames on its framebuffer
     pub fn create_gpu_view(
         self,
         colour: *mut SDL_GPUTexture,
@@ -620,7 +620,7 @@ impl Renderer {
 
 impl Texture {
     /// Whether the texture is magnified with no filter (sharp pixels) or with a linear one.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld shows frames on its framebuffer
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld shows frames on its framebuffer
     pub fn set_sharp(&self, sharp: bool) {
         let mode = if sharp {
             SDL_SCALEMODE_NEAREST
@@ -633,7 +633,7 @@ impl Texture {
 
     /// The whole texture replaced by `frame`'s rows of `pitch` bytes. False when SDL
     /// refuses, or when `frame` is shorter than the texture's rows.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld shows frames on its framebuffer
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld shows frames on its framebuffer
     pub fn upload(&self, frame: &[u8], pitch: usize) -> bool {
         if frame.len() < pitch * self.height || pitch < self.width * 4 {
             return false;
@@ -661,7 +661,7 @@ impl Drop for Texture {
 // ---- video ----
 
 /// The handheld's frames go to the framebuffer: SDL's video driver is the dummy one.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub fn use_dummy_video_driver() {
     // SAFETY: two constant C texts.
     unsafe { SDL_SetHint(SDL_HINT_VIDEO_DRIVER, c"dummy".as_ptr()) };
@@ -765,10 +765,7 @@ pub type DisplayModes = (Vec<(u32, u32, f32)>, Option<(u32, u32)>);
 
 /// The modes of the display `window` is on (the primary display without a window): each
 /// (width, height, refresh rate), and the desktop's size. SDL's video is started if it is not.
-#[cfg_attr(
-    any(test, all(target_os = "linux", target_arch = "aarch64")),
-    allow(dead_code)
-)] // the unit tests and the handheld ask no display
+#[cfg_attr(any(test, handheld), allow(dead_code))] // the unit tests and the handheld ask no display
 pub fn display_modes(window: Option<Window>) -> DisplayModes {
     if !init_video() {
         return (Vec::new(), None);
@@ -821,7 +818,7 @@ pub const RESIZABLE: bool = cfg!(any(
 ));
 
 /// The least size of a window the player resizes (the least race size the options keep).
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub const MIN_WINDOW: (usize, usize) = (320, 240);
 
 /// A window of the given size with a title.
@@ -835,7 +832,7 @@ pub fn create_window(title: &std::ffi::CStr, width: usize, height: usize) -> Opt
             SDL_WindowFlags(window_flags().0 | if RESIZABLE { SDL_WINDOW_RESIZABLE.0 } else { 0 }),
         )
     };
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     if !raw.is_null() && RESIZABLE {
         Window(raw).set_minimum_size(MIN_WINDOW.0, MIN_WINDOW.1);
     }
@@ -894,7 +891,7 @@ pub fn destroy(window: Window, renderer: Renderer) {
 
 /// The window's renderer destroyed, the window kept (the 3D's renderer is swapped). Every
 /// texture made on it must be gone first; it is not used again.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn destroy_renderer(renderer: Renderer) {
     // SAFETY: a renderer SDL made here, which the caller says nothing uses.
     unsafe { SDL_DestroyRenderer(renderer.0) };
@@ -904,9 +901,9 @@ pub fn destroy_renderer(renderer: Renderer) {
 /// frames SDL puts on the page's canvas from the page's thread: a WebGL context cannot be made
 /// on the game's worker).
 pub fn create_renderer(window: Window) -> Option<Renderer> {
-    #[cfg(target_os = "emscripten")]
+    #[cfg(web)]
     let name = c"software".as_ptr();
-    #[cfg(not(target_os = "emscripten"))]
+    #[cfg(not(web))]
     let name = std::ptr::null();
     // SAFETY: the window SDL made; a null name lets SDL choose, else a constant C text.
     let raw = unsafe { SDL_CreateRenderer(window.0, name) };
@@ -915,7 +912,7 @@ pub fn create_renderer(window: Window) -> Option<Renderer> {
 
 /// The window's renderer on the GPU device the 3D shares. `device` is the GPU module's
 /// device; nothing in Rust dereferences it.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 #[allow(clippy::not_unsafe_ptr_arg_deref)] // an opaque handle only SDL reads
 pub fn create_gpu_renderer(device: *mut SDL_GPUDevice, window: Window) -> Option<Renderer> {
     // SAFETY: a live GPU device (the caller made it) and the window SDL made.
@@ -1112,7 +1109,7 @@ impl PolledEvent {
 
     /// The joystick a gamepad axis event came from (0 for a stand-in's, which names none), else
     /// `None`.
-    #[cfg(any(target_os = "android", target_os = "ios"))]
+    #[cfg(phone)]
     pub fn gamepad_axis_joystick(&self) -> Option<SDL_JoystickID> {
         if self.kind() != SDL_EVENT_GAMEPAD_AXIS_MOTION {
             return None;

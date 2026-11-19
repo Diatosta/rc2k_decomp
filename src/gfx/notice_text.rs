@@ -259,7 +259,7 @@ pub fn draw(o: Owners<'static>, text: &[u8], top: i32, strength: u8) {
     }
 }
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 /// A run of equal pixels in a row of a text picture.
 pub struct Run {
     pub x: i32,
@@ -270,7 +270,7 @@ pub struct Run {
 
 /// The text in the notice font as runs of pixels (with the picture's width and height), for a
 /// renderer that draws them as rectangles at any scale. None where the screen is not 32 bits.
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 pub fn runs(o: Owners<'static>, text: &[u8]) -> Option<(Vec<Run>, i32, i32)> {
     if crate::gfx::surface::surface(o.gfx).bytes_per_pixel != 4 {
         return None;

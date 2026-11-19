@@ -29,7 +29,7 @@ static LONGEST_TURN_GAP: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 /// and in each flush of the 3D (recording and submitting a command buffer); and the longest
 /// show of one frame. Written by the game's thread only.
 #[cfg_attr(
-    all(target_os = "linux", target_arch = "aarch64"),
+    handheld,
     allow(
         dead_code,
         reason = "noted by the GPU renderer and the present, not on the handheld"
@@ -37,7 +37,7 @@ static LONGEST_TURN_GAP: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 )]
 pub static PRESENT_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 #[cfg_attr(
-    all(target_os = "linux", target_arch = "aarch64"),
+    handheld,
     allow(
         dead_code,
         reason = "noted by the GPU renderer and the present, not on the handheld"
@@ -45,7 +45,7 @@ pub static PRESENT_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::Ato
 )]
 pub static PRESENT_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 #[cfg_attr(
-    all(target_os = "linux", target_arch = "aarch64"),
+    handheld,
     allow(
         dead_code,
         reason = "noted by the GPU renderer and the present, not on the handheld"
@@ -53,7 +53,7 @@ pub static PRESENT_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomic
 )]
 pub static FINISH_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 #[cfg_attr(
-    all(target_os = "linux", target_arch = "aarch64"),
+    handheld,
     allow(
         dead_code,
         reason = "noted by the GPU renderer and the present, not on the handheld"
@@ -63,7 +63,7 @@ pub static FINISH_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU
 pub static READ_BACK_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static READ_BACK_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 #[cfg_attr(
-    all(target_os = "linux", target_arch = "aarch64"),
+    handheld,
     allow(
         dead_code,
         reason = "noted by the GPU renderer and the present, not on the handheld"
@@ -71,7 +71,7 @@ pub static READ_BACK_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::Atom
 )]
 pub static FLUSH_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 #[cfg_attr(
-    all(target_os = "linux", target_arch = "aarch64"),
+    handheld,
     allow(
         dead_code,
         reason = "noted by the GPU renderer and the present, not on the handheld"
@@ -79,7 +79,7 @@ pub static FLUSH_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 )]
 pub static FLUSH_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 #[cfg_attr(
-    all(target_os = "linux", target_arch = "aarch64"),
+    handheld,
     allow(
         dead_code,
         reason = "noted by the GPU renderer and the present, not on the handheld"
@@ -307,7 +307,7 @@ pub fn report_timing(system: &System) {
                 crate::render::GL_SHOW_MICROS.load(Relaxed) / 1000,
                 crate::render::GL_WAIT_MICROS.load(Relaxed) / 1000,
             ));
-            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            #[cfg(handheld)]
             {
                 use crate::render::gpu_time as g;
                 let frames = g::FRAMES.swap(0, Relaxed);
@@ -342,10 +342,10 @@ pub fn report_timing(system: &System) {
                     quads::ATLAS_CLEARS.load(Relaxed),
                 ));
             }
-            #[cfg(any(target_os = "android", target_os = "ios"))]
+            #[cfg(phone)]
             phone_line(system, seconds, frames - f0);
             // The handheld's: where the time goes, and the samples so far.
-            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            #[cfg(handheld)]
             {
                 use crate::debug::timing;
                 static WAS: std::sync::Mutex<([u64; timing::STAGES], [u64; timing::STAGES], u32)> =
@@ -414,7 +414,7 @@ pub fn report_timing(system: &System) {
 /// flushes, and readbacks of the frame; with the race size, the 3D's share, the renderer and the
 /// display's refresh. Times are average and (worst) in milliseconds a frame, except the flushes,
 /// a flush.
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 fn phone_line(system: &System, seconds: f64, frames: u64) {
     use crate::debug::timing;
     use std::sync::atomic::Ordering::Relaxed;

@@ -19,7 +19,7 @@ use rc2k_core::drive::race_ticks;
 /// buttons then.
 static ASKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 pub fn asking() -> bool {
     ASKING.load(std::sync::atomic::Ordering::Relaxed)
 }

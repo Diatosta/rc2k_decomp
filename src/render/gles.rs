@@ -614,7 +614,7 @@ pub static GPU: Mutex<Option<Front>> = Mutex::new(None);
 
 /// Whether this is a phone whose 3D goes on the software rasteriser: never where this renderer
 /// stands in for the GPU one (the handheld).
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub fn software_phone() -> bool {
     false
 }
@@ -622,9 +622,9 @@ pub fn software_phone() -> bool {
 /// Whether the GL is to be tried: unless `--renderer software` or `RC2K_RENDERER=software` (on a
 /// PC also not when another renderer is the only one asked for).
 pub fn wanted() -> bool {
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     return super::choice::gpu_wanted();
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     super::choice::gl_wanted()
 }
 
@@ -2007,25 +2007,25 @@ impl Gpu {
                 std::sync::atomic::Ordering::Relaxed,
             );
         }
-        #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+        #[cfg(not(handheld))]
         return Some(self.gl.close());
-        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        #[cfg(handheld)]
         None
     }
 }
 
 /// What the GL's thread hands back when it ends: the hidden window its context was on (the
 /// game's thread destroys it, as it made it); the panel's context lives on with the program.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 type Closed = crate::platform::ffi::gl::GlWindow;
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 type Closed = ();
 
 /// Why a start failed, and the window its context was on, to be destroyed by the game's thread.
 type Failed = (String, Option<Closed>);
 
 /// The GL's two threads.
-#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // only the desktop's swap joins them
+#[cfg_attr(handheld, allow(dead_code))] // only the desktop's swap joins them
 struct Threads {
     batching: std::thread::JoinHandle<()>,
     gl: std::thread::JoinHandle<Option<Closed>>,
@@ -2035,7 +2035,7 @@ struct Threads {
 pub struct Front {
     jobs: SyncSender<Job<Part>>,
     /// The batching thread and the GL's, joined by `stop`.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
+    #[cfg_attr(handheld, allow(dead_code))]
     // only the desktop's swap joins them
     threads: Threads,
     /// The textures up to date on the GPU, with their sizes.
@@ -2044,7 +2044,7 @@ pub struct Front {
     /// What the GL's background texture holds, at the screen's size.
     background_held: Option<background::Held>,
     /// The version of the wash (`render::wash`) the GL holds.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
+    #[cfg_attr(handheld, allow(dead_code))]
     // the handheld's panel is the frame's size: no side space
     wash_held: u64,
 }
@@ -2163,7 +2163,7 @@ impl Front {
 
     /// The menu's wash sent to the GL (which shows it beside the frames of the menus), unless the
     /// GL holds it already.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld's panel is the frame's size: no side space
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld's panel is the frame's size: no side space
     pub fn set_wash(&mut self, image: &super::wash::Image) {
         if self.wash_held == image.version {
             return;
@@ -2221,7 +2221,7 @@ impl Front {
     /// 0), each the frame's pixel at its place scaled down in whole numbers, rows top first; the
     /// canvas is not written (waits for the GL as `bring_back` does). `None` when the frame is
     /// not `screen` pixels. The handheld's panel keeps bringing the frame back (not tried there).
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     pub fn stretched(
         &mut self,
         target: &Target,
@@ -2315,20 +2315,20 @@ fn blend_factor(factor: u32) -> u32 {
 }
 
 /// The name `RC2K_FAIL_RENDERER` gives to this backend's start.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 const FAILURE_STEP: &str = "gles";
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 const FAILURE_STEP: &str = "gl";
 
 /// Starts the GL's thread if it is wanted (the handheld: its panel's context).
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub fn start_if_wanted() {
     start_with(|| Gles::open_panel(PANEL.0 as u16, PANEL.1 as u16).map_err(|why| (why, None)));
 }
 
 /// Starts the GL's thread on a hidden window made for OpenGL at the screen's `size`, if it is
 /// wanted; whether it runs. The window is made here (on the game's thread) and the context on the GL's.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn start_on_window(
     game_window: crate::platform::ffi::sdl::Window,
     size: (usize, usize),
@@ -2342,7 +2342,7 @@ pub fn start_on_window(
     // macOS makes an OpenGL context only on the main thread: SDL hands the GL thread's request
     // to it while the game's thread (the main one) waits for the GL thread's answer, and both
     // wait for ever. A Mac without Metal goes on to SDL's renderer and the software rasteriser.
-    if cfg!(target_vendor = "apple") {
+    if cfg!(apple) {
         TRIED.store(true, std::sync::atomic::Ordering::Relaxed);
         log("render: the OpenGL backend is not used on macOS");
         return false;
@@ -2357,12 +2357,12 @@ pub fn start_on_window(
         return false;
     }
     // The browser has one canvas for the game's window: the GL draws on a second one over it.
-    #[cfg(target_os = "emscripten")]
+    #[cfg(web)]
     let made = {
         let _ = size;
         Ok::<_, String>(super::super::platform::ffi::gl::GlWindow::new(game_window))
     };
-    #[cfg(not(target_os = "emscripten"))]
+    #[cfg(not(web))]
     let made = {
         let _ = game_window;
         super::super::platform::ffi::gl::GlWindow::new(size)
@@ -2389,18 +2389,18 @@ pub fn start_on_window(
 /// The window the OpenGL backend shows its frames on while it runs: the game's window in all but
 /// name (`platform` shows it in place of the one SDL's renderer has, and gives the keyboard to
 /// it).
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 static WINDOW: Mutex<Option<crate::platform::ffi::sdl::Window>> = Mutex::new(None);
 
 /// The window the OpenGL backend shows its frames on, while it runs.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn window() -> Option<crate::platform::ffi::sdl::Window> {
     *WINDOW.lock().unwrap()
 }
 
 /// The OpenGL backend stopped, if it runs: the jobs' end is waited for, both threads are
 /// joined, the context and its window are destroyed. The next `start_on_window` asks again.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn stop() -> bool {
     let Some(front) = GPU.lock().unwrap().take() else {
         return false;
@@ -2452,7 +2452,7 @@ fn start_with(open: impl FnOnce() -> Result<Gles, Failed> + Send + 'static) {
             Ok(Ok(())) => Ok(handle),
             Ok(Err(why)) => {
                 // The thread has ended; its window is destroyed here.
-                #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+                #[cfg(not(handheld))]
                 if let Ok(Some(window)) = handle.join() {
                     window.destroy();
                 }
@@ -2472,9 +2472,9 @@ fn start_with(open: impl FnOnce() -> Result<Gles, Failed> + Send + 'static) {
     });
     match outcome {
         Ok(threads) => {
-            log(if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+            log(if cfg!(handheld) {
                 "render: the GPU backend on libmali's OpenGL ES, on its own thread"
-            } else if cfg!(target_os = "emscripten") {
+            } else if cfg!(web) {
                 "render: the OpenGL backend (WebGL 2), on its own thread"
             } else {
                 "render: the OpenGL backend (3.3 core), on its own thread"

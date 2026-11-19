@@ -10,14 +10,14 @@ pub const NETWORK_ITEM: u32 = 3;
 
 /// Whether the web build leaves the item out of its menu.
 pub fn hidden(item: &MenuItem) -> bool {
-    cfg!(target_os = "emscripten") && item.action == ItemFn::NetworkRallyLoop
+    cfg!(web) && item.action == ItemFn::NetworkRallyLoop
 }
 
 /// The main menu's carousel entry of an item: its number less one, and less another for the
 /// items after the hidden one, which has no entry.
 pub fn carousel_entry(item: u32) -> u32 {
     let entry = item.wrapping_sub(1);
-    if cfg!(target_os = "emscripten") && item > NETWORK_ITEM {
+    if cfg!(web) && item > NETWORK_ITEM {
         entry - 1
     } else {
         entry

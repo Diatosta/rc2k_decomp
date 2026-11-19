@@ -54,7 +54,7 @@ pub fn device_command(
                 SetUp(n) => {
                     // A phone has no keyboard to drive with: the first car's keyboard is the
                     // touch screen's controls, or the controller last used.
-                    #[cfg(any(target_os = "android", target_os = "ios"))]
+                    #[cfg(phone)]
                     if n == 0 {
                         let controls = &race.shared.state.car(0).controls;
                         controls

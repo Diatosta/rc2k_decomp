@@ -32,7 +32,7 @@ pub mod direct3d;
 pub mod events;
 pub mod ffi;
 pub mod film;
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+#[cfg(handheld)]
 pub mod handheld;
 pub mod icon;
 pub mod input;
@@ -42,17 +42,17 @@ pub mod safe_area;
 pub mod sound;
 pub mod sync;
 pub mod timing;
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 pub mod touch;
 #[cfg(touch_screen)]
 pub mod touch_menu;
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 pub mod vibrate;
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 pub mod web;
-#[cfg(target_os = "emscripten")]
+#[cfg(web)]
 pub mod web_pads;
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub mod window_follow;
 pub mod window_mode;
 
@@ -73,7 +73,7 @@ pub(crate) struct Screen {
     /// The window's renderer (`SDL_Renderer`: the frame goes up as a texture, the
     /// debug UI drawn over it) and the frame's texture (XRGB8888, the screen's size).
     renderer: sdl::Renderer,
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
+    #[cfg_attr(handheld, allow(dead_code))]
     // the handheld shows frames on its framebuffer
     texture: sdl::Texture,
     /// The frame's size: what the game draws on (800 x 600 in the menus, the race's mode in a race).
@@ -83,7 +83,7 @@ pub(crate) struct Screen {
     /// shown scaled in it (`rc2k_core::gfx::screen_fit`).
     window_size: (usize, usize),
     /// The frame is a menu's: the window's side space beside it continues its edge colours.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
+    #[cfg_attr(handheld, allow(dead_code))]
     // the handheld's panel is the frame's own size
     menu: bool,
     bits: u32,
@@ -126,7 +126,7 @@ pub fn choose_screen_modes(
             at_32_bits(display.mode.menu_mode.get()),
             at_32_bits(display.mode.race_mode.get()),
         );
-        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        #[cfg(handheld)]
         let race = crate::platform::handheld::race_mode(race);
         match choose(menu, race, works, listed) {
             Some((menu, race)) => {
@@ -211,7 +211,7 @@ pub fn monitor_modes() -> sdl::DisplayModes {
         return (modes.unwrap_or_default(), desktop);
     }
     // The browser: its window's size (the picture fills it) and its screen's (the full screen).
-    #[cfg(target_os = "emscripten")]
+    #[cfg(web)]
     if let Some(sizes) = web::sizes() {
         let modes = vec![
             (sizes.window.0, sizes.window.1, 60.0),
@@ -219,9 +219,9 @@ pub fn monitor_modes() -> sdl::DisplayModes {
         ];
         return (modes, Some(sizes.screen));
     }
-    #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(any(test, handheld))]
     return (Vec::new(), None);
-    #[cfg(not(any(test, all(target_os = "linux", target_arch = "aarch64"))))]
+    #[cfg(not(any(test, handheld)))]
     {
         let window = SCREEN
             .lock()
@@ -320,12 +320,10 @@ fn set_screen_mode(
     // The window is the race's size for the menus' frame too, so that it does not change between
     // a menu and a race.
     let window_size = match purpose {
-        Purpose::Menu if cfg!(not(all(target_os = "linux", target_arch = "aarch64"))) => {
-            mode_size(gfx, gfx.display.mode.race_mode.get())
-                .map_or((width as usize, height as usize), |(w, h)| {
-                    (w as usize, h as usize)
-                })
-        }
+        Purpose::Menu if cfg!(not(handheld)) => mode_size(gfx, gfx.display.mode.race_mode.get())
+            .map_or((width as usize, height as usize), |(w, h)| {
+                (w as usize, h as usize)
+            }),
         _ => (width as usize, height as usize),
     };
     let window_before = screen.as_ref().map(|old| old.window_size);
@@ -333,7 +331,7 @@ fn set_screen_mode(
         Some(old) => (old.window, old.renderer),
         None => {
             // The handheld's frames go to the framebuffer (`handheld`).
-            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            #[cfg(handheld)]
             sdl::use_dummy_video_driver();
             // The menu entry the installer makes (`install::shortcuts`): the desktop matches
             // the window to it, and to its icon.
@@ -354,9 +352,9 @@ fn set_screen_mode(
             // The GPU first (`render::choice`), each step that fails logged and the next tried
             // (`make_window_renderer`). The handheld's GPU starts with its first frame
             // (`render::show_on_panel`).
-            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            #[cfg(not(handheld))]
             let renderer = make_window_renderer(window, window_size);
-            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            #[cfg(handheld)]
             let renderer = sdl::create_renderer(window);
             let Some(renderer) = renderer else {
                 return Err("SDL makes no renderer for the window".into());
@@ -371,7 +369,7 @@ fn set_screen_mode(
             log(&format!(
                 "platform: the window's renderer is SDL's `{}`{}",
                 renderer.name(),
-                if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+                if cfg!(handheld) {
                     ""
                 } else if crate::render::gpu_running() {
                     ", the 3D on a GPU backend"
@@ -387,8 +385,7 @@ fn set_screen_mode(
     // window's: the canvases take the new size in it too, or the frame would sit small in the
     // old size's canvas.
     let window_changed = window_before != Some(window_size);
-    if window_changed && (cfg!(target_os = "emscripten") || !input_window(window).is_full_screen())
-    {
+    if window_changed && (cfg!(web) || !input_window(window).is_full_screen()) {
         window.set_size(window_size.0, window_size.1);
     }
     let Some(texture) = renderer.create_frame_texture(width as usize, height as usize) else {
@@ -399,7 +396,7 @@ fn set_screen_mode(
     // under Wine, a frame's flash before the loading picture).
     renderer.clear_black();
     renderer.present();
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     {
         place_shown_window(window, window_size.0, window_size.1, window_changed);
         // The kept window mode, when the window is first shown (a change later is made at
@@ -417,15 +414,15 @@ fn set_screen_mode(
         }
     }
     // The OpenGL backend's window, where it shows the frames, never waits for the refresh.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     let shows_itself = crate::render::gles::window().is_some();
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     let shows_itself = false;
     crate::platform::pacing::set_display(
         window.display_refresh(),
         renderer.present_waits() && !shows_itself,
     );
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     size_gpu_targets(width, height);
     // What was noted for the old screen is drawn on it before it goes.
     crate::gfx::draw2d::quads::before_canvas_write();
@@ -480,7 +477,7 @@ pub fn phone_default_size() -> Option<(u32, u32)> {
 /// API's renderer on its device, OpenGL beside SDL's own renderer, SDL's own renderer with the
 /// software rasteriser); `None` when SDL makes no renderer at all. Logs what runs. `size` is the
 /// screen's: the OpenGL backend's window is made at it.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 fn make_window_renderer(window: sdl::Window, size: (usize, usize)) -> Option<sdl::Renderer> {
     let gpu_renderer = start_gpu_renderer(window);
     // Next in the order: OpenGL, which shows its frames on a window of its own in place of
@@ -502,7 +499,7 @@ fn make_window_renderer(window: sdl::Window, size: (usize, usize)) -> Option<sdl
 }
 
 /// The shown window put into the kept window mode (`window_mode`); logs what SDL says.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 fn set_window_mode(window: sdl::Window, size: (usize, usize)) {
     // A phone's window always fills the screen.
     if cfg!(target_os = "ios") {
@@ -531,7 +528,7 @@ fn set_window_mode(window: sdl::Window, size: (usize, usize)) {
 
 /// The window put into the kept window mode now (the graphics page's row, Alt+Enter).
 pub fn apply_window_mode() {
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     {
         let found = SCREEN
             .lock()
@@ -546,7 +543,7 @@ pub fn apply_window_mode() {
 /// The window the frames are shown on, set for the backend that runs: the OpenGL backend's own
 /// window takes the game's place (same title, icon, size and spot, the keyboard), SDL's renderer
 /// keeping the one it was made on, hidden; with no OpenGL window the game's own is shown.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 fn place_shown_window(window: sdl::Window, width: usize, height: usize, size_changed: bool) {
     let Some(gl) = crate::render::gles::window() else {
         window.show_raised();
@@ -575,7 +572,7 @@ fn place_shown_window(window: sdl::Window, width: usize, height: usize, size_cha
 /// The window that has the keyboard and is closed by the player: the OpenGL backend's while it
 /// shows the frames, else the game's.
 pub(crate) fn input_window(window: sdl::Window) -> sdl::Window {
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     if let Some(gl) = crate::render::gles::window() {
         return gl;
     }
@@ -584,7 +581,7 @@ pub(crate) fn input_window(window: sdl::Window) -> sdl::Window {
 
 /// The GPU backend's targets at the screen's size; a backend that cannot make them is given up
 /// (the software rasteriser draws the 3D from here).
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 fn size_gpu_targets(width: u32, height: u32) {
     let mut held = crate::render::gpu::GPU.lock().unwrap();
     let sized = match held.as_mut() {
@@ -608,7 +605,7 @@ fn size_gpu_targets(width: u32, height: u32) {
 /// `None` (each failure logged) when the GPU is not wanted or a step fails; the device is
 /// then given up and the caller makes SDL's own renderer. A backend that does not start
 /// leaves the window's GPU renderer in place, drawing the rasteriser's frames.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 fn start_gpu_renderer(window: sdl::Window) -> Option<sdl::Renderer> {
     if !crate::render::gpu::wanted() {
         if !crate::render::gles::wanted() {
@@ -641,7 +638,7 @@ fn start_gpu_renderer(window: sdl::Window) -> Option<sdl::Renderer> {
 
 /// The GPU device the window's renderer runs on, while there is one (destroyed after the
 /// renderer by `swap_renderer`).
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 static WINDOW_DEVICE: Mutex<Option<crate::platform::ffi::sdl_gpu::Device>> = Mutex::new(None);
 
 /// The 3D's renderer swapped for `wish` while the game runs: the frame is brought back into the
@@ -655,7 +652,7 @@ static WINDOW_DEVICE: Mutex<Option<crate::platform::ffi::sdl_gpu::Device>> = Mut
 /// the order gives runs (the software rasteriser at the last).
 ///
 /// On the game's thread, outside a frame's showing.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 pub fn swap_renderer(
     o: &crate::owners::Owners<'static>,
     wish: crate::render::choice::Wish,
@@ -699,7 +696,7 @@ pub fn swap_renderer(
 
 /// Stops what draws the 3D and shows the frame, and starts the renderers the choice `wish`
 /// names (`make_window_renderer`).
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 fn rebuild_renderer(
     wish: crate::render::choice::Wish,
     target: Option<&crate::render::Target>,
@@ -803,9 +800,9 @@ pub fn set_menu_mode_now(
     crate::platform::direct3d::flush();
     // The menus' frame is always 800 x 600 (the kind of pixel the race's): what the options
     // keep as the menus' mode no longer changes it.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     let mode = rc2k_core::gfx::screen_modes::menu_mode_for(gfx.display.mode.race_mode.get());
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     let mode = gfx.display.mode.menu_mode.get();
     let done = set_screen_mode(mode, Purpose::Menu, gfx, system);
     if let Err(why) = &done {
@@ -863,7 +860,7 @@ pub fn unlock_surface(gfx: &crate::gfx::owner::Gfx) -> u32 {
 
 /// The GPU's colour target as a texture of the window's renderer: made once for a set of
 /// targets (`targets_made`, their number), in `GPU_VIEW`.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 fn make_view(
     renderer: sdl::Renderer,
     (colour, targets_made, (width, height)): (
@@ -886,7 +883,7 @@ fn make_view(
 }
 
 /// The number of the targets' set the view was made for (none yet: 0), and the view.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 static GPU_VIEW: Mutex<(u64, Option<sdl::Texture>, (u32, u32))> = Mutex::new((0, None, (0, 0)));
 
 /// `show` on the frame, XRGB8888.
@@ -907,7 +904,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
     if screen.pixels.len() < screen.width * screen.height * 4 {
         return Err("the frame is smaller than the screen");
     }
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     {
         // The framebuffer's mode first, its memory then the GPU's or ours.
         crate::platform::handheld::open_screen()?;
@@ -926,7 +923,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
             crate::platform::handheld::present(frame, screen.width, screen.height)
         })
     }
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    #[cfg(not(handheld))]
     {
         // The OpenGL backend's own window shows its frames itself (the debug UI, drawn through
         // SDL's renderer, is not over them).
@@ -978,7 +975,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         // The race's touch controls.
         #[cfg(touch_screen)]
         if events::touch_controls_live(o.race) {
-            #[cfg(any(target_os = "android", target_os = "ios"))]
+            #[cfg(phone)]
             crate::platform::touch::draw(
                 renderer,
                 input_window(screen.window),
@@ -986,7 +983,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
             );
         }
         // The pause's and the question's answer buttons.
-        #[cfg(any(target_os = "android", target_os = "ios"))]
+        #[cfg(phone)]
         if let Some(asked) = events::touch_asked(o.race) {
             crate::platform::touch::draw_answers(
                 renderer,
@@ -1018,7 +1015,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
 /// with a linear filter (none for a whole factor, which stays sharp). The window's rest is black
 /// in a race; beside a menu's frame it shows the menu's background picture, covering the
 /// window, blurred and darkened (`render::wash`), black while no background has been noted.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 fn show_fitted(
     renderer: sdl::Renderer,
     texture: &sdl::Texture,
@@ -1065,11 +1062,11 @@ fn show_fitted(
 
 /// The wash texture of the menu's background (its version, the texture), kept while the
 /// background and the window's size stay the same.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 static WASH_TEXTURE: Mutex<Option<(u64, sdl::Texture)>> = Mutex::new(None);
 
 /// The wash drawn over the whole window, magnified with a linear filter.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg(not(handheld))]
 fn draw_wash(renderer: sdl::Renderer, window: (u32, u32)) {
     let Some(image) = crate::render::wash::image_for(window) else {
         return;
@@ -1271,7 +1268,7 @@ pub fn beside_log(name: &str) -> std::path::PathBuf {
 /// The words on the answer buttons in the game's language (its own yes and no, "continue" for
 /// the plain pause), in capitals, drawn in the game's notice font as pixel runs; the plain text
 /// where the font cannot draw them.
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(phone)]
 fn answer_labels(
     o: crate::owners::Owners<'static>,
     asked: rc2k_core::input::touch::Asked,

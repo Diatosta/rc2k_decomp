@@ -51,7 +51,7 @@ static MENU_PADS: Mutex<Vec<(SDL_JoystickID, Gamepad)>> = Mutex::new(Vec::new())
 /// the game has asked for its devices yet.
 pub fn pad_added(id: SDL_JoystickID) {
     let name = sdl_input::joystick_name_for_id(id, "a joystick");
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     if crate::platform::handheld::is_built_in_pad(&name) {
         let guid = sdl_input::joystick_guid_text_for_id(id);
         sdl_input::add_gamepad_mapping(crate::platform::handheld::pad_mapping(&guid));
@@ -265,7 +265,7 @@ impl SdlBackend {
     pub fn start() {
         // The handheld's dummy window never has the focus; its pad has no x and y axes, so
         // SDL does not take its event device for a joystick: named, by its joystick node.
-        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        #[cfg(handheld)]
         {
             sdl_input::set_handheld_joystick_hints();
         }
@@ -273,11 +273,11 @@ impl SdlBackend {
             log("platform: SDL's joysticks do not start: no joysticks");
             return;
         }
-        #[cfg(target_os = "emscripten")]
+        #[cfg(web)]
         crate::platform::web_pads::stop_sdl_driver();
         #[cfg(feature = "remote")]
         crate::remote::stick_at_start();
-        #[cfg(any(target_os = "android", target_os = "ios"))]
+        #[cfg(phone)]
         crate::platform::touch::attach_at_start();
         crate::input::di_objects::set_backend(Box::new(SdlBackend {
             devices: Vec::new(),
