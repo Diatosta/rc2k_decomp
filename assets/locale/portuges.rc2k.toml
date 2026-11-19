@@ -285,6 +285,7 @@ yes = "Sim"
 no = "Não"
 delete_done = "Tudo o que estava gravado foi apagado. O jogo vai fechar."
 delete_failed = "Alguns ficheiros gravados não puderam ser apagados (o registo diz quais). O jogo vai fechar."
+keys_touch = "Toque para escolher"
 
 [save_code]
 item = "código de gravação"

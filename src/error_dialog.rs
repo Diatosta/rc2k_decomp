@@ -331,7 +331,14 @@ fn run(
     } else {
         String::new()
     };
-    let keys_line = own(o, rc2k_core::strings::own::id::DIALOG_KEYS);
+    let keys_line = own(
+        o,
+        if cfg!(touch_screen) {
+            rc2k_core::strings::own::id::DIALOG_KEYS_TOUCH
+        } else {
+            rc2k_core::strings::own::id::DIALOG_KEYS
+        },
+    );
     let base: Vec<String> = ways.iter().map(|&w| way_text(o, w)).collect();
     // A Yes held back is open from `hold_secs` seconds after the dialog is first drawn.
     let started = std::time::Instant::now();
@@ -340,6 +347,11 @@ fn run(
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
     crate::input::typed_text::osk_close();
+    // A tap on the dialog is for its ways (`platform::touch_menu`).
+    #[cfg(touch_screen)]
+    let _taps = crate::platform::touch_menu::InstallerPage::begin();
+    #[cfg(touch_screen)]
+    let _ = crate::platform::touch_menu::take_installer_tap();
     let mut chosen = first;
     let mut drawn = false;
     // What the player is given when the window closes or the screen goes: the last way.
@@ -373,7 +385,8 @@ fn run(
                 (text, held)
             })
             .collect();
-        let text_drawn = draw(o, &title, message, &log_line, &keys_line, &labels, chosen);
+        let (text_drawn, drawn_rects) =
+            draw(o, &title, message, &log_line, &keys_line, &labels, chosen);
         crate::platform::unlock_surface(o.gfx);
         if !text_drawn && !drawn {
             return None;
@@ -384,6 +397,14 @@ fn run(
         }
         crate::input::menu_pad::take_answer(o.input);
         let key = crate::input::take_key::take_key(o.input);
+        #[cfg(touch_screen)]
+        if let Some((x, y)) = crate::platform::touch_menu::take_installer_tap()
+            && let Some(way) = tapped_way(&drawn_rects, &held, ways, x, y)
+        {
+            return Some(way);
+        }
+        #[cfg(not(touch_screen))]
+        drop(drawn_rects);
         let (now, done) = after_key(key, chosen, ways);
         // A way held back is passed over.
         if !held[now] {
@@ -403,7 +424,7 @@ fn draw(
     keys_line: &str,
     labels: &[(String, bool)],
     chosen: usize,
-) -> bool {
+) -> (bool, Vec<[i32; 4]>) {
     use crate::gfx::button_hints::width_of;
     use crate::input::osk_draw::fill;
     let mut canvas = GameCanvas::new(o.gfx);
@@ -460,6 +481,7 @@ fn draw(
         y += LINE_H;
     }
     let mut y = top + panel_h - MARGIN - LINE_H - labels.len() as i32 * WAY_H;
+    let mut rects = Vec::new();
     for (n, (label, held)) in labels.iter().enumerate() {
         let colour = if *held {
             WAY_HELD
@@ -468,7 +490,9 @@ fn draw(
         } else {
             WAY
         };
-        fill(o, [left + MARGIN, y, inner, WAY_H - 6], colour);
+        let rect = [left + MARGIN, y, inner, WAY_H - 6];
+        rects.push(rect);
+        fill(o, rect, colour);
         let x = left + (panel_w - measure(label)) / 2;
         put(label, x, y + (WAY_H - 6) / 2, &mut canvas);
         y += WAY_H;
@@ -480,7 +504,20 @@ fn draw(
         top + panel_h - MARGIN - LINE_H / 2,
         &mut canvas,
     );
-    all_drawn.get()
+    (all_drawn.get(), rects)
+}
+
+/// The way a tap at (`x`, `y`) in the frame's pixels lands on, if it can be chosen: a held way
+/// (a Yes not yet open) and anything outside the ways' rectangles answer nothing.
+#[cfg(any(touch_screen, test))]
+fn tapped_way(rects: &[[i32; 4]], held: &[bool], ways: &[Way], x: f32, y: f32) -> Option<Way> {
+    rects.iter().enumerate().find_map(|(n, r)| {
+        let inside = x >= r[0] as f32
+            && x < (r[0] + r[2]) as f32
+            && y >= r[1] as f32
+            && y < (r[1] + r[3]) as f32;
+        (inside && !held[n]).then(|| ways[n])
+    })
 }
 
 #[cfg(test)]
@@ -500,6 +537,23 @@ mod tests {
             after_key(KEY_PAD_ENTER, 0, &[Way::Quit]),
             (0, Some(Way::Quit))
         );
+    }
+
+    #[test]
+    fn taps_answer_only_on_open_ways() {
+        let rects = [[10, 10, 100, 30], [10, 50, 100, 30]];
+        let ways = [Way::Yes, Way::No];
+        assert_eq!(
+            tapped_way(&rects, &[false, false], &ways, 20.0, 20.0),
+            Some(Way::Yes)
+        );
+        assert_eq!(tapped_way(&rects, &[true, false], &ways, 20.0, 20.0), None);
+        assert_eq!(
+            tapped_way(&rects, &[true, false], &ways, 20.0, 60.0),
+            Some(Way::No)
+        );
+        assert_eq!(tapped_way(&rects, &[false, false], &ways, 5.0, 20.0), None);
+        assert_eq!(tapped_way(&rects, &[false, false], &ways, 20.0, 45.0), None);
     }
 
     #[test]

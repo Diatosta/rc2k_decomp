@@ -295,6 +295,7 @@ yes = "Yes"
 no = "No"
 delete_done = "Everything saved was deleted. The game will now close."
 delete_failed = "Some saved files could not be deleted (the log says which). The game will now close."
+keys_touch = "Tap to choose"
 
 [save_code]
 item = "save code"
