@@ -634,10 +634,6 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
 const STICKY_FOCUS: u32 = 0x4000;
 const GLOBAL_FOCUS: u32 = 0x8000;
 
-/// The loudest sample sent to the device since the remote control last asked.
-#[cfg(feature = "remote")]
-pub static LAST_PEAK: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-
 /// Whether the audio callback has panicked: it gives silence from then on.
 static FEED_PANICKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
@@ -650,8 +646,7 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
         return None;
     }
     // The mix-hash check mixes on the audio thread instead (`audio::mix_hash`).
-    #[cfg(feature = "remote")]
-    if crate::audio::mix_hash::deterministic() {
+    if crate::remote::mix_deterministic() {
         return Some(vec![0i16; frames * 2]);
     }
     // A render to a video takes its sound frame by frame (`video::sound_turn`).
@@ -720,10 +715,7 @@ pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
         .iter()
         .map(|x| (x * 32767.0).clamp(-32768.0, 32767.0) as i16)
         .collect();
-    #[cfg(feature = "remote")]
-    if let Some(peak) = pcm.iter().map(|sample| sample.unsigned_abs() as u32).max() {
-        LAST_PEAK.fetch_max(peak, std::sync::atomic::Ordering::Relaxed);
-    }
+    crate::remote::note_sound_peak(&pcm);
     pcm
 }
 

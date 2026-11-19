@@ -1,5 +1,5 @@
 //! The game's texts. Every text shown has a number; the language file gives the words for each
-//! number in the chosen language. This module loads the language (`load_language`), looks texts
+//! number in the chosen language. The language is loaded by `language`; this module looks texts
 //! up, and builds the texts put together from pieces: times, speeds in the chosen units, numbers,
 //! percentages. It also holds the keyboard tables that belong to a language.
 
@@ -7,15 +7,13 @@ pub mod append_percent;
 pub mod append_speed;
 pub mod append_string_by_id;
 pub mod append_time;
-pub mod compile_lexicon;
 pub mod copy_printable;
 pub mod expand_entry;
 pub mod format_seal_code;
 pub mod format_u32;
 pub mod hex_append;
-pub mod load_language;
-pub mod maybe_compile_lexicon;
-pub mod own_texts;
+pub mod lexicon_memory;
+pub mod locale;
 pub mod owner;
 pub mod rot13_into_text;
 pub mod same_text;

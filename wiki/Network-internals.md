@@ -42,9 +42,14 @@ program, not with the 1999 game.
   them after the names (`Session::ping_of`). A frame of a kind a machine does not know is
   passed over, not an error; the protocol's mark is `RC2KNET5` since these frames came (and `RC2KNET6` since the bots' messages, below).
 - **Finding a session** is a small UDP question sent to a given address, or broadcast on the
-  local network. A host answers with its description (`discovery.rs`). With no address the
+  local network. A host answers with its description (`discovery.rs`); the sessions heard are kept
+  by instance, at most 64. With no address the
   probe also goes to the peers `tailscale status --json` lists (`rc2k_core::net::tailscale`,
   asked on a thread of its own at most every 30 s) and to the last host joined.
+- **Sending** to a machine goes into a queue of its own, written by a thread of its own (`link.rs`),
+  so a machine that stops reading holds up no other; one whose queue fills or whose write fails is
+  cut. A joined machine that hears nothing from its host for 30 s (the host pings every second)
+  has lost the session.
 - **Joining** is a TCP connection to the host (`peer.rs` on the joiner, `host.rs` on the
   host). The default port is DirectPlay's old one, 47624.
 - **The connection is a seam** (`wire.rs`): the session talks to each machine through a `Wire`

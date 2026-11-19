@@ -242,7 +242,6 @@ static ALPHA: AtomicU32 = AtomicU32::new(0x3F80_0000);
 pub fn ticks_done(rest: u32, ticking: bool) {
     // Scripted runs with a held clock (one frame, one tick) show the ticks as they are, so their
     // pictures do not depend on the clock's phase; `RC2K_BLEND_HELD` blends them anyway.
-    #[cfg(feature = "remote")]
     if crate::remote::held_clock().is_some() && std::env::var_os("RC2K_BLEND_HELD").is_none() {
         return;
     }

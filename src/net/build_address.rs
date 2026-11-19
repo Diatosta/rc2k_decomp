@@ -21,20 +21,10 @@ pub fn build_address(net: &Net, lines: &NetTexts, connection_number: u32) -> Res
     net.address().address.set(0);
     net.address().address_size.set(0);
     vars.receiver.posting.set(0);
-    let provider = address::provider(|which| -> Result<bool, Refused> {
-        let known = if which == Provider::Ipx {
-            &crate::net::store::SP_IPX
-        } else {
-            &crate::net::store::SP_TCPIP
-        };
-        Ok(*known == guid)
+    let provider = address::provider(|_| -> Result<bool, Refused> {
+        Ok(crate::net::store::SP_TCPIP == guid)
     })?;
     match provider {
-        Provider::Ipx => add_address_element(
-            net,
-            &crate::net::store::AID_SERVICE_PROVIDER,
-            &crate::net::store::SP_IPX,
-        ),
         Provider::TcpIp => {
             add_address_element(
                 net,

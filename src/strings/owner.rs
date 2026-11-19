@@ -2,10 +2,9 @@
 //! one struct, handed by reference to the code that uses them.
 
 use crate::memory::session::{PlainBytes, PlainDword};
-use crate::settings::read_driver_names::NAMES_SIZE;
-use crate::strings::compile_lexicon::{EMPTY_MESSAGE_LEN, LexiconMemory, WORK_LEN};
 use crate::strings::format_seal_code::SEAL_TEXT_LEN;
-use crate::strings::load_language::{LOCALE_INIT, LOCALE_LEN, PLAIN_LETTERS_INIT};
+use crate::strings::lexicon_memory::{EMPTY_MESSAGE_LEN, LexiconMemory, WORK_LEN};
+use crate::strings::locale::{LOCALE_INIT, LOCALE_LEN, PLAIN_LETTERS_INIT};
 use crate::strings::string_table::LEXICON_ROOM;
 use crate::strings::text_buffer::TextBuffer;
 
@@ -40,9 +39,9 @@ pub struct Language {
     /// The plain-letters table.
     pub plain_letters: PlainBytes<256>,
     /// 0 = imperial (Fahrenheit, miles) and non-zero = metric (0 at the start). Set by the language
-    /// (`load_language`) and player 1's choice (`menu::take_player1_units`, `menu::options_loop`).
+    /// (`language::load_language`) and player 1's choice (`menu::take_player1_units`, `menu::options_loop`).
     pub units: PlainDword,
-    /// The built-in own texts of the language (`strings::own_texts`); none: English.
+    /// The built-in own texts of the language (`language::own_texts`); none: English.
     pub own: std::sync::RwLock<Option<&'static rc2k_core::strings::own::File>>,
 }
 
@@ -66,7 +65,7 @@ pub struct Lexicon {
     pub empty_message: PlainBytes<EMPTY_MESSAGE_LEN>,
     /// 1 or more (signed) to recompile on the numpad plus key: a `var\ral.cfg` setting, 0 unless set.
     pub recompile_level: PlainDword,
-    /// The lexicon's room: where `compile_lexicon` puts the table.
+    /// The lexicon's room: where `language::compile_lexicon` puts the table.
     pub room: PlainBytes<LEXICON_ROOM>,
     /// The finished table as the core reads it: a copy of the room, made once its bytes are written
     /// (`string_table::publish`). Readers never see the room itself, so a text being looked up
@@ -86,6 +85,15 @@ impl Lexicon {
         }
     }
 }
+
+/// The number of drivers that can have another name.
+pub const DRIVERS: usize = 180;
+/// The driver names' block: a pointer a driver (`NAMES_LEN` bytes), then the pool of names, up to
+/// the block's end: room for about 130 names of the full length, not for 180.
+pub const NAMES_LEN: usize = DRIVERS * 4;
+pub const POOL_ROOM: usize = 0x960000 - 0x95EFC8;
+/// The names block's length.
+pub const NAMES_SIZE: usize = NAMES_LEN + POOL_ROOM;
 
 /// The driver names' work areas (`settings::read_driver_names`).
 pub struct Drivers {

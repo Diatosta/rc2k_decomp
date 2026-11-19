@@ -88,7 +88,7 @@ See [Threads and shared state](Threads-and-shared-state).
 | `src/single_copy.rs` | One copy of the program per game folder (a lock on `rc2k.lock`), unless `--allow-another`. |
 | `src/error_dialog.rs`, `src/error_dialog/` | The error dialog: a panel with the message and the ways on, in the game's fonts, where the program would otherwise end with only a log line. |
 | `src/video.rs`, `src/video/` | A replay rendered to a video (`--render-replay`), on a clock of its own, and the encoder. |
-| `src/remote.rs` | Only in builds with the `remote` feature: lets `tools/remote.py` drive the game (keys, pad, screenshots, held races) for automated runs. |
+| `src/remote/` | The test driver's door, always compiled (`mod.rs`): with the `remote` feature `driver.rs` lets `tools/remote.py` drive the game (keys, pad, screenshots, held races) for automated runs; without it `off.rs` holds constants and no-ops with the same signatures. |
 | `src/test_support/` | Only in tests: owners for a test thread, snapshots of the game's state, recorded vectors to compare against. |
 
 ## Related pages

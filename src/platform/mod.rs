@@ -995,12 +995,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         }
         // The debug UI over the frame.
         crate::debug::imgui_sdl::draw(o, renderer, screen.window);
-        #[cfg(feature = "remote")]
-        if crate::remote::window_shot_due()
-            && let Some((width, height, pixels)) = renderer.read_window()
-        {
-            crate::remote::window_taken(width, height, pixels);
-        }
+        crate::remote::window_shot_taken(renderer);
         let presenting = std::time::Instant::now();
         renderer.present();
         crate::platform::timing::note_span(
@@ -1133,10 +1128,7 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
         if o.system.session.flags.quitting.is_set() {
             return false;
         }
-        #[cfg(feature = "remote")]
         let shot_wanted = crate::remote::shot_wanted();
-        #[cfg(not(feature = "remote"))]
-        let shot_wanted = false;
         let video_wanted = crate::video::frame_wanted();
         // The video's frames come back from the GPU a frame late, while the next one is drawn
         // (a screenshot wants the picture at once, and any other renderer brings it back now).
@@ -1167,7 +1159,6 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             && let Some(screen) = screen.as_ref()
         {
             // Before it is shown: on the GPU's path showing clears the canvas.
-            #[cfg(feature = "remote")]
             let shot = crate::remote::shot_wanted().then(|| screen.pixels.to_vec());
             let video_frame = (video_wanted && !queued.started).then(|| {
                 let began = std::time::Instant::now();
@@ -1193,7 +1184,6 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
                 .draw_surface
                 .frames
                 .set(drawing.draw_surface.frames.get().wrapping_add(1));
-            #[cfg(feature = "remote")]
             if let Some(pixels) = shot {
                 crate::remote::frame(&pixels, screen.width as u32, screen.height as u32);
             }

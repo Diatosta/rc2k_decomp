@@ -77,7 +77,7 @@ The texts themselves are not built in: they come from the language's file (see
 | Data | Where |
 | --- | --- |
 | The built-in keyboard layouts, and the accents' list for dead keys | `src/input/layouts.rs`, `src/input/store.rs` |
-| The default language set-up used before a `.loc` file is read | `src/strings/load_language.rs` |
+| The default language set-up used before a `.loc` file is read | `src/strings/locale.rs` |
 
 ### Installer and network
 

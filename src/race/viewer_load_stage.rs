@@ -55,7 +55,6 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
     let (gfx, sound, scene) = (o.gfx, o.sound, o.scene);
     let shared = &race.shared;
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
-    #[cfg(feature = "remote")]
     crate::remote::shots_loading(race, o.race.effects.get(), &o.system.session.picture_clock);
     if shared.replay_file().replay_open.is_set() {
         stage_free::render3d_tidy(race, &scene.scratch)?;

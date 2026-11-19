@@ -3,23 +3,20 @@
 //! whole canvas put over the target); at the frame's end the two pictures are compared and
 //! the differing pixels counted in the log. A check only: it costs about twice the drawing.
 
-use super::{Gpu, UNWRITTEN};
-use crate::platform::ffi::sdl_gpu::{Texture, Transfer};
+use crate::platform::ffi::sdl_gpu::{CommandBuffer, RenderPass, Texture, Transfer};
 use crate::program_log::log;
+use crate::render::gpu::{Gpu, UNWRITTEN};
 use sdl3_sys::everything::*;
 
 /// Whether the check is asked for.
 pub fn wanted() -> bool {
-    static WANTED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *WANTED.get_or_init(|| std::env::var_os("RC2K_BACKGROUND_CHECK").is_some())
-        || crate::gfx::draw2d::quads::check_wanted()
+    super::switches().background_check.is_some() || crate::gfx::draw2d::quads::check_wanted()
 }
 
 /// Whether `RC2K_CHECK_SAME` is set: the second pass draws as the first does, so the check
 /// counts what the GPU alone makes differ.
 pub fn same() -> bool {
-    static SAME: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *SAME.get_or_init(|| std::env::var_os("RC2K_CHECK_SAME").is_some())
+    super::switches().check_same
 }
 
 /// Logs rows that hold a written pixel but were not noted as written (the GPU path would never
@@ -46,6 +43,15 @@ pub struct Check {
     pub depth_is_new: bool,
     width: u32,
     height: u32,
+}
+
+/// What the second drawing of a frame draws into.
+pub struct Targets {
+    colour: Texture,
+    depth: Texture,
+    canvas: Texture,
+    canvas_transfer: Transfer,
+    clear_depth: bool,
 }
 
 /// The canvas as it was when the background was copied onto it: the background where the
@@ -81,8 +87,77 @@ pub fn canvas_as_before(
 }
 
 impl Gpu {
+    /// With the check on: the canvas as the old way would hold it (every written pixel, noted
+    /// rows or not) put into the check's canvas target. `rows` are the rows noted as written,
+    /// `background` the picture the background held.
+    pub(in crate::render) fn check_note_canvas(
+        &self,
+        canvas: &[u8],
+        rows: &[bool],
+        stride: usize,
+        background: Option<&[u8]>,
+    ) -> Result<(), String> {
+        let Some(check) = &self.check else {
+            return Ok(());
+        };
+        let old = if crate::gfx::draw2d::quads::check_wanted() {
+            // The canvas the old way would hold: everything the funnels wrote.
+            crate::gfx::draw2d::take_interval()
+                .unwrap_or_else(|| canvas_as_before(canvas, &[], stride, None))
+        } else {
+            let scan = crate::render::canvas_rows::rows_holding_written(canvas, stride);
+            note_missed_rows(&scan, rows);
+            let scanned = crate::render::canvas_rows::written_runs(&scan);
+            canvas_as_before(canvas, &scanned, stride, background)
+        };
+        self.device
+            .fill_transfer(check.canvas_transfer, 0, &old, true)
+    }
+
+    /// The check's targets for this frame's second drawing, if the check is on.
+    pub(in crate::render) fn check_targets(&mut self) -> Option<Targets> {
+        self.check.as_mut().map(|c| Targets {
+            colour: c.colour,
+            depth: c.depth,
+            canvas: c.canvas,
+            canvas_transfer: c.canvas_transfer,
+            clear_depth: std::mem::replace(&mut c.depth_is_new, false),
+        })
+    }
+
+    /// The same frame once more into the check's targets, the way the canvas carried the
+    /// background. `same_overlay` draws what the real pass drew before the 3D (the noise
+    /// floor, `RC2K_CHECK_SAME`); `draw_3d` draws the frame's batches.
+    pub(in crate::render) fn check_pass(
+        &self,
+        buffer: &CommandBuffer,
+        targets: Targets,
+        same_overlay: &dyn Fn(&RenderPass),
+        draw_3d: &dyn Fn(&RenderPass),
+    ) {
+        let copy = buffer.begin_copy_pass();
+        copy.upload_texture(
+            targets.canvas_transfer,
+            0,
+            targets.canvas,
+            self.width,
+            self.height,
+        );
+        copy.end();
+        let pass = buffer.begin_render_pass(targets.colour, targets.depth, targets.clear_depth);
+        if same() {
+            same_overlay(&pass);
+        } else {
+            self.draw_overlay(&pass, targets.canvas);
+        }
+        if !crate::gfx::draw2d::quads::check_2d_only() {
+            draw_3d(&pass);
+        }
+        pass.end();
+    }
+
     /// The check's targets, made for the screen's size when it is asked for.
-    pub(super) fn ensure_check(&mut self) -> Result<(), String> {
+    pub(in crate::render) fn ensure_check(&mut self) -> Result<(), String> {
         if !wanted()
             || self
                 .check
@@ -105,7 +180,7 @@ impl Gpu {
                 SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER,
             )?,
             depth: self.make_texture_of(
-                super::DEPTH_FORMAT,
+                crate::render::gpu::DEPTH_FORMAT,
                 width,
                 height,
                 SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
@@ -121,7 +196,7 @@ impl Gpu {
     }
 
     /// At a frame's end: the picture drawn the new way against the one drawn the old way.
-    pub(super) fn compare_check(&mut self) -> Result<(), String> {
+    pub(in crate::render) fn compare_check(&mut self) -> Result<(), String> {
         use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
         static FRAMES: AtomicU64 = AtomicU64::new(0);
         static BAD_FRAMES: AtomicU64 = AtomicU64::new(0);
@@ -152,7 +227,10 @@ impl Gpu {
         if differing > 0 {
             let bad = BAD_FRAMES.fetch_add(1, Relaxed) + 1;
             if bad <= 3
-                && let Some(dir) = std::env::var_os("RC2K_BACKGROUND_CHECK").filter(|d| d.len() > 1)
+                && let Some(dir) = super::switches()
+                    .background_check
+                    .as_ref()
+                    .filter(|d| d.len() > 1)
             {
                 let dir = std::path::Path::new(&dir);
                 let _ = std::fs::write(

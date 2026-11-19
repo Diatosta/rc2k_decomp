@@ -7,9 +7,5 @@ pub fn sleep(milliseconds: u32) {
 
 /// How long `milliseconds` of the game's time last (a remote build's speed scales them).
 pub fn duration(milliseconds: u32) -> std::time::Duration {
-    #[cfg(feature = "remote")]
-    let wait = std::time::Duration::from_micros(crate::remote::wall_micros(milliseconds));
-    #[cfg(not(feature = "remote"))]
-    let wait = std::time::Duration::from_millis(milliseconds.into());
-    wait
+    std::time::Duration::from_micros(crate::remote::wall_micros(milliseconds))
 }

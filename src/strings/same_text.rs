@@ -7,7 +7,7 @@ use rc2k_core::strings::bytes::Bytes;
 use rc2k_core::strings::case::CaseTable;
 use std::cmp::Ordering;
 
-/// The language's lower-case table. Until `strings::load_language` sets it up every character is
+/// The language's lower-case table. Until `language::load_language` sets it up every character is
 /// itself, but A .. Z and 0xC0 .. 0xDE (not 0xD7) in lower case.
 pub static LOWER: crate::memory::session::Bytes<256> =
     crate::memory::session::Bytes::new(first_lower());
@@ -38,7 +38,7 @@ pub fn lower(c: u8) -> u8 {
     LOWER.get(c as usize)
 }
 
-/// `strings::load_language`'s new table.
+/// `language::load_language`'s new table.
 pub fn set_case_table(table: &[u8; 256]) {
     for (c, &v) in table.iter().enumerate() {
         LOWER.set(c, v);

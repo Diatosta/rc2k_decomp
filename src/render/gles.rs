@@ -17,8 +17,8 @@ mod layer2d;
 pub mod mip_levels;
 
 use super::batches::{Batch, Batches, NO_TEXTURE, PassKind, PipelineKey, PixelValues, ShaderKind};
+use super::dev::gpu_cut::Cuts;
 use super::gl_batching::{Background, Batched, Job, Part, Written};
-use super::gpu_cut::Cuts;
 use super::{CommandList, Target, TextureNote};
 use super::{background, canvas_rows};
 use crate::gfx::draw2d::quads;
@@ -825,7 +825,7 @@ impl Gpu {
     /// Takes the live cuts for the flush about to be drawn: the samplers' filters (the scene's
     /// programs are chosen by the cuts batch by batch).
     fn take_cuts(&mut self) {
-        let cuts = super::gpu_cut::live();
+        let cuts = super::dev::gpu_cut::live();
         if cuts == self.cuts {
             return;
         }
@@ -1894,7 +1894,6 @@ impl Gpu {
     }
 
     /// A test run's shot of the window as it is drawn (`remote`'s `wshot`).
-    #[cfg(feature = "remote")]
     fn window_shot(&self) {
         if !crate::remote::window_shot_due() {
             return;
@@ -1915,9 +1914,6 @@ impl Gpu {
         }
         crate::remote::window_taken(width as u32, height as u32, bgra);
     }
-
-    #[cfg(not(feature = "remote"))]
-    fn window_shot(&self) {}
 
     /// The target's rows as the GL holds them.
     fn read_target(&mut self) -> Vec<u8> {
@@ -1950,7 +1946,7 @@ impl Gpu {
     /// Draws the jobs until the batching thread's end, then closes the context (on this
     /// thread, which made it).
     fn run(mut self, jobs: Receiver<Job<Batched>>) -> Option<Closed> {
-        let mut sampler = super::gpu_time::Sampler::from_env();
+        let mut sampler = super::dev::gpu_time::Sampler::from_env();
         for job in jobs {
             let start = std::time::Instant::now();
             match job {
@@ -1964,7 +1960,7 @@ impl Gpu {
                 Job::ShowTarget { menu } => {
                     let wait = sampler
                         .as_mut()
-                        .is_some_and(super::gpu_time::Sampler::frame_ends);
+                        .is_some_and(super::dev::gpu_time::Sampler::frame_ends);
                     let waited = self.show_target(wait, menu);
                     // The next frame starts with a fresh depth buffer: the game clears the depth
                     // only where it needs the clear, and what the last frame wrote would fail
@@ -2087,7 +2083,7 @@ impl Front {
         }
         super::FANS.fetch_add(commands.len() as u64, std::sync::atomic::Ordering::Relaxed);
         super::FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        super::seethru::note_list(&commands, self.size.0 as u32, self.size.1 as u32);
+        super::dev::seethru::note_list(&commands, self.size.0 as u32, self.size.1 as u32);
         let changes = super::take_changed_textures();
         for pixels in changes.written.iter().chain(&changes.gone) {
             self.known.remove(pixels);
@@ -2157,7 +2153,7 @@ impl Front {
     /// The frame's end: what the canvas has written over the target, and the target shown.
     pub fn finish_and_show(&mut self, target: &Target, canvas: &mut [u8], menu: bool) {
         self.draw(target, canvas, CommandList::new());
-        super::seethru::frame_end();
+        super::dev::seethru::frame_end();
         self.send(Job::ShowTarget { menu });
     }
 

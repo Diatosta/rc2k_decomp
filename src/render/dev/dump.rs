@@ -1,6 +1,6 @@
 //! A frame's commands written to a file, for replaying them outside the program.
 
-use super::{Command, CommandList, Target};
+use crate::render::{Command, CommandList, Target};
 
 /// With `RC2K_DUMP=n` in the environment: the n-th flush of 1000 fans or more written to
 /// `rc2k_frame_dump.bin`, for replaying it outside the program (the benchmark): "RC2KDUMP",
@@ -12,10 +12,7 @@ pub fn dump_if_asked(list: &CommandList, into: &Target) {
     let noted = &list.commands;
     use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
     static SEEN: AtomicU32 = AtomicU32::new(0);
-    let Some(wanted) = std::env::var("RC2K_DUMP")
-        .ok()
-        .and_then(|n| n.parse::<u32>().ok())
-    else {
+    let Some(wanted) = super::switches().dump_flush else {
         return;
     };
     let fans = noted
@@ -30,7 +27,7 @@ pub fn dump_if_asked(list: &CommandList, into: &Target) {
     for v in [into.width as u32, into.height as u32, into.bits] {
         put(&mut out, v);
     }
-    let mut textures: Vec<super::TextureId> = Vec::new();
+    let mut textures: Vec<crate::render::TextureId> = Vec::new();
     for n in noted {
         if let Command::Fan {
             texture: Some(t), ..
@@ -58,7 +55,7 @@ pub fn dump_if_asked(list: &CommandList, into: &Target) {
             put(&mut out, m);
         }
         put(&mut out, t.len as u32);
-        out.extend(super::noted_bytes(t));
+        out.extend(crate::render::noted_bytes(t));
     }
     put(&mut out, noted.len() as u32);
     for n in noted {
@@ -108,15 +105,14 @@ pub fn dump_if_asked(list: &CommandList, into: &Target) {
 pub fn hash_if_asked(list: &CommandList, in_race: bool) {
     use std::hash::{Hash, Hasher};
     use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
-    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     static FLUSHES: AtomicU32 = AtomicU32::new(0);
-    if !*ON.get_or_init(|| std::env::var_os("RC2K_FAN_HASH").is_some()) || !in_race {
+    if !super::switches().fan_hash || !in_race {
         return;
     }
     let mut h = crate::debug::check_hash::CheckHasher::default();
     // A texture by its pixels, not by where they are: that differs from run to run.
-    let mut seen: Vec<(super::TextureId, u64)> = Vec::new();
-    let mut texture_hash = |t: &super::TextureNote| {
+    let mut seen: Vec<(crate::render::TextureId, u64)> = Vec::new();
+    let mut texture_hash = |t: &crate::render::TextureNote| {
         let at = t.pixels;
         if let Some(&(_, v)) = seen.iter().find(|s| s.0 == at) {
             return v;

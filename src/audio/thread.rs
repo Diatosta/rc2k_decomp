@@ -80,8 +80,7 @@ pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
             take_commands::take_commands(audio, system, sets, menu_sounds)?;
             update_voices::update_voices(audio)?;
             stray_voices::check(&audio.state);
-            #[cfg(feature = "remote")]
-            mix_hash::audio_turn_done();
+            crate::remote::audio_turn_done();
             if begun.is_some() {
                 crate::debug::timing::note_voices(stray_voices::on_lists(&audio.state));
             }

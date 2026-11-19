@@ -320,9 +320,9 @@ fn draw_noted(part: &crate::scene::workers::PartScratch, pending: &mut Pending) 
         // drawn here, this part's would go ahead of the earlier parts'.
         crate::program_log::log("platform: a drawing part's noted drawing drawn (out of order)");
     }
-    crate::render::dump::dump_if_asked(&commands, &target);
+    crate::render::dev::dump::dump_if_asked(&commands, &target);
     let racing = crate::scene::workers::in_race(part);
-    crate::render::dump::hash_if_asked(&commands, racing);
+    crate::render::dev::dump::hash_if_asked(&commands, racing);
     let (width, height, _) = screen_figures(part);
     let screen = (width as usize, height as usize);
     crate::render::draw(screen, racing, &target, commands);

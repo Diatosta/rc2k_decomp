@@ -110,13 +110,7 @@ const WAYS: [Way; 10] = [
 
 /// Every how many parts the bench measures one (`RC2K_GL_BENCH`), if it is on.
 fn every() -> Option<u32> {
-    static EVERY: std::sync::OnceLock<Option<u32>> = std::sync::OnceLock::new();
-    *EVERY.get_or_init(|| {
-        std::env::var("RC2K_GL_BENCH")
-            .ok()
-            .and_then(|v| v.trim().parse().ok())
-            .filter(|&n| n > 0)
-    })
+    crate::render::dev::switches().gl_bench_every
 }
 
 /// Whether the bench is on: it reads the parts' commands at the GL, which are kept for it.

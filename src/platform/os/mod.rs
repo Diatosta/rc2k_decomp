@@ -30,10 +30,7 @@ fn clock_start() -> &'static (Instant, u32) {
 /// Milliseconds on a steady clock, wrapping as `GetTickCount` did.
 pub fn ticks() -> u32 {
     let (start, base) = *clock_start();
-    #[cfg(feature = "remote")]
-    let elapsed = start.elapsed().as_micros() * u128::from(crate::remote::speed()) / 1000;
-    #[cfg(not(feature = "remote"))]
-    let elapsed = start.elapsed().as_millis();
+    let elapsed = crate::remote::scaled_millis(start.elapsed());
     base.wrapping_add(elapsed as u32)
 }
 

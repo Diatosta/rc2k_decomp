@@ -205,9 +205,9 @@ and texts.
 
 ## Code
 
-`src/strings/load_language.rs` (the order of loading, the `.loc` and `.kim` checks),
-`src/strings/compile_lexicon.rs`, `rc2k_core/src/strings/lexicon.rs` (the `.txt` compiler),
+`src/language/load_language.rs` (the order of loading, the `.loc` and `.kim` checks),
+`src/language/compile_lexicon.rs`, `rc2k_core/src/strings/lexicon.rs` (the `.txt` compiler),
 `rc2k_core/src/strings/language.rs` (the `.loc` record), `rc2k_core/src/strings/own.rs` and
-`src/strings/own_texts.rs` (the `.rc2k.toml` files),
+`src/language/own_texts.rs` (the `.rc2k.toml` files),
 `rc2k_core/src/input/layouts.rs` (the `.kim` file), `rc2k_core/src/input/keyboard.rs` (keys
 to characters, dead keys), `rc2k_core/src/strings/table.rs` (reading the compiled table).

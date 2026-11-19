@@ -208,8 +208,7 @@ pub fn make_masks(
     for n in 0..2 {
         crate::effects::pixels::map_shapes(masks, drops, n as u32, effects)?;
     }
-    #[cfg(feature = "remote")]
-    crate::race::course_hash::log_mask_hashes(masks, drops, effects);
+    crate::remote::mask_hashes(masks, drops, effects);
     crate::memory::free_list::free_list(list)?;
     masks.work.give_back();
     Ok(())

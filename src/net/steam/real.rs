@@ -62,8 +62,7 @@ fn state() -> Option<&'static Steam> {
 impl Steam {
     fn start() -> Option<Steam> {
         // Test runs of the remote driver keep Steam's library out entirely.
-        #[cfg(feature = "remote")]
-        if std::env::var_os("RC2K_STEAM_OFF").is_some() {
+        if crate::remote::steam_off() {
             log("not available: RC2K_STEAM_OFF is set");
             return None;
         }

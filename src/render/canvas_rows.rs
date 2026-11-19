@@ -22,8 +22,7 @@ pub fn written_rows(target: &Target, canvas: &[u8]) -> Vec<bool> {
     let Some(noted) = noted else {
         return rows_holding_written(canvas, stride);
     };
-    static CHECK: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    if *CHECK.get_or_init(|| std::env::var_os("RC2K_CANVAS_CHECK").is_some()) {
+    if super::dev::switches().canvas_check {
         static LOGGED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
         let missed: Vec<usize> = rows_holding_written(canvas, stride)
             .iter()

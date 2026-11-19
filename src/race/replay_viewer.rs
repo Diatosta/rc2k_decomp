@@ -249,10 +249,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
     mark_viewer_items::mark_viewer_items(race, list)?;
     // A launched replay, and a test run's picture check: the item chosen (play) at once, as
     // Return would.
-    #[cfg(feature = "remote")]
     let play_at_once = launched.is_some() || crate::remote::shots_on();
-    #[cfg(not(feature = "remote"))]
-    let play_at_once = launched.is_some();
     if play_at_once {
         if crate::video::active() {
             // A render from the command line plays the part it was given.

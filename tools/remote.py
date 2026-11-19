@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drives a `remote` build of the game for automated tests (src/remote.rs).
+"""Drives a `remote` build of the game for automated tests (src/remote/driver.rs).
 
     remote.py build [--handheld]         builds the binary with the `remote` feature
     remote.py start [--software] [--fresh] [--profile] [-- game switches]    starts it (PC: on a copy of var and savedata; the words after -- go to the game, e.g. a launch);
@@ -297,7 +297,7 @@ def start(software, fresh, profile=False, game_args=()):
             renderer += f"{name}={os.environ[name]} "
     if os.environ.get('RC2K_SLOW_FRAMES'):  # log each frame in a race slower than this many ms
         renderer += f"RC2K_SLOW_FRAMES={int(os.environ['RC2K_SLOW_FRAMES'])} "
-    if os.environ.get('RC2K_SHOT_CLOCKS'):  # a replay's frames saved after these ticks (src/remote.rs)
+    if os.environ.get('RC2K_SHOT_CLOCKS'):  # a replay's frames saved after these ticks (src/remote/driver.rs)
         renderer += f"RC2K_SHOT_CLOCKS={','.join(str(int(c)) for c in os.environ['RC2K_SHOT_CLOCKS'].split(','))} "
     if os.environ.get('RC2K_DUMP'):  # the n-th big flush's commands to rc2k_frame_dump.bin
         renderer += f"RC2K_DUMP={int(os.environ['RC2K_DUMP'])} "

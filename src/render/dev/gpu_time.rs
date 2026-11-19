@@ -35,8 +35,7 @@ impl Sampler {
 
     /// The sampler `RC2K_GPU_TIME` asks for, if it does.
     pub fn from_env() -> Option<Sampler> {
-        let every = std::env::var("RC2K_GPU_TIME").ok()?.trim().parse().ok()?;
-        Sampler::every(every)
+        Sampler::every(super::switches().gpu_time_every?)
     }
 
     /// A part of the current frame is about to be drawn.

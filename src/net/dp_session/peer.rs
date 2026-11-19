@@ -69,17 +69,21 @@ impl Session {
         let _ = stream.set_write_timeout(Some(WRITE_WAIT));
         let session = Session::new(me, world, signal, port, None);
         let reader = stream.try_clone().map_err(|_| bad)?;
+        let link = Link::new(stream).ok_or(bad)?;
         session
             .links
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(1, stream);
+            .insert(1, link);
         let s = session.clone();
-        std::thread::spawn(move || s.follow_host(reader));
+        std::thread::spawn(move || s.follow_host(reader, HOST_SILENCE));
         Ok(session)
     }
 
-    pub(super) fn follow_host(self: Arc<Self>, mut stream: Box<dyn Wire>) {
+    /// The host's frames followed until the connection ends, or until nothing has come for
+    /// `silence` (the host pings every second): the session is then lost.
+    pub(super) fn follow_host(self: Arc<Self>, mut stream: Box<dyn Wire>, silence: Duration) {
+        let _ = stream.set_read_timeout(Some(silence));
         while let Ok(frame) = read_frame(&mut stream) {
             let mut r = R(&frame);
             match r.u8() {

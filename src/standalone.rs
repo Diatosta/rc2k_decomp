@@ -17,27 +17,6 @@ use crate::threading::thread_slot::SlotOwners;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 
-// ---- calls by address that are done or answered by SDL ----
-
-/// The 1999 addresses of the game's empty functions (a lone `retn`, and one that saves and
-/// restores the registers in a draw list): a call to one is done.
-const LONE_RETN: [usize; 119] = [
-    0x40AC76, 0x40CB09, 0x40CF32, 0x40D27E, 0x41E2F5, 0x428D74, 0x428DB2, 0x429823, 0x429B17,
-    0x429B18, 0x436832, 0x436B97, 0x436B98, 0x439329, 0x439593, 0x43DFB0, 0x44326C, 0x443471,
-    0x44347E, 0x443DB9, 0x44403F, 0x444F54, 0x445AF0, 0x4467C6, 0x446993, 0x44DEA9, 0x44E1C0,
-    0x44E76A, 0x44E776, 0x44E777, 0x44EB65, 0x44FF1A, 0x450222, 0x450A4A, 0x454F61, 0x454FEF,
-    0x4554C9, 0x456091, 0x457F2F, 0x457F82, 0x45836E, 0x45840D, 0x45A854, 0x45BBFA, 0x45BECC,
-    0x45C550, 0x45CCD3, 0x45D254, 0x465A3D, 0x465A3E, 0x465AB5, 0x465AB6, 0x465D78, 0x467BD5,
-    0x46D0F7, 0x47019D, 0x47019E, 0x471391, 0x4713DD, 0x471C80, 0x471C81, 0x475C0B, 0x4907B8,
-    0x4907B9, 0x4A94E9, 0x4A94EA, 0x4A94EB, 0x4A9678, 0x4B695B, 0x4B7ED9, 0x4B9789, 0x4BA849,
-    0x4BA84A, 0x4BA84B, 0x4BAC86, 0x4BD018, 0x4BD121, 0x4BEF98, 0x4BEFD1, 0x4C072A, 0x4C07DA,
-    0x4C08B9, 0x4C08BA, 0x4C1162, 0x4C16F8, 0x4C21EB, 0x4C25F5, 0x4C2DDA, 0x4C3901, 0x4C39D4,
-    0x4C4E14, 0x4C4E15, 0x4C4E16, 0x4C4E17, 0x4C4E18, 0x4C4E19, 0x4C4E1A, 0x4C4E1B, 0x4C4E2E,
-    0x4C4EA0, 0x4C4EA1, 0x4C4FFA, 0x4C65BF, 0x4C65C0, 0x4C65C1, 0x4C74D9, 0x4C8167, 0x4C9699,
-    0x4C9AF5, 0x4CAE5B, 0x4CB795, 0x4D0BA7, 0x4D0BA8, 0x4D0EB3, 0x4D1710, 0x4D2C9A, 0x4D5C40,
-    0x4D6AE4, 0x48558A,
-];
-
 // ---- what the faults catch ----
 
 #[cfg(windows)]
@@ -294,12 +273,6 @@ pub fn leave_on_close(o: Owners<'static>) -> ! {
     finish("the game was closed", 0)
 }
 
-/// A function of the game's not ported, reached from Rust (`from`): the program
-/// ends, naming it: nothing not ported passes unnoticed.
-pub fn not_ported(at: usize, from: &str) -> ! {
-    finish(&format!("not ported: {at:#x}, called from {from}"), 1)
-}
-
 pub fn finish(why: &str, code: u32) -> ! {
     finish_saying(why, why, code)
 }
@@ -330,21 +303,6 @@ fn end(code: u32) -> ! {
     // Not `std::process::exit`: this may be an exception's handler, where the libraries'
     // leave-taking can hang.
     crate::platform::os::terminate(code)
-}
-
-/// The platform's functions `start` calls that SDL stands for: (the function, what it is).
-const SDL_DOES: [(usize, &str); 5] = [
-    (0x4103DE, "system::open_window"),
-    (0x404981, "gfx::probe_exclusive_mode"),
-    (0x404CD6, "gfx::release_screens"),
-    (0x40FA8B, "sound::close_cd_audio"),
-    (0x410509, "system::drain_messages"),
-];
-
-/// For calls by address of a function that needs nothing done here (`menu::table_calls`): the ones
-/// SDL does and the lone `retn`s. `at` is the function's 1999 address.
-pub fn answers(at: usize) -> bool {
-    SDL_DOES.iter().any(|w| w.0 == at) || LONE_RETN.contains(&at)
 }
 
 /// A fault reported and the program ended: `host` the faulting instruction, `data` the
@@ -542,13 +500,14 @@ fn read_command_line_and_install_state(o: Owners<'static>) {
     }
 }
 
-/// The language's texts (`strings::load_language`) and the game's data files.
+/// The language's texts (`language::load_language`) and the game's data files.
 fn load_language_and_game_data(o: Owners<'static>) {
-    rust("strings::load_language");
-    let compile =
-        &mut || crate::strings::compile_lexicon::compile_lexicon(o.strings, &o.system.work().files);
-    if let Err(e) = crate::strings::load_language::load_language(o, compile) {
-        refused("strings::load_language", e);
+    rust("language::load_language");
+    let compile = &mut || {
+        crate::language::compile_lexicon::compile_lexicon(o.strings, &o.system.work().files)
+    };
+    if let Err(e) = crate::language::load_language::load_language(o, compile) {
+        refused("language::load_language", e);
     }
     rust("system::load_game_data");
     if let Err(e) = crate::system::load_game_data::load_in_game(o) {
@@ -703,8 +662,7 @@ fn program_switches_refused(args: &[String]) -> Option<String> {
 /// screen to answer it).
 fn refuse_second_copy(why: &str) -> ! {
     let text = format!("{why}\n");
-    if !crate::platform::os::print_to_terminal(&text) {
-        #[cfg(not(feature = "remote"))]
+    if !crate::platform::os::print_to_terminal(&text) && !crate::remote::BUILT {
         crate::platform::os::message_box(
             crate::platform::os::Icon::Warning,
             b"Rally Championship",

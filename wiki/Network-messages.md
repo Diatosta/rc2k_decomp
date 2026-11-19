@@ -48,7 +48,7 @@ Limits, there so that another machine cannot make this one hold unbounded data:
 
 | What | Most |
 | --- | --- |
-| A frame | 1 MB |
+| A frame | `0x2_0000` (128 KiB); its bytes are held only as they arrive |
 | A game message | `0x100` (256) bytes |
 | Players, groups, connections | `0x40` (64) each |
 | A name | `0x100` bytes |

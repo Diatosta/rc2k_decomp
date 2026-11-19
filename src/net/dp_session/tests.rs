@@ -154,7 +154,7 @@ fn connect(port: u16) -> TcpStream {
 }
 
 /// Guards the frame: its length as a little-endian dword, then the bytes; a longer one than
-/// 1 MB is refused when read.
+/// `FRAME_MOST` is refused when read.
 #[test]
 fn a_frame_is_its_length_and_its_bytes() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("a listener");
@@ -171,7 +171,7 @@ fn a_frame_is_its_length_and_its_bytes() {
     write_frame(&mut sender, &[9, 8]).expect("written");
     assert_eq!(read_frame(&mut receiver).expect("a frame"), [9, 8]);
     sender
-        .write_all(&((1u32 << 20) + 1).to_le_bytes())
+        .write_all(&((FRAME_MOST as u32) + 1).to_le_bytes())
         .expect("a length");
     assert!(read_frame(&mut receiver).is_err());
 }
@@ -524,4 +524,136 @@ fn a_frame_of_an_unknown_kind_is_passed_over() {
     }
     assert!(answered);
     host.close();
+}
+
+/// A connection whose writes block until it is released or cut: a machine that reads nothing.
+#[derive(Clone)]
+struct Stalled {
+    released: Arc<AtomicBool>,
+}
+
+impl Read for Stalled {
+    fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+        Ok(0)
+    }
+}
+
+impl Write for Stalled {
+    fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
+        while !self.released.load(Ordering::SeqCst) {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        Err(std::io::ErrorKind::BrokenPipe.into()).map(|()| data.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Wire for Stalled {
+    fn try_clone(&self) -> std::io::Result<Box<dyn Wire>> {
+        Ok(Box::new(self.clone()))
+    }
+
+    fn shutdown(&self) -> std::io::Result<()> {
+        self.released.store(true, Ordering::SeqCst);
+        Ok(())
+    }
+
+    fn set_read_timeout(&self, _: Option<Duration>) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    fn set_write_timeout(&self, _: Option<Duration>) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// A machine that has stopped reading holds up the host's sends to the others: each machine's
+/// frames go through a queue of its own, never under a lock all the sends share.
+#[test]
+fn a_machine_that_reads_nothing_holds_up_no_other() {
+    let host = Session::host_over(wire_desc(), 0, Arc::new(quiet), b"");
+    let (host_end, guest_end) = Pipe::pair();
+    host.serve_wire(Box::new(host_end));
+    let guest = Session::join_over(Box::new(guest_end), 0, Arc::new(quiet), b"").expect("joined");
+    let stalled = Stalled {
+        released: Arc::new(AtomicBool::new(false)),
+    };
+    let released = stalled.released.clone();
+    host.links
+        .lock()
+        .unwrap()
+        .insert(99, Link::new(Box::new(stalled)).expect("a link"));
+    let started = Instant::now();
+    for _ in 0..50 {
+        host.to_machine(99, &[PING, 1, 0, 0, 0]);
+    }
+    let (result, _) = host.create_player("host", &[], 0);
+    assert_eq!(result, DP_OK);
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "sends waited for the stalled machine: {:?}",
+        started.elapsed()
+    );
+    // The machine that reads was told all the same.
+    for _ in 0..200 {
+        if !guest.world().players.is_empty() {
+            released.store(true, Ordering::SeqCst);
+            host.close();
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    released.store(true, Ordering::SeqCst);
+    panic!("the other machine was never told");
+}
+
+/// A machine that is too slow to follow (its queue full) is cut, and sending goes on.
+#[test]
+fn a_machine_whose_queue_fills_is_cut() {
+    let stalled = Stalled {
+        released: Arc::new(AtomicBool::new(false)),
+    };
+    let released = stalled.released.clone();
+    let link = Link::new(Box::new(stalled)).expect("a link");
+    for _ in 0..10_000 {
+        link.send(&[PING, 1, 0, 0, 0]);
+    }
+    assert!(
+        released.load(Ordering::SeqCst),
+        "the connection was not cut"
+    );
+}
+
+/// A joined machine that hears nothing from its host for the silence it allows has lost the
+/// session, as when the connection ends.
+#[test]
+fn a_host_that_goes_silent_loses_the_session() {
+    let (host_end, guest_end) = Pipe::pair();
+    let session = Session::new(2, World::default(), Arc::new(quiet), 0, None);
+    let reader = session.clone();
+    let follow = std::thread::spawn(move || {
+        reader.follow_host(Box::new(guest_end), Duration::from_millis(100));
+    });
+    follow.join().expect("the reader ends on its own");
+    assert!(session.lock().lost);
+    drop(host_end);
+}
+
+/// A frame announced long and then not sent is not held: the bytes that came are all there is.
+#[test]
+fn a_long_announced_frame_that_never_comes_is_an_error() {
+    let (mut sender, mut receiver) = Pipe::pair();
+    receiver
+        .set_read_timeout(Some(Duration::from_millis(100)))
+        .expect("a timeout");
+    sender
+        .write_all(&(FRAME_MOST as u32).to_le_bytes())
+        .expect("a length");
+    sender.write_all(&[1, 2, 3]).expect("a little");
+    let started = Instant::now();
+    assert!(read_frame(&mut receiver).is_err());
+    assert!(started.elapsed() < Duration::from_secs(2));
 }

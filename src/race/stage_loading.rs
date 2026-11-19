@@ -29,8 +29,7 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// of the eight cars), "FINIS", a rule and a line break.
 pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let input = o.input;
-    #[cfg(feature = "remote")]
-    crate::race::course_hash::reset_texture_hash();
+    crate::remote::reset_texture_hash();
     crate::logfile::load_times::begin("load_stage: loading picture, car sounds");
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
@@ -65,7 +64,6 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     STAGE_LOADING.store(true, std::sync::atomic::Ordering::Relaxed);
     o.race.shared.heard_turn.get().forget();
     crate::menu::launch::stage_loading(o.race, o.race.effects.get());
-    #[cfg(feature = "remote")]
     crate::remote::race_loading(o.race, o.race.effects.get());
     let begun = std::time::Instant::now();
     crate::race::loadlevel::loadlevel_init(
@@ -73,8 +71,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
         o,
         &mut crate::race::loading_bar_frame::LoadingBar::new(o),
     )?;
-    #[cfg(feature = "remote")]
-    crate::race::course_hash::log_hashes(race, o.scene, "load");
+    crate::remote::course_hashes(race, o.scene, "load");
     STAGE_LOADING.store(false, std::sync::atomic::Ordering::Relaxed);
     let (shown, micros) = crate::race::loading_bar_frame::shown();
     crate::program_log::log(&format!(
@@ -138,8 +135,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     log();
     log();
     newline();
-    #[cfg(feature = "remote")]
-    crate::race::course_hash::log_started_hashes(race);
+    crate::remote::started_hashes(race);
     crate::logfile::load_times::end();
     Ok(())
 }

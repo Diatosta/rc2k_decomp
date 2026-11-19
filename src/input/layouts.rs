@@ -3,7 +3,7 @@
 //! (`rc2k_core::input::layouts`), and which of them is current.
 //!
 //! A later `load_language` keeps what an earlier one left: the layouts stay unless a new file
-//! replaces them, and the new file is read over the old bytes. `strings::load_language` fills
+//! replaces them, and the new file is read over the old bytes. `language::load_language` fills
 //! this at start: the built-in layout and mode 1, then the keyboard file's (its layout mode,
 //! layouts and pick). The readers are
 //! `input::key_to_char`, `append_key_name`, `yes_no_key` and the name editors.

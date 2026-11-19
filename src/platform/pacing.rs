@@ -67,11 +67,7 @@ pub fn set_display(refresh: Option<f64>, showing_waits: bool) {
     /// Whether the log has the pace (it is written again only when it changes).
     static LOGGED: AtomicBool = AtomicBool::new(false);
     // A scripted run can stand in a display's refresh rate (`RC2K_FAKE_REFRESH`).
-    #[cfg(feature = "remote")]
-    let refresh = std::env::var("RC2K_FAKE_REFRESH")
-        .ok()
-        .and_then(|s| s.parse::<f64>().ok())
-        .or(refresh);
+    let refresh = crate::remote::refresh_rate(refresh);
     REFRESH_BITS.store(refresh.map_or(0, f64::to_bits), Relaxed);
     let period = frame_period(refresh, crate::race::blend::smooth_on());
     let before = PERIOD_NANOS.swap(period.as_nanos() as u64, Relaxed);
@@ -150,7 +146,6 @@ pub fn frame_shown() {
             .unwrap_or(Duration::from_nanos(PERIOD_NANOS.load(Relaxed))),
     };
     // A scripted run at a faster clock shows its frames as much faster.
-    #[cfg(feature = "remote")]
     let period = period / crate::remote::speed();
     let wait = pacer.wait(Instant::now(), period);
     drop(pacer);

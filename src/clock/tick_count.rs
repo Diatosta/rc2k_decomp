@@ -37,7 +37,6 @@ pub fn tick_count(picture_clock: &PictureClock) -> u32 {
     if let Some(video) = VIDEO_CLOCK.get().and_then(|source| source()) {
         return video;
     }
-    #[cfg(feature = "remote")]
     if let Some(held) = crate::remote::held_clock() {
         return held;
     }

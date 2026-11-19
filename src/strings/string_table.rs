@@ -137,7 +137,7 @@ pub fn driver_name_text(
     strings: &crate::strings::owner::Strings,
     slot: u32,
 ) -> Result<Vec<u8>, BadInput> {
-    use crate::settings::read_driver_names::NAMES_SIZE;
+    use crate::strings::owner::NAMES_SIZE;
     let names = &strings.drivers.names;
     let mut text = Vec::new();
     for at in slot as usize..NAMES_SIZE {
@@ -163,7 +163,7 @@ pub fn driver_name_slot(
     Ok(strings.drivers.names.get_u32(4 * slot))
 }
 
-/// The lexicon's room: where `strings::compile_lexicon` puts the table.
+/// The lexicon's room: where `language::compile_lexicon` puts the table.
 pub const LEXICON_ROOM: usize = rc2k_core::strings::lexicon::TABLE_ROOM;
 
 /// The lexicon's room, all of it.

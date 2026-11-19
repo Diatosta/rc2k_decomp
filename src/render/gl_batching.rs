@@ -752,7 +752,10 @@ mod dump_breaks {
                             .0
                             .iter()
                             .map(|t| {
-                                super::super::seethru::triangle_pixels(t.each_ref().map(at), size)
+                                super::super::dev::seethru::triangle_pixels(
+                                    t.each_ref().map(at),
+                                    size,
+                                )
                             })
                             .sum::<f64>()
                     })

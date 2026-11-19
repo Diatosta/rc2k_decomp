@@ -223,7 +223,6 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     restore_if_asked();
     // Controllers plugged in or out: the players given the ones they chose.
     crate::input::device_ids::after_listing(o.menus, input);
-    #[cfg(feature = "remote")]
     crate::remote::poll(&o, &o.race.course);
     // The browser's gamepads copied into SDL's virtual ones (the page's API is not on this thread).
     #[cfg(web)]

@@ -8,21 +8,13 @@ use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::settings::read_text::read_text;
 use crate::strings::format_u32::format_u32;
+use crate::strings::owner::{DRIVERS, NAMES_LEN, POOL_ROOM};
 use rc2k_core::files::settings::DriverNames;
 
 // ---- game data ----
 
 /// "var\name.cfg", what `system::load_game_data` hands in.
 static PATH: &[u8; 13] = b"var\\name.cfg\0";
-const DRIVERS: usize = 180;
-/// The image's block (0x95ECF8 .. 0x960000, bss): a pointer a driver (`NAMES_LEN`
-/// bytes), then the pool of names, up to the block's end: room for about 130 names of
-/// the full length, not for 180. Nothing else reads either.
-const NAMES_LEN: usize = DRIVERS * 4;
-const POOL_ROOM: usize = 0x960000 - 0x95EFC8;
-/// `NAMES`' length.
-pub const NAMES_SIZE: usize = NAMES_LEN + POOL_ROOM;
-
 /// The path of `var\name.cfg` (without its NUL).
 pub fn path() -> &'static [u8] {
     &PATH[..PATH.len() - 1]

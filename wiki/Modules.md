@@ -57,7 +57,7 @@ For how the modules work together, start at [How the game runs](How-the-game-run
 | [`clock`](Module-clock) | The game's millisecond clock, sleeping, the packed local time. |
 | [`system`](Module-system) | The main loop, the command line, clocks, facts about the machine. |
 | [`memory`](Module-memory) | The typed cells and stores the game's data lives in. |
-| [Small modules](Module-small-modules) | `errors.rs`, `fatal`, `logfile`, `math`, `records`, `settings`, `threading`, `owners.rs`, `standalone.rs`, `remote.rs`, `first_run.rs`, `single_copy.rs`, `error_dialog`, `video`, `lib.rs`, `bin/`, `test_support`. |
+| [Small modules](Module-small-modules) | `errors.rs`, `fatal`, `logfile`, `math`, `records`, `settings`, `threading`, `owners.rs`, `standalone.rs`, `remote/`, `first_run.rs`, `single_copy.rs`, `error_dialog`, `video`, `lib.rs`, `bin/`, `test_support`. |
 
 ## The other crates
 

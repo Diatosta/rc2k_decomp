@@ -26,7 +26,7 @@ LAYERS = {
     # 0: foundation: no game knowledge, no platform calls of its own.
     "errors": 0, "memory": 0, "math": 0, "strings": 0, "program_log": 0,
     # 1: the platform: the only code that talks to the system and to SDL.
-    "platform": 1, "threading": 1, "logfile": 1, "files": 1, "clock": 1,
+    "platform": 1, "threading": 1, "logfile": 1, "files": 1, "clock": 1, "language": 1,
     # 2: engine services over the platform: drawing, pictures, sound, input, film, wire.
     "render": 2, "gfx": 2, "text": 2, "d3d": 2, "audio": 2, "sound": 2, "input": 2, "video": 2, "net": 2,
     # 3: the simulation and the race.
@@ -47,7 +47,22 @@ DOORS = {
     "fatal": {"raise"},                # ending the program with a reason
     "system": {"pause"},   # the pause pumps events and takes keys, a root service used from below
 }
-TOOL_DOORS = {"debug": {"timing", "check_hash", "imgui_sdl", "switches"}, "remote": None}
+TOOL_DOORS = {
+    "debug": {"timing", "check_hash", "imgui_sdl", "switches"},
+    # the test driver: every function of src/remote/off.rs has the same signature in driver.rs
+    "remote": {
+        "BUILT", "audio_turn_done", "autodrive", "autodrive_keys", "count_sound",
+        "course_hashes", "fake_camera", "fake_camera_count", "fake_camera_frame", "fold_pixel",
+        "frame", "held_clock", "held_race", "hold_loading_frame", "lose_this_frame", "mangled",
+        "mask_hashes", "mix_deterministic", "note_open", "note_racing", "note_shake",
+        "note_sound_peak", "pace_call", "poll", "race_loading", "race_loop_begins",
+        "refresh_rate", "renderer_step_fails", "replay_tick", "reset_texture_hash",
+        "scaled_millis", "shot_frame_drawn", "shot_wanted", "shots_loading", "shots_on",
+        "sim_hash_step", "sound_loaded", "speed", "started_hashes", "steam_off",
+        "stick_at_start", "texture_row", "turn_end_taken", "wall_micros", "window_shot_due",
+        "window_shot_taken", "window_taken",
+    },
+}
 TOOLS = {"debug", "remote"}
 EXTERN = ["sdl3_sys", "libc", "windows_sys", "dear_imgui_rs", "dear_imgui_sys", "mdns_sd"]
 EXTERN_HOMES = ("src/platform/",)

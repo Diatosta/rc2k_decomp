@@ -22,18 +22,23 @@ use std::time::{Duration, Instant};
 
 mod discovery;
 mod host;
+mod link;
 mod peer;
 #[cfg(test)]
 mod tests;
 pub(crate) mod wire;
 
 pub use discovery::{find_sessions, session_address};
+use link::Link;
 use rc2k_core::net::protocol::*;
 pub use rc2k_core::net::protocol::{Desc, Group, Id, MESSAGE_MOST, Player, World};
 
 /// A machine that takes no more for this long has its connection ended (each has a thread
 /// that reads whatever comes, so a machine busy loading does not stop reading).
 const WRITE_WAIT: Duration = Duration::from_secs(5);
+/// A joined machine hears from the host at least once a second (its pings); one that has heard
+/// nothing for this long has lost the host, as when the connection ends.
+const HOST_SILENCE: Duration = Duration::from_secs(30);
 #[cfg(test)]
 pub use wire::Pipe;
 pub use wire::Wire;
@@ -123,7 +128,7 @@ pub struct Session {
     signal: Signal,
     stop: AtomicBool,
     /// The host: each joined machine's connection. A joined machine: the host's (as 1).
-    links: Mutex<HashMap<u32, Box<dyn Wire>>>,
+    links: Mutex<HashMap<u32, Link>>,
     port: u16,
     /// When the session began: the clock the host's pings are stamped with.
     started: Instant,
@@ -259,8 +264,7 @@ impl Session {
                 return DPERR_INVALIDPLAYER;
             }
         }
-        #[cfg(feature = "remote")]
-        let data = &crate::remote::mangled(data);
+        let data = &*crate::remote::mangled(data);
         if self.is_host() {
             self.route(from, to, data.to_vec());
         } else {
@@ -292,14 +296,13 @@ impl Session {
         let Some(machine) = machine.filter(|&m| m != self.me) else {
             return DPERR_INVALIDPLAYER;
         };
-        self.to_machine(machine, &[KICKED]);
         let links = self
             .links
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(link) = links.get(&machine) {
             // Ends the machine's reader, which removes its players.
-            let _ = link.shutdown();
+            link.send_last(&[KICKED]);
         }
         DP_OK
     }
@@ -315,16 +318,21 @@ impl Session {
 
     pub fn close(&self) {
         self.stop.store(true, Ordering::SeqCst);
-        let mut links = self
-            .links
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        for link in links.values_mut() {
-            let _ = write_frame(link, &[BYE]);
-            let _ = link.shutdown();
+        let links = std::mem::take(
+            &mut *self
+                .links
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        // Each machine is told the session is over and cut after it, a stalled one given what is
+        // left of one second in all.
+        let until = Instant::now() + Duration::from_secs(1);
+        for link in links.values() {
+            link.send_last(&[BYE]);
         }
-        links.clear();
-        drop(links);
+        for link in links.values() {
+            link.wait_sent(until.saturating_duration_since(Instant::now()));
+        }
         self.held
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)

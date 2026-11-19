@@ -42,11 +42,6 @@ fn matches_from(pattern: &[u8], name: &[u8]) -> bool {
     }
 }
 
-/// Whether the pattern has a wildcard (else it names one file).
-pub fn has_wildcard(pattern: &[u8]) -> bool {
-    pattern.iter().any(|&b| b == b'*' || b == b'?')
-}
-
 /// Names in the order NTFS lists them (by their upper case), which the game's searches met;
 /// a folder's own order (Wine's, Linux's) is not kept.
 pub fn sort_names(names: &mut [Vec<u8>]) {

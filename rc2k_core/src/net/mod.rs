@@ -16,6 +16,7 @@ pub mod password;
 pub mod players;
 pub mod protocol;
 pub mod race;
+pub mod rate;
 pub mod record;
 pub mod screens;
 pub mod tailscale;

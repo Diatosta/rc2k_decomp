@@ -166,17 +166,18 @@ impl Session {
         let Ok(writer) = stream.try_clone() else {
             return;
         };
-        // the welcome under the links' lock, so that no change goes out before it
+        let Some(link) = Link::new(writer) else {
+            return;
+        };
+        // The welcome goes first in the machine's queue, under the links' lock, so that no change
+        // goes out before it.
         {
             let mut links = self
                 .links
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let mut writer = writer;
-            if write_frame(&mut writer, &welcome).is_err() {
-                return;
-            }
-            links.insert(machine, writer);
+            link.send(&welcome);
+            links.insert(machine, link);
         }
         while let Ok(frame) = read_frame(&mut stream) {
             let mut r = R(&frame);
@@ -289,15 +290,14 @@ impl Session {
         given.is_some_and(|given| same(&given, &proof(&challenge, &lock.key)))
     }
 
+    /// `bytes` queued for `machine` (none for one that is gone); it never waits for the machine.
     pub(super) fn to_machine(&self, machine: u32, bytes: &[u8]) {
-        let mut links = self
+        let links = self
             .links
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(link) = links.get_mut(&machine)
-            && write_frame(link, bytes).is_err()
-        {
-            let _ = link.shutdown();
+        if let Some(link) = links.get(&machine) {
+            link.send(bytes);
         }
     }
 
@@ -323,14 +323,12 @@ impl Session {
         };
         let bytes = change.write(W::default().u8(CHANGE)).0;
         {
-            let mut links = self
+            let links = self
                 .links
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            for link in links.values_mut() {
-                if write_frame(link, &bytes).is_err() {
-                    let _ = link.shutdown();
-                }
+            for link in links.values() {
+                link.send(&bytes);
             }
         }
         if !messages.is_empty() {

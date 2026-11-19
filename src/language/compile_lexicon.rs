@@ -13,14 +13,11 @@ use crate::files::scratch::Scratch;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::write_line::level;
-use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::memory::session::PlainDword;
+use crate::strings::lexicon_memory::WORK_LEN;
 use crate::strings::owner::Lexicon;
 use rc2k_core::strings::lexicon::{Compiled, compile};
 
-/// The work variables' size; they are written here and read by nothing.
-pub const WORK_LEN: usize = 0xC44;
 /// The work variables that are counts, as offsets into the block, in `Compiled`'s order; before
 /// them the flags word at 0, after them the unused count at 0x30.
 const PADDED: usize = 0x04;
@@ -38,34 +35,6 @@ const INDEX_SIZE: usize = 0xC3C;
 const TOTAL_SIZE: usize = 0xC40;
 const WORK_FLAGS: u32 = 0x1100_0000;
 
-/// The lexicon compiler's memory (the glyph builder takes the same work memory).
-#[derive(rc2k_derive::Cells)]
-pub struct LexiconMemory {
-    /// The memory's kilobytes (the `imageheapsize` setting; the glyph tables' work memory is sized
-    /// by it too).
-    pub kilobytes: PlainDword,
-    /// `LexiconMemory.memory.head`: the list the memory is taken from (16 bytes).
-    pub memory: crate::memory::ListCells,
-}
-
-impl LexiconMemory {
-    /// The lexicon's memory.
-    pub const fn new() -> Self {
-        LexiconMemory {
-            kilobytes: PlainDword::new(0x400),
-            memory: crate::memory::ListCells::new(MemoryList {
-                head: 0,
-                total: 0,
-                cursor: 0,
-                remaining: 0,
-            }),
-        }
-    }
-}
-
-/// The record all empty messages share: +4 how often it was used (never reset), +0xC its index
-/// entry. Written here only.
-pub const EMPTY_MESSAGE_LEN: usize = 0x10;
 const PATTERN: &[u8] = b"files\\%locale\\*.txt";
 const FILE_ROOM: u32 = 0x40000;
 const MESSAGE_COUNT: u32 = 0x757;

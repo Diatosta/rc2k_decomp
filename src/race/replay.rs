@@ -160,7 +160,7 @@ fn copy_header_settings_of(
         (
             1,
             0x2D,
-            u32::from(crate::strings::load_language::notice_kind(strings)),
+            u32::from(crate::strings::locale::notice_kind(strings)),
         ),
         (
             4,

@@ -37,7 +37,7 @@ pub fn setting_key(
             };
             net.setup().most_players.set(chat::most_players(
                 number,
-                crate::strings::load_language::notice_kind(strings),
+                crate::strings::locale::notice_kind(strings),
             ));
         }
         chat::PORT => {

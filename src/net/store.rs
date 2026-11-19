@@ -64,13 +64,6 @@ pub const CLSID_LOBBY: [u8; 16] = with_runs::<16>(&[
     (12, b"\xf8\x03\xab\xfc"),
 ]);
 
-/// `DPSPGUID_IPX`: never written.
-pub const SP_IPX: [u8; 16] = with_runs::<16>(&[
-    (1, b"\xc4[h,\x9d\xcf\x11\xa9\xcd"),
-    (11, b"\xaa"),
-    (13, b"h\x86\xe3"),
-]);
-
 /// `DPSPGUID_TCPIP`: never written.
 pub const SP_TCPIP: [u8; 16] = with_runs::<16>(&[
     (0, b"\xe0^\xe96w\x85\xcf\x11\x96\x0c"),

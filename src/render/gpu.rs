@@ -9,14 +9,14 @@
 //! as a texture of its own (`background`) and drawn under the canvas's pixels. Something that
 //! wants the true picture in the canvas asks `bring_back`, which is slow on a handheld.
 
-mod check;
 mod nv12;
 mod quads;
 mod stretch;
 
 use super::batches::{Batch, Batches, PipelineKey};
+use super::dev::check;
+use super::dev::gpu_cut::Cuts;
 use super::gles::mip_levels;
-use super::gpu_cut::Cuts;
 use super::{CommandList, Target, TextureNote};
 use crate::platform::ffi::sdl_gpu::{
     self, Buffer, Device, Fence, Pipeline, PipelineSpec, Sampler, Shader, ShaderCode, Texture,
@@ -54,7 +54,7 @@ const UV_FRAG: ShaderCode = shader_code!("nv12_uv.frag");
 const STRETCH_FRAG: ShaderCode = shader_code!("stretch.frag");
 
 const COLOUR_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
-const DEPTH_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
+pub(in crate::render) const DEPTH_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
 const VERTEX_BYTES: u32 = 32;
 
 struct CachedTexture {
@@ -115,7 +115,7 @@ struct MenuHigh {
 }
 
 pub struct Gpu {
-    device: Device,
+    pub(in crate::render) device: Device,
     colour: Texture,
     depth: Texture,
     canvas: Texture,
@@ -127,11 +127,11 @@ pub struct Gpu {
     background_holds: Option<super::background::Held>,
     /// With `RC2K_BACKGROUND_CHECK`: the frame drawn a second time as the canvas carried the
     /// background (`check`).
-    check: Option<check::Check>,
+    pub(in crate::render) check: Option<check::Check>,
     /// The 2D quads' atlas and buffers (`quads`), made when first needed.
     quads: Option<quads::Quads>,
-    width: u32,
-    height: u32,
+    pub(in crate::render) width: u32,
+    pub(in crate::render) height: u32,
     /// How many times the targets have been made: names the colour target's set.
     targets_made: u64,
     depth_is_new: bool,
@@ -504,7 +504,7 @@ impl Gpu {
         self.device.create_sampler(&info)
     }
 
-    fn make_texture(
+    pub(in crate::render) fn make_texture(
         &self,
         width: u32,
         height: u32,
@@ -530,7 +530,7 @@ impl Gpu {
         )
     }
 
-    fn make_texture_of(
+    pub(in crate::render) fn make_texture_of(
         &self,
         format: SDL_GPUTextureFormat,
         width: u32,
@@ -724,7 +724,7 @@ impl Gpu {
         }
     }
 
-    fn make_transfer(
+    pub(in crate::render) fn make_transfer(
         &self,
         usage: SDL_GPUTransferBufferUsage,
         size: u32,
@@ -908,7 +908,7 @@ impl Gpu {
         commands: &CommandList,
     ) -> Result<(), String> {
         self.take_changes();
-        let cuts = super::gpu_cut::live();
+        let cuts = super::dev::gpu_cut::live();
         self.note_cuts(cuts);
         let two_d = self.prepare_2d(crate::gfx::draw2d::quads::take())?;
         let mut background_bytes = None;
@@ -917,23 +917,8 @@ impl Gpu {
         let stride = self.width as usize * 4;
         let rows = rows.unwrap_or_else(|| super::canvas_rows::rows_holding_written(canvas, stride));
         let runs = super::canvas_rows::written_runs(&rows);
-        // The check's canvas holds every written pixel, noted rows or not, as it did before.
-        let old_canvas = self.check.is_some().then(|| {
-            if crate::gfx::draw2d::quads::check_wanted() {
-                // The canvas the old way would hold: everything the funnels wrote.
-                return crate::gfx::draw2d::take_interval()
-                    .unwrap_or_else(|| check::canvas_as_before(canvas, &[], stride, None));
-            }
-            let scan = super::canvas_rows::rows_holding_written(canvas, stride);
-            check::note_missed_rows(&scan, &rows);
-            let scanned = super::canvas_rows::written_runs(&scan);
-            check::canvas_as_before(canvas, &scanned, stride, background_bytes.as_deref())
-        });
-        if let (Some(check), Some(old)) = (&self.check, &old_canvas) {
-            self.device
-                .fill_transfer(check.canvas_transfer, 0, old, true)?;
-        }
-        super::seethru::note_list(commands, self.width, self.height);
+        self.check_note_canvas(canvas, &rows, stride, background_bytes.as_deref())?;
+        super::dev::seethru::note_list(commands, self.width, self.height);
         let batches = Batches::of(commands, self.width, self.height, None);
         let vertex_bytes = batches.vertices.len() as u32 * VERTEX_BYTES;
         // The 3D of a race at a share of the screen's size: drawn into the small targets and
@@ -1101,10 +1086,7 @@ impl Gpu {
         self.copy_2d(&copy, &two_d);
         copy.end();
         let clear_depth = std::mem::replace(&mut self.depth_is_new, false);
-        let check_targets = self.check.as_mut().map(|c| {
-            let clear = std::mem::replace(&mut c.depth_is_new, false);
-            (c.colour, c.depth, c.canvas, c.canvas_transfer, clear)
-        });
+        let check_targets = self.check_targets();
         // The rectangles are scaled with the viewport (the `half` cut's and the small 3D's).
         let draw_batches = |pass: &sdl_gpu::RenderPass, percent: u32| {
             let down = |n: i32| (n as i64 * i64::from(percent) / 100) as i32;
@@ -1225,31 +1207,22 @@ impl Gpu {
             pass.end();
             buffer.blit(small.colour, part, self.colour, full, percent > 100);
         }
-        if let Some((colour, depth, canvas, transfer, clear)) = check_targets {
-            // The same frame once more, the way the canvas carried the background.
-            let copy = buffer.begin_copy_pass();
-            copy.upload_texture(transfer, 0, canvas, self.width, self.height);
-            copy.end();
-            let pass = buffer.begin_render_pass(colour, depth, clear);
-            if check::same() {
-                // The noise floor: the same overlay as the real pass.
+        if let Some(targets) = check_targets {
+            let same_overlay = |pass: &sdl_gpu::RenderPass| {
                 if background {
-                    self.draw_overlay(&pass, self.background);
+                    self.draw_overlay(pass, self.background);
                 }
                 for &(first, last) in &runs {
                     let rows = (last + 1 - first) as i32;
                     pass.set_scissor(0, first as i32, self.width as i32, rows);
-                    self.draw_overlay(&pass, self.canvas);
+                    self.draw_overlay(pass, self.canvas);
                 }
                 pass.set_scissor(0, 0, self.width as i32, self.height as i32);
-                self.draw_2d(&buffer, &pass, &two_d);
-            } else {
-                self.draw_overlay(&pass, canvas);
-            }
-            if !crate::gfx::draw2d::quads::check_2d_only() {
-                draw_batches(&pass, 100);
-            }
-            pass.end();
+                self.draw_2d(&buffer, pass, &two_d);
+            };
+            self.check_pass(&buffer, targets, &same_overlay, &|pass| {
+                draw_batches(pass, 100);
+            });
         }
         buffer.submit()?;
         for &(first, last) in &runs {
@@ -1349,7 +1322,7 @@ impl Gpu {
         Ok(())
     }
 
-    fn draw_overlay(&self, pass: &sdl_gpu::RenderPass, layer: Texture) {
+    pub(in crate::render) fn draw_overlay(&self, pass: &sdl_gpu::RenderPass, layer: Texture) {
         pass.bind_pipeline(self.overlay);
         pass.bind_fragment_sampler(layer, self.nearest);
         pass.draw(3, 0);
@@ -1362,7 +1335,7 @@ impl Gpu {
         canvas: &mut [u8],
     ) -> Result<(), String> {
         self.draw(canvas, rows, &CommandList::new())?;
-        super::seethru::frame_end();
+        super::dev::seethru::frame_end();
         // The next frame starts with a fresh depth buffer. The game clears the depth only where
         // it needs the clear, and the GPU keeps the depths between frames: what the last frame
         // wrote (the rear-view mirror's, a car's) would otherwise fail the depth test of the
@@ -1473,12 +1446,12 @@ impl Gpu {
     }
 
     /// The colour target's picture (the GPU's end of the frame is waited for).
-    fn read_colour(&mut self) -> Result<Vec<u8>, String> {
+    pub(in crate::render) fn read_colour(&mut self) -> Result<Vec<u8>, String> {
         self.read_texture(self.colour)
     }
 
     /// The picture of a texture of the screen's size, as a new buffer.
-    fn read_texture(&mut self, texture: Texture) -> Result<Vec<u8>, String> {
+    pub(in crate::render) fn read_texture(&mut self, texture: Texture) -> Result<Vec<u8>, String> {
         let mut picture = vec![0u8; (self.width * self.height * 4) as usize];
         self.read_texture_into(texture, &mut picture)?;
         Ok(picture)

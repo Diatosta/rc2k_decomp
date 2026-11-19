@@ -291,7 +291,7 @@ MENU + START leaves the game. Setting the device up is described in
 ## Testing input
 
 A build made with the `remote` feature can be driven by `tools/remote.py`: it sends keys, pad
-buttons and stick positions to the running game, types text (`remote.py text Gonçalves`, as SDL's text input gives it) and takes screenshots (`src/remote.rs`). The
+buttons and stick positions to the running game, types text (`remote.py text Gonçalves`, as SDL's text input gives it) and takes screenshots (`src/remote/driver.rs`). The
 project's automated races are driven this way; see [Testing](Testing).
 
 ## Where to look

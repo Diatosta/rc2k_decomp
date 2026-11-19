@@ -333,8 +333,7 @@ fn tidy_everything_as(
     s.step(EVERYTHING_WORDS[4], || {
         tidy_stage(s, race, o.scene, o.race.effects.get(), o.gfx, o.audio)
     })?;
-    #[cfg(feature = "remote")]
-    crate::race::course_hash::log_hashes(race, o.scene, "free");
+    crate::remote::course_hashes(race, o.scene, "free");
     s.log(EVERYTHING_WORDS[5]);
     s.indent(3);
     reset_race_sounds(&SoundVars::game(sound), o)?;

@@ -18,10 +18,9 @@
 //! them afterwards. With the variable unset nothing is read or counted: the switch is one
 //! atomic load per list and per frame.
 
-use super::{Command, CommandList, TextureId, TextureNote};
+use crate::render::{Command, CommandList, TextureId, TextureNote};
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU8, Ordering::Relaxed};
 use std::time::{Duration, Instant};
 
 /// How often the figures are logged.
@@ -30,19 +29,8 @@ const REPORT_EVERY: Duration = Duration::from_secs(5);
 const TOP_ROWS: usize = 12;
 const DUMPED: usize = 8;
 
-/// 0: not looked at yet; 1: off; 2: on.
-static SWITCH: AtomicU8 = AtomicU8::new(0);
-
 fn enabled() -> bool {
-    match SWITCH.load(Relaxed) {
-        1 => false,
-        2 => true,
-        _ => {
-            let on = std::env::var("RC2K_SEETHRU_AREA").is_ok_and(|v| v != "0" && !v.is_empty());
-            SWITCH.store(if on { 2 } else { 1 }, Relaxed);
-            on
-        }
-    }
+    super::switches().seethru
 }
 
 /// The pixels a triangle covers on a target of `size`, its corners as the game gives them
@@ -155,7 +143,7 @@ static STATE: Mutex<Option<State>> = Mutex::new(None);
 
 /// What a fan's states say apart from its texture: the blend's factors, whether it writes
 /// depth, and whether it is textured, fogged and alpha tested.
-fn kind_of(states: &[u32; super::STATES], textured: bool) -> String {
+fn kind_of(states: &[u32; crate::render::STATES], textured: bool) -> String {
     format!(
         "blend {}/{} depth_write={} {} fog={} alpha_test={}",
         states[0x13],
@@ -174,7 +162,7 @@ pub fn note_list(list: &CommandList, width: u32, height: u32) {
     }
     let mut guard = STATE.lock().unwrap();
     let state = guard.get_or_insert_with(|| State {
-        dump_folder: std::env::var_os("RC2K_SEETHRU_DUMP").map(Into::into),
+        dump_folder: super::switches().seethru_dump.clone(),
         ..State::default()
     });
     state.size = (width, height);
@@ -210,9 +198,9 @@ pub fn note_list(list: &CommandList, width: u32, height: u32) {
             *state
                 .opaque
                 .entry(note.pixels)
-                .or_insert_with(|| all_opaque(&super::texture_as_bgra(&note)))
+                .or_insert_with(|| all_opaque(&crate::render::texture_as_bgra(&note)))
         });
-        let fast = super::batches::fan_fast_path(states, fan, texture_full);
+        let fast = crate::render::batches::fan_fast_path(states, fan, texture_full);
         if fast.discard_free {
             state.discard_free.add(1, triangles, pixels);
         }
@@ -240,7 +228,7 @@ pub fn note_list(list: &CommandList, width: u32, height: u32) {
                 let opaque = *state
                     .opaque
                     .entry(note.pixels)
-                    .or_insert_with(|| all_opaque(&super::texture_as_bgra(note)));
+                    .or_insert_with(|| all_opaque(&crate::render::texture_as_bgra(note)));
                 if opaque {
                     state.opaque_texture.add(1, triangles, pixels);
                 } else {
@@ -406,7 +394,7 @@ fn all_opaque(bgra: &[u8]) -> bool {
 
 /// `note`'s pixels as `<folder>/<surface>_<serial>_<w>x<h>.png` and its alpha as `_a.png`.
 fn save_texture(folder: &std::path::Path, _report: u32, note: &TextureNote) {
-    let bgra = super::texture_as_bgra(note);
+    let bgra = crate::render::texture_as_bgra(note);
     let name = format!(
         "{}_{}_{}x{}",
         note.pixels.surface, note.pixels.serial, note.width, note.height

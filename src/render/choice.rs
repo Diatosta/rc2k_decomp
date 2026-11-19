@@ -139,15 +139,7 @@ pub fn gl_wanted() -> bool {
 /// steps fail, to test the fallbacks: `device`, `gpu_renderer`, `backend`, `size` (desktop),
 /// `gl` (OpenGL, desktop), `gles` (handheld). Always false without the feature.
 pub fn forced_failure(step: &str) -> bool {
-    #[cfg(feature = "remote")]
-    if std::env::var("RC2K_FAIL_RENDERER").is_ok_and(|steps| steps.split(',').any(|s| s == step)) {
-        crate::program_log::log(&format!(
-            "render: step `{step}` is made to fail (RC2K_FAIL_RENDERER)"
-        ));
-        return true;
-    }
-    let _ = step;
-    false
+    crate::remote::renderer_step_fails(step)
 }
 
 #[cfg(test)]

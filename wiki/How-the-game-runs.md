@@ -62,7 +62,7 @@ and calls `start`. `start` is a plain list of steps, each a function further dow
 | `read_settings_and_start_log` | Reads `var/ral.cfg`, starts the game's log `var/logfile.txt`. | `src/settings/`, `src/logfile/` |
 | `make_save_folders` | Makes `savedata/...` if missing. | `src/standalone.rs` |
 | `read_command_line_and_install_state` | The command line's switches, the install record. | `system::read_command_line`, `src/install/` |
-| `load_language_and_game_data` | Texts, options, best times, the lists of saved games and replays. | `strings::load_language`, `system::load_game_data`, `src/saves/` |
+| `load_language_and_game_data` | Texts, options, best times, the lists of saved games and replays. | `language::load_language`, `system::load_game_data`, `src/saves/` |
 | `probe_display` | Lists the display's screen modes. | `src/gfx/` |
 | `start_workers` | Network set-up; starts the game's threads (below). | `net::set_up`, `threading::thread_slot::start_workers` |
 | `choose_screen_modes` | Picks the menu and race screen modes, prepares pixel conversion. | `src/platform/mod.rs`, `src/gfx/` |

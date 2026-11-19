@@ -2,7 +2,7 @@
 //! not set). With the notice kind 2, `most_players` is held to 4 at most.
 
 use crate::net::owner::Net;
-use crate::strings::load_language::notice_kind;
+use crate::strings::locale::notice_kind;
 
 pub fn set_up(net: &Net, strings: &crate::strings::owner::Strings) {
     let vars = &net.vars;

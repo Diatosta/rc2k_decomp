@@ -186,13 +186,7 @@ pub fn load_sounds(
     }
     let mut l = GameLoader { audio, system };
     let loaded = rc2k_core::audio::load::load(&mut l, &entries);
-    #[cfg(feature = "remote")]
-    if std::env::var_os("RC2K_SOUND_LOG").is_some() {
-        crate::program_log::log(&format!(
-            "sound log: {} voices of {VOICES} after loading {list:?}",
-            audio.state.voice_count.get()
-        ));
-    }
+    crate::remote::sound_loaded(audio.state.voice_count.get(), VOICES, &list);
     loaded
 }
 

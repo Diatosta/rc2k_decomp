@@ -21,7 +21,6 @@ enum Source {
     /// An open camera, by its place in the list of cameras.
     Real(Camera, usize),
     /// A test's: the frame it sets (`remote`), as stand-in camera number so many.
-    #[cfg(feature = "remote")]
     Fake(usize),
 }
 
@@ -29,7 +28,6 @@ impl Source {
     fn frame(&mut self) -> Option<Frame> {
         match self {
             Source::Real(camera, _) => camera.frame(),
-            #[cfg(feature = "remote")]
             Source::Fake(n) => crate::remote::fake_camera_frame().map(|mut f| {
                 f.facing_user |= *n % 2 == 1;
                 f
@@ -40,7 +38,6 @@ impl Source {
     fn permission(&self) -> Permission {
         match self {
             Source::Real(camera, _) => camera.permission(),
-            #[cfg(feature = "remote")]
             Source::Fake(_) => Permission::Approved,
         }
     }
@@ -49,7 +46,6 @@ impl Source {
     fn number(&self) -> usize {
         match self {
             Source::Real(_, n) => *n,
-            #[cfg(feature = "remote")]
             Source::Fake(n) => *n,
         }
     }
@@ -57,7 +53,6 @@ impl Source {
 
 /// How many cameras there are to choose from.
 fn camera_count() -> usize {
-    #[cfg(feature = "remote")]
     if crate::remote::fake_camera() {
         return crate::remote::fake_camera_count();
     }
@@ -66,7 +61,6 @@ fn camera_count() -> usize {
 
 /// The name of camera number `n`.
 fn camera_name(n: usize) -> String {
-    #[cfg(feature = "remote")]
     if crate::remote::fake_camera() {
         return format!("Test camera {}", n + 1);
     }
@@ -79,7 +73,6 @@ fn camera_name(n: usize) -> String {
 /// Whether a camera can be asked for: SDL sees one (the camera subsystem is started on the
 /// first ask).
 pub fn available() -> bool {
-    #[cfg(feature = "remote")]
     if crate::remote::fake_camera() {
         return true;
     }
@@ -89,7 +82,6 @@ pub fn available() -> bool {
 
 /// Opens camera number `n` (the first is a back-facing one when there is one).
 fn open_camera(n: usize) -> Option<Source> {
-    #[cfg(feature = "remote")]
     if crate::remote::fake_camera() {
         return Some(Source::Fake(n));
     }

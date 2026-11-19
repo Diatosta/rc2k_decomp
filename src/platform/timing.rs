@@ -309,7 +309,7 @@ pub fn report_timing(system: &System) {
             ));
             #[cfg(handheld)]
             {
-                use crate::render::gpu_time as g;
+                use crate::render::dev::gpu_time as g;
                 let frames = g::FRAMES.swap(0, Relaxed);
                 let (issue, wait) = (
                     g::ISSUE_MICROS.swap(0, Relaxed),

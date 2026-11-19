@@ -72,11 +72,6 @@ pub fn opened_marks(blocks: u32) -> (u32, u32) {
 /// The cameras: the first two dwords read of each block.
 pub const CAMERA_DWORDS: usize = 2;
 
-/// Whether the opening's patch call returned 0.
-pub fn opened_zero(result: u32) -> bool {
-    result == 0
-}
-
 // ---- saving ----
 
 /// The new header's first three dwords (magic, 0, the version); the date follows.

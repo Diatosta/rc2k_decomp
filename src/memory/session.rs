@@ -3,10 +3,7 @@
 //! clocks the key thread and the menus keep.
 //!
 //! Each dword is an atomic (`Dword`, plain loads and stores: the audio, key and network threads
-//! read them without a lock). The blocks keep a fixed field order, so that an address taken of a
-//! field is the field's place and a walk from one variable to its neighbour reads the same
-//! neighbour (the vendor text of the processor, three dwords; the surface format, six dwords; the
-//! Windows version record).
+//! read them without a lock).
 
 #![allow(unsafe_code)]
 
@@ -627,7 +624,6 @@ impl<T: Copy> Plain<T> {
 #[repr(transparent)]
 pub struct PlainDword(Cell<u32>);
 
-#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
 impl PlainDword {
     pub const fn new(value: u32) -> Self {
         Self(Cell::new(value))
@@ -674,7 +670,6 @@ impl PlainDword {
 #[repr(transparent)]
 pub struct PlainFloat(Cell<u32>);
 
-#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
 impl PlainFloat {
     /// A cell holding `value`.
     pub const fn new(value: f32) -> Self {
@@ -716,7 +711,6 @@ impl PlainFloat {
 #[repr(transparent)]
 pub struct PlainFlag(Cell<u32>);
 
-#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
 impl PlainFlag {
     pub const fn new(value: bool) -> Self {
         Self(Cell::new(value as u32))

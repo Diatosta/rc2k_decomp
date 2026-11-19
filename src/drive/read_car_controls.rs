@@ -17,7 +17,6 @@ use rc2k_core::drive::replay_frames::plays_inputs;
 /// Does a computer drive this step?
 fn computer(shared: &RaceShared, net: &crate::net::owner::Net) -> bool {
     // A test's switch (`tools/remote.py pilot`): the computer at a player's wheel.
-    #[cfg(feature = "remote")]
     if crate::remote::autodrive()
         && shared.work.get().current_car.get() < shared.view.get().players.get()
     {
@@ -77,7 +76,6 @@ pub fn read_car_controls(
     }
     // A held race (`RC2K_HELD_RACE`) takes no key from the players: a key still held from the
     // menus (the test's Return) would reach the car at a tick that depends on the timing.
-    #[cfg(feature = "remote")]
     if crate::remote::held_race()
         && race_owner.shared.work.get().current_car.get()
             < race_owner.shared.view.get().players.get()
@@ -167,7 +165,6 @@ pub fn read_car_controls(
         .set(x87::loaded(&race_owner.shared.car().start_blend));
     // A test's switch (`tools/remote.py pilot`): a player's car has no computer's skill
     // (its blend near 0 holds the wanted speed down), so it drives at the full blend.
-    #[cfg(feature = "remote")]
     if crate::remote::autodrive()
         && race_owner.shared.work.get().current_car.get()
             < race_owner.shared.view.get().players.get()
@@ -191,7 +188,6 @@ pub fn read_car_controls(
     }
     // A test's switch (`tools/remote.py pilot`): a stalled car reset as a player would,
     // with the reset key.
-    #[cfg(feature = "remote")]
     if crate::remote::autodrive()
         && race_owner.shared.work.get().current_car.get()
             < race_owner.shared.view.get().players.get()

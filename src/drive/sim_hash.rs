@@ -39,7 +39,7 @@ pub fn car_blocks_groups(blocks: &CarBlocks) -> Vec<(String, u64)> {
 }
 
 /// A check: every field of the cars' blocks, one line each, `sim field <tick> <path> <hash>`.
-#[cfg(any(test, feature = "remote"))]
+#[cfg(feature = "remote")]
 pub fn log_fields(blocks: &CarBlocks, tick: u32) {
     struct Each {
         path: String,
@@ -143,6 +143,7 @@ impl CellVisitor for GroupHasher {
 /// thread makes on its own clock, 0 until its first poll and the centred hat (0xE00) after, so
 /// the same tick recorded 0 in one run and 0xE00 in another. The cars never see those bits (the
 /// computer drives them), only the replay file keeps them, and the file is not changed.
+#[cfg(feature = "remote")]
 pub fn staging_group(bytes: &[u8]) -> (String, u64) {
     use rc2k_core::drive::replay_frames::START_DWORDS;
     /// The hat's angle (the top byte) and direction (the second byte's low nibble) in the

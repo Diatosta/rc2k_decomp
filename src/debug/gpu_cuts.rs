@@ -1,9 +1,9 @@
-//! The GPU tab: the diagnostic cuts of `render::gpu_cut` as tick boxes, applied to the next
+//! The GPU tab: the diagnostic cuts of `render::dev::gpu_cut` as tick boxes, applied to the next
 //! frame drawn. Each removes one kind of GPU work so that the frame rate shows what it cost;
 //! the picture is wrong under a cut, which is the point.
 
 use crate::race::owner::Race;
-use crate::render::gpu_cut::{CUTS, Cuts, live, set_live};
+use crate::render::dev::gpu_cut::{CUTS, Cuts, live, set_live};
 use dear_imgui_rs::Ui;
 use std::sync::Mutex;
 use std::sync::atomic::Ordering::Relaxed;

@@ -61,7 +61,7 @@ fn disabled() -> bool {
     // The test builds (`remote`) are driven by scripts that wait for no key: they show it only
     // when asked to.
     std::env::var_os("RC2K_NO_ERROR_DIALOG").is_some()
-        || (cfg!(feature = "remote") && std::env::var_os("RC2K_ERROR_DIALOG").is_none())
+        || (crate::remote::BUILT && std::env::var_os("RC2K_ERROR_DIALOG").is_none())
 }
 
 /// The owners if a dialog can be shown now.

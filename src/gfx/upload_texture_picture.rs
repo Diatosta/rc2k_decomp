@@ -144,8 +144,7 @@ pub fn upload_texture_picture(
             if let Some(scratch) = kept {
                 gfx.pixel.formats.scratch.write(&scratch);
             }
-            #[cfg(feature = "remote")]
-            crate::race::course_hash::note_texture_row(texture, level, y, &row);
+            crate::remote::texture_row(texture, level, y, &row);
             rows.write(y, 0, &row, "a texture's row")?;
         }
         {

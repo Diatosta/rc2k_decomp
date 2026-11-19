@@ -28,7 +28,8 @@ the GPU holds the frame) and each backend's own state.
 | `draw_fan` | `src/render/rasteriser.rs` | The rasteriser itself: fills a fan's triangles into a tile. |
 | `Batches` | `src/render/batches.rs` | Groups the commands into runs that share a pipeline and texture. |
 | `background.rs` | `src/render/background.rs` | The 2D picture under and over the 3D when the GPU holds the frame. |
-| `dump_if_asked`, `hash_if_asked` | `src/render/dump.rs` | Writes or hashes frames for the picture checks. |
+| `dump_if_asked`, `hash_if_asked` | `src/render/dev/dump.rs` | Writes or hashes frames for the picture checks. |
+| `switches`, `DevSwitches` | `src/render/dev/mod.rs` | The developer switches (`RC2K_DUMP`, `RC2K_FAN_HASH`, `RC2K_SEETHRU_*`, `RC2K_GL_BENCH`, `RC2K_GPU_CUT`, `RC2K_GPU_TIME`, `RC2K_BACKGROUND_CHECK`, `RC2K_CHECK_SAME`, `RC2K_CANVAS_CHECK`), read once; each harness has one entry point that the draw paths call. |
 
 ## How it is laid out
 
@@ -36,8 +37,9 @@ the GPU holds the frame) and each backend's own state.
 two GPU backends (`quads.rs` / `layer2d.rs` draw the 2D layer as textured quads).
 `software.rs`, `rasteriser.rs` and `rasteriser_neon.rs` (the ARM version of its inner loops)
 are the software one. `shaders/` holds the shader sources and their compiled forms
-(`tools/compile_shaders.sh` rebuilds them). `gpu_cut.rs`, `gpu_time.rs` and `seethru.rs` are
-diagnostics.
+(`tools/compile_shaders.sh` rebuilds them). The developer harnesses (`dev/`: `check.rs`, `dump.rs`, `gpu_cut.rs`, `gpu_time.rs`,
+`seethru.rs`) are off unless their `RC2K_*` switch is set; the GL bench stays in `gles/bench.rs`
+because it works on the GL thread's own state.
 
 ## Calls and callers
 

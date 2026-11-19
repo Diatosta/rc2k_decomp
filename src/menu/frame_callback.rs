@@ -71,10 +71,9 @@ pub fn frame_callback(
         return Ok(false);
     }
     run_listed(o, &o.menus.screens.flow.overlay_list)?;
-    if notice::drawn_now(
-        crate::strings::load_language::notice_kind(o.strings),
-        || play.cheats.notice_due.get(),
-    ) {
+    if notice::drawn_now(crate::strings::locale::notice_kind(o.strings), || {
+        play.cheats.notice_due.get()
+    }) {
         play.cheats.notice_due.set(0u32);
         crate::text::draw_string_by_id::draw_string_by_id_at(
             crate::strings::append_string_by_id::StringOwners::of(o),

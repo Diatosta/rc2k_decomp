@@ -8,13 +8,10 @@ pub mod background;
 pub mod batches;
 pub mod canvas_rows;
 pub mod choice;
-pub mod dump;
+pub mod dev;
 pub mod gl_batching;
 pub mod gles;
 pub mod wash;
-// Built for tests on every machine; only the handheld's GL thread uses it.
-pub mod gpu_cut;
-pub mod gpu_time;
 // The handheld has no Vulkan: its GPU is reached through `gles`, by the same name here.
 #[cfg(handheld)]
 pub use gles as gpu;
@@ -23,7 +20,6 @@ pub mod gpu;
 pub mod rasteriser;
 #[cfg(target_arch = "aarch64")]
 pub mod rasteriser_neon;
-pub mod seethru;
 pub mod small_frame;
 pub mod software;
 
@@ -642,7 +638,7 @@ pub fn finish_frame(
     if !stays || gles::GPU.lock().unwrap().is_some() {
         give_frame_back(target);
         if stays {
-            seethru::frame_end();
+            dev::seethru::frame_end();
         }
         return None;
     }

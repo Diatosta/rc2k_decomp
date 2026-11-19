@@ -115,11 +115,6 @@ pub fn volume(v: u32) -> u32 {
     (v as i32).clamp(0, 0x100) as u32
 }
 
-/// The car's motion turned by the view, each part stored as a float.
-pub fn turned_motion(view: &[f32; 15], motion: [f32; 3]) -> [f32; 3] {
-    rotate_point(view, motion.map(f64::from)).map(|x| x as f32)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -76,9 +76,11 @@ pub fn store(inbox: &mut Inbox, sequence: u8, time: u32, message: &[u8]) -> Resu
 }
 
 /// The inbox's messages handed to the race: the count and the records to apply; the inbox's
-/// count becomes 0 and the oldest wanted the newest seen.
+/// count becomes 0 and the oldest wanted the newest seen. Only the records that arrived are
+/// copied (none when nothing did).
 pub fn hand_over(inbox: &mut Inbox) -> (u32, Vec<u8>) {
-    let handed = (inbox.count, inbox.records.clone());
+    let used = (inbox.count as usize).min(RECORDS as usize) * RECORD;
+    let handed = (inbox.count, inbox.records[..used].to_vec());
     inbox.count = 0;
     inbox.oldest = inbox.newest;
     handed
@@ -165,7 +167,15 @@ mod tests {
         inbox.newest = 6;
         let (count, records) = hand_over(&mut inbox);
         assert_eq!((count, records[0]), (2, 0x84));
+        assert_eq!(records.len(), 2 * RECORD);
         assert_eq!((inbox.count, inbox.oldest, inbox.newest), (0, 6, 6));
+    }
+
+    #[test]
+    fn nothing_arrived_nothing_is_copied() {
+        let mut inbox = empty();
+        let (count, records) = hand_over(&mut inbox);
+        assert_eq!((count, records.len()), (0, 0));
     }
 
     #[test]

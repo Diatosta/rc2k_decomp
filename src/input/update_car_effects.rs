@@ -111,8 +111,7 @@ fn update_car_effects_with(
     let table_kind = effects.surface_effect_kinds[surface as usize].get();
     let shake = surface_effect(table_kind, o.sum_a.get(), o.revs.get(), engine_vibration);
     let kind = shake.kind;
-    #[cfg(feature = "remote")]
-    note_shake(&shake, engine_vibration);
+    crate::remote::note_shake(&shake, engine_vibration);
     out.set(Effect::Surface, shake.row, shake.speed)?;
     let strength = || o.effect_request_b.get();
     let mut landed_now = false;
@@ -211,23 +210,6 @@ pub fn update_car_effects(
         engine_vibration,
         &system.machine().scratch,
     )
-}
-
-/// What the remote driver's trials read: the surface effect asked for, once a second of the
-/// race's 40 ms steps (the stand-in stick has no haptics to measure it on).
-#[cfg(feature = "remote")]
-fn note_shake(shake: &rc2k_core::input::feedback::SurfaceEffect, engine_vibration: bool) {
-    use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
-    static CALLS: AtomicU32 = AtomicU32::new(0);
-    if CALLS.fetch_add(1, Relaxed).is_multiple_of(25) {
-        crate::program_log::log(&format!(
-            "feedback: surface effect row {} at speed {} (steering kind {}), engine vibration {}",
-            shake.row,
-            shake.speed,
-            shake.kind,
-            if engine_vibration { "on" } else { "off" }
-        ));
-    }
 }
 
 #[cfg(test)]

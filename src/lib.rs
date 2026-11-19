@@ -20,6 +20,7 @@ mod gfx;
 mod hud;
 mod input;
 mod install;
+mod language;
 mod logfile;
 mod math;
 mod memory;
@@ -31,7 +32,6 @@ mod platform;
 mod program_log;
 mod race;
 mod records;
-#[cfg(feature = "remote")]
 mod remote;
 mod render;
 mod save_code;

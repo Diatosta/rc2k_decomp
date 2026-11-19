@@ -380,8 +380,8 @@ pub fn components_to_pixels(
 }
 
 pub fn load_language(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    crate::strings::load_language::load_language(o, &mut || {
-        crate::strings::compile_lexicon::compile_lexicon(o.strings, &o.system.work().files)
+    crate::language::load_language::load_language(o, &mut || {
+        crate::language::compile_lexicon::compile_lexicon(o.strings, &o.system.work().files)
     })
 }
 

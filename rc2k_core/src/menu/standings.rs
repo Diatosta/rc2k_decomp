@@ -66,13 +66,6 @@ impl Entries<'_> {
         }
     }
 
-    /// Every entry's stores made, entry by entry.
-    pub fn store_all(&mut self, stores: &[Store]) {
-        for n in 0..self.len() {
-            self.store(n, stores);
-        }
-    }
-
     /// Entries `a` and `b`'s dwords at `fields` and names at `name` swapped, the name through
     /// `kept` (which ends with `a`'s).
     pub fn swap(

@@ -172,8 +172,8 @@ impl Cuts {
     /// The set `RC2K_GPU_CUT` asks for (none when unset), made the live set, and the log line
     /// that says which are on, if any is. Called once, when a GPU backend starts.
     pub fn start_from_env() -> Option<String> {
-        let list = std::env::var("RC2K_GPU_CUT").ok()?;
-        let (cuts, unknown) = Cuts::parse(&list);
+        let list = super::switches().gpu_cut.as_deref()?;
+        let (cuts, unknown) = Cuts::parse(list);
         set_live(cuts);
         let mut line = format!("render: RC2K_GPU_CUT: cuts on: {}", cuts.names());
         if !unknown.is_empty() {

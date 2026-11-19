@@ -1,5 +1,5 @@
-//! Remote control for automated test runs (cargo feature `remote`; shipped builds have none).
-//! `RC2K_REMOTE` names a folder. `tools/remote.py` renames a file of commands to `cmd` in
+//! The test driver behind the `remote` door (cargo feature `remote`; shipped builds have none,
+//! see `off.rs`). `RC2K_REMOTE` names a folder. `tools/remote.py` renames a file of commands to `cmd` in
 //! it; each is run at the next pump and answered with a line in `reply`, `<id> <answer>`.
 //! Keys and buttons are SDL events, so they take the path real ones take.
 //!
@@ -31,6 +31,7 @@ use crate::platform::ffi::sdl_input;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use sdl3_sys::everything::*;
+use std::borrow::Cow;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
@@ -365,7 +366,7 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         race.checkpoints().map_x[near].get() as i32,
         race.checkpoints().map_y[near].get() as i32,
         o.audio.state.channels_used.get(),
-        crate::platform::sound::LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
+        LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
         CAR.car_heading.get() as i32,
         CAR.gear.get(),
         CAR.gearbox_kind.get(),
@@ -914,22 +915,22 @@ pub fn frame(pixels: &[u8], width: u32, height: u32) {
 
 /// A race message as it is to go out: with `RC2K_MANGLE` set (a seed), some of its dwords
 /// replaced, for trying what a hostile machine can do to the others' games.
-pub fn mangled(data: &[u8]) -> Vec<u8> {
+pub fn mangled(data: &[u8]) -> Cow<'_, [u8]> {
     use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
     static STATE: AtomicU64 = AtomicU64::new(0);
     static SEED: OnceLock<Option<u64>> = OnceLock::new();
-    let mut out = data.to_vec();
     let Some(seed) = *SEED.get_or_init(|| {
         std::env::var("RC2K_MANGLE")
             .ok()
             .and_then(|s| s.parse().ok())
     }) else {
-        return out;
+        return Cow::Borrowed(data);
     };
     // a sequence byte, then the tag: 'PGSM' and its like
     if !matches!(data.get(2..5), Some(b"GSM")) {
-        return out;
+        return Cow::Borrowed(data);
     }
+    let mut out = data.to_vec();
     let next = || {
         let mut x = STATE.load(Relaxed) ^ seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
         x ^= x << 13;
@@ -954,5 +955,252 @@ pub fn mangled(data: &[u8]) -> Vec<u8> {
             dword.copy_from_slice(&value.to_le_bytes());
         }
     }
-    out
+    Cow::Owned(out)
+}
+
+/// The loudest sample sent to the device since the remote control last asked.
+static LAST_PEAK: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// The samples about to go to the device: their peak noted for `state`.
+pub fn note_sound_peak(pcm: &[i16]) {
+    if let Some(peak) = pcm.iter().map(|sample| sample.unsigned_abs() as u32).max() {
+        LAST_PEAK.fetch_max(peak, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// Whether the device callback plays silence because the audio thread mixes for the mix hash.
+pub fn mix_deterministic() -> bool {
+    crate::audio::mix_hash::deterministic()
+}
+
+/// A race is loaded or not (the mix hash starts a fresh count with each race).
+pub fn note_racing(racing: bool) {
+    crate::audio::mix_hash::set_racing(racing);
+}
+
+/// The audio thread has taken a turn's end command.
+pub fn turn_end_taken() {
+    crate::audio::mix_hash::turn_end_taken();
+}
+
+/// The audio thread's turn is done.
+pub fn audio_turn_done() {
+    crate::audio::mix_hash::audio_turn_done();
+}
+
+/// With `RC2K_SOUND_LOG`: the sounds loaded, `voices` in use of `limit` after the list `list`.
+pub fn sound_loaded(voices: u32, limit: impl std::fmt::Display, list: &impl std::fmt::Debug) {
+    if std::env::var_os("RC2K_SOUND_LOG").is_some() {
+        crate::program_log::log(&format!(
+            "sound log: {voices} voices of {limit} after loading {list:?}"
+        ));
+    }
+}
+
+/// With `RC2K_SOUND_LOG`: a pace note's call for `car` at `checkpoint`, the note group `group`.
+pub fn pace_call(car: u32, checkpoint: u32, group: u32) {
+    if std::env::var_os("RC2K_SOUND_LOG").is_some() {
+        crate::program_log::log(&format!(
+            "pace call: car {car} checkpoint {checkpoint} group {group}"
+        ));
+    }
+}
+
+/// With `RC2K_SOUND_LOG`: the sounds the race starts (command 1) counted, and every 100 turns
+/// logged as "sound log: sound x times" in sound order.
+pub fn count_sound(racing: bool, command: u32, first_word: u32, is_turn_end: bool) {
+    use std::collections::BTreeMap;
+    static ON: OnceLock<bool> = OnceLock::new();
+    static COUNTS: Mutex<(BTreeMap<u32, u32>, u32)> = Mutex::new((BTreeMap::new(), 0));
+    if !*ON.get_or_init(|| std::env::var_os("RC2K_SOUND_LOG").is_some()) || !racing {
+        return;
+    }
+    let Ok(mut counts) = COUNTS.lock() else {
+        return;
+    };
+    if command == 1 {
+        *counts.0.entry(first_word & 0xFFFF).or_default() += 1;
+    } else if is_turn_end {
+        counts.1 += 1;
+        if counts.1 % 100 == 0 {
+            let text: Vec<String> = counts
+                .0
+                .iter()
+                .map(|(s, n)| format!("{s:#x}x{n}"))
+                .collect();
+            crate::program_log::log(&format!("sound log, turn {}: {}", counts.1, text.join(" ")));
+            counts.0.clear();
+        }
+    }
+}
+
+/// What the driver's trials read: the surface effect asked for, once a second of the race's
+/// 40 ms steps (the stand-in stick has no haptics to measure it on).
+pub fn note_shake(shake: &rc2k_core::input::feedback::SurfaceEffect, engine_vibration: bool) {
+    use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+    static CALLS: AtomicU32 = AtomicU32::new(0);
+    if CALLS.fetch_add(1, Relaxed).is_multiple_of(25) {
+        crate::program_log::log(&format!(
+            "feedback: surface effect row {} at speed {} (steering kind {}), engine vibration {}",
+            shake.row,
+            shake.speed,
+            shake.kind,
+            if engine_vibration { "on" } else { "off" }
+        ));
+    }
+}
+
+/// `RC2K_LOSE_FRAMES=n`: every n-th race frame's lock counts as refused, so the skipped-frame
+/// path can be run.
+pub fn lose_this_frame() -> bool {
+    use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+    static EVERY: OnceLock<u32> = OnceLock::new();
+    static COUNT: AtomicU32 = AtomicU32::new(0);
+    let every = *EVERY.get_or_init(|| {
+        std::env::var("RC2K_LOSE_FRAMES")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0)
+    });
+    every != 0 && COUNT.fetch_add(1, Relaxed) % every == every - 1
+}
+
+/// `RC2K_STEAM_OFF`: Steam's library is kept out entirely.
+#[cfg_attr(
+    not(steam_support),
+    allow(dead_code, reason = "only Steam's start asks")
+)]
+pub fn steam_off() -> bool {
+    std::env::var_os("RC2K_STEAM_OFF").is_some()
+}
+
+/// `RC2K_FAIL_RENDERER` (a list of steps): whether renderer step `step` is made to fail, to test
+/// the fallbacks.
+pub fn renderer_step_fails(step: &str) -> bool {
+    let fails =
+        std::env::var("RC2K_FAIL_RENDERER").is_ok_and(|steps| steps.split(',').any(|s| s == step));
+    if fails {
+        crate::program_log::log(&format!(
+            "render: step `{step}` is made to fail (RC2K_FAIL_RENDERER)"
+        ));
+    }
+    fails
+}
+
+/// `RC2K_FAKE_REFRESH`: a display's refresh rate the scripted run stands in for, or the real one.
+pub fn refresh_rate(real: Option<f64>) -> Option<f64> {
+    std::env::var("RC2K_FAKE_REFRESH")
+        .ok()
+        .and_then(|s| s.parse::<f64>().ok())
+        .or(real)
+}
+
+/// `duration` of the wall clock as milliseconds of the game's clock at the asked speed.
+pub fn scaled_millis(duration: std::time::Duration) -> u128 {
+    duration.as_micros() * u128::from(speed()) / 1000
+}
+
+/// The window's picture, when a `wshot` asked for it and this frame is the one to take it from:
+/// read from the renderer.
+#[cfg_attr(
+    handheld,
+    allow(dead_code, reason = "the handheld's panel is not an SDL window")
+)]
+pub fn window_shot_taken(renderer: crate::platform::ffi::sdl::Renderer) {
+    if window_shot_due()
+        && let Some((width, height, pixels)) = renderer.read_window()
+    {
+        window_taken(width, height, pixels);
+    }
+}
+
+/// The hashes of the stage's stores after loading (`after` "load") or freeing it ("free").
+pub fn course_hashes(race: &Race, scene: &crate::scene::owner::Scene, after: &str) {
+    crate::race::course_hash::log_hashes(race, scene, after);
+}
+
+/// The texture rows' hash started anew for a stage's load.
+pub fn reset_texture_hash() {
+    crate::race::course_hash::reset_texture_hash();
+}
+
+/// A texture row uploaded, for the texture rows' hash.
+pub fn texture_row(texture: u32, level: u32, y: u32, row: &[u8]) {
+    crate::race::course_hash::note_texture_row(texture, level, y, row);
+}
+
+/// The hashes of what the marks' masks leave.
+pub fn mask_hashes(
+    masks: &crate::effects::mask_store::Masks,
+    drops: &crate::effects::windscreen_drop_vars::WindscreenDrops,
+    effects: &crate::effects::owner::Effects,
+) {
+    crate::race::course_hash::log_mask_hashes(masks, drops, effects);
+}
+
+/// The hashes of what the stage's start leaves in the checkpoints and the race variables.
+pub fn started_hashes(race: &Race) {
+    crate::race::course_hash::log_started_hashes(race);
+}
+
+/// The step of a pixel's value into the running fold of the rescaled picture's pixels.
+pub fn fold_pixel(fold: u64, pixel: u32) -> u64 {
+    fold.rotate_left(5).wrapping_mul(0x0100_0000_01B3) ^ u64::from(pixel)
+}
+
+/// While the file `hold` in the remote folder exists, every loading bar frame lasts as many
+/// milliseconds as it holds, so that the loading screen can be photographed; the remote
+/// commands are answered meanwhile.
+pub fn hold_loading_frame(o: crate::owners::Owners<'static>) {
+    let Some(folder) = std::env::var_os("RC2K_REMOTE") else {
+        return;
+    };
+    let held = std::fs::read_to_string(std::path::Path::new(&folder).join("hold"));
+    if let Some(ms) = held.ok().and_then(|v| v.trim().parse::<u64>().ok()) {
+        // The test commands are answered while the frame is held (a window shot asked for in
+        // the hold is taken from the next frame).
+        for _ in 0..ms.div_ceil(100) {
+            poll(&o, &o.race.course);
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
+}
+
+/// With `RC2K_SIM_HASH` (a check, as `RC2K_FAN_HASH` for the drawing): the car blocks and the random state hashed after each tick and logged,
+/// so that two runs of a replay can be compared tick by tick (the simulation must stay
+/// bit-identical). The blocks are hashed by field path and value (`drive::sim_hash`), so the
+/// records' layout does not matter.
+pub fn sim_hash_step(race: &Race) {
+    use std::sync::OnceLock;
+    use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+    static ON: OnceLock<bool> = OnceLock::new();
+    static TICKS: AtomicU32 = AtomicU32::new(0);
+    if !*ON.get_or_init(|| std::env::var_os("RC2K_SIM_HASH").is_some()) {
+        return;
+    }
+    let mut groups = crate::drive::sim_hash::car_blocks_groups(race.shared.car_blocks.get());
+    let staging = race.replay.staging();
+    let mut bytes = vec![0; core::mem::size_of_val(staging)];
+    if crate::memory::cells::load_cells(staging, 0, &mut bytes).is_err() {
+        return;
+    }
+    groups.push(crate::drive::sim_hash::staging_group(&bytes));
+    let tick = TICKS.fetch_add(1, Relaxed);
+    if std::env::var_os("RC2K_SIM_FIELDS").is_some() && tick < 40 {
+        crate::drive::sim_hash::log_fields(race.shared.car_blocks.get(), tick);
+    }
+    crate::program_log::log(&format!(
+        "sim hash {tick}: {:016x}, random {:08x}",
+        crate::drive::sim_hash::total(&groups),
+        race.shared.random.state.get()
+    ));
+    // With `RC2K_SIM_CHUNKS` too: each car block's hash, to find which part of the blocks
+    // differs between two runs.
+    if std::env::var_os("RC2K_SIM_CHUNKS").is_some() {
+        let chunks: Vec<String> = groups
+            .iter()
+            .map(|(name, hash)| format!("{name}={:04x}", hash & 0xFFFF))
+            .collect();
+        crate::program_log::log(&format!("sim chunks {tick}: {}", chunks.join(" ")));
+    }
 }

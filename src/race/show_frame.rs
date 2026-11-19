@@ -60,20 +60,5 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
 /// Test switch (remote builds): `RC2K_LOSE_FRAMES=n` treats every n-th race frame's lock as
 /// refused, so the skipped-frame path can be run; other builds never lose a frame this way.
 fn lose_this_frame() -> bool {
-    #[cfg(feature = "remote")]
-    {
-        use std::sync::OnceLock;
-        use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
-        static EVERY: OnceLock<u32> = OnceLock::new();
-        static COUNT: AtomicU32 = AtomicU32::new(0);
-        let every = *EVERY.get_or_init(|| {
-            std::env::var("RC2K_LOSE_FRAMES")
-                .ok()
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(0)
-        });
-        every != 0 && COUNT.fetch_add(1, Relaxed) % every == every - 1
-    }
-    #[cfg(not(feature = "remote"))]
-    false
+    crate::remote::lose_this_frame()
 }

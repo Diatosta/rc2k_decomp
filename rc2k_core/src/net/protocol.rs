@@ -294,15 +294,24 @@ pub fn write_frame(stream: &mut (impl Write + ?Sized), bytes: &[u8]) -> std::io:
     stream.write_all(&frame)
 }
 
+/// The longest frame taken: above the welcome of a full session (64 players and 64 groups, each at
+/// the longest names, data and members), far below what a length field can claim.
+pub const FRAME_MOST: usize = 0x2_0000;
+
+/// A frame's bytes are read as they arrive and held only as far as they have come, so a peer
+/// that announces a long frame and sends nothing costs no memory.
 pub fn read_frame(stream: &mut (impl Read + ?Sized)) -> std::io::Result<Vec<u8>> {
     let mut n = [0u8; 4];
     stream.read_exact(&mut n)?;
     let n = u32::from_le_bytes(n) as usize;
-    if n > 1 << 20 {
-        return Err(std::io::Error::other("a frame past 1 MB"));
+    if n > FRAME_MOST {
+        return Err(std::io::Error::other("a frame past its limit"));
     }
-    let mut v = vec![0u8; n];
-    stream.read_exact(&mut v)?;
+    let mut v = Vec::with_capacity(n.min(0x1000));
+    stream.take(n as u64).read_to_end(&mut v)?;
+    if v.len() != n {
+        return Err(std::io::ErrorKind::UnexpectedEof.into());
+    }
     Ok(v)
 }
 
@@ -479,7 +488,7 @@ mod tests {
     }
 
     /// Guards the frame: its length as a little-endian dword, then the bytes; a longer one than
-    /// 1 MB is refused when read.
+    /// `FRAME_MOST` is refused when read; the bytes are taken as they come.
     #[test]
     fn a_frame_is_its_length_and_its_bytes() {
         let mut wire = Vec::new();
@@ -491,8 +500,22 @@ mod tests {
         assert_eq!(read_frame(&mut read).unwrap(), [9, 8]);
         // Nothing more: the end of the stream is an error, not an empty frame.
         assert!(read_frame(&mut read).is_err());
-        let mut long = std::io::Cursor::new(((1u32 << 20) + 1).to_le_bytes().to_vec());
+        let mut long = std::io::Cursor::new(((FRAME_MOST as u32) + 1).to_le_bytes().to_vec());
         assert!(read_frame(&mut long).is_err());
+        // A frame announced and cut short is an error too, with only what came held.
+        let mut cut =
+            std::io::Cursor::new([[0x00, 0x00, 0x01, 0x00].to_vec(), vec![7; 10]].concat());
+        assert_eq!(
+            read_frame(&mut cut).unwrap_err().kind(),
+            std::io::ErrorKind::UnexpectedEof
+        );
+        // The longest frame is taken whole.
+        let mut wire = Vec::new();
+        write_frame(&mut wire, &vec![5u8; FRAME_MOST]).unwrap();
+        assert_eq!(
+            read_frame(&mut std::io::Cursor::new(wire)).unwrap().len(),
+            FRAME_MOST
+        );
     }
 
     #[test]

@@ -44,7 +44,7 @@ pub fn draw_car_page(
     {
         let before = read(o.menus, record)?;
         let mut d = before;
-        let notice = crate::strings::load_language::notice_kind(o.strings);
+        let notice = crate::strings::locale::notice_kind(o.strings);
         let too_wide = rc2k_core::screens::car_pages::page(
             &mut GameScreen::<Font, Work>::new(canvas, o),
             page,

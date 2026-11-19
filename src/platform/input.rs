@@ -275,7 +275,6 @@ impl SdlBackend {
         }
         #[cfg(web)]
         crate::platform::web_pads::stop_sdl_driver();
-        #[cfg(feature = "remote")]
         crate::remote::stick_at_start();
         #[cfg(phone)]
         crate::platform::touch::attach_at_start();

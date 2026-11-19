@@ -61,7 +61,6 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
         _ => return Ok(()),
     };
     let clock = race.car_blocks().cars[0].step_clock.get();
-    #[cfg(feature = "remote")]
     if mode == "playing" {
         crate::remote::replay_tick(clock);
     }
