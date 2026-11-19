@@ -298,9 +298,12 @@ build_web() {
     [ "$PROFILE" = debug ] && web_flags+=(--debug)
     [ -n "${RC2K_FEATURES:-}" ] && web_flags+=(--features "$RC2K_FEATURES")
     tools/web/build.sh ${web_flags[@]+"${web_flags[@]}"}
+    # The saves page's save code module (the game's own save code, for the QR codes).
+    tools/web/build_codes.sh
     fresh_dist
     local out="target/web/wasm32-unknown-emscripten/$PROFILE"
-    cp "$out/rc2k.js" "$out/rc2k.wasm" tools/web/index.html tools/web/unzip.js tools/web/coi-serviceworker.js tools/web/saves.html tools/web/saves.js tools/web/serve.py "$DIST/"
+    cp "$out/rc2k.js" "$out/rc2k.wasm" tools/web/index.html tools/web/unzip.js tools/web/coi-serviceworker.js tools/web/saves.html tools/web/saves.js tools/web/codes_worker.js tools/web/serve.py "$DIST/"
+    cp "${CODES_TARGET_DIR:-target/web_codes}/wasm32-unknown-unknown/release/rc2k_web_codes.wasm" "$DIST/"
     echo "serve it with: python3 $DIST/serve.py $DIST"
 }
 

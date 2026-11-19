@@ -7,7 +7,13 @@
 // cannot place a file outside them.
 //
 // Messages in: {op: "export"} -> {exported: Uint8Array, files}; {op: "import", bytes: Uint8Array}
-// -> {imported: files, skipped}; {op: "scan"} -> {scanned: files}. Out on failure: {error}.
+// -> {imported: files, skipped}; {op: "scan"} -> {scanned: files}; {op: "codeFiles"} ->
+// {files: [{path, data}]} (what the save code reads, see below); {op: "writeFiles", files} ->
+// {written: files} (what an imported save code writes). Out on failure: {error}.
+//
+// The save code (`codes_worker.js`) reads the saved games and car set-ups, `var/hst.dat`,
+// `var/rc2k.toml` and `var/name.cfg`, and the game's language file (the first `.txt` in
+// `files/locale`, else in any folder of `files/`, named ":lexicon": the drivers' names are in it).
 
 const INSTALLED = ["home", ".local", "share", "rally-championship"];
 const VAR_FILES = ["hst.dat", "ral.dat", "ral.cfg", "rc2k.toml"];
@@ -237,11 +243,81 @@ async function doExport() {
   return { exported: makeZip(files), files: files.length };
 }
 
+// ---- the save code's files ----
+
+const CODE_SLOTS = [["savegame", /^svgame\d\d$/], ["carsetup", /^carset\d\d$/]];
+
+async function readAll(handle) {
+  return new Uint8Array(await (await handle.getFile()).arrayBuffer());
+}
+
+// The first `.txt` of a folder in name order, or null.
+async function firstText(dir) {
+  const names = [];
+  for await (const [n, h] of dir.entries()) if (h.kind === "file" && /\.txt$/i.test(n)) names.push([n, h]);
+  names.sort((a, b) => (a[0].toLowerCase() < b[0].toLowerCase() ? -1 : 1));
+  return names.length ? names[0][1] : null;
+}
+
+// The game's language file: `files/locale/*.txt`, else the first folder of `files/` that has one.
+async function lexicon(root) {
+  const files = await find(root, "files");
+  if (!files || files.handle.kind !== "directory") return null;
+  const locale = await find(files.handle, "locale");
+  const folders = [];
+  if (locale && locale.handle.kind === "directory") folders.push(locale.handle);
+  for await (const [, h] of files.handle.entries()) if (h.kind === "directory") folders.push(h);
+  for (const d of folders) {
+    const t = await firstText(d);
+    if (t) return t;
+  }
+  return null;
+}
+
+async function codeFiles() {
+  const root = await installedDir(false);
+  const out = [];
+  const save = await find(root, "savedata");
+  if (save && save.handle.kind === "directory") {
+    for (const [folder, pattern] of CODE_SLOTS) {
+      const dir = await find(save.handle, folder);
+      if (!dir || dir.handle.kind !== "directory") continue;
+      for await (const [name, h] of dir.handle.entries()) {
+        if (h.kind === "file" && pattern.test(name.toLowerCase())) {
+          out.push({ path: "savedata/" + folder + "/" + name.toLowerCase(), data: await readAll(h) });
+        }
+      }
+    }
+  }
+  const vars = await find(root, "var");
+  if (vars && vars.handle.kind === "directory") {
+    for (const name of ["hst.dat", "rc2k.toml", "name.cfg"]) {
+      const f = await find(vars.handle, name);
+      if (f && f.handle.kind === "file") out.push({ path: "var/" + name, data: await readAll(f.handle) });
+    }
+  }
+  const lex = await lexicon(root);
+  if (lex) out.push({ path: ":lexicon", data: await readAll(lex) });
+  return { files: out };
+}
+
+// Writes files an imported save code made; only the kept places (a code cannot name another).
+// `keptPath` allows `var/name.cfg` nowhere: the code never writes it.
+async function writeFiles(files) {
+  const places = files.map((f) => ({ parts: keptPath(f.path), data: f.data }));
+  if (places.some((p) => !p.parts)) throw new Error("The code names a file that is not a save.");
+  const root = await installedDir(true);
+  for (const p of places) await writeFile(root, p.parts, p.data);
+  return { written: places.length };
+}
+
 onmessage = async (m) => {
   try {
     if (m.data.op === "export") postMessage(await doExport());
     else if (m.data.op === "import") postMessage(await doImport(m.data.bytes));
     else if (m.data.op === "scan") postMessage({ scanned: (await gather()).length });
+    else if (m.data.op === "codeFiles") postMessage(await codeFiles());
+    else if (m.data.op === "writeFiles") postMessage(await writeFiles(m.data.files));
   } catch (e) {
     const gone = e && (e.name === "NotFoundError");
     postMessage({ error: gone ? "No saves found in this browser yet." : String(e && e.message ? e.message : e) });

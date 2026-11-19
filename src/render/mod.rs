@@ -418,6 +418,17 @@ pub fn frame_on_gpu() -> bool {
 
 /// The GPU's picture back in the canvas, if it holds the frame and something wants the true one.
 pub fn bring_back(target: &Target) {
+    if !GPU_HOLDS_FRAME.load(Relaxed) {
+        return;
+    }
+    let began = std::time::Instant::now();
+    bring_back_now(target);
+    READ_BACKS.fetch_add(1, Relaxed);
+    READ_BACK_MICROS.fetch_add(began.elapsed().as_micros() as u64, Relaxed);
+}
+
+/// `bring_back`, when the GPU holds the frame.
+fn bring_back_now(target: &Target) {
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     if GPU_HOLDS_FRAME.load(Relaxed)
         && let Some(gl) = gles::GPU.lock().unwrap().as_mut()
@@ -448,6 +459,63 @@ pub fn bring_back(target: &Target) {
         }
         // The picture written in place, unnoted.
         target.note_all_rows_written();
+    }
+}
+
+/// The frame's picture stretched to `size` (width, height) pixels, each the frame's pixel at its
+/// place scaled down in whole numbers, as 0xAARRGGBB dwords, rows top first: what a texture
+/// made from the screen reads, without bringing the whole frame back into the canvas. `None`
+/// when the GPU does not hold the frame or its backend cannot (the caller then brings the frame
+/// back and reads the canvas).
+pub fn stretched_frame(target: &Target, size: (u32, u32)) -> Option<Vec<u32>> {
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    {
+        if !GPU_HOLDS_FRAME.load(Relaxed) {
+            return None;
+        }
+        if let Some(gl) = gles::GPU.lock().unwrap().as_mut() {
+            let began = std::time::Instant::now();
+            // SAFETY: as below.
+            let canvas = unsafe { target.bytes() };
+            let picture = gl.stretched(target, canvas, (size.0 as usize, size.1 as usize));
+            READ_BACKS.fetch_add(1, Relaxed);
+            READ_BACK_MICROS.fetch_add(began.elapsed().as_micros() as u64, Relaxed);
+            return picture;
+        }
+        let mut gpu = gpu::GPU.lock().unwrap();
+        let gpu = gpu.as_mut()?;
+        let began = std::time::Instant::now();
+        // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
+        // nothing else reaches the canvas; no other slice of it lives.
+        let canvas = unsafe { target.bytes() };
+        // The canvas's size is `target`'s, as the card's frame (`read_stretched` checks).
+        let rows = canvas_rows::written_rows(target, canvas);
+        let screen = (target.width as u32, target.height as u32);
+        let picture = gpu.read_stretched(Some(rows), canvas, screen, size);
+        READ_BACKS.fetch_add(1, Relaxed);
+        READ_BACK_MICROS.fetch_add(began.elapsed().as_micros() as u64, Relaxed);
+        match picture {
+            Ok(Some(bytes)) => Some(
+                bytes
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|p| u32::from_le_bytes(*p))
+                    .collect(),
+            ),
+            Ok(None) => None,
+            Err(why) => {
+                crate::logfile::program_log::log(&format!(
+                    "render: the stretched frame did not come back: {why}"
+                ));
+                None
+            }
+        }
+    }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    {
+        let _ = (target, size);
+        None
     }
 }
 
@@ -972,6 +1040,8 @@ pub static PIXELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::
 /// The GPU's frames read back into the canvas, and the textures (and their bytes) sent up to
 /// it (for `platform::report_timing`): the costs that vary along a stage on the handheld.
 pub static READ_BACKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// The time the game's thread spent in those read-backs, in microseconds.
+pub static READ_BACK_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static UPLOADS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static UPLOAD_BYTES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 /// The bytes of the canvas and of the retained background sent up to the PC's GPU backend.

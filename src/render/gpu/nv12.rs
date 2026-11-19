@@ -30,13 +30,14 @@ impl Planes {
 
 impl Gpu {
     /// A pipeline that draws `fragment` over the whole of a target of `format`.
-    fn make_plane_pipeline(
+    pub(super) fn make_plane_pipeline(
         &self,
         fragment: ShaderCode,
         format: SDL_GPUTextureFormat,
+        uniforms: u32,
     ) -> Result<Pipeline, String> {
         let vertex = self.shader(OVERLAY_VERT, SDL_GPU_SHADERSTAGE_VERTEX, 0, 0)?;
-        let fragment = match self.shader(fragment, SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0) {
+        let fragment = match self.shader(fragment, SDL_GPU_SHADERSTAGE_FRAGMENT, 1, uniforms) {
             Ok(shader) => shader,
             Err(why) => {
                 self.device.release_shader(vertex);
@@ -76,9 +77,9 @@ impl Gpu {
             size.1 / 2,
             usage,
         )?;
-        let luma_pipeline = self.make_plane_pipeline(Y_FRAG, SDL_GPU_TEXTUREFORMAT_R8_UNORM)?;
+        let luma_pipeline = self.make_plane_pipeline(Y_FRAG, SDL_GPU_TEXTUREFORMAT_R8_UNORM, 0)?;
         let chroma_pipeline =
-            self.make_plane_pipeline(UV_FRAG, SDL_GPU_TEXTUREFORMAT_R8G8_UNORM)?;
+            self.make_plane_pipeline(UV_FRAG, SDL_GPU_TEXTUREFORMAT_R8G8_UNORM, 0)?;
         self.planes = Some(Planes {
             size,
             luma,

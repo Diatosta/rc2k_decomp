@@ -620,16 +620,23 @@ fn format_at(format: u32) -> TextureFormat {
 /// `d3d::copy_screen_to_texture` (the mirror's picture).
 pub fn copy_screen_to_system_texture(number: u32, figures: &crate::memory::session::Screen) {
     flush();
-    if let Some(screen) = screen(figures) {
-        crate::render::bring_back(&screen);
-    }
-    if number >= MOST {
-        return;
-    }
     let Some(screen) = screen(figures) else {
         return;
     };
-    let record = record_at(0, number).get();
+    let record = (number < MOST).then(|| record_at(0, number).get());
+    let wanted = record
+        .filter(|r| r.format != 0 && r.width != 0 && r.height != 0)
+        .map(|r| (r.width, r.height));
+    // The texture's pixels from the screen: the GPU's frame stretched to the texture's size on
+    // the card when it can (only those pixels come back), else the frame brought back whole
+    // into the canvas and read from there.
+    let stretched = wanted.and_then(|size| crate::render::stretched_frame(&screen, size));
+    if stretched.is_none() {
+        crate::render::bring_back(&screen);
+    }
+    let Some(record) = record else {
+        return;
+    };
     if record.format == 0 || record.width == 0 || record.height == 0 {
         return;
     }
@@ -661,12 +668,21 @@ pub fn copy_screen_to_system_texture(number: u32, figures: &crate::memory::sessi
     for y in 0..h {
         let sy = y * screen.height / h;
         let what = "the screen's row";
-        let row = rows
-            .read(sy as u32, 0, screen.width * 4, what)
-            .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+        // A row of the screen's pixels, unless the card has stretched them already.
+        let row = if stretched.is_some() {
+            Vec::new()
+        } else {
+            rows.read(sy as u32, 0, screen.width * 4, what)
+                .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
+        };
         for x in 0..w {
-            let sx = x * screen.width / w;
-            let p = u32::from_le_bytes(row[sx * 4..sx * 4 + 4].try_into().unwrap());
+            let p = match &stretched {
+                Some(picture) => picture[y * w + x],
+                None => {
+                    let sx = x * screen.width / w;
+                    u32::from_le_bytes(row[sx * 4..sx * 4 + 4].try_into().unwrap())
+                }
+            };
             let (red, green, blue) = (p >> 16 & 0xFF, p >> 8 & 0xFF, p & 0xFF);
             let texel = put(blue, masks[0]) | put(green, masks[1]) | put(red, masks[2]) | masks[3];
             let at = y * level.pitch as usize + x * bytes;

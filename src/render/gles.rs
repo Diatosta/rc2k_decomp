@@ -2181,7 +2181,6 @@ impl Front {
     /// The target's picture, with the canvas's written pixels, into the canvas (waits for the
     /// GL: the frame's whole work so far).
     pub fn bring_back(&mut self, target: &Target, canvas: &mut [u8]) {
-        super::READ_BACKS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.draw(target, canvas, CommandList::new());
         let (answer, picture) = channel();
         self.send(Job::ReadTarget(answer));
@@ -2206,6 +2205,47 @@ impl Front {
                 *t = [f[2], f[1], f[0], 0];
             }
         }
+    }
+}
+
+impl Front {
+    /// The target's picture stretched to `size` (width, height) pixels as 0xAARRGGBB dwords (alpha
+    /// 0), each the frame's pixel at its place scaled down in whole numbers, rows top first; the
+    /// canvas is not written (waits for the GL as `bring_back` does). `None` when the frame is
+    /// not `screen` pixels. The handheld's panel keeps bringing the frame back (not tried there).
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn stretched(
+        &mut self,
+        target: &Target,
+        canvas: &mut [u8],
+        size: (usize, usize),
+    ) -> Option<Vec<u32>> {
+        let (width, height) = (self.size.0 as usize, self.size.1 as usize);
+        if (target.width, target.height) != (width, height) || size.0 == 0 || size.1 == 0 {
+            return None;
+        }
+        self.draw(target, canvas, CommandList::new());
+        let (answer, picture) = channel();
+        self.send(Job::ReadTarget(answer));
+        let Ok(picture) = picture.recv() else {
+            crate::fatal::raise::end(
+                "render::gles",
+                crate::errors::BadInput("the GL's thread has ended"),
+            );
+        };
+        let mut out = Vec::with_capacity(size.0 * size.1);
+        for y in 0..size.1 {
+            // The GL's rows come bottom first.
+            let row = height - 1 - y * height / size.1;
+            let row = &picture[row * width * 4..(row + 1) * width * 4];
+            for x in 0..size.0 {
+                let at = x * width / size.0 * 4;
+                out.push(
+                    u32::from(row[at]) << 16 | u32::from(row[at + 1]) << 8 | u32::from(row[at + 2]),
+                );
+            }
+        }
+        Some(out)
     }
 }
 
