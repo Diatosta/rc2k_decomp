@@ -6,7 +6,7 @@
 //!
 //! Refuses a null particle or ring (an entry to take), before anything.
 
-use crate::effects::blocks::{particle, set_particle};
+use crate::effects::blocks::{ParticleKind, read_particle, update_particle};
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
@@ -18,9 +18,9 @@ use crate::race::owner_frame::Frame;
 
 const FULL: u32 = 0xFFF;
 const COUNT: u32 = 8;
-/// Per axis (place, last place and motion byte offsets in a particle); its two factors are
-/// `PARTICLE_TUNING.trail_axes[2 n]` and `[2 n + 1]`.
-const AXES: [(u32, u32, u32); 3] = [(0xC, 0x18, 0x28), (0x10, 0x1C, 0x2C), (0x14, 0x20, 0x34)];
+/// The three axes (x, y, z); axis `n`'s two factors are `PARTICLE_TUNING.trail_axes[2 n]` and
+/// `[2 n + 1]`.
+const AXES: [usize; 3] = [0, 1, 2];
 const LIFE: u32 = 300;
 
 /// The entries it takes, from the ring's first free one along the links.
@@ -38,7 +38,7 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
             if e == 0 {
                 break;
             }
-            e = particle(particles, e, 0)?;
+            e = read_particle(particles, e)?.before;
             out.push(e);
         }
         out
@@ -67,11 +67,10 @@ pub(super) fn trail_particles(
             if used == FULL {
                 continue;
             }
-            let e = particle(particles, ring.pool.free.get(), 0)?;
+            let e = read_particle(particles, ring.pool.free.get())?.before;
             ring.pool.free.set(e);
             ring.pool.used.set(used.wrapping_add(1));
-            let put = |o: u32, v: u32| set_particle(particles, e, o, v);
-            put(8, 4)?;
+            update_particle(particles, e, |q| q.kind = ParticleKind::Trail as u32)?;
             let s = effects
                 .setup
                 .work
@@ -86,61 +85,58 @@ pub(super) fn trail_particles(
                 bh::int((s & 0xFFFF) as i32) * bh::ld(k1) * bh::ld(k2),
             ));
             let radius = ring.pool.burst_radius.get();
-            for (place, last, _) in AXES {
-                put(
-                    place,
-                    x87::toward(
-                        particle(particles, p, place)?,
-                        particle(particles, p, last)?,
-                        radius,
-                    )
-                    .to_bits(),
-                )?;
+            for axis in AXES {
+                let toward = x87::toward(
+                    read_particle(particles, p)?.place(axis),
+                    read_particle(particles, p)?.last_place(axis),
+                    radius,
+                )
+                .to_bits();
+                update_particle(particles, e, |q| q.set_place(axis, toward))?;
             }
-            for (n, (place, last, motion)) in AXES.into_iter().enumerate() {
-                put(
-                    motion,
-                    bh::st(
-                        (bh::ld(particle(particles, p, last)?)
-                            - bh::ld(particle(particles, p, place)?))
-                            * bh::ld(effects.kinds.particle_tuning.trail_axes[2 * n].get())
-                            + bh::ld(particle(particles, p, motion)?)
-                                * bh::ld(effects.kinds.particle_tuning.trail_axes[2 * n + 1].get()),
-                    ),
-                )?;
+            for axis in AXES {
+                let tuning = &effects.kinds.particle_tuning;
+                let motion = bh::st(
+                    (bh::ld(read_particle(particles, p)?.last_place(axis))
+                        - bh::ld(read_particle(particles, p)?.place(axis)))
+                        * bh::ld(tuning.trail_axes[2 * axis].get())
+                        + bh::ld(read_particle(particles, p)?.motion(axis))
+                            * bh::ld(tuning.trail_axes[2 * axis + 1].get()),
+                );
+                update_particle(particles, e, |q| q.set_motion(axis, motion))?;
             }
+            let own = read_particle(particles, e)?;
             let (moved, _) = jitter_point(
                 [
                     extended(effects.kinds.particle_tuning.trail_spread.get()),
-                    extended(particle(particles, e, 0x34)?),
-                    extended(particle(particles, e, 0x2C)?),
-                    extended(particle(particles, e, 0x28)?),
+                    extended(own.motion_z),
+                    extended(own.motion_y),
+                    extended(own.motion_x),
                 ],
                 effects,
             );
-            put(0x34, rounded(moved[0]))?;
-            put(0x2C, rounded(moved[1]))?;
-            put(0x28, rounded(moved[2]))?;
+            update_particle(particles, e, |q| {
+                q.motion_z = rounded(moved[0]);
+                q.motion_y = rounded(moved[1]);
+                q.motion_x = rounded(moved[2]);
+            })?;
             let [a, b] = effects
                 .kinds
                 .particle_tuning
                 .trail_size_k
                 .each_ref()
                 .map(crate::memory::session::PlainFloat::get);
-            put(
-                0x38,
-                x87::times_plus_to_int(a, particle(particles, p, 0x2C)?, b) as u32,
-            )?;
-            put(0x3C, 0xFF00_0000)?;
-            put(0x44, LIFE)?;
-            put(
-                0x40,
-                x87::over_int(&effects.kinds.particle_tuning.trail_life_k, LIFE as i32).to_bits(),
-            )?;
-            put(
-                0x24,
-                x87::loaded(&frame.matrices.get().view_place[13]).to_bits(),
-            )?;
+            let size = x87::times_plus_to_int(a, read_particle(particles, p)?.motion_y, b) as u32;
+            let colour_step =
+                x87::over_int(&effects.kinds.particle_tuning.trail_life_k, LIFE as i32).to_bits();
+            let ground = x87::loaded(&frame.matrices.get().view_place[13]).to_bits();
+            update_particle(particles, e, |q| {
+                q.size = size;
+                q.colour = 0xFF00_0000;
+                q.life = LIFE;
+                q.colour_step = colour_step;
+                q.ground = ground;
+            })?;
         }
     }
     Ok(())

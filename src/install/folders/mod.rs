@@ -42,7 +42,7 @@ pub trait Folders {
 
     /// The folder at `at` (that form) and those above it made; whether it
     /// worked.
-    fn make(at: crate::memory::place::BytePlace) -> Result<bool, Refused>;
+    fn make(at: &[u8]) -> Result<bool, Refused>;
 
     /// The room where the folder (that form) would go.
     fn room(folder: &[u8], system: &crate::system::owner::System) -> Room;

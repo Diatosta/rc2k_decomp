@@ -29,12 +29,12 @@ made when it opens; its pieces are a plain list made by `lay_out_pieces.rs`.
 | `check_at_start` | `src/install/check_at_start.rs` | The check of the installation made when the game starts. |
 | `add_start_menu_items`, `remove_start_menu_items` | `src/install/shortcuts.rs` | The menu entries, per system. |
 | `Folders` | `src/install/folders/mod.rs` | Where things go on each system (`windows.rs`, `unix.rs`). |
-| `run_script` | `src/install/run_script.rs` | Runs the install script's steps. |
+| `run_script` | `src/install/run_script.rs` | Runs the install script's steps, building each name as text and handing it to the scans. |
 
 ## How it is laid out
 
-One function per file. Groups: `*_page.rs` (a page each), `key_*`, `value_*`, `choice_*` and
-`item_*` (how a page's items react to keys), `*_pieces.rs` and `draw_*` (page layout),
+One function per file. Groups: `page_*.rs` (the pages' state, keys and actions on the page model
+of `rc2k_core::install::model`), `*_pieces.rs` and `draw_*` (page layout),
 `read_*` / `write_*` (the files' records), `folders/` (per system).
 
 ## Calls and callers

@@ -9,7 +9,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::race::viewer_list::ViewerItem;
-use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};
+use crate::race::viewer_state_store::{ReplayViewBlock, SwitchTable, ViewerPicture};
 
 fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInput> {
     Ok(crate::race::viewer::camera_byte_at(
@@ -31,19 +31,21 @@ pub(super) fn draw_viewer_item(
     let panel = race.viewer_panel();
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
     let uv = match ReplayViewBlock::item_picture(replay, index)? {
-        ViewerPicture::Rectangle(ida) => panel.rectangle(ida)?,
-        ViewerPicture::Switch(0) => {
+        ViewerPicture::Rectangle(offset) => panel.rectangle_at(offset)?,
+        ViewerPicture::Switch(SwitchTable::A) => {
             let n = camera_byte(race, replay, switch_byte(index as u8) as usize)?;
-            panel.switch_picture(0, n)?
+            panel.switch_picture(SwitchTable::A.number(), n)?
         }
-        ViewerPicture::Switch(1) => {
+        ViewerPicture::Switch(SwitchTable::B) => {
             let layout = camera_byte(race, replay, 5)?;
             panel.switch_picture(
-                1,
+                SwitchTable::B.number(),
                 rc2k_core::race::viewer::layout_picture(layout.min(0xFF) as u8),
             )?
         }
-        ViewerPicture::Switch(_) => panel.switch_picture(2, camera_byte(race, replay, 4)?)?,
+        ViewerPicture::Switch(SwitchTable::C) => {
+            panel.switch_picture(SwitchTable::C.number(), camera_byte(race, replay, 4)?)?
+        }
     };
     let bytes =
         ReplayViewBlock::item_place(replay, index)?.read_array::<16>("a viewer item's place")?;

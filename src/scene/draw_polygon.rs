@@ -38,7 +38,6 @@ use crate::scene::submit_polygon::{self, submit_polygon};
 
 // ---- game data ----
 
-pub const ENTRY_LEN: usize = 0x44;
 pub const ENTRIES: u32 = 0x80;
 pub const MOST: u32 = 0x100;
 const FADE_TEXTURE: u32 = 0xC0;

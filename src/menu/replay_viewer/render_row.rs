@@ -57,10 +57,11 @@ pub fn draw_button(
     }
     let replay = &race.replay;
     let panel = race.viewer_panel();
-    let ViewerPicture::Rectangle(ida) = ReplayViewBlock::item_picture(replay, CAMERA_ITEM)? else {
+    let ViewerPicture::Rectangle(offset) = ReplayViewBlock::item_picture(replay, CAMERA_ITEM)?
+    else {
         return Ok(());
     };
-    let uv = panel.rectangle(ida)?;
+    let uv = panel.rectangle_at(offset)?;
     let place = |index: u32| -> Result<[u32; 4], Refused> {
         let bytes = ReplayViewBlock::item_place(replay, index)?
             .read_array::<16>("a viewer item's place")?;

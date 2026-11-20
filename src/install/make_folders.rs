@@ -5,40 +5,35 @@
 //! Refuses a scan of 0x400 bytes from the path's start and a UNC path without its share's `\`.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::installer::{make_dir, rb, rw, set_cd, wb};
-use crate::memory::place::BytePlace;
+use crate::files::directories::{make_directory, set_current_directory};
 
-const LIMIT: u32 = 0x400;
+const LIMIT: usize = 0x400;
 
 /// A path that does not end in `\\`: the walk looks for the next one past its end.
 const PAST_END: BadInput =
     BadInput("a path that does not end in \\ (the original reads past its end)");
 
-/// The folders of `path` gone into, made where missing; whether it worked.
-pub fn make_folders(path: impl Into<BytePlace>) -> Result<bool, Refused> {
+/// The folders of `path` (its text, no NUL) gone into, made where missing; whether it worked.
+pub fn make_folders(path: &[u8]) -> Result<bool, Refused> {
     use crate::install::folders::{Folders, Native};
-    <Native as Folders>::make(path.into())
+    <Native as Folders>::make(path)
 }
 
-/// The Windows walk (`install::folders`' rules); `at` the byte the walk is on, as an offset
-/// from the path's start.
+/// The Windows walk (`install::folders`' rules) over the path's text; `at` the byte the walk is
+/// on.
 #[cfg_attr(not(windows), allow(dead_code))] // reason: the Windows rules' and the tests'
-pub fn walk(path: BytePlace) -> Result<bool, Refused> {
-    let byte = |n: u32| rb(path.add(n));
-    let put = |n: u32, b: u8| wb(path.add(n), b);
-    let mut at = 0u32;
-    let start = rw(path);
-    if (start >> 8) as u8 == b':' {
+pub fn walk(path: &[u8]) -> Result<bool, Refused> {
+    // The text ends at its NUL: every byte past it reads as 0.
+    let byte = |n: usize| path.get(n).copied().unwrap_or(0);
+    // The path cut before byte `n`, as the folder calls take it.
+    let cut_at = |n: usize| &path[..n.min(path.len())];
+    let mut at = 0usize;
+    if byte(1) == b':' {
         at += 2;
-        // The byte after is taken out and a NUL put in its place.
-        let kept = byte(at + 1);
-        put(at + 1, 0);
-        let done = set_cd(path);
-        put(at + 1, kept);
-        if !done {
+        if !set_current_directory(cut_at(at + 1)) {
             return Ok(false);
         }
-    } else if start == 0x5C5C {
+    } else if byte(0) == b'\\' && byte(1) == b'\\' {
         at += 1;
         for _ in 0..2 {
             loop {
@@ -50,10 +45,7 @@ pub fn walk(path: BytePlace) -> Result<bool, Refused> {
                 }
             }
         }
-        put(at, 0);
-        let done = set_cd(path);
-        put(at, b'\\');
-        if !done {
+        if !set_current_directory(cut_at(at)) {
             return Ok(false);
         }
     }
@@ -67,22 +59,20 @@ pub fn walk(path: BytePlace) -> Result<bool, Refused> {
             match byte(at) {
                 b'\\' => break,
                 // The path's end without its closing `\`: the last folder is gone into or made
-                // at the NUL, without reading past the path's own buffer.
-                0 => return Ok(set_cd(path) || (make_dir(path) && set_cd(path))),
+                // at the end, without reading past the path's own buffer.
+                0 => {
+                    return Ok(set_current_directory(path)
+                        || (make_directory(path) && set_current_directory(path)));
+                }
                 _ => {}
             }
         }
-        // Each call with the path cut at the `\\`, put back after it.
-        let cut = |call: fn(BytePlace) -> bool| {
-            put(at, 0);
-            let done = call(path);
-            put(at, b'\\');
-            done
-        };
-        if cut(set_cd) {
+        // Each call with the path cut before the `\\`.
+        let folder = cut_at(at);
+        if set_current_directory(folder) {
             continue;
         }
-        if !cut(make_dir) || !cut(set_cd) {
+        if !make_directory(folder) || !set_current_directory(folder) {
             return Ok(false);
         }
     }

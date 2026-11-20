@@ -781,11 +781,6 @@ impl<F: Fn(u8) -> u8> ListSource for Source<'_, F> {
         }
     }
 
-    fn choice(&self, _k: u32, _c: u32) -> u16 {
-        // Only a choice item is asked for its choices, and the model has none.
-        0
-    }
-
     fn text_font(&self, font: u8) -> u8 {
         (self.text_font)(font)
     }

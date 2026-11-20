@@ -54,29 +54,6 @@ pub fn refuse(e: crate::errors::BadInput) -> ! {
     crate::fatal::raise::end("install", e)
 }
 
-#[track_caller]
-pub fn rb(at: impl Into<BytePlace>) -> u8 {
-    at.into()
-        .read(1, "an installer byte")
-        .unwrap_or_else(|e| refuse(e))[0]
-}
-
-#[track_caller]
-pub fn wb(at: impl Into<BytePlace>, v: u8) {
-    at.into()
-        .write(&[v], "an installer byte")
-        .unwrap_or_else(|e| refuse(e));
-}
-
-#[track_caller]
-pub(super) fn rw(at: impl Into<BytePlace>) -> u16 {
-    let b = at
-        .into()
-        .read(2, "an installer word")
-        .unwrap_or_else(|e| refuse(e));
-    u16::from_le_bytes([b[0], b[1]])
-}
-
 pub fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }
@@ -114,11 +91,6 @@ fn path_text(path: impl Into<BytePlace>) -> Vec<u8> {
 /// Makes `path` the current directory; whether it worked.
 pub(super) fn set_cd(path: impl Into<BytePlace>) -> bool {
     crate::files::directories::set_current_directory(&path_text(path))
-}
-
-/// Makes the folder `path`; whether it worked.
-pub(super) fn make_dir(path: impl Into<BytePlace>) -> bool {
-    crate::files::directories::make_directory(&path_text(path))
 }
 
 /// `files::remove_directory` (remove a directory): whether it worked.

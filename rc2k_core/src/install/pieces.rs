@@ -1,7 +1,6 @@
 //! A page's pieces made from its list, measured and drawn. A list: flags (0x40 of 0xC0 hidden),
 //! the item count (0: 0x100), the title string, then its items, 0x10 bytes each: a kind (low
-//! four bits: 1 link, 2 choice, 3 value, 4 edit, 5 text, 6 action) and marks, a count or a
-//! font, its string, and a choice's table (a word a choice, high bits marks) or an edit's
+//! four bits: 1 link, 4 edit, 5 text, 6 action) and marks, a font, its string, and an edit's
 //! record. A piece (`crate::install::layout::Piece`): its item's kind and marks, its own kind
 //! (0x10 and up: drawn by its item), its string, its item, then place and size.
 
@@ -10,8 +9,7 @@ pub(crate) const MOST_PIECES: u32 = 85;
 /// The fatal error of an item of a kind the installer does not know.
 pub const UNKNOWN_KIND: u32 = 0x80A9_7451;
 
-/// A list as the layout reads it: its header, its items by number, a choice item's table and a
-/// text item's font.
+/// A list as the layout reads it: its header, its items by number and a text item's font.
 pub trait ListSource {
     /// The list's flags.
     fn flags(&self) -> u8;
@@ -19,10 +17,8 @@ pub trait ListSource {
     fn count(&self) -> u8;
     /// The string id of its title.
     fn title_text(&self) -> u16;
-    /// Item `k`'s first four bytes: its kind and marks, its count or font, its string.
+    /// Item `k`'s first four bytes: its kind and marks, its font, its string.
     fn item(&self, k: u32) -> Item;
-    /// Choice `c` of item `k`'s table (a choice item): a string, its high bits marks.
-    fn choice(&self, k: u32, c: u32) -> u16;
     /// The font of a text item's font number.
     fn text_font(&self, font: u8) -> u8;
 }
@@ -32,7 +28,7 @@ pub trait ListSource {
 pub struct Item {
     /// The kind (low four bits) and marks.
     pub first: u8,
-    /// A choice's number of choices, a text's font number.
+    /// A text's font number.
     pub count: u8,
     /// The item's string id.
     pub text: u16,
@@ -60,20 +56,13 @@ pub enum LayoutError {
 pub fn count(list: &impl ListSource) -> Result<u32, LayoutError> {
     let mut n = if hidden(list.flags()) { 0 } else { 1 };
     for k in 0..count_of(list.count()) {
-        let item = list.item(k);
-        let b = item.first;
+        let b = list.item(k).first;
         if hidden(b) {
             continue;
         }
         n += match b & 0xF {
             1 | 5 | 6 => 1,
-            3 => 2,
             4 => 1 + (b & 0x10 == 0) as u32,
-            2 => {
-                1 + (0..count_of(item.count))
-                    .filter(|&c| !hidden((list.choice(k, c) >> 8) as u8))
-                    .count() as u32
-            }
             _ => return Err(LayoutError::UnknownKind),
         };
     }
@@ -98,9 +87,8 @@ pub struct NewPiece {
 }
 
 /// The pieces of `list`, in order: the title (kind 0x10) unless the list is hidden; for each item
-/// not hidden, a link a piece of kind 0, a choice a label (1) and a piece (2) for each choice not
-/// hidden, a value a label and a piece (0x12), an edit the same but with 0x10 one piece (0x12, the
-/// label's string), a text kind 0x10 with its font's bits, an action 0x14. Refused, before any:
+/// not hidden, a link a piece of kind 0, an edit a label (1) and a piece (0x12), or with 0x10 one
+/// piece (0x12, the label's string), a text kind 0x10 with its font's bits, an action 0x14. Refused, before any:
 /// an unknown kind, more than `MOST_PIECES`.
 pub fn lay_out(list: &impl ListSource) -> Result<Vec<NewPiece>, LayoutError> {
     if count(list)? > MOST_PIECES {
@@ -125,27 +113,6 @@ pub fn lay_out(list: &impl ListSource) -> Result<Vec<NewPiece>, LayoutError> {
         let (text, owner) = (item.text, Owner::Item(k));
         match b & 0xF {
             1 => out.push(piece(b, 0, text, owner)),
-            2 => {
-                out.push(piece(b, 1, text, owner));
-                for c in 0..count_of(item.count) {
-                    let word = list.choice(k, c);
-                    let high = (word >> 8) as u8 & 0xC0;
-                    if high == 0x40 {
-                        continue;
-                    }
-                    let text = word.wrapping_sub((high as u16) << 8);
-                    out.push(piece(high | (b & 0x3F), 2, text, owner));
-                }
-            }
-            3 => {
-                out.push(piece(b, 1, text, owner));
-                out.push(NewPiece {
-                    marks: b,
-                    kind: 0x12,
-                    text: None,
-                    owner,
-                });
-            }
             4 => {
                 // With 0x10 the value's piece goes over the label's, keeping its string.
                 let label = b & 0x10 != 0;
@@ -233,7 +200,6 @@ mod tests {
     struct List {
         flags: u8,
         items: Vec<(u8, u8, u16)>,
-        choices: Vec<u16>,
     }
 
     impl ListSource for List {
@@ -250,42 +216,31 @@ mod tests {
             let (first, count, text) = self.items[k as usize];
             Item { first, count, text }
         }
-        fn choice(&self, _k: u32, c: u32) -> u16 {
-            self.choices[c as usize]
-        }
         fn text_font(&self, font: u8) -> u8 {
             font + 0x20
         }
     }
 
-    fn list(flags: u8, items: &[(u8, u8, u16)], choices: &[u16]) -> List {
+    fn list(flags: u8, items: &[(u8, u8, u16)]) -> List {
         List {
             flags,
             items: items.to_vec(),
-            choices: choices.to_vec(),
         }
     }
 
     #[test]
     fn laying_out() {
-        let m = list(
-            0,
-            &[(1, 0, 0x10), (2, 3, 0x11), (4, 0, 0x12)],
-            &[0x30, 0x4031, 0x8032],
-        );
+        let m = list(0, &[(1, 0, 0x10), (4, 0, 0x12)]);
         let p = lay_out(&m).unwrap();
         assert_eq!(count(&m), Ok(p.len() as u32));
         assert_eq!(p[0].owner, Owner::Title);
-        assert_eq!(p[4].owner, Owner::Item(1));
+        assert_eq!(p[2].owner, Owner::Item(1));
         let kinds: Vec<_> = p.iter().map(|p| (p.marks, p.kind, p.text)).collect();
         assert_eq!(
             kinds,
             [
                 (5, 0x10, Some(0x77)),
                 (1, 0, Some(0x10)),
-                (2, 1, Some(0x11)),
-                (2, 2, Some(0x30)),
-                (0x82, 2, Some(0x32)),
                 (4, 1, Some(0x12)),
                 (4, 0x12, None),
             ]
@@ -293,7 +248,6 @@ mod tests {
         let m = list(
             0x40,
             &[(0x14, 0, 0x12), (5, 2, 0x13), (0x43, 0, 0), (6, 0, 0x14)],
-            &[],
         );
         let p = lay_out(&m).unwrap();
         let kinds: Vec<_> = p.iter().map(|p| (p.marks, p.kind, p.text)).collect();
@@ -305,16 +259,16 @@ mod tests {
                 (6, 0x14, Some(0x14))
             ]
         );
-        assert_eq!(
-            lay_out(&list(0, &[(7, 0, 0)], &[])),
-            Err(LayoutError::UnknownKind)
-        );
-        let many = vec![(3u8, 0u8, 0u16); 43];
-        assert_eq!(lay_out(&list(0, &many, &[])), Err(LayoutError::TooMany));
-        assert_eq!(
-            lay_out(&list(0x40, &many[..42], &[])).map(|p| p.len()),
-            Ok(84)
-        );
+        // The kinds of choices and values are not the installer's.
+        for kind in [2, 3, 7] {
+            assert_eq!(
+                lay_out(&list(0, &[(kind, 0, 0)])),
+                Err(LayoutError::UnknownKind)
+            );
+        }
+        let many = vec![(4u8, 0u8, 0u16); 43];
+        assert_eq!(lay_out(&list(0, &many)), Err(LayoutError::TooMany));
+        assert_eq!(lay_out(&list(0x40, &many[..42])).map(|p| p.len()), Ok(84));
     }
 
     #[test]

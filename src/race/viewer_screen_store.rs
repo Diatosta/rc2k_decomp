@@ -326,7 +326,12 @@ impl ViewerPanelBlock {
                 "a switch picture's name off the panel",
             ));
         }
-        crate::memory::cells::load_value(self, ida - START)
+        self.rectangle_at(ida - START)
+    }
+
+    /// The rectangle (four dwords) at byte `offset` of the panel.
+    pub fn rectangle_at(&self, offset: usize) -> Result<[u32; 4], crate::errors::BadInput> {
+        crate::memory::cells::load_value(self, offset)
     }
 
     /// The dword at byte `at` of the tail: unaligned, so made of the two cells it spans.

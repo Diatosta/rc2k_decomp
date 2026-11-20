@@ -14,7 +14,7 @@
 use crate::errors::Refused;
 use crate::install::installer::{
     copy_picture, delete_file, lock, normalise, pause, remove_dir, run_frame, set_cd, show,
-    store_text, text_at, unlock, wb,
+    store_text, text_at, unlock,
 };
 
 /// `path_b` = `paths.installed` + name #index of `table`, NUL-ended.
@@ -106,10 +106,7 @@ pub fn uninstall(
     normalise(&install.names.source, &install.paths.installed)?;
     let whole = whole_folder(install);
     set_cd(&install.paths.installed);
-    i::run_script::run_script(
-        install,
-        crate::memory::place::BytePlace::from(&install.names.script),
-    )?;
+    i::run_script::run_script(install, &install.names.script.read())?;
     if install.run.file_count.get() != 0 {
         let mut n = 0;
         loop {
@@ -137,7 +134,7 @@ pub fn uninstall(
     }
     pause(o, 1000);
     install.names.status.set(0);
-    wb(&install.names.source, 0);
+    install.names.source.set(0, 0);
     i::record::write_installed(install);
     install.run.remove_items.set(1);
     install.flags.installing.set(false);

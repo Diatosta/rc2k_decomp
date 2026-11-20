@@ -58,7 +58,6 @@ pub(crate) mod run_installer;
 mod run_page;
 mod run_pages;
 mod run_script;
-mod script_name;
 mod shortcuts;
 mod show_backdrop;
 mod store;

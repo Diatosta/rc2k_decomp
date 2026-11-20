@@ -24,7 +24,7 @@
 //! than 0, 4, 8, 9 and a colour index out of its table, and its callees' own refusals (a broken
 //! ring). A particle is updated in place under one lock of the ring.
 
-use crate::effects::blocks::Particle;
+use crate::effects::blocks::{Particle, ParticleKind};
 use crate::effects::emit_exhaust_smoke::ExhaustSet;
 use crate::effects::emit_rolling_dust::{RollingChoice, RollingSet};
 use crate::effects::emit_rolling_particles_rated::RollingRatedSet;
@@ -46,36 +46,13 @@ const TRAIL_COLOURS: i32 = 298;
 const BURST_COLOURS_LEN: i32 = 0x2000;
 const BIGGER: u32 = 0x386A0;
 
-/// The dwords of a particle by name (indices into its dwords).
-mod at {
-    pub const PREV: usize = 0;
-    pub const NEXT: usize = 1;
-    pub const KIND: usize = 2;
-    pub const X: usize = 3;
-    pub const Y: usize = 4;
-    pub const Z: usize = 5;
-    pub const LAST_X: usize = 6;
-    pub const LAST_Y: usize = 7;
-    pub const LAST_Z: usize = 8;
-    pub const GROUND: usize = 9;
-    pub const MOTION_X: usize = 10;
-    pub const MOTION_Y: usize = 11;
-    pub const LIFT: usize = 12;
-    pub const MOTION_Z: usize = 13;
-    pub const SIZE: usize = 14;
-    pub const COLOUR: usize = 15;
-    pub const COLOUR_STEP: usize = 16;
-    pub const LIFE: usize = 17;
-    pub const COLOURS_PLACE: usize = 18;
-}
-
 /// A kind's colour index (life times the colour's step), checked against its table.
 fn colour_index(p: &Particle, life: u32) -> Result<i32, BadInput> {
-    let i = x87::int_times_to_int(life as i32, p[at::COLOUR_STEP]);
-    let ok = match p[at::KIND] {
-        4 => (0..TRAIL_COLOURS).contains(&i),
+    let i = x87::int_times_to_int(life as i32, p.colour_step);
+    let ok = match ParticleKind::try_from(p.kind) {
+        Ok(ParticleKind::Trail) => (0..TRAIL_COLOURS).contains(&i),
         _ => {
-            let off = (p[at::COLOURS_PLACE] as i32).wrapping_add(i.wrapping_mul(4));
+            let off = (p.colours_place as i32).wrapping_add(i.wrapping_mul(4));
             i >= 0 && (0..=BURST_COLOURS_LEN - 4).contains(&off)
         }
     };
@@ -107,91 +84,91 @@ enum Outcome {
 
 /// The place moved by the motion times the ticks `t` (the lift too for the burst kinds).
 fn move_place(p: &mut Particle, t: i32, with_up: bool) {
-    p[at::X] = x87::plus_times_int(p[at::X], p[at::MOTION_X], t).to_bits();
-    p[at::Y] = if with_up {
-        bh::st((bh::ld(p[at::MOTION_Y]) + bh::ld(p[at::LIFT])) * bh::int(t) + bh::ld(p[at::Y]))
+    p.x = x87::plus_times_int(p.x, p.motion_x, t).to_bits();
+    p.y = if with_up {
+        bh::st((bh::ld(p.motion_y) + bh::ld(p.lift)) * bh::int(t) + bh::ld(p.y))
     } else {
-        x87::plus_times_int(p[at::Y], p[at::MOTION_Y], t).to_bits()
+        x87::plus_times_int(p.y, p.motion_y, t).to_bits()
     };
-    p[at::Z] = x87::plus_times_int(p[at::Z], p[at::MOTION_Z], t).to_bits();
+    p.z = x87::plus_times_int(p.z, p.motion_z, t).to_bits();
 }
 
 /// The colour gain: the tuning cell holds a whole number, so its bits are read as one.
 fn gain_colour(p: &mut Particle, k: &PlainFloat, t: i32) {
-    p[at::COLOUR] = x87::int_times_int_plus_int(k.bits() as i32, t, p[at::COLOUR] as i32) as u32;
+    p.colour = x87::int_times_int_plus_int(k.bits() as i32, t, p.colour as i32) as u32;
 }
 
 fn keep_last(p: &mut Particle) {
-    p[at::LAST_X] = p[at::X];
-    p[at::LAST_Y] = p[at::Y];
-    p[at::LAST_Z] = p[at::Z];
+    p.last_x = p.x;
+    p.last_y = p.y;
+    p.last_z = p.z;
 }
 
 fn place(p: &Particle) -> [[u8; 10]; 3] {
-    [extended(p[at::X]), extended(p[at::Y]), extended(p[at::Z])]
+    [extended(p.x), extended(p.y), extended(p.z)]
 }
 
 /// The update of a particle by its kind (see the header), in place; what to do after it.
 fn advance(p: &mut Particle, effects: &Effects, ring: &Ring) -> Result<Outcome, BadInput> {
     let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
     let tuning = &effects.kinds.particle_tuning;
-    Ok(match p[at::KIND] {
-        0 => {
+    Ok(match ParticleKind::try_from(p.kind)? {
+        ParticleKind::Dust => {
             move_place(p, t, false);
-            p[at::MOTION_Y] = x87::plus_times_int(p[at::MOTION_Y], &tuning.dust[0], t).to_bits();
+            p.motion_y = x87::plus_times_int(p.motion_y, &tuning.dust[0], t).to_bits();
             gain_colour(p, &tuning.dust[1], t);
-            let s = x87::compare_status(&tuning.dust[2], p[at::MOTION_Y]);
+            let s = x87::compare_status(&tuning.dust[2], p.motion_y);
             effects.setup.work.fpu_status.set(s as u32);
             if s != 0x100 {
                 Outcome::Burst
-            } else if p[at::MOTION_Y] & 0x8000_0000 == 0 {
+            } else if p.motion_y & 0x8000_0000 == 0 {
                 Outcome::Trail
             } else {
                 keep_last(p);
                 Outcome::Settled
             }
         }
-        4 => {
+        ParticleKind::Trail => {
             move_place(p, t, false);
-            p[at::MOTION_Y] = x87::plus_times_int(p[at::MOTION_Y], &tuning.trail[0], t).to_bits();
+            p.motion_y = x87::plus_times_int(p.motion_y, &tuning.trail[0], t).to_bits();
             gain_colour(p, &tuning.trail[1], t);
-            let index = colour_index(p, p[at::LIFE])?;
+            let index = colour_index(p, p.life)?;
             ring.pool.index.set(index as u32);
-            let alpha = p[at::COLOUR] & 0xFF00_0000;
+            let alpha = p.colour & 0xFF00_0000;
             let colour = (TRAIL_PALETTE.colours[index as usize] & 0xFF_FFFF) | alpha;
             let drawn = Outcome::Draw {
                 place: place(p),
                 colour,
-                size: p[at::SIZE],
+                size: p.size,
             };
             keep_last(p);
             drawn
         }
-        kind @ (8 | 9) => {
-            let k = if kind == 9 {
+        kind @ (ParticleKind::Burst8 | ParticleKind::Burst9) => {
+            let k = if kind == ParticleKind::Burst9 {
                 &tuning.burst9
             } else {
                 &tuning.burst8
             };
             move_place(p, t, true);
-            p[at::LIFT] = x87::plus_times_int(p[at::LIFT], &k[0], t).to_bits();
-            p[at::MOTION_X] = x87::less_own_times(p[at::MOTION_X], &k[1]).to_bits();
-            p[at::MOTION_Y] = x87::less_own_times(p[at::MOTION_Y], &k[2]).to_bits();
-            p[at::MOTION_Z] = x87::less_own_times(p[at::MOTION_Z], &k[3]).to_bits();
+            p.lift = x87::plus_times_int(p.lift, &k[0], t).to_bits();
+            p.motion_x = x87::less_own_times(p.motion_x, &k[1]).to_bits();
+            p.motion_y = x87::less_own_times(p.motion_y, &k[2]).to_bits();
+            p.motion_z = x87::less_own_times(p.motion_z, &k[3]).to_bits();
             gain_colour(p, &k[4], t);
-            let index = colour_index(p, p[at::LIFE])?;
+            let index = colour_index(p, p.life)?;
             ring.pool.index.set(index as u32);
             let tint = effects
                 .kinds
                 .burst_colours
                 .table
-                .get_u32((p[at::COLOURS_PLACE] as usize).wrapping_add(4 * index as usize))
+                .get_u32((p.colours_place as usize).wrapping_add(4 * index as usize))
                 & 0xFF_FFFF;
             if tint == 0 {
                 return Ok(Outcome::Dies);
             }
-            let mut size = p[at::SIZE];
-            if kind == 9 {
+            let mut size = p.size;
+            if kind == ParticleKind::Burst9 {
                 let s = effects
                     .setup
                     .work
@@ -206,11 +183,10 @@ fn advance(p: &mut Particle, effects: &Effects, ring: &Ring) -> Result<Outcome, 
             }
             Outcome::Draw {
                 place: place(p),
-                colour: (p[at::COLOUR] & 0xFF00_0000) | tint,
+                colour: (p.colour & 0xFF00_0000) | tint,
                 size,
             }
         }
-        _ => return Err(BadInput("a particle of another kind")),
     })
 }
 
@@ -228,18 +204,18 @@ fn retire(r: &mut [Particle], first: u32, e: u32) -> Result<u32, BadInput> {
     };
     let (e_slot, first_slot) = (slot(e)?, slot(first)?);
     if e == first {
-        return Ok(r[e_slot][at::NEXT]);
+        return Ok(r[e_slot].after);
     }
-    let (before, after) = (r[e_slot][at::PREV], r[e_slot][at::NEXT]);
+    let (before, after) = (r[e_slot].before, r[e_slot].after);
     let (before_slot, after_slot) = (slot(before)?, slot(after)?);
-    r[before_slot][at::NEXT] = after;
-    r[after_slot][at::PREV] = before;
-    let last = r[first_slot][at::PREV];
+    r[before_slot].after = after;
+    r[after_slot].before = before;
+    let last = r[first_slot].before;
     let last_slot = slot(last)?;
-    r[first_slot][at::PREV] = e;
-    r[last_slot][at::NEXT] = e;
-    r[e_slot][at::PREV] = last;
-    r[e_slot][at::NEXT] = first;
+    r[first_slot].before = e;
+    r[last_slot].after = e;
+    r[e_slot].before = last;
+    r[e_slot].after = first;
     Ok(first)
 }
 
@@ -282,13 +258,13 @@ pub fn run_particles(
                     .checked_sub(1)
                     .and_then(|n| r.get_mut(n))
                     .ok_or(BadInput("a particle past the ring"))?;
-                let next = p[at::NEXT];
-                let life = p[at::LIFE];
-                p[at::LIFE] = life.wrapping_sub(t);
+                let next = p.after;
+                let life = p.life;
+                p.life = life.wrapping_sub(t);
                 if life < t {
                     return Ok((next, Outcome::Dies));
                 }
-                let s = x87::compare_status(p[at::Y], p[at::GROUND]);
+                let s = x87::compare_status(p.y, p.ground);
                 effects.setup.work.fpu_status.set(s as u32);
                 if s == 0x100 {
                     return Ok((next, Outcome::Dies));
@@ -382,7 +358,12 @@ pub fn run_particles(
         }
         let six = [mz, up, mx, z, y, x].map(extended);
         crate::effects::add_drift_particle::add_drift_particle(
-            frame, particles, ring, 0, six, effects,
+            frame,
+            particles,
+            ring,
+            ParticleKind::Dust,
+            six,
+            effects,
         )?;
     }
     Ok(())

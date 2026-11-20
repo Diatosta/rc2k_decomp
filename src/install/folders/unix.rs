@@ -123,9 +123,8 @@ impl Folders for Unix {
             || inner.windows(2).any(|w| w == b"//"))
     }
 
-    fn make(at: crate::memory::place::BytePlace) -> Result<bool, Refused> {
-        let text = at.text("a folder")?;
-        let folder = crate::files::host_path(&text);
+    fn make(at: &[u8]) -> Result<bool, Refused> {
+        let folder = crate::files::host_path(at);
         let made = std::fs::create_dir_all(&folder);
         if let Err(e) = &made {
             crate::program_log::log(&format!("install: {}: {e}", folder.display()));

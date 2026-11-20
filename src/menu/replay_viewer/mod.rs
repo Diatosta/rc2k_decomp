@@ -406,7 +406,7 @@ fn stopped_key(
         && crate::menu::replay_viewer::render_row::OFFERED
         && race.shared.replay_file().index.block_count.get() != 0
         && (LOWER_ROW.contains(&list_state.choice.get())
-            || way_down_closed(race, list, list_state.choice.get())?)
+            || way_down_closed(list, list_state.choice.get())?)
     {
         crate::race::render_row::select(race, true);
         return Ok(Next::Mark);
@@ -414,7 +414,7 @@ fn stopped_key(
     let stepped = crate::menu::replay_viewer::list_step::list_step(
         list_state,
         key,
-        Some(ReplayViewBlock::key_table(&race.replay)?),
+        Some(ReplayViewBlock::key_table()),
     )?;
     if stepped {
         return Ok(Next::Mark);
@@ -446,12 +446,12 @@ fn stopped_key(
 
 /// Whether the down arrow from the upper-row item `from` leads nowhere: the key table has no
 /// way down from it, or the item it leads to is greyed.
-fn way_down_closed(race: &Race, list: &ViewerList, from: u32) -> Result<bool, Refused> {
+fn way_down_closed(list: &ViewerList, from: u32) -> Result<bool, Refused> {
     use crate::menu::replay_viewer::render_row::LOWER_ROW;
     if from >= *LOWER_ROW.start() {
         return Ok(false);
     }
-    let entry = ReplayViewBlock::key_table(&race.replay)?
+    let entry = ReplayViewBlock::key_table()
         .add(from.wrapping_mul(4) + 1)
         .read(1, "the viewer's key table")?[0];
     Ok((entry as i8) < 0
@@ -482,7 +482,7 @@ fn mark(
                 if !crate::menu::replay_viewer::list_step::list_step(
                     list_state,
                     key,
-                    Some(ReplayViewBlock::key_table(&race.replay)?),
+                    Some(ReplayViewBlock::key_table()),
                 )? {
                     break;
                 }

@@ -7,7 +7,7 @@
 //!
 //! Refuses a null ring (an entry to take), before anything.
 
-use crate::effects::blocks::{particle, set_particle};
+use crate::effects::blocks::{ParticleKind, read_particle, update_particle};
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -22,7 +22,7 @@ pub(super) fn add_drift_particle(
     frame: &Frame,
     particles: &Particles,
     ring: &Ring,
-    kind: u32,
+    kind: ParticleKind,
     v: [[u8; 10]; 6],
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
@@ -32,33 +32,30 @@ pub(super) fn add_drift_particle(
             return Ok(());
         }
         let free: u32 = ring.pool.free.get();
-        if free == 0 || particle(particles, free, 0)? == 0 {
+        if free == 0 || read_particle(particles, free)?.before == 0 {
             return Err(BadInput("a null particle ring entry").into());
         }
-        let e = particle(particles, free, 0)?;
+        let e = read_particle(particles, free)?.before;
         ring.pool.free.set(e);
         ring.pool.used.set(used.wrapping_add(1));
-        let put = |o: u32, x: u32| set_particle(particles, e, o, x);
-        put(8, kind)?;
-        put(0x34, rounded(v[0]))?;
-        put(0x2C, rounded(v[1]))?;
-        put(0x28, rounded(v[2]))?;
-        put(0x14, rounded(v[3]))?;
-        put(0x20, rounded(v[3]))?;
-        put(0x10, rounded(v[4]))?;
-        put(
-            0x1C,
-            x87::ext_less(v[4], &effects.kinds.particle_tuning.drift_lower).to_bits(),
-        )?;
-        put(0xC, rounded(v[5]))?;
-        put(0x18, rounded(v[5]))?;
-        put(0x38, 0x8000)?;
-        put(0x3C, 0xFF00_0000)?;
-        put(0x44, LIFE)?;
-        put(
-            0x24,
-            x87::loaded(&frame.matrices.get().view_place[13]).to_bits(),
-        )?;
+        let lowered = x87::ext_less(v[4], &effects.kinds.particle_tuning.drift_lower).to_bits();
+        let ground = x87::loaded(&frame.matrices.get().view_place[13]).to_bits();
+        update_particle(particles, e, |p| {
+            p.kind = kind as u32;
+            p.motion_z = rounded(v[0]);
+            p.motion_y = rounded(v[1]);
+            p.motion_x = rounded(v[2]);
+            p.z = rounded(v[3]);
+            p.last_z = rounded(v[3]);
+            p.y = rounded(v[4]);
+            p.last_y = lowered;
+            p.x = rounded(v[5]);
+            p.last_x = rounded(v[5]);
+            p.size = 0x8000;
+            p.colour = 0xFF00_0000;
+            p.life = LIFE;
+            p.ground = ground;
+        })?;
     }
     Ok(())
 }

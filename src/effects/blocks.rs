@@ -23,43 +23,112 @@ pub(super) fn allocate_places(effects: &crate::effects::owner::Effects) -> Resul
     crate::memory::owned::count_on(&effects.blocks.places.list, PLACES_LEN)
 }
 
-/// A particle of the ring (0x4C-byte entries), its dwords in order: the particle before and the
-/// one after (each a particle's number + 1), the kind, the place (three), the last place
-/// (three), the ground, the motion (four dwords, the third the lift), the size, the colour,
-/// the colour's step, the life, the colours' place.
-pub(super) type Particle = [u32; (RING_ENTRY / 4) as usize];
+/// A particle of the ring (0x4C-byte entries), its dwords in order. Every field holds the
+/// dword's bits as the ring stores them: the places, motions and tunings are floats, the rest
+/// whole numbers.
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct Particle {
+    /// The particle before in the ring (a particle's number + 1).
+    pub before: u32,
+    /// The particle after in the ring (a particle's number + 1).
+    pub after: u32,
+    pub kind: u32,
+    pub x: u32,
+    pub y: u32,
+    pub z: u32,
+    pub last_x: u32,
+    pub last_y: u32,
+    pub last_z: u32,
+    pub ground: u32,
+    pub motion_x: u32,
+    pub motion_y: u32,
+    /// The lift (added to the vertical motion by the burst kinds).
+    pub lift: u32,
+    pub motion_z: u32,
+    pub size: u32,
+    pub colour: u32,
+    pub colour_step: u32,
+    pub life: u32,
+    /// Where the particle's colours start in the burst colours' table.
+    pub colours_place: u32,
+}
 
-/// The dword at `offset` of particle `p`, a particle of `Particles::ring` (taken by
-/// `allocate_ring`, given back by `effects::tidy_marks`) named by its number + 1 (0 none), as
-/// in the links and in `RingPool.ring` / `RingPool.free`; refused for none, a number past the ring
-/// or an offset past the entry.
-pub(super) fn particle(particles: &Particles, p: u32, offset: u32) -> Result<u32, BadInput> {
+/// What a particle is, by its `kind` dword. The kinds are the ones the ring holds; its tunings
+/// are `particle_tuning.dust`, `.trail`, `.burst8` and `.burst9`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum ParticleKind {
+    /// Dust that rises, bursts when it is past its least height and leaves a trail.
+    Dust = 0,
+    /// A trail particle, drawn by a colour table of its own.
+    Trail = 4,
+    /// A burst particle (the first tuning).
+    Burst8 = 8,
+    /// A burst particle (the second tuning), sometimes drawn bigger.
+    Burst9 = 9,
+}
+
+impl TryFrom<u32> for ParticleKind {
+    type Error = BadInput;
+
+    fn try_from(kind: u32) -> Result<Self, BadInput> {
+        match kind {
+            0 => Ok(Self::Dust),
+            4 => Ok(Self::Trail),
+            8 => Ok(Self::Burst8),
+            9 => Ok(Self::Burst9),
+            _ => Err(BadInput("a particle of another kind")),
+        }
+    }
+}
+
+const _: () = assert!(size_of::<Particle>() == RING_ENTRY as usize);
+
+impl Particle {
+    /// The place's coordinate on `axis` (0 x, 1 y, 2 z).
+    pub(super) fn place(&self, axis: usize) -> u32 {
+        [self.x, self.y, self.z][axis]
+    }
+
+    pub(super) fn set_place(&mut self, axis: usize, v: u32) {
+        *[&mut self.x, &mut self.y, &mut self.z][axis] = v;
+    }
+
+    /// The last place's coordinate on `axis`.
+    pub(super) fn last_place(&self, axis: usize) -> u32 {
+        [self.last_x, self.last_y, self.last_z][axis]
+    }
+
+    /// The motion's component on `axis` (the lift is not one).
+    pub(super) fn motion(&self, axis: usize) -> u32 {
+        [self.motion_x, self.motion_y, self.motion_z][axis]
+    }
+
+    pub(super) fn set_motion(&mut self, axis: usize, v: u32) {
+        *[&mut self.motion_x, &mut self.motion_y, &mut self.motion_z][axis] = v;
+    }
+}
+
+/// Particle `p`, a particle of `Particles::ring` (taken by `allocate_ring`, given back by
+/// `effects::tidy_marks`) named by its number + 1 (0 none), as in the links and in
+/// `RingPool.ring` / `RingPool.free`, as it is now; refused for none or a number past the ring.
+pub(super) fn read_particle(particles: &Particles, p: u32) -> Result<Particle, BadInput> {
     particles
         .ring
-        .with(|r| {
-            let e = r.get((p as usize).checked_sub(1)?)?;
-            offset
-                .is_multiple_of(4)
-                .then(|| e.get(offset as usize / 4).copied())?
-        })?
+        .with(|r| r.get((p as usize).checked_sub(1)?).copied())?
         .ok_or(BadInput("a particle past the ring"))
 }
 
-/// The dword at `offset` of particle `p` set to `v`; refused as `particle`.
-pub(super) fn set_particle(
+/// Particle `p` changed by `change`; refused as `read_particle`, and then nothing is written.
+pub(super) fn update_particle(
     particles: &Particles,
     p: u32,
-    offset: u32,
-    v: u32,
+    change: impl FnOnce(&mut Particle),
 ) -> Result<(), BadInput> {
     particles
         .ring
         .with(|r| {
-            let e = r.get_mut((p as usize).checked_sub(1)?)?;
-            let d = offset
-                .is_multiple_of(4)
-                .then(|| e.get_mut(offset as usize / 4))??;
-            *d = v;
+            change(r.get_mut((p as usize).checked_sub(1)?)?);
             Some(())
         })?
         .ok_or(BadInput("a particle past the ring"))
@@ -73,11 +142,12 @@ pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
     // The logic is in `rc2k_core::effects::rings::neighbours`.
     let links: Vec<Particle> = (0..rc2k_core::effects::rings::ENTRIES)
         .map(|n| {
-            let mut p = [0; (RING_ENTRY / 4) as usize];
             let [before, after] = rc2k_core::effects::rings::neighbours(n);
-            p[0] = before + 1;
-            p[1] = after + 1;
-            p
+            Particle {
+                before: before + 1,
+                after: after + 1,
+                ..Particle::default()
+            }
         })
         .collect();
     particles.ring.take(&ring.pool.list, RING_LEN, links)?;

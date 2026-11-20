@@ -10,7 +10,7 @@
 //!
 //! Refuses a null record or ring (when an entry is to be taken), before anything.
 
-use crate::effects::blocks::{particle, set_particle};
+use crate::effects::blocks::{read_particle, update_particle};
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -45,7 +45,7 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
             if e == 0 {
                 break;
             }
-            e = particle(particles, e, 0)?;
+            e = read_particle(particles, e)?.before;
             out.push(e);
         }
         out
@@ -91,36 +91,39 @@ pub(super) fn burst_particles(
             if used == FULL {
                 continue;
             }
-            let e: u32 = particle(particles, ring.pool.free.get(), 0)?;
+            let e: u32 = read_particle(particles, ring.pool.free.get())?.before;
             ring.pool.free.set(e);
             ring.pool.used.set(used.wrapping_add(1));
-            let put = |o: u32, v: u32| set_particle(particles, e, o, v);
-            put(8, ring.pool.nine.get())?;
-            put(0x48, ring.pool.kind.get())?;
-            for o in [0xC, 0x10, 0x14] {
-                put(o, x87::loaded(particle(particles, record, o)?).to_bits())?;
+            let (kind, colours_place) = (ring.pool.nine.get(), ring.pool.kind.get());
+            update_particle(particles, e, |p| {
+                p.kind = kind;
+                p.colours_place = colours_place;
+            })?;
+            for axis in 0..3 {
+                let from = x87::loaded(read_particle(particles, record)?.place(axis)).to_bits();
+                update_particle(particles, e, |p| p.set_place(axis, from))?;
             }
             let s = next_seed(effects);
             let a = s.rotate_right(16) & 0xFFF;
             let b = s & 0xFFF;
             let radius = ring.pool.burst_radius.get();
-            put(0x34, x87::mul(sine(a), radius).to_bits())?;
-            put(
-                0x28,
-                x87::zero_times_plus_times(cosine(a), cosine(b), sine(b), radius, false).to_bits(),
-            )?;
-            put(
-                0x2C,
-                x87::zero_times_plus_times(cosine(a), sine(b), cosine(b), radius, true).to_bits(),
-            )?;
-            put(0x30, 0)?;
-            put(0x38, 0x1_0000)?;
-            put(0x3C, 0xFF00_0000)?;
-            put(0x44, LIFE)?;
-            put(
-                0x40,
-                x87::over_int(&effects.kinds.particle_tuning.burst_life, LIFE as i32).to_bits(),
-            )?;
+            let motion_z = x87::mul(sine(a), radius).to_bits();
+            let motion_x =
+                x87::zero_times_plus_times(cosine(a), cosine(b), sine(b), radius, false).to_bits();
+            let motion_y =
+                x87::zero_times_plus_times(cosine(a), sine(b), cosine(b), radius, true).to_bits();
+            let colour_step =
+                x87::over_int(&effects.kinds.particle_tuning.burst_life, LIFE as i32).to_bits();
+            update_particle(particles, e, |p| {
+                p.motion_z = motion_z;
+                p.motion_x = motion_x;
+                p.motion_y = motion_y;
+                p.lift = 0;
+                p.size = 0x1_0000;
+                p.colour = 0xFF00_0000;
+                p.life = LIFE;
+                p.colour_step = colour_step;
+            })?;
         }
     }
     Ok(())

@@ -1,7 +1,7 @@
 //! The replay writer's and the viewer's state: the padding frame, the file offset and frames in the
 //! block, the replay block and frame, the play end and the viewer's switches, then the viewer's
 //! list (`race::viewer_list`). `#[repr(C)]`, laid over the race block's bytes. The
-//! list's names are image addresses into the untyped rectangles and key table.
+//! list's rectangles, pictures and key table are the constants below.
 
 use crate::memory::cells::ZeroCells;
 
@@ -45,9 +45,8 @@ pub struct ReplayViewBlock {
     pub wait_key_release: PlainDword,
     /// Escape twice leaves (`race::viewer`).
     pub escape_count: PlainDword,
-    /// The viewer's list: 26 items. The list's `key_table_name` names the key table; an
-    /// item's `place_name` names its screen rectangle, its `picture_name` its picture (image
-    /// addresses into `RECTANGLES` and the viewer panel).
+    /// The viewer's list: 26 items (their screen rectangles in `RECTANGLES`, their pictures
+    /// `PICTURES`).
     pub viewer_list: ViewerList,
 }
 
@@ -55,57 +54,22 @@ pub struct ReplayViewBlock {
 // them): any bit pattern is a valid value.
 
 impl ReplayViewBlock {
-    /// The viewer's items: kind 1 (a picture), and the names of each one's screen rectangle and
-    /// picture.
+    /// The viewer's items: kind 1 (a picture).
     const fn items() -> [ViewerItem; 26] {
-        const NAMES: [(u32, u32); 26] = [
-            (0x5C277C, 0x5C2A2C),
-            (0x5C278C, 0x5C2A4C),
-            (0x5C279C, 0x5C2A6C),
-            (0x5C27AC, 0x5C2A8C),
-            (0x5C27BC, 0x5C2AAC),
-            (0x5C27CC, 0x5C2ADC),
-            (0x5C27DC, 0x5C2AEC),
-            (0x5C27EC, 0x5C2AFC),
-            (0x5C27FC, 0x5C2ABC),
-            (0x5C280C, 0x5C2A9C),
-            (0x5C281C, 0x5C2A7C),
-            (0x5C282C, 0x5C2A5C),
-            (0x5C283C, 0x5C2A3C),
-            (0x5C284C, 0x5C2B0C),
-            (0x5C285C, 0x5C2C70),
-            (0x5C286C, 0x5C2C78),
-            (0x5C287C, 0x5C2C88),
-            (0x5C288C, 0x5C2BAC),
-            (0x5C289C, 0x5C2BBC),
-            (0x5C28AC, 0x5C2BCC),
-            (0x5C28BC, 0x5C2BDC),
-            (0x5C28CC, 0x5C2B2C),
-            (0x5C28DC, 0x5C2BEC),
-            (0x5C28EC, 0x5C2BFC),
-            (0x5C28FC, 0x5C2C70),
-            (0x5C290C, 0x5C2C1C),
-        ];
-        let mut items = [const { ViewerItem::new(0, 0, 0) }; ITEMS as usize];
-        let mut n = 0;
-        while n < 26 {
-            items[n] = ViewerItem::new(1, NAMES[n].0, NAMES[n].1);
-            n += 1;
-        }
-        items
+        [const { ViewerItem::new(1) }; ITEMS as usize]
     }
 
     pub const fn new() -> Self {
         Self {
             replay_block: PlainDword::new(0xFFFFFFFF),
-            viewer_list: ViewerList::new(0x5C2714, Self::items()),
+            viewer_list: ViewerList::new(Self::items()),
             ..ZeroCells::ZERO
         }
     }
 }
 
-/// The viewer list's key table and place rectangles: the list's names point into them, and
-/// nothing writes them.
+/// The viewer list's key table (four bytes an item: what each arrow key moves the highlight to,
+/// 255 for nowhere) and the items' place rectangles (`ITEM_PLACES`): nothing writes them.
 pub static RECTANGLES: crate::memory::session::Bytes<0x208> = crate::memory::session::Bytes::new([
     0xFF, 0x0D, 0xFF, 1, 0xFF, 0x0E, 0, 2, 0xFF, 0x0F, 1, 3, 0xFF, 0x10, 2, 4, 0xFF, 0x11, 3, 5,
     0xFF, 0x12, 4, 6, 0xFF, 0x13, 5, 7, 0xFF, 0x14, 6, 8, 0xFF, 0x15, 7, 9, 0xFF, 0x16, 8, 0x0A,
@@ -132,81 +96,90 @@ pub static RECTANGLES: crate::memory::session::Bytes<0x208> = crate::memory::ses
     0, 0, 0,
 ]);
 
-/// What a viewer item shows: a texture rectangle, or the picture a camera byte picks from one of
-/// the three switch tables (0 `switch_pictures_a`, 1 `switch_pictures_b`, 2 `switch_pictures_c`
-/// of the viewer panel; the list names a table by its image address).
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ViewerPicture {
-    /// The rectangle's image address in the viewer panel.
-    Rectangle(usize),
-    Switch(usize),
+/// Which of the viewer panel's three switch tables a picture is picked from by a camera byte
+/// (`switch_pictures_a`, `switch_pictures_b`, `switch_pictures_c`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SwitchTable {
+    A,
+    B,
+    C,
 }
 
-impl ReplayViewBlock {
-    /// The image address ranges the list's names point into: the key table and place
-    /// rectangles (`RECTANGLES`), and the panel with the pictures' rectangles.
-    const RECTANGLES: core::ops::Range<usize> = 0x5C2714..0x5C291C;
-    /// The panel follows the rectangles; its names run over its size.
-    const PANEL: core::ops::Range<usize> = Self::RECTANGLES.end
-        ..Self::RECTANGLES.end
-            + core::mem::size_of::<crate::race::viewer_screen_store::ViewerPanelBlock>();
+impl SwitchTable {
+    /// The table's number in `ViewerPanelBlock::switch_picture`.
+    pub const fn number(self) -> usize {
+        self as usize
+    }
+}
 
-    /// The place the name `ida` (an image address) names, if it lies in the rectangles: a place
-    /// in `RECTANGLES`, running on to its end.
-    fn named(ida: u32, what: &'static str) -> Result<BytePlace, crate::errors::BadInput> {
-        if !Self::RECTANGLES.contains(&(ida as usize)) {
-            return Err(crate::errors::BadInput(what));
-        }
+/// What a viewer item shows: a texture rectangle, or the picture a camera byte picks from one of
+/// the three switch tables.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ViewerPicture {
+    /// The rectangle at this byte offset in the viewer panel.
+    Rectangle(usize),
+    Switch(SwitchTable),
+}
+
+/// The picture of each of the list's items.
+pub const PICTURES: [ViewerPicture; ITEMS as usize] = {
+    use ViewerPicture::{Rectangle, Switch};
+    [
+        Rectangle(0x110),
+        Rectangle(0x130),
+        Rectangle(0x150),
+        Rectangle(0x170),
+        Rectangle(0x190),
+        Rectangle(0x1C0),
+        Rectangle(0x1D0),
+        Rectangle(0x1E0),
+        Rectangle(0x1A0),
+        Rectangle(0x180),
+        Rectangle(0x160),
+        Rectangle(0x140),
+        Rectangle(0x120),
+        Rectangle(0x1F0),
+        Switch(SwitchTable::A),
+        Switch(SwitchTable::B),
+        Switch(SwitchTable::C),
+        Rectangle(0x290),
+        Rectangle(0x2A0),
+        Rectangle(0x2B0),
+        Rectangle(0x2C0),
+        Rectangle(0x210),
+        Rectangle(0x2D0),
+        Rectangle(0x2E0),
+        Switch(SwitchTable::A),
+        Rectangle(0x300),
+    ]
+};
+
+/// Where item 0's screen rectangle (four dwords, 16 bytes an item) starts in `RECTANGLES`, after
+/// the key table.
+const ITEM_PLACES: usize = 0x68;
+
+impl ReplayViewBlock {
+    /// Where the list's key table is.
+    pub fn key_table() -> BytePlace {
+        BytePlace::Store(&RECTANGLES, 0)
+    }
+
+    /// Where item `index`'s screen rectangle is.
+    pub fn item_place(replay: &Replay, index: u32) -> Result<BytePlace, crate::errors::BadInput> {
+        Self::item(replay, index)?;
         Ok(BytePlace::Store(
             &RECTANGLES,
-            ida as usize - Self::RECTANGLES.start,
+            ITEM_PLACES + 16 * index as usize,
         ))
     }
 
-    /// Where the list's key table (from the header) is.
-    pub fn key_table(replay: &Replay) -> Result<BytePlace, crate::errors::BadInput> {
-        Self::named(
-            replay.replay_view().viewer_list.key_table_name.get(),
-            "the viewer list's key table off its place",
-        )
-    }
-
-    /// Where item `index`'s screen rectangle (its +4) is.
-    pub fn item_place(replay: &Replay, index: u32) -> Result<BytePlace, crate::errors::BadInput> {
-        Self::named(
-            Self::item(replay, index)?.place_name.get(),
-            "a viewer item's place off the rectangles",
-        )
-    }
-
-    /// What item `index`'s picture (a rectangle, or one of the switch tables) is: the
-    /// picture's name is compared with the three tables' addresses.
+    /// What item `index`'s picture is.
     pub fn item_picture(
         replay: &Replay,
         index: u32,
     ) -> Result<ViewerPicture, crate::errors::BadInput> {
-        let ida = Self::item(replay, index)?.picture_name.get();
-        let table = |offset: usize| (Self::PANEL.start + offset) as u32;
-        use crate::race::viewer_screen_store::ViewerPanelBlock;
-        use core::mem::offset_of;
-        let switch = if ida == table(offset_of!(ViewerPanelBlock, switch_pictures_a)) {
-            Some(0)
-        } else if ida == table(offset_of!(ViewerPanelBlock, switch_pictures_b)) {
-            Some(1)
-        } else if ida == table(offset_of!(ViewerPanelBlock, switch_pictures_c)) {
-            Some(2)
-        } else {
-            None
-        };
-        if let Some(table) = switch {
-            return Ok(ViewerPicture::Switch(table));
-        }
-        if !Self::PANEL.contains(&(ida as usize)) {
-            return Err(crate::errors::BadInput(
-                "a viewer item's picture off the panel",
-            ));
-        }
-        Ok(ViewerPicture::Rectangle(ida as usize))
+        Self::item(replay, index)?;
+        Ok(PICTURES[index as usize])
     }
 
     /// Item `index` of the viewer's list.
@@ -227,12 +200,11 @@ mod tests {
     #[test]
     fn the_list_names_resolve() {
         let replay = &crate::test_support::own::race().replay;
-        assert!(ReplayViewBlock::key_table(replay).is_ok());
         for k in 0..26u32 {
             assert!(ReplayViewBlock::item_place(replay, k).is_ok());
             match ReplayViewBlock::item_picture(replay, k).unwrap() {
-                ViewerPicture::Rectangle(_) => {}
-                ViewerPicture::Switch(table) => assert!(table < 3),
+                ViewerPicture::Rectangle(offset) => assert!(offset + 16 <= 0x668),
+                ViewerPicture::Switch(_) => {}
             }
         }
         assert!(ReplayViewBlock::item_place(replay, 26).is_err());
@@ -245,7 +217,7 @@ mod tests {
         let replay = &crate::test_support::own::race().replay;
         let list = &replay.replay_view().viewer_list;
         assert_eq!(list.items.len(), ITEMS as usize);
-        let table = ReplayViewBlock::key_table(replay).unwrap();
+        let table = ReplayViewBlock::key_table();
         let bytes = table.read(4 * list.items.len(), "the key table").unwrap();
         assert!(
             bytes

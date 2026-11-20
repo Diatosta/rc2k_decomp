@@ -3,7 +3,7 @@
 
 use crate::errors::BadInput;
 use crate::memory::session::PlainDword;
-pub use crate::scene::draw_polygon::{ENTRIES, ENTRY_LEN, MOST};
+pub use crate::scene::draw_polygon::{ENTRIES, MOST};
 use crate::scene::polygon_store::{PolygonEntry, PolygonWork};
 
 /// The work table's entry `n` (the 64 of the polygon, then the 64 kept for the fan) in the

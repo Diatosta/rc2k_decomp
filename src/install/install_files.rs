@@ -108,10 +108,7 @@ pub(super) fn install_files(
     install.names.status.set(0x80);
     i::record::write_installed(install);
     normalise(&install.paths.game_dir, &install.paths.game_dir)?;
-    i::run_script::run_script(
-        install,
-        crate::memory::place::BytePlace::from(&install.names.script_count),
-    )?;
+    i::run_script::run_script(install, &install.names.script_count.read())?;
     install.run.files_copied.set(0);
     install.run.copy_spare.set(0);
     install.run.files_to_copy.set(install.run.file_count.get());
@@ -146,7 +143,7 @@ pub(super) fn install_files(
         }
         _ => {}
     }
-    if !i::make_folders::make_folders(&install.paths.installed)? {
+    if !i::make_folders::make_folders(&install.paths.installed.text())? {
         return bad_path();
     }
     // A close during the copy waits for its end (the progress still shown).
@@ -168,7 +165,7 @@ pub(super) fn install_files(
     if install.run.dir_count.get() != 0 {
         for n in 0..install.run.dir_count.get() {
             build(installed(install), path_b(install), &install.folders, n)?;
-            if !i::make_folders::make_folders(&install.paths.path_b)? {
+            if !i::make_folders::make_folders(&install.paths.path_b.text())? {
                 return message(o, &error_messages(install), 0);
             }
         }
