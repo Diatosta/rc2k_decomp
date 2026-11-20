@@ -745,6 +745,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         o.gfx,
         o.strings,
     )?;
+    crate::race::part_notices::take_asked(race);
     if race.course.numbers.get().replay_mode.get() != 2 {
         crate::drive::tyre_change_screen::tyre_change_screen(race, input, system, scene)?;
     }

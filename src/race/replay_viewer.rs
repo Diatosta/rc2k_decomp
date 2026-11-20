@@ -227,9 +227,11 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
     };
     race.shared.replay_file().viewer_slot.set(slot);
     race.shared.replay_file().viewer_stopped.set(true);
-    let failed = open_viewed_replay::open_viewed_replay(race, o.system, slot)?;
-    if failed {
-        tell_damaged(slot);
+    let opened = open_viewed_replay::open_viewed_replay(race, o.system, slot)?;
+    if opened.failed() {
+        if opened == open_viewed_replay::Opened::Damaged {
+            tell_damaged(slot);
+        }
         return Ok(Viewed::Nothing);
     }
     race.viewer_buffers().camera_edit.set(0);

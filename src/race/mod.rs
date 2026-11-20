@@ -89,6 +89,7 @@ pub mod owner_views;
 pub mod pace_notes;
 pub mod panel_clock_store;
 pub mod panel_store;
+pub mod part_notices;
 pub mod prefs_store;
 pub mod put_mud_texel;
 pub mod quad_work;

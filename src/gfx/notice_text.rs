@@ -181,9 +181,19 @@ fn capture_picture(o: Owners<'static>, text: &[u8]) -> Option<Picture> {
 /// Draws `text` (ANSI bytes, no NUL) with its letters' top at `top` (in 800 x 600 layout units),
 /// centred across the screen, at `strength` (0 ..= 255). The surface must be locked.
 pub fn draw(o: Owners<'static>, text: &[u8], top: i32, strength: u8) {
+    let screen = o.system.session.screen.get();
+    let area = [0, 0, screen.width.get() as i32, screen.height.get() as i32];
+    draw_in(o, text, area, top, strength);
+}
+
+/// `draw` within `area` (left, top, width, height in screen pixels, a split-screen part): the text
+/// is centred across the area, enlarged by the area's height over 600 (less where the area is
+/// narrower than the text), and its letters' top lies `top` layout units down the area.
+pub fn draw_in(o: Owners<'static>, text: &[u8], area: [i32; 4], top: i32, strength: u8) {
     use crate::gfx::surface::{Target, surface};
     let screen = o.system.session.screen.get();
     let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
+    let [area_left, area_top, area_w, area_h] = area;
     let real = surface(o.gfx);
     let Some(Target::Locked(handle)) = real.target else {
         return;
@@ -197,13 +207,13 @@ pub fn draw(o: Owners<'static>, text: &[u8], top: i32, strength: u8) {
     };
     let (cw, ch) = (picture.width, picture.height);
     // To the screen, `scale` times as large (less where the screen is narrower than the text).
-    let scale = (f64::from(h) / 600.0).min(f64::from(w) / f64::from(cw)) as f32;
+    let scale = (f64::from(area_h) / 600.0).min(f64::from(area_w) / f64::from(cw)) as f32;
     let (dw, dh) = (
         (cw as f32 * scale).round() as i32,
         (ch as f32 * scale).round() as i32,
     );
-    let left = (w - dw) / 2;
-    let top = ((top - MARGIN) as f32 * scale).round() as i32;
+    let left = area_left + (area_w - dw) / 2;
+    let top = area_top + ((top - MARGIN) as f32 * scale).round() as i32;
     let place = crate::gfx::locked_pixels::Place::start(handle);
     // Smaller than the font's size: four taps cover what a screen pixel does.
     let spread = if scale < 1.0 { 0.25 / scale } else { 0.0 };

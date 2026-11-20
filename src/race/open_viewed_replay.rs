@@ -19,12 +19,30 @@ use crate::race::replay_path::replay_path;
 
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 
-/// Whether it failed. `slot` the replay.
+/// How opening a replay went.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Opened {
+    /// The replay is open.
+    Yes,
+    /// There is no such replay (an empty slot, or no race recorded yet): nothing to say.
+    Missing,
+    /// The file exists but cannot be used.
+    Damaged,
+}
+
+impl Opened {
+    /// Whether the replay did not open.
+    pub fn failed(self) -> bool {
+        self != Opened::Yes
+    }
+}
+
+/// How `slot`'s replay opened.
 pub fn open_viewed_replay(
     race: &Race,
     system: &crate::system::owner::System,
     slot: u32,
-) -> Result<bool, Refused> {
+) -> Result<Opened, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     // Logic in `rc2k_core::race::viewer_flow::{last_race_missing, copied_first, read_good,
@@ -33,9 +51,13 @@ pub fn open_viewed_replay(
         Blocks, CAMERA_DWORDS, CAR_HEADER_LEN, copied_first, index_blocks, last_race_missing,
         opened_marks, read_good, version_good,
     };
-    let failed = || -> Result<bool, Refused> {
+    let failed = || -> Result<Opened, Refused> {
         crate::race::close_viewed_replay::close_viewed_replay(race)?;
-        Ok(true)
+        Ok(Opened::Damaged)
+    };
+    let missing = || -> Result<Opened, Refused> {
+        crate::race::close_viewed_replay::close_viewed_replay(race)?;
+        Ok(Opened::Missing)
     };
     let found = replay_path(race, slot)?;
     let mut path = crate::race::replay_path::file_to_load(slot, found.path);
@@ -43,9 +65,16 @@ pub fn open_viewed_replay(
         found.last_race,
         || shared.replay_file().replay_closed.get(), /* a replay was recorded */
     ) {
-        return failed();
+        return missing();
     }
     if copied_first(found.number) {
+        // No file in the slot: nothing was saved there.
+        match handle::open_by_mode(&path, 0)? {
+            Some(file) => {
+                handle::close(file);
+            }
+            None => return missing(),
+        }
         // A saved replay is copied over the last race's first.
         let copied = crate::files::copy_file::copy_file(
             &path,
@@ -57,7 +86,11 @@ pub fn open_viewed_replay(
         path = crate::race::replay_path::last_race(replay);
     }
     let Some(file) = handle::open_by_mode(&path, 0)? else {
-        return failed();
+        return if copied_first(found.number) {
+            failed()
+        } else {
+            missing()
+        };
     };
     shared.replay_file().replay_handle.set(file);
     shared.replay_file().replay_open.set(true);
@@ -173,7 +206,7 @@ pub fn open_viewed_replay(
             .read_at(0x30, CAR_HEADER_LEN, "the replay header's stage")?;
     put_header_stage(race, &stage);
     crate::race::replay_patches::apply_replay_patches(race)?;
-    Ok(false)
+    Ok(Opened::Yes)
 }
 
 /// The cars' header (`CAR_HEADER_LEN` bytes) into the replay work's fields from `header_stage` on:

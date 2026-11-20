@@ -93,7 +93,7 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   screen (dial at the left corner, map at the right, the box applying inside the half); in two,
   three and four players' split screens each map disc shows the other players' cars as markers in
   their stage-bar colours (not the computer's), placed for its own player's car; three
-  and four players' HUDs are the one-player HUD in each part, laid out by the part's own shape and kept inside the box. The course is not cut at the sides
+  and four players' HUDs are the one-player HUD in each part, laid out by the part's own shape and kept inside the box. The messages of the race (the question to retire, "get ready" and the others) show in every part, centred on it, for two players side by side on a wide screen as for three and four. The course is not cut at the sides
   by the 4:3 view's cone. The loading screen, the roadside tyre change and the replay viewer keep
   their 4:3 shape in the middle: the loading picture has the menus' blurred wash beside it, the
   tyre change's dark backdrop and the replay viewer's bars span the whole width.
@@ -350,7 +350,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - **Errors.** An error that ends the game is shown on a panel in the game's window (the message,
   where the details are, "Quit"; Up / Down and Enter, or a pad's buttons) in place of the
   "Guru Meditation" box. Troubles belonging to one file no longer end the game: a damaged saved
-  game is not loaded, a replay that cannot be read is skipped, and options that are not valid are
+  game is not loaded, a replay that cannot be read is skipped (a slot with no replay in it, or a last race that was never recorded, does nothing at all, as in the original: no notice), and options that are not valid are
   reset to their defaults, each with a notice. So are a picture that cannot be read (shown as
   missing), a sound file that holds no sound the game can play (silent; a sound file that is simply not there stays silent with a line in the log only, as the stock game's lists name some it never shipped), and a
   replay whose data breaks while it plays (it stops there, or goes back as below); each is told once, in the language in use. A start-up film (the logos, the intro) that is missing or cannot be played is skipped with a line in the log only. A network

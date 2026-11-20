@@ -13,7 +13,7 @@ pub fn save_last_replay(
     system: &crate::system::owner::System,
     slot: u32,
 ) -> Result<bool, Refused> {
-    if crate::race::open_viewed_replay::open_viewed_replay(race, system, LAST_RACE)? {
+    if crate::race::open_viewed_replay::open_viewed_replay(race, system, LAST_RACE)?.failed() {
         return Ok(false);
     }
     let saved = crate::race::save_viewed_replay::save_viewed_replay(race, system, slot)?;

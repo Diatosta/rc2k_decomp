@@ -95,13 +95,14 @@ pub fn sizes(
 ) -> ([u32; 4], [u32; 3]) {
     use crate::hud::anchor;
     if rule == anchor::Rule::Halves && anchor::is_wide(screen_width, height) {
-        // Two players side by side: the strip keeps to its own half of the screen.
+        // Two players side by side: the strip keeps to its own half of the screen, centred on it
+        // (the strip is a notice for the whole part, not an item at the part's edge).
         let map = anchor::Beside::new(
             v[2] as f32 + v[3] as f32 / 2.0,
             screen_width,
             height,
             hud_box,
-            false,
+            true,
         );
         let down =
             |n: u32| (f64::from(n) * f64::from(height) / f64::from(VIRTUAL[1])).floor() as u32;
@@ -202,15 +203,26 @@ mod tests {
             BoxRatio::Full,
         );
         assert!(s[2] >= 1920 && s[2] + s[3] <= 3840);
-        // The first player's lies in the left half, at the 1.8 factor of the half's height.
+        // The first player's lies in the left half, at the 1.8 factor of the half's height, and
+        // its three quads, laid out across the half's middle, are centred on the half.
         let (s, _) = sizes(
-            [2, HEIGHT, 4, WIDTH],
+            [2, HEIGHT, 0x14, WIDTH],
             3840,
             1080,
             Rule::Halves,
             BoxRatio::Full,
         );
-        assert_eq!((s[2], s[3]), (7, 216));
+        assert_eq!(s[3], 216);
+        assert_eq!(s[2] + 3 * s[3] / 2, 960);
+        // The second player's, likewise in the right half.
+        let (s, _) = sizes(
+            [2, HEIGHT, 0x1A4, WIDTH],
+            3840,
+            1080,
+            Rule::Halves,
+            BoxRatio::Full,
+        );
+        assert_eq!(s[2] + 3 * s[3] / 2, 2880);
         // 4:3 stretches as before.
         let (s, _) = sizes(
             [2, HEIGHT, 4, WIDTH],

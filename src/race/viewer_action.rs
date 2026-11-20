@@ -315,11 +315,13 @@ fn another_replay(race: &'static Race, o: Owners<'static>) -> Result<(), Refused
         }
         shared.replay_file().viewer_slot.set(slot);
         crate::race::close_viewed_replay::close_viewed_replay(race)?;
-        let failed = crate::race::open_viewed_replay::open_viewed_replay(race, o.system, slot)?;
-        if !failed {
-            return crate::race::viewer_load_stage::viewer_load_stage(race, o);
+        use crate::race::open_viewed_replay::Opened;
+        match crate::race::open_viewed_replay::open_viewed_replay(race, o.system, slot)? {
+            Opened::Yes => return crate::race::viewer_load_stage::viewer_load_stage(race, o),
+            // An empty slot: the slot list is shown again.
+            Opened::Missing => {}
+            Opened::Damaged => crate::race::replay_viewer::tell_damaged(slot),
         }
-        crate::race::replay_viewer::tell_damaged(slot);
     }
 }
 
