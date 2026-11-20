@@ -7,9 +7,15 @@
 pub struct Snapshot(Vec<Box<dyn Fn() + 'static>>);
 
 impl Snapshot {
-    /// The stores named `names` (registry names, the first of each).
+    /// The stores named `names` (registry names, the first of each; or the scene's plain
+    /// stores, `kept_plain`).
     pub fn of(names: &[&str]) -> Self {
-        Self(names.iter().map(|name| walk(name).keep()).collect())
+        Self(
+            names
+                .iter()
+                .map(|name| kept_plain(name).unwrap_or_else(|| walk(name).keep()))
+                .collect(),
+        )
     }
 
     /// The copies put back, store by store.
@@ -17,6 +23,26 @@ impl Snapshot {
         for put_back in &self.0 {
             put_back();
         }
+    }
+}
+
+/// The scene's plain stores (values the registry does not walk): a copy of the one named `name`,
+/// to be put back; `None` for any other name.
+fn kept_plain(name: &str) -> Option<Box<dyn Fn() + 'static>> {
+    match name {
+        "owners.scene.draw_work" => {
+            let copy = super::own::scene().draw_work().clone();
+            Some(Box::new(move || {
+                *super::own::scene().draw_work_mut() = copy.clone();
+            }))
+        }
+        "owners.scene.line_and_shake" => {
+            let copy = *super::own::scene().line_and_shake();
+            Some(Box::new(move || {
+                *super::own::scene().line_and_shake_mut() = copy;
+            }))
+        }
+        _ => None,
     }
 }
 

@@ -16,11 +16,11 @@ const NAMES: [Name; 8] = [
     (|_, gfx| gfx.display.choices.card.get(), 0x38F, 0),
     (|_, gfx| gfx.display.choices.buffering.get(), 0x391, 2),
     (|_, gfx| gfx.display.choices.mipmapping.get(), 0x56D, 3),
-    (|menus, _| menus.options.lens_flare.get(), 0x56D, 4),
-    (|menus, _| menus.options.reflections.get(), 0x56D, 5),
-    (|menus, _| menus.options.car_shadows.get(), 0x396, 6),
-    (|menus, _| menus.options.car_detail.get(), 0x393, 7),
-    (|menus, _| menus.options.headlights.get(), 0x394, 8),
+    (|menus, _| menus.options.read().lens_flare, 0x56D, 4),
+    (|menus, _| menus.options.read().reflections, 0x56D, 5),
+    (|menus, _| menus.options.read().car_shadows, 0x396, 6),
+    (|menus, _| menus.options.read().car_detail, 0x393, 7),
+    (|menus, _| menus.options.read().headlights, 0x394, 8),
 ];
 
 /// The frame limit as the page shows it: "off", "display (72 fps)" or "30 fps".

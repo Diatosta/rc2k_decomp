@@ -24,6 +24,9 @@ struct PhysicsMain {
     pub pace: RefCell<PaceNotes>,
     pub split_tables: RefCell<SplitTables>,
     pub damage: RefCell<DamageModel>,
+    /// The ground search's mark: borrowed for one statement at a time; the drawing parts read the
+    /// copy their scope was opened with (`scene::workers::DrawReads::ground_probe`).
+    pub ground_probe: RefCell<GroundProbe>,
     pub car_specs: CarSpecs,
 }
 
@@ -36,6 +39,7 @@ impl PhysicsMain {
             pace: RefCell::new(PaceNotes::new()),
             split_tables: RefCell::new(SplitTables::new()),
             damage: RefCell::new(DamageModel::new()),
+            ground_probe: RefCell::new(GroundProbe::new()),
             car_specs: CarSpecs::new(),
         }
     }
@@ -46,9 +50,6 @@ pub struct Physics {
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing's searches have
     /// their own and read only the lit faces.
     pub contact: DrawShared<ContactWork>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing's searches
-    /// have their own fields and read only its mark.
-    pub ground_probe: DrawShared<GroundProbe>,
     main: GameThread<PhysicsMain>,
 }
 
@@ -56,7 +57,6 @@ impl Physics {
     pub const fn new() -> Self {
         Physics {
             contact: DrawShared::new(ContactWork::new()),
-            ground_probe: DrawShared::new(GroundProbe::new()),
             main: GameThread::new(PhysicsMain::new()),
         }
     }
@@ -114,6 +114,11 @@ impl Physics {
     /// The damage model, to write: no other borrow may be held.
     pub fn damage_mut(&self) -> RefMut<'_, DamageModel> {
         self.main.get().damage.borrow_mut()
+    }
+
+    /// The ground search's mark, for the searches that set it and the ones that read it.
+    pub fn ground_probe(&self) -> &RefCell<GroundProbe> {
+        &self.main.get().ground_probe
     }
 
     pub fn car_specs(&self) -> &CarSpecs {

@@ -31,52 +31,11 @@ const ITEM_MOTION_Z: u32 = 0x20;
 
 /// The dword at byte `e` of the items.
 fn get(drops: &WindscreenDrops, e: u32) -> u32 {
-    drops.hex.items.get_u32(e as usize)
+    drops.hex.borrow().item(e as usize)
 }
 
 fn put(drops: &WindscreenDrops, e: u32, v: u32) {
-    drops.hex.items.set_u32(e as usize, v);
-}
-
-/// The drift at the item's cell (the drift curve at k) into `WindscreenDropWork.drift[0]`,
-/// `WindscreenDropWork.drift[1]`.
-fn drift_cell(drops: &WindscreenDrops, k: u32) {
-    drift_cell_x87(drops, k as usize);
-}
-
-/// The item's motion (`ITEM_MOTION_X`, `ITEM_MOTION_Z`) eased toward the drift times its kind's
-/// `WindscreenDropWork.radii[0]`[k] by `WindscreenDropVars.ease`, its place moved by it.
-fn drift_move(drops: &WindscreenDrops, k: u32, s: u32) {
-    drift_move_x87(drops, k as usize, s as usize);
-}
-
-/// The cell place scaled and turned into `WindscreenDropWork.cell[0]` .., the depth also in
-/// `WindscreenDropState.depth`.
-fn sprite_depth(drops: &WindscreenDrops) {
-    sprite_depth_x87(drops);
-}
-
-/// The six corners (the kind's offsets at `WindscreenDropWork.scaled[0]`[c] ..) into
-/// `WindscreenDropWork.corners[0]` .., the depth's inverse (left on the x87 stack, so returned).
-fn sprite_corners(
-    front: &crate::scene::polygon_work_store::PolygonWork,
-    drops: &WindscreenDrops,
-    c: u32,
-) -> bh::X {
-    sprite_corners_x87(front, drops, c as usize)
-}
-
-/// The centre and corners projected into the buffer at e (six vertices), drawn in by
-/// `WindscreenDropVars.scale[2]` / `E`, their depth.
-fn sprite_project(
-    front: &crate::scene::polygon_work_store::PolygonWork,
-    drops: &WindscreenDrops,
-    gfx: &crate::gfx::owner::Gfx,
-    effects: &crate::effects::owner::Effects,
-    e: u32,
-    inverse_depth: bh::X,
-) {
-    sprite_project_x87(front, drops, gfx, effects, e as usize, inverse_depth);
+    drops.hex.borrow_mut().set_item(e as usize, v);
 }
 
 /// Why it refuses, if it does.
@@ -88,10 +47,10 @@ fn refusal(
         if effects.settings().is_err() {
             return Ok(Some("no marks settings"));
         }
-        let items = &drops.hex.items;
+        let hex = drops.hex.borrow();
         let bad = (0..ITEMS as usize).any(|n| {
             let e = n * ITEM_LEN as usize;
-            items.get_u32(e) == 1 && items.get_u32(e + ITEM_KIND as usize) >= KINDS
+            hex.item(e) == 1 && hex.item(e + ITEM_KIND as usize) >= KINDS
         });
         bad.then_some("a live windscreen drop of a kind past 7")
     })
@@ -140,13 +99,12 @@ pub fn windscreen_drops_frame(
             if setup.kind_floats.borrow().running != 0 {
                 let x = x87::to_int(get(drops, e + ITEM_X));
                 setup.work.scratch.set(x as u32);
-                drift_cell(drops, 4 * (((x as u32) >> 3) & 0xFF));
-                drift_move(drops, 4 * get(drops, e + ITEM_KIND), e);
+                drift_cell_x87(drops, 4 * (((x as u32) >> 3) & 0xFF) as usize);
+                drift_move_x87(drops, 4 * get(drops, e + ITEM_KIND) as usize, e as usize);
             }
             let x = x87::to_int(get(drops, e + ITEM_X));
             let z = x87::to_int(get(drops, e + ITEM_Z));
-            drops.work.whole[0].set(x as u32);
-            drops.work.whole[1].set(z as u32);
+            drops.work.borrow_mut().whole = [x as u32, z as u32];
             if (x as u32 | (z as u32).wrapping_add(z as u32)) & 0x800 != 0 {
                 put(drops, e, 0);
                 continue;
@@ -157,28 +115,29 @@ pub fn windscreen_drops_frame(
                 put(drops, e, 0);
                 continue;
             }
-            sprite_depth(drops);
+            sprite_depth_x87(drops);
             // The depth's bits below 4096.0's.
-            if !crate::math::x87::bits_at_or_below(4096.0, drops.work.cell[2].get()) {
+            if !crate::math::x87::bits_at_or_below(4096.0, drops.work.borrow().cell[2]) {
                 continue;
             }
-            let inverse_depth = sprite_corners(
+            let inverse_depth = sprite_corners_x87(
                 scene.scratch.front_end_polygon(),
                 drops,
-                shape.wrapping_mul(0x48),
+                shape.wrapping_mul(0x48) as usize,
             );
-            sprite_project(
+            let buffer_at = drops.hex.borrow().buffer;
+            sprite_project_x87(
                 scene.scratch.front_end_polygon(),
                 drops,
                 gfx,
                 effects,
-                drops.hex.buffer.get(),
+                buffer_at as usize,
                 inverse_depth,
             );
-            let next = drops.hex.buffer.get().wrapping_add(0xC0);
-            drops.hex.buffer.set(next);
+            let next = buffer_at.wrapping_add(0xC0);
+            drops.hex.borrow_mut().buffer = next;
             if next as usize == BUFFER_BYTES {
-                drops.hex.buffer.set(0);
+                drops.hex.borrow_mut().buffer = 0;
                 gfx.card.windscreen_drop_batch.index_count.set(0x300);
                 gfx.card.windscreen_drop_batch.vertex_count.set(0x180);
                 draw_batch(scene, gfx)?;
@@ -195,33 +154,36 @@ pub fn windscreen_drops_frame(
     Ok(())
 }
 
-use crate::effects::plain::{ld_at, ld_cell, st_at};
-use crate::math::x87_float as bh;
+use crate::effects::plain::{ld_at, st_at};
+use crate::math::x87_float::{self as bh, stf};
 
-/// `drift_cell`: the drift at the item's cell (`curve[k / 4]`) into `drift`: x from the
-/// shape tilt's point, y its second coordinate.
+/// The drift at the item's cell (`curve[k / 4]`) into `drift`: x from the shape tilt's point,
+/// y its second coordinate.
 fn drift_cell_x87(drops: &WindscreenDrops, k: usize) {
     let tilt = drops.tilt.borrow();
-    let x = -(drops.work.curve[k / 4].ld() * bh::ld(tilt.point[2])) + bh::ld(tilt.point[0]);
-    drops.work.drift[0].st(x);
+    let mut work = drops.work.borrow_mut();
+    let x = -(bh::ld(work.curve[k / 4]) * bh::ld(tilt.point[2])) + bh::ld(tilt.point[0]);
+    work.drift[0] = stf(x);
     let y = bh::ld(tilt.point[1]);
-    drops.work.drift[1].st(y);
+    work.drift[1] = stf(y);
 }
 
-/// `drift_move`: the item at byte `s` of the items has its motion eased toward the drift
-/// (scaled by its kind's radius `radii[k / 4]`) and its place moved by the new motion.
+/// The item at byte `s` of the items has its motion eased toward the drift (scaled by its
+/// kind's radius `radii[k / 4]`) and its place moved by the new motion.
 fn drift_move_x87(drops: &WindscreenDrops, k: usize, s: usize) {
-    let ld_item = |field: u32| ld_at(&drops.hex.items, s + field as usize);
-    let st_item = |field: u32, x| st_at(&drops.hex.items, s + field as usize, x);
+    let mut hex = drops.hex.borrow_mut();
+    let work = drops.work.borrow();
+    let ease = bh::ld(hex.ease);
     for (motion, drift) in [(ITEM_MOTION_X, 0), (ITEM_MOTION_Z, 1)] {
-        let toward = drops.work.drift[drift].ld() * drops.work.radii[k / 4].ld();
-        let eased = (toward - ld_item(motion)) * ld_cell(&drops.hex.ease) + ld_item(motion);
-        st_item(motion, eased);
+        let toward = bh::ld(work.drift[drift]) * bh::ld(work.radii[k / 4]);
+        let at = s + motion as usize;
+        let eased = (toward - hex.ld_item(at)) * ease + hex.ld_item(at);
+        hex.st_item(at, eased);
     }
-    let x = ld_item(ITEM_X) + ld_item(ITEM_MOTION_X);
-    let z = ld_item(ITEM_Z) + ld_item(ITEM_MOTION_Z);
-    st_item(ITEM_Z, z);
-    st_item(ITEM_X, x);
+    let x = hex.ld_item(s + ITEM_X as usize) + hex.ld_item(s + ITEM_MOTION_X as usize);
+    let z = hex.ld_item(s + ITEM_Z as usize) + hex.ld_item(s + ITEM_MOTION_Z as usize);
+    hex.st_item(s + ITEM_Z as usize, z);
+    hex.st_item(s + ITEM_X as usize, x);
 }
 
 /// The dword at `offset` of the record batch, as the x87 loads it.
@@ -229,49 +191,50 @@ fn ld_record(offset: usize, gfx: &crate::gfx::owner::Gfx) -> bh::X {
     ld_at(&gfx.card.windscreen_drop_batch.records, offset)
 }
 
-/// `sprite_depth`: the item's whole-number place turned by the view into `cell` (and the
-/// depth, which is `cell[2]` too). Same order and rounding as the x87.
+/// The item's whole-number place turned by the view into `cell` (and the depth, which is
+/// `cell[2]` too). Same order and rounding as the x87.
 fn sprite_depth_x87(drops: &WindscreenDrops) {
-    let work = &drops.work;
-    let x = bh::int(work.whole[0].get() as i32);
-    let z = ld_cell(&drops.hex.frame_k) - bh::int(work.whole[1].get() as i32);
-    let z = z * work.shares[1].ld();
-    let x = x * work.shares[0].ld();
+    let hex = drops.hex.borrow();
+    let mut work = drops.work.borrow_mut();
+    let x = bh::int(work.whole[0] as i32);
+    let z = bh::ld(hex.frame_k) - bh::int(work.whole[1] as i32);
+    let z = z * bh::ld(work.shares[1]);
+    let x = x * bh::ld(work.shares[0]);
     // Output i: x times the first axes row, z times the second, plus the view's place. The
     // last one adds the products the other way round and is also
     // the depth.
     for i in 0..3 {
-        let from_x = x * work.axes[i].ld();
-        let from_z = z * work.axes[3 + i].ld();
+        let from_x = x * bh::ld(work.axes[i]);
+        let from_z = z * bh::ld(work.axes[3 + i]);
         let sum = if i < 2 {
             from_x + from_z
         } else {
             from_z + from_x
         };
-        let out = sum + work.place[i].ld();
+        let out = sum + bh::ld(work.place[i]);
         if i == 2 {
-            drops.state.borrow_mut().depth = f32::from_bits(bh::st(out));
+            drops.state.borrow_mut().depth = stf(out);
         }
-        work.cell[i].st(out);
+        work.cell[i] = stf(out);
     }
 }
 
-/// `sprite_corners`: the six corners of the kind's shape (its offsets from `scaled[c / 4]`)
-/// placed around the item's `cell` into `corners`. Returns the inverse depth the projection
-/// takes (`view_scale / cell[2]`).
+/// The six corners of the kind's shape (its offsets from `scaled[c / 4]`) placed around the
+/// item's `cell` into `corners`. Returns the inverse depth the projection takes
+/// (`view_scale / cell[2]`).
 fn sprite_corners_x87(
     front: &crate::scene::polygon_work_store::PolygonWork,
     drops: &WindscreenDrops,
     c: usize,
 ) -> bh::X {
-    let work = &drops.work;
-    let inverse_depth = bh::ld(front.window.view_scale.get()) / work.cell[2].ld();
+    let mut work = drops.work.borrow_mut();
+    let inverse_depth = bh::ld(front.window.view_scale.get()) / bh::ld(work.cell[2]);
     // Axis by axis (x, y, z), each of the six corners.
     for axis in 0..3 {
         for corner in 0..6 {
             let i = 3 * corner + axis;
-            let sum = work.cell[axis].ld() + work.scaled[c / 4 + i].ld();
-            work.corners[i].st(sum);
+            let sum = bh::ld(work.cell[axis]) + bh::ld(work.scaled[c / 4 + i]);
+            work.corners[i] = stf(sum);
         }
     }
     inverse_depth
@@ -288,20 +251,21 @@ fn sprite_project_x87(
     e: usize,
     inverse_depth: bh::X,
 ) {
-    let work = &drops.work;
+    let hex = drops.hex.borrow();
+    let mut work = drops.work.borrow_mut();
     let records = &gfx.card.windscreen_drop_batch.records;
     let centre = |axis: usize| front.window.view_centre[axis].ld();
-    work.cell[2].st(inverse_depth);
+    work.cell[2] = stf(inverse_depth);
     // The centre.
-    let up = -(work.cell[1].ld() * work.cell[2].ld());
-    let across = work.cell[0].ld() * work.cell[2].ld() + centre(0);
-    work.cell[0].st(across);
-    work.cell[1].st(up + centre(1));
+    let up = -(bh::ld(work.cell[1]) * bh::ld(work.cell[2]));
+    let across = bh::ld(work.cell[0]) * bh::ld(work.cell[2]) + centre(0);
+    work.cell[0] = stf(across);
+    work.cell[1] = stf(up + centre(1));
     // The corners: x and y written both at the vertex's screen-place fields and at its first two fields.
     for v in 0..6 {
         let at = e + 0x20 * v;
-        let x = work.corners[3 * v].ld() * work.cell[2].ld();
-        let y = -(work.corners[3 * v + 1].ld() * work.cell[2].ld());
+        let x = bh::ld(work.corners[3 * v]) * bh::ld(work.cell[2]);
+        let y = -(bh::ld(work.corners[3 * v + 1]) * bh::ld(work.cell[2]));
         let y = y + centre(1);
         st_at(records, at + 0x1C, y);
         st_at(records, at + 0x4, y);
@@ -310,23 +274,23 @@ fn sprite_project_x87(
         st_at(records, at, x);
     }
     // The vertices' screen places moved around the centre by the scales.
-    let screen_x = work.cell[0].ld() * ld_cell(&drops.hex.scale[0]);
-    let screen_y = work.cell[1].ld() * ld_cell(&drops.hex.scale[1]);
-    work.screen[0].st(screen_x);
-    work.screen[1].st(screen_y);
+    let screen_x = bh::ld(work.cell[0]) * bh::ld(hex.scale[0]);
+    let screen_y = bh::ld(work.cell[1]) * bh::ld(hex.scale[1]);
+    work.screen[0] = stf(screen_x);
+    work.screen[1] = stf(screen_y);
     for v in 0..6 {
         let at = e + 0x20 * v;
-        let x = (ld_record(at + 0x18, gfx) - work.cell[0].ld()) * ld_cell(&drops.hex.scale[2])
-            + work.screen[0].ld();
+        let x = (ld_record(at + 0x18, gfx) - bh::ld(work.cell[0])) * bh::ld(hex.scale[2])
+            + bh::ld(work.screen[0]);
         st_at(records, at + 0x18, x);
-        let y = (ld_record(at + 0x1C, gfx) - work.cell[1].ld()) * ld_cell(&drops.hex.scale[3])
-            + work.screen[1].ld();
+        let y = (ld_record(at + 0x1C, gfx) - bh::ld(work.cell[1])) * bh::ld(hex.scale[3])
+            + bh::ld(work.screen[1]);
         st_at(records, at + 0x1C, y);
     }
     // Every vertex's depth.
     let depth = (bh::ld(drops.state.borrow().depth)
         + bh::ld(effects.setup.kind_floats.borrow().kind_float))
-        * work.inverse.ld();
+        * bh::ld(work.inverse);
     for v in 0..6 {
         st_at(records, e + 0x20 * v + 0x8, depth);
     }

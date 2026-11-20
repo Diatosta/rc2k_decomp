@@ -4,12 +4,12 @@ use crate::effects::blocks_store::Particle;
 use crate::effects::emit_exhaust_smoke_store::ExhaustSet;
 use crate::effects::emit_rolling_dust_store::{RollingChoice, RollingSet};
 use crate::effects::emit_rolling_particles_rated_store::RollingRatedSet;
-use crate::effects::emit_slip_snow_cloud_store::SlipSprayLongSet;
 use crate::effects::emit_slip_spray_store::SlipSpraySet;
 use crate::effects::emit_twin_particle_first_store::{TwinState, TwinTuning};
 use crate::effects::emit_wheel_dust_cloud_store::WheelFadeSet;
 use crate::effects::emit_wheel_grit_bursts_store::BurstTuning;
 use crate::memory::session::{PlainBytes, PlainFloat};
+use std::cell::RefCell;
 
 /// The puff's work values.
 #[derive(rc2k_derive::Cells)]
@@ -41,12 +41,12 @@ pub struct Particles {
     pub ring: crate::memory::owned::Owned<Vec<Particle>>,
     pub puff_work: PuffWork,
     pub kind1_choice: RollingChoice,
-    pub kind1_set: RollingSet,
-    pub kind5_set: SlipSpraySet,
-    pub kind6_set: WheelFadeSet,
-    pub kind11_set: SlipSprayLongSet,
-    pub kind13_set: ExhaustSet,
-    pub kind21_set: RollingRatedSet,
+    pub kind1_set: RefCell<RollingSet>,
+    pub kind5_set: RefCell<SlipSpraySet>,
+    pub kind6_set: RefCell<WheelFadeSet>,
+    pub kind11_set: RefCell<SlipSpraySet>,
+    pub kind13_set: RefCell<ExhaustSet>,
+    pub kind21_set: RefCell<RollingRatedSet>,
     pub twin_state: TwinState,
     pub nineteenth_tuning: TwinTuning,
     pub twenty_second_tuning: TwinTuning,
@@ -60,12 +60,12 @@ impl Particles {
             ring: crate::memory::owned::Owned::new("no particle ring"),
             puff_work: PuffWork::new(),
             kind1_choice: RollingChoice::new(),
-            kind1_set: RollingSet::new(),
-            kind5_set: SlipSpraySet::new(),
-            kind6_set: WheelFadeSet::new(),
-            kind11_set: SlipSprayLongSet::new(),
-            kind13_set: ExhaustSet::new(),
-            kind21_set: RollingRatedSet::new(),
+            kind1_set: RefCell::new(RollingSet::new()),
+            kind5_set: RefCell::new(SlipSpraySet::new()),
+            kind6_set: RefCell::new(WheelFadeSet::new()),
+            kind11_set: RefCell::new(SlipSpraySet::new()),
+            kind13_set: RefCell::new(ExhaustSet::new()),
+            kind21_set: RefCell::new(RollingRatedSet::new()),
             twin_state: TwinState::new(),
             nineteenth_tuning: TwinTuning::nineteenth(),
             twenty_second_tuning: TwinTuning::twenty_second(),

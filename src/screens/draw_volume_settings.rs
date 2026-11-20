@@ -8,7 +8,7 @@ use crate::text::draw_text::Canvas;
 
 pub fn draw_volume_settings(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let menus = o.menus;
-    let options = &menus.options;
+    let options = menus.options.read();
     let levels = &o.audio.levels;
     // The logic is in `rc2k_core::screens::settings_pages::volume`.
 
@@ -17,11 +17,11 @@ pub fn draw_volume_settings(o: Owners<'static>, canvas: &mut dyn Canvas) -> Resu
     // `audio.levels.engine_volume`.
     let volumes: [u32; 9] = [
         levels.general_volume.get(),
-        options.menu_music_volume.get(),
-        options.race_music_level.get(),
-        options.menu_effects_volume.get(),
+        options.menu_music_volume,
+        options.race_music_level,
+        options.menu_effects_volume,
         levels.race_effects_volume.get(),
-        options.menu_voices_volume.get(),
+        options.menu_voices_volume,
         levels.codriver_voice_volume.get(),
         levels.engine_volume.get(),
         crate::platform::sound::FILM_VOLUME.load(std::sync::atomic::Ordering::Relaxed),

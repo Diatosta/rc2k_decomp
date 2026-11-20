@@ -8,7 +8,8 @@
 
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
-use crate::math::x87_float::int;
+use crate::math::x87_float::{int, ld, st};
+use crate::memory::session::PlainDword;
 use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::physics::step_families::CameraInputs;
 use crate::race::numbers_store::Numbers;
@@ -16,26 +17,27 @@ use crate::race::owner_shared::RaceShared;
 
 // Core: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    scene.lights.state.get().camera_shake_listener.set(0.0);
-    scene.lights.state.get().camera_shake_y.set(0);
+    {
+        let mut shake = scene.line_and_shake_mut();
+        shake.camera_shake_listener = 0;
+        shake.camera_shake_y = 0;
+    }
     if rc2k_core::physics::camera_view::shakes(c.car.camera_view.get(), c.car.all_wheels_off.get())
     {
         x87_1(c.shared, scene);
-        hold_high(
-            &scene.lights.state.get().camera_shake_y,
-            &c.tables.camera_frame_limit,
-        );
+        // The holds work on a dword the shake's bits are copied into and out of.
+        let y = PlainDword::new(scene.line_and_shake().camera_shake_y);
+        hold_high(&y, &c.tables.camera_frame_limit);
         negate(&c.tables.camera_frame_limit);
-        hold_low(
-            &scene.lights.state.get().camera_shake_y,
-            &c.tables.camera_frame_limit,
-        );
+        hold_low(&y, &c.tables.camera_frame_limit);
         negate(&c.tables.camera_frame_limit);
+        scene.line_and_shake_mut().camera_shake_y = y.get();
         let random = c.shared.random.next_random();
         x87_2(c.numbers, random, scene);
         if c.still != 0 {
-            scene.lights.state.get().camera_shake_y.set(0);
-            scene.lights.state.get().camera_shake_listener.set(0.0);
+            let mut shake = scene.line_and_shake_mut();
+            shake.camera_shake_y = 0;
+            shake.camera_shake_listener = 0;
         }
     }
     crate::physics::update_camera::steps(c, scene)
@@ -57,7 +59,7 @@ fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let t0 = shared.car().vertical_speed_change.ld();
     let t1 = shared.physics_tables.get().camera_frame_scale.ld();
     let t2 = t0 * t1;
-    scene.lights.state.get().camera_shake_y.st(t2);
+    scene.line_and_shake_mut().camera_shake_y = st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -72,9 +74,9 @@ fn x87_2(numbers: &Numbers, random: u32, scene: &crate::scene::owner::Scene) {
     let t4 = t2 / t3;
     let t5 = numbers.three.ld();
     let t6 = t4 * t5;
-    let t7 = scene.lights.state.get().camera_shake_y.ld();
+    let t7 = ld(scene.line_and_shake().camera_shake_y);
     let t8 = t6 * t7;
-    scene.lights.state.get().camera_shake_listener.st(t8);
+    scene.line_and_shake_mut().camera_shake_listener = st(t8);
 }
 
 #[cfg(test)]

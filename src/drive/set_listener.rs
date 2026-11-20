@@ -197,7 +197,7 @@ pub fn set_listener(
         .set(u32::from(car.handbrake.get() != 0));
     race.effects_settings().listener_scale.set(bh::stf(
         bh::int(car.steer_angle_visual.get() as i32) / bh::int(0x2000_0000)
-            + bh::ld(scene.lights.state.get().camera_shake_listener.get()),
+            + bh::ld(scene.line_and_shake().camera_shake_listener),
     ));
     race.effects_settings()
         .engine_speed_copy

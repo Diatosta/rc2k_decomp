@@ -547,7 +547,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         &ctx.view.matrices.view_turn_matrix,
         &ctx.view.light,
     );
-    if ctx.reads.light_state.light_turn_off.get() == 0 {
+    if ctx.reads.light_work.light_turn_off == 0 {
         set_turn_y(
             &ctx.reads.buffers.engine_tables,
             &ctx.view.matrices.turn_y_matrix,

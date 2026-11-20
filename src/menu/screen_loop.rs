@@ -113,7 +113,7 @@ impl ScreenVar {
             ScreenVar::LeftService => screens.flow.read().left_service,
             ScreenVar::Quiet => screens.flow.read().quiet,
             ScreenVar::Highlight => screens.loop_flags.read().item,
-            ScreenVar::SavedItem(slot) => screens.items.current[slot].get(),
+            ScreenVar::SavedItem(slot) => screens.items.current(slot),
             ScreenVar::YesNoAnswer => menus.tables.pages.read().yes_no_answer,
         }
     }
@@ -138,7 +138,7 @@ impl ScreenVar {
             ScreenVar::LeftService => screens.flow.write().left_service = value,
             ScreenVar::Quiet => screens.flow.write().quiet = value,
             ScreenVar::Highlight => screens.loop_flags.write().item = value,
-            ScreenVar::SavedItem(slot) => screens.items.current[slot].set(value),
+            ScreenVar::SavedItem(slot) => screens.items.set_current(slot, value),
             ScreenVar::YesNoAnswer => menus.tables.pages.write().yes_no_answer = value,
         }
     }
@@ -183,7 +183,7 @@ impl ScreenFlag {
             ScreenFlag::LeftWithCarry => screens.loop_flags.read().left_with_carry,
             ScreenFlag::SkipEditValues => screens.state.read().menus.skip_edit_values,
             ScreenFlag::StandingsShown => screens.state.read().menus.standings_shown,
-            ScreenFlag::LeftByKey => menus.tables.captions.left_by_key.is_set(),
+            ScreenFlag::LeftByKey => menus.tables.captions.read().left_by_key,
         }
     }
 
@@ -200,7 +200,7 @@ impl ScreenFlag {
             ScreenFlag::LeftWithCarry => screens.loop_flags.write().left_with_carry = on,
             ScreenFlag::SkipEditValues => screens.state.write().menus.skip_edit_values = on,
             ScreenFlag::StandingsShown => screens.state.write().menus.standings_shown = on,
-            ScreenFlag::LeftByKey => menus.tables.captions.left_by_key.set(on),
+            ScreenFlag::LeftByKey => menus.tables.captions.write().left_by_key = on,
         }
     }
 }
@@ -1089,7 +1089,7 @@ impl ScreenHost for MenuHost<'_> {
 
     fn restore_highlight(&mut self) {
         let menus = self.entry.menus;
-        menus.tables.captions.left_by_key.set(false);
+        menus.tables.captions.write().left_by_key = false;
         self.screens().loop_flags.write().item =
             ScreenVar::SavedItem(self.screen.saved_item).get(menus);
         clear_escape(self.screens());
@@ -1241,7 +1241,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn clear_left_by_key(&mut self) {
-        self.entry.menus.tables.captions.left_by_key.set(false);
+        self.entry.menus.tables.captions.write().left_by_key = false;
     }
 
     fn restore_action_item(&mut self) {
@@ -1266,7 +1266,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn left_by_key(&self) -> bool {
-        self.entry.menus.tables.captions.left_by_key.is_set()
+        self.entry.menus.tables.captions.read().left_by_key
     }
 
     fn ask_suppressed(&self) -> bool {

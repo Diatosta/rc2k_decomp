@@ -42,7 +42,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     menus.screens.flow.write().turning = 1u32;
     menus.screens.carousel.menu.set(0u32);
     carousel(entry, None)?;
-    let item = menus.screens.items.current[slot::MAIN_MENU].get();
+    let item = menus.screens.items.current(slot::MAIN_MENU);
     menus.screens.loop_flags.write().item = item;
     menus
         .screens

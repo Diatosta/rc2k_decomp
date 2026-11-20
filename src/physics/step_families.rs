@@ -53,7 +53,7 @@ pub struct GroundInputs<'a> {
     pub course: &'a Course,
     pub contact: &'a ContactWork,
     pub search: &'a RefCell<GroundSearch>,
-    pub probe: &'a GroundProbe,
+    pub probe: &'a RefCell<GroundProbe>,
     pub engine_tables: &'a crate::math::engine_tables::EngineTables,
 }
 
@@ -65,7 +65,7 @@ pub struct CameraGroundInputs<'a> {
     pub course: &'a Course,
     pub camera: &'a RefCell<CameraWork>,
     pub search: &'a RefCell<GroundSearch>,
-    pub probe: &'a GroundProbe,
+    pub probe: &'a RefCell<GroundProbe>,
 }
 
 /// What the camera steps read: the camera variables, the car's place and the views, the
@@ -171,7 +171,7 @@ pub struct LightingInputs<'a> {
     pub car: &'a Car,
     pub course: &'a Course,
     pub search: &'a RefCell<GroundSearch>,
-    pub probe: &'a GroundProbe,
+    pub probe: &'a RefCell<GroundProbe>,
     pub vars: &'a RaceVars,
     pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
 }
@@ -200,7 +200,7 @@ pub struct SlotInputs<'a> {
     pub work: &'a RaceWork,
     pub matrices: &'a SceneMatrices,
     pub search: &'a RefCell<GroundSearch>,
-    pub probe: &'a GroundProbe,
+    pub probe: &'a RefCell<GroundProbe>,
 }
 
 impl<'a> StepInputs<'a> {
@@ -231,7 +231,7 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             camera: self.physics.camera_cell(),
             search: self.physics.ground_search(),
-            probe: self.physics.ground_probe.get(),
+            probe: self.physics.ground_probe(),
         }
     }
 
@@ -259,7 +259,7 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             contact: self.physics.contact.get(),
             search: self.physics.ground_search(),
-            probe: self.physics.ground_probe.get(),
+            probe: self.physics.ground_probe(),
             engine_tables: &self.shared.buffers.reads.get().engine_tables,
         }
     }
@@ -334,7 +334,7 @@ impl<'a> StepInputs<'a> {
             car: self.car,
             course: self.course,
             search: self.physics.ground_search(),
-            probe: self.physics.ground_probe.get(),
+            probe: self.physics.ground_probe(),
             vars: self.vars,
             polygon_tables: &self.shared.buffers.reads.get().polygon_tables,
         }
@@ -361,7 +361,7 @@ impl<'a> StepInputs<'a> {
             work: self.work,
             matrices: self.frame.matrices.get(),
             search: self.physics.ground_search(),
-            probe: self.physics.ground_probe.get(),
+            probe: self.physics.ground_probe(),
         }
     }
 }

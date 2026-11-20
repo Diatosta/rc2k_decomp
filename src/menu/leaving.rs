@@ -33,14 +33,14 @@ pub fn question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables) 
     Question {
         asking: flow.read().asking,
         answer: pages.read().yes_no_answer,
-        answered: captions.left_by_key.is_set(),
+        answered: captions.read().left_by_key,
     }
 }
 
 fn put_question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables, q: &Question) {
     flow.write().asking = q.asking;
     pages.write().yes_no_answer = q.answer;
-    captions.left_by_key.set(q.answered);
+    captions.write().left_by_key = q.answered;
 }
 
 /// The switches changed by `f`.

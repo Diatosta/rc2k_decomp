@@ -537,7 +537,7 @@ fn raise_onto_face(
     let env = GroundEnv {
         course: reads.course(),
         points,
-        mark: reads.ground_probe.settle_mark.get(),
+        mark: reads.ground_probe.settle_mark,
     };
     face_shares_at(env, &mut q)?;
     crate::physics::plane_height::plane_height(&mut q);
@@ -780,7 +780,7 @@ pub(super) fn shadow_points(
     let env = GroundEnv {
         course: reads.course(),
         points,
-        mark: reads.ground_probe.settle_mark.get(),
+        mark: reads.ground_probe.settle_mark,
     };
     let mut q = GroundSearch {
         x: car.position[0].get(),
@@ -1097,6 +1097,7 @@ mod vector_tests {
     fn crossing_block_is_the_originals() {
         let kept = Snapshot::of(&[
             "owners.scene.drawing.scene",
+            "owners.scene.draw_work",
             "owners.race.frame.frame_work",
             "owners.race.physics.ground",
         ]);
@@ -1172,6 +1173,7 @@ mod vector_tests {
     fn sun_slant_and_angle_are_the_originals() {
         let kept = Snapshot::of(&[
             "owners.scene.drawing.scene",
+            "owners.scene.draw_work",
             "owners.race.frame.shadow_skids",
         ]);
         let mut vectors = Vectors::open("race.car_shadow.sun_slant_and_angle", Kind::Close, 3);

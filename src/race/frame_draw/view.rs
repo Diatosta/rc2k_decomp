@@ -530,7 +530,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     )?;
     // Not left from the previous view's last object.
     ctx.view.light.other_light.set(0);
-    let mode: u32 = ctx.reads.light_state.draw_mode.get();
+    let mode: u32 = ctx.reads.light_work.draw_mode;
     if mode == 1 || mode == 2 {
         return Ok(());
     }

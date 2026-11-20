@@ -18,7 +18,7 @@ use std::cell::RefCell;
 // Core: `rc2k_core::physics::walls::ProbeCounts`.
 pub fn count_ground_probe(
     camera: &RefCell<CameraWork>,
-    ground_probe: &GroundProbe,
+    ground_probe: &RefCell<GroundProbe>,
     search: &RefCell<GroundSearch>,
     course: &Course,
 ) -> Result<(), Refused> {
@@ -27,7 +27,7 @@ pub fn count_ground_probe(
         found: camera.borrow().ground_found,
         same: camera.borrow().ground_same,
     };
-    ground_probe.settle_mark.set(0x40);
+    ground_probe.borrow_mut().settle_mark = 0x40;
     counts.tried();
     camera.borrow_mut().ground_probes = counts.tries;
     { crate::physics::find_ground::find_ground(ground_probe, search, course) }?;

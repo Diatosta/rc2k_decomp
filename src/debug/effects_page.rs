@@ -55,8 +55,8 @@ const GROUPS: &[(&str, &[Row])] = &[
                     effects
                         .windscreen_drops
                         .hex
+                        .borrow()
                         .windscreen_flakes_cleared
-                        .get()
                         .into()
                 }),
             ),

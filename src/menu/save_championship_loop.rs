@@ -14,8 +14,10 @@ use crate::menu::screen_loop::{
 
 fn before(screens: &Screens) -> Result<(), Refused> {
     screens.draw_work.write().escape_pressed = false;
-    screens.items.current[slot::SAVE_CHAMPIONSHIP]
-        .set(screens.items.first[slot::SAVE_CHAMPIONSHIP].get());
+    screens.items.set_current(
+        slot::SAVE_CHAMPIONSHIP,
+        screens.items.first(slot::SAVE_CHAMPIONSHIP),
+    );
     Ok(())
 }
 

@@ -200,7 +200,7 @@ pub(crate) fn make_scene_record(
             &crate::memory::session::Dword::new(0),
         );
     }
-    if reads.light_state.draw_mode.get() == 1 {
+    if reads.light_work.draw_mode == 1 {
         r[6] = x87::sub(r[6], LOWERED_BY.to_bits()).to_bits();
     }
     point_records::set(part, record, r)?;

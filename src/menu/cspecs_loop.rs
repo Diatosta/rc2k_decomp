@@ -11,7 +11,7 @@ use crate::menu::screen_loop::{Callee, List, Screen, SetUp, Step};
 const SLOT: usize = 33;
 
 fn before(screens: &Screens) -> Result<(), Refused> {
-    screens.items.current[SLOT].set(screens.items.first[SLOT].get());
+    screens.items.set_current(SLOT, screens.items.first(SLOT));
     Ok(())
 }
 
@@ -21,7 +21,7 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     screens.flow.write().turning = 0x1u32;
     screens.carousel.menu.set(0xCu32);
     set_up.carousel_with(None)?;
-    screens.loop_flags.write().item = screens.items.current[SLOT].get();
+    screens.loop_flags.write().item = screens.items.current(SLOT);
     screens.flow.write().turning = 0x0u32;
     screens.carousel.front.set(0x0u32);
     screens.event.write().shown.car = 0x0u32;

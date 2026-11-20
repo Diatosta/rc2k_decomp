@@ -3,53 +3,24 @@
 //! quarter-circle curve of 0x100 floats and 8 circles of points (by the radii after the curve), and
 //! sets up what follows.
 
-use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
+use crate::effects::windscreen_drop_state_store::WindscreenDropWork;
+use crate::effects::windscreen_drop_vars_store::{WindscreenDropVars, WindscreenDrops};
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::memory::session::{PlainBytes, PlainFlag, PlainFloat, PlainInt};
 
-/// One kind's tables.
+/// The windscreen drops' tables: the items (`ITEMS` of `ITEM_LEN` bytes), the curve, the radii
+/// and the circles' points (three floats a point, `SIDES` points a circle).
 pub struct Shapes<'a> {
-    /// Set once the set-up's once-only part is done.
-    pub done: &'a PlainFlag,
-    /// The items (`ITEMS` of `item_len` bytes).
-    pub items: &'a PlainBytes<0x18000>,
-    pub item_len: u32,
-    pub curve: &'a [PlainFloat; CURVE as usize],
-    pub curve_a: &'a PlainFloat,
-    pub curve_b: &'a PlainFloat,
-    pub radii: &'a [PlainFloat],
-    /// The circles' points, three floats a point, `sides` points a circle.
-    pub points: &'a [PlainFloat],
-    pub sides: u32,
-    /// The circles' angle step is `pi / step_c * step_d`.
-    pub step_c: &'a PlainInt,
-    pub step_d: &'a PlainFloat,
+    hex: &'a mut WindscreenDropVars,
+    work: &'a mut WindscreenDropWork,
 }
 
 pub const ITEMS: u32 = 0x800;
+const ITEM_LEN: usize = 0x30;
+const SIDES: u32 = 6;
 const CURVE: u32 = 0x100;
 const RADII: u32 = 8;
-
-/// `effects::set_up_windscreen_drops`'s, over the group's stores.
-impl<'a> Shapes<'a> {
-    pub fn windscreen_drops(drops: &'a WindscreenDrops) -> Self {
-        Shapes {
-            done: &drops.hex.done,
-            items: &drops.hex.items,
-            item_len: 0x30,
-            curve: &drops.work.curve,
-            curve_a: &drops.hex.curve_a,
-            curve_b: &drops.hex.curve_b,
-            radii: &drops.work.radii,
-            points: &drops.work.points,
-            sides: 6,
-            step_c: &drops.hex.step_c,
-            step_d: &drops.hex.step_d,
-        }
-    }
-}
 
 /// The squares' side of `Shapes`: the same steps over the squares' typed
 /// variables (`effects::windscreen_flakes_store`), four points to a circle.
@@ -116,86 +87,81 @@ mod squares {
     }
 }
 
-/// The four floats `set_up_windscreen_drops` scales once, by one or two factors each.
-fn scaled(drops: &WindscreenDrops) -> [(&PlainFloat, Vec<&PlainFloat>); 4] {
-    let hex = &drops.hex;
-    [
-        (&hex.scale[0], vec![&hex.factors[0]]),
-        (&hex.scale[1], vec![&hex.factors[1]]),
-        (&hex.scale[2], vec![&hex.factors[2], &hex.factors[3]]),
-        (&hex.scale[3], vec![&hex.factors[4], &hex.factors[5]]),
-    ]
-}
 const FANS: u32 = 0x40;
 
-impl<'a> Shapes<'a> {
-    /// The items' first dwords cleared (each item's live mark).
-    fn clear_items(&self) -> Result<(), Refused> {
-        for n in 0..ITEMS {
-            let at = (n * self.item_len) as usize;
-            self.items.write_at(at, &[0; 4], "a mark item")?;
+impl Shapes<'_> {
+    /// The four floats `set_up_windscreen_drops` scales once, by one or two factors each.
+    fn scale_once(&mut self, plain: bool) {
+        let hex = &mut *self.hex;
+        if hex.done != 0 {
+            return;
         }
-        Ok(())
+        let factors: [&[f32]; 4] = [
+            &[hex.factors[0]],
+            &[hex.factors[1]],
+            &[hex.factors[2], hex.factors[3]],
+            &[hex.factors[4], hex.factors[5]],
+        ];
+        for (n, by) in factors.into_iter().enumerate() {
+            let v = hex.scale[n];
+            hex.scale[n] = if plain {
+                rc2k_core::effects::shapes::scaled(v, by)
+            } else {
+                match by {
+                    [b] => x87::mul(v, *b),
+                    [b, c] => x87::mul2(v, *b, *c),
+                    _ => unreachable!(),
+                }
+            };
+        }
+        hex.done = 1;
+    }
+
+    /// The items' first dwords cleared (each item's live mark).
+    fn clear_items(&mut self) {
+        for n in 0..ITEMS as usize {
+            self.hex.set_item(n * ITEM_LEN, 0);
+        }
     }
 
     /// Circle `n`'s points.
-    fn circle(&self, n: usize) -> &'a [PlainFloat] {
-        let len = 3 * self.sides as usize;
-        &self.points[len * n..len * (n + 1)]
+    fn circle(&mut self, n: usize) -> &mut [f32] {
+        let len = 3 * SIDES as usize;
+        &mut self.work.points[len * n..len * (n + 1)]
     }
 
     /// The items cleared, the curve, the circles (plain floats: `rc2k_core::effects::shapes`).
-    fn make_plain(&self) -> Result<(), Refused> {
+    fn make_plain(&mut self) {
         use rc2k_core::effects::shapes as core;
-        self.clear_items()?;
-        let curve = core::curve(self.curve_a.get(), self.curve_b.get());
-        for (cell, v) in self.curve.iter().zip(curve) {
-            cell.set(v);
+        self.clear_items();
+        let curve = core::curve(self.hex.curve_a, self.hex.curve_b);
+        for (cell, v) in self.work.curve.iter_mut().zip(curve) {
+            *cell = v;
         }
-        let (c, d): (i32, f32) = (self.step_c.get(), self.step_d.get());
+        let (c, d) = (self.hex.step_c, self.hex.step_d);
         for n in 0..RADII as usize {
-            let r = self.radii[n].get();
+            let r = self.work.radii[n];
             let to = self.circle(n);
-            for (k, [x, y]) in core::circle(r, self.sides, c, d).into_iter().enumerate() {
-                to[3 * k].set(x);
-                to[3 * k + 1].set(y);
+            for (k, [x, y]) in core::circle(r, SIDES, c, d).into_iter().enumerate() {
+                to[3 * k] = x;
+                to[3 * k + 1] = y;
             }
         }
-        Ok(())
     }
 
     /// The items cleared, the curve, the circles.
-    fn make(&self) -> Result<(), Refused> {
-        self.clear_items()?;
-        let (a, b) = (self.curve_a.get(), self.curve_b.get());
-        for (n, cell) in self.curve.iter().enumerate().take(CURVE as usize) {
+    fn make(&mut self) {
+        self.clear_items();
+        let (a, b) = (self.hex.curve_a, self.hex.curve_b);
+        for (n, cell) in self.work.curve.iter_mut().enumerate().take(CURVE as usize) {
             let i = 8 * n as i32;
-            cell.set(x87::circle_curve(i, a, b, i < 0x400));
+            *cell = x87::circle_curve(i, a, b, i < 0x400);
         }
+        let (c, d) = (self.hex.step_c, self.hex.step_d);
         for n in 0..RADII as usize {
-            circle_cells(
-                self.radii[n].get(),
-                self.circle(n),
-                self.sides,
-                self.step_c.get(),
-                self.step_d.get(),
-            );
+            let r = self.work.radii[n];
+            x87::circle_points(r, self.circle(n), SIDES, c, d);
         }
-        Ok(())
-    }
-}
-
-/// `x87::circle_points` on cells: radius `r`, `out` three floats a point (the third left
-/// alone), the angle's step `pi / c * d`.
-fn circle_cells(r: f32, out: &[PlainFloat], count: u32, c: i32, d: f32) {
-    let mut buf = [0f32; 3 * 6];
-    let buf = &mut buf[..out.len()];
-    for (b, f) in buf.iter_mut().zip(out) {
-        *b = f.get();
-    }
-    x87::circle_points(r, buf, count, c, d);
-    for (f, &b) in out.iter().zip(buf.iter()) {
-        f.set(b);
     }
 }
 
@@ -212,28 +178,17 @@ fn windscreen_drops_with(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let shapes = Shapes::windscreen_drops(drops);
-        if !shapes.done.is_set() {
-            for (to, by) in scaled(drops).iter() {
-                let v = to.get();
-                let v = if plain {
-                    let by: Vec<f32> = by.iter().map(|b| b.get()).collect();
-                    rc2k_core::effects::shapes::scaled(v, &by)
-                } else {
-                    match by.as_slice() {
-                        [b] => x87::mul(v, *b),
-                        [b, c] => x87::mul2(v, *b, *c),
-                        _ => unreachable!(),
-                    }
-                };
-                to.set(v);
-            }
-            shapes.done.set(true);
-        }
+        let mut hex = drops.hex.borrow_mut();
+        let mut work = drops.work.borrow_mut();
+        let mut shapes = Shapes {
+            hex: &mut hex,
+            work: &mut work,
+        };
+        shapes.scale_once(plain);
         if plain {
-            shapes.make_plain()?;
+            shapes.make_plain();
         } else {
-            shapes.make()?;
+            shapes.make();
         }
         let mut at = 0usize;
         for n in 0..FANS {
@@ -261,10 +216,9 @@ fn windscreen_drops_with(
                 }
             }
         }
-        drops.hex.started.set(0);
-        drops.hex.moved.set(0);
-        drops.hex.spare[0].set(0);
-        drops.hex.spare[1].set(0);
+        hex.started = 0;
+        hex.moved = 0;
+        hex.spare = [0; 2];
     }
     Ok(())
 }

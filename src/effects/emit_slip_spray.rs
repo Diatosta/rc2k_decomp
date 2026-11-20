@@ -9,6 +9,7 @@
 //! `emit_slip_spray_with`). Refuses (before anything) a null wheel, object, car or matrix where
 //! read.
 
+use crate::effects::emit_slip_spray_store::SlipSpraySet;
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
@@ -17,45 +18,39 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
-use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 
-/// One emitter's variables (kind 5's and kind 0xB's code is the same but for these).
+/// One emitter's variables (kind 5's and kind 0xB's code is the same but for these): the set's
+/// values copied, and its random held for the emitter to advance.
 pub struct JitterSet<'a> {
     pub kind: u32,
     /// Whether the rounded |speed| must be over 1 (kind 0xB) or the speed not 0 (kind 5).
     pub over_one: bool,
-    pub place_random: &'a PlainDword,
+    pub place_random: &'a mut u32,
     /// The motion's factors (x, y, z); `lift` the y's.
-    pub motion_k: [&'a PlainFloat; 3],
-    pub lift: &'a PlainFloat,
-    pub spread: &'a PlainFloat,
+    pub motion_k: [f32; 3],
+    pub lift: f32,
+    pub spread: f32,
     /// The third row's factors (z, y, x).
-    pub roll_k: [&'a PlainFloat; 3],
-    pub spin: &'a PlainFloat,
+    pub roll_k: [f32; 3],
+    pub spin: f32,
     pub life: u32,
 }
 
-/// Kind 5's variables.
-pub fn fifth(effects: &Effects) -> JitterSet<'_> {
-    JitterSet {
-        kind: 5,
-        over_one: false,
-        place_random: &effects.particles.kind5_set.place_random,
-        motion_k: [
-            &effects.particles.kind5_set.motion_x,
-            &effects.particles.kind5_set.motion_y,
-            &effects.particles.kind5_set.motion_z,
-        ],
-        lift: &effects.particles.kind5_set.lift,
-        spread: &effects.particles.kind5_set.spread,
-        roll_k: [
-            &effects.particles.kind5_set.roll_k[0],
-            &effects.particles.kind5_set.roll_k[1],
-            &effects.particles.kind5_set.roll_k[2],
-        ],
-        spin: &effects.particles.kind5_set.spin,
-        life: 0x1388,
+impl<'a> JitterSet<'a> {
+    /// `kind`'s variables out of `set`.
+    pub fn new(kind: u32, over_one: bool, life: u32, set: &'a mut SlipSpraySet) -> Self {
+        JitterSet {
+            kind,
+            over_one,
+            motion_k: [set.motion_x, set.motion_y, set.motion_z],
+            lift: set.lift,
+            spread: set.spread,
+            roll_k: set.roll_k,
+            spin: set.spin,
+            life,
+            place_random: &mut set.place_random,
+        }
     }
 }
 
@@ -95,13 +90,19 @@ pub(super) fn emit_slip_spray(
     wheel: &MarkRecord,
     object: &CarEffects,
 ) -> Result<(), Refused> {
-    emit_slip_spray_with(effects, &fifth(effects), wheel, object)
+    let mut set = effects.particles.kind5_set.borrow_mut();
+    emit_slip_spray_with(
+        effects,
+        &mut JitterSet::new(5, false, 0x1388, &mut set),
+        wheel,
+        object,
+    )
 }
 
 /// The shared body, on `set`'s variables.
 pub(super) fn emit_slip_spray_with(
     effects: &Effects,
-    set: &JitterSet<'_>,
+    set: &mut JitterSet<'_>,
     wheel: &MarkRecord,
     object: &CarEffects,
 ) -> Result<(), Refused> {
@@ -126,7 +127,7 @@ pub(super) fn emit_slip_spray_with(
         kinds.emitter.strength.set(strength);
         let car = emitting_car(effects)?;
         let m = car.whole(effects.car_blocks()?)?;
-        let r = next_c5(set.place_random);
+        let r = next_c5_plain(set.place_random);
         let (a, b) = (((r & 0x3FFF) as i32) - 0x2000, (r & 0x3FFF) as i32);
         kinds.emitter.sides[0].set(a as u32);
         kinds.emitter.sides[1].set(b as u32);
@@ -149,7 +150,7 @@ pub(super) fn emit_slip_spray_with(
         slot.put(|en| &mut en.place[0], place[0])?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok({
-                let lift = (k == 1).then_some(&set.lift);
+                let lift = (k == 1).then_some(set.lift);
                 x87::times_int_plus_times_80(
                     matrix_float(m, 4 * k as u32)?,
                     set.motion_k[k],
@@ -160,7 +161,7 @@ pub(super) fn emit_slip_spray_with(
             })
         })?;
         let (moved, last) = jitter_point(
-            [extended(set.spread.get()), motion[2], motion[1], motion[0]],
+            [extended(set.spread), motion[2], motion[1], motion[0]],
             effects,
         );
         let speed = wheel.local_velocity_z.get();

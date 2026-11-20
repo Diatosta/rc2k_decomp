@@ -75,7 +75,7 @@ pub(super) fn edit_replay_name(
         Key::Escape => {
             restore_text(menus, name)?;
             menus.screens.entry.write().typing = false;
-            menus.tables.captions.left_by_key.set(true);
+            menus.tables.captions.write().left_by_key = true;
             return Ok(true);
         }
         Key::Enter => {

@@ -47,17 +47,6 @@ pub(crate) fn st_at(bytes: &impl crate::memory::session::ByteBuffer, offset: usi
     put_at(bytes, offset, &bh::st(x).to_le_bytes());
 }
 
-/// The ten bytes (an 80-bit float) at byte `offset` of a buffer.
-pub(crate) fn ld80_at(bytes: &impl crate::memory::session::ByteBuffer, offset: usize) -> [u8; 10] {
-    let b = bytes_at(bytes, offset, 10);
-    std::array::from_fn(|i| b[i])
-}
-
-/// Writes ten bytes (an 80-bit float) at byte `offset` of a buffer.
-pub(crate) fn st80_at(bytes: &impl crate::memory::session::ByteBuffer, offset: usize, x: X) {
-    put_at(bytes, offset, &bh::f80(x));
-}
-
 /// The status word's compare bits C0, C2 and C3 (the other bits are the stack's top and the
 /// sticky exceptions, which no reader looks at) into the low half of
 /// `MarksWork.fpu_status` (its high half kept).

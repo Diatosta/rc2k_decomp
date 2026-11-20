@@ -7,9 +7,9 @@ use crate::scene::draw_store::{DrawWork, SceneDraw};
 use crate::scene::draw_switches_store::DrawSwitches;
 use crate::scene::file_numbers_store::{ObjectFileNumbers, PathText};
 use crate::scene::kind_texture_store::{KindSlots, KindTextures};
-use crate::scene::light_store::LightState;
 use crate::scene::light_tables_store::LightTables;
 use crate::scene::light_work_store::LightWork;
+use crate::scene::line_shake_store::LineAndShake;
 use crate::scene::object_slots_store::{LoadedSlots, SlotShapes};
 use crate::scene::object_store::ObjectWork;
 use crate::scene::object_tables_store::{ObjectKinds, TextureLevels};
@@ -24,7 +24,6 @@ pub struct Scene {
     pub drawing: Drawing,
     /// The scratch every drawing part and view works on (`scene::scratch_store::DrawingScratch`).
     pub scratch: crate::scene::scratch_store::DrawingScratch,
-    pub lights: Lights,
     pub objects: Objects,
     pub textures: Textures,
     main: GameThread<SceneMain>,
@@ -55,6 +54,9 @@ struct SceneMain {
     texture_levels: RefCell<TextureLevels>,
     /// The work words: borrowed for one statement at a time (`Scene::draw_work`).
     draw_work: RefCell<DrawWork>,
+    /// The best-line place and the camera shake: borrowed for one statement at a time
+    /// (`Scene::line_and_shake`).
+    line_and_shake: RefCell<LineAndShake>,
 }
 
 impl Scene {
@@ -82,6 +84,16 @@ impl Scene {
     /// The draw switches, to write: no other borrow may be held.
     pub fn draw_switches_mut(&self) -> RefMut<'_, DrawSwitches> {
         self.main.get().draw_switches.borrow_mut()
+    }
+
+    /// The best-line place and the camera shake, read: no write borrow may be held.
+    pub fn line_and_shake(&self) -> Ref<'_, LineAndShake> {
+        self.main.get().line_and_shake.borrow()
+    }
+
+    /// The best-line place and the camera shake, to write: no other borrow may be held.
+    pub fn line_and_shake_mut(&self) -> RefMut<'_, LineAndShake> {
+        self.main.get().line_and_shake.borrow_mut()
     }
 
     /// The lights' work variables, read: no write borrow may be held.
@@ -162,13 +174,6 @@ pub struct Drawing {
     pub scene: DrawShared<SceneDraw>,
 }
 
-/// The light state and the lights' work variables.
-pub struct Lights {
-    /// The light state (`LIGHT_STATE`): written between frames, read by the drawing parts
-    /// through their reads (`scene::workers::DrawReads`).
-    pub state: DrawShared<LightState>,
-}
-
 /// The object tables: the slots and the kinds' tables.
 pub struct Objects {
     /// The object slots (`OBJECT_SLOTS`): written between frames, read by the drawing parts
@@ -212,9 +217,6 @@ impl Scene {
             drawing: Drawing {
                 scene: DrawShared::new(SceneDraw::new()),
             },
-            lights: Lights {
-                state: DrawShared::new(LightState::new()),
-            },
             objects: Objects {
                 slots: DrawShared::new(SlotShapes::new()),
                 tables: DrawShared::new(ObjectKinds::new()),
@@ -233,6 +235,7 @@ impl Scene {
                 loaded_slots: RefCell::new(LoadedSlots::new()),
                 texture_levels: RefCell::new(TextureLevels::new()),
                 draw_work: RefCell::new(DrawWork::new()),
+                line_and_shake: RefCell::new(LineAndShake::new()),
             }),
         }
     }

@@ -631,9 +631,8 @@ pub fn store_loaded_best_line(
 
 /// `line_place` and `line_fraction` end at 0 after a line is built.
 fn reset_line_lights(scene: &crate::scene::owner::Scene) {
-    let lights = &scene.lights;
-    lights.state.get().line_place.set(0);
-    lights.state.get().line_fraction.set(0);
+    scene.line_and_shake_mut().line_place = 0;
+    scene.line_and_shake_mut().line_fraction = 0;
 }
 
 /// Runs `check` with a synthetic course held: `faces` and `points` (x, y, z words), the stage's

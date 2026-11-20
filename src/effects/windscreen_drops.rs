@@ -21,7 +21,7 @@
 
 use crate::effects::item_walk::walk_to_free;
 use crate::effects::mask_store::Masks;
-use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::{WindscreenDropVars, WindscreenDrops};
 use crate::errors::Refused;
 use crate::math::x87;
 
@@ -31,17 +31,18 @@ pub(super) fn spawn_windscreen_drop(
     z: u32,
     kind: u32,
 ) -> Result<(), Refused> {
-    let items = &drops.hex.items;
+    let mut hex = drops.hex.borrow_mut();
+    let mut work = drops.work.borrow_mut();
     let walk = walk_to_free(
-        drops.work.cursor.get(),
+        work.cursor,
         ITEMS,
         ITEM_LEN,
-        |at| items.get_u32(at as usize) == 0,
+        |at| hex.item(at as usize) == 0,
         "a windscreen drop cursor off the items",
     )?;
     if let Some(at) = walk.free {
         let e = at as usize;
-        let put = |o: usize, v: u32| items.set_u32(e + o, v);
+        let mut put = |o: usize, v: u32| hex.set_item(e + o, v);
         put(0, 1);
         put(0x14, x87::from_int(x as i32).to_bits());
         put(0x18, x87::from_int(z as i32).to_bits());
@@ -50,7 +51,7 @@ pub(super) fn spawn_windscreen_drop(
             put(o, 0);
         }
     }
-    drops.work.cursor.set(walk.cursor);
+    work.cursor = walk.cursor;
     Ok(())
 }
 
@@ -82,23 +83,23 @@ pub(super) fn expire_windscreen_drops(
 ) -> Result<(), Refused> {
     use rc2k_core::effects::expiry;
     {
-        let items = &drops.hex.items;
+        let mut hex = drops.hex.borrow_mut();
         for n in 0..ITEMS {
             let e = (n * ITEM_LEN) as usize;
-            if items.get_u32(e) != 1 {
+            if hex.item(e) != 1 {
                 continue;
             }
-            let f = |o: usize| f32::from_bits(items.get_u32(e + o));
-            let c = expiry::cell(f(0x14), f(0x18));
+            let f = |hex: &WindscreenDropVars, o: usize| f32::from_bits(hex.item(e + o));
+            let c = expiry::cell(f(&hex, 0x14), f(&hex, 0x18));
             drops.state.borrow_mut().cell[1] = c.z as u32;
             drops.state.borrow_mut().cell[0] = c.x as u32;
-            let (r, draw) = expiry::windscreen_drop_draw(drops.hex.random.get());
-            drops.hex.random.set(r);
+            let (r, draw) = expiry::windscreen_drop_draw(hex.random);
+            hex.random = r;
             if draw == 0 {
-                items.set_u32(e, 0);
+                hex.set_item(e, 0);
             }
             let (hit, _) = expiry::windscreen_drop_hit(
-                drops.hex.steps.get() as i32,
+                hex.steps as i32,
                 |k| {
                     let at = drops.picks.index.get().wrapping_add(k) & 0xFF;
                     drops.picks.values[at as usize].get()
@@ -106,7 +107,7 @@ pub(super) fn expire_windscreen_drops(
                 |n| [&masks.vars.mask_a, &masks.vars.mask_b][n].get(c.at as usize),
             );
             if hit {
-                items.set_u32(e, 0);
+                hex.set_item(e, 0);
             }
         }
     }
@@ -119,9 +120,13 @@ pub(super) fn windscreen_drops_step(masks: &Masks, drops: &WindscreenDrops) -> R
         let clock: u32 = drops.state.borrow().clock;
         let steps = rc2k_core::effects::steps::steps(drops.picks.index.get(), clock);
         drops.picks.index.set(clock);
-        drops.hex.steps.set(steps);
+        drops.hex.borrow_mut().steps = steps;
         expire_windscreen_drops(masks, drops)?;
-        let latest = drops.picks.index.get().wrapping_add(drops.hex.steps.get());
+        let latest = drops
+            .picks
+            .index
+            .get()
+            .wrapping_add(drops.hex.borrow().steps);
         drops.picks.index.set(latest & 0xFF);
         drops.state.borrow_mut().clock = latest & 0xFF;
     }

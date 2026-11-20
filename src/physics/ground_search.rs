@@ -15,7 +15,7 @@ use std::cell::RefCell;
 
 /// Whether the face under the point was found.
 pub fn ground_search(
-    ground_probe: &GroundProbe,
+    ground_probe: &RefCell<GroundProbe>,
     search: &RefCell<GroundSearch>,
     course: &Course,
 ) -> Result<bool, Refused> {
@@ -23,7 +23,7 @@ pub fn ground_search(
         GroundEnv {
             course: course.reads(),
             points: &crate::race::scene_points::no_own(),
-            mark: ground_probe.settle_mark.get(),
+            mark: ground_probe.borrow().settle_mark,
         },
         &mut search.borrow_mut(),
     )

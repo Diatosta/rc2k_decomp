@@ -176,11 +176,10 @@ pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Ref
         crate::platform::sound::FILM_VOLUME.store(next as u32, Relaxed);
         return Ok(());
     }
-    let work = &o.menus.options;
     let item = match which {
         VolumeKind::General => volume_item(var!(@o audio.levels.general_volume), up, Then::Send),
         VolumeKind::RaceMusic => volume_item(
-            var!(@o menus.options.race_music_level),
+            var!(@plain menus.options; race_music_level),
             up,
             Then::Store(var!(@o sound.menu.options.race_music_volume)),
         ),
@@ -190,7 +189,7 @@ pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Ref
             Then::Sound(0x80),
         ),
         VolumeKind::MenuEffects => volume_item(
-            var!(@o menus.options.menu_effects_volume),
+            var!(@plain menus.options; menu_effects_volume),
             up,
             Then::Sound(1),
         ),
@@ -199,7 +198,7 @@ pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Ref
             volume_step(
                 o,
                 Volume {
-                    value: &work.menu_music_volume,
+                    value: var!(@plain menus.options; menu_music_volume),
                     up,
                     then: StepThen::Music,
                 },
@@ -210,7 +209,7 @@ pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Ref
             volume_step(
                 o,
                 Volume {
-                    value: &work.menu_voices_volume,
+                    value: var!(@plain menus.options; menu_voices_volume),
                     up,
                     then: StepThen::Speech,
                 },
@@ -223,7 +222,7 @@ pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Ref
             volume_step(
                 o,
                 Volume {
-                    value: &o.audio.levels.codriver_voice_volume,
+                    value: var!(@o audio.levels.codriver_voice_volume),
                     up,
                     then: StepThen::Sound(sound),
                 },
@@ -235,7 +234,7 @@ pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Ref
             volume_step(
                 o,
                 Volume {
-                    value: &o.audio.levels.engine_volume,
+                    value: var!(@o audio.levels.engine_volume),
                     up,
                     then: StepThen::Sound(0x40),
                 },
@@ -268,43 +267,43 @@ pub fn switch(o: Owners<'static>, which: OptionSwitch) -> Result<(), Refused> {
             Kind::Switch,
         ),
         OptionSwitch::Mipmapping => (
-            var!(@o menus.options.mipmapping),
+            var!(@plain menus.options; mipmapping),
             flip(var!(@o gfx.display.choices.mipmapping)),
         ),
         OptionSwitch::Buffering => (
-            var!(@o menus.options.buffering),
+            var!(@plain menus.options; buffering),
             flip(var!(@o gfx.display.choices.buffering)),
         ),
         OptionSwitch::ScreenModeCard => (
-            var!(@o menus.options.modes_switch),
+            var!(@plain menus.options; modes_switch),
             Kind::SwitchModes {
                 other: var!(@o gfx.display.choices.card),
             },
         ),
         OptionSwitch::LensFlare => (
-            var!(@o menus.options.lens_flare),
+            var!(@plain menus.options; lens_flare),
             copy(var!(@o race.shared.state.settings.lens_flare
             )),
         ),
         OptionSwitch::Reflections => (
-            var!(@o menus.options.reflections),
+            var!(@plain menus.options; reflections),
             copy(var!(@o race.shared.state.settings.reflections
             )),
         ),
         OptionSwitch::CarShadows => (
-            var!(@o menus.options.car_shadows),
+            var!(@plain menus.options; car_shadows),
             copy(var!(@o race.shared.state.settings.car_shadows
             )),
         ),
         OptionSwitch::Headlights => (
-            var!(@o menus.options.headlights),
+            var!(@plain menus.options; headlights),
             copy(var!(@o race.shared.state.settings.headlights
             )),
         ),
-        OptionSwitch::Ds3d => (var!(@o menus.options.ds3d), Kind::SwitchAudio),
-        OptionSwitch::Eax => (var!(@o menus.options.eax), Kind::SwitchAudio),
-        OptionSwitch::Dolby => (var!(@o menus.options.dolby), Kind::SwitchAudio),
-        OptionSwitch::Channels => (var!(@o menus.options.channels), Kind::SwitchAudio),
+        OptionSwitch::Ds3d => (var!(@plain menus.options; ds3d), Kind::SwitchAudio),
+        OptionSwitch::Eax => (var!(@plain menus.options; eax), Kind::SwitchAudio),
+        OptionSwitch::Dolby => (var!(@plain menus.options; dolby), Kind::SwitchAudio),
+        OptionSwitch::Channels => (var!(@plain menus.options; channels), Kind::SwitchAudio),
         OptionSwitch::SoundInBackground => return Ok(()),
     };
     option_item(o, Item { var, kind })
@@ -344,7 +343,7 @@ option_item!(
     next_audio_quality,
     "menu::next_audio_quality",
     Item {
-        var: var!(@o menus.options.audio_quality),
+        var: var!(@plain menus.options; audio_quality),
         kind: Kind::Quality { up: true },
     }
 );
@@ -352,7 +351,7 @@ option_item!(
     previous_audio_quality,
     "menu::previous_audio_quality",
     Item {
-        var: var!(@o menus.options.audio_quality),
+        var: var!(@plain menus.options; audio_quality),
         kind: Kind::Quality { up: false },
     }
 );

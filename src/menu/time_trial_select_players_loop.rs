@@ -17,7 +17,7 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     screens.flow.write().turning = 0x1u32;
     screens.carousel.menu.set(0x2u32);
     set_up.carousel_with(None)?;
-    let item = screens.items.current[slot::TIME_TRIAL_SELECT_PLAYERS].get();
+    let item = screens.items.current(slot::TIME_TRIAL_SELECT_PLAYERS);
     screens.loop_flags.write().item = item;
     screens.carousel.front.set(item.wrapping_sub(1));
     Ok(())

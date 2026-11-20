@@ -17,8 +17,8 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
             if menus.screens.entry.read().typing {
                 return Ok(Flow::NextFrame);
             }
-            if menus.tables.captions.left_by_key.is_set() {
-                menus.tables.captions.left_by_key.set(false);
+            if menus.tables.captions.read().left_by_key {
+                menus.tables.captions.write().left_by_key = false;
                 menus.screens.draw_work.write().leave_result = 0xFFFFFFFFu32;
                 return Ok(Flow::Leave);
             }

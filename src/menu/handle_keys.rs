@@ -56,7 +56,7 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
         Action::Escape => {
             menus.screens.loop_flags.write().leave_screen = true;
             menus.screens.draw_work.write().escape_pressed = true;
-            menus.tables.captions.left_by_key.set(true);
+            menus.tables.captions.write().left_by_key = true;
             return Ok(Pressed::Escape);
         }
         _ => {}

@@ -1,20 +1,19 @@
 use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::{Op, Spec, recorded};
-use crate::memory::session::PlainFloat;
 
 /// Nine floats holding the test buffer's (at `at`) dwords.
-fn staged(at: crate::effects::asm_test::Operand) -> [PlainFloat; 9] {
+fn staged(at: crate::effects::asm_test::Operand) -> [f32; 9] {
     std::array::from_fn(|n| {
         // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
         // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
         // `u32`.
-        PlainFloat::from_bits(unsafe { (at + 4 * n).at(0, 4).cast::<u32>().read_unaligned() })
+        f32::from_bits(unsafe { (at + 4 * n).at(0, 4).cast::<u32>().read_unaligned() })
     })
 }
 
 /// The nine floats back into the test buffer at `at`.
-fn put_back(at: crate::effects::asm_test::Operand, cells: &[PlainFloat; 9]) {
-    for (n, cell) in cells.iter().enumerate() {
+fn put_back(at: crate::effects::asm_test::Operand, values: &[f32; 9]) {
+    for (n, cell) in values.iter().enumerate() {
         // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
         // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
         // `u32`.
@@ -22,7 +21,7 @@ fn put_back(at: crate::effects::asm_test::Operand, cells: &[PlainFloat; 9]) {
             (at + 4 * n)
                 .at(0, 4)
                 .cast::<u32>()
-                .write_unaligned(cell.bits());
+                .write_unaligned(cell.to_bits());
         }
     }
 }
@@ -67,8 +66,8 @@ fn adjugate3_x87_matches() {
         sincos: false,
     };
     recorded("effects.adjugate3.adjugate3_x87", &SPEC, |b| {
-        let (s, d) = (staged(b[0]), staged(b[1]));
-        super::adjugate3_x87(&s, &d);
+        let (s, mut d) = (staged(b[0]), staged(b[1]));
+        super::adjugate3_x87(&s, &mut d);
         put_back(b[1], &d);
     });
 }

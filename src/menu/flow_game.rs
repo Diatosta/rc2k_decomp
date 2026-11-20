@@ -86,6 +86,7 @@ enum PlainField {
     ChampMode,
     ChampResetTimes,
     ChampServices,
+    SpeechChannel,
 }
 
 impl PlainField {
@@ -103,6 +104,7 @@ impl PlainField {
             PlainField::ChampMode => menus.play.champ_view.read().event_mode,
             PlainField::ChampResetTimes => menus.play.champ_view.read().reset_times,
             PlainField::ChampServices => menus.play.champ_view.read().services,
+            PlainField::SpeechChannel => menus.options.read().menu_voices_volume,
         }
     }
 
@@ -119,6 +121,7 @@ impl PlainField {
             PlainField::ChampMode => menus.play.champ_view.write().event_mode = value,
             PlainField::ChampResetTimes => menus.play.champ_view.write().reset_times = value,
             PlainField::ChampServices => menus.play.champ_view.write().services = value,
+            PlainField::SpeechChannel => menus.options.write().menu_voices_volume = value,
         }
     }
 }
@@ -176,7 +179,7 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
         Var::Index => Place::Plain(PlainField::Event(EventWord::StageInSection)),
         Var::ReviewKind => Place::Plain(PlainField::ReviewKind),
         Var::Record(offset) => Place::Record(offset),
-        Var::SpeechChannel => Cell(&menus.options.menu_voices_volume),
+        Var::SpeechChannel => Place::Plain(PlainField::SpeechChannel),
     }
 }
 

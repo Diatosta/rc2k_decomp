@@ -14,6 +14,6 @@ pub fn draw_main_menu_carousel(
     lone_row: u32,
 ) -> Result<(), Refused> {
     let scene = ctx.scene;
-    scene.lights.state.get().draw_mode.set(0u32);
+    scene.light_work_mut().draw_mode = 0;
     draw_carousel(menus, ctx, lone_row)
 }

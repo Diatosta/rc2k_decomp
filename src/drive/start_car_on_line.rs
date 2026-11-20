@@ -29,7 +29,6 @@ pub fn start_car_on_line(
     distance: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let lights = &scene.lights;
     let start = race.shared.tables().start_slot.get();
     start_places::check_start(start)?;
     race.shared
@@ -49,8 +48,8 @@ pub fn start_car_on_line(
     ] {
         cell.set(checkpoint);
     }
-    lights.state.get().line_place.set(checkpoint);
-    lights.state.get().line_fraction.set(checkpoint);
+    scene.line_and_shake_mut().line_place = checkpoint;
+    scene.line_and_shake_mut().line_fraction = checkpoint;
     let share = start_places::start_share(
         start as i32,
         race.shared.tables().arcade_cars.get() as i32,

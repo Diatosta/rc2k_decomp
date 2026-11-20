@@ -1,6 +1,6 @@
 //! The marks' stores as the bytes of their fields in order, for the differential tests of the
 //! kept x87 assembly (`asm_layout`, `typed_sync`). The tests own this layer: each store lists its
-//! fields once (`fields!`) and is then read out as, and filled from, a flat byte image, one
+//! fields once (`plain_fields!`) and is then read out as, and filled from, a flat byte image, one
 //! little-endian word per cell. Nothing here walks a store by path or needs the store to be a
 //! record of cells beyond the few leaf types implemented below. Test code only.
 
@@ -9,7 +9,7 @@ use crate::memory::session::{
     Cell32, PlainByte, PlainBytes, PlainDword, PlainFlag, PlainFloat, PlainInt, PlainWord,
 };
 
-/// A value held as bytes: a cell, an array of them, or a record listed with `fields!`.
+/// A value held as bytes: a cell, an array of them, or a record listed with `plain_fields!`.
 pub trait Leaf {
     /// Its size in bytes.
     fn byte_len(&self) -> usize;
@@ -19,7 +19,7 @@ pub trait Leaf {
     fn load(&self, from: &mut &[u8]);
 }
 
-/// A store listed field by field (`fields!`).
+/// A store listed field by field (`plain_fields!`).
 pub trait Fields: Leaf + Sized {
     /// Each field's name (`.name`) and offset in the image, in order.
     fn starts(&self) -> Vec<(&'static str, usize)>;
@@ -219,40 +219,6 @@ macro_rules! plain_fields {
     };
 }
 pub(crate) use plain_fields;
-
-/// Lists a store's fields, in order: the store is then a `Leaf` (its fields' bytes one after
-/// another) and `Fields`.
-macro_rules! fields {
-    ($t:ident { $($f:ident),* $(,)? }) => {
-        impl crate::effects::asm_fields::Leaf for $t {
-            fn byte_len(&self) -> usize {
-                0 $(+ self.$f.byte_len())*
-            }
-            fn dump(&self, out: &mut Vec<u8>) {
-                $(self.$f.dump(out);)*
-            }
-            fn load(&self, from: &mut &[u8]) {
-                $(self.$f.load(from);)*
-            }
-        }
-        impl crate::effects::asm_fields::Fields for $t {
-            fn starts(&self) -> Vec<(&'static str, usize)> {
-                let mut at = 0;
-                let mut starts = Vec::new();
-                $(
-                    starts.push((concat!(".", stringify!($f)), at));
-                    at += self.$f.byte_len();
-                )*
-                let _ = at;
-                starts
-            }
-            fn zeroed() -> Box<Self> {
-                crate::memory::cells::boxed_zeroed_cells()
-            }
-        }
-    };
-}
-pub(crate) use fields;
 
 /// All of `store`'s bytes.
 pub fn image<T: Leaf>(store: &T) -> Vec<u8> {

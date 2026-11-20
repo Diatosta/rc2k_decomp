@@ -9,8 +9,10 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, List, Screen, Step, log_line, screen_entry};
 
 fn before(screens: &Screens) -> Result<(), Refused> {
-    screens.items.current[slot::VIEW_BEST_SCORES]
-        .set(screens.items.first[slot::VIEW_BEST_SCORES].get());
+    screens.items.set_current(
+        slot::VIEW_BEST_SCORES,
+        screens.items.first(slot::VIEW_BEST_SCORES),
+    );
     Ok(())
 }
 

@@ -7,9 +7,7 @@
 //! the runs stay as the buffer had them: nothing typed reads them. The stores are read as
 //! bytes through the field lists below (`asm_fields`), which this file owns. Test code only.
 
-use crate::effects::asm_fields::{
-    Fields, Leaf, PlainLeaf, field_start, fields, image, plain_fields, put_image,
-};
+use crate::effects::asm_fields::{Fields, PlainLeaf, field_start, image, plain_fields, put_image};
 use crate::effects::asm_test::Operand;
 use crate::effects::asm_test::START as BLOCK;
 
@@ -639,7 +637,7 @@ impl Laid for std::cell::RefCell<WindscreenDropState> {
     ];
 }
 
-impl Laid for WindscreenDropWork {
+impl Laid for std::cell::RefCell<WindscreenDropWork> {
     const START: usize = 0x814772;
     const RUNS: &'static [Run] = &[
         Run {
@@ -665,7 +663,7 @@ impl Laid for WindscreenDropWork {
     ];
 }
 
-impl Laid for WindscreenDropVars {
+impl Laid for std::cell::RefCell<WindscreenDropVars> {
     const START: usize = 0x816192;
     const RUNS: &'static [Run] = &[
         Run {
@@ -1096,7 +1094,7 @@ plain_fields!(WindscreenDropState {
     spawn_rate,
     depth
 });
-fields!(WindscreenDropWork {
+plain_fields!(WindscreenDropWork {
     drift,
     curve,
     radii,
@@ -1113,7 +1111,7 @@ fields!(WindscreenDropWork {
     cursor,
     whole
 });
-fields!(WindscreenDropVars {
+plain_fields!(WindscreenDropVars {
     scale,
     place,
     started,
@@ -1239,8 +1237,8 @@ mod tests {
         covered::<std::cell::RefCell<MarksKindFloats>>();
         covered::<std::cell::RefCell<KeptView>>();
         covered::<std::cell::RefCell<WindscreenDropState>>();
-        covered::<WindscreenDropWork>();
-        covered::<WindscreenDropVars>();
+        covered::<std::cell::RefCell<WindscreenDropWork>>();
+        covered::<std::cell::RefCell<WindscreenDropVars>>();
         covered::<std::cell::RefCell<WindscreenFlakeTiming>>();
         covered::<std::cell::RefCell<WindscreenFlakeTables>>();
         covered::<std::cell::RefCell<WindscreenFlakeState>>();

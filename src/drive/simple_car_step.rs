@@ -63,7 +63,7 @@ pub fn simple_car_step(
     }
     {
         crate::physics::find_ground::find_ground(
-            race.physics.ground_probe.get(),
+            race.physics.ground_probe(),
             race.physics.ground_search(),
             &race.course,
         )

@@ -58,7 +58,6 @@ mod emit_rolling_dust_store;
 mod emit_rolling_particles_rated;
 mod emit_rolling_particles_rated_store;
 mod emit_slip_snow_cloud;
-mod emit_slip_snow_cloud_store;
 mod emit_slip_spray;
 mod emit_slip_spray_store;
 mod emit_twin_particle_first;

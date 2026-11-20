@@ -12,8 +12,8 @@ use crate::menu::screen_loop::{
 };
 
 fn after_first_frame(tables: &Tables) -> Result<Flow, Refused> {
-    if tables.captions.left_by_key.is_set() {
-        tables.captions.left_by_key.set(false);
+    if tables.captions.read().left_by_key {
+        tables.captions.write().left_by_key = false;
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)

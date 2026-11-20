@@ -301,8 +301,9 @@ mod vector_tests {
     use crate::test_support::state::Snapshot;
 
     /// The stores the test writes.
-    const STORES: [&str; 3] = [
+    const STORES: [&str; 4] = [
         "owners.scene.drawing.scene",
+        "owners.scene.draw_work",
         "owners.race.course.course",
         "owners.race.course.stage_prefs",
     ];

@@ -46,7 +46,7 @@ pub(super) fn windscreen_drops_spawn(
             for _ in 0..n.max(0) {
                 pick_windscreen_drop(drops, effects)?;
             }
-            let share = x87::fraction_times_to_int(v, &drops.hex.share_k);
+            let share = x87::fraction_times_to_int(v, drops.hex.borrow().share_k);
             let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
             setup.work.seed.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
@@ -58,7 +58,6 @@ pub(super) fn windscreen_drops_spawn(
     Ok(())
 }
 
-use crate::effects::plain::ld_cell;
 use crate::effects::view_vectors_store::KeptView;
 use crate::math::x87_float as bh;
 
@@ -76,11 +75,14 @@ fn rate_x87(drops: &WindscreenDrops, kv: &KeptView, work: &crate::effects::work_
     let t8 = t7 + bh::ld(drops.tilt.borrow().tilt);
     let t9 = t8.cos();
     let t10 = t6 * t9;
-    let t11 = t10 * ld_cell(&drops.hex.spawn_k[0]);
+    let t11 = t10 * bh::ld(drops.hex.borrow().spawn_k[0]);
     let t12 = t11 + bh::ld(drops.state.borrow().spawn_rate);
     drops.state.borrow_mut().spawn_rate = f32::from_bits(bh::st(t12));
     let t13 = bh::ld(drops.state.borrow().spawn_rate);
-    crate::effects::plain::set_status(work, bh::compare(t13, ld_cell(&drops.hex.spawn_k[1])));
+    crate::effects::plain::set_status(
+        work,
+        bh::compare(t13, bh::ld(drops.hex.borrow().spawn_k[1])),
+    );
 }
 
 #[cfg(test)]

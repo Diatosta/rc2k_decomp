@@ -4,7 +4,6 @@
 //! (`car_pitch`, `car_roll`), halved (arithmetic shift) when the mode's record has `halve_tilt`
 //! set, into `view_a_pitch` and `view_a_roll`.
 
-use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::{ld, stf};
 use crate::physics::camera_store::CameraWork;
 use crate::physics::camera_view::record;
@@ -57,17 +56,17 @@ pub(super) fn take_figures(s: &ViewRecord, floats: [&mut [f32; 3]; 3], dwords: [
 /// (`[s + 4]` .. `[s + 0xC]` the record's offset, passed by value) `[view_a_offset] = [s + 4] +
 /// [camera_shake_x]`
 fn x87_1(offset: [u32; 3], scene: &crate::scene::owner::Scene) -> [f32; 3] {
-    let lights = &scene.lights;
+    let shake = *scene.line_and_shake();
     let t0 = ld(offset[0]);
-    let t1 = lights.state.get().camera_shake_x.ld();
+    let t1 = ld(shake.camera_shake_x);
     let t2 = t0 + t1;
     let o0 = stf(t2);
     let t3 = ld(offset[1]);
-    let t4 = lights.state.get().camera_shake_y.ld();
+    let t4 = ld(shake.camera_shake_y);
     let t5 = t3 + t4;
     let o1 = stf(t5);
     let t6 = ld(offset[2]);
-    let t7 = lights.state.get().camera_shake_z.ld();
+    let t7 = ld(shake.camera_shake_z);
     let t8 = t6 + t7;
     let o2 = stf(t8);
     [o0, o1, o2]

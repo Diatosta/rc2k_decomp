@@ -4,8 +4,6 @@ use crate::effects::asm_test::{Op, Spec, recorded_writes};
 
 use crate::effects::typed_sync::{overlay_laid, with_overlays};
 
-use crate::memory::session::{PlainBytes, PlainFloat};
-
 /// Runs `f` with `HEX` holding the buffer's bytes (`typed_sync`).
 fn hex<R>(mk: crate::effects::asm_test::Operand, f: impl FnOnce() -> R) -> R {
     with_overlays(
@@ -18,18 +16,18 @@ fn hex<R>(mk: crate::effects::asm_test::Operand, f: impl FnOnce() -> R) -> R {
 }
 
 /// The `N` floats at the test address `at`.
-fn floats<const N: usize>(at: crate::effects::asm_test::Operand) -> [PlainFloat; N] {
+fn floats<const N: usize>(at: crate::effects::asm_test::Operand) -> [f32; N] {
     std::array::from_fn(|i| {
         // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
         // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
         // `u32`.
         let word = unsafe { (at + 4 * i).at(0, 4).cast::<u32>().read_unaligned() };
-        PlainFloat::from_bits(word)
+        f32::from_bits(word)
     })
 }
 
 /// The floats written back to the test address `at`.
-fn put_floats(at: crate::effects::asm_test::Operand, cells: &[PlainFloat]) {
+fn put_floats(at: crate::effects::asm_test::Operand, cells: &[f32]) {
     for (i, c) in cells.iter().enumerate() {
         // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
         // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
@@ -38,23 +36,23 @@ fn put_floats(at: crate::effects::asm_test::Operand, cells: &[PlainFloat]) {
             (at + 4 * i)
                 .at(0, 4)
                 .cast::<u32>()
-                .write_unaligned(c.bits());
+                .write_unaligned(c.to_bits());
         }
     }
 }
 
 /// The 30 bytes at the test address `at` as a buffer.
-fn kept(at: crate::effects::asm_test::Operand) -> PlainBytes<30> {
+fn kept(at: crate::effects::asm_test::Operand) -> [u8; 30] {
     // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
     // run keeps alive and nothing else reaches meanwhile.
-    PlainBytes::new(std::array::from_fn(|i| unsafe { (at + i).host().read() }))
+    std::array::from_fn(|i| unsafe { (at + i).host().read() })
 }
 
-fn put_kept(at: crate::effects::asm_test::Operand, kept: &PlainBytes<30>) {
-    for i in 0..30 {
+fn put_kept(at: crate::effects::asm_test::Operand, kept: &[u8; 30]) {
+    for (i, &byte) in kept.iter().enumerate() {
         // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the
         // recorded run keeps alive and nothing else reaches meanwhile.
-        unsafe { (at + i).host().write(kept.get(i)) };
+        unsafe { (at + i).host().write(byte) };
     }
 }
 
@@ -108,7 +106,10 @@ fn view_moved_x87_matches() {
             hex(b[0], || {
                 with_settings(b[1], |m| {
                     super::view_moved_x87(
-                        &crate::test_support::own::effects().windscreen_drops,
+                        &mut crate::test_support::own::effects()
+                            .windscreen_drops
+                            .hex
+                            .borrow_mut(),
                         m,
                         &crate::effects::asm_layout::copy_of::<
                             std::cell::RefCell<crate::effects::setup_store::MarksClock>,
@@ -167,12 +168,15 @@ fn drift_turned_x87_matches() {
         &SPEC,
         |b| {
             hex(b[0], || {
-                let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
+                let (m, mut temps, mut l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
                 super::drift_turned_x87(
-                    &crate::test_support::own::effects().windscreen_drops,
+                    &crate::test_support::own::effects()
+                        .windscreen_drops
+                        .hex
+                        .borrow(),
                     &m,
-                    &temps,
-                    &l,
+                    &mut temps,
+                    &mut l,
                 );
                 put_floats(b[2], &temps);
                 put_kept(b[3], &l);
@@ -240,13 +244,9 @@ fn drift_back_x87_matches() {
                     overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
                 ],
                 || {
-                    let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
-                    super::drift_back_x87(
-                        &crate::test_support::own::effects().windscreen_drops,
-                        &m,
-                        &temps,
-                        &l,
-                    );
+                    let (m, mut temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
+                    let drops = &crate::test_support::own::effects().windscreen_drops;
+                    super::drift_back_x87(&mut drops.hex.borrow_mut(), drops, &m, &mut temps, &l);
                     put_floats(b[2], &temps);
                 },
             );
@@ -277,7 +277,10 @@ fn move_kept_x87_matches() {
         hex(b[0], || {
             with_settings(b[1], |m| {
                 super::move_kept_x87(
-                    &crate::test_support::own::effects().windscreen_drops,
+                    &mut crate::test_support::own::effects()
+                        .windscreen_drops
+                        .hex
+                        .borrow_mut(),
                     m,
                     &crate::effects::asm_layout::copy_of::<
                         std::cell::RefCell<crate::effects::setup_store::MarksClock>,

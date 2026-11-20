@@ -72,7 +72,7 @@ pub fn draw_scene_object(
     let (set, object) = texture_set(reads, cars)?;
     place.texture_set.set(set);
     let faces: u32 = reads.object_slots.face_counts[object as usize].get();
-    match rc2k_core::scene::shown::way(faces, reads.light_state.draw_mode.get()) {
+    match rc2k_core::scene::shown::way(faces, reads.light_work.draw_mode) {
         Some(way) => draw(way),
         None => Ok(()),
     }

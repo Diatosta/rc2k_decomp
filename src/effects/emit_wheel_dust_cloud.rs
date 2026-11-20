@@ -61,13 +61,14 @@ fn refusal(
         if flags & 0xC0 == 0 {
             return Ok(None);
         }
+        let set = particles.kind6_set.borrow();
         if !gate(
             effects,
             wheel,
             object,
             &wheel.driven_speed,
             &wheel.local_velocity_z,
-            &particles.kind6_set.rate_k,
+            &set.rate_k,
         )?
         .passes
             || next_entry(ring)?.is_none()
@@ -102,13 +103,14 @@ pub(super) fn emit_wheel_dust_cloud(
         if flags & 0xC0 == 0 {
             return Ok(());
         }
+        let mut set = particles.kind6_set.borrow_mut();
         let g = gate(
             effects,
             wheel,
             object,
             &wheel.driven_speed,
             &wheel.local_velocity_z,
-            &particles.kind6_set.rate_k,
+            &set.rate_k,
         )?;
         ring.work.borrow_mut().rate = g.rate as u32;
         if let Some(count) = g.count {
@@ -121,7 +123,7 @@ pub(super) fn emit_wheel_dust_cloud(
         let slot = crate::effects::ring_entries::Slot::new(ring, e);
         let car = emitting_car(effects)?;
         let m = car.whole(effects.car_blocks()?)?;
-        let r = next_c5(&particles.kind6_set.side_random);
+        let r = next_c5_plain(&mut set.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
         effects.kinds.emitter.sides[0].set(a as u32);
         effects.kinds.emitter.sides[1].set(b as u32);
@@ -139,10 +141,7 @@ pub(super) fn emit_wheel_dust_cloud(
         })?;
         slot.put(|en| &mut en.place[2], rounded_value(place[2]))?;
         slot.put(|en| &mut en.place[1], rounded_value(place[1]))?;
-        slot.put(
-            |en| &mut en.ground_y,
-            x87::ext_less(place[1], &particles.kind6_set.lift),
-        )?;
+        slot.put(|en| &mut en.ground_y, x87::ext_less(place[1], set.lift))?;
         slot.put(|en| &mut en.place[0], rounded_value(place[0]))?;
         let factors = motion_factors(effects);
         let motion: [f32; 3] = crate::effects::try_from_fn(|a| {
@@ -150,11 +149,7 @@ pub(super) fn emit_wheel_dust_cloud(
                 x87::three_products(crate::effects::try_from_fn(|n| {
                     Ok({
                         let (f, s) = factors[a][n];
-                        [
-                            f.get(),
-                            s(wheel).get(),
-                            particles.kind6_set.motion_k[3 * a + n].get(),
-                        ]
+                        [f.get(), s(wheel).get(), set.motion_k[3 * a + n]]
                     })
                 })?)
             })
@@ -162,7 +157,7 @@ pub(super) fn emit_wheel_dust_cloud(
         slot.put(|en| &mut en.motion[2], motion[2])?;
         slot.put(|en| &mut en.motion[1], motion[1])?;
         slot.put(|en| &mut en.motion[0], motion[0])?;
-        let r = next_c5(&particles.kind6_set.spin_random);
+        let r = next_c5_plain(&mut set.spin_random);
         slot.put(|en| &mut en.angle_rate, (r & 0x3F).wrapping_sub(0x20))?;
         slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
         slot.put(|en| &mut en.cell, flags & 0x3F)?;
@@ -194,12 +189,7 @@ pub(super) fn emit_wheel_dust_cloud(
         slot.put(|en| &mut en.car_pace, car.pace.get())?;
         slot.put(
             |en| &mut en.size,
-            x87::int_times_plus(
-                size as i32,
-                &particles.kind6_set.size_k[0],
-                &particles.kind6_set.size_k[1],
-            )
-            .to_bits(),
+            x87::int_times_plus(size as i32, set.size_k[0], set.size_k[1]).to_bits(),
         )?;
     }
     Ok(())

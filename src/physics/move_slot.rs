@@ -115,7 +115,7 @@ pub fn move_slot(c: &SlotInputs<'_>, s: &RaceSlot, number: usize) -> Result<(), 
         search.z = s.place[2].get();
         search.last = s.car_word.get();
     }
-    c.probe.settle_mark.set(0x80);
+    c.probe.borrow_mut().settle_mark = 0x80;
     crate::physics::find_ground::find_ground(c.probe, c.search, c.course)?;
     let face: u32 = c.search.borrow().slot;
     if face == u32::MAX {

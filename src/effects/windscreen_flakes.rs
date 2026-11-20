@@ -111,7 +111,7 @@ pub fn windscreen_flakes_step(
 ) -> Result<(), Refused> {
     use rc2k_core::effects::steps;
     {
-        drops.hex.windscreen_flakes_cleared.set(0);
+        drops.hex.borrow_mut().windscreen_flakes_cleared = 0;
         let clock: u32 = drops.state.borrow().clock;
         let n = steps::steps(drops.picks.index.get(), clock);
         drops.picks.index.set(clock);

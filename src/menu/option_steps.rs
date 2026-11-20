@@ -15,13 +15,12 @@
 
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
-use crate::memory::session::{DwordLike, PlainDword};
-use crate::menu::captions_store::CaptionTables;
 use crate::menu::flow_store::ScreenFlow;
 use crate::menu::options_store::MenuOptions;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
 use crate::owners::Owners;
+use crate::race::settings_copy::StepOperand;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Then {
@@ -32,17 +31,17 @@ pub enum Then {
 }
 
 #[derive(Clone, Copy)]
-pub struct Volume<'a> {
-    pub value: &'a dyn DwordLike,
+pub struct Volume {
+    pub value: StepOperand,
     pub up: bool,
     pub then: Then,
 }
 
 /// One volume step.
-pub fn volume_step(o: Owners<'static>, v: Volume<'_>) {
+pub fn volume_step(o: Owners<'static>, v: Volume) {
     let screens = &o.menus.screens;
-    let value = rc2k_core::menu::steps::volume(v.value.get() as i32, v.up);
-    v.value.set(value as u32);
+    let value = rc2k_core::menu::steps::volume(v.value.get_with(&o) as i32, v.up);
+    v.value.set_with(&o, value as u32);
     match v.then {
         Then::Music => {
             o.sound.menu.options.music_volume.set(value as u32);
@@ -74,8 +73,7 @@ pub(super) fn next_screen_mode(options: &MenuOptions, gfx: &Gfx) {
         display.choices.resolutions.get(),
     );
     display.choices.resolution.set(mode);
-    let changed = options.mode_changed.get() ^ 1;
-    options.mode_changed.set(changed);
+    options.write().mode_changed ^= 1;
 }
 
 /// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
@@ -85,8 +83,8 @@ pub(super) fn step_texture_setting(
     up: bool,
     race: &crate::race::owner::Race,
 ) {
-    let v = rc2k_core::menu::steps::texture(options.car_detail.get(), up);
-    options.car_detail.set(v);
+    let v = rc2k_core::menu::steps::texture(options.read().car_detail, up);
+    options.write().car_detail = v;
     race.shared.state.settings.car_detail.set(v);
 }
 
@@ -121,21 +119,22 @@ pub struct StartPick<'a> {
     pub number: StartNumber<'a>,
     /// The table of the pictures' string ids, in `CAPTIONS.caption_lists`, from `table_at`.
     pub table_at: usize,
-    pub pick: &'a PlainDword,
+    /// The slot of `CaptionValues.caption_lists` the pick goes to.
+    pub pick: usize,
 }
 
-pub(super) fn start_pick_a<'a>(flow: &'a ScreenFlow, captions: &'a CaptionTables) -> StartPick<'a> {
+pub(super) fn start_pick_a<'a>(flow: &'a ScreenFlow) -> StartPick<'a> {
     StartPick {
         number: StartNumber::A(flow),
         table_at: 21,
-        pick: &captions.caption_lists[7],
+        pick: 7,
     }
 }
-pub(super) fn start_pick_b<'a>(flow: &'a ScreenFlow, captions: &'a CaptionTables) -> StartPick<'a> {
+pub(super) fn start_pick_b<'a>(flow: &'a ScreenFlow) -> StartPick<'a> {
     StartPick {
         number: StartNumber::B(flow),
         table_at: 13,
-        pick: &captions.caption_lists[8],
+        pick: 8,
     }
 }
 
@@ -145,30 +144,29 @@ pub(super) fn step_start_pick(tables: &Tables, c: StartPick<'_>, up: bool) {
     c.number.set(n as u32);
     // `n` is not checked (a number kept in a savegame): the list is the last field
     // of the captions' record, so a pick past it is read nowhere and ends the program.
-    let pick = tables
-        .captions
-        .caption_lists
+    let lists = tables.captions.read().caption_lists;
+    let pick = lists
         .get(c.table_at.wrapping_add(n as usize))
-        .map(crate::memory::session::PlainDword::get)
+        .copied()
         .unwrap_or_else(|| {
             crate::fatal::raise::end(
                 "a caption list",
                 crate::errors::BadInput("a caption list past the captions' record"),
             )
         });
-    c.pick.set(pick);
+    tables.captions.write().caption_lists[c.pick] = pick;
 }
 
-/// (the work value, its place among the audio options' choices and applied).
-fn choices(menus: &Menus) -> [(&PlainDword, usize); 5] {
+/// The work values of the audio options, in the order of their places among the choices.
+fn choices(menus: &Menus) -> [(u32, usize); 5] {
     use rc2k_core::audio::modes::{CHANNELS, DOLBY, DS3D, EAX, QUALITY};
-    let work = &menus.options;
+    let work = menus.options.read();
     [
-        (&work.audio_quality, QUALITY),
-        (&work.channels, CHANNELS),
-        (&work.dolby, DOLBY),
-        (&work.eax, EAX),
-        (&work.ds3d, DS3D),
+        (work.audio_quality, QUALITY),
+        (work.channels, CHANNELS),
+        (work.dolby, DOLBY),
+        (work.eax, EAX),
+        (work.ds3d, DS3D),
     ]
 }
 /// `menu::apply_audio_choices`.
@@ -176,15 +174,21 @@ pub(super) fn apply_audio_choices(
     menus: &Menus,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    for (work, n) in choices(menus) {
-        let value = work.get();
+    for (value, n) in choices(menus) {
         audio.state.audio_options.update(|o| o.choice[n] = value);
     }
     // `audio::choose_modes` with the game's log.
     crate::audio::choose_modes::in_game(audio, &mut crate::audio::choose_modes::real_log)?;
-    for (work, n) in choices(menus) {
-        work.set(audio.state.audio_options.get().applied[n]);
-    }
+    let applied = audio.state.audio_options.get().applied;
+    let mut work = menus.options.write();
+    use rc2k_core::audio::modes::{CHANNELS, DOLBY, DS3D, EAX, QUALITY};
+    let [quality, channels, dolby, eax, ds3d] =
+        [QUALITY, CHANNELS, DOLBY, EAX, DS3D].map(|n| applied[n]);
+    work.audio_quality = quality;
+    work.channels = channels;
+    work.dolby = dolby;
+    work.eax = eax;
+    work.ds3d = ds3d;
 
     Ok(())
 }

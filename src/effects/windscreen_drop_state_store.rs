@@ -1,8 +1,6 @@
 //! The windscreen drops' and windscreen flakes' variables: `WindscreenDropState` and
 //! `WindscreenDropWork`.
 
-use crate::memory::session::{PlainDword, PlainFloat};
-
 /// The windscreen drops' and windscreen flakes' frame variables (`effects::windscreen_drops_*`,
 /// `effects::windscreen_flakes_*`, `effects::draw_plane`).
 pub struct WindscreenDropState {
@@ -47,106 +45,61 @@ impl WindscreenDropState {
 /// The windscreen drops' work (`effects::windscreen_drops_*`, `effects::shapes`,
 /// `effects::spawn_windscreen_drop`): the drift, the curve, the radii, the axes, the sprite's
 /// corners and the windscreen drop points.
-#[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropWork {
     /// The drift at the item's cell (`effects::windscreen_drops_frame`).
-    pub drift: [PlainFloat; 2],
+    pub drift: [f32; 2],
     /// A quarter-circle curve of 0x100 floats (`effects::shapes`).
-    pub curve: [PlainFloat; 256],
+    pub curve: [f32; 256],
     /// The circles' radii (eight kinds used).
-    pub radii: [PlainFloat; 16],
+    pub radii: [f32; 16],
     /// 1 over the view's farthest depth (`effects::windscreen_drops_setup`).
-    pub inverse: PlainFloat,
+    pub inverse: f32,
     /// The axes' lengths' shares (`effects::windscreen_drops_top`).
-    pub shares: [PlainFloat; 2],
+    pub shares: [f32; 2],
     /// The view's place (the settings' `light_point_b_negated`).
-    pub place: [PlainFloat; 3],
+    pub place: [f32; 3],
     /// The three axes (rows of three).
-    pub axes: [PlainFloat; 9],
+    pub axes: [f32; 9],
     /// The two axes scaled (`effects::windscreen_drops_setup`).
-    pub setup_axes: [PlainFloat; 12],
+    pub setup_axes: [f32; 12],
     /// The sprite's centre on the screen (`effects::windscreen_drops_frame`).
-    pub screen: [PlainFloat; 2],
+    pub screen: [f32; 2],
     /// The item's place turned, its depth last.
-    pub cell: [PlainFloat; 3],
+    pub cell: [f32; 3],
     /// The six corners (x, y, z).
-    pub corners: [PlainFloat; 18],
+    pub corners: [f32; 18],
     /// The 0x30 points scaled and turned onto the axes (`effects::windscreen_drops_top`).
-    pub scaled: [PlainFloat; 144],
+    pub scaled: [f32; 144],
     /// 0x30 points of 12 bytes (eight circles of six).
-    pub points: [PlainFloat; 144],
+    pub points: [f32; 144],
     /// An offset into the items (`effects::spawn_windscreen_drop`).
-    pub cursor: PlainDword,
+    pub cursor: u32,
     /// The item's place as whole numbers (x, z).
-    pub whole: [PlainDword; 2],
+    pub whole: [u32; 2],
 }
 
 impl WindscreenDropWork {
     pub const fn new() -> Self {
         WindscreenDropWork {
-            drift: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            curve: [const { PlainFloat::new(0.0) }; 256],
+            drift: [0.0, 0.0],
+            curve: [0.0; 256],
             radii: [
-                PlainFloat::new(7.0),
-                PlainFloat::new(6.0),
-                PlainFloat::new(5.0),
-                PlainFloat::new(4.0),
-                PlainFloat::new(3.0),
-                PlainFloat::new(2.0),
-                PlainFloat::new(4.0),
-                PlainFloat::new(5.0),
-                PlainFloat::new(2.0),
-                PlainFloat::new(1.8),
-                PlainFloat::new(1.6),
-                PlainFloat::new(1.4),
-                PlainFloat::new(1.2),
-                PlainFloat::new(1.0),
-                PlainFloat::new(1.2),
-                PlainFloat::new(1.4),
+                7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 4.0, 5.0, 2.0, 1.8, 1.6, 1.4, 1.2, 1.0, 1.2, 1.4,
             ],
-            inverse: PlainFloat::new(0.0),
-            shares: [PlainFloat::new(57.6), PlainFloat::new(57.6)],
-            place: [
-                PlainFloat::new(-58982.4),
-                PlainFloat::new(-29491.2),
-                PlainFloat::new(65536.0),
-            ],
-            axes: [
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
+            inverse: 0.0,
+            shares: [57.6, 57.6],
+            place: [-58982.4, -29491.2, 65536.0],
+            axes: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
             setup_axes: [
-                PlainFloat::new(1664.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(-1188.0),
-                PlainFloat::new(1188.0),
-                PlainFloat::new(1664.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(-1188.0),
-                PlainFloat::new(1188.0),
+                1664.0, 0.0, 0.0, 0.0, -1188.0, 1188.0, 1664.0, 0.0, 0.0, 0.0, -1188.0, 1188.0,
             ],
-            screen: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            cell: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            corners: [const { PlainFloat::new(0.0) }; 18],
-            scaled: [const { PlainFloat::new(0.0) }; 144],
-            points: [const { PlainFloat::new(0.0) }; 144],
-            cursor: PlainDword::new(0x0),
-            whole: [PlainDword::new(0x0), PlainDword::new(0x0)],
+            screen: [0.0, 0.0],
+            cell: [0.0, 0.0, 0.0],
+            corners: [0.0; 18],
+            scaled: [0.0; 144],
+            points: [0.0; 144],
+            cursor: 0x0,
+            whole: [0x0, 0x0],
         }
     }
 }

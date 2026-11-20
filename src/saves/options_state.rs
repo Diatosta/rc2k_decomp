@@ -140,8 +140,6 @@ type WordSet<'a> = dyn Fn(u32) + 'a;
 pub(crate) enum Field<'a> {
     /// One dword.
     Dword(&'a dyn DwordLike),
-    /// Dwords one after the other, each a field of its own.
-    Dwords(Vec<&'a dyn DwordLike>),
     /// `len` bytes of a text, name or GUID, from byte `from` of its cells.
     Text {
         cells: &'a dyn Store,
@@ -324,7 +322,6 @@ impl Field<'_> {
     pub(crate) fn len(&self) -> usize {
         match self {
             Self::Dword(_) | Self::Value { .. } => 4,
-            Self::Dwords(fields) => 4 * fields.len(),
             Self::Text { len, .. } | Self::Bytes { len, .. } => *len,
             Self::Player(_) => size_of::<Player>(),
             Self::Records(records) => records.len() * RECORD_LEN as usize,
@@ -336,7 +333,6 @@ impl Field<'_> {
         match self {
             Self::Dword(field) => m.dword(*field),
             Self::Value { get, set } => m.value(get, set),
-            Self::Dwords(fields) => fields.iter().try_for_each(|field| m.dword(*field)),
             Self::Text { cells, from, len } => m.text(*cells, *from, *len),
             Self::Bytes { len, get, set } => m.bytes(*len, get, set),
             Self::Player(player) => m.player(player),
@@ -410,21 +406,23 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         Field::Player(&menus.play.slots.records[2]),
         Field::Player(&menus.play.slots.records[3]),
         Field::Dword(&audio.levels.general_volume),           // the "general volume" slider
-        Field::Dword(&work.menu_music_volume),                   // the "menu music" slider
-        Field::Dword(&work.race_music_level),                  // the "race music" slider
-        Field::Dword(&work.menu_effects_volume),                 // the "menu effects" slider
+        Field::Value { get: Box::new(|| work.read().menu_music_volume), set: Box::new(|v| work.write().menu_music_volume = v) },                   // the "menu music" slider
+        Field::Value { get: Box::new(|| work.read().race_music_level), set: Box::new(|v| work.write().race_music_level = v) },                  // the "race music" slider
+        Field::Value { get: Box::new(|| work.read().menu_effects_volume), set: Box::new(|v| work.write().menu_effects_volume = v) },                 // the "menu effects" slider
         Field::Dword(&audio.levels.race_effects_volume),                 // the "race effects" slider
-        Field::Dword(&work.menu_voices_volume),                  // the "menu voices" slider
+        Field::Value { get: Box::new(|| work.read().menu_voices_volume), set: Box::new(|v| work.write().menu_voices_volume = v) },                  // the "menu voices" slider
         Field::Dword(&audio.levels.codriver_voice_volume),                      // the "co-driver's voice" slider
         Field::Dword(&audio.levels.engine_volume),                      // the "car engine" slider
-        Field::Dwords(vec![                                        // the options pages' work copies, mipmapping .. headlights
-            &work.mipmapping, &work.buffering, &work.mode_changed, &work.modes_switch,
-            &work.lens_flare, &work.unused_percent_a, &work.unused_percent_b,
-            &work.reflections, &work.car_shadows, &work.car_detail, &work.headlights,
-        ]),
-        Field::Dwords(vec![                                        // the audio quality, the 3D switches and the channels
-            &work.audio_quality, &work.ds3d, &work.eax, &work.retired_a3d, &work.dolby, &work.channels,
-        ]),
+        Field::Bytes {                                          // the options pages' work copies, mipmapping .. headlights
+            len: 0x2C,
+            get: Box::new(|| work.visual_run_bytes()),
+            set: Box::new(|bytes| work.set_visual_run(bytes)),
+        },
+        Field::Bytes {                                          // the audio quality, the 3D switches and the channels
+            len: 0x18,
+            get: Box::new(|| work.audio_run_bytes()),
+            set: Box::new(|bytes| work.set_audio_run(bytes)),
+        },
         Field::Value {                                          // the services counted
             get: Box::new(|| menus.play.champ_view.read().services),
             set: Box::new(|services| menus.play.champ_view.write().services = services),
@@ -439,8 +437,16 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
             get: Box::new(|| menus.play.arcade.read().levels_won[..6].to_vec()),
             set: Box::new(|bytes| menus.play.arcade.write().levels_won[..6].copy_from_slice(bytes)),
         },
-        Field::Dwords(numbers.first_numbers.iter().map(|n| n as &dyn DwordLike).collect()),                // the first list of car numbers
-        Field::Dwords(numbers.second_numbers[..20].iter().map(|n| n as &dyn DwordLike).collect()),         // the second list of car numbers, 20 entries
+        Field::Bytes {                                          // the first list of car numbers
+            len: 0xA0,
+            get: Box::new(|| numbers.first_bytes()),
+            set: Box::new(|bytes| numbers.set_first(bytes)),
+        },
+        Field::Bytes {                                          // the second list of car numbers, 20 entries
+            len: 0x50,
+            get: Box::new(|| numbers.second_bytes()),
+            set: Box::new(|bytes| numbers.set_second(bytes)),
+        },
         Field::Records(&tables.championship),              // the championship's records
         Field::Records(&tables.events[5].records),          // the events' record tables, in the file's order
         Field::Records(&tables.events[4].records),

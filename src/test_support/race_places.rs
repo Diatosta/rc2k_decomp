@@ -235,10 +235,10 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x224040, "owners.scene.draw_work", ".surface_point[0]"),
     (0x224044, "owners.scene.draw_work", ".surface_point[1]"),
     (0x224048, "owners.scene.draw_work", ".surface_point[2]"),
-    (0x237638, "owners.scene.lights.state", ".camera_shake_x"),
-    (0x23763C, "owners.scene.lights.state", ".camera_shake_y"),
-    (0x237640, "owners.scene.lights.state", ".camera_shake_z"),
-    (0x237644, "owners.scene.lights.state", ".camera_shake_listener"),
+    (0x237638, "owners.scene.line_and_shake", ".camera_shake_x"),
+    (0x23763C, "owners.scene.line_and_shake", ".camera_shake_y"),
+    (0x237640, "owners.scene.line_and_shake", ".camera_shake_z"),
+    (0x237644, "owners.scene.line_and_shake", ".camera_shake_listener"),
     (0x239824, "owners.race.physics.ground_search", ".x"),
     (0x23982C, "owners.race.physics.ground_search", ".z"),
     (0x24BB38, "owners.race.replay.finish", ".car_lift"),
@@ -583,6 +583,29 @@ fn work_field(path: &str) -> Option<WorkBits> {
     }
 }
 
+/// The best-line place and the camera shake (plain fields, not cells): their registry name.
+const LINE_AND_SHAKE: &str = "owners.scene.line_and_shake";
+
+/// How a field of the best-line place and camera shake is read and written as bits.
+type ShakeBits = (
+    fn(&crate::scene::line_shake_store::LineAndShake) -> u32,
+    fn(&mut crate::scene::line_shake_store::LineAndShake, u32),
+);
+
+/// The best-line and shake record's field at `path`.
+fn shake_field(path: &str) -> Option<ShakeBits> {
+    match path {
+        ".camera_shake_x" => Some((|w| w.camera_shake_x, |w, v| w.camera_shake_x = v)),
+        ".camera_shake_y" => Some((|w| w.camera_shake_y, |w, v| w.camera_shake_y = v)),
+        ".camera_shake_z" => Some((|w| w.camera_shake_z, |w, v| w.camera_shake_z = v)),
+        ".camera_shake_listener" => Some((
+            |w| w.camera_shake_listener,
+            |w, v| w.camera_shake_listener = v,
+        )),
+        _ => None,
+    }
+}
+
 /// The ground search's record (plain fields, not cells): its registry name.
 const GROUND_SEARCH: &str = "owners.race.physics.ground_search";
 
@@ -611,6 +634,14 @@ fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
     if name == DRAW_WORK {
         let (get, _) = work_field(path)?;
         return Some(get(&super::own::scene().draw_work()).to_le_bytes().to_vec());
+    }
+    if name == LINE_AND_SHAKE {
+        let (get, _) = shake_field(path)?;
+        return Some(
+            get(&super::own::scene().line_and_shake())
+                .to_le_bytes()
+                .to_vec(),
+        );
     }
     if name == GROUND_SEARCH {
         let (get, _) = search_field(path)?;
@@ -649,6 +680,16 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
         };
         set(
             &mut super::own::scene().draw_work_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    if name == LINE_AND_SHAKE {
+        let (Some((_, set)), Ok(word)) = (shake_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::scene().line_and_shake_mut(),
             u32::from_le_bytes(word),
         );
         return true;

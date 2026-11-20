@@ -116,12 +116,11 @@ fn place_like_arcade(
         race.physics.split_tables().split_colour_count,
     );
     let c = crate::physics::step_inputs::StepInputs::of(race).reset();
-    let lights = &scene.lights;
     for (k, place) in places.into_iter().enumerate() {
         shared.work.get().current_car.set(players + k as u32);
         crate::drive::load_car::load_car(shared)?;
-        lights.state.get().line_place.set(place);
-        lights.state.get().line_fraction.set(0);
+        scene.line_and_shake_mut().line_place = place;
+        scene.line_and_shake_mut().line_fraction = 0;
         crate::race::start_place::place_car_on_line(shared, &race.course, scene)?;
         let nearest =
             crate::race::start_place::nearest_checkpoint(c.physics, c.course, shared, scene)?;

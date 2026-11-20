@@ -15,17 +15,8 @@ use crate::system::checked_reads::CheckedReads;
 /// How many dwords of each list of numbers are filled.
 const FILLED: usize = 0x28;
 /// (the numbers, the pointers)
-fn lists(menus: &Menus) -> [(&[PlainDword], &[PlainDword]); 2] {
-    [
-        (
-            &menus.cars.numbers.first_numbers,
-            &menus.cars.lists.cars_second,
-        ),
-        (
-            &menus.cars.numbers.second_numbers,
-            &menus.cars.lists.shown_cars,
-        ),
-    ]
+fn lists(menus: &Menus) -> [&[PlainDword]; 2] {
+    [&menus.cars.lists.cars_second, &menus.cars.lists.shown_cars]
 }
 
 pub fn list_car_numbers_in(menus: &Menus) -> Result<(), BadInput> {
@@ -33,7 +24,7 @@ pub fn list_car_numbers_in(menus: &Menus) -> Result<(), BadInput> {
     // Both lists are worked out before either is written.
     {
         let mut found = Vec::new();
-        for (_, pointers) in lists {
+        for pointers in lists {
             let list: Vec<u32> = (0..FILLED).map(|n| pointers[n].get()).collect();
             let reads = CheckedReads::new();
             let answer = rc2k_core::saves::cars::numbers(&list, |car| {
@@ -44,10 +35,13 @@ pub fn list_car_numbers_in(menus: &Menus) -> Result<(), BadInput> {
             });
             found.push(reads.finish(answer)??);
         }
-        for ((numbers, _), list) in lists.into_iter().zip(found) {
-            for (n, v) in list.into_iter().enumerate() {
-                numbers[n].set(v);
-            }
+        let [first, second] = <[_; 2]>::try_from(found).expect("two lists");
+        let mut numbers = menus.cars.numbers.write();
+        for (n, v) in first.into_iter().enumerate() {
+            numbers.first_numbers[n] = v;
+        }
+        for (n, v) in second.into_iter().enumerate() {
+            numbers.second_numbers[n] = v;
         }
         Ok(())
     }

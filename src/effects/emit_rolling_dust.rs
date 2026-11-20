@@ -116,6 +116,7 @@ fn emit_particle_1(
         if let Some(why) = refusal(effects, ring, wheel)? {
             return Err(BadInput(why).into());
         }
+        let mut set = particles.kind1_set.borrow_mut();
         let flags = wheel.flags.get();
         let p = pace(effects, wheel)?;
         ring.work.borrow_mut().whole = p.grown.0 as u32;
@@ -146,7 +147,7 @@ fn emit_particle_1(
         let slot = crate::effects::ring_entries::Slot::new(ring, e);
         let car = emitting_car(effects)?;
         let m = car.whole(effects.car_blocks()?)?;
-        let side = (next_c5(&particles.kind1_set.side_random) & 0x3FFF) as i32 - 0x2000;
+        let side = (next_c5_plain(&mut set.side_random) & 0x3FFF) as i32 - 0x2000;
         effects.setup.frame.emit_side.set(side as u32);
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok(x87::plus_int_times_80(
@@ -165,7 +166,7 @@ fn emit_particle_1(
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let k4 = 4 * k as u32;
-                let f = [0, 1, 2].map(|i| particles.kind1_set.motion_k[3 * k + i].get());
+                let f = [0, 1, 2].map(|i| set.motion_k[3 * k + i]);
                 x87::three_products_80([
                     [matrix_float(m, k4)?, wheel.local_velocity_x.get(), f[0]],
                     [
@@ -182,21 +183,16 @@ fn emit_particle_1(
             })
         })?;
         let (moved, _) = jitter_point(
-            [
-                extended(particles.kind1_set.spread.get()),
-                motion[2],
-                motion[1],
-                motion[0],
-            ],
+            [extended(set.spread), motion[2], motion[1], motion[0]],
             effects,
         );
         slot.put(|en| &mut en.motion[2], rounded_value(moved[0]))?;
         slot.put(
             |en| &mut en.motion[1],
-            x87::add(rounded_value(moved[1]), &particles.kind1_set.lift),
+            x87::add(rounded_value(moved[1]), set.lift),
         )?;
         slot.put(|en| &mut en.motion[0], rounded_value(moved[2]))?;
-        let r = next_c5(&particles.kind1_set.spin_random);
+        let r = next_c5_plain(&mut set.spin_random);
         slot.put(|en| &mut en.angle_rate, (r & 0x3F).wrapping_sub(0x20))?;
         slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
         slot.put(|en| &mut en.cell, flags & 0x3F)?;
@@ -208,7 +204,7 @@ fn emit_particle_1(
         slot.put(|en| &mut en.car_pace, car.pace.get())?;
         slot.put(
             |en| &mut en.size,
-            x87::int_times(SIZE as i32, &particles.kind1_set.size_k).to_bits(),
+            x87::int_times(SIZE as i32, set.size_k).to_bits(),
         )?;
         slot.put(|en| &mut en.size_factor, 0.0)?;
     }

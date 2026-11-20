@@ -627,6 +627,8 @@ mod vector_tests {
     /// The championship view is plain fields: its one range here, `summary`, is read and
     /// written by hand.
     const CHAMP: &str = "owners.menus.play.champ_view";
+    /// The options store is plain fields: its five ranges here are read and written by hand.
+    const OPTIONS: &str = "owners.menus.options";
 
     /// The word of a plain store's range, if `name` is one.
     fn plain_word(name: &str, path: &str) -> Option<u32> {
@@ -635,6 +637,11 @@ mod vector_tests {
             (ARCADE, _) => Some(menus.play.arcade.read().scene_let_go),
             (CHAMP, _) => Some(menus.play.champ_view.read().summary),
             (FLOW, _) => Some(menus.screens.flow.read().kept),
+            (OPTIONS, ".lens_flare") => Some(menus.options.read().lens_flare),
+            (OPTIONS, ".reflections") => Some(menus.options.read().reflections),
+            (OPTIONS, ".car_shadows") => Some(menus.options.read().car_shadows),
+            (OPTIONS, ".car_detail") => Some(menus.options.read().car_detail),
+            (OPTIONS, ".headlights") => Some(menus.options.read().headlights),
             (EVENT, ".sparks_mode") => Some(menus.screens.event.read().sparks_mode),
             (EVENT, ".player_count") => Some(menus.screens.event.read().player_count),
             (EVENT, ".event_kind") => Some(menus.screens.event.read().event_kind),
@@ -650,6 +657,11 @@ mod vector_tests {
             (ARCADE, _) => menus.play.arcade.write().scene_let_go = word,
             (CHAMP, _) => menus.play.champ_view.write().summary = word,
             (FLOW, _) => menus.screens.flow.write().kept = word,
+            (OPTIONS, ".lens_flare") => menus.options.write().lens_flare = word,
+            (OPTIONS, ".reflections") => menus.options.write().reflections = word,
+            (OPTIONS, ".car_shadows") => menus.options.write().car_shadows = word,
+            (OPTIONS, ".car_detail") => menus.options.write().car_detail = word,
+            (OPTIONS, ".headlights") => menus.options.write().headlights = word,
             (EVENT, ".sparks_mode") => menus.screens.event.write().sparks_mode = word,
             (EVENT, ".player_count") => menus.screens.event.write().player_count = word,
             (EVENT, ".event_kind") => menus.screens.event.write().event_kind = word,
@@ -912,9 +924,8 @@ mod vector_tests {
     ];
 
     /// The stores the test writes.
-    const STORES: [&str; 5] = [
+    const STORES: [&str; 4] = [
         "owners.menus.play.slots",
-        "owners.menus.options",
         "owners.race.replay.viewer_and_kinds",
         "owners.race.shared.state",
         "owners.system.records.stage_tables",
@@ -1233,6 +1244,7 @@ mod vector_tests {
         let kept_flow = Owners::the().menus.screens.flow.read();
         let kept_event = Owners::the().menus.screens.event.read();
         let kept_champ = Owners::the().menus.play.champ_view.read();
+        let kept_options = Owners::the().menus.options.read();
         let mut vectors = Vectors::open("race.single_rally.cases", Kind::Bits, 8);
         let (mut done, mut fatal, mut failed, mut engine, mut early, mut results) =
             (0, 0, 0, 0, 0, 0);
@@ -1257,6 +1269,7 @@ mod vector_tests {
         *Owners::the().menus.screens.flow.write() = kept_flow;
         *Owners::the().menus.screens.event.write() = kept_event;
         *Owners::the().menus.play.champ_view.write() = kept_champ;
+        *Owners::the().menus.options.write() = kept_options;
         vectors.finish();
         assert!(
             done > 100 && fatal > 10 && failed > 20 && engine > 20 && early > 5 && results > 10,

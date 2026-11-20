@@ -24,7 +24,7 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     screens.flow.write().turning = 0x1u32;
     screens.carousel.menu.set(0xDu32);
     set_up.carousel()?;
-    let item = screens.items.current[slot::SELECT_CAR].get();
+    let item = screens.items.current(slot::SELECT_CAR);
     screens.loop_flags.write().item = item;
     screens.carousel.front.set(item.wrapping_sub(1));
     screens.flow.write().turning = 0x0u32;
@@ -44,7 +44,7 @@ fn after_first_frame(system: &System) -> Result<Flow, Refused> {
 }
 
 fn leaving(menus: &Menus) -> Result<(), Refused> {
-    if menus.tables.captions.left_by_key.is_set() {
+    if menus.tables.captions.read().left_by_key {
         crate::menu::go_back::go_back(menus);
     }
     Ok(())

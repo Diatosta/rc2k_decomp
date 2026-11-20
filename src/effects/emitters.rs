@@ -36,6 +36,12 @@ pub(super) fn next_c5(at: impl Random) -> u32 {
     r
 }
 
+/// `next_c5` on a plain random.
+pub(super) fn next_c5_plain(random: &mut u32) -> u32 {
+    *random = random.wrapping_mul(0xC5).wrapping_add(0x5D);
+    *random
+}
+
 /// The entry the next `take_entry` takes, if one is left.
 pub fn next_entry(ring: &Ring) -> Result<Option<u32>, Refused> {
     Ok({
@@ -124,10 +130,10 @@ pub fn gate(
     object: &CarEffects,
     a: &impl crate::memory::session::Cell32,
     b: &impl crate::memory::session::Cell32,
-    k: &[crate::memory::session::PlainFloat; 4],
+    k: &[f32; 4],
 ) -> Result<Gate, Refused> {
     Ok({
-        let [k1, k2, k3, k4] = k.each_ref().map(crate::memory::session::PlainFloat::get);
+        let [k1, k2, k3, k4] = *k;
         let rate = x87::rate_to_int(a, b, k1, k2, k3, effects.setup.floats.one, k4);
         gate_with(wheel, object, rate)?
     })

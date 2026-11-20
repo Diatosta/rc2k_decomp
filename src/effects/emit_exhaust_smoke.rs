@@ -65,13 +65,14 @@ pub fn emit_exhaust_smoke(
     let slot = crate::effects::ring_entries::Slot::new(ring, e);
     let car = emitting_car(effects)?;
     let cells = car.whole(effects.car_blocks()?)?;
+    let mut set = particles.kind13_set.borrow_mut();
     let t: [f32; 3] =
         read_first::<_, 3>(&paths.spline_head.points[3 * model..]).map(f32::from_bits);
     let [x, y, y_less, z] = x87::turned_place_less_f32(
         t,
         effects.setup.floats.particle_13_place_k,
         effects.setup.floats.seven_hundred,
-        &particles.kind13_set.lift,
+        set.lift,
         car.whole(effects.car_blocks()?)?,
     );
     slot.put(|en| &mut en.place[0], x)?;
@@ -79,19 +80,19 @@ pub fn emit_exhaust_smoke(
     slot.put(|en| &mut en.ground_y, y_less)?;
     slot.put(|en| &mut en.place[2], z)?;
     let one = effects.setup.floats.one;
-    let s = x87::one_less_inverse(&object.engine_speed, &particles.kind13_set.strength_k, one);
+    let s = x87::one_less_inverse(&object.engine_speed, set.strength_k, one);
     ring.work.borrow_mut().whole = s.to_bits();
     let motion: [f32; 3] = crate::effects::try_from_fn(|k| {
         Ok(x87::mul2(
             matrix_float(cells, 0x20 + 4 * k as u32)?,
             s,
-            &particles.kind13_set.motion_k[k],
+            set.motion_k[k],
         ))
     })?;
     slot.put(|en| &mut en.motion[0], motion[0])?;
     slot.put(|en| &mut en.motion[1], motion[1])?;
     slot.put(|en| &mut en.motion[2], motion[2])?;
-    let r = (next_c5(&particles.kind13_set.drift_random) & 0xFFFF) as i32;
+    let r = (next_c5_plain(&mut set.drift_random) & 0xFFFF) as i32;
     let moved = x87::drifted(
         r,
         effects.setup.floats.over_65536,
@@ -102,7 +103,7 @@ pub fn emit_exhaust_smoke(
     slot.put(|en| &mut en.place[0], moved[0])?;
     slot.put(|en| &mut en.place[1], moved[1])?;
     slot.put(|en| &mut en.place[2], moved[2])?;
-    let r = next_c5(&particles.kind13_set.spin_random);
+    let r = next_c5_plain(&mut set.spin_random);
     slot.put(|en| &mut en.angle_rate, (r & 0x3F).wrapping_sub(0x20))?;
     slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
     slot.put(|en| &mut en.cell, LOOK)?;
@@ -118,16 +119,12 @@ pub fn emit_exhaust_smoke(
         x87::mul(s, effects.setup.floats.two_fifty_six).to_bits(),
     )?;
     slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
-    let size = x87::times_plus_to_int(
-        &particles.kind13_set.size_k[0],
-        s,
-        &particles.kind13_set.size_k[1],
-    );
+    let size = x87::times_plus_to_int(set.size_k[0], s, set.size_k[1]);
     slot.put(|en| &mut en.size_goal, size as u32)?;
     slot.put(|en| &mut en.car_pace, car.pace.get())?;
     slot.put(
         |en| &mut en.size,
-        x87::int_times(size, &particles.kind13_set.size_k[2]).to_bits(),
+        x87::int_times(size, set.size_k[2]).to_bits(),
     )?;
     Ok(())
 }

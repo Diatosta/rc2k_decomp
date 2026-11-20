@@ -29,11 +29,7 @@ fn rate(
     effects: &crate::effects::owner::Effects,
 ) -> Result<i32, Refused> {
     Ok({
-        let [k1, k2, k3, k4] = particles
-            .kind21_set
-            .rate_k
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get);
+        let [k1, k2, k3, k4] = particles.kind21_set.borrow().rate_k;
         x87::speed_rate_to_int(
             &wheel.driven_speed,
             k1,
@@ -89,7 +85,8 @@ pub(super) fn emit_rolling_particles_rated(
         let slot = crate::effects::ring_entries::Slot::new(ring, e);
         let car = emitting_car(effects)?;
         let m = car.whole(effects.car_blocks()?)?;
-        let r = next_c5(&particles.kind21_set.side_random);
+        let mut set = particles.kind21_set.borrow_mut();
+        let r = next_c5_plain(&mut set.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
         effects.kinds.emitter.sides[0].set(a as u32);
         effects.kinds.emitter.sides[1].set(b as u32);
@@ -105,17 +102,14 @@ pub(super) fn emit_rolling_particles_rated(
         })?;
         slot.put(|en| &mut en.place[2], rounded_value(place[2]))?;
         slot.put(|en| &mut en.place[1], rounded_value(place[1]))?;
-        slot.put(
-            |en| &mut en.ground_y,
-            x87::ext_less(place[1], &particles.kind21_set.lift),
-        )?;
+        slot.put(|en| &mut en.ground_y, x87::ext_less(place[1], set.lift))?;
         slot.put(|en| &mut en.place[0], rounded_value(place[0]))?;
         let motion: [f32; 3] = crate::effects::try_from_fn(|k| {
             let (first, third) = (
                 matrix_float(m, 4 * k as u32)?,
                 matrix_float(m, 0x20 + 4 * k as u32)?,
             );
-            let f = [0, 1, 2].map(|i| particles.kind21_set.motion_k[3 * k + i].get());
+            let f = [0, 1, 2].map(|i| set.motion_k[3 * k + i]);
             Ok(x87::three_products([
                 [first, wheel.local_velocity_x.get(), f[0]],
                 [third, wheel.local_velocity_z.get(), f[1]],
@@ -125,7 +119,7 @@ pub(super) fn emit_rolling_particles_rated(
         slot.put(|en| &mut en.motion[2], motion[2])?;
         slot.put(|en| &mut en.motion[1], motion[1])?;
         slot.put(|en| &mut en.motion[0], motion[0])?;
-        let r = next_c5(&particles.kind21_set.spin_random);
+        let r = next_c5_plain(&mut set.spin_random);
         slot.put(|en| &mut en.angle_rate, (r & 0x3F).wrapping_sub(0x20))?;
         slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
         slot.put(|en| &mut en.cell, LOOK)?;
@@ -156,7 +150,7 @@ pub(super) fn emit_rolling_particles_rated(
         slot.put(|en| &mut en.car_pace, car.pace.get())?;
         slot.put(
             |en| &mut en.size,
-            x87::int_times(size as i32, &particles.kind21_set.size_k).to_bits(),
+            x87::int_times(size as i32, set.size_k).to_bits(),
         )?;
     }
     Ok(())

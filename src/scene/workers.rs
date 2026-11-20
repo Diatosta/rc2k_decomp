@@ -107,13 +107,12 @@ pub struct Lent<'s> {
         crate::memory::session::PhaseRead<'s, crate::scene::kind_texture_store::KindSlots>,
     place_slots:
         crate::memory::session::PhaseRead<'s, crate::scene::texture_places_store::PlaceSlots>,
-    light_state: crate::memory::session::PhaseRead<'s, crate::scene::light_store::LightState>,
     // The scene's draw variables.
     scene_draw: crate::memory::session::PhaseRead<'s, crate::scene::draw_store::SceneDraw>,
     // The race's stores.
     level_grid: crate::memory::session::PhaseRead<'s, crate::race::level_grid_store::LevelGrid>,
-    ground_probe:
-        crate::memory::session::PhaseRead<'s, crate::physics::ground_probe_store::GroundProbe>,
+    /// The ground probe's mark as the scope opened.
+    ground_probe: crate::physics::ground_probe_store::GroundProbe,
     shadow_skids:
         crate::memory::session::PhaseRead<'s, crate::race::shadow_skids_store::ShadowSkids>,
     lights_and_gear:
@@ -173,12 +172,11 @@ impl<'s> Lent<'s> {
             object_slots: PhaseRead::lend(&scene.objects.slots, scope),
             kind_textures: PhaseRead::lend(&scene.textures.kinds, scope),
             place_slots: PhaseRead::lend(&scene.textures.place_slots, scope),
-            light_state: PhaseRead::lend(&scene.lights.state, scope),
             // The scene's draw variables.
             scene_draw: PhaseRead::lend(&scene.drawing.scene, scope),
             // The race's stores.
             level_grid: PhaseRead::lend(&race.course.level_grid, scope),
-            ground_probe: PhaseRead::lend(&race.physics.ground_probe, scope),
+            ground_probe: *race.physics.ground_probe().borrow(),
             shadow_skids: PhaseRead::lend(&race.frame.shadow_skids, scope),
             lights_and_gear: PhaseRead::lend(&race.frame.lights_and_gear, scope),
             no_place: race.replay.no_place(),
@@ -223,12 +221,11 @@ impl<'s> Lent<'s> {
             object_slots: &self.object_slots,
             kind_textures: &self.kind_textures,
             place_slots: &self.place_slots,
-            light_state: &self.light_state,
             // The scene's draw variables.
             scene_draw: &self.scene_draw,
             // The race's stores.
             level_grid: &self.level_grid,
-            ground_probe: &self.ground_probe,
+            ground_probe: self.ground_probe,
             shadow_skids: &self.shadow_skids,
             lights_and_gear: &self.lights_and_gear,
             no_place: self.no_place,
@@ -271,7 +268,7 @@ pub struct DrawReads<'a> {
     /// The lighting's colour tables (`scene::owner::Scene::light_tables`).
     pub light_tables: &'a crate::scene::light_tables_store::LightTables,
     // The scene's other drawing stores.
-    /// The lights' work variables (`scene::owner::Lights::work`).
+    /// The lights' work variables (`scene::owner::Scene::light_work`).
     pub light_work: crate::scene::light_work_store::LightWork,
     /// The draw switches (`scene::owner::Scene::draw_switches`), as they were when the reads were made.
     pub draw_switches: crate::scene::draw_switches_store::DrawSwitches,
@@ -283,8 +280,6 @@ pub struct DrawReads<'a> {
     pub kind_textures: &'a crate::scene::kind_texture_store::KindSlots,
     /// Each place's slot and the video textures' count (`scene::owner::Textures::place_slots`).
     pub place_slots: &'a crate::scene::texture_places_store::PlaceSlots,
-    /// The light state (`scene::owner::Lights::state`).
-    pub light_state: &'a crate::scene::light_store::LightState,
     // The scene's draw variables.
     /// The scene's draw variables (`scene::owner::Drawing::scene`): the polygons' alpha, the
     /// fade and clip factors, the mirror picture's texture, the `v3driverfix` setting.
@@ -292,8 +287,8 @@ pub struct DrawReads<'a> {
     // The race's stores (`race::owner::Race`).
     /// The level grid's depth shift (`race::owner_course::Course::level_grid`).
     pub level_grid: &'a crate::race::level_grid_store::LevelGrid,
-    /// The ground probe's mark (`race::owner_physics::Physics::ground_probe`).
-    pub ground_probe: &'a crate::physics::ground_probe_store::GroundProbe,
+    /// The ground probe's mark (`race::owner_physics::Physics::ground_probe`), as it was when the reads were made.
+    pub ground_probe: crate::physics::ground_probe_store::GroundProbe,
     /// The skid marks' links and points (`race::owner_frame::Frame::shadow_skids`).
     pub shadow_skids: &'a crate::race::shadow_skids_store::ShadowSkids,
     /// The models' light records and the gear figures after them
@@ -396,12 +391,11 @@ impl<'a> DrawReads<'a> {
             object_slots: scene.objects.slots.get(),
             kind_textures: scene.textures.kinds.get(),
             place_slots: scene.textures.place_slots.get(),
-            light_state: scene.lights.state.get(),
             // The scene's draw variables.
             scene_draw: scene.drawing.scene.get(),
             // The race's stores.
             level_grid: race.course.level_grid.get(),
-            ground_probe: race.physics.ground_probe.get(),
+            ground_probe: *race.physics.ground_probe().borrow(),
             shadow_skids: race.frame.shadow_skids.get(),
             lights_and_gear: race.frame.lights_and_gear.get(),
             no_place: race.replay.no_place(),

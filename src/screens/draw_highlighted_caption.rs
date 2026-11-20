@@ -41,7 +41,7 @@ pub fn draw_highlighted_caption(
     if !(1..=ITEMS).contains(&item) {
         return Err(BadInput("a highlighted item outside the lists of captions").into());
     }
-    let id: u32 = menus.tables.captions.caption_lists[list + item as usize - 1].get();
+    let id: u32 = menus.tables.captions.read().caption_lists[list + item as usize - 1];
     let caption = string_text(crate::strings::append_string_by_id::StringOwners::of(o), id)?;
     if caption.len() > CAPTION_LEN {
         return Err(BadInput("a caption longer than its place").into());

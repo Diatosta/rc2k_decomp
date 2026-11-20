@@ -70,7 +70,7 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     shared.car().car_roll.set(0);
     shared.physics_tables.get().settle_steps[0].set(0x2000_0000u32);
     shared.physics_tables.get().settle_steps[1].set(0x2000_0000u32);
-    physics.ground_probe.get().settle_mark.set(0x80);
+    physics.ground_probe().borrow_mut().settle_mark = 0x80;
     for _ in 0..8 {
         let w = matrix_and_wheels(
             &shared.buffers.reads.get().engine_tables,
@@ -194,7 +194,6 @@ pub fn start_car(
     scene: &crate::scene::owner::Scene,
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
-    let lights = &scene.lights;
     let course = &c.course;
     c.car.notice_count.set(0);
     c.car.camera_switch_active.set(0);
@@ -216,11 +215,11 @@ pub fn start_car(
         let first = crate::race::race_init::first_check_checkpoint(c.course, c.shared)?;
         let mode: u32 = c.vars.run_kind.get();
         let place = start_checkpoint(first, mode, c.work.current_car.get());
-        lights.state.get().line_place.set(place);
-        lights.state.get().line_fraction.set(0);
+        scene.line_and_shake_mut().line_place = place;
+        scene.line_and_shake_mut().line_fraction = 0;
         if c.no_place != 0 {
-            lights.state.get().line_place.set(0);
-            lights.state.get().line_fraction.set(0);
+            scene.line_and_shake_mut().line_place = 0;
+            scene.line_and_shake_mut().line_fraction = 0;
         }
         crate::race::start_place::place_car_on_line(c.shared, course, scene)?;
         if c.no_place == 0 {

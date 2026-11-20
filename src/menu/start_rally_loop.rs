@@ -17,7 +17,7 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     screens.flow.write().turning = 0x1u32;
     screens.carousel.menu.set(0x1u32);
     set_up.carousel_with(None)?;
-    let item = screens.items.current[slot::START_RALLY].get();
+    let item = screens.items.current(slot::START_RALLY);
     screens.loop_flags.write().item = item;
     screens.carousel.front.set(item.wrapping_sub(1));
     set_up.set_view(7, 10, 0x100);
@@ -26,15 +26,15 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
 }
 
 fn after_first_frame(tables: &Tables) -> Result<Flow, Refused> {
-    if tables.captions.left_by_key.is_set() {
-        tables.captions.left_by_key.set(false);
+    if tables.captions.read().left_by_key {
+        tables.captions.write().left_by_key = false;
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
 }
 
 fn leaving(menus: &Menus) -> Result<(), Refused> {
-    if menus.tables.captions.left_by_key.is_set() {
+    if menus.tables.captions.read().left_by_key {
         crate::menu::go_back::go_back(menus);
     }
     Ok(())

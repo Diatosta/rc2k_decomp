@@ -12,7 +12,9 @@ use crate::menu::screen_loop::{
 };
 
 fn before(screens: &Screens) -> Result<(), Refused> {
-    screens.items.current[slot::NEXT_STAGE].set(screens.items.first[slot::NEXT_STAGE].get());
+    screens
+        .items
+        .set_current(slot::NEXT_STAGE, screens.items.first(slot::NEXT_STAGE));
     Ok(())
 }
 

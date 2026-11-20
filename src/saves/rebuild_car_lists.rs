@@ -12,18 +12,11 @@ use crate::menu::owner::Menus;
 use crate::system::checked_reads::CheckedReads;
 
 /// (the numbers, the pointers, how many entries each has)
-fn lists(menus: &Menus) -> [(&[PlainDword], &[PlainDword], usize); 2] {
+fn lists(menus: &Menus) -> [([u32; 40], &[PlainDword], usize); 2] {
+    let numbers = menus.cars.numbers.read();
     [
-        (
-            &menus.cars.numbers.first_numbers,
-            &menus.cars.lists.cars_second,
-            0x28,
-        ),
-        (
-            &menus.cars.numbers.second_numbers,
-            &menus.cars.lists.shown_cars,
-            0x14,
-        ),
+        (numbers.first_numbers, &menus.cars.lists.cars_second, 0x28),
+        (numbers.second_numbers, &menus.cars.lists.shown_cars, 0x14),
     ]
 }
 
@@ -33,7 +26,7 @@ pub fn rebuild_car_lists(menus: &Menus) -> Result<(), BadInput> {
 
     let mut found = Vec::new();
     for (numbers, _, len) in lists {
-        let list: Vec<u32> = (0..len).map(|n| numbers[n].get()).collect();
+        let list: Vec<u32> = numbers[..len].to_vec();
         // Saved before the front end first ended: the lists stay as they start.
         if rc2k_core::saves::cars::never_listed(&list) {
             found.push(None);

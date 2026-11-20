@@ -11,7 +11,9 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, Keys, List, Screen, Step};
 
 fn before(screens: &Screens) -> Result<(), Refused> {
-    screens.items.current[slot::LOAD_REPLAY].set(screens.items.first[slot::LOAD_REPLAY].get());
+    screens
+        .items
+        .set_current(slot::LOAD_REPLAY, screens.items.first(slot::LOAD_REPLAY));
     screens.draw_work.write().escape_pressed = false;
     Ok(())
 }
@@ -21,7 +23,7 @@ fn before(screens: &Screens) -> Result<(), Refused> {
 /// * 20 + the highlighted item - 1.
 fn result(menus: &Menus) -> u32 {
     let item: u32 = menus.screens.loop_flags.read().item;
-    if item == 0x16 || menus.tables.captions.left_by_key.is_set() {
+    if item == 0x16 || menus.tables.captions.read().left_by_key {
         return 0xFFFF_FFFF;
     }
     menus

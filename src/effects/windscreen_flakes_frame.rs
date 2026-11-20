@@ -21,7 +21,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::scene::cross_product3::cross_plain;
-use crate::scene::vector3::{normalise, normalise_plain};
+use crate::scene::vector3::normalise_plain;
 
 /// The rate (`WindscreenFlakeTiming.rate`), the place and the first axis from the settings, its
 /// length over `WindscreenFlakeState.length_divisors[0]` into `WindscreenFlakeTables.lengths[0]`.
@@ -79,7 +79,7 @@ pub fn windscreen_flakes_frame(
     }
     crate::effects::scale_axes::scale_axes(fl);
     frame_place(drops, m);
-    normalise(&drops.hex.place);
+    normalise_plain(&mut drops.hex.borrow_mut().place);
     frame_facing(drops, fl);
     if !drops.state.borrow().facing.is_sign_negative() {
         return Ok(());
@@ -109,7 +109,6 @@ pub fn windscreen_flakes_frame(
     Ok(())
 }
 
-use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{
     WindscreenFlakeState, WindscreenFlakeTables, WindscreenFlakeTiming,
 };
@@ -180,20 +179,20 @@ fn frame_up_x87(m: &EffectsSettings, sq: &mut WindscreenFlakeTables, ss: &Windsc
 /// `frame_place`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
     let t0 = ldi_cell(&m.light_point_b_negated[0]);
-    st_cell(&drops.hex.place[0], t0);
+    drops.hex.borrow_mut().place[0] = bh::stf(t0);
     let t1 = ldi_cell(&m.light_point_b_negated[1]);
-    st_cell(&drops.hex.place[1], t1);
+    drops.hex.borrow_mut().place[1] = bh::stf(t1);
     let t2 = ldi_cell(&m.light_point_b_negated[2]);
-    st_cell(&drops.hex.place[2], t2);
+    drops.hex.borrow_mut().place[2] = bh::stf(t2);
 }
 
 /// `frame_facing`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_facing_x87(drops: &WindscreenDrops, sq: &mut WindscreenFlakeTables) {
-    let t0 = ld_cell(&drops.hex.place[0]);
+    let t0 = bh::ld(drops.hex.borrow().place[0]);
     let t1 = t0 * bh::ld(sq.axes[2][0]);
-    let t2 = ld_cell(&drops.hex.place[1]);
+    let t2 = bh::ld(drops.hex.borrow().place[1]);
     let t3 = t2 * bh::ld(sq.axes[2][1]);
-    let t4 = ld_cell(&drops.hex.place[2]);
+    let t4 = bh::ld(drops.hex.borrow().place[2]);
     let t5 = t4 * bh::ld(sq.axes[2][2]);
     let t6 = t3 + t5;
     let t7 = t1 + t6;

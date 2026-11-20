@@ -1,3 +1,4 @@
+use crate::memory::session::ByteBuffer;
 use crate::test_support::own::effects;
 
 use crate::effects::typed_sync::{overlay_laid, with_overlays};
@@ -35,23 +36,24 @@ fn staged<R>(
     at: crate::effects::asm_test::Operand,
     from: usize,
     len: usize,
-    bytes: &impl crate::memory::session::ByteBuffer,
+    get: impl Fn(usize) -> u8,
+    put: impl Fn(usize, u8),
     f: impl FnOnce() -> R,
 ) -> R {
     let host = (at + from).at(0, len);
-    let saved: Vec<u8> = (from..from + len).map(|i| bytes.get_byte(i)).collect();
+    let saved: Vec<u8> = (from..from + len).map(&get).collect();
     for i in 0..len {
         // SAFETY: byte `i < len` of the `len` that `at` checked lie in the operand's test
         // buffer, which the recorded run keeps alive and nothing else reaches meanwhile.
         let b = unsafe { host.add(i).read() };
-        bytes.write_bytes_at(from + i, &[b], "a test byte").unwrap();
+        put(from + i, b);
     }
     let out = f();
     for (i, &b) in saved.iter().enumerate() {
         // SAFETY: byte `i < len` of the `len` that `at` checked lie in the operand's test
         // buffer, which the recorded run keeps alive and nothing else reaches meanwhile.
-        unsafe { host.add(i).write(bytes.get_byte(from + i)) };
-        bytes.write_bytes_at(from + i, &[b], "a test byte").unwrap();
+        unsafe { host.add(i).write(get(from + i)) };
+        put(from + i, b);
     }
     out
 }
@@ -134,10 +136,20 @@ fn drift_move_x87_matches() {
                         b[2],
                         0x14,
                         0x10,
-                        &crate::test_support::own::effects()
-                            .windscreen_drops
-                            .hex
-                            .items,
+                        |i| {
+                            crate::test_support::own::effects()
+                                .windscreen_drops
+                                .hex
+                                .borrow()
+                                .items[i]
+                        },
+                        |i, v| {
+                            crate::test_support::own::effects()
+                                .windscreen_drops
+                                .hex
+                                .borrow_mut()
+                                .items[i] = v;
+                        },
                         || {
                             super::drift_move_x87(
                                 &crate::test_support::own::effects().windscreen_drops,
@@ -440,10 +452,21 @@ fn sprite_project_x87_matches() {
                             b[2],
                             0,
                             0xC0,
-                            &crate::test_support::own::gfx()
-                                .card
-                                .windscreen_drop_batch
-                                .records,
+                            |i| {
+                                crate::test_support::own::gfx()
+                                    .card
+                                    .windscreen_drop_batch
+                                    .records
+                                    .get_byte(i)
+                            },
+                            |i, v| {
+                                crate::test_support::own::gfx()
+                                    .card
+                                    .windscreen_drop_batch
+                                    .records
+                                    .write_bytes_at(i, &[v], "a test byte")
+                                    .unwrap();
+                            },
                             || {
                                 super::sprite_project_x87(
                                     crate::owners::Owners::the()

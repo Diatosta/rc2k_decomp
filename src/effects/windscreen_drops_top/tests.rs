@@ -3,8 +3,6 @@ use crate::effects::asm_test::with_settings;
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
 use crate::effects::typed_sync::{overlay_laid, with_overlays};
 
-use crate::memory::session::PlainFloat;
-
 #[test]
 fn frame_axes_x87_matches() {
     const SPEC: Spec = Spec {
@@ -60,8 +58,11 @@ fn frame_axes_x87_matches() {
             ],
             || {
                 with_settings(b[1], |m| {
+                    let drops = &crate::test_support::own::effects().windscreen_drops;
                     super::frame_axes_x87(
-                        &crate::test_support::own::effects().windscreen_drops,
+                        &mut drops.hex.borrow_mut(),
+                        &mut drops.work.borrow_mut(),
+                        drops,
                         m,
                         &crate::effects::asm_layout::copy_of::<
                             std::cell::RefCell<crate::effects::setup_store::MarksClock>,
@@ -119,7 +120,8 @@ fn frame_up_x87_matches() {
             ],
             || {
                 with_settings(b[1], |m| {
-                    super::frame_up_x87(&crate::test_support::own::effects().windscreen_drops, m);
+                    let drops = &crate::test_support::own::effects().windscreen_drops;
+                    super::frame_up_x87(&drops.hex.borrow(), &mut drops.work.borrow_mut(), m);
                 });
             },
         );
@@ -153,10 +155,8 @@ fn frame_place_x87_matches() {
             )],
             || {
                 with_settings(b[1], |m| {
-                    super::frame_place_x87(
-                        &crate::test_support::own::effects().windscreen_drops,
-                        m,
-                    );
+                    let drops = &crate::test_support::own::effects().windscreen_drops;
+                    super::frame_place_x87(&mut drops.hex.borrow_mut(), m);
                 });
             },
         );
@@ -193,7 +193,8 @@ fn frame_facing_x87_matches() {
                     overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
                 ],
                 || {
-                    super::frame_facing_x87(&crate::test_support::own::effects().windscreen_drops);
+                    let drops = &crate::test_support::own::effects().windscreen_drops;
+                    super::frame_facing_x87(&drops.hex.borrow(), &drops.work.borrow(), drops);
                 },
             );
         },
@@ -238,21 +239,23 @@ fn point_turned_x87_matches() {
                 || {
                     // The point's three floats, as the buffer holds them at b[1].
                     let host = |n: usize| (b[1] + 4 * n).at(0, 4).cast::<u32>();
-                    let p: [PlainFloat; 3] = std::array::from_fn(|n| {
+                    let mut p: [f32; 3] = std::array::from_fn(|n| {
                         // SAFETY: `at` checks that the four bytes lie in the operand's test
                         // buffer, which the recorded run keeps alive and nothing else reaches
                         // meanwhile; unaligned, any bits a `u32`.
-                        PlainFloat::from_bits(unsafe { host(n).read_unaligned() })
+                        f32::from_bits(unsafe { host(n).read_unaligned() })
                     });
-                    super::point_turned_x87(
-                        &crate::test_support::own::effects().windscreen_drops,
-                        &p,
-                    );
+                    let axes = crate::test_support::own::effects()
+                        .windscreen_drops
+                        .work
+                        .borrow()
+                        .axes;
+                    super::point_turned_x87(&axes, &mut p);
                     for (n, cell) in p.iter().enumerate() {
                         // SAFETY: `at` checks that the four bytes lie in the operand's test
                         // buffer, which the recorded run keeps alive and nothing else reaches
                         // meanwhile; unaligned, any bits a `u32`.
-                        unsafe { host(n).write_unaligned(cell.bits()) };
+                        unsafe { host(n).write_unaligned(cell.to_bits()) };
                     }
                 },
             );

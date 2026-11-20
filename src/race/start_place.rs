@@ -53,12 +53,11 @@ pub fn place_car_on_line(
     course: &Course,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let lights = &scene.lights;
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
     let count = count(shared)?;
     {
-        let (c, n) = line_neighbours(lights.state.get().line_place.get(), count)?;
-        let t: u32 = lights.state.get().line_fraction.get();
+        let (c, n) = line_neighbours(scene.line_and_shake().line_place, count)?;
+        let t: u32 = scene.line_and_shake().line_fraction;
         let (face, a) = check_point(&shared.buffers.reads.get().checkpoints, course, c)?;
         course.course.get().place_face.set(face);
         let (_, b) = check_point(&shared.buffers.reads.get().checkpoints, course, n)?;

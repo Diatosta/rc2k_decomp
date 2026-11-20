@@ -1,6 +1,6 @@
 //! The rolling dust's choice and set.
 
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::PlainDword;
 
 /// The wheel kind 1's choice.
 #[derive(rc2k_derive::Cells)]
@@ -19,42 +19,33 @@ impl RollingChoice {
 }
 
 /// Kind 1's emitter variables (`emit_particle_1`).
-#[derive(rc2k_derive::Cells)]
 pub struct RollingSet {
     /// The side's random
-    pub side_random: PlainDword,
+    pub side_random: u32,
     /// Per axis (x, y, z) the factors of the first row, the third row and the side
-    pub motion_k: [PlainFloat; 9],
+    pub motion_k: [f32; 9],
     /// The spread `jitter_point` takes
-    pub spread: PlainFloat,
+    pub spread: f32,
     /// Added to y
-    pub lift: PlainFloat,
+    pub lift: f32,
     /// The spin's random
-    pub spin_random: PlainDword,
+    pub spin_random: u32,
     /// The size's factor
-    pub size_k: PlainFloat,
+    pub size_k: f32,
 }
 
 impl RollingSet {
     /// The values the game starts with.
     pub const fn new() -> Self {
         RollingSet {
-            side_random: PlainDword::new(0x0),
+            side_random: 0x0,
             motion_k: [
-                PlainFloat::new(65.536),
-                PlainFloat::new(49.152),
-                PlainFloat::new(12.152),
-                PlainFloat::new(65.536),
-                PlainFloat::new(49.152),
-                PlainFloat::new(12.152),
-                PlainFloat::new(65.536),
-                PlainFloat::new(49.152),
-                PlainFloat::new(12.152),
+                65.536, 49.152, 12.152, 65.536, 49.152, 12.152, 65.536, 49.152, 12.152,
             ],
-            spread: PlainFloat::new(96.0),
-            lift: PlainFloat::new(64.0),
-            spin_random: PlainDword::new(0x0),
-            size_k: PlainFloat::new(0.2),
+            spread: 96.0,
+            lift: 64.0,
+            spin_random: 0x0,
+            size_k: 0.2,
         }
     }
 }

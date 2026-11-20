@@ -180,7 +180,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         search.last = race.car_blocks().cars[0].probe_point_face[4].get();
                     }
                     crate::physics::find_ground::find_ground(
-                        race.physics.ground_probe.get(),
+                        race.physics.ground_probe(),
                         race.physics.ground_search(),
                         &race.course,
                     )?;

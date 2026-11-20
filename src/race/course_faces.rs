@@ -1172,6 +1172,7 @@ mod vector_tests {
         let course = &race().course;
         let kept = Snapshot::of(&[
             "owners.scene.drawing.scene",
+            "owners.scene.draw_work",
             "owners.race.course.course",
             "owners.race.course.stage_prefs",
             "owners.race.course.numbers",

@@ -14,7 +14,7 @@ use std::cell::RefCell;
 
 /// Whether the face under the point was found.
 pub fn find_ground(
-    ground_probe: &GroundProbe,
+    ground_probe: &RefCell<GroundProbe>,
     search: &RefCell<GroundSearch>,
     course: &Course,
 ) -> Result<bool, Refused> {

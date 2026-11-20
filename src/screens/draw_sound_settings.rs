@@ -4,21 +4,20 @@
 //! menu).
 
 use crate::errors::Refused;
-use crate::memory::session::DwordLike;
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
 use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 /// (the setting, its first string).
-fn names(menus: &Menus) -> [(&dyn DwordLike, u32); 5] {
-    let work = &menus.options;
+fn names(menus: &Menus) -> [(u32, u32); 5] {
+    let work = menus.options.read();
     [
-        (&work.audio_quality, 0x54B),
-        (&work.channels, 0x554),
-        (&work.ds3d, 0x56D),
-        (&work.eax, 0x56D),
-        (&work.dolby, 0x56D),
+        (work.audio_quality, 0x54B),
+        (work.channels, 0x554),
+        (work.ds3d, 0x56D),
+        (work.eax, 0x56D),
+        (work.dolby, 0x56D),
     ]
 }
 
@@ -41,7 +40,7 @@ pub fn draw_sound_settings(
         }
     }
     let mut ids = names(menus)
-        .map(|(setting, first)| setting.get().wrapping_add(first))
+        .map(|(setting, first)| setting.wrapping_add(first))
         .to_vec();
     // The sixth, sound while the window is not in front, shows the game's "off" and "on".
     let background =

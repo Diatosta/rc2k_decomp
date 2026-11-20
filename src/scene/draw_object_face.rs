@@ -48,7 +48,7 @@ pub fn draw_object_face(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let (work, light, object) = (&ctx.view.face, &ctx.view.light, &ctx.view.object);
-    if ctx.reads.light_state.draw_mode.get() != 0 {
+    if ctx.reads.light_work.draw_mode != 0 {
         return Ok(());
     }
     if face == 0 {

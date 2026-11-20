@@ -3058,7 +3058,7 @@ pub static GROUPS: &[Group] = &[
                 "Course's place",
                 "courseps",
                 Shown::Whole,
-                indexed_cell!(|o| o.scene.lights.state.get(), line_place),
+                indexed_cell!(|o| o.scene.line_and_shake(), line_place),
                 false,
                 (0, 0),
             ),

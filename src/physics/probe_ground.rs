@@ -203,7 +203,7 @@ fn probe_points(
 /// the drawing parts read it.
 pub fn probe_ground(c: &GroundInputs<'_>, car: &Car) -> Result<(), Refused> {
     if (1..=MOST_POINTS).contains(&car.probe_count.get()) {
-        c.probe.settle_mark.set(SETTLE_MARK);
+        c.probe.borrow_mut().settle_mark = SETTLE_MARK;
     }
     probe_ground_at(
         &ProbeInputs::of_ground(c),

@@ -4,7 +4,6 @@
 //! unless the mode before (`camera_blend_view`) is 1, 2 or 3, into `view_b_pitch` and
 //! `view_b_roll`.
 
-use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::{ld, stf};
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
@@ -41,17 +40,17 @@ pub fn take_second_view(
 /// (`[s + 4]` .. `[s + 0xC]` the record's offset, passed by value) `[view_b_offset] = [s + 4] +
 /// [camera_shake_x]`
 fn x87_1(offset: [u32; 3], scene: &crate::scene::owner::Scene) -> [f32; 3] {
-    let lights = &scene.lights;
+    let shake = *scene.line_and_shake();
     let t0 = ld(offset[0]);
-    let t1 = lights.state.get().camera_shake_x.ld();
+    let t1 = ld(shake.camera_shake_x);
     let t2 = t0 + t1;
     let o0 = stf(t2);
     let t3 = ld(offset[1]);
-    let t4 = lights.state.get().camera_shake_y.ld();
+    let t4 = ld(shake.camera_shake_y);
     let t5 = t3 + t4;
     let o1 = stf(t5);
     let t6 = ld(offset[2]);
-    let t7 = lights.state.get().camera_shake_z.ld();
+    let t7 = ld(shake.camera_shake_z);
     let t8 = t6 + t7;
     let o2 = stf(t8);
     [o0, o1, o2]

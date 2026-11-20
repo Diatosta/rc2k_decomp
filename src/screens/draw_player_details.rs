@@ -13,6 +13,7 @@
 //! its parts refuse, before the controller's item is switched.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::captions_store;
 use crate::menu::player::Player;
 use crate::text::draw_text::Canvas;
 
@@ -41,15 +42,11 @@ const NATIONALITIES: u32 = 40;
 const VIEWS: u32 = 7;
 const SECOND_VIEWS: u32 = 6;
 
-fn string(
-    table: &[crate::memory::session::PlainDword],
-    index: u32,
-    count: u32,
-) -> Result<u32, Refused> {
+fn string(table: &[u32], index: u32, count: u32) -> Result<u32, Refused> {
     if index >= count {
         return Err(BadInput("an index past its string table").into());
     }
-    Ok(table[index as usize].get())
+    Ok(table[index as usize])
 }
 
 pub fn draw_player_page(
@@ -70,18 +67,18 @@ pub fn draw_player_page(
     // The logic is in `rc2k_core::screens::player_details`; the strings looked up (and refused)
     // before anything is drawn, the second view of 5 made 0 then.
     let nationality_id = string(
-        &menus.tables.captions.nationalities,
+        &captions_store::NATIONALITIES,
         player.nationality,
         NATIONALITIES,
     )?;
-    let view_id = string(&menus.tables.captions.views, player.view, VIEWS)?;
+    let view_id = string(&captions_store::VIEWS, player.view, VIEWS)?;
     let second_view_id = if layout.second_view {
         let view = if player.second_view == 5 {
             0
         } else {
             player.second_view
         };
-        let id = string(&menus.tables.captions.second_views, view, SECOND_VIEWS)?;
+        let id = string(&captions_store::SECOND_VIEWS, view, SECOND_VIEWS)?;
         if player.second_view == 5 {
             cell.update(|p| p.second_view = 0);
         }

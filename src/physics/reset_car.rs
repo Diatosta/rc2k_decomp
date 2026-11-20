@@ -26,11 +26,8 @@ fn blocked(
 ) -> bool {
     physics_tables.reset_candidate.set(
         scene
-            .lights
-            .state
-            .get()
+            .line_and_shake()
             .line_place
-            .get()
             .wrapping_add(physics_tables.reset_offset.get()),
     );
     // Blocks 1 .. 3: the other cars.
@@ -45,13 +42,8 @@ fn blocked(
 
 // Core: `rc2k_core::physics::line_places::reset_offsets`.
 pub fn reset_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let lights = &scene.lights;
-    lights
-        .state
-        .get()
-        .line_place
-        .set(c.car.reset_checkpoint.get());
-    lights.state.get().line_fraction.set(0);
+    scene.line_and_shake_mut().line_place = c.car.reset_checkpoint.get();
+    scene.line_and_shake_mut().line_fraction = 0;
     if c.vars.run_kind.get() == 2 {
         let mut free = false;
         for offset in reset_offsets() {
@@ -70,11 +62,7 @@ pub fn reset_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Res
                 .set(c.car.stuck_count.get().wrapping_sub(100));
             return Ok(());
         }
-        lights
-            .state
-            .get()
-            .line_place
-            .set(c.tables.reset_candidate.get());
+        scene.line_and_shake_mut().line_place = c.tables.reset_candidate.get();
     }
     crate::race::start_place::place_car_on_line(c.shared, c.course, scene)?;
     crate::physics::reset_car_on_line::reset_car_on_line(c, scene)?;

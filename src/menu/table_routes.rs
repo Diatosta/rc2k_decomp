@@ -358,26 +358,18 @@ pub(super) fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
         ItemFn::ShowIntro => item_actions::show_intro(o),
         ItemFn::RaiseSensitivity => raise_sensitivity::raise_sensitivity(menus).map(|_| ()),
         ItemFn::LowerSensitivity => lower_sensitivity::lower_sensitivity(menus).map(|_| ()),
-        ItemFn::NextColourA => step_items::colour(
-            &menus.tables,
-            start_pick_a(&menus.screens.flow, &menus.tables.captions),
-            true,
-        ),
-        ItemFn::PreviousColourA => step_items::colour(
-            &menus.tables,
-            start_pick_a(&menus.screens.flow, &menus.tables.captions),
-            false,
-        ),
-        ItemFn::NextColourB => step_items::colour(
-            &menus.tables,
-            start_pick_b(&menus.screens.flow, &menus.tables.captions),
-            true,
-        ),
-        ItemFn::PreviousColourB => step_items::colour(
-            &menus.tables,
-            start_pick_b(&menus.screens.flow, &menus.tables.captions),
-            false,
-        ),
+        ItemFn::NextColourA => {
+            step_items::colour(&menus.tables, start_pick_a(&menus.screens.flow), true)
+        }
+        ItemFn::PreviousColourA => {
+            step_items::colour(&menus.tables, start_pick_a(&menus.screens.flow), false)
+        }
+        ItemFn::NextColourB => {
+            step_items::colour(&menus.tables, start_pick_b(&menus.screens.flow), true)
+        }
+        ItemFn::PreviousColourB => {
+            step_items::colour(&menus.tables, start_pick_b(&menus.screens.flow), false)
+        }
         ItemFn::Nothing => Ok(()),
         ItemFn::GoBack => {
             go_back::go_back(menus);

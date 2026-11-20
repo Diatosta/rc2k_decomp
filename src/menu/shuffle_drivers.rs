@@ -1,12 +1,10 @@
 //! `menu::shuffle_drivers`: shuffles the four driver tables (three menu tables and the
 //! drivers; 0x94 an entry; counts `CLASS_DRIVER_COUNTS`): for each table, count times, two
-//! entries picked at random under the count swap places (whole records, through the two
-//! scratch records).
+//! entries picked at random under the count swap places (whole records).
 //!
 //! The random numbers are `Randoms::random_below`'s, two per swap. Refuses a count of 0 (it would
 //! divide by 0), before anything.
 use crate::errors::{BadInput, Refused};
-use crate::memory::cells::Store;
 use crate::menu::drivers_store::{DRIVER_LEN, records_from_bytes, records_to_bytes};
 use crate::menu::owner::Menus;
 use rc2k_core::saves::defaults::CLASS_DRIVER_COUNTS;
@@ -31,7 +29,6 @@ pub(super) fn shuffle_drivers(
         return Err(BadInput("a driver table count of 0").into());
     }
     let drivers = &menus.cars.drivers.drivers;
-    let numbers = &menus.cars.numbers;
     for &(table, count) in &tables {
         for _ in 0..count {
             let first = &drivers[table + random.random_below(count)? as usize];
@@ -39,8 +36,6 @@ pub(super) fn shuffle_drivers(
             let a = records_to_bytes(std::slice::from_ref(first));
             let b = records_to_bytes(std::slice::from_ref(second));
             debug_assert_eq!((a.len(), b.len()), (DRIVER_LEN, DRIVER_LEN));
-            numbers.shuffle_a.store(0, &a)?;
-            numbers.shuffle_b.store(0, &b)?;
             records_from_bytes(std::slice::from_ref(first), &b)?;
             records_from_bytes(std::slice::from_ref(second), &a)?;
         }
