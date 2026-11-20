@@ -145,9 +145,12 @@ pub fn other_key(o: crate::owners::Owners<'static>, key: u8) -> Result<(), Refus
     )
 }
 
-/// `gfx::lock_surface`: whether it is locked.
-pub fn lock_surface(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) -> bool {
-    crate::platform::lock_surface(gfx, system) >= 1
+/// The surface locked, or `None` when it could not be (see `gfx::with_locked_surface`).
+pub fn lock_surface<'a>(
+    gfx: &'a crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Option<crate::gfx::with_locked_surface::LockedSurface<'a>> {
+    crate::gfx::with_locked_surface::lock(gfx, system)
 }
 
 /// `gfx::copy_picture_to_surface`.

@@ -12,8 +12,10 @@ const RECT: u32 = 0x5C;
 
 pub fn draw_marker(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     // A part of a split screen: the part's player's own colour.
-    let own =
-        crate::hud::part_scope::icon().map_or(0, |n| n.min(hud.block.marker_colours.len() - 1));
+    let own = pen
+        .scope
+        .icon
+        .map_or(0, |n| n.min(hud.block.marker_colours.len() - 1));
     hud.block
         .quad
         .colour
@@ -46,7 +48,7 @@ pub fn draw_other_markers(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refu
         return Ok(());
     }
     let own = if split > 0 {
-        crate::hud::part_scope::icon().unwrap_or(0)
+        pen.scope.icon.unwrap_or(0)
     } else {
         panel.network_own.get() as usize
     };

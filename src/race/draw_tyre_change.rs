@@ -13,6 +13,7 @@
 //! Called twice by `tyre_change_gauge`. Refused: a text longer than the text buffer, and what its
 //! calls refuse.
 
+use crate::d3d::with_locked_texture::{CopyWhen, with_locked_texture};
 use crate::errors::{BadInput, Refused};
 use crate::input::types::InputDevice;
 use crate::memory::session::PlainDword;
@@ -237,73 +238,77 @@ fn draw_prompt(
     };
     let wide = total > TITLE_BOX as i32;
     let box_width = if wide { TITLE_WIDE_BOX } else { TITLE_BOX };
-    if crate::d3d::lock_texture::lock_texture_in(gfx, tyre.title_texture.get())? {
-        let clips = (
-            clip(&gfx.drawing.blit.clip.left),
-            clip(&gfx.drawing.blit.clip.right),
-        );
-        set_clip(&gfx.drawing.blit.clip.left, 0);
-        set_clip(&gfx.drawing.blit.clip.right, 0xFF);
-        let drawn = (|| -> Result<(), Refused> {
-            let row = prompt_row(half);
-            let strips = if wide { 2 } else { 1 };
-            for strip in 0..strips {
-                fill(race, 0, row + 0x19 * strip, 0x100, 0x19, gfx)?;
+    with_locked_texture(
+        gfx,
+        tyre.title_texture.get(),
+        tyre.title_device_texture.get(),
+        CopyWhen::Locked,
+        |locked| {
+            if !locked {
+                return Ok(());
             }
-            let mut text_bytes = prompt.to_vec();
-            text_bytes.push(0);
-            let (from, to) = picture
-                .and_then(|p| crate::gfx::button_pictures::outline_rows(p.family, p.icon))
-                .unwrap_or((0.0, 1.0));
-            let cell = (size as f32 / (to - from).max(0.1)).round() as i32;
-            for strip in 0..strips {
-                let y = (row + 0x19 * strip) as i32;
-                let shift = 0x100 * strip as i32;
-                match picture {
-                    // The font centres the text in the box.
-                    None => {
-                        gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = box_width);
-                        let mut canvas = crate::text::draw_text::GameCanvas::new(gfx);
-                        crate::text::draw_text::draw_text_at(
-                            font(gfx),
-                            &text_bytes[..],
-                            4 - shift,
-                            y,
-                            &mut canvas,
-                        )?;
-                    }
-                    Some(picture) => {
-                        // Each copy's own box is the text's width, so the text starts where it
-                        // is put.
-                        gfx.fonts.font_block.game_fonts[2]
-                            .update(|f| f.box_width = width.max(0) as u32);
-                        let start = 4 + (box_width as i32 - total) / 2 - shift;
-                        let mut canvas = crate::text::draw_text::GameCanvas::new(gfx);
-                        crate::text::draw_text::draw_text_at(
-                            font(gfx),
-                            &text_bytes[..],
-                            start,
-                            y,
-                            &mut canvas,
-                        )?;
-                        let middle = y + ink_top + size / 2;
-                        let top = middle - (cell as f32 * (from + to) / 2.0).round() as i32;
-                        let left = start + width + gap / 2 + (size - cell) / 2;
-                        put_picture(gfx, picture, left, top, cell);
+            let clips = (
+                clip(&gfx.drawing.blit.clip.left),
+                clip(&gfx.drawing.blit.clip.right),
+            );
+            set_clip(&gfx.drawing.blit.clip.left, 0);
+            set_clip(&gfx.drawing.blit.clip.right, 0xFF);
+            let drawn = (|| -> Result<(), Refused> {
+                let row = prompt_row(half);
+                let strips = if wide { 2 } else { 1 };
+                for strip in 0..strips {
+                    fill(race, 0, row + 0x19 * strip, 0x100, 0x19, gfx)?;
+                }
+                let mut text_bytes = prompt.to_vec();
+                text_bytes.push(0);
+                let (from, to) = picture
+                    .and_then(|p| crate::gfx::button_pictures::outline_rows(p.family, p.icon))
+                    .unwrap_or((0.0, 1.0));
+                let cell = (size as f32 / (to - from).max(0.1)).round() as i32;
+                for strip in 0..strips {
+                    let y = (row + 0x19 * strip) as i32;
+                    let shift = 0x100 * strip as i32;
+                    match picture {
+                        // The font centres the text in the box.
+                        None => {
+                            gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = box_width);
+                            let mut canvas = crate::text::draw_text::GameCanvas::new(gfx);
+                            crate::text::draw_text::draw_text_at(
+                                font(gfx),
+                                &text_bytes[..],
+                                4 - shift,
+                                y,
+                                &mut canvas,
+                            )?;
+                        }
+                        Some(picture) => {
+                            // Each copy's own box is the text's width, so the text starts where it
+                            // is put.
+                            gfx.fonts.font_block.game_fonts[2]
+                                .update(|f| f.box_width = width.max(0) as u32);
+                            let start = 4 + (box_width as i32 - total) / 2 - shift;
+                            let mut canvas = crate::text::draw_text::GameCanvas::new(gfx);
+                            crate::text::draw_text::draw_text_at(
+                                font(gfx),
+                                &text_bytes[..],
+                                start,
+                                y,
+                                &mut canvas,
+                            )?;
+                            let middle = y + ink_top + size / 2;
+                            let top = middle - (cell as f32 * (from + to) / 2.0).round() as i32;
+                            let left = start + width + gap / 2 + (size - cell) / 2;
+                            put_picture(gfx, picture, left, top, cell);
+                        }
                     }
                 }
-            }
-            Ok(())
-        })();
-        set_clip(&gfx.drawing.blit.clip.left, clips.0);
-        set_clip(&gfx.drawing.blit.clip.right, clips.1);
-        drawn?;
-        crate::d3d::unlock_texture::unlock_texture(gfx, tyre.title_texture.get())?;
-        crate::d3d::copy_to_device_texture::copy_to_device_texture(
-            tyre.title_texture.get(),
-            tyre.title_device_texture.get(),
-        );
-    }
+                Ok(())
+            })();
+            set_clip(&gfx.drawing.blit.clip.left, clips.0);
+            set_clip(&gfx.drawing.blit.clip.right, clips.1);
+            drawn
+        },
+    )?;
     tyre.prompt_width[half as usize].set(total.max(1) as u32);
     Ok(())
 }
@@ -325,39 +330,43 @@ fn draw_title(
     title.pop();
     let width = text_width(gfx, &title).max(0) as u32;
     let wide = width > TITLE_BOX;
-    if crate::d3d::lock_texture::lock_texture_in(gfx, tyre.title_texture.get())? {
-        let clips = (
-            clip(&gfx.drawing.blit.clip.left),
-            clip(&gfx.drawing.blit.clip.right),
-        );
-        set_clip(&gfx.drawing.blit.clip.left, 0);
-        set_clip(&gfx.drawing.blit.clip.right, 0xFF);
-        let box_width = if wide { TITLE_WIDE_BOX } else { TITLE_BOX };
-        gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = box_width);
-        title.push(0);
-        let drawn = (|| -> Result<(), Refused> {
-            let mut canvas = crate::text::draw_text::GameCanvas::new(gfx);
-            crate::text::draw_text::draw_text_at(font(gfx), &title[..], 4, 0, &mut canvas)?;
-            if wide {
-                crate::text::draw_text::draw_text_at(
-                    font(gfx),
-                    &title[..],
-                    4 - 0x100,
-                    0x19,
-                    &mut canvas,
-                )?;
+    with_locked_texture(
+        gfx,
+        tyre.title_texture.get(),
+        tyre.title_device_texture.get(),
+        CopyWhen::Locked,
+        |locked| {
+            if !locked {
+                return Ok(());
             }
-            Ok(())
-        })();
-        set_clip(&gfx.drawing.blit.clip.left, clips.0);
-        set_clip(&gfx.drawing.blit.clip.right, clips.1);
-        drawn?;
-        crate::d3d::unlock_texture::unlock_texture(gfx, tyre.title_texture.get())?;
-        crate::d3d::copy_to_device_texture::copy_to_device_texture(
-            tyre.title_texture.get(),
-            tyre.title_device_texture.get(),
-        );
-    }
+            let clips = (
+                clip(&gfx.drawing.blit.clip.left),
+                clip(&gfx.drawing.blit.clip.right),
+            );
+            set_clip(&gfx.drawing.blit.clip.left, 0);
+            set_clip(&gfx.drawing.blit.clip.right, 0xFF);
+            let box_width = if wide { TITLE_WIDE_BOX } else { TITLE_BOX };
+            gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = box_width);
+            title.push(0);
+            let drawn = (|| -> Result<(), Refused> {
+                let mut canvas = crate::text::draw_text::GameCanvas::new(gfx);
+                crate::text::draw_text::draw_text_at(font(gfx), &title[..], 4, 0, &mut canvas)?;
+                if wide {
+                    crate::text::draw_text::draw_text_at(
+                        font(gfx),
+                        &title[..],
+                        4 - 0x100,
+                        0x19,
+                        &mut canvas,
+                    )?;
+                }
+                Ok(())
+            })();
+            set_clip(&gfx.drawing.blit.clip.left, clips.0);
+            set_clip(&gfx.drawing.blit.clip.right, clips.1);
+            drawn
+        },
+    )?;
     tyre.title_width.set(width);
     Ok(())
 }
@@ -379,71 +388,72 @@ pub fn draw_tyre_change(
         if shared.tyre_change().drawn.get() != 1 {
             draw_title(so, gfx, shared)?;
         }
-        let locked =
-            crate::d3d::lock_texture::lock_texture_in(gfx, shared.tyre_change().texture.get())?;
-        if locked && shared.tyre_change().drawn.get() != 1 {
-            set_clip(&gfx.drawing.blit.clip.left, 0x80);
-            let mut y = 0u32;
-            for (n, (id, font, x)) in [
-                (0x12Au32, &gfx.fonts.font_block.game_fonts[1], 0xFCu32),
-                (0x12B, &gfx.fonts.font_block.game_fonts[0], 0x84),
-            ]
-            .into_iter()
-            .enumerate()
-            {
-                // The first text is at the top, the second a line below it.
-                y = if n == 0 { 0 } else { y.wrapping_add(line(gfx)) };
-                crate::text::draw_string_by_id::draw_string_by_id_at(
-                    so,
-                    id,
-                    font,
-                    x as i32,
-                    y as i32,
-                    &mut crate::text::draw_text::GameCanvas::new(gfx),
-                )?;
-            }
-        }
-        set_clip(&gfx.drawing.blit.clip.left, 0x80);
-        fill(race, 0x80, 0x32, 0x80, 0x4B, gfx)?;
-        { build_text(so, strings, 0x12E, Some(shared.tyre_change().record.get())) }?;
-        three_times(gfx, strings, 0x84, 0x32)?;
-        set_clip(&gfx.drawing.blit.clip.left, 0);
-        fill(race, 0, 0x99, 0x100, 0x19, gfx)?;
-        gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = 0xF8);
-        text(
-            font(gfx),
-            &race.shared.tyre_change().record_name,
-            4,
-            0x99,
-            gfx,
-        )?;
-        let mut prompt_shown = None;
-        let x = if shared.tyre_change().player.get() == 0 {
-            set_clip(&gfx.drawing.blit.clip.right, 0x7F);
-            0
-        } else {
-            set_clip(&gfx.drawing.blit.clip.left, 0x80);
-            0x80
-        };
-        fill(race, x, 0xB2, 0x80, 0x4B, gfx)?;
         let half = u32::from(shared.tyre_change().player.get() != 0);
-        if device.stage.get() == 1 {
-            let time = device.clock.get();
-            { build_text(so, strings, 0x12D, Some(time)) }?;
-            three_times(gfx, strings, x.wrapping_add(4), 0xB2)?;
-            shared.tyre_change().prompt_width[half as usize].set(0);
-        } else {
-            // The prompt has room on the title texture, drawn once the texture here is done.
-            let prompt = build_text(so, strings, 0x12C, None)?;
-            let picture = stop_picture(o, shared.tyre_change().player.get());
-            prompt_shown = Some((prompt, picture));
-        }
-        { crate::d3d::unlock_texture::unlock_texture(gfx, shared.tyre_change().texture.get()) }?;
-        // The platform's (Direct3D).
-        crate::d3d::copy_to_device_texture::copy_to_device_texture(
+        let prompt_shown = with_locked_texture(
+            gfx,
             shared.tyre_change().texture.get(),
             shared.tyre_change().device_texture.get(),
-        );
+            CopyWhen::Always,
+            |locked| {
+                if locked && shared.tyre_change().drawn.get() != 1 {
+                    set_clip(&gfx.drawing.blit.clip.left, 0x80);
+                    let mut y = 0u32;
+                    for (n, (id, font, x)) in [
+                        (0x12Au32, &gfx.fonts.font_block.game_fonts[1], 0xFCu32),
+                        (0x12B, &gfx.fonts.font_block.game_fonts[0], 0x84),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        // The first text is at the top, the second a line below it.
+                        y = if n == 0 { 0 } else { y.wrapping_add(line(gfx)) };
+                        crate::text::draw_string_by_id::draw_string_by_id_at(
+                            so,
+                            id,
+                            font,
+                            x as i32,
+                            y as i32,
+                            &mut crate::text::draw_text::GameCanvas::new(gfx),
+                        )?;
+                    }
+                }
+                set_clip(&gfx.drawing.blit.clip.left, 0x80);
+                fill(race, 0x80, 0x32, 0x80, 0x4B, gfx)?;
+                { build_text(so, strings, 0x12E, Some(shared.tyre_change().record.get())) }?;
+                three_times(gfx, strings, 0x84, 0x32)?;
+                set_clip(&gfx.drawing.blit.clip.left, 0);
+                fill(race, 0, 0x99, 0x100, 0x19, gfx)?;
+                gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = 0xF8);
+                text(
+                    font(gfx),
+                    &race.shared.tyre_change().record_name,
+                    4,
+                    0x99,
+                    gfx,
+                )?;
+                let mut prompt_shown = None;
+                let x = if shared.tyre_change().player.get() == 0 {
+                    set_clip(&gfx.drawing.blit.clip.right, 0x7F);
+                    0
+                } else {
+                    set_clip(&gfx.drawing.blit.clip.left, 0x80);
+                    0x80
+                };
+                fill(race, x, 0xB2, 0x80, 0x4B, gfx)?;
+                if device.stage.get() == 1 {
+                    let time = device.clock.get();
+                    { build_text(so, strings, 0x12D, Some(time)) }?;
+                    three_times(gfx, strings, x.wrapping_add(4), 0xB2)?;
+                    shared.tyre_change().prompt_width[half as usize].set(0);
+                } else {
+                    // The prompt has room on the title texture, drawn once the texture here is done.
+                    let prompt = build_text(so, strings, 0x12C, None)?;
+                    let picture = stop_picture(o, shared.tyre_change().player.get());
+                    prompt_shown = Some((prompt, picture));
+                }
+                Ok(prompt_shown)
+            },
+        )?;
         if let Some((prompt, picture)) = prompt_shown {
             draw_prompt(o, race, &prompt, picture, half)?;
         }

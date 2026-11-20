@@ -22,66 +22,71 @@ pub fn mix_channels(
     use rc2k_core::audio::mixer::Channel;
     // Channel ids (place + 1) on from the first's.
     let at = |n: u32| channels.wrapping_add(n);
-    let mut loaded: Vec<(Channel, u32)> = (0..count)
-        .map(|n| {
-            let c = channel(state, at(n));
-            let core = Channel {
-                used: c.used,
-                format: c.format,
-                length: c.length,
-                kind: c.kind,
-                position: c.position,
-                fraction: c.position_fraction,
-                step: c.step,
-                step_fraction: c.step_fraction,
-                left: c.left,
-                right: c.right,
-            };
-            (core, c.data)
-        })
-        .collect();
-    let data: Vec<u32> = loaded.iter().map(|(_, d)| *d).collect();
-    let mut cores: Vec<Channel> = loaded.drain(..).map(|(c, _)| c).collect();
-    // The mix buffer worked on as a vector of its dwords (the core zeroes it first), written back
-    // whole.
-    let mut buffer = vec![0i32; MIX_BUFFER_LEN as usize / 4];
-    // A channel's sample data (an id: `audio::sample_data`) found when the channel is first read,
-    // all of it readable while the mix runs.
+    let mut scratch = state
+        .mix_scratch
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let MixScratch { cores, data } = &mut *scratch;
+    cores.clear();
+    data.clear();
+    for n in 0..count {
+        let c = channel(state, at(n));
+        cores.push(Channel {
+            used: c.used,
+            format: c.format,
+            length: c.length,
+            kind: c.kind,
+            position: c.position,
+            fraction: c.position_fraction,
+            step: c.step,
+            step_fraction: c.step_fraction,
+            left: c.left,
+            right: c.right,
+        });
+        data.push(c.data);
+    }
     let failed = std::cell::Cell::new(None);
+    // The mix buffer is mixed in place (the core zeroes what it fills; the rest is zeroed here).
+    let mut buffer = state
+        .mix
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let frames = (bytes >> (shift & 0x1F)) as usize;
     let mixed = state.sample_data.with_view(|view| {
-        let samples: Vec<std::cell::OnceCell<Result<&[u8], BadInput>>> =
-            data.iter().map(|_| std::cell::OnceCell::new()).collect();
+        // A playing channel's sample data (an id: `audio::sample_data`) found once for the
+        // turn, all of it readable while the mix runs.
+        let samples: Vec<Result<&[u8], BadInput>> = cores
+            .iter()
+            .zip(data.iter())
+            .map(|(core, id)| {
+                if core.used == 1 {
+                    view.bytes(*id)
+                } else {
+                    Ok(&[][..])
+                }
+            })
+            .collect();
         let byte = |n: usize, offset: u32| {
-            let bytes = samples[n]
-                .get_or_init(|| view.bytes(data[n]))
-                .as_ref()
-                .map_err(|e| *e)
-                .and_then(|b| {
-                    b.get(offset as usize)
-                        .copied()
-                        .ok_or(BadInput("a channel read past its sample data"))
-                });
-            bytes.unwrap_or_else(|e| {
+            let found = samples[n].as_ref().map_err(|e| *e).and_then(|b| {
+                b.get(offset as usize)
+                    .copied()
+                    .ok_or(BadInput("a channel read past its sample data"))
+            });
+            found.unwrap_or_else(|e| {
                 failed.set(failed.get().or(Some(e)));
                 0
             })
         };
-        rc2k_core::audio::mixer::mix_channels(
-            bytes >> (shift & 0x1F),
-            &mut cores,
-            &byte,
-            &mut buffer,
-        )
+        rc2k_core::audio::mixer::mix_channels(frames as u32, cores, &byte, &mut buffer[..])
     });
     if let Some(e) = failed.get() {
         return Err(e.into());
     }
     mixed?;
-    state
-        .mix
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .copy_from_slice(&buffer);
+    if let Some(rest) = buffer.get_mut(frames * 2..) {
+        rest.fill(0);
+    }
+    drop(buffer);
     for (n, core) in cores.iter().enumerate() {
         // Only the channels that played are stored back.
         update_channel(state, at(n as u32), |c| {
@@ -93,6 +98,13 @@ pub fn mix_channels(
         });
     }
     Ok(())
+}
+
+/// The channel lists of a turn, kept so that a turn allocates none.
+#[derive(Default)]
+pub struct MixScratch {
+    cores: Vec<rc2k_core::audio::mixer::Channel>,
+    data: Vec<u32>,
 }
 
 /// Clips the mix into the two locked parts of buffer `primary` in the primary buffer's format:

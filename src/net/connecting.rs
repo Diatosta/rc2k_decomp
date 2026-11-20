@@ -11,10 +11,10 @@ pub const STATUS_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fo
 /// when the lock fails). Shared with `net::hosting`, `net::joining`, `net::stopping`.
 pub fn status(o: crate::owners::Owners<'static>, id: u32) -> Result<(), Refused> {
     run_frame(o, || Ok::<(), Refused>(()))?;
-    if !lock_surface(o.gfx, o.system) {
+    let Some(locked) = lock_surface(o.gfx, o.system) else {
         return Ok(());
-    }
-    crate::net::message_frame::string_frame_locked(o, id, STATUS_FONT, 0x316, 0x6F)?;
+    };
+    crate::net::message_frame::string_frame_locked(o, locked, id, STATUS_FONT, 0x316, 0x6F)?;
     crate::system::pause::pause(o, 1000);
     Ok(())
 }

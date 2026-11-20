@@ -111,6 +111,8 @@ pub struct AudioOwn {
     pub sample_data: SampleData,
     /// The mixing buffer: a turn's left and right dwords, from `mix_channels` to `write_mix`.
     pub mix: std::sync::Mutex<[i32; MIX_BUFFER_LEN as usize / 4]>,
+    /// The channel lists `mix_channels` builds each turn, kept between turns.
+    pub mix_scratch: std::sync::Mutex<crate::audio::mixer::MixScratch>,
 }
 
 impl AudioOwn {
@@ -287,6 +289,7 @@ impl AudioOwn {
             eax_room_set: PlainDword::new(0x6),
             sample_data: SampleData::new(),
             mix: std::sync::Mutex::new([0; MIX_BUFFER_LEN as usize / 4]),
+            mix_scratch: std::sync::Mutex::new(crate::audio::mixer::MixScratch::default()),
         }
     }
 }

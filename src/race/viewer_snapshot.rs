@@ -26,15 +26,17 @@ pub fn viewer_snapshot(
         .write_at(DIGITS_AT, &next, what)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
     // Only when the surface could be locked.
-    if crate::platform::lock_surface(gfx, system) >= 1 {
-        crate::gfx::write_screen_pcx::write_screen_pcx(
-            &gfx.shots,
-            Some(&replay.snapshot().text()),
-            true,
-            gfx,
-            system,
-        )?;
-        crate::platform::unlock_surface(gfx);
-    }
+    crate::gfx::with_locked_surface::with_locked_surface(
+        crate::gfx::with_locked_surface::lock(gfx, system),
+        || {
+            crate::gfx::write_screen_pcx::write_screen_pcx(
+                &gfx.shots,
+                Some(&replay.snapshot().text()),
+                true,
+                gfx,
+                system,
+            )
+        },
+    )?;
     Ok(())
 }

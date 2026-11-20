@@ -39,19 +39,20 @@ struct State {
 
 static STATE: Mutex<Option<State>> = Mutex::new(None);
 
-/// A switch's number in `var\ral.cfg` if it is there (the first line of the key).
-fn file_number(text: &[u8], key: &str) -> Option<u32> {
+/// The numbers `var\ral.cfg`'s text gives its switches (none when it does not parse).
+fn file_numbers(text: &[u8]) -> Vec<(rc2k_core::files::settings::Setting, u32)> {
     let mut with_nul = text.to_vec();
     with_nul.push(0);
-    let parsed = rc2k_core::files::settings::parse_settings(
-        &with_nul,
-        &crate::strings::same_text::case_table(),
-    )
-    .ok()?;
-    parsed
-        .into_iter()
+    rc2k_core::files::settings::parse_settings(&with_nul, &crate::strings::same_text::case_table())
+        .unwrap_or_default()
+}
+
+/// A switch's number among the parsed ones, if it is there (the first line of the key).
+fn file_number(numbers: &[(rc2k_core::files::settings::Setting, u32)], key: &str) -> Option<u32> {
+    numbers
+        .iter()
         .find(|(setting, _)| setting.name() == key.as_bytes())
-        .map(|(_, number)| number)
+        .map(|(_, number)| *number)
 }
 
 fn cfg_path() -> std::path::PathBuf {
@@ -61,7 +62,8 @@ fn cfg_path() -> std::path::PathBuf {
 /// The values as the game and its files have them now: the live variables, except for the rows
 /// that take effect at the next start, which show what the file says.
 fn current(o: Owners<'static>) -> Values {
-    let file = std::fs::read(cfg_path()).unwrap_or_default();
+    // The file is parsed once for all rows.
+    let file = file_numbers(&std::fs::read(cfg_path()).unwrap_or_default());
     let mut flags = [false; ROWS.len()];
     for (n, row) in ROWS.iter().enumerate() {
         if let Kind::Flag { key, inverted } = row.kind {

@@ -205,10 +205,10 @@ pub fn render(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
         format!("savedata\\videos\\{temp_name}").as_bytes(),
     )?;
     if !saved {
-        crate::error_dialog::notice(&crate::error_dialog::text_with(
+        crate::race::dialogs::notice(
             rc2k_core::strings::own::id::RENDER_FAILED,
             "the replay could not be copied for the render",
-        ));
+        );
         return Ok(());
     }
     let screen = o.system.session.screen.get();

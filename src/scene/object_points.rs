@@ -75,7 +75,10 @@ impl ObjectPoints {
 
     /// The point at place `at` set to `value`.
     pub fn set_point(&self, at: u32, value: [u32; 3]) -> Result<(), BadInput> {
-        let b: Vec<u8> = value.iter().flat_map(|d| d.to_le_bytes()).collect();
+        let mut b = [0u8; 12];
+        for (bytes, dword) in b.as_chunks_mut::<4>().0.iter_mut().zip(value) {
+            bytes.copy_from_slice(&dword.to_le_bytes());
+        }
         self.write(at, &b)
     }
 

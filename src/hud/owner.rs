@@ -29,4 +29,17 @@ pub struct Pen<'a> {
     pub scene: &'a crate::scene::owner::Scene,
     /// The sine tables the dials turn by (`math::engine_tables`).
     pub engine_tables: &'a crate::math::engine_tables::EngineTables,
+    /// The part of a split screen being drawn into (none: the whole screen).
+    pub scope: PartScope,
+}
+
+/// The part of the screen the HUD is being drawn into. A split screen of three or four players
+/// draws each player's HUD as if the part were a screen of its own: the pieces keep to the
+/// part's corners and middle by its shape, and are put where the part is.
+#[derive(Clone, Copy, Default)]
+pub struct PartScope {
+    /// The part's corner and size, if one is set.
+    pub part: Option<rc2k_core::race::view::PlayerPart>,
+    /// The player whose half-size car icon is drawn (none: the first full-size icon).
+    pub icon: Option<usize>,
 }

@@ -35,7 +35,6 @@ pub mod layout_many;
 pub mod overlay_pass;
 pub mod overlay_states;
 pub mod owner;
-pub mod part_scope;
 pub mod safe_inset;
 pub mod set_batch_depth;
 pub mod set_batch_texture;

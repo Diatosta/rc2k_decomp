@@ -57,7 +57,13 @@ pub fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
             shared,
             car_blocks,
         )?;
-        start_go_notice(frame_work, shared.work.get(), shared.car(), sound, o.menus)?;
+        start_go_notice(
+            frame_work,
+            shared.work.get(),
+            shared.car(),
+            sound,
+            o.menus.play.cheats.cheats.get(),
+        )?;
     } else {
         take_split(
             o,

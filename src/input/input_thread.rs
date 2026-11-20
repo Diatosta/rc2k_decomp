@@ -1,7 +1,7 @@
 //! The input thread's routine ("INPUTTDB"). Unless its slot's flag is already 1: the flag set,
 //! "INPUTTDB:START" logged, DirectInput made (none: to the end), the keyboard, the mouse and the
-//! joysticks set up, the priority raised. Then every 20 ms (waits of 5 ms on the tick count, kept
-//! in `last_tick`): `clocks.key_ticks` one more for each 20 ms gone, the keyboard and the mouse
+//! joysticks set up, the priority raised. Then every 20 ms (one wait for the time left on the tick
+//! count, kept in `last_tick`; 5 ms looks while that clock is not the machine's): `clocks.key_ticks` one more for each 20 ms gone, the keyboard and the mouse
 //! read, a tick of the devices, a wait of up to a second while the window is not the active one
 //! (ended by its becoming active); until
 //! the game is quitting. The end: both devices given back, the mouse, the keyboard and DirectInput
@@ -42,6 +42,17 @@ fn wait_while_unfocused(system: &System) {
     }
 }
 
+/// Waits until about `left` ms of the game's clock remain: one sleep of that length while the
+/// clock is the machine's (scaled with the sleeps by a test run's speed, so it cannot be there earlier), looks every 5 ms while it is another
+/// (a video's, a held race's, the picture override), as it does not move with real time.
+fn wait_for_next_tick(system: &System, left: u32) {
+    if crate::clock::tick_count::follows_machine_clock(&system.session.picture_clock) {
+        crate::clock::sleep::sleep(left);
+    } else {
+        crate::clock::sleep::sleep(5);
+    }
+}
+
 /// The thread's work up to its `ExitThread` (see the header).
 pub fn input_thread(
     input: &Input,
@@ -73,13 +84,13 @@ pub fn input_thread(
         loop {
             let mut gone;
             loop {
-                crate::clock::sleep::sleep(5);
                 last = input.devices.last_tick.get();
                 gone = crate::clock::tick_count::tick_count(&system.session.picture_clock)
                     .wrapping_sub(last);
                 if gone >= TICK_MS {
                     break;
                 }
+                wait_for_next_tick(system, TICK_MS - gone);
             }
             loop {
                 system

@@ -5,7 +5,6 @@
 //! Refuses what `set_flag` refuses.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::physics::car_store::Car;
 use crate::physics::listed_car_flags::set_flag;
 use crate::race::frame_store::FrameWork;
@@ -17,7 +16,7 @@ pub fn start_go_notice(
     work: &RaceWork,
     car: &Car,
     sound: &crate::sound::owner::Sound,
-    menus: &Menus,
+    cheats: u32,
 ) -> Result<(), Refused> {
     let c = car;
     let facts = GoFacts {
@@ -25,7 +24,7 @@ pub fn start_go_notice(
         countdown: c.time_left.get(),
         gone: c.go_stand_timer.get(),
         finished: c.finish_flag.get(),
-        cheats: menus.play.cheats.cheats.get(),
+        cheats,
     };
     if !facts.go_due() {
         return Ok(());

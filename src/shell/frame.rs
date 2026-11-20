@@ -101,13 +101,22 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         }
         // The pause's and the question's answer buttons.
         #[cfg(phone)]
-        if let Some(asked) = events::touch_asked(o.race) {
-            touch::draw_answers(
-                renderer,
-                input_window(screen.window),
-                asked,
-                &answer_labels(*o, asked),
-            );
+        {
+            let asked = events::touch_asked(o.race);
+            let mut kept = ANSWER_LABELS.take();
+            match asked {
+                // The words are made once for a question, not for every frame it is up.
+                Some(asked) => {
+                    if kept.as_ref().is_none_or(|(was, _)| *was != asked) {
+                        kept = Some((asked, answer_labels(*o, asked)));
+                    }
+                    if let Some((_, labels)) = &kept {
+                        touch::draw_answers(renderer, input_window(screen.window), asked, labels);
+                    }
+                }
+                None => kept = None,
+            }
+            ANSWER_LABELS.set(kept);
         }
         // The debug UI over the frame.
         crate::debug::imgui_sdl::draw(o, renderer, screen.window);
@@ -344,6 +353,13 @@ pub fn run_frame_now<T>(o: crate::owners::Owners<'static>, frame: impl FnOnce() 
     } else {
         Some(frame())
     }
+}
+
+#[cfg(phone)]
+thread_local! {
+    /// The answer buttons' words made for the question now up (none while no question is).
+    static ANSWER_LABELS: std::cell::Cell<Option<(rc2k_core::input::touch::Asked, Vec<touch::Label>)>> =
+        const { std::cell::Cell::new(None) };
 }
 
 /// The words on the answer buttons in the game's language (its own yes and no, "continue" for

@@ -341,11 +341,11 @@ fn frame(o: Owners<'static>, draw_it: impl FnOnce()) -> bool {
     if o.gfx.locked.surface.get() == 1 {
         crate::platform::unlock_surface(o.gfx);
     }
-    if crate::platform::lock_surface(o.gfx, o.system) < 1 {
+    let Some(locked) = crate::gfx::with_locked_surface::lock(o.gfx, o.system) else {
         return false;
-    }
+    };
     draw_it();
-    crate::platform::unlock_surface(o.gfx);
+    drop(locked);
     crate::shell::frame::show_frame_now(o)
 }
 

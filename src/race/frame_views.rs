@@ -637,7 +637,7 @@ pub fn run_view_marks(
             let middle = window.view_offset[axis].get() + window.view_size[axis].get() / 2;
             effects_window.view_centre[axis].set(middle as f32);
         }
-        crate::effects::clip_quad::cut_to_part(true);
+        crate::effects::clip_quad::cut_to_part(effects, true);
     } else {
         let n = race.frame.frame_work.get().view_layouts[layout_at as usize].get() as usize;
         ctx.view.polygon.window.view_centre[0].set(int_over_times(
@@ -671,7 +671,7 @@ pub fn run_view_marks(
     ctx.view.polygon.window.view_centre[1].set(centre.1);
     ctx.view.polygon.window.view_centre[0].set(centre.0);
     if part_split {
-        crate::effects::clip_quad::cut_to_part(false);
+        crate::effects::clip_quad::cut_to_part(effects, false);
         effects_window.view_centre[0].set(effects_centre.0);
         effects_window.view_centre[1].set(effects_centre.1);
     }

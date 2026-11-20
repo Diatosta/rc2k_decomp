@@ -46,3 +46,11 @@ pub fn tick_count(picture_clock: &PictureClock) -> u32 {
         picture_clock.clock.get()
     })
 }
+
+/// Whether `tick_count` is the machine's own clock right now, so that it moves with real
+/// time (not a video's clock, a held race's or the picture clock's override).
+pub fn follows_machine_clock(picture_clock: &PictureClock) -> bool {
+    VIDEO_CLOCK.get().and_then(|source| source()).is_none()
+        && crate::remote::held_clock().is_none()
+        && picture_clock.started.get() != 1
+}

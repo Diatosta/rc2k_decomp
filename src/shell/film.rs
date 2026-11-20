@@ -541,9 +541,8 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
             continue;
         };
         // Only a surface that was locked (1 or more) is drawn on.
-        if crate::platform::lock_surface(gfx, system) >= 1 {
+        if let Some(_locked) = crate::gfx::with_locked_surface::lock(gfx, system) {
             blit(&next, gfx, system);
-            crate::platform::unlock_surface(gfx);
         }
         last = Some(next);
         crate::shell::frame::show_frame_now(o);

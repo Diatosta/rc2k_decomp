@@ -48,10 +48,7 @@ pub fn step_viewed_replay(race: &Race, system: &System) -> Result<bool, Refused>
                     Err(other) => return Err(other),
                 };
                 if failed {
-                    crate::error_dialog::notice(&crate::error_dialog::text_with(
-                        rc2k_core::strings::own::id::BAD_REPLAY_PLAY,
-                        "",
-                    ));
+                    crate::race::dialogs::notice(rc2k_core::strings::own::id::BAD_REPLAY_PLAY, "");
                     return Ok(stop(true));
                 }
             }

@@ -1,6 +1,6 @@
 //! The HUD of a split screen of three or four players: each player's part of the screen gets the
 //! one-player HUD (`hud::layout_0`), drawn as if the part were a screen of its own
-//! (`hud::part_scope`): the dials, stage bar, clocks and signs keep to the part's corners and
+//! (`hud::owner::PartScope`): the dials, stage bar, clocks and signs keep to the part's corners and
 //! middle by its shape. Each player's values (`Panel::parts`) stand in the first view's slots
 //! while that player's part is drawn. The part three players leave free in the quarter layout
 //! shows the whole course's map with each car on it (`race::overview_map`; black without one).
@@ -244,12 +244,15 @@ pub fn layout_many(frame: &Frame, hud: &Hud, pen: Pen, views: u32) -> Result<(),
         set_lights(&panel.lights[0], lights_of(&panel.lights[n.min(1)]));
         set_marks(&panel.marks[0], marks_of(panel.marks_of_view(n)));
         crate::hud::tenths::tenths(frame, hud);
-        crate::hud::part_scope::set(Some(part));
-        crate::hud::part_scope::set_icon(Some(n));
         start_keep(hud, Keep::Thirds);
-        let drawn = crate::hud::layout_0::layout_0_on(frame, hud, pen, map);
-        crate::hud::part_scope::set(None);
-        crate::hud::part_scope::set_icon(None);
+        let part_pen = Pen {
+            scope: crate::hud::owner::PartScope {
+                part: Some(part),
+                icon: Some(n),
+            },
+            ..pen
+        };
+        let drawn = crate::hud::layout_0::layout_0_on(frame, hud, part_pen, map);
         if drawn.is_err() {
             result = drawn;
             break;

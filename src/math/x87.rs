@@ -571,6 +571,27 @@ thread_local! {
     static CONTROL: std::cell::Cell<u16> = const { std::cell::Cell::new(0x027F) };
 }
 
+/// The threads whose control word does not round to nearest now. While it is 0 every thread
+/// rounds to nearest, the asking one among them, so `rounds_to_nearest` and `rounding` answer
+/// without reading the thread's own word (a system call on a system without native
+/// thread-local storage). A thread counts itself before its own later reads see the count; a
+/// thread that ends while counted leaves the count up, which only keeps the slow way on.
+static DIRECTED_THREADS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// This thread's control word set, the count of threads not rounding to nearest kept.
+fn store_control_word(w: u16) {
+    use std::sync::atomic::Ordering::Relaxed;
+    CONTROL.with(|c| {
+        let (was, now) = (c.get() & 0xC00 != 0, w & 0xC00 != 0);
+        if now && !was {
+            DIRECTED_THREADS.fetch_add(1, Relaxed);
+        } else if was && !now {
+            DIRECTED_THREADS.fetch_sub(1, Relaxed);
+        }
+        c.set(w);
+    });
+}
+
 /// The rounding the control word asks for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Rounding {
@@ -584,11 +605,17 @@ pub enum Rounding {
 /// operation of `x87_float::X`).
 #[inline]
 pub fn rounds_to_nearest() -> bool {
+    if DIRECTED_THREADS.load(std::sync::atomic::Ordering::Relaxed) == 0 {
+        return true;
+    }
     CONTROL.with(std::cell::Cell::get) & 0xC00 == 0
 }
 
 /// This thread's rounding (the emulated control word's bits 10 .. 11).
 pub fn rounding() -> Rounding {
+    if DIRECTED_THREADS.load(std::sync::atomic::Ordering::Relaxed) == 0 {
+        return Rounding::Nearest;
+    }
     match (CONTROL.with(std::cell::Cell::get) >> 10) & 3 {
         0 => Rounding::Nearest,
         1 => Rounding::Down,
@@ -627,7 +654,7 @@ fn whole_to_int(r: f64) -> i32 {
 /// `finit`: the x87 reset, its control word 0x37F (every exception masked, 64-bit
 /// precision, rounding to nearest).
 pub fn finit() {
-    CONTROL.with(|c| c.set(0x037F));
+    store_control_word(0x037F);
 }
 
 /// The control word (`fnstcw`): this thread's emulated one.
@@ -637,7 +664,7 @@ pub fn control_word() -> u16 {
 
 /// `fldcw`: the control word set (this thread's emulated one).
 pub fn set_control_word(w: u16) {
-    CONTROL.with(|c| c.set(w));
+    store_control_word(w);
 }
 
 /// `a * b * c`.

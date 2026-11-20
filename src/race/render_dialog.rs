@@ -149,11 +149,9 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
         if o.gfx.locked.surface.get() == 1 {
             crate::platform::unlock_surface(o.gfx);
         }
-        if crate::platform::lock_surface(o.gfx, o.system) < 1 {
-            return None;
-        }
+        let locked = crate::gfx::with_locked_surface::lock(o.gfx, o.system)?;
         let (places, panel) = draw(o, &dialog, encoder, target);
-        crate::platform::unlock_surface(o.gfx);
+        drop(locked);
         if !crate::shell::frame::show_frame_now(o) {
             return None;
         }

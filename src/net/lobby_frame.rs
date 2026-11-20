@@ -41,9 +41,9 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     // The logic is in `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
     // `NO_TIME`, `lobby_buttons`), the ready bit and no time of `rc2k_core::net::players`.
     crate::net::drain_chat::drain_chat(net, gfx)?;
-    if !lock_surface(o.gfx, o.system) {
+    let Some(locked) = lock_surface(o.gfx, o.system) else {
         return Ok(());
-    }
+    };
     if net.race_slot.players() > 8 {
         return Err(BadInput("more than eight players").into());
     }
@@ -242,7 +242,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             gfx,
         );
     }
-    crate::platform::unlock_surface(o.gfx);
+    drop(locked);
     crate::shell::frame::show_frame_now(o);
     Ok(())
 }

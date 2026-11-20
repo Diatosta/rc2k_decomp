@@ -37,16 +37,18 @@ pub fn replay_screenshot(
     let name = crate::files::cstring(name, "the picture name")?;
     // The surface locked (the carry says it was not), the picture written, the surface
     // unlocked.
-    if crate::platform::lock_surface(gfx, system) >= 1 {
-        crate::gfx::write_screen_pcx::write_screen_pcx(
-            &gfx.shots,
-            Some(&name),
-            false,
-            gfx,
-            system,
-        )?;
-        crate::platform::unlock_surface(gfx);
-    }
+    crate::gfx::with_locked_surface::with_locked_surface(
+        crate::gfx::with_locked_surface::lock(gfx, system),
+        || {
+            crate::gfx::write_screen_pcx::write_screen_pcx(
+                &gfx.shots,
+                Some(&name),
+                false,
+                gfx,
+                system,
+            )
+        },
+    )?;
     clock
         .clock
         .set(clock.clock.get().wrapping_add(panel.picture_time()));

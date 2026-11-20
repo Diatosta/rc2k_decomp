@@ -15,9 +15,9 @@ use rc2k_core::net::screens;
 /// `screens::run_frame` by `net::settings_loop`.
 pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let net = o.net;
-    if !lock_surface(o.gfx, o.system) {
+    let Some(locked) = lock_surface(o.gfx, o.system) else {
         return Ok(());
-    }
+    };
     copy_picture(o.gfx, o.system)?;
     let mut y = 0x92;
     /// A setting's value: a text kept in the network's state, or a number.
@@ -94,7 +94,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     }
     piece(screens::LEFT_END, screens::END_WIDTH)?;
     draw_centred_item(o, net, 0x16F, 6, text_x, 0x21D)?;
-    crate::platform::unlock_surface(o.gfx);
+    drop(locked);
     crate::shell::frame::show_frame_now(o);
     Ok(())
 }

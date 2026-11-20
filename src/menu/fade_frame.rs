@@ -12,15 +12,19 @@ use crate::owners::Owners;
 /// Whether the frame was made: as `picture_frame`, with the fade's overlay drawn in a scene
 /// between the unlock and the showing (`scene::begin_scene` never fails).
 pub fn fade_frame(o: Owners<'static>) -> Result<bool, Refused> {
-    if crate::platform::lock_surface(o.gfx, o.system) < 1 {
+    let copied = crate::gfx::with_locked_surface::with_locked_surface(
+        crate::gfx::with_locked_surface::lock(o.gfx, o.system),
+        || {
+            Ok(
+                crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
+                    &mut crate::gfx::copy_picture_to_surface::GameSurface(o.gfx, o.system),
+                )?,
+            )
+        },
+    )?;
+    if copied.is_none() {
         return Ok(false);
     }
-    {
-        crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-            &mut crate::gfx::copy_picture_to_surface::GameSurface(o.gfx, o.system),
-        )
-    }?;
-    crate::platform::unlock_surface(o.gfx);
     crate::scene::begin_scene::begin_scene(o.race, &o.gfx.d3d, o.scene.scratch.game_scratch());
     crate::screens::draw_fade_overlay::draw_fade_overlay(o)?;
     crate::scene::end_scene::end_scene(&o.gfx.d3d);

@@ -133,6 +133,11 @@ impl Steam {
     }
 }
 
+/// How long the pump waits between rounds while a relay connection or a listen socket is open
+/// (messages are waiting to be passed on), and while none is (only Steam's callbacks to run).
+const PUMP_BUSY_MS: u64 = 5;
+const PUMP_IDLE_MS: u64 = 25;
+
 /// Runs Steam's callbacks and passes the relay connections' messages on, for ever.
 fn pump() {
     loop {
@@ -145,8 +150,21 @@ fn pump() {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             wires.retain(|w| w.upgrade().is_some_and(|link| link.pump()));
+            let busy = !wires.is_empty()
+                || !steam
+                    .listeners
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .is_empty();
+            drop(wires);
+            std::thread::sleep(Duration::from_millis(if busy {
+                PUMP_BUSY_MS
+            } else {
+                PUMP_IDLE_MS
+            }));
+        } else {
+            std::thread::sleep(Duration::from_millis(PUMP_IDLE_MS));
         }
-        std::thread::sleep(Duration::from_millis(5));
     }
 }
 

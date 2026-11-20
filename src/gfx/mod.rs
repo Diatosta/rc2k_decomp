@@ -107,6 +107,7 @@ pub mod texts;
 pub mod typefaces;
 pub mod upload;
 pub mod windscreen_drop_batch;
+pub mod with_locked_surface;
 
 /// An array of dwords with these first values (the blocks' tables).
 pub(crate) const fn dwords<const N: usize>(values: [u32; N]) -> [crate::memory::session::Dword; N] {

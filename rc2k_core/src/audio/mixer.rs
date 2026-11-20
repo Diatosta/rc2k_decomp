@@ -36,7 +36,7 @@ pub struct Channel {
 
 /// The frame at `position` of a channel's data, (left, right) before the volumes (a mono sample is
 /// both); `byte` reads the data at an offset (offsets wrap).
-fn sample(format: u32, position: u32, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
+fn sample(format: u32, position: u32, byte: &impl Fn(u32) -> u8) -> (i32, i32) {
     let b = |at: u32| byte(at) as i32 - 0x80;
     let w = |at: u32| i16::from_le_bytes([byte(at), byte(at.wrapping_add(1))]) as i32;
     match (format & EIGHT_BITS != 0, format & MONO != 0) {
@@ -61,7 +61,7 @@ fn sample(format: u32, position: u32, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
 
 /// The channel's frame blended with the next by its position's fraction (`a + (b - a) *
 /// fraction / 2^32`, which stays between the two).
-fn blended(c: &Channel, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
+fn blended(c: &Channel, byte: &impl Fn(u32) -> u8) -> (i32, i32) {
     let (l0, r0) = sample(c.format, c.position, byte);
     if c.fraction == 0 {
         return (l0, r0);
@@ -85,7 +85,7 @@ fn blended(c: &Channel, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
 pub fn mix_channels(
     frames: u32,
     channels: &mut [Channel],
-    data: &dyn Fn(usize, u32) -> u8,
+    data: &impl Fn(usize, u32) -> u8,
     mix: &mut [i32],
 ) -> Result<(), Invalid> {
     if channels.is_empty() {

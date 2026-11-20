@@ -19,9 +19,9 @@ pub fn list_frame(
 ) -> Result<(), Refused> {
     let (gfx, system) = (o.gfx, o.system);
     let list_state = &o.menus.list;
-    if !lock_surface(gfx, system) {
+    let Some(locked) = lock_surface(gfx, system) else {
         return Ok(());
-    }
+    };
     copy_picture(gfx, system)?;
     draw_string(
         crate::strings::append_string_by_id::StringOwners::of(o),
@@ -56,7 +56,7 @@ pub fn list_frame(
             &mut crate::text::draw_text::GameCanvas::new(gfx),
         )?;
     }
-    crate::platform::unlock_surface(gfx);
+    drop(locked);
     crate::shell::frame::show_frame_now(o);
     Ok(())
 }

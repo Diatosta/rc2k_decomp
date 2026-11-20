@@ -61,13 +61,12 @@ fn copy_vertex<A: CellKind, B: CellKind>(from: &Vertex<A>, to: &Vertex<B>) {
     to.v.set(from.v.get());
 }
 
-/// Set while a part of a split screen of three or four players draws its effects: the quads are
-/// cut to the part's rectangle on all four sides.
-static CUT_TO_PART: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
 /// Sets whether the effects drawn from now on are cut to the front end window's rectangle.
-pub fn cut_to_part(on: bool) {
-    CUT_TO_PART.store(on, std::sync::atomic::Ordering::Relaxed);
+pub fn cut_to_part(effects: &crate::effects::owner::Effects, on: bool) {
+    effects
+        .clipping
+        .cut_to_part
+        .store(on, std::sync::atomic::Ordering::Relaxed);
 }
 
 /// One vertex's drawn fields, held while the polygon is cut.
@@ -207,7 +206,11 @@ pub fn clip_quad(
         let q = &buffer.vertices;
         let marks = effects.settings()?;
         let mode = marks.marks_layout.get();
-        if CUT_TO_PART.load(std::sync::atomic::Ordering::Relaxed) {
+        if effects
+            .clipping
+            .cut_to_part
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
             return Ok(clip_to_part(buffer, scene, effects));
         }
         if !(1..=4).contains(&mode) {

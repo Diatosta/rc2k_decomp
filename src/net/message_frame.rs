@@ -14,15 +14,16 @@ pub fn string_frame(
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
-    if !lock_surface(o.gfx, o.system) {
+    let Some(locked) = lock_surface(o.gfx, o.system) else {
         return Ok(());
-    }
-    string_frame_locked(o, id, font, x, y)
+    };
+    string_frame_locked(o, locked, id, font, x, y)
 }
 
 /// `string_frame` after the lock.
 pub fn string_frame_locked(
     o: crate::owners::Owners<'static>,
+    locked: crate::gfx::with_locked_surface::LockedSurface<'_>,
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: u32,
@@ -38,15 +39,15 @@ pub fn string_frame_locked(
         y,
         gfx,
     )?;
-    crate::platform::unlock_surface(gfx);
+    drop(locked);
     crate::shell::frame::show_frame_now(o);
     Ok(())
 }
 /// A frame with a text built by the caller where the messages are, centred as they are.
 pub fn text_frame(o: crate::owners::Owners<'static>, text: &[u8]) -> Result<(), Refused> {
-    if !lock_surface(o.gfx, o.system) {
+    let Some(locked) = lock_surface(o.gfx, o.system) else {
         return Ok(());
-    }
+    };
     copy_picture(o.gfx, o.system)?;
     let shown = crate::net::lobby::store_text(o.strings, text.to_vec())?;
     crate::text::draw_text::draw_text_at(
@@ -56,7 +57,7 @@ pub fn text_frame(o: crate::owners::Owners<'static>, text: &[u8]) -> Result<(), 
         0x12C,
         &mut crate::text::draw_text::GameCanvas::new(o.gfx),
     )?;
-    crate::platform::unlock_surface(o.gfx);
+    drop(locked);
     crate::shell::frame::show_frame_now(o);
     Ok(())
 }

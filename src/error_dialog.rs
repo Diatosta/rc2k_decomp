@@ -372,9 +372,9 @@ fn run(
         if o.gfx.locked.surface.get() == 1 {
             crate::platform::unlock_surface(o.gfx);
         }
-        if crate::platform::lock_surface(o.gfx, o.system) < 1 {
+        let Some(locked) = crate::gfx::with_locked_surface::lock(o.gfx, o.system) else {
             return gone(drawn);
-        }
+        };
         let left = hold.saturating_sub(started.elapsed());
         let held: Vec<bool> = ways
             .iter()
@@ -395,7 +395,7 @@ fn run(
             .collect();
         let (text_drawn, drawn_rects, panel) =
             draw(o, &title, message, &log_line, &keys_line, &labels, chosen);
-        crate::platform::unlock_surface(o.gfx);
+        drop(locked);
         if !text_drawn && !drawn {
             return None;
         }

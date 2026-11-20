@@ -21,6 +21,9 @@ pub struct Clipping {
     pub clip: ClipScreen,
     pub glow: GlowState,
     pub blend_work: BlendWork,
+    /// Set while a part of a split screen of three or four players draws its effects: the quads
+    /// are cut to the part's rectangle on all four sides.
+    pub cut_to_part: std::sync::atomic::AtomicBool,
 }
 
 impl Clipping {
@@ -29,6 +32,7 @@ impl Clipping {
             clip: ClipScreen::new(),
             glow: GlowState::new(),
             blend_work: BlendWork::new(),
+            cut_to_part: std::sync::atomic::AtomicBool::new(false),
         }
     }
 }

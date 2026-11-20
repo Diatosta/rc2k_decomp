@@ -153,7 +153,7 @@ pub fn launched_replay(
 fn viewing(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed, Refused> {
     // Data the viewer refuses while a replay plays is the replay's: a file that opened and is
     // damaged further in sends many different checks off, so any refusal here is the file's.
-    let guarded = crate::error_dialog::recover::guarded(|| {
+    let guarded = crate::race::dialogs::guarded(|| {
         view(race, o, start).map_err(|why| match why {
             Refused::BadInput(crate::errors::BadInput(reason)) => {
                 crate::errors::Recover(reason).into()
@@ -167,7 +167,7 @@ fn viewing(race: &'static Race, o: Owners<'static>, start: Start) -> Result<View
             if end(race, o).is_err() {
                 crate::program_log::log("recover: the viewer could not be closed");
             }
-            crate::error_dialog::recover::back(&reason)
+            crate::race::dialogs::back(&reason)
         }
     }
 }
@@ -497,9 +497,9 @@ fn mark(
 /// menu. The last race's slot is left out: no race may have been recorded.
 pub fn tell_damaged(slot: u32) {
     if slot < 100 {
-        crate::error_dialog::notice(&crate::error_dialog::text_with(
+        crate::race::dialogs::notice(
             rc2k_core::strings::own::id::DAMAGED_REPLAY,
             &(slot + 1).to_string(),
-        ));
+        );
     }
 }

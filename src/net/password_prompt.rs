@@ -21,9 +21,9 @@ const FIELD_Y: u32 = 0xB0;
 
 /// The question's frame: the background, the question and the stars typed so far with the caret.
 fn frame(o: crate::owners::Owners<'static>, question: u32) -> Result<(), Refused> {
-    if !lock_surface(o.gfx, o.system) {
+    let Some(locked) = lock_surface(o.gfx, o.system) else {
         return Ok(());
-    }
+    };
     copy_picture(o.gfx, o.system)?;
     draw_string(
         crate::strings::append_string_by_id::StringOwners::of(o),
@@ -47,7 +47,7 @@ fn frame(o: crate::owners::Owners<'static>, question: u32) -> Result<(), Refused
         FIELD_Y as i32,
         &mut GameCanvas::new(o.gfx),
     )?;
-    crate::platform::unlock_surface(o.gfx);
+    drop(locked);
     crate::shell::frame::show_frame_now(o);
     Ok(())
 }

@@ -26,8 +26,8 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             batch::flushes(vertices, texture, hud.block.batch_texture.get())
         };
         batch::check_polygon(count, vertices, hud.block.index_count.get(), flushes)?;
-        // A part of the screen is drawn into as a screen of its own (`hud::part_scope`).
-        let part = crate::hud::part_scope::get();
+        // A part of the screen is drawn into as a screen of its own (`PartScope`).
+        let part = pen.scope.part;
         let [w, h]: [u32; 2] = match part {
             Some(part) => [part.width, part.height],
             None => [

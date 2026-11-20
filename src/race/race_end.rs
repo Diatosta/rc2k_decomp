@@ -402,11 +402,11 @@ pub fn start_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 pub fn race_from_menu(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     // A trouble the game can go back from (a stage's data that cannot be read) tears the race
     // down as when the player quits it, then goes on up to the main menu.
-    match crate::error_dialog::recover::guarded(|| race_from_menu_plain(o)) {
+    match crate::race::dialogs::guarded(|| race_from_menu_plain(o)) {
         Ok(result) => result,
         Err(reason) => {
             tear_down_after_trouble(o);
-            crate::error_dialog::recover::back(&reason)
+            crate::race::dialogs::back(&reason)
         }
     }
 }

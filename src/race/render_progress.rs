@@ -109,7 +109,7 @@ pub fn run(o: Owners<'static>, render: &Render) {
         let _ = std::fs::remove_file(file);
     }
     let say = |id: u32, with: &str| {
-        crate::error_dialog::notice(&crate::error_dialog::text_with(id, with));
+        crate::race::dialogs::notice(id, with);
     };
     match ended {
         Ended::Stopped => {}
@@ -144,10 +144,7 @@ pub fn run(o: Owners<'static>, render: &Render) {
             }
         }
         Ended::EncoderDamaged => {
-            crate::error_dialog::notice(&crate::error_dialog::text_with(
-                id::RENDER_FAILED,
-                "the encoder made a damaged picture",
-            ));
+            crate::race::dialogs::notice(id::RENDER_FAILED, "the encoder made a damaged picture");
         }
     }
 }
@@ -327,11 +324,11 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
         if o.gfx.locked.surface.get() == 1 {
             crate::platform::unlock_surface(o.gfx);
         }
-        if crate::platform::lock_surface(o.gfx, o.system) < 1 {
+        let Some(locked) = crate::gfx::with_locked_surface::lock(o.gfx, o.system) else {
             return stop(&mut child);
-        }
+        };
         let (button, panel) = draw(o, render, progress, &pace);
-        crate::platform::unlock_surface(o.gfx);
+        drop(locked);
         if !crate::shell::frame::show_frame_now(o) {
             return stop(&mut child);
         }
