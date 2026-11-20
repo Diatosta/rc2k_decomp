@@ -33,7 +33,7 @@ pub fn measure_frame_rate(race: &Race, scene: &crate::scene::owner::Scene) {
     let now = whole as u32;
     shared.switches.get().frame_now.set(now);
     if let Some(time) = nanos_since(whole, race.frame.last_frame_nanos.swap(whole, Relaxed)) {
-        scene.drawing.scene.get().scratch.set(time as u32);
+        scene.draw_work_mut().scratch = time as u32;
         let numbers = race.course.numbers.get();
         let rate = frame_rate(numbers.thousand.get(), numbers.sixteen.get(), time);
         shared.switches.get().frame_rate.set(rate);

@@ -28,7 +28,7 @@ pub fn object_turn_matrix(
     set_turn_y(
         engine_tables,
         &matrices.turn_y_matrix,
-        &scene.drawing.scene.get().turn_y_work,
+        &crate::scene::matrix::unread_turn_work(),
         work.angles[0].wrapping_neg(),
     );
     let (out, turn_y, turn_x) = (
@@ -44,21 +44,21 @@ pub fn object_turn_matrix(
         set_turn_y(
             engine_tables,
             &matrices.turn_y_matrix,
-            &scene.drawing.scene.get().turn_y_work,
+            &crate::scene::matrix::unread_turn_work(),
             work.angles[2].wrapping_neg(),
         );
         multiply_matrices(&out, &turn_y, &lit);
         set_turn_x(
             engine_tables,
             &matrices.turn_x_matrix,
-            &scene.drawing.scene.get().turn_x_work,
+            &crate::scene::matrix::unread_turn_work(),
             work.angles[1].wrapping_neg(),
         );
         multiply_matrices(&lit, &turn_x, &turned);
         set_turn_y(
             engine_tables,
             &matrices.turn_y_matrix,
-            &scene.drawing.scene.get().turn_y_work,
+            &crate::scene::matrix::unread_turn_work(),
             work.angles[2],
         );
         multiply_matrices(&turned, &turn_y, &out);

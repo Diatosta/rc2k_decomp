@@ -86,22 +86,17 @@ fn ground_faces(car: &Car) -> [&PlainDword; 5] {
 
 /// The turn back toward the kept heading.
 fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
     c.race_tables
         .camera_turn_step
         .set(camera_ground::FIRST_TURN_STEP);
     loop {
-        drawing
-            .scene
-            .get()
-            .camera_heading_saved
-            .set(c.car.camera_heading.get());
+        scene.draw_work_mut().camera_heading_saved = c.car.camera_heading.get();
         for k in 0..5 {
-            drawing.scene.get().camera_saved[k].set(ground_faces(c.car)[k].get());
+            scene.draw_work_mut().camera_saved[k] = ground_faces(c.car)[k].get();
         }
         let mut stepped_back = false;
         if let Some(step) = camera_ground::turn_step(
-            drawing.scene.get().camera_heading_kept.get(),
+            scene.draw_work().camera_heading_kept,
             c.car.camera_heading.get(),
             c.race_tables.camera_turn_step.get(),
         ) {
@@ -124,9 +119,9 @@ fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         if stepped_back {
             c.car
                 .camera_heading
-                .set(drawing.scene.get().camera_heading_saved.get());
+                .set(scene.draw_work().camera_heading_saved);
             for k in 0..5 {
-                ground_faces(c.car)[k].set(drawing.scene.get().camera_saved[k].get());
+                ground_faces(c.car)[k].set(scene.draw_work().camera_saved[k]);
             }
         }
         let (next, last) = camera_ground::next_turn_step(c.race_tables.camera_turn_step.get());
@@ -141,15 +136,10 @@ fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
 // Core: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
 // next_turn_step}`.
 pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
     crate::physics::ease_view_turn::ease_view_turn(&mut c.camera.borrow_mut(), c.step_first, c.car);
     c.race_tables.camera_ground_flag.set(0);
     c.race_tables.camera_turn_step.set(u32::MAX);
-    drawing
-        .scene
-        .get()
-        .camera_heading_kept
-        .set(c.car.camera_heading.get());
+    scene.draw_work_mut().camera_heading_kept = c.car.camera_heading.get();
     place(
         c.camera,
         c.lights_data,
@@ -185,7 +175,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         } else {
             c.car
                 .camera_heading
-                .set(drawing.scene.get().camera_heading_kept.get());
+                .set(scene.draw_work().camera_heading_kept);
         }
     }
     // Clear of the ground by the pitch.

@@ -43,12 +43,8 @@ fn distance_and_angle_match_the_assembly() {
                     .ground_search()
                     .borrow()
                     .z;
-                crate::test_support::own::scene()
-                    .drawing
-                    .scene
-                    .get()
-                    .scratch
-                    .set((point_at(a[1])[2] as i32).wrapping_sub(ground_z as i32) as u32);
+                crate::test_support::own::scene().draw_work_mut().scratch =
+                    (point_at(a[1])[2] as i32).wrapping_sub(ground_z as i32) as u32;
             },
         },
         Block {
@@ -78,12 +74,7 @@ fn distance_and_angle_match_the_assembly() {
                         .borrow(),
                     point_at(a[1]),
                 );
-                crate::test_support::own::scene()
-                    .drawing
-                    .scene
-                    .get()
-                    .scratch
-                    .set(turns);
+                crate::test_support::own::scene().draw_work_mut().scratch = turns;
             },
         },
     ];

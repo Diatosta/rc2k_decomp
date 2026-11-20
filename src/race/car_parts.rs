@@ -172,7 +172,7 @@ fn car_part_matrices(
         set_turn_x(
             race.engine_tables(),
             &race.frame.matrices.get().turn_x_matrix,
-            &scene.drawing.scene.get().turn_x_work,
+            &crate::scene::matrix::unread_turn_work(),
             spin,
         );
         let placed = &race.frame.matrices.get().placed_matrix;
@@ -182,7 +182,7 @@ fn car_part_matrices(
         set_turn_y(
             race.engine_tables(),
             &race.frame.matrices.get().turn_y_matrix,
-            &scene.drawing.scene.get().turn_y_work,
+            &crate::scene::matrix::unread_turn_work(),
             scene.object_work().part_values[2],
         );
         multiply_matrices(turned, &race.frame.matrices.get().turn_y_matrix, lit);

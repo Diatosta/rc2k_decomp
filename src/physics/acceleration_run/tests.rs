@@ -48,12 +48,8 @@ fn blocks() -> Vec<Block> {
                     race().course.numbers.get(),
                 );
                 // The original keeps the drag, stored as a float, in the shared work dword.
-                crate::test_support::own::scene()
-                    .drawing
-                    .scene
-                    .get()
-                    .scratch
-                    .st(drag);
+                crate::test_support::own::scene().draw_work_mut().scratch =
+                    crate::math::x87_float::st(drag);
             },
         },
         Block {

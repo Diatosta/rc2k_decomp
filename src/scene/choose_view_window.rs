@@ -17,7 +17,7 @@ pub fn choose_view_window(
     let settings = ViewSettings {
         framed: shared.switches.get().editor_mode.get() != 0,
         wide: shared.switches.get().scene_set_up.get() != 0,
-        mode: scene.light_tables.get().view_mode.get(),
+        mode: scene.draw_work().view_mode,
     };
     // The front end's window: the menus, the loading bar and the HUD's full view.
     let view = scene.scratch.front_end_polygon();

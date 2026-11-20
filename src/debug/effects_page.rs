@@ -80,14 +80,6 @@ const GROUPS: &[(&str, &[Row])] = &[
                 "fworks run",
                 Cell(|effects, _| effects.ring.pool.fireworks_run.get().into()),
             ),
-            (
-                "fsizefp",
-                Cell(|_, scene| scene.drawing.scene.get().view_scale.get().into()),
-            ),
-            (
-                "maxzspacefp",
-                Cell(|_, scene| scene.drawing.scene.get().farthest.get().into()),
-            ),
         ],
     ),
     (

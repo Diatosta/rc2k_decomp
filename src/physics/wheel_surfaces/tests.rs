@@ -37,12 +37,7 @@ fn blocks() -> Vec<Block> {
                     view(a[0], 0),
                     a[1],
                 );
-                crate::test_support::own::scene()
-                    .drawing
-                    .scene
-                    .get()
-                    .scratch
-                    .set(whole);
+                crate::test_support::own::scene().draw_work_mut().scratch = whole;
             },
         },
         Block {
@@ -65,12 +60,7 @@ fn blocks() -> Vec<Block> {
                     view(a[0], 0),
                     a[1],
                 );
-                crate::test_support::own::scene()
-                    .drawing
-                    .scene
-                    .get()
-                    .scratch
-                    .set(whole);
+                crate::test_support::own::scene().draw_work_mut().scratch = whole;
             },
         },
         Block {
@@ -93,12 +83,7 @@ fn blocks() -> Vec<Block> {
                     view(a[0], 0),
                     a[1],
                 );
-                crate::test_support::own::scene()
-                    .drawing
-                    .scene
-                    .get()
-                    .scratch
-                    .set(whole);
+                crate::test_support::own::scene().draw_work_mut().scratch = whole;
             },
         },
         Block {

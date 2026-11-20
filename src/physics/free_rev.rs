@@ -120,12 +120,7 @@ mod reference_vectors {
                     race().shared.car(),
                     race().gear(),
                 );
-                crate::test_support::own::scene()
-                    .drawing
-                    .scene
-                    .get()
-                    .scratch
-                    .set(drag);
+                crate::test_support::own::scene().draw_work_mut().scratch = drag;
             },
         }]
     }

@@ -88,11 +88,7 @@ fn blocks() -> Vec<Block> {
                     race().shared.car(),
                     race().shared.physics_tables.get(),
                     race().course.numbers.get(),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -130,14 +126,11 @@ fn blocks() -> Vec<Block> {
             }],
             ulps: 0,
             plain: |_| {
+                let scratch = scene().scratch_cell();
                 divide_into_scratch(
                     &crate::test_support::own::race().shared.car().grip_forces[0],
-                    &scene().drawing.scene.get().scratch,
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &*scratch,
+                    &scratch,
                 );
             },
         },
@@ -151,11 +144,7 @@ fn blocks() -> Vec<Block> {
             plain: |_| {
                 scale_steering(
                     race().shared.car(),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -169,11 +158,7 @@ fn blocks() -> Vec<Block> {
             plain: |_| {
                 ground_speed_into_scratch(
                     race().shared.car(),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -206,11 +191,7 @@ fn blocks() -> Vec<Block> {
                     race().course.numbers.get(),
                     race().engine_tables(),
                     a[2],
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -243,11 +224,7 @@ fn blocks() -> Vec<Block> {
                     race().course.numbers.get(),
                     race().engine_tables(),
                     a[2],
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -280,11 +257,7 @@ fn blocks() -> Vec<Block> {
                     race().course.numbers.get(),
                     race().engine_tables(),
                     a[2],
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -300,11 +273,7 @@ fn blocks() -> Vec<Block> {
                     race().shared.car(),
                     race().shared.physics_tables.get(),
                     race().course.numbers.get(),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -319,11 +288,7 @@ fn blocks() -> Vec<Block> {
                 braking_count_neutral(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -381,18 +346,15 @@ fn blocks() -> Vec<Block> {
             }],
             ulps: 0,
             plain: |_| {
+                let scratch = scene().scratch_cell();
                 divide_into_scratch(
-                    &scene().drawing.scene.get().scratch,
+                    &*scratch,
                     &crate::test_support::own::race()
                         .shared
                         .physics_tables
                         .get()
                         .grip_force_limit,
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &scratch,
                 );
             },
         },
@@ -425,11 +387,7 @@ fn blocks() -> Vec<Block> {
                     race().engine_tables(),
                     a[1],
                     crate::test_support::own::scene(),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -462,11 +420,7 @@ fn blocks() -> Vec<Block> {
                     race().engine_tables(),
                     a[1],
                     crate::test_support::own::scene(),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -499,11 +453,7 @@ fn blocks() -> Vec<Block> {
                     race().engine_tables(),
                     a[1],
                     crate::test_support::own::scene(),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -561,11 +511,7 @@ fn blocks() -> Vec<Block> {
                     race().shared.physics_tables.get(),
                     race().course.numbers.get(),
                     HostCell(a[1]).bits(),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },

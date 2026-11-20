@@ -1169,7 +1169,6 @@ mod vector_tests {
 
     #[test]
     fn halfway_vertex_is_the_originals() {
-        let drawing = &crate::test_support::own::scene().drawing;
         let course = &race().course;
         let kept = Snapshot::of(&[
             "owners.scene.drawing.scene",
@@ -1185,14 +1184,8 @@ mod vector_tests {
                 course.stage_prefs.get().flat_depth.set((n % 2) as u32);
                 course.course.get().flat_depth.set(r.int() as u32);
                 // The recorded run read the scene's window; this code reads the window it is given.
-                for (old, own) in [
-                    (&drawing.scene.get().view_scale, &win.view_scale),
-                    (&drawing.scene.get().view_centre[1], &win.view_centre[1]),
-                    (&drawing.scene.get().view_centre[0], &win.view_centre[0]),
-                ] {
-                    let value = f32::from_bits(r.float());
-                    old.set(value);
-                    own.set(value);
+                for own in [&win.view_scale, &win.view_centre[1], &win.view_centre[0]] {
+                    own.set(f32::from_bits(r.float()));
                 }
                 course.numbers.get().half.set(if r.below(2) == 0 {
                     0.5

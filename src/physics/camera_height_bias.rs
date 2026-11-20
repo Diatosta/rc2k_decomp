@@ -93,11 +93,7 @@ mod reference_vectors {
                             .frame
                             .view_and_records
                             .get(),
-                        &crate::test_support::own::scene()
-                            .drawing
-                            .scene
-                            .get()
-                            .scratch,
+                        &crate::test_support::own::scene().scratch_cell(),
                     );
                 },
             },
@@ -109,13 +105,7 @@ mod reference_vectors {
                 }],
                 ulps: 0,
                 plain: |_| {
-                    x87_2(
-                        &crate::test_support::own::scene()
-                            .drawing
-                            .scene
-                            .get()
-                            .scratch,
-                    );
+                    x87_2(&crate::test_support::own::scene().scratch_cell());
                 },
             },
             Block {
@@ -132,11 +122,7 @@ mod reference_vectors {
                             .frame
                             .view_and_records
                             .get(),
-                        &crate::test_support::own::scene()
-                            .drawing
-                            .scene
-                            .get()
-                            .scratch,
+                        &crate::test_support::own::scene().scratch_cell(),
                     );
                 },
             },

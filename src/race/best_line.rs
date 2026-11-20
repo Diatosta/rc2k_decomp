@@ -534,7 +534,7 @@ fn store_best_line(
     }
     let left = &line.leftovers;
     if let Some(scratch) = left.scratch {
-        scene.drawing.scene.get().scratch.set(scratch);
+        scene.draw_work_mut().scratch = scratch;
     }
     Ok(())
 }

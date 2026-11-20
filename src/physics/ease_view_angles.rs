@@ -80,11 +80,7 @@ mod reference_vectors {
                     race().course.numbers.get(),
                     race().shared.tables(),
                     crate::math::x87_mem::Base::dword(a[0], 0),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         }]

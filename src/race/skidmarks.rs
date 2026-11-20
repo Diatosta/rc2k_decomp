@@ -297,7 +297,6 @@ mod vector_tests {
     use super::*;
     use crate::race::asm_test::{Rng, at_each_control_word, same};
     use crate::test_support::own::race;
-    use crate::test_support::own::scene;
     use crate::test_support::race_vectors::{Kind, Vectors};
     use crate::test_support::state::Snapshot;
 
@@ -310,7 +309,6 @@ mod vector_tests {
 
     #[test]
     fn project_vertex_is_the_originals() {
-        let drawing = &scene().drawing;
         let course = &race().course;
         let kept = Snapshot::of(&STORES);
         let mut vectors = Vectors::open("race.skidmarks.project_vertex", Kind::Exact, 8);
@@ -322,16 +320,10 @@ mod vector_tests {
                 course.stage_prefs.get().flat_depth.set(flat as u32);
                 course.course.get().flat_depth.set(r.int() as u32);
                 // The recorded run read the scene's window; this code reads the window it is given.
-                for (old, own) in [
-                    (&drawing.scene.get().view_scale, &win.view_scale),
-                    (&drawing.scene.get().view_centre[1], &win.view_centre[1]),
-                    (&drawing.scene.get().view_centre[0], &win.view_centre[0]),
-                ] {
-                    let value = f32::from_bits(r.float());
-                    old.set(value);
-                    own.set(value);
+                for own in [&win.view_scale, &win.view_centre[1], &win.view_centre[0]] {
+                    own.set(f32::from_bits(r.float()));
                 }
-                drawing.scene.get().scratch.set(0xAAAA_AAAAu32);
+                crate::test_support::own::scene().draw_work_mut().scratch = 0xAAAA_AAAAu32;
                 let mut a = [0xAAAA_AAAAu32; 8];
                 for q in a.iter_mut().skip(4).take(3) {
                     *q = r.float();

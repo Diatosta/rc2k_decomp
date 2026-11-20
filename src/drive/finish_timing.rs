@@ -51,7 +51,7 @@ fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
     let late = {
         let mut finish = race.replay.finish_mut();
         let since = now.wrapping_sub(finish.start_clock);
-        scene.drawing.scene.get().scratch.set(since);
+        scene.draw_work_mut().scratch = since;
         time_from(&mut finish, since, thousand);
         if c0(finish.time, finish.limit_a) {
             finish.eased = loaded(finish.time);
@@ -95,7 +95,7 @@ mod reference_vectors {
 
     /// `time` = the clock less the start (`scratch`) over `thousand`.
     fn time(race: &Race, scene: &crate::scene::owner::Scene) {
-        let since = scene.drawing.scene.get().scratch.get();
+        let since = scene.draw_work().scratch;
         let thousand = race.course.numbers.get().thousand.get();
         time_from(&mut race.replay.finish_mut(), since, thousand);
     }

@@ -97,7 +97,7 @@ pub fn add_object_shape(
         to = to.wrapping_add(12);
     }
     if let Some(reach) = shape.last_reach {
-        scene.drawing.scene.get().scratch.set(reach);
+        scene.draw_work_mut().scratch = reach;
     }
     course.course.get().shape_radius.set(shape.radius);
     scene.loaded_slots_mut().radii[slot] = shape.radius;

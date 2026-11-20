@@ -27,8 +27,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
-use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
+use crate::math::x87_float::{int, ld, st};
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
@@ -70,7 +70,6 @@ fn check(course: &Course, car: &Car) -> Result<(), Refused> {
 /// The steps (a refusal may come after some are written: `wheel_surfaces` puts them
 /// back).
 fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
     let contact = c.contact;
     check(c.course, c.car)?;
     for point in 0..5u32 {
@@ -144,9 +143,9 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
                 } else {
                     (face_byte(0x22)?, face_byte(0x23)?, face_byte(0x24)?)
                 };
-                drawing.scene.get().surface_point[0].set(x);
-                drawing.scene.get().surface_point[1].set(y.wrapping_sub(x));
-                drawing.scene.get().surface_point[2].set(z.wrapping_sub(x));
+                scene.draw_work_mut().surface_point[0] = x;
+                scene.draw_work_mut().surface_point[1] = y.wrapping_sub(x);
+                scene.draw_work_mut().surface_point[2] = z.wrapping_sub(x);
                 x87_2(contact, c.numbers, c.car, cc, scene);
             }
             if crate::race::course_places::face_number(c.course.reads(), f)?.switches() & 0x1000
@@ -252,14 +251,13 @@ fn x87_2(
     c: usize,
     scene: &crate::scene::owner::Scene,
 ) {
-    let drawing = &scene.drawing;
-    let t0 = int(drawing.scene.get().surface_point[1].get() as i32);
+    let t0 = int(scene.draw_work().surface_point[1] as i32);
     let t1 = contact.probe_share_u[c].ld();
     let t2 = t0 * t1;
-    let t3 = int(drawing.scene.get().surface_point[2].get() as i32);
+    let t3 = int(scene.draw_work().surface_point[2] as i32);
     let t4 = contact.probe_share_v[c].ld();
     let t5 = t3 * t4;
-    let t6 = int(drawing.scene.get().surface_point[0].get() as i32);
+    let t6 = int(scene.draw_work().surface_point[0] as i32);
     let t7 = t5 + t6;
     let t8 = t2 + t7;
     let t9 = numbers.k256.ld();
@@ -406,7 +404,6 @@ fn x87_6(shared: &RaceShared) {
 
 /// One straight x87 run as plain Rust over `X`.
 fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
     let t0 = c.car.ground_bump_scale.ld();
     let t1 = c.tables.handling[6].ld();
     let t2 = t0 * t1;
@@ -418,7 +415,7 @@ fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
     let t7 = t5 * t6;
     let t8 = c.tables.surface_blend[2].ld();
     let t9 = t7 + t8;
-    drawing.scene.get().surface_point[0].st(t9);
+    scene.draw_work_mut().surface_point[0] = st(t9);
     let t10 = c.tables.surface_blend[1].ld();
     let t11 = c.tables.surface_blend[3].ld();
     let t12 = t10 - t11;
@@ -426,15 +423,15 @@ fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
     let t14 = t12 * t13;
     let t15 = c.tables.surface_blend[3].ld();
     let t16 = t14 + t15;
-    drawing.scene.get().surface_point[1].st(t16);
-    let t17 = drawing.scene.get().surface_point[1].ld();
-    let t18 = drawing.scene.get().surface_point[0].ld();
+    scene.draw_work_mut().surface_point[1] = st(t16);
+    let t17 = ld(scene.draw_work().surface_point[1]);
+    let t18 = ld(scene.draw_work().surface_point[0]);
     let t19 = t17 - t18;
     let t20 = int(c.car.suspension_stiffness.get() as i32);
     let t21 = c.numbers.k256.ld();
     let t22 = t20 / t21;
     let t23 = t19 * t22;
-    let t24 = drawing.scene.get().surface_point[0].ld();
+    let t24 = ld(scene.draw_work().surface_point[0]);
     let t25 = t23 + t24;
     c.tables.surface_softness.st(t25);
     let t26 = c.tables.surface_blends[4].ld();

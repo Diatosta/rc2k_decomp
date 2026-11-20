@@ -70,11 +70,7 @@ mod reference_vectors {
             ],
             ulps: 0,
             plain: |a| {
-                let scratch = &crate::test_support::own::scene()
-                    .drawing
-                    .scene
-                    .get()
-                    .scratch;
+                let scratch = &crate::test_support::own::scene().scratch_cell();
                 scratch.set(x87_1(f32::from_bits(HostCell(a[1]).bits()), scratch.get()));
             },
         }]

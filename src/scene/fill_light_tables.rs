@@ -49,7 +49,6 @@ pub fn fill_light_tables(
         (&t.lamp_table_a, offset_of!(StagePrefs, lamp_table_a)),
         (&t.lamp_table_b, offset_of!(StagePrefs, lamp_table_b)),
         (&t.car_light_table, offset_of!(StagePrefs, car_light_table)),
-        (&t.lamp_table_c, offset_of!(StagePrefs, lamp_table_c)),
     ];
     for (table, colour) in lamps {
         let colour = if plain {
@@ -58,6 +57,11 @@ pub fn fill_light_tables(
             prefs_dwords(course, colour)?
         };
         fill_light_scale(colour, table);
+    }
+    // The third lamp table is only kept in the stage's own preferences; its colours are still
+    // read, so a bad stage is refused as before.
+    if !plain {
+        prefs_dwords::<3>(course, offset_of!(StagePrefs, lamp_table_c))?;
     }
     Ok(())
 }

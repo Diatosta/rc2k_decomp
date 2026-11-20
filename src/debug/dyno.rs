@@ -70,8 +70,7 @@ struct Measured {
 static MEASURED: Mutex<Option<Measured>> = Mutex::new(None);
 
 /// Every variable the measuring writes.
-fn places<'a>(shared: &'a RaceShared, scene: &'a Scene) -> [&'a dyn Cell32; 15] {
-    let drawing = &scene.drawing;
+fn places(shared: &RaceShared) -> [&dyn Cell32; 11] {
     [
         &shared.car().gear,
         &shared.car().throttle,
@@ -84,18 +83,16 @@ fn places<'a>(shared: &'a RaceShared, scene: &'a Scene) -> [&'a dyn Cell32; 15] 
         &shared.physics_tables.get().engine_force,
         &shared.physics_tables.get().engine_torque,
         &shared.physics_tables.get().torque_share,
-        &drawing.scene.get().scratch,
-        &drawing.scene.get().work_dword,
-        &drawing.scene.get().work_float_a,
-        &drawing.scene.get().work_float_b,
     ]
 }
 
 /// `f` run, the variables put back after it.
 fn kept<T>(shared: &RaceShared, scene: &Scene, f: impl FnOnce() -> T) -> T {
-    let places = places(shared, scene);
+    let places = places(shared);
     let saved = places.map(crate::memory::session::Cell32::bits);
+    let work = scene.draw_work().clone();
     let result = f();
+    *scene.draw_work_mut() = work;
     for (place, bits) in places.iter().zip(saved) {
         place.set_bits(bits);
     }
@@ -344,16 +341,20 @@ mod tests {
         shared.car().engine_speed_limit.set(7000.0_f32);
         shared.physics_tables.get().gear_count.set(1);
         shared.physics_tables.get().gear_ratios[2].set(0.01_f32);
-        let before = places(shared, crate::test_support::own::scene())
-            .map(crate::memory::session::Cell32::bits);
+        let before = (
+            places(shared).map(crate::memory::session::Cell32::bits),
+            format!("{:?}", crate::test_support::own::scene().draw_work()),
+        );
         let m = measure(
             crate::test_support::own::race(),
             crate::test_support::own::scene(),
         )
         .expect("a car");
         assert_eq!(
-            places(shared, crate::test_support::own::scene())
-                .map(crate::memory::session::Cell32::bits),
+            (
+                places(shared).map(crate::memory::session::Cell32::bits),
+                format!("{:?}", crate::test_support::own::scene().draw_work()),
+            ),
             before
         );
         assert_eq!(m.gears.len(), 1);

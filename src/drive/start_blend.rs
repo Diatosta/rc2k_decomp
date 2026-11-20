@@ -62,12 +62,12 @@ fn blend_at(race: &Race, v: &BlendCells<'_>) -> u32 {
     n
 }
 
-fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> BlendCells<'a> {
+fn game<'a>(race: &'a Race, scratch: &'a PlainDword) -> BlendCells<'a> {
     let shared = &race.shared;
     BlendCells {
         checkpoint: &shared.car().checkpoint,
         lead_checkpoint: &race.car_blocks().cars[0].checkpoint,
-        scratch: &scene.drawing.scene.get().scratch,
+        scratch,
         step_share: &shared.car().start_blend_share,
         start_share: &shared.car().start_share,
         pace_push: &shared.car().pace_push,
@@ -77,5 +77,8 @@ fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> BlendCells
 
 /// (the exact one, for `drive::read_car_controls`).
 pub fn start_blend(race: &Race, scene: &crate::scene::owner::Scene) -> u32 {
-    blend_at(race, &game(race, scene))
+    let scratch = PlainDword::new(scene.draw_work().scratch);
+    let n = blend_at(race, &game(race, &scratch));
+    scene.draw_work_mut().scratch = scratch.get();
+    n
 }

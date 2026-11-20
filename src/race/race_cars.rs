@@ -440,7 +440,7 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         ))?;
         text(w(2), false);
         number(percentage, false);
-        scene.drawing.scene.get().scratch.set(percentage);
+        scene.draw_work_mut().scratch = percentage;
         let total: i32 = race.physics.split_tables().stage_car_total as i32;
         let extra = bh::to_int(
             bh::int(percentage as i32) * bh::int(total) / race.course.numbers.get().hundred.ld(),

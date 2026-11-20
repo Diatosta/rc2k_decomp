@@ -21,8 +21,10 @@ pub fn drive_torque_share(
     numbers: &Numbers,
     scene: &crate::scene::owner::Scene,
 ) -> u32 {
-    let drawing = scene.drawing.scene.get();
-    let (speed_share, gears_share) = (&drawing.work_float_a, &drawing.work_float_b);
+    let (speed_share, gears_share) = (
+        crate::memory::session::PlainFloat::new(scene.draw_work().work_float_a),
+        crate::memory::session::PlainFloat::new(scene.draw_work().work_float_b),
+    );
     // The step's count: stored before it is read, as a whole number.
     let count = crate::memory::session::PlainDword::new(0);
     let n = if car.drive_kind.get() == 1 {
@@ -53,5 +55,10 @@ pub fn drive_torque_share(
         tables.drive_torque.get(),
         tables.torque_share.get(),
     ));
+    {
+        let mut work = scene.draw_work_mut();
+        work.work_float_a = speed_share.get();
+        work.work_float_b = gears_share.get();
+    }
     gears_left
 }

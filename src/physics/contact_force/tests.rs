@@ -50,11 +50,7 @@ fn blocks() -> Vec<Block> {
                 x87_2(
                     crate::test_support::own::race().physics.contact.get(),
                     crate::test_support::own::race().course.numbers.get(),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },
@@ -174,11 +170,7 @@ fn blocks() -> Vec<Block> {
                     0,
                     x87_6(
                         crate::test_support::own::race().physics.contact.get(),
-                        &crate::test_support::own::scene()
-                            .drawing
-                            .scene
-                            .get()
-                            .scratch,
+                        &crate::test_support::own::scene().scratch_cell(),
                     ),
                 );
             },
@@ -204,11 +196,7 @@ fn blocks() -> Vec<Block> {
             plain: |_| {
                 x87_7(
                     crate::test_support::own::race().physics.contact.get(),
-                    &crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch,
+                    &crate::test_support::own::scene().scratch_cell(),
                 );
             },
         },

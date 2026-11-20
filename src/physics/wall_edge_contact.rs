@@ -153,12 +153,7 @@ mod reference_vectors {
             ulps: 0,
             plain: |a| {
                 let turns = x87_1(race().course.numbers.get(), *view(a[0], 0));
-                crate::test_support::own::scene()
-                    .drawing
-                    .scene
-                    .get()
-                    .scratch
-                    .set(turns);
+                crate::test_support::own::scene().draw_work_mut().scratch = turns;
             },
         }]
     }

@@ -3,7 +3,7 @@
 //! light tables and the car icon upload join it first; the other stores follow one by one.
 
 use crate::memory::session::{DrawShared, GameThread};
-use crate::scene::draw_store::SceneDraw;
+use crate::scene::draw_store::{DrawWork, SceneDraw};
 use crate::scene::draw_switches_store::DrawSwitches;
 use crate::scene::file_numbers_store::{ObjectFileNumbers, PathText};
 use crate::scene::kind_texture_store::{KindSlots, KindTextures};
@@ -53,6 +53,8 @@ struct SceneMain {
     /// The slots' kinds and the texture level tables: borrowed for one statement at a time
     /// (`Scene::texture_levels`).
     texture_levels: RefCell<TextureLevels>,
+    /// The work words: borrowed for one statement at a time (`Scene::draw_work`).
+    draw_work: RefCell<DrawWork>,
 }
 
 impl Scene {
@@ -122,6 +124,23 @@ impl Scene {
     /// The slots' kinds and the texture level tables, to write: no other borrow may be held.
     pub fn texture_levels_mut(&self) -> RefMut<'_, TextureLevels> {
         self.main.get().texture_levels.borrow_mut()
+    }
+
+    /// The work words (the shared scratch dword, the physics' work floats, the turns' sines), read:
+    /// no write borrow may be held.
+    pub fn draw_work(&self) -> Ref<'_, DrawWork> {
+        self.main.get().draw_work.borrow()
+    }
+
+    /// The work words, to write: no other borrow may be held.
+    pub fn draw_work_mut(&self) -> RefMut<'_, DrawWork> {
+        self.main.get().draw_work.borrow_mut()
+    }
+
+    /// The shared scratch dword as a cell, put back when it is dropped: no borrow of the work words
+    /// may be held while it lives.
+    pub fn scratch_cell(&self) -> crate::scene::draw_store::ScratchCell<'_> {
+        crate::scene::draw_store::ScratchCell::new(self)
     }
 
     /// The scene objects' work variables, read: no write borrow may be held.
@@ -213,6 +232,7 @@ impl Scene {
                 texture_places: RefCell::new(TexturePlaces::new()),
                 loaded_slots: RefCell::new(LoadedSlots::new()),
                 texture_levels: RefCell::new(TextureLevels::new()),
+                draw_work: RefCell::new(DrawWork::new()),
             }),
         }
     }

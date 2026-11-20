@@ -37,13 +37,12 @@ pub fn wheel_springs(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
 ) {
-    let drawing = &scene.drawing;
     let (c, ph) = (shared.car(), shared.physics_tables.get());
     for k in 0..4 {
         let q = &c.wheel_squeeze[k];
         let (force, damping) = (&ph.spring_forces[k], &ph.spring_damping[k]);
         let old = x87::loaded(q);
-        drawing.scene.get().work_dword.set(old.to_bits());
+        scene.draw_work_mut().work_dword = old.to_bits();
         c.wheel_squeeze_last[k].set(old);
         let squeeze_distance = contact.probe_height[k].get().wrapping_neg();
         q.set(ext_div2(
@@ -64,7 +63,7 @@ pub fn wheel_springs(
         )));
         damping.set(x87::sub_mul(
             q,
-            drawing.scene.get().work_dword.get(),
+            scene.draw_work().work_dword,
             &ph.handling[5],
         ));
         if below(damping.get(), 0.0) {

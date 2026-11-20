@@ -34,11 +34,15 @@ pub fn find_present_courses(
         let present = course_present(paths(course).len() as u32, |file| {
             let path = paths(course)[file as usize];
             debug_assert_eq!(PROBE_BYTES, 4);
-            let bytes_read = read_whole_file_cells(
+            let probe = [crate::memory::session::PlainDword::new(
+                scene.draw_work().work_dword,
+            )];
+            let read = read_whole_file_cells(
                 &crate::files::cstring(path, "a course file's path")?,
-                std::slice::from_ref(&scene.drawing.scene.get().work_dword),
-            )?;
-            Ok::<u32, Refused>(bytes_read)
+                &probe,
+            );
+            scene.draw_work_mut().work_dword = probe[0].get();
+            Ok::<u32, Refused>(read?)
         })?;
         if present {
             shared.switches.get().course_present[n as usize].set(1);

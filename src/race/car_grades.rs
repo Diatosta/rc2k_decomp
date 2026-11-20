@@ -118,7 +118,7 @@ fn grade_car_values(car: &Car, scene: &crate::scene::owner::Scene) -> Result<(),
     for &(from, to, thresholds) in &GRADES {
         let x = from(car).get();
         let (grade, tried) = rc2k_core::race::cars::grade(x, thresholds);
-        scene.drawing.scene.get().scratch.set(tried);
+        scene.draw_work_mut().scratch = tried;
         to(car).set(grade);
     }
     Ok(())

@@ -31,7 +31,7 @@ pub fn normalise_work_vector(
     let v = crate::memory::session::read_first(&scratch.work_vector);
     let (v, length) = normalised(numbers, v);
     crate::memory::session::write_first(&scratch.work_vector, &v);
-    scene.drawing.scene.get().scratch.set(length);
+    scene.draw_work_mut().scratch = length;
 }
 
 /// A triangle's normal worked out from its points.
@@ -188,7 +188,7 @@ pub(super) fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     }
     crate::memory::session::write_first(&race.frame.scratch().work_vector, &normals.work_vector);
     if let Some(length) = normals.scratch {
-        scene.drawing.scene.get().scratch.set(length);
+        scene.draw_work_mut().scratch = length;
     }
     Ok(())
 }

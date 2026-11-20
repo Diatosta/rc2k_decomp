@@ -559,7 +559,7 @@ mod vector_tests {
 
     fn fill(r: &mut Rng) {
         let race = race();
-        scene().drawing.scene.get().scratch.set(0xAAAA_AAAAu32);
+        scene().draw_work_mut().scratch = 0xAAAA_AAAAu32;
         // the depth is a whole number around the view's reach
         race.frame
             .frame_work

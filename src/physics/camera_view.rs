@@ -76,12 +76,7 @@ mod reference_vectors {
             plain: |a| {
                 x87_1(
                     &race().shared,
-                    crate::test_support::own::scene()
-                        .drawing
-                        .scene
-                        .get()
-                        .scratch
-                        .get(),
+                    crate::test_support::own::scene().draw_work().scratch,
                     crate::math::x87_mem::Base::dword(a[1], 0x3C),
                 );
             },

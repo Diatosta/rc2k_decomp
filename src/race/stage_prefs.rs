@@ -115,19 +115,19 @@ pub fn get_mat_crash(
     matrix::set_turn_x(
         engine_tables,
         &matrices.turn_x_matrix,
-        &scene.drawing.scene.get().turn_x_work,
+        &crate::scene::matrix::unread_turn_work(),
         turns[0],
     );
     matrix::set_turn_y(
         engine_tables,
         &matrices.turn_y_matrix,
-        &scene.drawing.scene.get().turn_y_work,
+        &crate::scene::matrix::unread_turn_work(),
         turns[1],
     );
     matrix::set_turn_z_16(
         engine_tables,
         &matrices.turn_z_matrix,
-        &scene.drawing.scene.get().turn_z_work,
+        &crate::scene::matrix::unread_turn_work(),
         turns[2],
     );
     matrix::multiply_matrices(

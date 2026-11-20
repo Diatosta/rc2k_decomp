@@ -16,10 +16,10 @@ use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::extended;
 use crate::math::x87;
 use crate::math::x87::{abs_compare, abs_of, neg_rounded};
-use crate::math::x87_float::X;
 use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
+use crate::math::x87_float::{X, stf};
 use crate::memory::session::FloatLike;
 use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
@@ -107,7 +107,6 @@ fn steps(
     car: &Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
     // The work value the drive steps pass through; each is stored before it is read.
     let scratch = crate::memory::session::PlainDword::new(0);
     let gear = car.gear.get();
@@ -269,11 +268,23 @@ fn steps(
     }
     // The wheels' slip figures.
     slip_figure_a(car, physics_tables, scene);
-    hold_low_bits(&drawing.scene.get().work_float_a, ZERO);
+    hold_work_float(scene, |work| &mut work.work_float_a);
     slip_figure_b(car, physics_tables, scene);
-    hold_low_bits(&drawing.scene.get().work_float_b, ZERO);
+    hold_work_float(scene, |work| &mut work.work_float_b);
     slip_lengths(car, scene);
     Ok(())
+}
+
+/// A work float raised to 0 when below it (or unordered).
+fn hold_work_float(
+    scene: &crate::scene::owner::Scene,
+    pick: fn(&mut crate::scene::draw_store::DrawWork) -> &mut f32,
+) {
+    let mut work = scene.draw_work_mut();
+    let value = pick(&mut work);
+    let cell = crate::memory::session::PlainFloat::new(*value);
+    hold_low_bits(&cell, ZERO);
+    *value = cell.get();
 }
 
 /// `revs_from_wheels` (the gear checked before).
@@ -725,7 +736,7 @@ fn slip_figure_a(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner:
     let t3 = t2.abs();
     let t4 = tables.wheel_speed_gap.ld();
     let t5 = t3 - t4;
-    scene.drawing.scene.get().work_float_a.st(t5);
+    scene.draw_work_mut().work_float_a = stf(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -736,30 +747,29 @@ fn slip_figure_b(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner:
     let t1 = t0.abs();
     let t2 = tables.wheel_speed_margin.ld();
     let t3 = t1 - t2;
-    scene.drawing.scene.get().work_float_b.st(t3);
+    scene.draw_work_mut().work_float_b = stf(t3);
 }
 
 /// One straight x87 run as plain Rust over `X`.
 fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
-    let t0 = drawing.scene.get().work_float_a.ld();
+    let t0 = ld(scene.draw_work().work_float_a);
     let t1 = t0 * t0;
-    let t2 = drawing.scene.get().work_float_b.ld();
+    let t2 = ld(scene.draw_work().work_float_b);
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
     car.slip_speed.st(t5);
     let t6 = car.local_velocity[0].ld();
     let t7 = t6.abs();
-    drawing.scene.get().work_float_b.st(t7);
+    scene.draw_work_mut().work_float_b = stf(t7);
     let t8 = car.drive_speed_a.ld();
     let t9 = car.local_velocity[2].ld();
     let t10 = t8 - t9;
     let t11 = t10.abs();
-    drawing.scene.get().work_float_a.st(t11);
-    let t12 = drawing.scene.get().work_float_a.ld();
+    scene.draw_work_mut().work_float_a = stf(t11);
+    let t12 = ld(scene.draw_work().work_float_a);
     let t13 = t12 * t12;
-    let t14 = drawing.scene.get().work_float_b.ld();
+    let t14 = ld(scene.draw_work().work_float_b);
     let t15 = t14 * t14;
     let t16 = t13 + t15;
     let t17 = t16.sqrt();
@@ -768,10 +778,10 @@ fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
     let t19 = car.local_velocity[2].ld();
     let t20 = t18 - t19;
     let t21 = t20.abs();
-    drawing.scene.get().work_float_a.st(t21);
-    let t22 = drawing.scene.get().work_float_a.ld();
+    scene.draw_work_mut().work_float_a = stf(t21);
+    let t22 = ld(scene.draw_work().work_float_a);
     let t23 = t22 * t22;
-    let t24 = drawing.scene.get().work_float_b.ld();
+    let t24 = ld(scene.draw_work().work_float_b);
     let t25 = t24 * t24;
     let t26 = t23 + t25;
     let t27 = t26.sqrt();

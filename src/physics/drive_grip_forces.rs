@@ -21,10 +21,10 @@ use crate::math::cell_x87::CellX87;
 use crate::math::engine_tables::EngineTables;
 use crate::math::x87;
 use crate::math::x87::mul_status;
-use crate::math::x87_float::X;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
+use crate::math::x87_float::{X, stf};
 use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::flow::FloatView;
@@ -54,7 +54,6 @@ pub fn drive_grip_forces(
 ) {
     // The work value the steps below pass through; each is stored before it is read.
     let scratch = crate::memory::session::PlainDword::new(0);
-    let drawing = &scene.drawing;
     let kind = car.drive_kind.get();
     // The share of `wall_hit_timer` out of 50, from 1, held 0 ..= 1.
     scratch.set(0x32);
@@ -147,7 +146,9 @@ pub fn drive_grip_forces(
     car.grip_forces[2].set(0.0);
     if kind == 1 {
         abs_speed_into_work(car, scene);
-        hold_high(&drawing.scene.get().work_float_a, &tables.grip_slip_limit);
+        let work_float = crate::memory::session::PlainFloat::new(scene.draw_work().work_float_a);
+        hold_high(&work_float, &tables.grip_slip_limit);
+        scene.draw_work_mut().work_float_a = work_float.get();
         yaw_share_from_limit(tables, scene);
         scratch.set(x87::loaded(&car.drive_slip_speed).to_bits());
         // Held to ±`grip_force_limit`, the limit negated in place between and put back.
@@ -340,20 +341,19 @@ fn engine_braking_force(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
 fn abs_speed_into_work(car: &Car, scene: &crate::scene::owner::Scene) {
     let t0 = car.local_velocity[2].ld();
     let t1 = t0.abs();
-    scene.drawing.scene.get().work_float_a.st(t1);
+    scene.draw_work_mut().work_float_a = stf(t1);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[work_float_a] = ([grip_slip_limit] - [work_float_a]) / [grip_slip_limit]`
 fn yaw_share_from_limit(tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
     let t0 = tables.grip_slip_limit.ld();
-    let t1 = drawing.scene.get().work_float_a.ld();
+    let t1 = ld(scene.draw_work().work_float_a);
     let t2 = t0 - t1;
     let t3 = tables.grip_slip_limit.ld();
     let t4 = t2 / t3;
-    drawing.scene.get().work_float_a.st(t4);
+    scene.draw_work_mut().work_float_a = stf(t4);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -368,7 +368,6 @@ fn yaw_force(
     scene: &crate::scene::owner::Scene,
     scratch: &crate::memory::session::PlainDword,
 ) {
-    let drawing = &scene.drawing;
     let t0 = engine_tables.sines[e].ld();
     let t1 = tables.spec_grip.ld();
     let t2 = t0 / t1;
@@ -378,7 +377,7 @@ fn yaw_force(
     let t6 = t4 / t5;
     let t7 = scratch.ld();
     let t8 = t6 * t7;
-    let t9 = drawing.scene.get().work_float_a.ld();
+    let t9 = ld(scene.draw_work().work_float_a);
     let t10 = t8 * t9;
     let t11 = tables.grip_slide_scale.ld();
     let t12 = t10 * t11;

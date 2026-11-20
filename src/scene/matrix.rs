@@ -23,6 +23,12 @@ fn sine_cosine(tables: &EngineTables, angle: u32) -> (f32, f32) {
     )
 }
 
+/// The sine and cosine a turn's caller has no use for (the sources of the work words the
+/// callers outside the view's own matrices never read).
+pub fn unread_turn_work() -> [crate::memory::session::PlainFloat; 2] {
+    [const { crate::memory::session::PlainFloat::new(0.0) }; 2]
+}
+
 /// `scene::set_turn_x`: `turn_x` the matrix, `work` its sine and cosine.
 pub fn set_turn_x(
     tables: &EngineTables,

@@ -74,7 +74,7 @@ pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> R
                     let end = distance(n as usize + 1)?;
                     let start = distance(n as usize)?;
                     let half = half_length(end, start);
-                    scene.drawing.scene.get().scratch.set(half);
+                    scene.draw_work_mut().scratch = half;
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
                     race.frame
                         .panel_and_overlay

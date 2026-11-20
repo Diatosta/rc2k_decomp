@@ -229,12 +229,12 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x223AF4, "owners.race.shared.buffers.reads", ".engine_tables.sines[4]"),
     (0x223DA8, "owners.race.shared.vars", ".mud_scale_a[0]"),
     (0x223DAC, "owners.race.shared.vars", ".mud_scale_a[1]"),
-    (0x22400C, "owners.scene.drawing.scene", ".scratch"),
-    (0x22401C, "owners.scene.drawing.scene", ".work_float_a"),
-    (0x224020, "owners.scene.drawing.scene", ".work_float_b"),
-    (0x224040, "owners.scene.drawing.scene", ".surface_point[0]"),
-    (0x224044, "owners.scene.drawing.scene", ".surface_point[1]"),
-    (0x224048, "owners.scene.drawing.scene", ".surface_point[2]"),
+    (0x22400C, "owners.scene.draw_work", ".scratch"),
+    (0x22401C, "owners.scene.draw_work", ".work_float_a"),
+    (0x224020, "owners.scene.draw_work", ".work_float_b"),
+    (0x224040, "owners.scene.draw_work", ".surface_point[0]"),
+    (0x224044, "owners.scene.draw_work", ".surface_point[1]"),
+    (0x224048, "owners.scene.draw_work", ".surface_point[2]"),
     (0x237638, "owners.scene.lights.state", ".camera_shake_x"),
     (0x23763C, "owners.scene.lights.state", ".camera_shake_y"),
     (0x237640, "owners.scene.lights.state", ".camera_shake_z"),
@@ -555,6 +555,34 @@ fn camera_field(path: &str) -> Option<CameraBits> {
     }
 }
 
+/// The scene's work words (plain fields, not cells): their registry name.
+const DRAW_WORK: &str = "owners.scene.draw_work";
+
+/// How a field of the scene's work words is read and written as bits.
+type WorkBits = (
+    fn(&crate::scene::draw_store::DrawWork) -> u32,
+    fn(&mut crate::scene::draw_store::DrawWork, u32),
+);
+
+/// The work words' field at `path`.
+fn work_field(path: &str) -> Option<WorkBits> {
+    match path {
+        ".scratch" => Some((|w| w.scratch, |w, v| w.scratch = v)),
+        ".work_float_a" => Some((
+            |w| w.work_float_a.to_bits(),
+            |w, v| w.work_float_a = f32::from_bits(v),
+        )),
+        ".work_float_b" => Some((
+            |w| w.work_float_b.to_bits(),
+            |w, v| w.work_float_b = f32::from_bits(v),
+        )),
+        ".surface_point[0]" => Some((|w| w.surface_point[0], |w, v| w.surface_point[0] = v)),
+        ".surface_point[1]" => Some((|w| w.surface_point[1], |w, v| w.surface_point[1] = v)),
+        ".surface_point[2]" => Some((|w| w.surface_point[2], |w, v| w.surface_point[2] = v)),
+        _ => None,
+    }
+}
+
 /// The ground search's record (plain fields, not cells): its registry name.
 const GROUND_SEARCH: &str = "owners.race.physics.ground_search";
 
@@ -579,6 +607,10 @@ fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
                 .to_le_bytes()
                 .to_vec(),
         );
+    }
+    if name == DRAW_WORK {
+        let (get, _) = work_field(path)?;
+        return Some(get(&super::own::scene().draw_work()).to_le_bytes().to_vec());
     }
     if name == GROUND_SEARCH {
         let (get, _) = search_field(path)?;
@@ -607,6 +639,16 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
         };
         set(
             &mut super::own::race().replay.finish_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    if name == DRAW_WORK {
+        let (Some((_, set)), Ok(word)) = (work_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::scene().draw_work_mut(),
             u32::from_le_bytes(word),
         );
         return true;

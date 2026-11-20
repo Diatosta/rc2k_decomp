@@ -97,11 +97,10 @@ fn distance_to_checkpoint(
     c: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
     // The distance is the x87's.
     let count: u32 = vars.checkpoint_count.get();
     if !rc2k_core::race::checkpoints::on_line(c, count) {
-        drawing.scene.get().scratch.set(u32::MAX);
+        scene.draw_work_mut().scratch = u32::MAX;
         return Ok(());
     }
     if c >= MOST_CHECKS {
@@ -115,11 +114,7 @@ fn distance_to_checkpoint(
         };
         let dx = get(course, point, 0)?.wrapping_sub(x) as i32;
         let dz = get(course, point, 2)?.wrapping_sub(z) as i32;
-        drawing
-            .scene
-            .get()
-            .scratch
-            .set(x87::int_hypot(dx, dz) as u32);
+        scene.draw_work_mut().scratch = x87::int_hypot(dx, dz) as u32;
     }
     Ok(())
 }
@@ -173,7 +168,7 @@ pub fn nearest_checkpoint_in(
                 c,
                 scene,
             )?;
-            nearest.consider(c, scene.drawing.scene.get().scratch.get());
+            nearest.consider(c, scene.draw_work().scratch);
             c = c.wrapping_add(1);
         }
         if c >= to {
@@ -284,12 +279,7 @@ fn measure_held(
     });
     // The last one measured leaves its distance in `scratch`, as `distance_to_checkpoint` does.
     if let Some((dx, dz)) = last {
-        scene
-            .drawing
-            .scene
-            .get()
-            .scratch
-            .set(x87::int_hypot(dx, dz) as u32);
+        scene.draw_work_mut().scratch = x87::int_hypot(dx, dz) as u32;
     }
     measured
 }
@@ -315,7 +305,7 @@ pub fn nearest_checkpoint(
             return Ok(0);
         }
         let near = nearest_checkpoint_in(physics, course, shared, 0, count, scene)?;
-        scene.drawing.scene.get().scratch.set(near.distance);
+        scene.draw_work_mut().scratch = near.distance;
         let units = rc2k_core::race::checkpoints::distance_units(
             near.distance,
             course.numbers.get().k65536.get(),
@@ -337,5 +327,5 @@ pub fn invert_car_matrix(course: &Course, car: &Car, scene: &crate::scene::owner
         &car.car_inverse_matrix,
     );
     // The matrix's last length is left in `scratch`.
-    scene.drawing.scene.get().scratch.set(length);
+    scene.draw_work_mut().scratch = length;
 }
