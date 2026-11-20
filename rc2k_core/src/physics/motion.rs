@@ -94,8 +94,9 @@ pub fn hold_spin(limit: &mut f32, x: &mut f32, z: &mut f32) -> u32 {
     u32::from(equal(size(*x), *limit as f64) || equal(size(*z), *limit as f64))
 }
 
+#[cfg(test)]
 /// The figures of the wheel-load blend.
-pub struct LoadBlend {
+pub(crate) struct LoadBlend {
     /// The contact depth.
     pub figure: f32,
     /// Three contact figures: their signs pick the slot.
@@ -110,9 +111,10 @@ pub struct LoadBlend {
     pub one: f32,
 }
 
+#[cfg(test)]
 /// Unless the figure is below the threshold, the slot (4 + 2 + 1 for each sign below zero)
 /// moves towards 1 by the figure over the divisor held to 0 .. 1: (the slot, the share).
-pub fn blend_load(b: &LoadBlend, slots: &mut [f32; 8]) -> Option<(u32, f32)> {
+pub(crate) fn blend_load(b: &LoadBlend, slots: &mut [f32; 8]) -> Option<(u32, f32)> {
     if below(b.figure as f64, b.threshold as f64) {
         return None;
     }
@@ -162,8 +164,9 @@ pub fn lowest_point(
     Ok(Some((last, count)))
 }
 
+#[cfg(test)]
 /// The lowest body point (a whole number) over `scale`.
-pub fn lowest_share(lowest: u32, scale: f32) -> f32 {
+pub(crate) fn lowest_share(lowest: u32, scale: f32) -> f32 {
     ((lowest as i32) as f64 / scale as f64) as f32
 }
 

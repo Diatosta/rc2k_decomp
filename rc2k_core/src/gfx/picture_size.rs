@@ -19,7 +19,7 @@ impl PictureSize {
 }
 
 /// The row length that says the rows follow one another.
-pub const ROWS_FOLLOW: u32 = 0xFFFF_FFFD;
+pub(crate) const ROWS_FOLLOW: u32 = 0xFFFF_FFFD;
 
 /// A picture as it is read: the most a screen's picture has.
 pub const READ: PictureSize = PictureSize {

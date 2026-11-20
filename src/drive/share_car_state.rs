@@ -138,7 +138,7 @@ fn light_record(race: &Race, car: &Car) -> Result<u32, Refused> {
 
 /// The Rust core: block `car`, record `o` (the marks' car record), sound object `p`, the
 /// scratch dword `scratch`.
-pub fn share_car_state_at(
+fn share_car_state_at(
     race: &Race,
     car: &Car,
     o: &CarEffects,

@@ -156,7 +156,7 @@ fn properties(record: &D) {
 }
 
 /// See the header.
-pub fn acquire_device(input: &Input, system: &System, record: &D) -> Result<(), Refused> {
+pub(super) fn acquire_device(input: &Input, system: &System, record: &D) -> Result<(), Refused> {
     let late = Deferred::default();
     let step = acquire(
         record.controller.get(),

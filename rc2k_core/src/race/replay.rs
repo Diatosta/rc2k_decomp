@@ -3,17 +3,17 @@
 //! the race settings in the replay's car header.
 
 /// The frames a block holds.
-pub const BLOCK_FRAMES: u32 = 100;
+pub(crate) const BLOCK_FRAMES: u32 = 100;
 /// A frame's bytes (smaller pieces are put in without counting).
 pub const FRAME_BYTES: u32 = 0x10;
 /// The blocks the original's index holds.
 pub const MOST_BLOCKS: u32 = 0x708;
 /// The free room (KB) a replay needs on the disc.
-pub const NEEDED_KB: u32 = 0x7800;
+pub(crate) const NEEDED_KB: u32 = 0x7800;
 /// The header's first dword, "REPL".
-pub const HEADER_MAGIC: u32 = 0x4C50_4552;
+pub(crate) const HEADER_MAGIC: u32 = 0x4C50_4552;
 /// The header's version.
-pub const HEADER_VERSION: u32 = 0x50400;
+pub(crate) const HEADER_VERSION: u32 = 0x50400;
 /// The header's version of a replay with the extra tape (the inputs of cars 2 and 3 after
 /// each block's frame, `drive::replay_frames::EXTRA_TAPE_BYTES`): written only for a race of
 /// more than two players, so every earlier replay and every one- or two-player replay keeps
@@ -22,7 +22,7 @@ pub const HEADER_VERSION: u32 = 0x50400;
 pub const HEADER_VERSION_EXTRA_TAPE: u32 = 0x50401;
 
 /// The header's version for a replay with or without the extra tape.
-pub fn header_version(extra_tape: bool) -> u32 {
+pub(crate) fn header_version(extra_tape: bool) -> u32 {
     if extra_tape {
         HEADER_VERSION_EXTRA_TAPE
     } else {

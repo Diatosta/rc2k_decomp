@@ -16,7 +16,7 @@ use crate::system::owner::System;
 const PATH_ROOM: usize = 0x100;
 
 /// What both checks write into the script's entry, but for the string's id.
-pub fn set_script_entry(install: &crate::install::owner::Install, text_id: u16) {
+pub(super) fn set_script_entry(install: &crate::install::owner::Install, text_id: u16) {
     // The entry of the installer's script: two bytes, a string's id, and
     // 0xBD (the second item's text) = the installer runs.
     install.pages.main_menu.items[0].first.set(5);

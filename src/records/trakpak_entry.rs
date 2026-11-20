@@ -11,12 +11,12 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::records::stages_store::{Piece, RecordRef, StageTables, TrackEntry, TrackField};
 
-pub fn loaded_pack_id(stages: &StageTables) -> u32 {
+fn loaded_pack_id(stages: &StageTables) -> u32 {
     stages.trak_pak.pack_id.get()
 }
 
 /// Reported when a record belongs to another track pack.
-pub const INVALID_HEADER: FatalError = FatalError {
+const INVALID_HEADER: FatalError = FatalError {
     code: 0x8070_DA00,
     message: "Invalid TrakPak Header",
 };

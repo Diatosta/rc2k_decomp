@@ -102,7 +102,7 @@ pub fn race_mode(mode: u32) -> u32 {
 
 /// The built-in pad's names: the stock OS's, and Knulli's (whose SDL map for it has the sticks
 /// and Start wrong). Both send the same key and axis codes, so one map serves them.
-pub fn is_built_in_pad(name: &str) -> bool {
+pub(super) fn is_built_in_pad(name: &str) -> bool {
     matches!(name, "ANBERNIC-keys" | "Anbernic RG34XX-SP Controller")
 }
 
@@ -110,7 +110,7 @@ pub fn is_built_in_pad(name: &str) -> bool {
 /// (`/dev/input/js0`): the kernel's button order (A 304 .. R3 316), the sticks' four axes, and the
 /// cross as a hat (SDL makes one of the node's two hat axes). The buttons by their printed names,
 /// so A enters as labelled.
-pub fn pad_mapping(guid: &str) -> String {
+pub(super) fn pad_mapping(guid: &str) -> String {
     format!(
         "{guid},Anbernic built-in pad,a:b0,b:b1,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,back:b6,\
          start:b7,guide:b8,leftstick:b9,lefttrigger:b10,righttrigger:b11,rightstick:b12,\
@@ -167,7 +167,7 @@ fn on_profile(sample: Sample) {
 }
 
 /// The timer started if `RC2K_PROFILE` is set: 500 samples of processor time a second.
-pub fn start_profile() {
+fn start_profile() {
     if std::env::var_os("RC2K_PROFILE").is_none() {
         return;
     }

@@ -14,7 +14,7 @@ use crate::sound::sets_store::SoundRequest;
 /// The logic is `rc2k_core::sound::cars::one_off`.
 ///
 /// The waiting cue sound of object `so`, through `request`.
-pub fn car_cue_sound(
+pub(super) fn car_cue_sound(
     so: &crate::sound::store::SoundObject,
     request: &SoundRequest,
     owner: &crate::sound::owner::Sound,

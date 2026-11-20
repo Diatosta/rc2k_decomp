@@ -46,7 +46,7 @@ pub struct Page {
     by_class: bool,
 }
 
-pub const CLASS_RALLY: Page = Page {
+const CLASS_RALLY: Page = Page {
     heading: Heading::Titles(0x4EA, 0x4ED),
     time: 0x18,
     check: (0x18, 0x18),
@@ -58,13 +58,13 @@ pub const OVERALL_RALLY: Page = Page {
     check: (0x18, 0x18),
     by_class: false,
 };
-pub const CLASS_STAGE: Page = Page {
+const CLASS_STAGE: Page = Page {
     heading: Heading::Record,
     time: 0x14,
     check: (0x14, 0x14),
     by_class: true,
 };
-pub const OVERALL_STAGE: Page = Page {
+const OVERALL_STAGE: Page = Page {
     heading: Heading::Record,
     time: 0x14,
     check: (0x14, 0x14),
@@ -72,7 +72,7 @@ pub const OVERALL_STAGE: Page = Page {
 };
 
 /// Draws one page.
-pub fn draw_results_page(
+fn draw_results_page(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     page: &Page,

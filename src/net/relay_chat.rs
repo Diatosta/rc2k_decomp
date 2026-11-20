@@ -10,7 +10,7 @@ use rc2k_core::net::message::Message;
 
 /// `text` (without its NUL), written by the player with DirectPlay id `author`, sent to every
 /// player but this machine's own.
-pub fn relay_chat(net: &Net, author: u32, text: &[u8]) -> Result<(), Refused> {
+pub(super) fn relay_chat(net: &Net, author: u32, text: &[u8]) -> Result<(), Refused> {
     let line = Message::ChatRelayed {
         sequence: net.next_chat_sequence(),
         author,

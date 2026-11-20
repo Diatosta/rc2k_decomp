@@ -176,7 +176,7 @@ pub fn hline_runs(
 }
 
 /// `length` pixels from x, y downwards, clipped; at the top clip what is cut is -y.
-pub fn vline(x: i32, y: i32, length: i32, clip: &Clip, s: &Surface) -> Plan {
+pub(crate) fn vline(x: i32, y: i32, length: i32, clip: &Clip, s: &Surface) -> Plan {
     let mut plan = Plan {
         bits: s.bits,
         ..Plan::default()

@@ -7,7 +7,7 @@ use crate::install::vars::StringRecord;
 use rc2k_core::install::layout;
 
 /// The records of `table` drawn at (x, y) on. An empty table is refused.
-pub fn draw_string_list(
+pub(super) fn draw_string_list(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     table: &[&StringRecord],
     x: u32,

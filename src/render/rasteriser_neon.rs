@@ -10,9 +10,9 @@
 use core::arch::aarch64::*;
 
 #[allow(non_camel_case_types)]
-pub type __m128 = float32x4_t;
+pub(super) type __m128 = float32x4_t;
 #[allow(non_camel_case_types)]
-pub type __m128i = int32x4_t;
+pub(super) type __m128i = int32x4_t;
 
 macro_rules! neon {
     ($(fn $name:ident($($a:ident: $t:ty),*) -> $r:ty $body:block)*) => {

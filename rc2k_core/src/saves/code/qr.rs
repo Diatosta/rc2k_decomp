@@ -8,7 +8,7 @@
 use qrcode::{Color, EcLevel, QrCode};
 
 /// How many letters the largest code holds in the alphanumeric mode at the lowest correction.
-pub const MOST_LETTERS: usize = 4296;
+pub(crate) const MOST_LETTERS: usize = 4296;
 
 /// A QR code's modules, row by row, true for dark; the quiet zone is not in them.
 #[derive(Clone, Debug, PartialEq, Eq)]

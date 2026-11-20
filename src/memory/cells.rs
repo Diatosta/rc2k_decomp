@@ -270,7 +270,7 @@ pub fn copy_cells<F: ByteView, T: ByteView>(from: (&F, usize), to: (&T, usize), 
 /// # Panics
 /// When the two differ in size.
 #[cfg(test)]
-pub fn copy_whole<F: ByteView, T: ByteView>(from: &F, to: &T) {
+fn copy_whole<F: ByteView, T: ByteView>(from: &F, to: &T) {
     assert_eq!(size_of::<F>(), size_of::<T>(), "two records of one layout");
     copy_cells((from, 0), (to, 0), size_of::<F>());
 }
@@ -283,7 +283,7 @@ pub fn copy_whole<F: ByteView, T: ByteView>(from: &F, to: &T) {
 /// # Panics
 /// When the records differ in size, or their cells do not line up.
 #[cfg(test)]
-pub fn merge_cell_changes<T: ByteView, F: ByteView>(to: &T, now: &F, start: &F) {
+fn merge_cell_changes<T: ByteView, F: ByteView>(to: &T, now: &F, start: &F) {
     let size = size_of::<T>();
     assert_eq!(size, size_of::<F>(), "two records of one layout");
     let mut at = 0;

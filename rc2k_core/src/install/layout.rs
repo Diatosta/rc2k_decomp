@@ -219,7 +219,7 @@ pub fn rows(count: u32, box_of: impl Fn(u32) -> u32) -> Result<Vec<(u32, u32, u3
 
 /// A drawing list's record's bytes: dx, dy and two dwords (a font and a string, or a
 /// glyph and a palette).
-pub const LIST_RECORD: u32 = 0x10;
+pub(crate) const LIST_RECORD: u32 = 0x10;
 
 /// A drawing list of `count` records: each record's offset in the table and the number of
 /// records left while it is drawn (this one counted), in order. Refused: a count of 0.

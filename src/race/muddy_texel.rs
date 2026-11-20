@@ -22,7 +22,7 @@ pub fn shuffled_place(race: &Race, n: u32) -> (u32, u32) {
 }
 
 /// The texture worked on, or the refusal (also without the mud).
-pub fn texture_and_mud(
+pub(super) fn texture_and_mud(
     shared: &RaceShared,
     mud: &crate::memory::owned::Owned<Vec<u8>>,
 ) -> Result<u32, Refused> {
@@ -37,7 +37,7 @@ pub fn texture_and_mud(
 }
 
 /// The mud's strength for texture `n` at (x, y).
-pub fn strength_at(
+pub(super) fn strength_at(
     mud: &crate::memory::owned::Owned<Vec<u8>>,
     n: u32,
     x: u32,

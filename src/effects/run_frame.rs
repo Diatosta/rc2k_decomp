@@ -152,7 +152,7 @@ pub struct FrameK {
 }
 
 /// FrameK's first values.
-pub static FRAME_K: FrameK = FrameK {
+pub(super) static FRAME_K: FrameK = FrameK {
     share_k: 100.0_f32,
     times: [100.0, 100.0, 100.0],
 };

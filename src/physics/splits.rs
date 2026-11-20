@@ -11,7 +11,11 @@ use crate::physics::car_store::Car;
 /// Split `split`'s time into the car. The splits run to 0x3F (`split_due` refuses a later one),
 /// past the sixteen figures of `split_times`: they go into the car's next fields, named here in the
 /// car's order (a split past the 64 is refused).
-pub fn put_split_time(car: &Car, split: usize, v: u32) -> Result<(), crate::errors::BadInput> {
+pub(super) fn put_split_time(
+    car: &Car,
+    split: usize,
+    v: u32,
+) -> Result<(), crate::errors::BadInput> {
     if let Some(time) = car.split_times.get(split) {
         time.set(v);
         return Ok(());

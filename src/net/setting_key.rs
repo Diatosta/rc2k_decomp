@@ -8,7 +8,7 @@ use crate::net::owner::Net;
 use rc2k_core::net::chat;
 
 /// The key `key` for the setting being edited.
-pub fn setting_key(
+pub(super) fn setting_key(
     strings: &crate::strings::owner::Strings,
     list_state: &crate::menu::list_state::ListState,
     net: &'static Net,

@@ -95,9 +95,9 @@ impl PixelValues {
     }
 }
 
-pub const TEXTURED: i32 = 1;
-pub const TEXTURE_HAS_ALPHA: i32 = 2;
-pub const FOG: i32 = 4;
+pub(super) const TEXTURED: i32 = 1;
+pub(super) const TEXTURE_HAS_ALPHA: i32 = 2;
+pub(super) const FOG: i32 = 4;
 /// The batch draws a second pass over its first in the same draw (`Batch::second`).
 pub const SECOND: i32 = 8;
 

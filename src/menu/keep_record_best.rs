@@ -36,7 +36,7 @@ fn current_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInput>
     )
 }
 
-pub fn keep_record_best(menus: &Menus, system: &System) -> Result<(), Refused> {
+pub(super) fn keep_record_best(menus: &Menus, system: &System) -> Result<(), Refused> {
     let players = counted_players(&menus.screens, &menus.play)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());

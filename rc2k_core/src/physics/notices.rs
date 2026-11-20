@@ -21,7 +21,7 @@ pub struct Notice {
 }
 
 /// The notice raised by `value_notice`.
-pub const VALUE_NOTICE: u32 = 0xCE;
+pub(crate) const VALUE_NOTICE: u32 = 0xCE;
 const VALUE_THRESHOLD: u32 = 300;
 
 impl Notice {

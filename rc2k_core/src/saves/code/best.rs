@@ -490,7 +490,7 @@ pub fn merge_rallies(
     Ok(())
 }
 
-pub fn check_rallies(times: &[RallyTime]) -> Result<(), CodeError> {
+pub(crate) fn check_rallies(times: &[RallyTime]) -> Result<(), CodeError> {
     for t in times {
         if usize::from(t.rally) >= RALLIES || t.list >= 2 || t.entry.len() != TIME_LEN {
             return Err(CodeError::Range("a rally time of the wrong place or size"));
@@ -580,7 +580,7 @@ pub fn merge_records(
     placed
 }
 
-pub fn check_records(records: &[StageRecord]) -> Result<(), CodeError> {
+pub(crate) fn check_records(records: &[StageRecord]) -> Result<(), CodeError> {
     for r in records {
         if r.group > 1 || usize::from(r.event) >= EVENTS || usize::from(r.index) >= MOST_RECORDS {
             return Err(CodeError::Range("a stage record of a place there is not"));

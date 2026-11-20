@@ -40,7 +40,7 @@ pub struct Details<T> {
 
 /// The typing cursor: the name measured from x, string 4 after it while the blink is 1.
 /// Returns the cursor text's `too_wide`.
-pub fn name_cursor<S: Screen<Font = Font, Work = Work>>(
+pub(crate) fn name_cursor<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     name: S::Text,
     x: i32,

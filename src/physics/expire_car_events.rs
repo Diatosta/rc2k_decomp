@@ -11,7 +11,7 @@ use crate::physics::car_store::Car;
 use crate::physics::queue_car_event::{load, store};
 use crate::physics::tables_store::PhysicsTables;
 
-pub fn expire_car_events(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
+pub(super) fn expire_car_events(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
     let was = load(car);
     let mut q = was;
     q.expire(tables.scene_clock.get())?;

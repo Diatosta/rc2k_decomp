@@ -7,10 +7,10 @@ use crate::errors::BadInput;
 use crate::memory::place::BytePlace;
 use rc2k_core::install::config;
 
-pub const LANGUAGE_SLOT: usize = config::SLOT;
-pub const LANGUAGE_SLOTS: usize = config::SLOTS;
+pub(super) const LANGUAGE_SLOT: usize = config::SLOT;
+pub(super) const LANGUAGE_SLOTS: usize = config::SLOTS;
 
-pub fn choose_language(
+pub(super) fn choose_language(
     install: &'static crate::install::owner::Install,
     number: u32,
 ) -> Result<(), BadInput> {

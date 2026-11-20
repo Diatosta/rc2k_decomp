@@ -26,7 +26,7 @@ pub struct Overlay {
 
 /// The overlay of `st`, a typed static with a recorded layout (`Laid`): its fields hold the
 /// bytes the buffer has at their places.
-pub fn overlay_laid<T: Laid>(st: &'static T) -> Overlay {
+pub(super) fn overlay_laid<T: Laid>(st: &'static T) -> Overlay {
     Overlay {
         start: T::START,
         runs: T::RUNS,
@@ -43,7 +43,7 @@ pub fn overlay_laid<T: Laid>(st: &'static T) -> Overlay {
 
 /// Runs `f` with each overlay's static holding the bytes the buffer `mk` has there; what the
 /// statics hold afterwards goes into the buffer, and the statics are put back as they were.
-pub fn with_overlays<R>(mk: Operand, overlays: &[Overlay], f: impl FnOnce() -> R) -> R {
+pub(super) fn with_overlays<R>(mk: Operand, overlays: &[Overlay], f: impl FnOnce() -> R) -> R {
     let place =
         |o: &Overlay, r: &crate::effects::asm_layout::Run| (o.start + r.at).wrapping_sub(START);
     // Every piece must fit the buffer before any is touched.

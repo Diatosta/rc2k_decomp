@@ -13,7 +13,7 @@ use crate::race::owner_shared::RaceShared;
 /// The HUD's layout: `split`, or 0 while one view is drawn (`views` 1).
 /// `split` alone is 1 / 2 in a replay after a split-screen race while its one view fills the
 /// screen (fixed: `wiki/Fixed-bugs.md`, "Split-screen divider left in a replay").
-pub fn shown_layout(shared: &RaceShared) -> u32 {
+pub(super) fn shown_layout(shared: &RaceShared) -> u32 {
     {
         let views = shared.view.get().views.get();
         if views == 1 {

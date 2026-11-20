@@ -62,7 +62,8 @@ pub struct Corner {
     pub slope: f32,
 }
 
-pub fn scale_corner(word: impl Fn(u32) -> u16, scale: f32) -> Corner {
+#[cfg(test)]
+pub(crate) fn scale_corner(word: impl Fn(u32) -> u16, scale: f32) -> Corner {
     let mut values = [0.0f32; 8];
     for (k, &o) in CORNER_PAIRS.iter().enumerate() {
         for h in 0..2 {

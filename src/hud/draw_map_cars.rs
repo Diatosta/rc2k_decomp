@@ -14,7 +14,7 @@ pub(crate) const RECT: u32 = 0x5D;
 
 /// The markers of the disc of view `slot` (0 to 3), after the disc is set up (its turn and size are
 /// the disc's own). With `scaled` the markers shrink as the two players' layouts' sprites do.
-pub fn draw_map_cars(
+pub(super) fn draw_map_cars(
     frame: &Frame,
     hud: &Hud,
     pen: Pen,

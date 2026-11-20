@@ -13,7 +13,7 @@
 //! `RC2K_ERROR_DIALOG` to show it), or
 //! when the window has been closed, nothing is drawn and the caller carries on as before.
 
-pub mod recover;
+pub(crate) mod recover;
 
 use crate::gfx::typefaces::fonts;
 use crate::owners::Owners;
@@ -53,7 +53,7 @@ static WAITING: AtomicBool = AtomicBool::new(false);
 static SHOWING: AtomicBool = AtomicBool::new(false);
 
 /// Called once on the game's thread: the dialog may be drawn from here on.
-pub fn publish(o: Owners<'static>) {
+pub(super) fn publish(o: Owners<'static>) {
     OWNERS.with(|owners| owners.set(Some(o)));
 }
 
@@ -82,7 +82,7 @@ fn own(o: Owners<'static>, id: u32) -> String {
 }
 
 /// The notice text for `id` with its "{}" replaced by `with`, in the language in use.
-pub fn text_with(id: u32, with: &str) -> String {
+pub(super) fn text_with(id: u32, with: &str) -> String {
     let template = match OWNERS.with(Cell::get) {
         Some(o) => own(o, id),
         None => rc2k_core::files::ansi::ansi_text(
@@ -106,7 +106,7 @@ pub fn notice(text: &str) {
 /// A notice that waits for the next menu frame, where a panel over a running race would stall
 /// it (a network race's), from a thread that is not the game's: the text is made in the language in
 /// use when the notice is shown, not here.
-pub fn notice_own_later(key: &str, id: u32, with: &str) {
+pub(super) fn notice_own_later(key: &str, id: u32, with: &str) {
     if first_time(key) {
         crate::program_log::log(&format!("notice: {}", text_with(id, with)));
         queue_item(Queued::Own {
@@ -117,7 +117,7 @@ pub fn notice_own_later(key: &str, id: u32, with: &str) {
 }
 
 /// `notice_own_later` for a notice that is wanted every time it happens (not once for the run).
-pub fn notice_own_each_time(id: u32, with: &str) {
+pub(super) fn notice_own_each_time(id: u32, with: &str) {
     crate::program_log::log(&format!("notice: {}", text_with(id, with)));
     queue_item(Queued::Own {
         id,
@@ -127,7 +127,7 @@ pub fn notice_own_each_time(id: u32, with: &str) {
 
 /// `notice_once` for a thread that is not the game's (the audio thread's): the notice waits for
 /// the game's thread to show it, in the language in use.
-pub fn notice_own_once(key: &str, id: u32, with: &str) {
+pub(super) fn notice_own_once(key: &str, id: u32, with: &str) {
     if OWNERS.with(Cell::get).is_some() {
         notice_once(key, &text_with(id, with));
     } else {
@@ -164,7 +164,7 @@ fn first_time(key: &str) -> bool {
 
 /// `notice`, once for each `key` in the run: a file that fails every time it is asked for (a
 /// picture of the menus) tells the player once.
-pub fn notice_once(key: &str, text: &str) {
+pub(super) fn notice_once(key: &str, text: &str) {
     if first_time(key) {
         notice(text);
     }
@@ -180,7 +180,7 @@ pub fn file_name(path: &[u8]) -> String {
 }
 
 /// The notices that waited for a window, shown now.
-pub fn show_pending() {
+pub(super) fn show_pending() {
     if !WAITING.load(Ordering::SeqCst) {
         return;
     }
@@ -224,7 +224,7 @@ pub fn fatal(text: &str) {
 /// the question's appearing: it is shown dimmed with the seconds left, and the keys pass it
 /// over. True only for a Yes. No for a screen that cannot
 /// show the dialog (nothing is asked, so nothing is done).
-pub fn ask_yes(title_id: u32, question_id: u32, hold_secs: u32) -> bool {
+pub(super) fn ask_yes(title_id: u32, question_id: u32, hold_secs: u32) -> bool {
     let Some(o) = ready() else {
         crate::program_log::log("error_dialog: a question could not be shown: no");
         return false;
@@ -242,7 +242,7 @@ pub fn ask_yes(title_id: u32, question_id: u32, hold_secs: u32) -> bool {
 /// A trouble the game goes back to the main menu from: shown with "Main menu" and "Quit".
 /// True when the player chose to go on at the main menu (also where no dialog can be shown:
 /// an unattended run goes on).
-pub fn ask_back(text: &str) -> bool {
+pub(super) fn ask_back(text: &str) -> bool {
     crate::program_log::log(&format!("error: {text}"));
     // The trouble's own words are the program's (English); the lead-in is in the language in use.
     let shown = text_with(rc2k_core::strings::own::id::BACK_TO_MENU, text);

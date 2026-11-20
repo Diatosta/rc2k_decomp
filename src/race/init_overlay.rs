@@ -19,7 +19,7 @@ use crate::race::owner::Race;
 const ONE: u32 = 0x3F80_0000;
 
 /// Sets up the overlay's stage parts (see the module header).
-pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::hud::layout_common::start_gear_log();
     race.frame
         .panel_and_overlay

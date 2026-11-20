@@ -15,7 +15,7 @@
 mod bench;
 mod draw;
 mod layer2d;
-pub mod mip_levels;
+pub(crate) mod mip_levels;
 mod present;
 mod programs;
 mod sources;
@@ -556,7 +556,7 @@ fn note_if_slow(what: &str, since: std::time::Instant, bytes: usize) {
 }
 
 /// Every pixel of the canvas marked as not written.
-pub fn mark_unwritten(canvas: &mut [u8]) {
+pub(super) fn mark_unwritten(canvas: &mut [u8]) {
     canvas.as_chunks_mut::<4>().0.fill(UNWRITTEN.to_le_bytes());
 }
 

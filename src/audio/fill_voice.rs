@@ -8,7 +8,7 @@ use crate::audio::own::AudioThread;
 use crate::audio::samples::fill_voice;
 use crate::errors::Refused;
 
-pub fn fill_voice_in_game(
+pub(super) fn fill_voice_in_game(
     audio: &AudioThread,
     at: u32,
     record: crate::audio::voices::SampleRecord,

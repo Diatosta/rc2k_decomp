@@ -28,7 +28,7 @@ pub fn draw(random: u32) -> (u32, u32) {
 }
 
 /// The kinds past which a car has no views 2 and 3.
-pub const LAST_VIEW_KIND: u32 = 0x16;
+pub(crate) const LAST_VIEW_KIND: u32 = 0x16;
 
 /// The mode drawn as kept: 2 and 3 become 4 when the first car's kind is past
 /// `LAST_VIEW_KIND`, or (`two()` with two cars) the second's; asked only as needed.
@@ -48,7 +48,7 @@ pub fn kept_mode(
 }
 
 /// The frames between two draws for a car.
-pub const DRAW_GAP: u32 = 3;
+pub(crate) const DRAW_GAP: u32 = 3;
 
 /// What a replay frame does with one car's camera wish.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,11 +80,11 @@ pub fn wish_step(wish: u32, frame: u32, last: u32, view: impl FnOnce() -> u32) -
 }
 
 /// The levels' top, and the first level from which a rare draw may set the flag.
-pub const LEVEL_TOP: u32 = 0x40;
+pub(crate) const LEVEL_TOP: u32 = 0x40;
 pub const RARE_FROM: u32 = 0x38;
 
 /// A level held to 0 ..= `LEVEL_TOP` (signed).
-pub fn held_level(v: u32) -> u32 {
+pub(crate) fn held_level(v: u32) -> u32 {
     let v = if (v as i32) < 0 { 0 } else { v };
     if (v.wrapping_sub(LEVEL_TOP) as i32) < 0 {
         v

@@ -6,7 +6,7 @@ use crate::install::choose_language::{LANGUAGE_SLOT, LANGUAGE_SLOTS, choose_lang
 use rc2k_core::install::config;
 
 /// Sets base directory A, the locale directory and the media mode the record names.
-pub fn apply_record(record: &config::Record) -> Result<(), BadInput> {
+pub(super) fn apply_record(record: &config::Record) -> Result<(), BadInput> {
     for (directory, text) in [(0, &record.base), (1, &record.locale)] {
         if let Some(text) = text {
             crate::files::state::write_directory(directory, text, false, "an installer path")?;
@@ -37,7 +37,7 @@ pub fn apply_sku(install: &crate::install::owner::Install, sku: &config::Sku) {
 
 /// Stores the languages found, keeps the usable slots at the front, counts them and chooses
 /// the first.
-pub fn apply_languages(
+pub(super) fn apply_languages(
     install: &'static crate::install::owner::Install,
     languages: &config::Languages,
 ) -> Result<(), BadInput> {
@@ -55,6 +55,6 @@ pub fn apply_languages(
 }
 
 /// Makes `directory` (with its NUL) what `%` stands for in a path.
-pub fn apply_locale(directory: &[u8]) -> Result<(), BadInput> {
+pub(super) fn apply_locale(directory: &[u8]) -> Result<(), BadInput> {
     crate::files::state::write_directory(1, directory, true, "the locale directory")
 }

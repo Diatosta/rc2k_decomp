@@ -6,7 +6,7 @@
 //! (0x10 and up: drawn by its item), its string, its item, then place and size.
 
 /// The most pieces a page has room for.
-pub const MOST_PIECES: u32 = 85;
+pub(crate) const MOST_PIECES: u32 = 85;
 /// The fatal error of an item of a kind the installer does not know.
 pub const UNKNOWN_KIND: u32 = 0x80A9_7451;
 

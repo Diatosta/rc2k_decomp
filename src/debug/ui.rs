@@ -84,7 +84,7 @@ type NotedView = ([f32; 16], f32, [f32; 2]);
 /// drawing (the mirror) changes them, so they are noted here (`note_view`).
 static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
 
-pub fn note_view(frame: &Frame, scene: &crate::scene::owner::Scene) {
+pub(super) fn note_view(frame: &Frame, scene: &crate::scene::owner::Scene) {
     let view = (
         std::array::from_fn(|n| frame.matrices.get().view_matrix[n].get()),
         scene.scratch.main_view(0).polygon.window.view_scale.get(),

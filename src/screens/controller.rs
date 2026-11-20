@@ -162,7 +162,7 @@ fn back_hold(input: &Input, down: bool, ticks: u32) -> BackHold {
 }
 
 /// What the controller page reads: refused before anything.
-pub fn controller_page_refuses<'m>(
+pub(super) fn controller_page_refuses<'m>(
     menus: &'m Menus,
     input: &Input,
 ) -> Result<crate::menu::standings::PlayerCell<'m>, Refused> {

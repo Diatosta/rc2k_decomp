@@ -228,9 +228,9 @@ pub enum GearboxTurn {
 }
 
 /// The inputs word's bits 8 ..= 11; `NONE_ASKED` in them means no gear asked for.
-pub const ASKED_MASK: u32 = 0xF00;
+pub(crate) const ASKED_MASK: u32 = 0xF00;
 /// The asked-gear bits' value when no gear is asked for.
-pub const NONE_ASKED: u32 = 0xE00;
+pub(crate) const NONE_ASKED: u32 = 0xE00;
 
 /// Chooses the turn from the car's finish, the race mode, the start timer (by sign against
 /// 0x320), the grade mode, the inputs word and the box's kind, each asked only where it is read.

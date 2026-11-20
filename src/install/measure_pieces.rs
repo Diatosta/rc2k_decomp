@@ -19,7 +19,7 @@ fn font_of(
     crate::install::vars::InstallerPages::font_of(install, index)
 }
 
-pub fn measure_pieces(
+pub(super) fn measure_pieces(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     strings: &'static Strings,

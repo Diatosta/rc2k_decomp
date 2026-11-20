@@ -45,7 +45,7 @@ fn prepare(
 }
 
 /// `record` is the body's record, `object` the car's object.
-pub fn emit_body_particles(
+pub(super) fn emit_body_particles(
     effects: &Effects,
     record: &MarkRecord,
     object: &CarEffects,

@@ -9,7 +9,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::system::owner::System;
 
-pub fn play_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
+pub(super) fn play_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
     let Some(whole) = rc2k_core::drive::race_steps::play_frame(
         race.course.numbers.get().replay_mode.get(),
         || {

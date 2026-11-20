@@ -240,7 +240,7 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
 
 /// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0 when the list
 /// has no room.
-pub fn palette_place(
+pub(super) fn palette_place(
     fonts: &crate::gfx::owner::FontStores,
     list: &crate::memory::ListCells,
 ) -> Result<u32, Refused> {

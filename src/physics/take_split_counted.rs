@@ -22,7 +22,7 @@ use rc2k_core::physics::progress::{
 };
 
 // Core: `rc2k_core::physics::progress::{split_due, finished_at}`.
-pub fn take_split_counted(
+pub(super) fn take_split_counted(
     o: crate::owners::Owners<'static>,
     physics: &Physics,
     league: &League,

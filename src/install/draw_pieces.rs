@@ -53,7 +53,7 @@ fn fit_path_end(path: &[u8], caret: &[u8], widest: u32, width: impl Fn(&[u8]) ->
     with(low)[..with(low).len() - caret.len()].to_vec()
 }
 
-pub fn draw_pieces(
+pub(super) fn draw_pieces(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
     strings: &'static Strings,

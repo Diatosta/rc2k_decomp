@@ -31,7 +31,7 @@ pub fn start_race_clock(now: u32, sound: &crate::sound::owner::Sound) {
 
 /// `sound::step_race_clock`: true if 20 ms or more have passed since the last turn, which then
 /// becomes this one. The logic is `rc2k_core::sound::clock`; nothing is stored when no turn is due.
-pub fn step_race_clock(now: u32, sound: &crate::sound::owner::Sound) -> bool {
+pub(super) fn step_race_clock(now: u32, sound: &crate::sound::owner::Sound) -> bool {
     let clock = sound.race.clock.get();
     let mut c = load(clock);
     let due = c.step(now);

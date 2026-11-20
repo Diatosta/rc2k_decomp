@@ -260,7 +260,7 @@ fn windscreen_drops_with(
 }
 
 /// `effects::set_up_windscreen_drops`' x87 version, for `effects::load_edges`.
-pub fn set_up_windscreen_drops(
+pub(super) fn set_up_windscreen_drops(
     drops: &WindscreenDrops,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
@@ -288,7 +288,7 @@ fn windscreen_flakes_with(
 }
 
 /// `effects::set_up_windscreen_flakes`' x87 version, for `effects::load_edges`.
-pub fn set_up_windscreen_flakes(
+pub(super) fn set_up_windscreen_flakes(
     pong: &crate::effects::pong::Pong,
     fl: &WindscreenFlakes,
     effects: &crate::effects::owner::Effects,

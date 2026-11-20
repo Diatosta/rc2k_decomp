@@ -2,7 +2,7 @@
 //! table and colour, the mirror's window, the grid cells round the view and the sound spots.
 
 /// The draw distance's highest level.
-pub const MOST_LEVEL: i32 = 4;
+pub(crate) const MOST_LEVEL: i32 = 4;
 
 /// The draw distance level held to 0 ..= 4 by sign.
 pub fn draw_distance_level(level: u32) -> u32 {
@@ -18,9 +18,6 @@ pub fn grid_reach(reach: u32) -> u32 {
         reach
     }
 }
-
-/// The noise map's side (64 x 64 bytes).
-pub const NOISE_SIDE: u32 = 64;
 
 /// What `sample_noise` works out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,9 +70,6 @@ pub fn sample_noise(map: impl Fn(u32) -> u8, px: u32, pz: u32) -> NoiseSample {
         high,
     }
 }
-
-/// The fog table's longest (bytes).
-pub const MOST_FOG: u32 = 0x1000;
 
 /// What `fog_table` reads besides the noise.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -158,7 +152,7 @@ pub fn fog_table(noise: u32, s: &FogSettings) -> Fog {
 }
 
 /// The course grid's row: 32 cells, 0x20 dwords apart.
-pub const GRID_ROW: u32 = 0x20;
+pub(crate) const GRID_ROW: u32 = 0x20;
 
 /// The `side` x `side` cells from (`from`, `from`) on the grid's diagonal, row by row (3 from
 /// reach - 1 for the environment; 5 from reach - 2 for the sound spots).
@@ -189,11 +183,11 @@ pub fn visible_records(grid: impl IntoIterator<Item = u32>, count: u32) -> Vec<u
 }
 
 /// The sound spots' object (the face's kind is 0xFF).
-pub const SPOT_OBJECT: u8 = 0x3F;
+pub(crate) const SPOT_OBJECT: u8 = 0x3F;
 /// The most sound spots.
 pub const MOST_SPOTS: u32 = 0x24;
 /// The highest sound a spot has (from 1).
-pub const MOST_SPOT_SOUND: u32 = 0x15;
+pub(crate) const MOST_SPOT_SOUND: u32 = 0x15;
 
 /// Whether a face of `kind` and `object` is a sound object.
 pub fn sound_object(kind: u8, object: u8) -> bool {
@@ -357,7 +351,7 @@ pub fn mirror_entry(first: u32, view: u32, second_set: bool) -> u32 {
 }
 
 /// The mirror's width and height on an 800 x 600 screen.
-pub const MIRROR_SIZE: (u32, u32) = (0xB3, 0x40);
+pub(crate) const MIRROR_SIZE: (u32, u32) = (0xB3, 0x40);
 
 /// `n` x `size` / `of` (unsigned, 64 bits over 32), even; None where the division would fault.
 fn scaled(n: u32, size: u32, of: u32) -> Option<u32> {
@@ -401,9 +395,9 @@ pub fn mirror_window(
 }
 
 /// The sound spots a frame makes and the sound side's table holds.
-pub const MOST_SHARED_SPOTS: u32 = 36;
+pub(crate) const MOST_SHARED_SPOTS: u32 = 36;
 /// A sound spot's bytes.
-pub const SPOT_BYTES: u32 = 0x14;
+pub(crate) const SPOT_BYTES: u32 = 0x14;
 
 /// The bytes of the frame's spots handed to the sound side; refused past 36.
 pub fn shared_spot_bytes(count: u32) -> Result<u32, crate::Invalid> {

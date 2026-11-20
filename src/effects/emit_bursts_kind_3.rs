@@ -21,7 +21,7 @@ fn second(effects: &Effects) -> BurstSet<'_> {
     }
 }
 
-pub fn emit_bursts_kind_3(
+pub(super) fn emit_bursts_kind_3(
     effects: &Effects,
     wheel: &MarkRecord,
     object: &CarEffects,

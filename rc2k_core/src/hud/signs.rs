@@ -5,9 +5,9 @@
 /// The signs a record holds.
 pub const SIGNS: usize = 4;
 /// The width of a sign's place.
-pub const PLACE_WIDTH: u32 = 0x40;
+pub(crate) const PLACE_WIDTH: u32 = 0x40;
 /// The rectangle of sign 1 in the HUD's rectangles; 0x10 bytes each.
-pub const FIRST_RECTANGLE: u32 = 0x4C;
+pub(crate) const FIRST_RECTANGLE: u32 = 0x4C;
 
 /// A row: `y`, or `lift` higher with the switch 0.
 pub fn row(y: u32, lift: u32, switch: u32) -> u32 {

@@ -207,7 +207,7 @@ pub fn int_div_div_doubled(a: i32, b: u32, c: u32) -> u32 {
 
 /// `math::turn_scratch_xz`'s turn: x' = x cos + z sin, z' = z cos - x sin, each rounded
 /// once, written back over x and z.
-pub fn turn_in_place(sine: u32, cosine: u32, x: &mut u32, z: &mut u32) {
+pub(super) fn turn_in_place(sine: u32, cosine: u32, x: &mut u32, z: &mut u32) {
     let (s, c) = (bh::ld(sine), bh::ld(cosine));
     let (xv, zv) = (bh::ld(*x), bh::ld(*z));
     let new_x = xv * c + zv * s;
@@ -373,7 +373,7 @@ pub fn cosine_step(c: i32, m: i32, t: u32, a: u32) -> u32 {
 /// Three floats at `row` each times `c` over their length: the root of
 /// `x x + (y y + z z)`, `c / root`, then each times that, rounded once and stored in turn.
 /// (On a copy of the three floats' bits.)
-pub fn scale_row_bits(row: [u32; 3], c: u32) -> [u32; 3] {
+pub(super) fn scale_row_bits(row: [u32; 3], c: u32) -> [u32; 3] {
     let [x, y, z] = row.map(bh::ld);
     let k = bh::ld(c) / (x * x + (y * y + z * z)).sqrt();
     [bh::st(k * x), bh::st(k * y), bh::st(k * z)]
@@ -475,7 +475,7 @@ pub fn add_to_int(a: u32, b: u32) -> i32 {
 
 /// `frndint`: `x` rounded to a whole number as this thread's control word says, kept a
 /// double.
-pub fn round_f64(x: f64) -> f64 {
+pub(super) fn round_f64(x: f64) -> f64 {
     match rounding() {
         Rounding::Nearest => x.round_ties_even(),
         Rounding::Down => x.floor(),
@@ -739,7 +739,7 @@ fn matrix_turn(m: &[u32; 15], a: bh::X, b: bh::X, c: bh::X, translate: bool) -> 
 /// `effects::emit_exhaust_smoke`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m`
 /// (its rows 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
 /// `lift`, z.
-pub fn turned_place_less(
+pub(super) fn turned_place_less(
     t: [u32; 3],
     k: u32,
     d: u32,
@@ -893,7 +893,7 @@ pub fn int_over_int_times(a: i32, b: i32, k: u32) -> u32 {
 
 /// `effects::clip_quad`'s crossing: t = (m - fc) / (fs - fc), then for each (s, c) pair
 /// (s - c) t + c, t kept unrounded.
-pub fn clip_lerp3(m: u32, fc: u32, fs: u32, pairs: [[u32; 2]; 3]) -> [u32; 3] {
+pub(super) fn clip_lerp3(m: u32, fc: u32, fs: u32, pairs: [[u32; 2]; 3]) -> [u32; 3] {
     let t = (bh::ld(m) - bh::ld(fc)) / (bh::ld(fs) - bh::ld(fc));
     pairs.map(|[s, c]| bh::st((bh::ld(s) - bh::ld(c)) * t + bh::ld(c)))
 }
@@ -932,7 +932,7 @@ pub fn column_turn(p: &[[u8; 10]; 3], m: &(impl crate::math::cells::Cells + ?Siz
 /// `effects::draw_particle`'s square: q = focal / c, kept; z' = c zk; s = size q; Y = -(q b) + cy
 /// and X = q a + cx kept unrounded, the corners Y - s, Y - s, Y + s, Y + s and X - s, X + s,
 /// X + s, X - s (s as stored). Out: [s, z', y0 .. y3, x0 .. x3].
-pub fn particle_square(a: u32, b: u32, c: u32, k: [u32; 4], size: i32) -> [u32; 10] {
+pub(super) fn particle_square(a: u32, b: u32, c: u32, k: [u32; 4], size: i32) -> [u32; 10] {
     // k: focal, cx, cy, zk
     let q = bh::ld(k[0]) / bh::ld(c);
     let zp = bh::st(bh::ld(c) * bh::ld(k[3]));
@@ -983,7 +983,7 @@ pub fn int_times3_wave_plus(r: i32, k: [u32; 3], m: u32, a: u32, cosine: bool) -
 /// sides as stored); Y = -(q b) + cy and X = q a + cx kept unrounded, the corners Y - v1,
 /// Y - v2, Y + v1, Y + v2 and X - u1, X - u2, X + u1, X + u2. Out: [s, z', u1, v1, u2, v2,
 /// y0 .. y3, x0 .. x3].
-pub fn turned_sprite(
+pub(super) fn turned_sprite(
     a: u32,
     b: u32,
     c: u32,

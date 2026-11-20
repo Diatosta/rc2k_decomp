@@ -183,7 +183,7 @@ pub fn cells_around<E>(
 }
 
 /// Refused: faces that would be walked running to -1 or past the face count.
-pub fn check_contact_faces(first: u32, last: u32, face_count: u32) -> Result<(), Invalid> {
+pub(crate) fn check_contact_faces(first: u32, last: u32, face_count: u32) -> Result<(), Invalid> {
     if first <= last && first != NO_FACE && (last == NO_FACE || last >= face_count) {
         return Err(Invalid(
             "a record whose faces run to -1 or past g_courseFaceCount",

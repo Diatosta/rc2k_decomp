@@ -13,7 +13,11 @@ use crate::menu::player::PLAYERS;
 const CAR_LEN: usize = rc2k_core::saves::cars::SAVED_CAR_LEN;
 
 /// `file` is the savegame file; the saved cars start at byte `cars`.
-pub fn keep_player_settings(menus: &Menus, file: &dyn Store, cars: usize) -> Result<(), Refused> {
+pub(super) fn keep_player_settings(
+    menus: &Menus,
+    file: &dyn Store,
+    cars: usize,
+) -> Result<(), Refused> {
     for n in 0..PLAYERS {
         // The saved cars lie in the savegame file's buffer (`saves::load_savegame`'s cursor).
         let to = cars + n as usize * CAR_LEN;

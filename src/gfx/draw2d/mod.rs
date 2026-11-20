@@ -7,11 +7,11 @@
 //! funnels wrote; the quad check compares the GPU's two ways of drawing it). Glyphs drawn on the
 //! screen are also noted as quads for the GPU (`quads`), which needs no recording.
 
-pub mod check;
+pub(crate) mod check;
 #[cfg_attr(handheld, path = "quad_check_none.rs")]
-pub mod quad_check;
-pub mod quads;
-pub mod replay;
+pub(crate) mod quad_check;
+pub(crate) mod quads;
+mod replay;
 
 use crate::gfx::blit_glyph::{BlitCall, Scratch};
 use rc2k_core::gfx::raster::{Clip, Surface};
@@ -227,7 +227,7 @@ pub fn palette_state(fonts: &crate::gfx::owner::FontStores, handle: u32) -> Opti
 }
 
 /// The frame so far and what the funnels wrote, taken: the next frame starts empty.
-pub fn take_frame() -> (Frame, Vec<u8>, bool) {
+fn take_frame() -> (Frame, Vec<u8>, bool) {
     let mut rec = recorder();
     let frame = std::mem::take(&mut rec.frame);
     rec.latest.clear();

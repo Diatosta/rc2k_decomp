@@ -289,7 +289,7 @@ impl LabelTables {
 
 /// The 101 label lists: the image's 98 in its order, then the axes pages' and the advanced page's (the first 101 fields of
 /// `LabelTables`, one after the other).
-pub fn label_lists(labels: &LabelTables) -> [&LabelList; 101] {
+fn label_lists(labels: &LabelTables) -> [&LabelList; 101] {
     [
         &labels.single_rally_review_labels,
         &labels.arcade_review_options_labels,
@@ -828,7 +828,7 @@ impl MenuTables {
 pub struct MenuId(u16);
 
 /// The number of menus.
-pub const MENU_COUNT: u16 = 99;
+const MENU_COUNT: u16 = 99;
 
 impl MenuId {
     fn table(self) -> &'static rc2k_core::menu::tables::Menu {

@@ -4,14 +4,19 @@
 //! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where it is stored.
 //! The three sums are one product or quotient of floats: correctly rounded at any precision.
 
-use super::x87::{below, loaded, negated};
+#[cfg(test)]
+use super::x87::negated;
+use super::x87::{below, loaded};
+#[cfg(test)]
 use crate::Invalid;
 
+#[cfg(test)]
 /// The ratio table's entries: reverse (-1) ..= gear 7.
-pub const RATIOS: usize = 9;
+pub(crate) const RATIOS: usize = 9;
 
+#[cfg(test)]
 /// The gear's place in the ratio table (gear + 1), or None in neutral; refused outside -1 ..= 7.
-pub fn ratio_index(gear: i32) -> Result<Option<usize>, Invalid> {
+pub(crate) fn ratio_index(gear: i32) -> Result<Option<usize>, Invalid> {
     if gear == 0 {
         return Ok(None);
     }
@@ -42,9 +47,10 @@ pub fn revs_from_speed(speed: f32, ratio: f32) -> f32 {
     (speed as f64 / ratio as f64) as f32
 }
 
+#[cfg(test)]
 /// A driven speed brought toward 0 by `step`, never past it. A speed of 0 or not a number is
 /// left (None); one that reaches or crosses 0 becomes +0.
-pub fn settle_speed(speed: f32, step: f32) -> Option<f32> {
+pub(crate) fn settle_speed(speed: f32, step: f32) -> Option<f32> {
     if speed == 0.0 || speed.is_nan() {
         return None;
     }
@@ -69,9 +75,10 @@ pub fn drops_to_neutral(
     switch != 0 && gear != 0 && below(engine as f64, limit as f64) && block() == 0
 }
 
+#[cfg(test)]
 /// What the ratios are made from.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct GearSetup {
+pub(crate) struct GearSetup {
     /// The forward gears.
     pub count: u32,
     /// The top gear's ends and the first's.
@@ -89,6 +96,7 @@ pub struct GearSetup {
     pub neutral: f32,
 }
 
+#[cfg(test)]
 fn setup_ratio(ends: [f32; 2], s: &GearSetup) -> f32 {
     let (a, b) = (ends[0] as f64, ends[1] as f64);
     (((a - b) * s.factor as f64 * s.gearing as f64 + b)
@@ -96,11 +104,12 @@ fn setup_ratio(ends: [f32; 2], s: &GearSetup) -> f32 {
         / s.engine_speed_limit as f64) as f32
 }
 
+#[cfg(test)]
 /// The ratios (reverse ..= gear 7) and the step between gears. The top gear's and the first's
 /// come from the setup; gears 2 ..= 5 follow in even steps, the sixth and seventh one more
 /// step each only past five and six gears (with four gears the fourth is a step's); reverse is
 /// the first's negative and neutral's is copied. A count above 7 is refused.
-pub fn make_ratios(s: &GearSetup, ratios: &mut [f32; RATIOS]) -> Result<f32, Invalid> {
+pub(crate) fn make_ratios(s: &GearSetup, ratios: &mut [f32; RATIOS]) -> Result<f32, Invalid> {
     if s.count > 7 {
         return Err(Invalid("a gear count above 7 (past g_gearRatios)"));
     }

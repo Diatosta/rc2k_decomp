@@ -33,7 +33,7 @@ pub fn store(car: &Car, was: &CarEvents, now: &CarEvents) {
     set_changed(&car.car_event_position, was.shown, now.shown);
 }
 
-pub fn queue_car_event(
+pub(super) fn queue_car_event(
     car: &Car,
     tables: &PhysicsTables,
     esi: u32,

@@ -76,7 +76,7 @@ pub const SILENT_KIND: u32 = 8;
 
 /// A car whose wheels move no faster than this (a whole number of the game's wheel-speed
 /// units) is taken as nearly still.
-pub const STILL_SPEED: u32 = 5;
+pub(crate) const STILL_SPEED: u32 = 5;
 
 /// What the surface effect is asked for, and the kind the steering effects go by.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

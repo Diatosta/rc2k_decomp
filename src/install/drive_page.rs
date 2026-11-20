@@ -6,7 +6,7 @@ use crate::memory::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
 /// `state`: which call of the list action this is (0 the start, negative the end).
-pub fn drive_page(
+pub(super) fn drive_page(
     install: &'static crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
     state: u32,

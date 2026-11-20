@@ -7,7 +7,7 @@ use crate::audio::own::AudioThread;
 use crate::audio::voices::{GamePool, lists, store_lists};
 use crate::errors::Refused;
 
-pub fn stop_all_voices(audio: &AudioThread) -> Result<(), Refused> {
+pub(super) fn stop_all_voices(audio: &AudioThread) -> Result<(), Refused> {
     let mut l = lists(&audio.state);
     rc2k_core::audio::voices::stop_all(&mut GamePool::new(audio), &mut l)?;
     store_lists(&audio.state, &l);

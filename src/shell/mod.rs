@@ -13,11 +13,11 @@
 
 #[cfg(target_os = "android")]
 pub mod android;
-pub mod events;
-pub mod film;
-pub mod frame;
-pub mod timing_report;
+pub(crate) mod events;
+pub(crate) mod film;
+pub(crate) mod frame;
+mod timing_report;
 #[cfg(touch_screen)]
-pub mod touch_menu;
+pub(crate) mod touch_menu;
 #[cfg(not(handheld))]
-pub mod window_follow;
+mod window_follow;

@@ -83,7 +83,7 @@ impl<'a> StringTable<'a> {
 
 /// String `index` of a list of NUL-terminated strings, without its NUL; an `index` of 0 or less
 /// is the first.
-pub fn nth_string(list: &[u8], index: i32) -> &[u8] {
+pub(crate) fn nth_string(list: &[u8], index: i32) -> &[u8] {
     let mut rest = list;
     for _ in 0..index.max(0) {
         rest = match rest.iter().position(|&c| c == 0) {

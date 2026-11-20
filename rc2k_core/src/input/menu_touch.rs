@@ -139,14 +139,14 @@ pub struct Gestures {
 /// A finger with no event for this long is taken as lifted whose lifting was never seen: the
 /// menus have no use for a finger held still, and one left in the list would turn the next
 /// finger into a pair, which taps nothing.
-pub const STALE_MS: u64 = 1500;
+pub(crate) const STALE_MS: u64 = 1500;
 
 /// A tap is shorter than this.
 const TAP_MS: u64 = 450;
 
 /// The second tap of a double tap comes within this after the first lifted, and within
 /// `DOUBLE_REACH` (of the screen's short side) of it. A single tap acts after this wait.
-pub const DOUBLE_MS: u64 = 200;
+pub(crate) const DOUBLE_MS: u64 = 200;
 const DOUBLE_REACH: f32 = 0.08;
 /// How far a finger may slide during a tap, as a share of the screen's shorter side: a finger
 /// tapping on a phone rolls a little, and a slide this short that made no step is still a tap.

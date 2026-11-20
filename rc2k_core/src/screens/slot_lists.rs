@@ -40,7 +40,7 @@ pub const SAVED_GAMES: Layout = Layout {
     past: "a page past the saved games' names",
 };
 
-pub const SETUPS: Layout = Layout {
+pub(crate) const SETUPS: Layout = Layout {
     font: Font::Setups,
     columns: [0xE9, 0x238],
     first_y: 0x44,

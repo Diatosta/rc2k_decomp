@@ -95,11 +95,6 @@ impl crate::memory::session::TextPlace for BytePlace {
 const PAST: BadInput = BadInput("past the end of a buffer");
 
 impl BytePlace {
-    /// Byte `at` of a record's bytes.
-    pub fn in_store(store: &'static dyn Store, at: usize) -> BytePlace {
-        BytePlace::Store(store, at)
-    }
-
     /// Whether both places start at the same byte: the same byte of the same memory (a
     /// buffer's byte is its record's at the buffer's offset);
     pub fn same_place(self, other: BytePlace) -> bool {
@@ -117,12 +112,6 @@ impl BytePlace {
             }
             BytePlace::Store(s, at) => s.first().wrapping_add(at),
         }
-    }
-
-    /// The dword here.
-    #[track_caller]
-    pub fn read_dword(self, what: &str) -> Result<u32, BadInput> {
-        Ok(u32::from_le_bytes(self.read_array::<4>(what)?))
     }
 
     /// `n` bytes on, in 32-bit arithmetic for both kinds (a "negative" `n` goes back), so 32- and

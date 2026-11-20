@@ -35,7 +35,7 @@ pub const END_WIDTH: u32 = 0x22;
 /// A tile's width.
 pub const TILE_WIDTH: u32 = 0x20;
 /// A frame's width beyond its text's.
-pub const FRAME_MORE: u32 = 0x44;
+pub(crate) const FRAME_MORE: u32 = 0x44;
 
 /// The tiles a frame takes for a text `width` wide: one per 32 pixels, at least one.
 pub fn tiles(width: u32) -> u32 {
@@ -310,7 +310,7 @@ pub fn upper_row_step(item: u32, to_next: bool, replay_kept: bool, host: bool) -
 }
 
 /// The furthest a time may be behind the first row's to be shown as a gap with a '+'.
-pub const MOST_GAP: u32 = 0x36_EE7F;
+pub(crate) const MOST_GAP: u32 = 0x36_EE7F;
 
 /// A lobby row's time shown: the value written, and whether a '+' goes over its first
 /// character. With gaps on, a time not the first row's is its difference from it, a '+'

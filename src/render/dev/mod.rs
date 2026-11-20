@@ -15,11 +15,11 @@
 //! | `RC2K_BACKGROUND_CHECK`, `RC2K_CHECK_SAME` | the GPU's second drawing and its comparison |
 
 #[cfg(not(handheld))]
-pub mod check;
-pub mod dump;
-pub mod gpu_cut;
-pub mod gpu_time;
-pub mod seethru;
+pub(crate) mod check;
+pub(crate) mod dump;
+pub(crate) mod gpu_cut;
+pub(crate) mod gpu_time;
+pub(crate) mod seethru;
 
 #[cfg(not(handheld))]
 use std::ffi::OsString;

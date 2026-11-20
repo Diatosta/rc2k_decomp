@@ -190,14 +190,14 @@ impl PoolBytes {
 
     /// The same bytes, `hook` called before each write through `write_at` or `write_value` (a
     /// write in place through `as_mut_ptr` does not call it). It may itself write.
-    pub fn with_write_hook(mut self, hook: fn()) -> Self {
+    pub(super) fn with_write_hook(mut self, hook: fn()) -> Self {
         self.before_write = Some(hook);
         self
     }
 
     /// As `from_vec`, the rows of `pitch` bytes written noted (`take_written_rows`), all of
     /// them written to begin with.
-    pub fn noting_rows(bytes: Vec<u8>, pitch: usize) -> Self {
+    pub(super) fn noting_rows(bytes: Vec<u8>, pitch: usize) -> Self {
         let rows = bytes.len() / pitch.max(1);
         let mut noting = Self::from_vec(bytes);
         noting.rows = Some(WrittenRows {

@@ -4,14 +4,14 @@
 use crate::Invalid;
 
 /// The dwords each view's colour buffer holds.
-pub const COLOUR_BUFFER_DWORDS: u32 = 0x40;
+pub(crate) const COLOUR_BUFFER_DWORDS: u32 = 0x40;
 
 /// The colour of a stretch not reached (the split colours' fill).
 pub const SPLIT_UNREACHED: u32 = 0xC;
 /// The colour of a split not above the one before.
-pub const SPLIT_SLOWER: u32 = 8;
+pub(crate) const SPLIT_SLOWER: u32 = 8;
 /// The colour of a split above the one before.
-pub const SPLIT_FASTER: u32 = 4;
+pub(crate) const SPLIT_FASTER: u32 = 4;
 
 /// The split colours' refusal: a fill or a split count past the colour buffer.
 pub fn check_split_colours(fill: u32, count: u32) -> Result<(), Invalid> {
@@ -78,7 +78,7 @@ pub struct ViewMarks {
 }
 
 /// The most marks a view shows.
-pub const MOST_MARKS: u32 = 4;
+pub(crate) const MOST_MARKS: u32 = 4;
 
 /// The panel marks for one view: its value, count and marks (asked for `shown` only).
 pub fn view_marks(offset: u32, count: u32, mark: impl Fn(u32) -> u32) -> ViewMarks {
@@ -110,7 +110,7 @@ pub fn car_lit(parts_shown: u32, lights: impl FnOnce() -> u32) -> bool {
 }
 
 /// The keys past which a sort entry's first dword stays 0.
-pub const SORT_KEY_LIMIT: u32 = 0x100_0000;
+pub(crate) const SORT_KEY_LIMIT: u32 = 0x100_0000;
 
 /// One sort entry: its first dword and the key (masked with 0x7FFFFFFF).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -66,7 +66,7 @@ fn refusal(
     })
 }
 
-pub fn emit_rolling_particles_rated(
+pub(super) fn emit_rolling_particles_rated(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,

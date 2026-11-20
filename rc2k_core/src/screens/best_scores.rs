@@ -53,12 +53,12 @@ pub enum Keep {
     Below4,
 }
 
-pub fn flag_glyph(nation: u32) -> u32 {
+pub(crate) fn flag_glyph(nation: u32) -> u32 {
     0x1C_u32.wrapping_add(nation)
 }
 
 /// A car's sprite (cars 0x18 and 0x19 swapped).
-pub fn car_glyph(car: u32) -> u32 {
+pub(crate) fn car_glyph(car: u32) -> u32 {
     let car = if (0x18..=0x19).contains(&car) {
         car ^ 1
     } else {

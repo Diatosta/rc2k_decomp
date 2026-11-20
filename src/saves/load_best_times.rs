@@ -18,7 +18,7 @@ use crate::system::owner::System;
 /// The best times file's name.
 pub static PATH: [u8; 12] = *b"var\\hst.dat\0";
 /// The path's length without its NUL.
-pub const PATH_LEN: usize = 11;
+pub(super) const PATH_LEN: usize = 11;
 
 const HEAD_LEN: usize = rc2k_core::saves::kept::HEAD_LEN;
 /// The tables of `allocate_best_times` the file holds, in the file's order.

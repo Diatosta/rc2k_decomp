@@ -13,7 +13,7 @@ use crate::math::x87;
 use crate::memory::session::{read_bits, write_bits};
 
 /// The ring's floats are `MASKS.ring_*` (from the two angles' ends to the step).
-pub const MOST_QUADS: u32 = 0x80;
+const MOST_QUADS: u32 = 0x80;
 const ENTRY: u32 = 0x18;
 
 /// The corner table in use (its number is held: 0 for A and 1 for B).
@@ -100,7 +100,7 @@ fn span_ring_quad(
 /// sines and cosines into the table `angles` (then the angles over the sines), and
 /// `span_ring_quad`; the angle on by pi over the count. Refuses a count of 0 or less or past
 /// 0x80, and runs or spans past their room, before writing.
-pub fn span_ring(
+pub(super) fn span_ring(
     masks: &Masks,
     s: &Shape,
     angles: &PlainBytes<1032>,

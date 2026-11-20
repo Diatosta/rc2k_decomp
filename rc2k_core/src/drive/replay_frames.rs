@@ -15,7 +15,7 @@ pub fn frame_and_tenth(clock: u32) -> (u32, u32) {
 }
 
 /// The kept slots of the four car blocks (0x3F80 bytes), by frame & 7.
-pub const SLOT_SIZE: u32 = 0x3F80;
+pub(crate) const SLOT_SIZE: u32 = 0x3F80;
 pub const SLOTS: u32 = 8;
 
 /// A frame's slot's offset.
@@ -25,8 +25,8 @@ pub fn slot_offset(frame: u32) -> u32 {
 
 /// The highest frame read, and the fatal errors past it and past a frame's tenths.
 pub const LAST_FRAME: u32 = crate::race::replay_v2::MOST_BLOCKS;
-pub const FRAME_PAST: u32 = 0x80A6_1151;
-pub const TENTH_PAST: u32 = 0x80A6_1152;
+pub(crate) const FRAME_PAST: u32 = 0x80A6_1151;
+pub(crate) const TENTH_PAST: u32 = 0x80A6_1152;
 
 /// The fatal error's code for reading a frame or a tenth past its end; None when both are in
 /// range.
@@ -65,7 +65,7 @@ pub fn flush_due(mode: u32, tenth: u32) -> bool {
 /// The cars on the tape of every replay.
 pub const TAPE_CARS: u32 = 2;
 /// The cars on the tape of a replay with the extra tape (3 and 4 player races).
-pub const EXTENDED_TAPE_CARS: u32 = 4;
+pub(crate) const EXTENDED_TAPE_CARS: u32 = 4;
 /// The cars the extra tape holds: cars 2 and 3.
 pub const EXTRA_TAPE_CARS: u32 = EXTENDED_TAPE_CARS - TAPE_CARS;
 
@@ -117,9 +117,10 @@ pub fn block_bytes(extended: bool) -> usize {
     }
 }
 
+#[cfg(test)]
 /// The inputs of cars 2 and 3 are recorded: a local race of more than two players (a network
 /// race's other machines keep their cars' state alone, as before).
-pub fn records_extra_tape(players: u32, network: bool) -> bool {
+pub(crate) fn records_extra_tape(players: u32, network: bool) -> bool {
     players > TAPE_CARS && !network
 }
 
@@ -156,7 +157,7 @@ pub const CAR_DWORDS: usize = 0x1A1;
 
 /// The starting state's pieces in order, each with its dwords, copied one after another when
 /// the cars are saved to a frame and loaded back.
-pub const START_PIECES: [(StartPiece, usize); 6] = [
+pub(crate) const START_PIECES: [(StartPiece, usize); 6] = [
     (StartPiece::Car(0), CAR_DWORDS),
     (StartPiece::Car(1), CAR_DWORDS),
     (StartPiece::Car(2), CAR_DWORDS),
@@ -180,11 +181,11 @@ pub fn start_layout() -> impl Iterator<Item = (StartPiece, usize, usize)> {
 /// The dwords of the loose parts (the race slots) in the starting state.
 pub const SLOT_DWORDS: usize = 0xF0;
 /// The dwords of the computer driver's state in the starting state.
-pub const EXTRA_DWORDS: usize = 0x100;
+pub(crate) const EXTRA_DWORDS: usize = 0x100;
 /// The dwords of the tape: a hundred tenths of 16 bytes.
 pub const TAPE_DWORDS: usize = 400;
 /// A replay frame as the file holds it (0x2810 bytes): the starting state, then the tape.
-pub const FRAME_DWORDS: usize = START_DWORDS + TAPE_DWORDS;
+pub(crate) const FRAME_DWORDS: usize = START_DWORDS + TAPE_DWORDS;
 pub const FRAME_BYTES: usize = 4 * FRAME_DWORDS;
 
 /// One frame of a replay file, field by field at the file's offsets (little-endian dwords; the

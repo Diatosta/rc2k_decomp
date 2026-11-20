@@ -5,7 +5,7 @@
 /// Records in a league table or a rally's times.
 pub const RECORDS: usize = 10;
 /// Dwords per league record from +0x10.
-pub const LEAGUE_ROWS: usize = 16;
+pub(crate) const LEAGUE_ROWS: usize = 16;
 
 /// The league table in race layout: each record's +8 (`firsts`) and its dwords from +0x10 as
 /// columns of sixteen rows.
@@ -32,7 +32,7 @@ pub fn league(mut record: impl FnMut(usize, u32) -> u32) -> League {
 
 /// A race's best-time record: the rally's +0xC, +8, +0x10, +0x14, then sixteen dwords from
 /// +0x5C (checkpoint times).
-pub type RaceTime = [u32; 20];
+pub(crate) type RaceTime = [u32; 20];
 
 /// Cuts one record down; `field(offset)` reads the rally record, asked in a fixed order.
 pub fn race_time(mut field: impl FnMut(u32) -> u32) -> RaceTime {

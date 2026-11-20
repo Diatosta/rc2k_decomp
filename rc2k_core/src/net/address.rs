@@ -4,10 +4,11 @@
 //! provider and DirectPlay's calls made on the receiving thread.
 
 /// An element's bytes.
-pub const ELEMENT_LEN: u32 = 0x18;
+pub(crate) const ELEMENT_LEN: u32 = 0x18;
 
+#[cfg(test)]
 /// Where element `count` goes in the table: no limit.
-pub fn element_at(count: u32) -> u32 {
+pub(crate) fn element_at(count: u32) -> u32 {
     count.wrapping_mul(ELEMENT_LEN)
 }
 

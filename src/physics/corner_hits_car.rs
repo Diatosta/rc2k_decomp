@@ -19,7 +19,7 @@ use crate::race::numbers_store::Numbers;
 use crate::scene::rotate_point::rotate_point;
 
 /// Whether the corner is inside (`corner_turned` .. written either way).
-pub fn corner_inside(contact: &ContactWork, numbers: &Numbers) -> bool {
+pub(super) fn corner_inside(contact: &ContactWork, numbers: &Numbers) -> bool {
     let k = numbers.k65536.get();
     let corner = contact
         .corner_in
@@ -33,7 +33,7 @@ pub fn corner_inside(contact: &ContactWork, numbers: &Numbers) -> bool {
 }
 
 /// `block` the other car's block.
-pub fn corner_hits_car(
+pub(super) fn corner_hits_car(
     c: &ContactInputs<'_>,
     block: &crate::physics::car_store::Car,
 ) -> Result<(), Refused> {

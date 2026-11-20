@@ -75,7 +75,7 @@ static COPIES: Mutex<Vec<Copy>> = Mutex::new(Vec::new());
 
 /// SDL's own browser driver no longer told of pads: its handlers are removed (it called them on
 /// the thread that started it, where the Gamepad API is not there).
-pub fn stop_sdl_driver() {
+pub(super) fn stop_sdl_driver() {
     // SAFETY: the calls remove the handlers SDL set (a null callback removes them) on the page's
     // window; no data is passed.
     let (connected, disconnected) = unsafe {

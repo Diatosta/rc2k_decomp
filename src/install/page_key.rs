@@ -73,7 +73,7 @@ pub fn page_key(
 /// The characters typed since the last frame go into the item if it is an edit being edited
 /// (as keys with the "character itself" bit; the scan codes of printable keys are not read
 /// meanwhile, see `input::typed_text`).
-pub fn type_into_edit(
+pub(super) fn type_into_edit(
     o: crate::owners::Owners<'static>,
     install: &'static crate::install::owner::Install,
     item: ListItem,

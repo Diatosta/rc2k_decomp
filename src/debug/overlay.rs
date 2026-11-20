@@ -19,7 +19,7 @@ pub fn frozen() -> bool {
 }
 
 /// The race frozen or let go.
-pub fn set_frozen(on: bool) {
+pub(super) fn set_frozen(on: bool) {
     FROZEN.store(on as u32, Ordering::Relaxed);
     crate::program_log::log(&format!("debug: race frozen {}", on as u32));
 }

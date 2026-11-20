@@ -22,7 +22,7 @@ pub struct Outcome {
 impl Outcome {
     /// The result of a read: the bytes read (0 when it did not get that far), carry a failure,
     /// zero success.
-    pub fn of_read(got: &ReadResult) -> Self {
+    pub(super) fn of_read(got: &ReadResult) -> Self {
         Self {
             eax: got.bytes_read.unwrap_or(0),
             carry: !got.ok,
@@ -44,7 +44,7 @@ pub fn unpack(buffer: &mut [u8], size: u32) -> Result<u32, Refused> {
 
 /// The file at `path` into `buffer`, whose length
 /// is the room.
-pub fn read_packed_file(path: &[u8], buffer: &mut [u8]) -> Result<Outcome, Refused> {
+pub(super) fn read_packed_file(path: &[u8], buffer: &mut [u8]) -> Result<Outcome, Refused> {
     let got = Outcome::of_read(&read(path, buffer)?);
     // A failed read leaves zero clear (`Outcome::of_read`), as a file not "SQSL" does.
     let failed = Outcome {

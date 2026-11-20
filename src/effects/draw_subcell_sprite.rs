@@ -46,7 +46,7 @@ fn square(
     clippy::too_many_arguments,
     reason = "the original's registers, the effects' groups and the owners"
 )]
-pub fn draw_subcell_sprite(
+pub(super) fn draw_subcell_sprite(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,

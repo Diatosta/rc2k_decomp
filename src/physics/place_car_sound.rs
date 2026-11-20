@@ -15,7 +15,7 @@ use crate::race::owner_shared::RaceShared;
 use crate::scene::rotate_point::rotate_point;
 
 /// The exact x87 version (for `physics::sound_on_bit`).
-pub fn place_car_sound(
+pub(super) fn place_car_sound(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     shared: &RaceShared,

@@ -13,11 +13,11 @@ use crate::menu::inspection::INSPECTED;
 pub const PARTS: usize = 14;
 
 /// The limit a part gets when its fitting is not all there or a switch says so.
-pub const SHORT_LIMIT: u32 = 0xA;
+pub(crate) const SHORT_LIMIT: u32 = 0xA;
 
 /// The bits of the player's +0x278 parts 1 and 13 need for the table's limit.
-pub const PART_1_FITTED: u32 = 0x1E0;
-pub const PART_13_FITTED: u32 = 0x1E;
+pub(crate) const PART_1_FITTED: u32 = 0x1E0;
+pub(crate) const PART_13_FITTED: u32 = 0x1E;
 
 /// What is read from the car's table (`CarTable.cars[0]`, entry `car`'s +0x74).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -32,7 +32,7 @@ pub struct Table {
 
 impl Table {
     /// Where part `k`'s pair starts.
-    pub fn pair_at(k: usize) -> usize {
+    pub(crate) fn pair_at(k: usize) -> usize {
         8 * (k / 2) + if k % 2 == 1 { 0x38 } else { 0 }
     }
 
@@ -105,7 +105,7 @@ pub struct Figures {
 }
 
 /// `span / steps * n`, rounded to a whole number: a part's share of its span by its wear.
-pub fn wear_share(span: u32, steps: f32, n: u32) -> u32 {
+pub(crate) fn wear_share(span: u32, steps: f32, n: u32) -> u32 {
     fistp64(span as i32 as f64 / steps as f64 * n as i32 as f64) as u32
 }
 

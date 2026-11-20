@@ -4,7 +4,9 @@
 use crate::errors::Refused;
 use crate::install::installer::{normalise, set_cd};
 
-pub fn open_installed(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub(super) fn open_installed(
+    install: &'static crate::install::owner::Install,
+) -> Result<(), Refused> {
     if normalise(&install.names.source, &install.paths.installed)?
         && set_cd(&install.paths.installed)
     {

@@ -10,19 +10,19 @@ use std::cmp::Ordering;
 const SCRATCH_ROOM: usize = 0x100;
 
 /// `text` written into the path buffer at `at`.
-pub fn scratch_put(at: usize, text: &[u8]) -> Result<(), BadInput> {
+pub(super) fn scratch_put(at: usize, text: &[u8]) -> Result<(), BadInput> {
     if at + text.len() > SCRATCH_ROOM {
         return Err(BadInput("a path past the path buffer"));
     }
     crate::files::state::PATHS.write_at(at, text, "the scratch path")
 }
 
-pub fn scratch_bytes() -> Result<Vec<u8>, BadInput> {
+pub(super) fn scratch_bytes() -> Result<Vec<u8>, BadInput> {
     crate::files::state::PATHS.read_at(0, SCRATCH_ROOM, "the scratch path")
 }
 
 /// The path buffer's text (up to its NUL).
-pub fn scratch_text() -> Result<Vec<u8>, BadInput> {
+pub(super) fn scratch_text() -> Result<Vec<u8>, BadInput> {
     let all = scratch_bytes()?;
     let n = all
         .iter()

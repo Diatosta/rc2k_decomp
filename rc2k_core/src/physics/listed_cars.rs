@@ -4,7 +4,7 @@
 use crate::Invalid;
 
 /// No entry.
-pub const NOT_LISTED: u32 = u32::MAX;
+pub(crate) const NOT_LISTED: u32 = u32::MAX;
 
 /// The current car's entry (a car past 7 is refused), and whether it is listed.
 pub fn listed_entry(car: u32, entry: impl FnOnce(u32) -> u32) -> Result<(u32, bool), Invalid> {
@@ -13,14 +13,6 @@ pub fn listed_entry(car: u32, entry: impl FnOnce(u32) -> u32) -> Result<(u32, bo
     }
     let e = entry(car);
     Ok((e, e != NOT_LISTED))
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CuePlace {
-    /// Queued first.
-    First = 0,
-    /// Queued last (the pace notes).
-    Last = 1,
 }
 
 /// A sound object's in-use flag value: it takes cues.

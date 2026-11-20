@@ -53,7 +53,7 @@ fn fill3(to: &[impl FloatLike], v: u32) {
 
 /// `record` the one the contact's force goes to (`contact_record`, set by each caller
 /// just before).
-pub fn contact_force(
+pub(super) fn contact_force(
     contact: &ContactWork,
     numbers: &Numbers,
     physics_tables: &PhysicsTables,

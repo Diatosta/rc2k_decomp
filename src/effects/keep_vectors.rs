@@ -5,7 +5,7 @@
 //! .. and `ViewSources.sources[0].factor` into `KeptView.kept_b.vector[0]` .. and
 //! `KeptView.kept_b.factor`.
 
-pub fn keep_vectors(effects: &crate::effects::owner::Effects) {
+pub(super) fn keep_vectors(effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
     let (k, s) = (&frame.kept_view, &frame.view_sources.sources);
     for (from, to) in [

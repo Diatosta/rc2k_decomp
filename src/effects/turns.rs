@@ -72,7 +72,7 @@ pub fn turn_pair(masks: &Masks, inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
 }
 
 /// `turn_pair` with a copy of the turn's nine floats.
-pub fn turn_pair_with(turn: &[PlainFloat; 9], inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
+pub(super) fn turn_pair_with(turn: &[PlainFloat; 9], inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     turn_pair_x87(&inputs, turn)
 }
 

@@ -418,12 +418,12 @@ impl InputDevice {
     }
 
     /// Byte `n` of `axis_code`.
-    pub fn axis_code_byte(&self, n: usize) -> u8 {
+    pub(super) fn axis_code_byte(&self, n: usize) -> u8 {
         self.axis_code.get().to_le_bytes()[n]
     }
 
     /// Byte `n` of `axis_pick`.
-    pub fn axis_pick_byte(&self, n: usize) -> u8 {
+    pub(super) fn axis_pick_byte(&self, n: usize) -> u8 {
         self.axis_pick.get().to_le_bytes()[n]
     }
 }
@@ -431,7 +431,7 @@ impl InputDevice {
 /// DirectInput's `DIJOYSTATE`.
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct DiJoyState {
+pub(super) struct DiJoyState {
     pub axes: [i32; 6],
     pub sliders: [i32; 2],
     pub hats: [u32; 4],
@@ -463,7 +463,7 @@ const _: () = assert!(size_of::<DiJoyState>() == 0x50);
 
 /// DirectInput's `DIDEVCAPS`.
 #[repr(C)]
-pub struct DiDevCaps {
+pub(super) struct DiDevCaps {
     pub size: u32,
     pub flags: u32,
     pub dev_type: u32,
@@ -480,7 +480,7 @@ pub struct DiDevCaps {
 /// DirectInput's `DIPROPHEADER`: the property's size, the header's, the object, how it
 /// is named (0 the device, 1 by offset).
 #[repr(C)]
-pub struct DiPropHeader {
+pub(super) struct DiPropHeader {
     pub size: u32,
     pub header_size: u32,
     pub object: u32,
@@ -489,14 +489,14 @@ pub struct DiPropHeader {
 
 /// DirectInput's `DIPROPDWORD`.
 #[repr(C)]
-pub struct DiPropDword {
+pub(super) struct DiPropDword {
     pub header: DiPropHeader,
     pub data: u32,
 }
 
 /// DirectInput's `DIPROPRANGE`.
 #[repr(C)]
-pub struct DiPropRange {
+pub(super) struct DiPropRange {
     pub header: DiPropHeader,
     pub min: i32,
     pub max: i32,

@@ -118,7 +118,7 @@ fn show_folder(install: &crate::install::owner::Install) {
 }
 
 /// `text` as the folder page's text (cut to its place, NUL-ended).
-pub fn put_typed(install: &crate::install::owner::Install, text: &[u8]) {
+pub(super) fn put_typed(install: &crate::install::owner::Install, text: &[u8]) {
     let typed = &install.paths.typed;
     let n = text.len().min(255);
     for (k, &b) in text[..n].iter().enumerate() {

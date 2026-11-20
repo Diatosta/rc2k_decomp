@@ -9,7 +9,7 @@ pub fn send(audio: &crate::audio::owner::Audio, command: Command) {
 }
 
 /// `send`, then `sound::wait_for_commands`.
-pub fn send_and_wait(o: crate::owners::Owners<'static>, command: Command) {
+pub(super) fn send_and_wait(o: crate::owners::Owners<'static>, command: Command) {
     send(o.audio, command);
     wait_for_commands(&mut Game { o });
 }

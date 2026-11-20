@@ -69,7 +69,7 @@ pub struct PadMarker {
 }
 
 /// The keyboard and the mouse.
-pub struct InputMain {
+struct InputMain {
     /// The keyboard layout and the typed-key state.
     pub keyboard: Keyboard,
     /// The mouse position and buttons.

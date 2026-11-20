@@ -22,7 +22,7 @@ pub fn block(shared: &RaceShared, n: u32) -> Result<&Car, BadInput> {
 }
 
 /// The car block's dword the core's race state and overlay tables name.
-pub fn block_word(car: &Car, word: BlockWord) -> Result<&PlainDword, BadInput> {
+pub(super) fn block_word(car: &Car, word: BlockWord) -> Result<&PlainDword, BadInput> {
     const OUT: BadInput = BadInput("a car block entry the race state does not have");
     Ok(match word {
         BlockWord::NoticeId => &car.notice_id,

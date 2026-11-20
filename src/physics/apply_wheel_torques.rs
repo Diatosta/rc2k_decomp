@@ -7,7 +7,7 @@ use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::PhysicsTables;
 const COUNT: usize = 0x17;
 
-pub fn apply_wheel_torques(
+pub(super) fn apply_wheel_torques(
     tables: &PhysicsTables,
     contact: &ContactWork,
     car: &Car,

@@ -13,7 +13,7 @@ use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
 
-pub fn stall_when_still(car: &Car, tables: &PhysicsTables) {
+pub(super) fn stall_when_still(car: &Car, tables: &PhysicsTables) {
     let kept = &tables.kept_motion;
     let length = rounded_value(vector_length(kept));
     if compare_full(length, ZERO) & 0x4000 == 0 {

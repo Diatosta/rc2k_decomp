@@ -13,13 +13,13 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use crate::owners::Owners;
 
 /// `menu::show_intro`: the films (idle mode), then back.
-pub fn show_intro(o: Owners<'static>) -> Result<(), Refused> {
+pub(super) fn show_intro(o: Owners<'static>) -> Result<(), Refused> {
     crate::menu::play_films::play_films(o, true)?;
     crate::menu::go_back::go_back(o.menus);
     Ok(())
 }
 
-pub fn previous_save_page(tables: &Tables) {
+pub(super) fn previous_save_page(tables: &Tables) {
     tables
         .pages
         .save_page
@@ -30,7 +30,7 @@ pub fn previous_save_page(tables: &Tables) {
 }
 
 /// The steering (page 3) or brake (page 4) box.
-pub fn open_service_box(screens: &Screens, page: u32) {
+pub(super) fn open_service_box(screens: &Screens, page: u32) {
     screens
         .state
         .service_ui
@@ -73,7 +73,7 @@ pub fn new_simulation_if_unlocked(o: crate::owners::Owners<'static>) -> Result<(
 
 /// `menu::start_arcade`: the arcade's level and stage 0, the first player's units taken
 /// and the arcade event run.
-pub fn start_arcade(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn start_arcade(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, play) = (o.menus, &o.menus.play);
     play.arcade.level.set(0);
     play.arcade.stage.set(0);

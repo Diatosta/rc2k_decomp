@@ -5,7 +5,7 @@
 use crate::Invalid;
 
 /// The room for the body's points (0x40 each).
-pub const POINT_ROOM: u32 = 0x40;
+pub(crate) const POINT_ROOM: u32 = 0x40;
 
 /// Refuses a deepest-point number the tables do not hold.
 pub fn check_body_point(n: u32) -> Result<(), Invalid> {
@@ -58,7 +58,7 @@ pub fn kind_hits(kind: u32) -> bool {
 }
 
 /// The room of the objects' tables.
-pub const OBJECT_ROOM: u32 = 0x100;
+pub(crate) const OBJECT_ROOM: u32 = 0x100;
 
 /// Refuses an object number the tables do not hold.
 pub fn check_object(object: u32) -> Result<(), Invalid> {

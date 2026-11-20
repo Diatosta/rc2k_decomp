@@ -5,19 +5,18 @@
 //! is stored (the same bits at the game's double precision, but for the cosines:
 //! `scene::trig`).
 
+#[cfg(test)]
 use crate::math::vector;
 use crate::scene::places::Places;
 use crate::scene::trig;
 
 /// The 2 x 2 turn a line gives: its four floats in their order in memory (m0 .. m3).
-pub type LineTurn = [f32; 4];
+pub(crate) type LineTurn = [f32; 4];
 
-/// The order the turn's floats are written in (dx, dy, -dy, dx).
-pub const LINE_TURN_ORDER: [usize; 4] = [0, 2, 1, 3];
-
+#[cfg(test)]
 /// `effects::set_line_turn` (`back` false) and `set_line_turn_back` (true): from the line's
 /// two ends, m0 and m3 dx, m2 minus dy (dy when `back`), m1 its negation.
-pub fn line_turn(from: [f32; 2], to: [f32; 2], back: bool) -> LineTurn {
+pub(crate) fn line_turn(from: [f32; 2], to: [f32; 2], back: bool) -> LineTurn {
     let dx = (to[0] as f64 - from[0] as f64) as f32;
     let dy = to[1] as f64 - from[1] as f64;
     let dy = if back { dy as f32 } else { -dy as f32 };
@@ -31,16 +30,18 @@ pub fn turn_pair(m: LineTurn, a: f64, b: f64) -> (f64, f64) {
     (a * m[3] + b * m[2], b * m[0] + a * m[1])
 }
 
+#[cfg(test)]
 /// One row of three floats made `length` long: `length` over the row's length (the last
 /// two squares added first), each times that, stored.
-pub fn scale_to_length(row: [f32; 3], length: f32) -> [f32; 3] {
+pub(crate) fn scale_to_length(row: [f32; 3], length: f32) -> [f32; 3] {
     let factor = length as f64 / vector::length(row);
     row.map(|x| (factor * x as f64) as f32)
 }
 
+#[cfg(test)]
 /// `effects::scale_rows3`: the three rows each made the length of their own (a row of no
 /// length gives NaNs).
-pub fn scale_rows(rows: [[f32; 3]; 3], lengths: [f32; 3]) -> [[f32; 3]; 3] {
+pub(crate) fn scale_rows(rows: [[f32; 3]; 3], lengths: [f32; 3]) -> [[f32; 3]; 3] {
     std::array::from_fn(|n| scale_to_length(rows[n], lengths[n]))
 }
 

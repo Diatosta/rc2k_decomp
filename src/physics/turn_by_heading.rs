@@ -5,7 +5,7 @@ use crate::math::rotate_float_point_about_y::rotate_float_point_about_y;
 use crate::physics::car_store::Car;
 
 /// `point` is the three floats (x, y, z); x and z are turned.
-pub fn turn_by_heading(
+pub(super) fn turn_by_heading(
     engine_tables: &crate::math::engine_tables::EngineTables,
     car: &Car,
     point: &[impl crate::memory::session::FloatLike; 3],

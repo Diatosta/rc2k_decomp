@@ -5,9 +5,6 @@ use crate::effects::particles::next_random;
 
 /// The items of each kind.
 pub const ITEMS: u32 = 0x800;
-/// The bytes of a square's and of a windscreen drop's item.
-pub const WINDSCREEN_FLAKE_LEN: u32 = 0x3C;
-pub const WINDSCREEN_DROP_LEN: u32 = 0x30;
 /// The items looked at for a free one.
 pub const WINDOW: u32 = 32;
 
@@ -18,10 +15,11 @@ pub struct Found {
     pub cursor: u32,
 }
 
+#[cfg(test)]
 /// The first free item (`is_free` of its offset: its +0 is 0) of the `WINDOW` from the cursor on,
 /// each step `len` on and back to 0 at the end (only there: a cursor that is not a multiple of
 /// `len` goes past the end); the cursor the item after the one found, or `WINDOW` items on.
-pub fn find_free(cursor: u32, len: u32, mut is_free: impl FnMut(u32) -> bool) -> Found {
+pub(crate) fn find_free(cursor: u32, len: u32, mut is_free: impl FnMut(u32) -> bool) -> Found {
     let end = ITEMS * len;
     let step = |at: u32| {
         let next = at.wrapping_add(len);
@@ -75,10 +73,11 @@ pub fn pick_windscreen_drop(seed: u32) -> Pick {
     }
 }
 
+#[cfg(test)]
 /// A new square's floats: its place (from whole numbers), its size (the kind & 7 times `size[0]`
 /// plus `size[1]`, stored).
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct NewWindscreenFlake {
+pub(crate) struct NewWindscreenFlake {
     pub x: f32,
     pub z: f32,
     pub size: f32,
@@ -86,7 +85,13 @@ pub struct NewWindscreenFlake {
     pub kind: u32,
 }
 
-pub fn new_windscreen_flake(x: u32, z: u32, kind: u32, size: [f32; 2]) -> NewWindscreenFlake {
+#[cfg(test)]
+pub(crate) fn new_windscreen_flake(
+    x: u32,
+    z: u32,
+    kind: u32,
+    size: [f32; 2],
+) -> NewWindscreenFlake {
     let k = kind & 7;
     NewWindscreenFlake {
         x: x as i32 as f32,

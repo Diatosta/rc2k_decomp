@@ -19,16 +19,16 @@ pub const TABLE_LEN: usize = 8 * rc2k_core::race::viewer::MOST_BLOCKS as usize;
 /// byte before it, the last byte of the replay block read (`block`, which ends where the cameras
 /// begin). Any other offset past the table is refused.
 #[derive(Clone, Copy)]
-pub struct CameraByte(u32);
+pub(super) struct CameraByte(u32);
 
 /// The byte `offset` on from the first block's cameras.
-pub fn camera_byte(offset: u32) -> CameraByte {
+pub(super) fn camera_byte(offset: u32) -> CameraByte {
     CameraByte(offset)
 }
 
 impl CameraByte {
     /// The byte `n` blocks on (8 bytes each).
-    pub fn blocks_on(self, n: u32) -> CameraByte {
+    pub(super) fn blocks_on(self, n: u32) -> CameraByte {
         CameraByte(self.0.wrapping_add(n.wrapping_mul(8)))
     }
 
@@ -64,7 +64,7 @@ const BLOCK_LAST: usize = 0xA03;
 
 /// The byte `offset` on from the first block's cameras (8 bytes a block); the offset is not
 /// checked against the table, see `CameraByte`.
-pub fn camera_byte_at(race: &Race, offset: usize) -> Result<u8, BadInput> {
+pub(super) fn camera_byte_at(race: &Race, offset: usize) -> Result<u8, BadInput> {
     camera_byte(offset as u32).read(race, "a replay camera byte")
 }
 
@@ -78,7 +78,7 @@ fn inside(table: &dyn Cells, at: usize, n: usize) -> Result<(), BadInput> {
 
 /// Copies `dwords` cells from `from`'s cell `from_at` on to `to`'s cell `to_at` on, forwards;
 /// past either table is refused before anything is written.
-pub fn move_cells(
+pub(super) fn move_cells(
     to: &dyn Cells,
     to_at: usize,
     from: &dyn Cells,
@@ -94,7 +94,7 @@ pub fn move_cells(
 }
 
 /// The same move within one table from the last dword down (for an overlapping move up).
-pub fn move_cells_back(
+pub(super) fn move_cells_back(
     table: &dyn Cells,
     to_at: usize,
     from_at: usize,
@@ -109,7 +109,7 @@ pub fn move_cells_back(
 }
 
 /// Sets `dwords` cells of `table` from `at` on to 0.
-pub fn clear_cells(table: &dyn Cells, at: usize, dwords: usize) -> Result<(), BadInput> {
+pub(super) fn clear_cells(table: &dyn Cells, at: usize, dwords: usize) -> Result<(), BadInput> {
     inside(table, at, dwords)?;
     for n in 0..dwords {
         table.set_bits(at + n, 0);

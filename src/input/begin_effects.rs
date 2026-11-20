@@ -7,7 +7,7 @@ use crate::input::owner::Input;
 
 /// The effects started with sound objects in use, and the
 /// effects' clock set.
-pub fn begin_effects(
+pub(super) fn begin_effects(
     input: &Input,
     sound: &crate::sound::store::SoundShared,
     picture_clock: &crate::clock::tick_count::PictureClock,

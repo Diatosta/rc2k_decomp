@@ -5,10 +5,10 @@
 /// The drivers the lot picks from (the first 0xB2).
 pub const PICKED: u32 = 0xB2;
 /// The time added to eight drivers: 0x4844 and a random number under 3000.
-pub const ADDED_FROM: u32 = 0x4844;
-pub const ADDED_BELOW: u32 = 3000;
+pub(crate) const ADDED_FROM: u32 = 0x4844;
+pub(crate) const ADDED_BELOW: u32 = 3000;
 /// How many drivers by lot get time added.
-pub const SLOWED: u32 = 8;
+pub(crate) const SLOWED: u32 = 8;
 /// A driver still running (+0x24) and one dropped out, with its times (+0xC, +0x10).
 pub const RUNNING: u32 = 1;
 pub const DROPPED: u32 = 4;

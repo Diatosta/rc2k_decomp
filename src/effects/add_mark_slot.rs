@@ -11,7 +11,7 @@ use crate::math::x87_float as bh;
 
 const TIME: u32 = 0x3C;
 
-pub fn add_mark_slot(what: u32, matrix: u32, effects: &crate::effects::owner::Effects) {
+pub(super) fn add_mark_slot(what: u32, matrix: u32, effects: &crate::effects::owner::Effects) {
     let blocks = &effects.blocks;
     for slot in blocks.slots.slots.iter().rev() {
         if slot.life.get() as i32 > 0 {

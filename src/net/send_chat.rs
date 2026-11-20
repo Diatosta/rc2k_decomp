@@ -9,7 +9,12 @@ use crate::net::add_chat_line::{add_chat_line, text_in};
 use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
 use rc2k_core::net::message::Message;
-pub fn send_chat(net: &Net, gfx: &'static Gfx, player: u32, message: &[u8]) -> Result<(), Refused> {
+pub(super) fn send_chat(
+    net: &Net,
+    gfx: &'static Gfx,
+    player: u32,
+    message: &[u8],
+) -> Result<(), Refused> {
     crate::net::drain_chat::drain_chat(net, gfx)?;
     let text = text_in(message)?;
     if net.vars.own.state().is_host() {

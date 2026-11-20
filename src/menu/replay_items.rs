@@ -8,7 +8,7 @@ use crate::race::replay_viewer::Mode;
 /// `menu::replay_item_a`: unless `RaceState.settings.no_replay` is 1, with a replay there
 /// (`ReplayFileBlock.replay_closed` 1) `race::replay_mode_1`; else half a second's pause (a key ends it) and the
 /// menu's sound 8.
-pub fn replay_item_a(
+pub(super) fn replay_item_a(
     race: &'static crate::race::owner::Race,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
@@ -29,7 +29,7 @@ pub fn replay_item_a(
 }
 
 /// `menu::replay_item_b`: unless `RaceState.settings.no_replay` is 1, `race::replay_mode_3`.
-pub fn replay_item_b(
+pub(super) fn replay_item_b(
     race: &'static crate::race::owner::Race,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
@@ -41,7 +41,7 @@ pub fn replay_item_b(
 
 /// `menu::replay_item_c`: the viewer's mode 2. The viewer stops the music, so the menus' tune is
 /// started again when it returns.
-pub fn replay_item_c(
+pub(super) fn replay_item_c(
     race: &'static crate::race::owner::Race,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {

@@ -70,7 +70,7 @@ impl DrawWork {
 impl DrawWork {
     /// What a sprite's square is projected by: the view's scale and centre (the front end's
     /// view window) and the depth scale.
-    pub fn view_k(&self, front: &crate::scene::polygon_work::PolygonWork) -> [f32; 4] {
+    pub(super) fn view_k(&self, front: &crate::scene::polygon_work::PolygonWork) -> [f32; 4] {
         let window = &front.window;
         [
             window.view_scale.get(),

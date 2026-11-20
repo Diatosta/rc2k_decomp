@@ -58,7 +58,7 @@ pub struct QuadWork {
 
 impl QuadWork {
     /// The second shadow's (`draw_shadow::second`) quad.
-    pub const fn new_1() -> Self {
+    pub(super) const fn new_1() -> Self {
         Self {
             place: [
                 PlainFloat::new(0.0),
@@ -110,7 +110,7 @@ impl QuadWork {
 
 impl QuadWork {
     /// The first shadow's (`draw_shadow::first`) quad.
-    pub const fn new_2() -> Self {
+    pub(super) const fn new_2() -> Self {
         Self {
             place: [
                 PlainFloat::new(0.0),
@@ -162,7 +162,7 @@ impl QuadWork {
 
 impl QuadWork {
     /// The plane's (`draw_plane`) quad.
-    pub const fn new_3() -> Self {
+    pub(super) const fn new_3() -> Self {
         Self {
             place: [
                 PlainFloat::new(0.0),
@@ -243,7 +243,7 @@ pub struct KindTables {
 }
 
 /// Set 1's tables.
-pub static TABLES_1: KindTables = KindTables {
+pub(super) static TABLES_1: KindTables = KindTables {
     copied: [const { [1.0, 0.0, 0.0] }; 34],
     from: [
         [0.0, -1.0, -1.0],
@@ -372,7 +372,7 @@ pub static TABLES_1: KindTables = KindTables {
 };
 
 /// Set 2's tables.
-pub static TABLES_2: KindTables = KindTables {
+pub(super) static TABLES_2: KindTables = KindTables {
     copied: [const { [1.0, 0.0, 0.0] }; 34],
     from: [
         [0.0, -1.0, -1.0],
@@ -561,7 +561,7 @@ pub struct KindConsts {
 }
 
 /// Set 1's constants.
-pub static CONSTS_1: KindConsts = KindConsts {
+pub(super) static CONSTS_1: KindConsts = KindConsts {
     size_k: 65.536_f32,
     start_k: 0.017453292_f32,
     step_k: 0.017453292_f32,
@@ -576,7 +576,7 @@ pub static CONSTS_1: KindConsts = KindConsts {
 };
 
 /// Set 2's constants.
-pub static CONSTS_2: KindConsts = KindConsts {
+pub(super) static CONSTS_2: KindConsts = KindConsts {
     size_k: 65.536_f32,
     start_k: 0.017453292_f32,
     step_k: 0.017453292_f32,

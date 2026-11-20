@@ -44,7 +44,7 @@ fn log_text(text: &std::ffi::CStr, newline: bool) {
     crate::logfile::log_write::log_nul(text.to_bytes(), newline, 1);
 }
 
-pub fn read_replay_header(race: &Race) {
+pub(super) fn read_replay_header(race: &Race) {
     // Logic in `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
     log_text(TITLE, true);
     for s in HEADER_SETTINGS {

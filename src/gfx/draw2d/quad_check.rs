@@ -36,7 +36,7 @@ pub fn only_2d() -> bool {
 
 /// What the funnels wrote on the screen since the last `take`, as the pixels the canvas would
 /// hold, the overlay's "unwritten" pixel where nothing.
-pub struct Interval(Vec<u8>);
+pub(super) struct Interval(Vec<u8>);
 
 impl Interval {
     pub const fn new() -> Interval {

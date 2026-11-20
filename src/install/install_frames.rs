@@ -23,7 +23,7 @@ fn bar_width(install: &crate::install::owner::Install) -> Result<u32, Refused> {
 }
 
 /// The progress frame; true when the last lock or show failed.
-pub fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
+pub(super) fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
     let (install, strings, gfx, system) = (o.install, o.strings, o.gfx, o.system);
     let drawing = &gfx.drawing;
     let width = bar_width(install)?;
@@ -76,7 +76,7 @@ pub fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused
 }
 
 /// The copying frame; true when the last lock or show failed.
-pub fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
+pub(super) fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
     let (install, gfx, system) = (o.install, o.gfx, o.system);
     let mut failed = false;
     for _ in 0..2 {

@@ -76,7 +76,7 @@ fn set(o: &Owners<'static>, x: StepOperand, v: i32) {
     x.set_with(o, v as u32);
 }
 
-pub fn option_item(o: Owners<'static>, item: Item) -> Result<(), Refused> {
+fn option_item(o: Owners<'static>, item: Item) -> Result<(), Refused> {
     let audio = o.audio;
     // The logic is in `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
     // `previous_mode`).
@@ -312,7 +312,11 @@ pub fn switch(o: Owners<'static>, which: OptionSwitch) -> Result<(), Refused> {
 
 /// `ItemFn::StageCounter { which, up }`: the stage group (0 .. 5) or the stage in its group
 /// (1 .. 6) shown by the stage pages, one less or one more, past an end the other end.
-pub fn stage_counter(o: Owners<'static>, which: StageCounter, up: bool) -> Result<(), Refused> {
+pub(super) fn stage_counter(
+    o: Owners<'static>,
+    which: StageCounter,
+    up: bool,
+) -> Result<(), Refused> {
     let (var, low, high) = match which {
         StageCounter::Group => (var!(@o menus.play.champ_view.shown_stage.group), 0, 5),
         StageCounter::InGroup => (var!(@o menus.play.champ_view.shown_stage.number), 1, 6),

@@ -7,7 +7,7 @@
 use crate::install::installer::wb;
 use rc2k_core::install::drives;
 
-pub fn list_drives(
+pub(super) fn list_drives(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
 ) {
@@ -71,7 +71,7 @@ pub fn list_drives(
 }
 
 /// The drive page's list for `count` drives.
-pub fn drive_list(count: u32) -> crate::install::page_links::ListId {
+pub(super) fn drive_list(count: u32) -> crate::install::page_links::ListId {
     use crate::install::page_links::ListId;
     match drives::menu(count) {
         drives::DriveMenu::Eight => ListId::Drives8,

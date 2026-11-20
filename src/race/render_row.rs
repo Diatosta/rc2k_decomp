@@ -34,7 +34,7 @@ pub const KEY_LEFT: u8 = 0x68;
 pub const KEY_ENTER: u8 = 0x1C;
 
 /// The lower row's buttons (the down arrow from them reaches the row).
-pub const LOWER_ROW: std::ops::RangeInclusive<u32> = 13..=25;
+pub(super) const LOWER_ROW: std::ops::RangeInclusive<u32> = 13..=25;
 
 /// The video file's name for a moment: `replay_YYYY-MM-DD_HH-MM-SS.mp4`.
 fn file_name(t: &rc2k_core::system::time::LocalTime) -> String {
@@ -47,7 +47,7 @@ fn file_name(t: &rc2k_core::system::time::LocalTime) -> String {
 /// Whether this build offers rendering a replay to a video: it starts a child process of the
 /// program and `ffmpeg`, which phones, the web build and the Vita cannot do, so the viewer shows no
 /// render button there.
-pub const OFFERED: bool = cfg!(not(any(
+pub(super) const OFFERED: bool = cfg!(not(any(
     target_os = "ios",
     target_os = "android",
     web,
@@ -129,7 +129,7 @@ pub fn fraction(race: &Race) -> f64 {
 /// Plays the part of the replay from `from` to `to` (hundredths of a second from its start; none:
 /// to its end), as the render of a program started for it does. The part ends at the whole second
 /// after `to`.
-pub fn play_range(
+pub(super) fn play_range(
     race: &'static Race,
     from: u32,
     to: Option<u32>,

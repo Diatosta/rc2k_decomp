@@ -43,7 +43,7 @@ fn setup_file_bytes(
 }
 
 /// True if the file was written.
-pub fn write_setup_slot(
+pub(super) fn write_setup_slot(
     menus: &Menus,
     service: &'static Service,
     slot: u32,

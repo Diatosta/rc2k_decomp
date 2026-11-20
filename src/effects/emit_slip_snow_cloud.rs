@@ -36,7 +36,7 @@ pub fn eleventh(effects: &Effects) -> JitterSet<'_> {
     }
 }
 
-pub fn emit_slip_snow_cloud(
+pub(super) fn emit_slip_snow_cloud(
     effects: &Effects,
     wheel: &MarkRecord,
     object: &CarEffects,

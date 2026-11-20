@@ -9,7 +9,7 @@ use crate::screens::draw_menu_labels::draw_menu_labels;
 use crate::text::draw_text::Canvas;
 
 /// Draws `menu`.
-pub fn draw_menu(
+pub(super) fn draw_menu(
     o: crate::owners::Owners<'static>,
     menu: crate::menu::menus_store::MenuId,
     canvas: &mut dyn Canvas,

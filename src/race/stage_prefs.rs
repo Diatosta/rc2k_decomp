@@ -15,12 +15,12 @@ fn prefs_paths(course: &Course) -> [&dyn Store; 2] {
     let p = course.level_paths();
     [&p.localdat_files, &p.localdat_src]
 }
-pub const LIGHT_RECORD_COUNT: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
+const LIGHT_RECORD_COUNT: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
 
 /// Loads the stage's preferences: `files\levels\levelxx\localdat`, then `srclvls\levelxx\localdat`
 /// laid over what the preferences hold, then the stage's texture swap, tweak and the cleared
 /// noise (`StagePrefsFile`), and the result stored.
-pub fn load_prefs(race: &Race) -> Result<(), Refused> {
+pub(super) fn load_prefs(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{PREFS_SIZE, StagePrefsFile};
     let course = &race.course;
     let held = course.stage_prefs.get();
@@ -42,7 +42,7 @@ pub fn load_prefs(race: &Race) -> Result<(), Refused> {
 }
 
 /// `race::reset_skid_slots`: sets the object's four skid slots to -1.
-pub fn reset_skid_slots(object: &crate::physics::car_store::Car) {
+fn reset_skid_slots(object: &crate::physics::car_store::Car) {
     for slot in &object.skid_slots {
         slot.set(u32::MAX);
     }
@@ -80,7 +80,7 @@ pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
 
 /// `race::load_lights_data`: reads `files\s\data\ldata` (0x1320 bytes at most) into the lights'
 /// data, then runs `copy_lights_data`.
-pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
+pub(super) fn load_lights_data(race: &Race) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_plain_bytes(
         &crate::files::cstring(&race.physics.camera().lights_path, "the lights data path")?,
         &race.course.lights_data().lights,

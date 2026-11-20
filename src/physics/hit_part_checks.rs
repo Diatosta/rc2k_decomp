@@ -13,7 +13,7 @@ use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::parts::parts_left;
 
 // Core: `rc2k_core::physics::parts::parts_left`.
-pub fn hit_part_checks(
+pub(super) fn hit_part_checks(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     shared: &RaceShared,

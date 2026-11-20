@@ -34,7 +34,7 @@ fn axles(race: &Race, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
 /// the steering (front only), placed at its axle with its height (+0x910 ..), into `part_matrices`
 /// (`FrameWork.part_matrices[48]`). Refused (before anything): axle values whose scaling would
 /// fault.
-pub fn car_part_matrices(
+fn car_part_matrices(
     race: &Race,
     car: usize,
     scene: &crate::scene::owner::Scene,
@@ -197,7 +197,10 @@ pub fn car_part_matrices(
 /// For each race car with its parts shown (+0x25C): `car_part_matrices`, then the six matrices kept
 /// in the block (+0x740 .. +0x8BF) and the body's turn times the car's (`view_place`) at +0x8C0.
 /// Refused (before anything): no race cars, more than eight, or one without its block.
-pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub(super) fn ready_car_parts(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let frame = &race.frame;
     use rc2k_core::race::car_parts::{KEPT_MATRICES, check_part_cars, parts_shown};
     let count = race.shared.view.get().race_cars.get();

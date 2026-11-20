@@ -64,7 +64,7 @@ pub fn shown_for(clock: u32, since: u32) -> u32 {
 }
 
 /// Room for the overlay's parts.
-pub const MOST_OVERLAY_PARTS: u32 = 0x40;
+pub(crate) const MOST_OVERLAY_PARTS: u32 = 0x40;
 
 /// The overlay's six list sizes.
 pub const OVERLAY_SIZES: [u32; 6] = [0x40, 0x80, 0x50, 0x40, 0x80, 0x50];

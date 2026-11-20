@@ -29,7 +29,7 @@ type Conn = u32;
 
 /// A handler for the answer of one asynchronous call: the answer's bytes, `None` when the call
 /// failed.
-pub type CallHandler = Box<dyn FnOnce(Option<&[u8]>) + Send>;
+type CallHandler = Box<dyn FnOnce(Option<&[u8]>) + Send>;
 
 /// The size of `SteamNetworkingIdentity` (a type, a size and 128 bytes of what it names).
 const IDENTITY_SIZE: usize = 136;
@@ -345,7 +345,7 @@ impl Flat {
     // ---- matchmaking ----
 
     /// Makes a public lobby for `most` members; `done` gets the answer (`LobbyCreated_t`).
-    pub fn create_lobby(&self, most: u32, done: CallHandler) {
+    pub(super) fn create_lobby(&self, most: u32, done: CallHandler) {
         // SAFETY: the matchmaking interface of the started client.
         self.start_call(
             || unsafe { (self.f.create_lobby)(self.matchmaking, LOBBY_PUBLIC, most as c_int) },
@@ -354,7 +354,7 @@ impl Flat {
     }
 
     /// Joins a lobby; `done` gets the answer (`LobbyEnter_t`).
-    pub fn join_lobby(&self, lobby: u64, done: CallHandler) {
+    pub(super) fn join_lobby(&self, lobby: u64, done: CallHandler) {
         // SAFETY: as `create_lobby`.
         self.start_call(
             || unsafe { (self.f.join_lobby)(self.matchmaking, lobby) },
@@ -362,14 +362,14 @@ impl Flat {
         );
     }
 
-    pub fn leave_lobby(&self, lobby: u64) {
+    pub(super) fn leave_lobby(&self, lobby: u64) {
         // SAFETY: as `create_lobby`.
         unsafe { (self.f.leave_lobby)(self.matchmaking, lobby) };
     }
 
     /// Asks for the public lobbies whose data `key` equals `value`, at most `most` of them;
     /// `done` gets the answer (`LobbyMatchList_t`), the lobbies by `lobby_by_index`.
-    pub fn request_lobby_list(&self, key: &str, value: &str, most: u32, done: CallHandler) {
+    pub(super) fn request_lobby_list(&self, key: &str, value: &str, most: u32, done: CallHandler) {
         let (key, value) = (c(key), c(value));
         // SAFETY: as `create_lobby`; the texts are NUL-ended and outlive the calls.
         unsafe {
@@ -387,7 +387,7 @@ impl Flat {
     }
 
     /// The `index`th lobby of the last search.
-    pub fn lobby_by_index(&self, index: u32) -> u64 {
+    pub(super) fn lobby_by_index(&self, index: u32) -> u64 {
         // SAFETY: as `create_lobby`.
         unsafe { (self.f.lobby_by_index)(self.matchmaking, index as c_int) }
     }
@@ -408,18 +408,18 @@ impl Flat {
         (!text.is_empty()).then_some(text)
     }
 
-    pub fn set_lobby_data(&self, lobby: u64, key: &str, value: &str) {
+    pub(super) fn set_lobby_data(&self, lobby: u64, key: &str, value: &str) {
         let (key, value) = (c(key), c(value));
         // SAFETY: as `create_lobby`; NUL-ended texts.
         unsafe { (self.f.set_lobby_data)(self.matchmaking, lobby, key.as_ptr(), value.as_ptr()) };
     }
 
-    pub fn member_count(&self, lobby: u64) -> u32 {
+    pub(super) fn member_count(&self, lobby: u64) -> u32 {
         // SAFETY: as `create_lobby`.
         unsafe { (self.f.member_count)(self.matchmaking, lobby) }.max(0) as u32
     }
 
-    pub fn lobby_owner(&self, lobby: u64) -> u64 {
+    pub(super) fn lobby_owner(&self, lobby: u64) -> u64 {
         // SAFETY: as `create_lobby`.
         unsafe { (self.f.lobby_owner)(self.matchmaking, lobby) }
     }
@@ -427,7 +427,7 @@ impl Flat {
     // ---- friends ----
 
     /// Sets one rich presence key, or clears it with `None`.
-    pub fn set_rich_presence(&self, key: &str, value: Option<&str>) {
+    pub(super) fn set_rich_presence(&self, key: &str, value: Option<&str>) {
         let key = c(key);
         let value = value.map(c);
         // SAFETY: as `create_lobby`; NUL-ended texts, the value null to clear.
@@ -440,13 +440,13 @@ impl Flat {
         };
     }
 
-    pub fn clear_rich_presence(&self) {
+    pub(super) fn clear_rich_presence(&self) {
         // SAFETY: the friends interface of the started client.
         unsafe { (self.f.clear_presence)(self.friends) };
     }
 
     /// The game and the lobby each of the player's friends is in, for those in a game.
-    pub fn friends_in_games(&self) -> Vec<(u64, u64)> {
+    pub(super) fn friends_in_games(&self) -> Vec<(u64, u64)> {
         // SAFETY: the friends interface of the started client; `FriendGame` is the structure
         // the library fills.
         unsafe {
@@ -465,18 +465,18 @@ impl Flat {
     // ---- relay connections ----
 
     /// A listen socket for connections through the relay; 0 when none was made.
-    pub fn listen_p2p(&self) -> u32 {
+    pub(super) fn listen_p2p(&self) -> u32 {
         // SAFETY: the sockets interface of the started client; no options.
         unsafe { (self.f.listen_p2p)(self.sockets, 0, 0, std::ptr::null()) }
     }
 
-    pub fn close_listen(&self, socket: u32) {
+    pub(super) fn close_listen(&self, socket: u32) {
         // SAFETY: as `listen_p2p`.
         unsafe { (self.f.close_listen)(self.sockets, socket) };
     }
 
     /// Connects through the relay to a Steam account's listen socket; 0 when none was made.
-    pub fn connect_p2p(&self, steam_id: u64) -> Conn {
+    pub(super) fn connect_p2p(&self, steam_id: u64) -> Conn {
         let mut identity = [0u64; IDENTITY_SIZE / 8];
         // SAFETY: a zeroed buffer of the size `SteamNetworkingIdentity` has, set by the
         // library's own function; no options.

@@ -43,7 +43,7 @@ pub fn note(id: u32, share: u8) {
 }
 
 /// The share heard of the player with DirectPlay id `id`.
-pub fn share_of(id: u32) -> Option<u8> {
+pub(super) fn share_of(id: u32) -> Option<u8> {
     let shares = SHARES
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);

@@ -8,7 +8,7 @@ use rc2k_core::install::layout;
 
 /// The records of `table` blitted at (x, y) on, from the glyph table `glyphs`. An empty table
 /// is refused.
-pub fn blit_glyph_list(
+pub(super) fn blit_glyph_list(
     table: &[GlyphRecord],
     x: u32,
     y: u32,

@@ -17,7 +17,7 @@ use crate::race::muddy_texel::{strength_at, texture_and_mud};
 use crate::race::owner_shared::RaceShared;
 use crate::race::put_mud_texel::put_mud_texel;
 
-pub const LAST_SPLASHED: u32 = 0x1000;
+pub(super) const LAST_SPLASHED: u32 = 0x1000;
 
 pub fn splash_mud(
     shared: &RaceShared,

@@ -29,31 +29,31 @@ impl Units {
     }
 
     /// The temperature unit's label: "F" / "C".
-    pub fn temperature_label(self) -> u16 {
+    pub(crate) fn temperature_label(self) -> u16 {
         self.pick(0x576, 0x575)
     }
     /// The speed unit's label: "mph" / "km/h".
-    pub fn speed_label(self) -> u16 {
+    pub(crate) fn speed_label(self) -> u16 {
         self.pick(0x573, 0x574)
     }
     /// The power unit's label: "bhp" / "kW".
-    pub fn power_label(self) -> u16 {
+    pub(crate) fn power_label(self) -> u16 {
         self.pick(0x557, 0x558)
     }
     /// The torque unit's label.
-    pub fn torque_label(self) -> u16 {
+    pub(crate) fn torque_label(self) -> u16 {
         self.pick(0x55C, 0x55D)
     }
     /// The weight unit's label.
-    pub fn weight_label(self) -> u16 {
+    pub(crate) fn weight_label(self) -> u16 {
         self.pick(0x55F, 0x55E)
     }
 }
 
 /// The string shown for a car figure that is not known ("n/a").
-pub const NOT_KNOWN_LABEL: u16 = 0x578;
+pub(crate) const NOT_KNOWN_LABEL: u16 = 0x578;
 /// The string after a length in millimetres.
-pub const MM_LABEL: u16 = 0x55A;
+pub(crate) const MM_LABEL: u16 = 0x55A;
 
 /// A figure as shown: its text, then the text of string `label` if there is one.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -91,7 +91,7 @@ pub fn speed(tenths: u32, units: Units) -> Option<Figure> {
 
 /// A distance given in hundredths of a mile, with two decimals and no label; `None` when
 /// the km do not fit 32 bits.
-pub fn distance_2dp(hundredths: u32, units: Units) -> Option<Vec<u8>> {
+pub(crate) fn distance_2dp(hundredths: u32, units: Units) -> Option<Vec<u8>> {
     let value = match units {
         Units::Metric => miles_to_km(hundredths)?,
         Units::Imperial => hundredths,
@@ -181,18 +181,18 @@ pub fn torque(tenths: u32, units: Units) -> Figure {
 }
 
 /// Whole degrees Celsius in Fahrenheit (rounding toward 0).
-pub fn celsius_to_fahrenheit(celsius: i32) -> i32 {
+pub(crate) fn celsius_to_fahrenheit(celsius: i32) -> i32 {
     ((celsius as i64 * 9 / 5) as i32).wrapping_add(32)
 }
 
 /// A time of day written as hours * 100 + minutes (1300 for 13:00) in minutes: the last two
 /// decimal digits count once, everything above them 60 times.
-pub fn hhmm_to_minutes(hhmm: u32) -> u32 {
+pub(crate) fn hhmm_to_minutes(hhmm: u32) -> u32 {
     (hhmm / 100) * 60 + hhmm % 100
 }
 
 /// The largest distance `miles_to_km` takes: above it the result does not fit 32 bits.
-pub const MAX_MILES: u32 = (((1u64 << 32) * 10_000 - 1 - 5_000) / 16_093) as u32;
+pub(crate) const MAX_MILES: u32 = (((1u64 << 32) * 10_000 - 1 - 5_000) / 16_093) as u32;
 
 /// A distance in miles (any fixed-point scale) in kilometres, rounded to the nearest:
 /// times 1.6093. `None` past `MAX_MILES`.

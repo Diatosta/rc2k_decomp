@@ -5,12 +5,15 @@ use crate::errors::Refused;
 use crate::net::lobby::run_frame;
 
 /// The message shown until a key is pressed.
-pub fn show_message(o: crate::owners::Owners<'static>, message: u32) -> Result<(), Refused> {
+pub(super) fn show_message(o: crate::owners::Owners<'static>, message: u32) -> Result<(), Refused> {
     show_frames(o, || crate::net::message_frame::message_frame(o, message))
 }
 
 /// The message that the port is in use by another program, with the port's number in it.
-pub fn show_port_in_use(o: crate::owners::Owners<'static>, port: u16) -> Result<(), Refused> {
+pub(super) fn show_port_in_use(
+    o: crate::owners::Owners<'static>,
+    port: u16,
+) -> Result<(), Refused> {
     let template = crate::strings::append_string_by_id::own_text(
         o.strings,
         rc2k_core::strings::own::id::PORT_IN_USE,
@@ -22,7 +25,7 @@ pub fn show_port_in_use(o: crate::owners::Owners<'static>, port: u16) -> Result<
 }
 
 /// A message of our own (`rc2k_core::strings::own::id`) shown until a key is pressed.
-pub fn show_own_text(o: crate::owners::Owners<'static>, id: u32) -> Result<(), Refused> {
+pub(super) fn show_own_text(o: crate::owners::Owners<'static>, id: u32) -> Result<(), Refused> {
     let text = crate::strings::append_string_by_id::own_text(o.strings, id);
     show_frames(o, || crate::net::message_frame::text_frame(o, &text))
 }

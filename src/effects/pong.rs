@@ -382,12 +382,12 @@ impl Pong {
 }
 
 /// The status bits (0x700 mask) of `a + b` compared with `c`.
-pub fn sum_compare(a: f32, b: f32, c: f32) -> u32 {
+fn sum_compare(a: f32, b: f32, c: f32) -> u32 {
     u32::from(sum_status(a, b, c)) & 0x700
 }
 
 /// The status bits (0x700 mask) of `x - k - w` (less `m` with `Some`) compared.
-pub fn less_compare(x: f32, k: f32, w: f32, m: Option<f32>) -> u32 {
+pub(super) fn less_compare(x: f32, k: f32, w: f32, m: Option<f32>) -> u32 {
     u32::from(less_status(x, k, w, m)) & 0x700
 }
 
@@ -435,7 +435,7 @@ pub fn court(pong: &Pong) -> rc2k_core::effects::pong::Court {
 
 /// The court back into the game's variables: what differs from `before` (the rest is left
 /// as it is, its bits untouched).
-pub fn put_court(
+fn put_court(
     pong: &Pong,
     c: &rc2k_core::effects::pong::Court,
     before: &rc2k_core::effects::pong::Court,
@@ -477,7 +477,7 @@ pub fn rules(
 }
 
 /// Runs `step` on the court loaded from the game and puts it back.
-pub fn with_court<T>(
+pub(super) fn with_court<T>(
     pong: &Pong,
     step: impl FnOnce(&mut rc2k_core::effects::pong::Court) -> T,
 ) -> T {

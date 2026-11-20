@@ -5,7 +5,7 @@
 use crate::Invalid;
 
 /// The most cars a race has (the car blocks' table).
-pub const CAR_ROOM: u32 = 8;
+pub(crate) const CAR_ROOM: u32 = 8;
 
 /// Refused: a cars' count outside 1 ..= 8 (0 would loop through every value of the current car;
 /// past 8 is past its blocks' table).

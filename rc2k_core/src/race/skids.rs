@@ -79,12 +79,14 @@ pub trait Ring {
     fn set_link(&mut self, index: usize, link: Link);
 }
 
+#[cfg(test)]
 /// The ring over two slices.
-pub struct SliceRing<'a> {
+pub(crate) struct SliceRing<'a> {
     pub points: &'a mut [Point],
     pub links: &'a mut [Link],
 }
 
+#[cfg(test)]
 impl Ring for SliceRing<'_> {
     fn capacity(&self) -> usize {
         self.points.len().min(self.links.len())

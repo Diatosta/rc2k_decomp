@@ -18,18 +18,18 @@ use crate::race::pace::{
 };
 
 /// Room for checkpoints (faces, distances and angles).
-pub const MOST_CHECKPOINTS: u32 = 0x1418;
+pub(crate) const MOST_CHECKPOINTS: u32 = 0x1418;
 
 /// The tables' places in their image (byte offsets).
-pub const IMAGE_END: u32 = 0xA008;
+pub(crate) const IMAGE_END: u32 = 0xA008;
 pub const COUNT: u32 = 0x0; // `note_count`
 pub const GROUPS: u32 = 0x4; // `group_count`
 pub const STARTS: u32 = 0x8; // `note_starts[0]`
 pub const ENDS: u32 = 0x1008; // `note_ends[0]`
 pub const KINDS: u32 = 0x2008; // `note_end_codes[0]`
-pub const GAPS: u32 = 0x3008; // `note_gaps`
-pub const GROUP_CHECKPOINTS: u32 = 0x4008; // `group_checkpoints[0]`
-pub const GROUP_TEXTS: u32 = 0x5008; // `group_texts[0]`
+pub(crate) const GAPS: u32 = 0x3008; // `note_gaps`
+pub(crate) const GROUP_CHECKPOINTS: u32 = 0x4008; // `group_checkpoints[0]`
+pub(crate) const GROUP_TEXTS: u32 = 0x5008; // `group_texts[0]`
 pub const TEXT: u32 = 0x6008; // `text`
 pub const TEXT_LEN: u32 = 0x4000;
 

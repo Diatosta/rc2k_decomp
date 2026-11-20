@@ -37,14 +37,14 @@ pub const BLACK: u32 = 0x0;
 /// The highlight of the item under the cursor.
 pub const YELLOW: u32 = 0xFFFF00;
 /// The frame of the installed part.
-pub const ORANGE: u32 = 0xFF8000;
+pub(super) const ORANGE: u32 = 0xFF8000;
 /// The see-through value of a solid quad.
 pub const SOLID: u32 = 0xFF;
 
 /// A one-pixel outline: the top and bottom edges are `w` wide, the left edge `left` tall and
 /// the right edge `right` tall (the right edge is one pixel taller than the left).
 #[derive(Clone, Copy)]
-pub struct Outline {
+pub(super) struct Outline {
     x: u32,
     y: u32,
     w: u32,
@@ -99,7 +99,7 @@ impl Outline {
 
 /// A frame of two nested outlines round cell `index` of a row of cells `step` apart, the first
 /// one at `first_x`.
-pub fn cell_frame(
+pub(super) fn cell_frame(
     o: Owners<'static>,
     first_x: u32,
     step: u32,
@@ -114,7 +114,7 @@ pub fn cell_frame(
 /// The yellow frame round the chosen part of a row of `cells` cells, drawn while the row's
 /// service box is turned over and the cursor is on it (when it blinks on), or else when the
 /// chosen part differs from the installed one or the row's inspection flag is set.
-pub fn chosen_frame(
+pub(super) fn chosen_frame(
     o: Owners<'static>,
     item: u32,
     setup: &crate::service::owner::SetupItem,

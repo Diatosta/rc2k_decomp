@@ -5,7 +5,7 @@ use crate::net::draw_button::draw_button;
 use crate::net::owner::Net;
 
 /// The label `string` for item `item` at `y`; returns the next y (y + 0x20).
-pub fn setting_label(
+pub(super) fn setting_label(
     o: crate::owners::Owners<'static>,
     net: &Net,
     string: u32,

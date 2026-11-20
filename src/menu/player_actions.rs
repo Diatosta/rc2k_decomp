@@ -66,7 +66,7 @@ pub fn previous_scores_page(tables: &Tables) {
         .set(steps::scores_page(tables.pages.scores_page.get(), false));
 }
 
-pub fn previous_replay_range(
+pub(super) fn previous_replay_range(
     menus: &Menus,
     tables: &Tables,
     text: &crate::screens::text_buffers_store::TextBuffers,
@@ -78,7 +78,7 @@ pub fn previous_replay_range(
     crate::screens::best_scores::replay_range_caption(&menus.tables.pages, text)
 }
 
-pub fn next_replay_range(
+pub(super) fn next_replay_range(
     menus: &Menus,
     tables: &Tables,
     text: &crate::screens::text_buffers_store::TextBuffers,
@@ -91,7 +91,7 @@ pub fn next_replay_range(
 }
 
 /// `menu::toggle_caption_choice`: the choice flipped and its caption written.
-pub fn toggle_caption_choice(
+pub(super) fn toggle_caption_choice(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     screens: &Screens,
     text_buffers: &crate::screens::text_buffers_store::TextBuffers,
@@ -111,7 +111,7 @@ pub fn leave_with_carry(menus: &Menus) {
 
 /// `menu::player_N_car_specs`: the car specifications screen with player `n` the current
 /// one.
-pub fn player_car_specs(menus: &Menus, n: u32, entry: &Entry) -> Result<(), Refused> {
+pub(super) fn player_car_specs(menus: &Menus, n: u32, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
     let kept = screens.event.current_player.get();
     screens.event.current_player.set(n);

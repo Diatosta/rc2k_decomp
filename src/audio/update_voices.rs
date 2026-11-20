@@ -23,7 +23,7 @@ use crate::errors::Refused;
 
 const MODE_MIXER: u32 = 0x4_0000;
 
-pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
+pub(super) fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
     use rc2k_core::audio::voices::{Lists, Room, Step, update_buffers};
     let mode = audio.state.sound_mode.get();
     if mode & crate::audio::make_buffer::MODE_OWN_BUFFERS == 0 {

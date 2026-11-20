@@ -12,7 +12,7 @@ use crate::memory::session::{PlainBytes, PlainDword, PlainFlag, PlainFloat, read
 const KINDS: u32 = 0x22;
 const SETTING_VALUE: u32 = 0xFFFF_7B2E;
 const DIGITS: u32 = 12; // the two digits' place in the path
-pub const EDGE_LEN: u32 = 0x8000;
+const EDGE_LEN: u32 = 0x8000;
 const MOST_KIND: i32 = 0x16;
 
 /// The kind, held to 0 .. 0x16.
@@ -31,7 +31,7 @@ fn clamped(kind: u32) -> u32 {
     clippy::too_many_arguments,
     reason = "the edges' inputs and the owners they are read from"
 )]
-pub fn load_edges(
+pub(super) fn load_edges(
     race: &crate::race::owner::Race,
     masks: &Masks,
     drops: &WindscreenDrops,
@@ -113,7 +113,7 @@ pub fn load_edges(
 
 /// `effects::load_kind_data`, `init_marks`' step 1: the kind taken from the settings'
 /// +0x26A8; then `load_edges`, `load_splines`. Refuses as its steps do.
-pub fn load_kind_data(
+pub(super) fn load_kind_data(
     race: &crate::race::owner::Race,
     effects: &Effects,
     scene: &crate::scene::owner::Scene,

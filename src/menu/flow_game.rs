@@ -50,7 +50,7 @@ impl<'a> Game<'a> {
     }
 
     /// The car list the next car choice shows, if one was handed.
-    pub fn handed_cars(&self) -> Option<CarList> {
+    pub(super) fn handed_cars(&self) -> Option<CarList> {
         self.cars
     }
 }

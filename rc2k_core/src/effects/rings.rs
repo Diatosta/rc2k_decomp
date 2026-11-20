@@ -14,14 +14,16 @@ pub fn neighbours(n: u32) -> [u32; 2] {
     ]
 }
 
+#[cfg(test)]
 /// `allocate_ring`'s links: each entry's (+0, +4) the addresses of the one before and
 /// the one after, in a block at `block` of 0x4C-byte entries.
-pub fn ring_links(block: u32) -> impl Iterator<Item = [u32; 2]> {
+pub(crate) fn ring_links(block: u32) -> impl Iterator<Item = [u32; 2]> {
     (0..ENTRIES).map(move |n| neighbours(n).map(|k| block.wrapping_add(k * RING_ENTRY)))
 }
 
+#[cfg(test)]
 /// `allocate_links`' two tables: entry n's before and after (numbers).
-pub fn link_tables() -> ([u32; ENTRIES as usize], [u32; ENTRIES as usize]) {
+pub(crate) fn link_tables() -> ([u32; ENTRIES as usize], [u32; ENTRIES as usize]) {
     (
         std::array::from_fn(|n| neighbours(n as u32)[0]),
         std::array::from_fn(|n| neighbours(n as u32)[1]),

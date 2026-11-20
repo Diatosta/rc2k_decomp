@@ -5,7 +5,7 @@ use crate::audio::mixer::*;
 use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
 
-pub fn mix_channels_in_game(state: &AudioOwn, bytes: u32) -> Result<(), Refused> {
+pub(super) fn mix_channels_in_game(state: &AudioOwn, bytes: u32) -> Result<(), Refused> {
     mix_channels(
         state,
         bytes,

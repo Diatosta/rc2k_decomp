@@ -50,8 +50,9 @@ pub fn check_object_cars(cars: u32) -> Result<(), Invalid> {
 
 // ---- the texture kinds' pictures ----
 
+#[cfg(test)]
 /// The texture kinds' pictures: 0x258 dwords.
-pub const PICTURE_KINDS: usize = 0x258;
+pub(crate) const PICTURE_KINDS: usize = 0x258;
 /// The stage prefs' picture lists copied in: (first kind, dwords).
 pub const PREF_PIECES: [(usize, usize); 3] = [(0, 0x34), (0x40, 0x30), (0x80, 8)];
 /// The kinds whose pictures are fixed: (kind, picture).
@@ -82,7 +83,7 @@ pub const FIXED_PICTURES: [(usize, u32); 23] = [
 ];
 /// The cars' picture kinds start here: eight kinds a car.
 pub const CAR_PICTURE_KINDS: usize = 0x100;
-pub const PICTURES_A_CAR: usize = 8;
+pub(crate) const PICTURES_A_CAR: usize = 8;
 
 /// A car's eight pictures: its kind's picture and the seven after it.
 pub fn car_pictures(first: u32) -> [u32; PICTURES_A_CAR] {
@@ -124,8 +125,8 @@ pub fn course_present<E>(
 /// The lights' records: 0x22 of 0x134 bytes, each taking 0x90 bytes of data at +0xA4.
 pub const LIGHT_RECORDS: usize = 0x22;
 pub const LIGHT_RECORD: usize = 0x134;
-pub const LIGHT_DATA: usize = 0x90;
-pub const LIGHT_DATA_AT: usize = 0xA4;
+pub(crate) const LIGHT_DATA: usize = 0x90;
+pub(crate) const LIGHT_DATA_AT: usize = 0xA4;
 
 /// Lays the data's records into the lights' records.
 pub fn lay_lights(data: &[u8], records: &mut [u8]) {

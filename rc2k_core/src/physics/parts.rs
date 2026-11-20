@@ -11,7 +11,7 @@ pub const SLOTS: usize = 8;
 pub const LAST_PART: u32 = 0xFF;
 
 /// A damage figure that never breaks its part.
-pub const UNBROKEN: u32 = 0x8000_0000;
+pub(crate) const UNBROKEN: u32 = 0x8000_0000;
 
 /// The slot chosen for a part that comes off.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -140,7 +140,7 @@ pub fn parts_left(bits: u32) -> u32 {
 }
 
 /// The car kinds with a hit-sound table.
-pub const SOUND_KINDS: u32 = 0x22;
+pub(crate) const SOUND_KINDS: u32 = 0x22;
 
 /// Whether a car kind has sounds for its hit parts: below `SOUND_KINDS` and its entry not 0.
 pub fn has_hit_sounds(kind: u32, entry: impl FnOnce(u32) -> u32) -> bool {

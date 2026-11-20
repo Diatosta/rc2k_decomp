@@ -2,7 +2,7 @@
 //! marked to end before those folders and the answer becomes the uninstall's (1).
 
 /// `state` which call of the page's action this is (0 the start, negative the end).
-pub fn removal_page(
+pub(super) fn removal_page(
     install: &crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
     state: u32,

@@ -32,10 +32,10 @@ use windows_sys::Win32::System::Diagnostics::Debug::CONTEXT;
 
 /// The context flag for the control registers (`GetThreadContext`).
 #[cfg(all(windows, target_arch = "x86"))]
-pub const CONTEXT_CONTROL: u32 =
+pub(super) const CONTEXT_CONTROL: u32 =
     windows_sys::Win32::System::Diagnostics::Debug::CONTEXT_CONTROL_X86;
 #[cfg(all(windows, target_arch = "x86_64"))]
-pub const CONTEXT_CONTROL: u32 =
+pub(super) const CONTEXT_CONTROL: u32 =
     windows_sys::Win32::System::Diagnostics::Debug::CONTEXT_CONTROL_AMD64;
 
 /// A thread context's instruction pointer.

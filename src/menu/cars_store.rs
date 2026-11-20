@@ -1187,7 +1187,7 @@ pub const fn car_cell(n: usize) -> PlainDword {
 }
 
 /// A cell holding a car list's end mark.
-pub const fn no_car_cell() -> PlainDword {
+pub(super) const fn no_car_cell() -> PlainDword {
     PlainDword::new(u32::MAX)
 }
 

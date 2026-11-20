@@ -34,53 +34,53 @@ pub struct NeedleStyle {
     lifted_centre: bool,
 }
 
-pub static DISC_0: DiscStyle = DiscStyle {
+pub(super) static DISC_0: DiscStyle = DiscStyle {
     shift: |p| &p.view_a.motion,
     vars: |h| &h.disc_setup_layout0,
     lifted_centre: false,
 };
-pub static DISC_1A: DiscStyle = DiscStyle {
+pub(super) static DISC_1A: DiscStyle = DiscStyle {
     shift: |p| &p.view_a.motion,
     vars: |h| &h.disc_setup_layout1_first,
     lifted_centre: false,
 };
-pub static DISC_1B: DiscStyle = DiscStyle {
+pub(super) static DISC_1B: DiscStyle = DiscStyle {
     shift: |p| &p.view_b.motion,
     vars: |h| &h.disc_setup_layout1_second,
     lifted_centre: false,
 };
-pub static DISC_2A: DiscStyle = DiscStyle {
+pub(super) static DISC_2A: DiscStyle = DiscStyle {
     shift: |p| &p.view_a.motion,
     vars: |h| &h.disc_setup_layout2_first,
     lifted_centre: true,
 };
-pub static DISC_2B: DiscStyle = DiscStyle {
+pub(super) static DISC_2B: DiscStyle = DiscStyle {
     shift: |p| &p.view_b.motion,
     vars: |h| &h.disc_setup_layout2_second,
     lifted_centre: false,
 };
 
-pub static NEEDLE_0: NeedleStyle = NeedleStyle {
+pub(super) static NEEDLE_0: NeedleStyle = NeedleStyle {
     value: |p| &p.view_a.whole,
     vars: |h| &h.needle_setup_layout0,
     lifted_centre: false,
 };
-pub static NEEDLE_1A: NeedleStyle = NeedleStyle {
+pub(super) static NEEDLE_1A: NeedleStyle = NeedleStyle {
     value: |p| &p.view_a.whole,
     vars: |h| &h.needle_setup_layout1_first,
     lifted_centre: false,
 };
-pub static NEEDLE_1B: NeedleStyle = NeedleStyle {
+pub(super) static NEEDLE_1B: NeedleStyle = NeedleStyle {
     value: |p| &p.view_b.whole,
     vars: |h| &h.needle_setup_layout1_second,
     lifted_centre: false,
 };
-pub static NEEDLE_2A: NeedleStyle = NeedleStyle {
+pub(super) static NEEDLE_2A: NeedleStyle = NeedleStyle {
     value: |p| &p.view_a.whole,
     vars: |h| &h.needle_setup_layout2_first,
     lifted_centre: true,
 };
-pub static NEEDLE_2B: NeedleStyle = NeedleStyle {
+pub(super) static NEEDLE_2B: NeedleStyle = NeedleStyle {
     value: |p| &p.view_b.whole,
     vars: |h| &h.needle_setup_layout2_second,
     lifted_centre: false,
@@ -136,7 +136,7 @@ pub fn needle(frame: &Frame, hud: &Hud, pen: Pen, style: &NeedleStyle) -> Result
 
 /// The other players' markers on a disc of the two players' layouts: the disc set up again (the
 /// later disc's set-up left its variables) and its view's markers drawn at the sprites' scale.
-pub fn map_cars(
+pub(super) fn map_cars(
     frame: &Frame,
     hud: &Hud,
     pen: Pen,

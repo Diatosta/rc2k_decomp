@@ -5,7 +5,7 @@
 use crate::Invalid;
 
 /// The kept split times' room.
-pub const KEPT_ROOM: u32 = 0x40;
+pub(crate) const KEPT_ROOM: u32 = 0x40;
 
 /// The entry for a split time: the checkpoints passed less one, held to 0 ..= the split count
 /// (signed). Past the room is refused.
@@ -157,7 +157,7 @@ pub fn split_figure(mode: u32) -> SplitFigure {
 /// The highest checkpoint.
 pub const LAST_CHECKPOINT: u32 = 0x1418;
 /// The highest split.
-pub const LAST_SPLIT: u32 = 0x40;
+pub(crate) const LAST_SPLIT: u32 = 0x40;
 
 /// The checkpoint found and the car's split, checked before anything is written.
 pub fn check_tracked(checkpoint: u32, split: u32) -> Result<(), Invalid> {

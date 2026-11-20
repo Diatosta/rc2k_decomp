@@ -40,7 +40,7 @@ fn x87_turn(tables: &crate::math::engine_tables::EngineTables, point: &mut Scrat
 
 /// The converted version (`rc2k_core::math::geometry`, plain floats): the one its callers
 /// use. Also returns the angle table's entry.
-pub fn rotate_scratch_about_y_plain(
+pub(super) fn rotate_scratch_about_y_plain(
     tables: &crate::math::engine_tables::EngineTables,
     point: &mut Scratch,
     angle: u32,

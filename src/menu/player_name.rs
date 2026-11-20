@@ -17,7 +17,7 @@ use crate::menu::text_entry::{TEXT_LEN, length, set_length};
 
 /// The current player's name as a place bounded by the names' area (a name that lacks its end
 /// is read on past it).
-pub fn name_place(menus: &Menus) -> Result<NameAt, Refused> {
+pub(super) fn name_place(menus: &Menus) -> Result<NameAt, Refused> {
     Ok(NameAt::of(name(menus)?))
 }
 
@@ -30,12 +30,12 @@ pub fn name(menus: &Menus) -> Result<usize, Refused> {
     Ok(crate::menu::player_names::name_of(&current(menus)?.get())?)
 }
 
-pub fn bring_back_name(menus: &'static Menus, name: BytePlace) -> Result<(), BadInput> {
+pub(super) fn bring_back_name(menus: &'static Menus, name: BytePlace) -> Result<(), BadInput> {
     let kept = kept(menus).read(TEXT_LEN, "the kept name")?;
     name.write(&kept, "a player's name")
 }
 
-pub fn backspace_name(menus: &Menus, name: BytePlace) -> Result<(), BadInput> {
+pub(super) fn backspace_name(menus: &Menus, name: BytePlace) -> Result<(), BadInput> {
     let length = length(menus);
     if length != 0 {
         set_length(menus, length.wrapping_sub(1));

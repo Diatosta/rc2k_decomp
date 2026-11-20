@@ -18,7 +18,7 @@ fn listed_name(name: [u8; 0x40], locked: bool, mark: &[u8]) -> [u8; 0x40] {
     out
 }
 
-pub fn sessions_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn sessions_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let link = &o.net.link;
     // The logic is in `rc2k_core::net::screens::sessions_title`.
     let title = rc2k_core::net::screens::sessions_title(link.sessions().get());

@@ -33,7 +33,7 @@ pub const STAGE_LINE_ROOM: usize = 0x100;
 
 /// The setting the controller pages copy from the player picked: its +0x2C and the 0x2C
 /// bytes from +0x50.
-pub const PICKED_LEN: usize = 0x2C;
+pub(crate) const PICKED_LEN: usize = 0x2C;
 
 impl Player {
     /// `pick_player_n`'s copy.

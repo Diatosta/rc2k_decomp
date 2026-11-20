@@ -9,7 +9,7 @@ use crate::Invalid;
 /// The items with a flag.
 pub const ITEMS: usize = 20;
 /// The service time that is free.
-pub const FREE_TIME: i32 = 900;
+pub(crate) const FREE_TIME: i32 = 900;
 /// A flag table with its end mark.
 pub type Table = [u32; ITEMS + 1];
 
@@ -49,14 +49,14 @@ pub fn chosen_time(flags: &Table, time: impl Fn(usize) -> Option<i32>) -> Result
 }
 
 /// What toggling an item answers: it fits (3), overruns the budget (1) or has no time left (2).
-pub const FITS: u32 = 3;
-pub const OVERRUNS: u32 = 1;
+pub(crate) const FITS: u32 = 3;
+pub(crate) const OVERRUNS: u32 = 1;
 pub const NO_TIME: u32 = 2;
 
 /// Whether flipping `item`'s flag fits: the total with the flip, and the status; the flag
 /// ends as it was, but at no time left it is 0. Refused (nothing changed): what
 /// `chosen_time` refuses.
-pub fn try_toggle(
+pub(crate) fn try_toggle(
     flags: &mut Table,
     item: usize,
     budget: i32,

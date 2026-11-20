@@ -25,13 +25,13 @@ pub const RANGES: [(u32, u32); 12] = [
 /// float) and 1.7.
 pub const PLAIN: [u32; 3] = [0x3F80_0000, 0x3F66_6667, 0x3FD9_999A];
 /// The third float of these records: 1.2.
-pub const OTHER_THIRD: ([usize; 2], u32) = ([3, 10], 0x3F99_999A);
-pub const NINE_POINT_EIGHT: u32 = 0x411C_CCCD;
-pub const TEN: u32 = 0x4120_0000;
+pub(crate) const OTHER_THIRD: ([usize; 2], u32) = ([3, 10], 0x3F99_999A);
+pub(crate) const NINE_POINT_EIGHT: u32 = 0x411C_CCCD;
+pub(crate) const TEN: u32 = 0x4120_0000;
 /// By record: which of the ten factors its three floats are first multiplied by.
 pub const BY_RECORD: [usize; 12] = [6, 9, 8, 7, 5, 8, 5, 5, 7, 5, 7, 9];
 /// The factors the first, second and third float are then multiplied by.
-pub const BY_FLOAT: [usize; 3] = [4, 3, 2];
+pub(crate) const BY_FLOAT: [usize; 3] = [4, 3, 2];
 
 /// What the patches read and write (as bits).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

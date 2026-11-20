@@ -8,14 +8,14 @@
 use crate::Invalid;
 
 /// A sound with this bit is none: nothing is played.
-pub const NO_SOUND: u32 = 0x8000;
+pub(crate) const NO_SOUND: u32 = 0x8000;
 /// The sound mode's bits: 3D, Dolby.
 pub const MODE_3D: u32 = 0x10_0000;
-pub const MODE_DOLBY: u32 = 0x200_0000;
+pub(crate) const MODE_DOLBY: u32 = 0x200_0000;
 /// Number of sample records.
 pub use crate::audio::voices::SAMPLES;
 /// The loudest volume.
-pub const LOUDEST: i32 = 0x40;
+pub(crate) const LOUDEST: i32 = 0x40;
 
 /// Whether the request's sound is one to play.
 pub fn played(sound: u32) -> bool {

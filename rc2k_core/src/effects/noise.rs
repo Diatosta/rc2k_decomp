@@ -37,7 +37,7 @@ pub const LEAST_STEP: i32 = -0x1000;
 pub const MOST_STEP: i32 = 0x1000;
 pub const CHANGE: i32 = 2;
 /// The seed the curve starts from.
-pub const CURVE_SEED: u32 = 0x7FF_FFFF;
+pub(crate) const CURVE_SEED: u32 = 0x7FF_FFFF;
 /// How many times the curve is smoothed.
 pub const SMOOTHINGS: u32 = 0xA0;
 /// The random tables' entries.

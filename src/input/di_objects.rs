@@ -214,7 +214,7 @@ fn device2_iid() -> [u8; 16] {
     )
 }
 
-pub const DI_OK: i32 = 0;
+const DI_OK: i32 = 0;
 const DI_NOEFFECT: i32 = 1;
 const DIERR_INVALIDPARAM: i32 = 0x8007_0057u32 as i32;
 const DIERR_DEVICENOTREG: i32 = 0x8004_0154u32 as i32;
@@ -320,7 +320,7 @@ fn make(s: &mut State, what: Kind2) -> u32 {
 }
 
 /// A new `IDirectInputA` (what `DirectInputCreateA` gives): its handle.
-pub fn create_input() -> u32 {
+pub(super) fn create_input() -> u32 {
     with(|s| make(s, Kind2::Input))
 }
 
@@ -374,7 +374,7 @@ pub fn release(this: u32) -> u32 {
     }
 }
 
-pub fn device_instance(d: &DeviceInfo) -> DiDeviceInstance {
+fn device_instance(d: &DeviceInfo) -> DiDeviceInstance {
     let mut name = [0u8; 260];
     let bytes = d.name.as_bytes();
     let n = bytes.len().min(259);
@@ -416,14 +416,14 @@ pub fn create_device(this: u32, wanted: &Guid) -> Result<u32, i32> {
 }
 
 /// What the backend knows of the device with this instance GUID, if it has one.
-pub fn device_info(instance: &Guid) -> Option<DeviceInfo> {
+pub(super) fn device_info(instance: &Guid) -> Option<DeviceInfo> {
     backend(|b| b.devices())?
         .into_iter()
         .find(|d| d.instance == *instance)
 }
 
 /// `EnumDevices`' callback: its `DIDEVICEINSTANCEA` -> 0 to stop.
-pub fn enum_devices(
+pub(super) fn enum_devices(
     _this: u32,
     kind: u32,
     mut callback: impl FnMut(&DiDeviceInstance) -> u32,
@@ -455,7 +455,7 @@ fn device_of(this: u32) -> Option<(usize, DeviceInfo)> {
 
 /// `GetCapabilities` for a caller whose `DIDEVCAPS` is `size` bytes: the capabilities, their
 /// size field `size`. DirectInput stores as much of them as `size` says (`caps_bytes`).
-pub fn get_capabilities(this: u32, size: u32) -> Result<DiDevCaps, i32> {
+pub(super) fn get_capabilities(this: u32, size: u32) -> Result<DiDevCaps, i32> {
     let Some((_, d)) = device_of(this) else {
         return Err(DIERR_INVALIDPARAM);
     };
@@ -475,7 +475,7 @@ pub fn get_capabilities(this: u32, size: u32) -> Result<DiDevCaps, i32> {
 }
 
 /// `EnumObjects`' callback gets each `DIDEVICEOBJECTINSTANCEA` and answers 0 to stop.
-pub fn enum_objects(
+pub(super) fn enum_objects(
     this: u32,
     mut callback: impl FnMut(&DiDeviceObjectInstance) -> u32,
     _flags: u32,
@@ -517,7 +517,7 @@ fn axes_named(how: u32, object: u32) -> Vec<usize> {
 
 /// A property of a device, as `SetProperty` takes it (`DIPROP_RANGE` 4, `DIPROP_DEADZONE` 5,
 /// `DIPROP_SATURATION` 6, `DIPROP_FFGAIN` 7, `DIPROP_AUTOCENTER` 9).
-pub enum Property<'a> {
+pub(super) enum Property<'a> {
     Range(&'a DiPropRange),
     DeadZone(&'a DiPropDword),
     Saturation(&'a DiPropDword),
@@ -525,7 +525,7 @@ pub enum Property<'a> {
     AutoCenter(&'a DiPropDword),
 }
 
-pub fn set_property(this: u32, property: Property) -> i32 {
+pub(super) fn set_property(this: u32, property: Property) -> i32 {
     let device = with(|s| match s.entries.get(&id_of(this)).map(|e| &e.what) {
         Some(Kind2::Device(d)) => Some(d.device),
         _ => None,
@@ -603,7 +603,7 @@ pub fn acquire(this: u32) -> i32 {
     set_acquired(this, true)
 }
 
-pub fn unacquire(this: u32) -> i32 {
+pub(super) fn unacquire(this: u32) -> i32 {
     set_acquired(this, false)
 }
 
@@ -630,7 +630,7 @@ fn scaled(raw: i32, a: &Axis) -> i32 {
 
 /// What an acquired device reads now as the profiles take it (SDL's values: the axes as
 /// `Reading::profile_axes` has them, the buttons and the hats), none when it is not acquired.
-pub fn profile_reading(this: u32) -> Option<rc2k_core::input::profile::RawInput> {
+pub(super) fn profile_reading(this: u32) -> Option<rc2k_core::input::profile::RawInput> {
     let device = with(|s| match s.entries.get(&id_of(this)).map(|e| &e.what) {
         Some(Kind2::Device(d)) if d.acquired => Some(d.device),
         _ => None,
@@ -647,7 +647,7 @@ pub fn profile_reading(this: u32) -> Option<rc2k_core::input::profile::RawInput>
 }
 
 /// `GetDeviceState` for a buffer of `size` bytes: the `DIJOYSTATE`.
-pub fn get_device_state(this: u32, size: u32) -> Result<DiJoyState, i32> {
+pub(super) fn get_device_state(this: u32, size: u32) -> Result<DiJoyState, i32> {
     let state = with(|s| match s.entries.get(&id_of(this)).map(|e| &e.what) {
         Some(Kind2::Device(d)) => Some((d.device, d.acquired, d.axes)),
         _ => None,
@@ -678,7 +678,7 @@ pub fn get_device_state(this: u32, size: u32) -> Result<DiJoyState, i32> {
 
 /// `SetDataFormat`: the game asks for `c_dfDIJoystick`, the state
 /// `get_device_state` gives, so the format is not passed.
-pub fn set_data_format(_this: u32) -> i32 {
+pub(super) fn set_data_format(_this: u32) -> i32 {
     DI_OK
 }
 
@@ -696,7 +696,11 @@ pub fn poll(this: u32) -> i32 {
 }
 
 /// `EnumEffects`' callback gets each `DIEFFECTINFOA` and answers 0 to stop.
-pub fn enum_effects(this: u32, mut callback: impl FnMut(&DiEffectInfo) -> u32, kind: u32) -> i32 {
+pub(super) fn enum_effects(
+    this: u32,
+    mut callback: impl FnMut(&DiEffectInfo) -> u32,
+    kind: u32,
+) -> i32 {
     let Some((_, d)) = device_of(this) else {
         return DIERR_INVALIDPARAM;
     };
@@ -828,7 +832,7 @@ fn change_effect(this: u32, f: impl FnOnce(&mut EffectObject) -> bool) -> i32 {
     }
 }
 
-pub fn set_parameters(this: u32, parameters: &EffectParameters, flags: u32) -> i32 {
+pub(super) fn set_parameters(this: u32, parameters: &EffectParameters, flags: u32) -> i32 {
     change_effect(this, |e| {
         take_parameters(&mut e.effect, parameters, flags);
         let start = flags & DIEP_START != 0;

@@ -10,7 +10,7 @@ use rc2k_core::physics::camera_ground::{is_clear, over};
 
 /// Whether the camera is clear of the ground.
 // Core: `rc2k_core::physics::camera_ground::{over, is_clear}`.
-pub fn camera_clear_of_ground(c: &CameraGroundInputs<'_>) -> Result<bool, Refused> {
+pub(super) fn camera_clear_of_ground(c: &CameraGroundInputs<'_>) -> Result<bool, Refused> {
     let mut clear = probe_at(
         c,
         c.car.camera_position[0].get(),

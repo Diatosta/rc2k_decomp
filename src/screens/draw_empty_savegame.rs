@@ -7,7 +7,7 @@ use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 
 /// Returns whether the last text drawn was too wide for its box.
-pub fn draw_empty_savegame(
+pub(super) fn draw_empty_savegame(
     o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {

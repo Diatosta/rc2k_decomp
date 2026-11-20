@@ -19,7 +19,7 @@ fn buffer(v: &Voice) -> Result<u32, Refused> {
 
 /// `SetVolume` with the volume table at `volume * volume_factor >> 6` (signed). Returns the result
 /// code.
-pub fn set_buffer_volume(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
+pub(super) fn set_buffer_volume(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
     let level =
         rc2k_core::audio::levels::buffer_volume(v.volume, v.volume_factor, |n| volumes(state, n))?;
     let b = buffer(v)?;
@@ -28,7 +28,7 @@ pub fn set_buffer_volume(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
 
 /// `SetPan`, nothing in 3D: a pan below 0 is the volume table's `pan + 0x40`, else minus its
 /// `0x40 - pan`. Returns the result code, or `None` where the call is not made.
-pub fn set_buffer_pan(state: &AudioOwn, v: &Voice) -> Result<Option<i32>, Refused> {
+pub(super) fn set_buffer_pan(state: &AudioOwn, v: &Voice) -> Result<Option<i32>, Refused> {
     if state.sound_mode.get() & MODE_3D != 0 {
         return Ok(None);
     }
@@ -38,7 +38,7 @@ pub fn set_buffer_pan(state: &AudioOwn, v: &Voice) -> Result<Option<i32>, Refuse
 }
 
 /// `SetFrequency` with the frequency shifted right by the format's halvings.
-pub fn set_buffer_frequency(v: &Voice) -> Result<i32, Refused> {
+pub(super) fn set_buffer_frequency(v: &Voice) -> Result<i32, Refused> {
     let b = buffer(v)?;
     let frequency = rc2k_core::audio::levels::buffer_frequency(v.frequency, v.format);
     Ok(crate::platform::sound::set_frequency(b, frequency))

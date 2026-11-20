@@ -57,7 +57,7 @@ pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refus
     Ok(true)
 }
 
-pub fn load_game_options(o: Owners<'static>) -> Result<bool, Refused> {
+pub(super) fn load_game_options(o: Owners<'static>) -> Result<bool, Refused> {
     let menus = o.menus;
     load_options(
         &o.saves.files.options_path,

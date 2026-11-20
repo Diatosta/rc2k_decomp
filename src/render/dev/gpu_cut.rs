@@ -139,7 +139,7 @@ pub const CUTS: [Cut; 15] = [
 ];
 
 /// How many of the first cuts in `CUTS` belong to the scene's fragment shader.
-pub const SHADER_CUTS: usize = 6;
+const SHADER_CUTS: usize = 6;
 
 /// The live set's bits, read by the backends once per flush.
 static LIVE: AtomicU32 = AtomicU32::new(0);

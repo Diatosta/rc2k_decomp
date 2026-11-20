@@ -1,7 +1,7 @@
 //! The not-enough-room page's "go on anyway" action: `ignore_room` 1, the answer 1 and the page
 //! left.
 
-pub fn ignore_room(
+pub(super) fn ignore_room(
     install: &crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
 ) {

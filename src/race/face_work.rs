@@ -116,7 +116,7 @@ impl FaceWork {
 /// The fourth corner of the last face drawn by any view (-1 for a face of three points), read by
 /// `race::norms` at a stage's start-up as `RaceView.corners[3]` was (it should be the face's own: a
 /// slip kept as is); before any face was drawn it is the image's first value.
-pub fn last_fourth_corner(
+pub(super) fn last_fourth_corner(
     shared: &crate::race::owner_shared::RaceShared,
     scratch: &crate::scene::workers::DrawingScratch,
 ) -> u32 {

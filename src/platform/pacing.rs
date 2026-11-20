@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 use rc2k_core::gfx::frame_limit::{FrameLimit, display_period as frame_period};
 
 /// When the next frame is due.
-pub struct Pacer {
+struct Pacer {
     due: Option<Instant>,
 }
 
@@ -79,7 +79,7 @@ pub fn set_blending(running: bool) {
 
 /// Whether the frames now shown are blended between the ticks: the smooth choice is on and a race
 /// is running (the menus' frames are at most a hundred a second).
-pub fn blends_frames() -> bool {
+fn blends_frames() -> bool {
     smooth_on() && BLENDING.load(Relaxed)
 }
 
@@ -91,7 +91,7 @@ pub fn display_refresh() -> Option<f64> {
 
 /// The window's display as the screen was set: its refreshes a second (`None`: not known) and
 /// whether showing a frame waits for the refresh.
-pub fn set_display(refresh: Option<f64>, showing_waits: bool) {
+pub(super) fn set_display(refresh: Option<f64>, showing_waits: bool) {
     /// Whether the log has the pace (it is written again only when it changes).
     static LOGGED: AtomicBool = AtomicBool::new(false);
     // A scripted run can stand in a display's refresh rate (`RC2K_FAKE_REFRESH`).

@@ -93,7 +93,9 @@ const NOT_8BIT: FatalError = FatalError {
 };
 
 /// Entry 3 of the pixel kinds: (bytes a pixel, the format's handle, the format).
-pub fn take_format(gfx: &crate::gfx::owner::Gfx) -> Result<(u32, u32, PixelFormat), BadInput> {
+pub(super) fn take_format(
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(u32, u32, PixelFormat), BadInput> {
     let card = &gfx.card;
     let kind = card
         .texture_tables
@@ -177,7 +179,7 @@ impl LoadedMap {
 
 /// Stores a loaded map: its variables, the tile table (0x10000 bytes counted on the map's list)
 /// and the pixels' block (counted on the list too).
-pub fn store_game_map(race: &Race, loaded: LoadedMap) -> Result<(), Refused> {
+pub(super) fn store_game_map(race: &Race, loaded: LoadedMap) -> Result<(), Refused> {
     let vars = race.frame.map();
     vars.pixel_bytes.set(loaded.pixel_bytes);
     vars.format.set(loaded.format);
@@ -212,7 +214,7 @@ fn put_pixels(block: &mut [u8], at: usize, bytes: &[u8]) -> Result<(), BadInput>
 }
 
 /// Frees both map lists and zeroes the sheet, tiles and pixels.
-pub fn free_game_map(race: &Race, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+pub(super) fn free_game_map(race: &Race, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     let frame = &race.frame;
     crate::gfx::picture::give_back(&gfx.pictures.buffers, crate::gfx::picture::Buffer::Key);
     crate::memory::free_list::free_list(&frame.map().key_list)?;
@@ -232,7 +234,7 @@ pub fn free_game_map(race: &Race, gfx: &crate::gfx::owner::Gfx) -> Result<(), Re
 /// 0x50000 gives no tiles and the count 0. Each read of the pixels is of 0x40 tiles at most.
 /// Refuses a count of 0 or past 0xFFFF and a short read not of whole pixels. `path` is without
 /// its NUL.
-pub fn load_packed_game_map(
+fn load_packed_game_map(
     path: &[u8],
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,

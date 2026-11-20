@@ -41,7 +41,7 @@ impl HudQuad {
     }
 
     /// The corners: left, top, right, bottom.
-    pub fn set_rect(&self, [l, t, r, b]: [u32; 4]) {
+    pub(super) fn set_rect(&self, [l, t, r, b]: [u32; 4]) {
         self.left.set(l);
         self.top.set(t);
         self.right.set(r);
@@ -49,7 +49,7 @@ impl HudQuad {
     }
 
     /// The four corners' texture places, each (u, v).
-    pub fn set_places(&self, corners: [[u32; 2]; 4]) {
+    pub(super) fn set_places(&self, corners: [[u32; 2]; 4]) {
         for (k, [u, v]) in corners.into_iter().enumerate() {
             self.places[2 * k].set(u);
             self.places[2 * k + 1].set(v);
@@ -599,7 +599,7 @@ impl HudBlock {
 /// drawer, `layout_common::gear_rect`, clamps it and logs it). The original does not check, and reads on into the fields after the
 /// table for a number past it; that is refused.
 #[derive(Clone, Copy)]
-pub struct RectAt(u32);
+pub(super) struct RectAt(u32);
 
 impl RectAt {
     /// Rectangle `n` of the table.

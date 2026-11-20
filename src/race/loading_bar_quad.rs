@@ -5,7 +5,7 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn loading_bar_quad(
+pub(super) fn loading_bar_quad(
     race: &Race,
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,

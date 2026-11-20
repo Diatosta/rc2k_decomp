@@ -34,7 +34,7 @@ pub struct TwinSet<'a> {
 }
 
 /// `emit_twin_particle_first`'s.
-pub fn nineteenth(effects: &Effects) -> TwinSet<'_> {
+pub(super) fn nineteenth(effects: &Effects) -> TwinSet<'_> {
     TwinSet {
         kind: 0x13,
         level: 0,
@@ -79,12 +79,19 @@ pub fn refusal(
     })
 }
 
-pub fn emit_twin_particle_first(effects: &Effects, object: &CarEffects) -> Result<(), Refused> {
+pub(super) fn emit_twin_particle_first(
+    effects: &Effects,
+    object: &CarEffects,
+) -> Result<(), Refused> {
     emit_twin(effects, &nineteenth(effects), object)
 }
 
 /// The shared body, on `set`'s variables.
-pub fn emit_twin(effects: &Effects, set: &TwinSet<'_>, object: &CarEffects) -> Result<(), Refused> {
+pub(super) fn emit_twin(
+    effects: &Effects,
+    set: &TwinSet<'_>,
+    object: &CarEffects,
+) -> Result<(), Refused> {
     let (masks, particles, ring) = (&effects.masks, &effects.particles, &effects.ring);
     if let Some(why) = refusal(effects, ring, set, object)? {
         return Err(BadInput(why).into());
@@ -211,7 +218,7 @@ pub struct TwinTuning {
 
 impl TwinTuning {
     /// The values the game starts with.
-    pub const fn nineteenth() -> Self {
+    pub(super) const fn nineteenth() -> Self {
         TwinTuning {
             chance_random: PlainDword::new(0x0),
             lift: PlainFloat::new(65536.0),

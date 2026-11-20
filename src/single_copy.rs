@@ -91,7 +91,7 @@ pub fn claim(allow_another: bool) -> Result<Claim, String> {
 static SHARED_COPY: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
 
 /// Notes that this copy is number `number` of a folder it shares with the others (no instance).
-pub fn note_shared_copy(number: u32) {
+pub(super) fn note_shared_copy(number: u32) {
     if number > 1 {
         let _ = SHARED_COPY.set(number);
     }
@@ -99,7 +99,7 @@ pub fn note_shared_copy(number: u32) {
 
 /// The ending of the last race's replay file's name: empty for the folder's first copy, else
 /// `.<number>`, so that copies sharing `var` do not write one file.
-pub fn last_race_suffix() -> String {
+pub(super) fn last_race_suffix() -> String {
     SHARED_COPY
         .get()
         .map_or_else(String::new, |number| format!(".{number}"))
@@ -107,7 +107,7 @@ pub fn last_race_suffix() -> String {
 
 /// Takes the lock of instance `number` (1 ..= `MOST`), and for one above 1 sets its own `var`
 /// and `savedata` folders, `files::instance::path`, made and seeded. A taken lock is refused.
-pub fn claim_instance(number: u32) -> Result<Claim, String> {
+pub(super) fn claim_instance(number: u32) -> Result<Claim, String> {
     let taken = || {
         format!(
             "Instance {number} of the program already runs in this folder.\n\
@@ -165,7 +165,7 @@ fn seed_instance(number: u32) {
 
 /// The program's log for copy `number` when the log is the default: the first copy's is
 /// `rc2k.log`, the others' `rc2k-<number>.log`; a log the player named stays.
-pub fn log_for(named: &std::path::Path, number: u32) -> PathBuf {
+pub(super) fn log_for(named: &std::path::Path, number: u32) -> PathBuf {
     if number > 1 && named == std::path::Path::new("rc2k.log") {
         PathBuf::from(format!("rc2k-{number}.log"))
     } else {

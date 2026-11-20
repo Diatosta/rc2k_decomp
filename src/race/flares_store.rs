@@ -25,7 +25,7 @@ pub struct FlareTables<K: CellKind = PlainCells> {
 
 /// A view's own flares (`race::lamp_work::LampWork::flares`), which only its drawing part
 /// reaches: on plain cells.
-pub type ViewFlares = FlareTables<PlainCells>;
+pub(super) type ViewFlares = FlareTables<PlainCells>;
 
 /// The piece (a field of `race::owner::Race::course`), with the image's first values.
 impl<K: CellKind> FlareTables<K>

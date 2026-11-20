@@ -3,9 +3,9 @@
 //! the ground.
 
 /// Below this height (signed) the camera is low.
-pub const LOW: u32 = 0x800;
+pub(crate) const LOW: u32 = 0x800;
 /// At this height (signed) or more the camera is clear.
-pub const CLEAR: u32 = 0x10000;
+pub(crate) const CLEAR: u32 = 0x10000;
 /// The x offsets across the heading (half a unit either way) that must have ground.
 pub const SIDES: [u32; 2] = [0xFFFF_8000, 0x8000];
 
@@ -59,10 +59,10 @@ pub fn back_checkpoint(checkpoint: u32, back: u32) -> Option<u32> {
 
 /// The turn back's first step, and the step at or below which it ends.
 pub const FIRST_TURN_STEP: u32 = 0x400_0000;
-pub const LAST_TURN_STEP: u32 = 0x1000;
+pub(crate) const LAST_TURN_STEP: u32 = 0x1000;
 
 /// The gap from the heading to the kept one, made positive (signed).
-pub fn turn_gap(kept: u32, heading: u32) -> u32 {
+pub(crate) fn turn_gap(kept: u32, heading: u32) -> u32 {
     let d = kept.wrapping_sub(heading);
     if (d as i32) < 0 { d.wrapping_neg() } else { d }
 }

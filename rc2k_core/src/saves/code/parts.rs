@@ -14,7 +14,7 @@ pub const START: &str = "RC2P:";
 /// the two colons.
 const OVERHEAD: usize = START.len() + 2 + 2 + 8 + 2;
 /// The most parts a code has (the count is two digits).
-pub const MOST_PARTS: usize = 99;
+pub(crate) const MOST_PARTS: usize = 99;
 /// The most letters of the whole text one part carries.
 const MOST_PIECE: usize = qr::MOST_LETTERS - OVERHEAD;
 /// How much of the whole text one QR code carries.

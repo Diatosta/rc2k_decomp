@@ -19,7 +19,7 @@ const FONT_C: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANE
 const FONT_D: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_D;
 const FONT_E: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_E;
 
-pub fn draw_viewer_panel(
+pub(super) fn draw_viewer_panel(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     race: &Race,
     gfx: &'static crate::gfx::owner::Gfx,

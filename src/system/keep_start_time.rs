@@ -5,7 +5,7 @@
 //! `logfile::date_text` and `math::seed_random` read.
 
 /// The nine bytes kept. Written once, by `start`'s first call.
-pub const KEPT_LEN: usize = 9;
+pub(super) const KEPT_LEN: usize = 9;
 
 /// The start's moment as kept (all 0 before `keep_start_time`).
 pub fn start_time(system: &crate::system::owner::System) -> [u8; KEPT_LEN] {

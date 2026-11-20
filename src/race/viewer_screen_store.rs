@@ -275,7 +275,7 @@ impl ViewerPanelBlock {
         self.tail_read(PICTURE_TIME_AT)
     }
 
-    pub fn set_picture_time(&self, value: u32) {
+    pub(super) fn set_picture_time(&self, value: u32) {
         self.tail_write(PICTURE_TIME_AT, value);
     }
 
@@ -290,7 +290,7 @@ impl ViewerPanelBlock {
     /// `switch_pictures_b`, 2 `switch_pictures_c`; the tables name their rectangles by image
     /// address). The three tables are one run of nine names, which an `n` past a table's end reads
     /// on into; past the run, or a name off the panel, is refused.
-    pub fn switch_picture(
+    pub(super) fn switch_picture(
         &self,
         table: usize,
         n: u32,

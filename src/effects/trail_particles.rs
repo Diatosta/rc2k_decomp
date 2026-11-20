@@ -46,7 +46,7 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
 }
 
 /// `p` is the particle it trails.
-pub fn trail_particles(
+pub(super) fn trail_particles(
     frame: &Frame,
     particles: &Particles,
     ring: &Ring,

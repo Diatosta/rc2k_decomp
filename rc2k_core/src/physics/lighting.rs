@@ -3,9 +3,9 @@
 //! with saturation.
 
 /// The shares' whole (16.16).
-pub const WHOLE: u32 = 0x10000;
+pub(crate) const WHOLE: u32 = 0x10000;
 /// The most a held light changes in a step.
-pub const MOST_CHANGE: u32 = 10;
+pub(crate) const MOST_CHANGE: u32 = 10;
 
 /// The shares taken from the whole on the face's second half.
 pub fn half_shares(half: u32, s: u32, t: u32) -> (u32, u32) {

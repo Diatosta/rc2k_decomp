@@ -29,7 +29,7 @@ pub struct Small {
 impl Small {
     /// The small frame at `percent` of the screen's size, holding the screen's picture made
     /// smaller (what was drawn before this flush, which the 3D may blend over).
-    pub fn from_screen(
+    pub(super) fn from_screen(
         screen: &[u8],
         pitch: usize,
         width: usize,
@@ -68,7 +68,7 @@ impl Small {
 
     /// For the rasteriser's `Frame`, which holds them no longer than this `Small` lives:
     /// (pixels, width, height, depths).
-    pub fn frame_parts(&mut self) -> (&mut [u32], usize, usize, &mut [f32]) {
+    pub(super) fn frame_parts(&mut self) -> (&mut [u32], usize, usize, &mut [f32]) {
         let b = &mut *self.buffers;
         let height = b.pixels.len() / b.width;
         (&mut b.pixels, b.width, height, &mut b.depth)
@@ -76,7 +76,7 @@ impl Small {
 
     /// Back on the screen: a smaller frame's pixels each made as many pixels wide and high as
     /// it covers, a larger frame's pixels averaged by the area each screen pixel covers.
-    pub fn enlarge_to(self, screen: &mut [u8], pitch: usize) {
+    pub(super) fn enlarge_to(self, screen: &mut [u8], pitch: usize) {
         let b = &*self.buffers;
         let (width, height) = self.full;
         if b.width > width || b.pixels.len() / b.width > height {
@@ -143,7 +143,7 @@ impl Small {
 
     /// The noted things' screen places made fit the small frame: each fan's vertices and
     /// bounds, each depth clear's rectangle.
-    pub fn fit_noted(&self, noted: &mut super::CommandList) {
+    pub(super) fn fit_noted(&self, noted: &mut super::CommandList) {
         let (w, h) = self.size();
         let (bx, by) = (w as f32 / self.full.0 as f32, h as f32 / self.full.1 as f32);
         // Every vertex is a fan's (the list holds no others).

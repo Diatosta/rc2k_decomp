@@ -25,7 +25,7 @@ fn second(weather: &Weather) -> ViewPlace<'_> {
     }
 }
 
-pub fn place_snow_view(weather: &Weather) -> Result<(), Refused> {
+pub(super) fn place_snow_view(weather: &Weather) -> Result<(), Refused> {
     let second = second(weather);
     let snow = &weather.snow;
     place_view_with(&second)?;

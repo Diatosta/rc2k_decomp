@@ -48,7 +48,7 @@ fn faces_and_after(car: &Car) -> [&dyn Run; 28] {
 }
 
 /// Core: `rc2k_core::physics::saved_car::{restore_count, restored}`.
-pub fn restore_saved_car(
+pub(super) fn restore_saved_car(
     car: &Car,
     tables: &PhysicsTables,
     contact: &ContactWork,

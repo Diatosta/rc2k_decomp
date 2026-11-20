@@ -8,8 +8,8 @@ use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::memory::session::PlainDword;
 
-pub const COURSE_CORNERS: u32 = 0x1C_2000;
-pub const CORNERS_LEN: usize = 0x8000;
+const COURSE_CORNERS: u32 = 0x1C_2000;
+pub(super) const CORNERS_LEN: usize = 0x8000;
 
 /// The tables of the three ramps, in `ProfileTables::tables`.
 const RAMPS: [usize; 3] = [0, 3, 4];
@@ -94,7 +94,7 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
 /// differences after it (a fourth list is of no tables), the done flag set; then
 /// 0x8000 bytes of corners from the course info + 0x1C2000 (twice), `allocate_links` and
 /// `reset_settings_blocks`.
-pub fn make_profiles(
+pub(super) fn make_profiles(
     paths: &Paths,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
@@ -148,7 +148,7 @@ impl ProfileRings {
 
 /// One profile table: 0x100 whole numbers and then their 0x100 differences (the first
 /// dwords hold the table's inputs until `effects::make_profiles` makes it).
-pub type ProfileTable = [PlainDword; 0x200];
+type ProfileTable = [PlainDword; 0x200];
 
 /// A profile table with the given first values (index, value).
 const fn table(first: &[(usize, u32)]) -> ProfileTable {

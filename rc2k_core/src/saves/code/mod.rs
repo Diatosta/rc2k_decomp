@@ -124,7 +124,7 @@ pub struct PlayerState {
 }
 
 /// CRC-32 (the one of zip and PNG).
-pub fn crc32(data: &[u8]) -> u32 {
+pub(crate) fn crc32(data: &[u8]) -> u32 {
     let mut crc = !0u32;
     for &b in data {
         crc ^= u32::from(b);

@@ -73,7 +73,8 @@ impl Progress for LoadingBar {
 
 /// A stage is loading (`race::load_stage`). The bar is drawn for every stage, over the loading
 /// picture.
-pub static STAGE_LOADING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub(super) static STAGE_LOADING: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 /// The bar's frames and their microseconds since last asked (the load's log line).
 static FRAMES: [std::sync::atomic::AtomicU64; 2] =
@@ -91,7 +92,7 @@ pub fn shown() -> (u64, u64) {
 }
 
 /// The loading picture was just shown: the bar's first frame waits its 33 ms after it.
-pub fn picture_shown() {
+pub(super) fn picture_shown() {
     *LAST_FRAME
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(std::time::Instant::now());

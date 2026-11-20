@@ -116,12 +116,12 @@ fn var(menus: &crate::menu::owner::Menus, v: starters::Var) -> &PlainDword {
 }
 
 /// Starts the event of a starter.
-pub fn start_event(o: crate::owners::Owners<'static>, s: &Starter) -> Result<(), Refused> {
+pub(super) fn start_event(o: crate::owners::Owners<'static>, s: &Starter) -> Result<(), Refused> {
     start_event_with(o, s, None)
 }
 
 /// `start_event` with a launch's answers to the car choices.
-pub fn start_event_with<'a>(
+pub(super) fn start_event_with<'a>(
     o: crate::owners::Owners<'static>,
     s: &Starter,
     answer: Option<crate::menu::launch::CarAnswer<'a>>,

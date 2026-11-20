@@ -11,18 +11,18 @@ use crate::net::owner::Net;
 const COMMAND: &[u8] = b"/kick ";
 
 /// Whether `typed` is the kick command (case ignored, with a space after it).
-pub fn is_kick(typed: &[u8]) -> bool {
+pub(super) fn is_kick(typed: &[u8]) -> bool {
     typed.len() >= COMMAND.len() && typed[..COMMAND.len()].eq_ignore_ascii_case(COMMAND)
 }
 
 /// The name a kick command asks for: the rest of the line without its spaces at both ends.
-pub fn kick_name(typed: &[u8]) -> &[u8] {
+fn kick_name(typed: &[u8]) -> &[u8] {
     typed[COMMAND.len()..].trim_ascii()
 }
 
 /// Runs the command in `typed` (the typed line up to its end): the player named is put out when
 /// this machine hosts; a line tells the result.
-pub fn kick_command(
+pub(super) fn kick_command(
     net: &Net,
     strings: &crate::strings::owner::Strings,
     gfx: &'static Gfx,

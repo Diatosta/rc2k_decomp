@@ -7,7 +7,7 @@ use rc2k_core::menu::tables::MenuItem;
 use rc2k_core::menu::tables_data::ItemFn;
 
 /// The main menu's number for the network item.
-pub const NETWORK_ITEM: u32 = 3;
+const NETWORK_ITEM: u32 = 3;
 
 /// Whether a build without network play leaves the item out of its menu.
 pub fn hidden(item: &MenuItem) -> bool {
@@ -16,7 +16,7 @@ pub fn hidden(item: &MenuItem) -> bool {
 
 /// The main menu's carousel entry of an item: its number less one, and less another for the
 /// items after the hidden one, which has no entry.
-pub fn carousel_entry(item: u32) -> u32 {
+pub(super) fn carousel_entry(item: u32) -> u32 {
     let entry = item.wrapping_sub(1);
     if !caps::NETWORK && item > NETWORK_ITEM {
         entry - 1

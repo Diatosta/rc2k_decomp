@@ -21,7 +21,7 @@ use crate::gfx::picture::{put, with_buffer};
 
 /// The file's palette read with a seek and a plain read on the stream's handle, and the handle back
 /// at the start: whether it worked.
-pub fn read_file_palette(stream: &Stream, gfx: &crate::gfx::owner::Gfx) -> bool {
+pub(super) fn read_file_palette(stream: &Stream, gfx: &crate::gfx::owner::Gfx) -> bool {
     let file = stream.file;
     seek(file, -(FILE_PALETTE_LEN as i32), 2).is_some()
         && read_palette(file, &gfx.pictures.pcx.file_palette)
@@ -70,6 +70,6 @@ fn read_rows(stream: &mut Stream, gfx: &crate::gfx::owner::Gfx) -> Result<bool, 
     Ok(true)
 }
 
-pub fn read_pcx_8bit(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
+pub(super) fn read_pcx_8bit(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
     on_stream(path, |stream| read_rows(stream, gfx))
 }

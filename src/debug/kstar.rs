@@ -423,7 +423,7 @@ fn course_map(race: &Race, ui: &Ui) {
 }
 
 /// What goes over the picture (once a UI frame).
-pub fn over_picture(
+pub(super) fn over_picture(
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,
     ui: &Ui,

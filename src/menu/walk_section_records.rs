@@ -65,7 +65,7 @@ fn walk(
     walked
 }
 
-pub fn walk_section_records(
+pub(super) fn walk_section_records(
     menus: &Menus,
     system: &System,
     race: &Race,

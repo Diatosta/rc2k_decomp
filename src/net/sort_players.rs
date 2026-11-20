@@ -21,7 +21,7 @@ fn standing(block: &PlayerBlock) -> Standing {
 }
 
 /// The two blocks swapped, a dword at a time.
-pub fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) -> Result<(), BadInput> {
+pub(super) fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) -> Result<(), BadInput> {
     // Two player blocks swapped as dwords: whole blocks of bytes.
     let mut first = vec![0u8; BLOCK as usize];
     let mut second = vec![0u8; BLOCK as usize];
@@ -33,7 +33,7 @@ pub fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) -> Result<(), BadInput>
 }
 
 /// `players::bubble` over the blocks, `swap` refusing kept and raised after the sort.
-pub fn bubble_blocks(
+pub(super) fn bubble_blocks(
     count: u32,
     after: impl FnMut(u32) -> bool,
     swap: impl Fn(u32) -> Result<(), BadInput>,

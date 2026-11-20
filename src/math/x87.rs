@@ -163,7 +163,7 @@ pub fn int_ratio(a: i32, b: i32) -> f32 {
 
 /// `1 - a / b`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn one_less_int_ratio(a: i32, b: i32) -> u32 {
+pub(super) fn one_less_int_ratio(a: i32, b: i32) -> u32 {
     bh::st(bh::ONE - bh::int(a) / bh::int(b))
 }
 
@@ -228,7 +228,7 @@ pub fn product_difference(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) ->
 
 /// The same negated.
 #[cfg(test)] // replaced by `negated` of the plain step; the frozen comparison keeps it
-pub fn negated_product_difference(a: u32, b: u32, c: u32, d: u32) -> u32 {
+pub(super) fn negated_product_difference(a: u32, b: u32, c: u32, d: u32) -> u32 {
     bh::st(-(bh::ld(a) * bh::ld(b) - bh::ld(c) * bh::ld(d)))
 }
 
@@ -262,7 +262,7 @@ pub fn sine_cosine(angle: i32, a: impl Flt, b: impl Flt) -> (u32, u32) {
 
 /// The root of a whole number over a float.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_over_root(a: i32, d: u32) -> u32 {
+pub(super) fn int_over_root(a: i32, d: u32) -> u32 {
     bh::st((bh::int(a) / bh::ld(d)).sqrt())
 }
 
@@ -274,13 +274,13 @@ pub fn sqrt(a: impl Flt) -> f32 {
 
 /// The sine of n times pi over d: `sin(n * pi / d)`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn sine_of_pi_fraction(n: i32, d: i32) -> u32 {
+pub(super) fn sine_of_pi_fraction(n: i32, d: i32) -> u32 {
     bh::st((bh::int(n).times_pi() / bh::int(d)).sin())
 }
 
 /// `a / b * m * n`, as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn ratio_scaled_to_int(a: u32, b: u32, m: i32, n: i32) -> i32 {
+pub(super) fn ratio_scaled_to_int(a: u32, b: u32, m: i32, n: i32) -> i32 {
     bh::to_int(bh::ld(a) / bh::ld(b) * bh::int(m) * bh::int(n))
 }
 
@@ -319,7 +319,7 @@ pub fn reciprocal(a: impl Flt) -> f32 {
 
 /// Two whole numbers and two floats multiplied: `a * b * c * d`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_float_int_float(a: i32, b: u32, c: i32, d: u32) -> u32 {
+pub(super) fn int_float_int_float(a: i32, b: u32, c: i32, d: u32) -> u32 {
     bh::st(bh::int(a) * bh::ld(b) * bh::int(c) * bh::ld(d))
 }
 
@@ -366,7 +366,7 @@ pub fn int_div_div_doubled(a: i32, b: impl Flt, c: impl Flt) -> f32 {
 
 /// `math::rotate_scratch_about_y`'s turn: x' = x cos + z sin, z' = z cos - x sin, each rounded
 /// once, written back over x and z.
-pub fn turn_in_place(sine: impl Flt, cosine: impl Flt, x: &mut u32, z: &mut u32) {
+pub(super) fn turn_in_place(sine: impl Flt, cosine: impl Flt, x: &mut u32, z: &mut u32) {
     let sine = sine.value();
     let cosine = cosine.value();
     let (s, c) = (bh::ld(sine), bh::ld(cosine));
@@ -416,7 +416,7 @@ pub fn int_times_to_int(a: i32, b: impl Flt) -> i32 {
 
 /// A whole number over a float, less a float, rounded once.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_div_less(a: i32, b: u32, c: u32) -> u32 {
+pub(super) fn int_div_less(a: i32, b: u32, c: u32) -> u32 {
     bh::st(bh::int(a) / bh::ld(b) - bh::ld(c))
 }
 
@@ -450,13 +450,13 @@ pub fn mul_and_div(a: impl Flt, b: impl Flt, c: impl Flt) -> (f32, f32) {
 
 /// `(a - b) / c * d`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn sub_div_mul(a: u32, b: u32, c: u32, d: u32) -> u32 {
+pub(super) fn sub_div_mul(a: u32, b: u32, c: u32, d: u32) -> u32 {
     bh::st((bh::ld(a) - bh::ld(b)) / bh::ld(c) * bh::ld(d))
 }
 
 /// `(a - b) / (c - d) * e`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn diff_ratio_mul(a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
+pub(super) fn diff_ratio_mul(a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
     bh::st((bh::ld(a) - bh::ld(b)) / (bh::ld(c) - bh::ld(d)) * bh::ld(e))
 }
 
@@ -481,7 +481,7 @@ pub fn lerp_scaled_less(
 
 /// `-(a - b)`.
 #[cfg(test)] // replaced by `negated` of the plain step; the frozen comparison keeps it
-pub fn negated_sub(a: u32, b: u32) -> u32 {
+pub(super) fn negated_sub(a: u32, b: u32) -> u32 {
     bh::st(-(bh::ld(a) - bh::ld(b)))
 }
 
@@ -517,13 +517,13 @@ pub fn ramp_down(values: &mut [i32], last: i32, first: i32, by: i32) {
 
 /// The difference of two whole numbers, rounded once to a float.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_less_int(a: i32, b: i32) -> u32 {
+pub(super) fn int_less_int(a: i32, b: i32) -> u32 {
     bh::st(bh::int(a) - bh::int(b))
 }
 
 /// `(a - b) / c`, a and b whole numbers.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_less_int_over(a: i32, b: i32, c: u32) -> u32 {
+pub(super) fn int_less_int_over(a: i32, b: i32, c: u32) -> u32 {
     bh::st((bh::int(a) - bh::int(b)) / bh::ld(c))
 }
 
@@ -537,7 +537,7 @@ pub fn sub_div(a: impl Flt, b: impl Flt, c: impl Flt) -> f32 {
 
 /// `sin(a) b + c`, as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn sine_times_plus_to_int(a: u32, b: u32, c: u32) -> i32 {
+pub(super) fn sine_times_plus_to_int(a: u32, b: u32, c: u32) -> i32 {
     bh::to_int(bh::ld(a).sin() * bh::ld(b) + bh::ld(c))
 }
 
@@ -626,7 +626,7 @@ pub fn rounding() -> Rounding {
 
 /// `fistp dword` of `x` at this thread's rounding: out of range or NaN gives the integer
 /// indefinite, 0x80000000, as the x87 does with the invalid operation masked.
-pub fn round_to_int(x: f64) -> i32 {
+pub(super) fn round_to_int(x: f64) -> i32 {
     whole_to_int(match rounding() {
         Rounding::Nearest => x.round_ties_even(),
         Rounding::Down => x.floor(),
@@ -763,7 +763,7 @@ pub fn compare_status(a: impl Flt, b: impl Flt) -> u16 {
 
 /// `a - n`, as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn float_less_int_to_int(a: u32, n: i32) -> i32 {
+pub(super) fn float_less_int_to_int(a: u32, n: i32) -> i32 {
     bh::to_int(bh::ld(a) - bh::int(n))
 }
 
@@ -835,7 +835,7 @@ pub fn int_length3(a: i32, b: i32, c: i32) -> i32 {
 
 /// The sum, or 0x80000000 when it does not fit.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_sum(a: i32, b: i32) -> i32 {
+pub(super) fn int_sum(a: i32, b: i32) -> i32 {
     bh::to_int(bh::int(a) + bh::int(b))
 }
 
@@ -870,7 +870,7 @@ pub fn add_to_int(a: impl Flt, b: impl Flt) -> i32 {
 
 /// `frndint`: `x` rounded to a whole number as this thread's control word says, kept a
 /// double.
-pub fn round_f64(x: f64) -> f64 {
+pub(super) fn round_f64(x: f64) -> f64 {
     match rounding() {
         Rounding::Nearest => x.round_ties_even(),
         Rounding::Down => x.floor(),
@@ -948,7 +948,7 @@ pub fn sub_thrice(a: impl Flt, b: impl Flt) -> f32 {
 
 /// `a + b`, a whole number and a float.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_plus(a: i32, b: u32) -> u32 {
+pub(super) fn int_plus(a: i32, b: u32) -> u32 {
     bh::st(bh::int(a) + bh::ld(b))
 }
 
@@ -962,7 +962,7 @@ pub fn ease(t: impl Flt, c: impl Flt, k: impl Flt) -> f32 {
 
 /// `a + b` as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_plus_to_int(a: i32, b: u32) -> i32 {
+pub(super) fn int_plus_to_int(a: i32, b: u32) -> i32 {
     bh::to_int(bh::int(a) + bh::ld(b))
 }
 
@@ -973,7 +973,7 @@ pub fn zero_less_int_plus_int(a: i32, b: i32) -> i32 {
 
 /// `f - a + b` as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn less_int_plus_int(f: u32, a: i32, b: i32) -> i32 {
+pub(super) fn less_int_plus_int(f: u32, a: i32, b: i32) -> i32 {
     bh::to_int(bh::ld(f) - bh::int(a) + bh::int(b))
 }
 
@@ -997,7 +997,7 @@ pub fn two_pi_less(a: u32) -> f32 {
 
 /// `((a m) + c) k`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_times_plus_times(a: i32, m: u32, c: u32, k: u32) -> u32 {
+pub(super) fn int_times_plus_times(a: i32, m: u32, c: u32, k: u32) -> u32 {
     bh::st((bh::int(a) * bh::ld(m) + bh::ld(c)) * bh::ld(k))
 }
 
@@ -1256,7 +1256,7 @@ pub fn times_compare(a: impl Flt, k: impl Flt, c: impl Flt) -> u16 {
 
 /// `a k n` as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn times_int_to_int(a: u32, k: u32, n: i32) -> i32 {
+pub(super) fn times_int_to_int(a: u32, k: u32, n: i32) -> i32 {
     bh::to_int(bh::ld(a) * bh::ld(k) * bh::int(n))
 }
 
@@ -1270,13 +1270,13 @@ pub fn int_times_plus_and_negated(a: i32, b: impl Flt, c: impl Flt) -> (f32, f32
 
 /// `a b - c - d`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_times_less_less(a: i32, b: u32, c: u32, d: u32) -> u32 {
+pub(super) fn int_times_less_less(a: i32, b: u32, c: u32, d: u32) -> u32 {
     bh::st(bh::int(a) * bh::ld(b) - bh::ld(c) - bh::ld(d))
 }
 
 /// `(|a| + |b|) k` as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn abs_sum_times_to_int(a: u32, b: u32, k: u32) -> i32 {
+pub(super) fn abs_sum_times_to_int(a: u32, b: u32, k: u32) -> i32 {
     bh::to_int((bh::ld(a).abs() + bh::ld(b).abs()) * bh::ld(k))
 }
 
@@ -1331,7 +1331,7 @@ pub fn turned_place_less_f32(
 
 /// `turned_place_less_f32` on bits, for the frozen comparison.
 #[cfg(test)]
-pub fn turned_place_less(
+pub(super) fn turned_place_less(
     t: [u32; 3],
     k: impl Flt,
     d: impl Flt,
@@ -1360,7 +1360,7 @@ pub fn one_less_inverse(a: impl Flt, k: impl Flt, one: impl Flt) -> f32 {
 
 /// `a k / n`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn times_over_int(a: u32, k: u32, n: i32) -> u32 {
+pub(super) fn times_over_int(a: u32, k: u32, n: i32) -> u32 {
     bh::st(bh::ld(a) * bh::ld(k) / bh::int(n))
 }
 
@@ -1401,7 +1401,7 @@ pub fn turned_place(
 
 /// `a b` as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_times_int_to_int(a: i32, b: i32) -> i32 {
+pub(super) fn int_times_int_to_int(a: i32, b: i32) -> i32 {
     bh::to_int(bh::int(a) * bh::int(b))
 }
 
@@ -1481,7 +1481,7 @@ pub fn unit_and_length(p: [u32; 3]) -> ([f32; 3], f32) {
 
 /// `-a - b + c + d`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn negated_less_plus_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
+pub(super) fn negated_less_plus_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
     bh::st(-bh::ld(a) - bh::ld(b) + bh::ld(c) + bh::ld(d))
 }
 
@@ -1540,7 +1540,12 @@ pub fn int_over_int_times(a: i32, b: i32, k: impl Flt) -> f32 {
 
 /// `effects::clip_quad`'s crossing: t = (m - fc) / (fs - fc), then for each (s, c) pair
 /// (s - c) t + c, t kept unrounded.
-pub fn clip_lerp3(m: impl Flt, fc: impl Flt, fs: impl Flt, pairs: [[u32; 2]; 3]) -> [f32; 3] {
+pub(super) fn clip_lerp3(
+    m: impl Flt,
+    fc: impl Flt,
+    fs: impl Flt,
+    pairs: [[u32; 2]; 3],
+) -> [f32; 3] {
     let m = m.value();
     let fc = fc.value();
     let fs = fs.value();
@@ -1576,7 +1581,7 @@ pub fn slot_project(
 
 /// `i a b`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_times_times(i: i32, a: u32, b: u32) -> u32 {
+pub(super) fn int_times_times(i: i32, a: u32, b: u32) -> u32 {
     bh::st(bh::int(i) * bh::ld(a) * bh::ld(b))
 }
 
@@ -1590,7 +1595,7 @@ pub fn toward(a: impl Flt, b: impl Flt, r: impl Flt) -> f32 {
 
 /// `(b - a) k + c m`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn diff_times_plus_times(b: u32, a: u32, k: u32, c: u32, m: u32) -> u32 {
+pub(super) fn diff_times_plus_times(b: u32, a: u32, k: u32, c: u32, m: u32) -> u32 {
     bh::st((bh::ld(b) - bh::ld(a)) * bh::ld(k) + bh::ld(c) * bh::ld(m))
 }
 
@@ -1612,7 +1617,13 @@ pub fn column_turn(p: &[[u8; 10]; 3], m: &(impl crate::math::cells::Cells + ?Siz
 /// `effects::draw_particle`'s square: q = focal / c, kept; z' = c zk; s = size q; Y = -(q b) + cy
 /// and X = q a + cx kept unrounded, the corners Y - s, Y - s, Y + s, Y + s and X - s, X + s,
 /// X + s, X - s (s as stored). Out: [s, z', y0 .. y3, x0 .. x3].
-pub fn particle_square(a: impl Flt, b: impl Flt, c: impl Flt, k: [u32; 4], size: i32) -> [f32; 10] {
+pub(super) fn particle_square(
+    a: impl Flt,
+    b: impl Flt,
+    c: impl Flt,
+    k: [u32; 4],
+    size: i32,
+) -> [f32; 10] {
     let a = a.value();
     let b = b.value();
     let c = c.value();
@@ -1646,7 +1657,7 @@ pub fn plus_times_int(a: impl Flt, v: impl Flt, t: i32) -> f32 {
 
 /// `a + (v + w) t`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn plus_sum_times_int(a: u32, v: u32, w: u32, t: i32) -> u32 {
+pub(super) fn plus_sum_times_int(a: u32, v: u32, w: u32, t: i32) -> u32 {
     bh::st((bh::ld(v) + bh::ld(w)) * bh::int(t) + bh::ld(a))
 }
 
@@ -1680,7 +1691,7 @@ pub fn int_times3_wave_plus(
 
 /// `(r k1 + a) k2 + b`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_times_plus_times_plus(r: i32, k1: u32, a: u32, k2: u32, b: u32) -> u32 {
+pub(super) fn int_times_plus_times_plus(r: i32, k1: u32, a: u32, k2: u32, b: u32) -> u32 {
     bh::st((bh::int(r) * bh::ld(k1) + bh::ld(a)) * bh::ld(k2) + bh::ld(b))
 }
 
@@ -1689,7 +1700,7 @@ pub fn int_times_plus_times_plus(r: i32, k1: u32, a: u32, k2: u32, b: u32) -> u3
 /// sides as stored); Y = -(q b) + cy and X = q a + cx kept unrounded, the corners Y - v1,
 /// Y - v2, Y + v1, Y + v2 and X - u1, X - u2, X + u1, X + u2. Out: [s, z', u1, v1, u2, v2,
 /// y0 .. y3, x0 .. x3].
-pub fn turned_sprite(
+pub(super) fn turned_sprite(
     a: impl Flt,
     b: impl Flt,
     c: impl Flt,
@@ -1766,7 +1777,7 @@ pub fn turn_about(
 
 /// `c - v k` as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn times_subr_to_int(v: u32, k: u32, c: u32) -> i32 {
+pub(super) fn times_subr_to_int(v: u32, k: u32, c: u32) -> i32 {
     bh::to_int(bh::ld(c) - bh::ld(v) * bh::ld(k))
 }
 
@@ -1784,7 +1795,7 @@ pub fn times_plus_80(a: impl Flt, b: impl Flt, c: impl Flt, negated: bool) -> [u
 
 /// `k t + c` as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn times_int_plus_int_to_int(k: u32, t: i32, c: i32) -> i32 {
+pub(super) fn times_int_plus_int_to_int(k: u32, t: i32, c: i32) -> i32 {
     bh::to_int(bh::ld(k) * bh::int(t) + bh::int(c))
 }
 
@@ -1804,19 +1815,19 @@ pub fn approach(i: i32, v: impl Flt, k: impl Flt, t: i32) -> (i32, f32) {
 
 /// `a - v t`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn less_times_int(a: u32, v: u32, t: i32) -> u32 {
+pub(super) fn less_times_int(a: u32, v: u32, t: i32) -> u32 {
     bh::st(bh::ld(a) - bh::ld(v) * bh::int(t))
 }
 
 /// `a + b k` as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn plus_product_to_int(a: u32, b: u32, k: u32) -> i32 {
+pub(super) fn plus_product_to_int(a: u32, b: u32, k: u32) -> i32 {
     bh::to_int(bh::ld(a) + bh::ld(b) * bh::ld(k))
 }
 
 /// `i a b` as a whole number.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_times_times_to_int(i: i32, a: u32, b: u32) -> i32 {
+pub(super) fn int_times_times_to_int(i: i32, a: u32, b: u32) -> i32 {
     bh::to_int(bh::int(i) * bh::ld(a) * bh::ld(b))
 }
 
@@ -1865,7 +1876,7 @@ pub fn int_over_int_to_int(a: i32, b: i32) -> i32 {
 
 /// `(a + b + c) k`.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn sum3_times(a: u32, b: u32, c: u32, k: u32) -> u32 {
+pub(super) fn sum3_times(a: u32, b: u32, c: u32, k: u32) -> u32 {
     bh::st((bh::ld(a) + bh::ld(b) + bh::ld(c)) * bh::ld(k))
 }
 

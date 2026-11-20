@@ -12,18 +12,18 @@ use std::path::PathBuf;
 
 /// The group's folder name.
 #[cfg(not(any(target_os = "macos", target_os = "ios")))] // reason: macOS has no items
-pub const GROUP: &str = "Rally Championship";
+const GROUP: &str = "Rally Championship";
 /// The program's file.
 #[cfg(windows)]
-pub const PROGRAM: &str = "rc2k.exe";
+const PROGRAM: &str = "rc2k.exe";
 #[cfg(not(windows))]
-pub const PROGRAM: &str = "rc2k";
+const PROGRAM: &str = "rc2k";
 /// The libraries the program needs next to it (as `deploy_standalone.sh` copies them;
 /// on Unix the system's).
 #[cfg(windows)]
-pub const DLLS: &[&str] = &["SDL3.dll"];
+const DLLS: &[&str] = &["SDL3.dll"];
 #[cfg(not(windows))]
-pub const DLLS: &[&str] = &[];
+const DLLS: &[&str] = &[];
 
 /// The three items: (name, target in the installed folder, arguments).
 #[cfg(not(any(target_os = "macos", target_os = "ios")))] // reason: macOS has no items
@@ -50,11 +50,11 @@ fn readme_name(installed: &Path) -> std::ffi::OsString {
         .unwrap_or_else(|| "readme.txt".into())
 }
 
-pub fn add_start_menu_items(installed: &Path) {
+pub(super) fn add_start_menu_items(installed: &Path) {
     start_menu::add(installed);
 }
 
-pub fn remove_start_menu_items() {
+pub(super) fn remove_start_menu_items() {
     start_menu::remove();
 }
 
@@ -243,7 +243,7 @@ mod start_menu {
 
 /// The program and its DLLs copied from the running program's folder into the current one,
 /// unless it is the same folder. False if a copy failed.
-pub fn copy_program() -> bool {
+pub(super) fn copy_program() -> bool {
     let Ok(exe) = std::env::current_exe() else {
         return false;
     };
@@ -278,7 +278,7 @@ pub fn copy_program() -> bool {
 
 /// A program started in its own folder, not waited for: the installed copy runs where it is
 /// installed (its files, its log, and its folder's lock, `single_copy`, not the starting copy's).
-pub fn run_program(command: &Path) -> bool {
+pub(super) fn run_program(command: &Path) -> bool {
     let mut run = std::process::Command::new(command);
     if let Some(folder) = command.parent().filter(|f| !f.as_os_str().is_empty()) {
         run.current_dir(folder);

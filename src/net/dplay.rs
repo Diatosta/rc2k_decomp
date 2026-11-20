@@ -2,6 +2,6 @@
 //! `IDirectPlayLobby2A` are `net::dp_objects`' ids, their methods its functions.
 
 /// The session layer's object of `class` with `interface` (`net::dp_objects`), or the error.
-pub fn create_instance(class: &[u8; 16], interface: &[u8; 16]) -> Result<u32, u32> {
+pub(super) fn create_instance(class: &[u8; 16], interface: &[u8; 16]) -> Result<u32, u32> {
     crate::net::dp_objects::create(class, interface)
 }

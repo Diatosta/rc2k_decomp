@@ -69,7 +69,7 @@ pub const WIDTH: u32 = 0x78;
 /// How far each quad's texture rows move on.
 pub const ROWS_STEP: u32 = 0x32_0000;
 /// The virtual screen: width and height.
-pub const VIRTUAL: [u32; 2] = [0x320, 0x258];
+pub(crate) const VIRTUAL: [u32; 2] = [0x320, 0x258];
 
 /// The top's entry of a view (below `VIEWS`): the second six when the flat-layout switch is 0.
 pub fn top_entry(view: u32, flat: u32) -> usize {

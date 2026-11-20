@@ -10,12 +10,12 @@ use std::io::{Read, Write};
 pub type Id = u32;
 
 // DirectPlay's system messages (their first dword).
-pub const DPSYS_CREATEPLAYERORGROUP: u32 = 0x3;
-pub const DPSYS_DESTROYPLAYERORGROUP: u32 = 0x5;
-pub const DPSYS_ADDPLAYERTOGROUP: u32 = 0x7;
-pub const DPSYS_DELETEPLAYERFROMGROUP: u32 = 0x21;
+pub(crate) const DPSYS_CREATEPLAYERORGROUP: u32 = 0x3;
+pub(crate) const DPSYS_DESTROYPLAYERORGROUP: u32 = 0x5;
+pub(crate) const DPSYS_ADDPLAYERTOGROUP: u32 = 0x7;
+pub(crate) const DPSYS_DELETEPLAYERFROMGROUP: u32 = 0x21;
 pub const DPSYS_SESSIONLOST: u32 = 0x31;
-pub const DPSYS_SETPLAYERORGROUPDATA: u32 = 0x102;
+pub(crate) const DPSYS_SETPLAYERORGROUPDATA: u32 = 0x102;
 
 /// A session's description (DirectPlay's `DPSESSIONDESC2` but the password).
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -283,7 +283,7 @@ pub const MESSAGE_MOST: usize = 0x100;
 pub const WAITING_MOST: usize = 0x1_0000;
 pub const PLAYERS_MOST: usize = 0x40;
 pub const GROUPS_MOST: usize = 0x40;
-pub const NAME_MOST: usize = 0x100;
+pub(crate) const NAME_MOST: usize = 0x100;
 pub const DATA_MOST: usize = 0x80;
 /// The host's connections, those not yet joined among them.
 pub const CONNECTIONS_MOST: usize = 0x40;
@@ -317,7 +317,7 @@ pub fn read_frame(stream: &mut (impl Read + ?Sized)) -> std::io::Result<Vec<u8>>
 
 // ---- system messages, as DirectPlay laid them out (its pointers 0) ----
 
-pub fn dpname() -> [u32; 4] {
+pub(crate) fn dpname() -> [u32; 4] {
     [0x10, 0, 0, 0]
 }
 

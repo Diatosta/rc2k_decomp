@@ -13,7 +13,7 @@ use crate::sound::sample_settings::sample_settings;
 use crate::sound::sets_store::SoundRequest;
 
 /// The logic is `rc2k_core::sound::cars::slot_turn`.
-pub fn play_timed_slot(
+pub(super) fn play_timed_slot(
     slot: &impl crate::sound::store::TimedCells,
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,

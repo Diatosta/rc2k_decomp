@@ -4,7 +4,7 @@
 use crate::net::dp_objects::Element;
 use crate::net::owner::Net;
 /// The element of type `data_type` with `data`.
-pub fn add_address_element(net: &Net, data_type: &[u8; 16], data: &[u8]) {
+pub(super) fn add_address_element(net: &Net, data_type: &[u8; 16], data: &[u8]) {
     net.address()
         .elements
         .set(net.address().elements.get().wrapping_add(1));

@@ -6,14 +6,14 @@ use crate::errors::BadInput;
 /// chunk), the width and the height, and the palette's 0x300 bytes, three an entry. `decode_png`
 /// sets the fields it learns from the file; the others stay as the shared file scratch had them
 /// (see `PngInfo::leftover`).
-pub struct PngInfo {
+pub(super) struct PngInfo {
     pub has_palette: bool,
     pub width: u32,
     pub height: u32,
     pub palette: [u8; PALETTE_LEN],
 }
 
-pub const PALETTE_LEN: usize = 0x300;
+pub(super) const PALETTE_LEN: usize = 0x300;
 
 /// Where the info block lies in the shared file scratch.
 const SCRATCH_PALETTE_AT: usize = 12;

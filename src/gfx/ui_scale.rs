@@ -8,7 +8,7 @@ use crate::gfx::scaled_region::enlarge;
 use crate::owners::Owners;
 
 /// The height of the virtual screen a panel is laid out for.
-pub const BASE_HEIGHT: i32 = 600;
+const BASE_HEIGHT: i32 = 600;
 
 /// The virtual screen of one frame.
 #[derive(Clone, Copy, Debug, PartialEq)]

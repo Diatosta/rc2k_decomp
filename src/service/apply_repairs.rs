@@ -32,7 +32,7 @@ pub trait Driver {
 }
 
 /// The real clock, frames and sleep.
-pub struct GameDriver {
+struct GameDriver {
     o: Owners<'static>,
 }
 

@@ -5,7 +5,7 @@ use crate::physics::car_store::Car;
 use rc2k_core::physics::start::CarStart;
 
 // Core: `rc2k_core::physics::start::CarStart::mark_started`.
-pub fn mark_car_started(car: &Car) {
+pub(super) fn mark_car_started(car: &Car) {
     let was = CarStart {
         started: car.started_stand_timer.get(),
         moving: car.damage_failed.get(),

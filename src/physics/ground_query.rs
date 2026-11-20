@@ -57,7 +57,7 @@ pub struct GroundQuery<'a> {
 
 impl<'a> GroundQuery<'a> {
     /// The physics' own fields.
-    pub fn of_physics(
+    pub(super) fn of_physics(
         g: &'a GroundWork,
         p: &'a GroundProbe,
         c: &'a CourseWork,

@@ -15,9 +15,9 @@ use rc2k_core::hud::quads;
 use rc2k_core::math::extended::{from_f64, to_f64};
 
 /// The rows of layout 1's markers (first player, second player).
-pub const MARKER_ROWS_1: [u32; 2] = [1, 0xE];
+pub(super) const MARKER_ROWS_1: [u32; 2] = [1, 0xE];
 /// The rows of layout 2's markers.
-pub const MARKER_ROWS_2: [u32; 2] = [0x11F, 0x12C];
+pub(super) const MARKER_ROWS_2: [u32; 2] = [0x11F, 0x12C];
 
 const RECT: u32 = 0x5C;
 
@@ -28,12 +28,17 @@ pub fn int_over_80(i: u32, k: f32) -> [u8; 10] {
 }
 
 /// An 80-bit value taken off into a float (stored as a float).
-pub fn taken_off(v: [u8; 10]) -> u32 {
+pub(super) fn taken_off(v: [u8; 10]) -> u32 {
     (to_f64(v) as f32).to_bits()
 }
 
 /// The two players' markers at `rows` (see the header).
-pub fn draw_markers(frame: &Frame, hud: &Hud, pen: Pen, rows: [u32; 2]) -> Result<(), Refused> {
+pub(super) fn draw_markers(
+    frame: &Frame,
+    hud: &Hud,
+    pen: Pen,
+    rows: [u32; 2],
+) -> Result<(), Refused> {
     {
         let k = hud.block.uv_scale_x.get();
         for (n, distance) in frame

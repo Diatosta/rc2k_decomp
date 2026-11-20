@@ -105,7 +105,7 @@ fn refusal(
 }
 
 /// The kind 1 emitter proper (see the header).
-pub fn emit_particle_1(
+fn emit_particle_1(
     masks: &Masks,
     particles: &Particles,
     ring: &Ring,

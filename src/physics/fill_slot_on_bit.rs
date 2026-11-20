@@ -12,7 +12,7 @@ use rc2k_core::physics::parts::{part_number, take_bit};
 
 /// Bit `bit` (cl) of the car's parts taken and its part put in a race slot.
 // Core: `rc2k_core::physics::parts::{take_bit, part_number}`.
-pub fn fill_slot_on_bit(
+pub(super) fn fill_slot_on_bit(
     numbers: &Numbers,
     work: &RaceWork,
     car: &Car,

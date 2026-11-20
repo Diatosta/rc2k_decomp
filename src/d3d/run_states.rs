@@ -86,7 +86,7 @@ pub fn end_run(part: &PartScratch) -> RunStates {
 
 /// `state` set (whatever its value, and whether it changed or not) in `part`'s run, if one is
 /// under way.
-pub fn note_set(part: &PartScratch, state: usize) {
+pub(super) fn note_set(part: &PartScratch, state: usize) {
     let run = &part.run;
     if run.on.get() && state < STATES && run.first_set[state].get() == usize::MAX {
         run.first_set[state]
@@ -95,7 +95,7 @@ pub fn note_set(part: &PartScratch, state: usize) {
 }
 
 /// The texture set in `part`'s run, if one is under way (as `note_set`).
-pub fn note_texture_set(part: &PartScratch) {
+pub(super) fn note_texture_set(part: &PartScratch) {
     let run = &part.run;
     if run.on.get() && run.texture_set.get() == usize::MAX {
         run.texture_set

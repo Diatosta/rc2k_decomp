@@ -6,7 +6,7 @@ use crate::math::x87::clamped_asin_80;
 use crate::memory::session::PlainFloat;
 
 /// The limit in `limit` (written back, as the held limit).
-pub fn clamped_asin_at(x: [u8; 10], limit: &PlainFloat) -> [u8; 10] {
+pub(super) fn clamped_asin_at(x: [u8; 10], limit: &PlainFloat) -> [u8; 10] {
     // The held value's float is not read again.
     let mut s = 0;
     let mut l = limit.get().to_bits();

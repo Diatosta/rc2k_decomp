@@ -3,22 +3,22 @@
 //! up, and builds the texts put together from pieces: times, speeds in the chosen units, numbers,
 //! percentages. It also holds the keyboard tables that belong to a language.
 
-pub mod append_percent;
-pub mod append_speed;
-pub mod append_string_by_id;
-pub mod append_time;
-pub mod copy_printable;
-pub mod expand_entry;
-pub mod format_seal_code;
-pub mod format_u32;
-pub mod hex_append;
-pub mod lexicon_memory;
-pub mod locale;
-pub mod owner;
-pub mod rot13_into_text;
-pub mod same_text;
-pub mod string_table;
-pub mod text_buffer;
-pub mod text_from_ids;
-pub mod text_length;
-pub mod units;
+pub(crate) mod append_percent;
+pub(crate) mod append_speed;
+pub(crate) mod append_string_by_id;
+pub(crate) mod append_time;
+pub(crate) mod copy_printable;
+mod expand_entry;
+pub(crate) mod format_seal_code;
+pub(crate) mod format_u32;
+pub(crate) mod hex_append;
+pub(crate) mod lexicon_memory;
+pub(crate) mod locale;
+pub(crate) mod owner;
+pub(crate) mod rot13_into_text;
+pub(crate) mod same_text;
+pub(crate) mod string_table;
+pub(crate) mod text_buffer;
+pub(crate) mod text_from_ids;
+pub(crate) mod text_length;
+pub(crate) mod units;

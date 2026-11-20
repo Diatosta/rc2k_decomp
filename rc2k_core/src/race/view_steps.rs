@@ -43,7 +43,7 @@ pub fn mirror_on(on: u32, off: u32) -> bool {
 }
 
 /// The texture slots there are.
-pub const TEXTURE_SLOTS: u32 = 0x400;
+pub(crate) const TEXTURE_SLOTS: u32 = 0x400;
 
 /// Refused: a slot to forget outside the table.
 pub fn check_slots(slots: &[u32]) -> Result<(), Invalid> {

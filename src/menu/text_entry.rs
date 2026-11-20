@@ -29,7 +29,7 @@ pub fn entry(menus: &Menus) -> Entry {
 }
 
 /// The entry's state stored back.
-pub fn put_entry(menus: &Menus, e: &Entry) {
+pub(super) fn put_entry(menus: &Menus, e: &Entry) {
     set_length(menus, e.length);
     menus.screens.entry.typing.set(e.entering);
     for (i, &byte) in e.backup.iter().enumerate() {
@@ -38,7 +38,7 @@ pub fn put_entry(menus: &Menus, e: &Entry) {
 }
 
 /// The entry's state changed by `f` (read, changed, written back whole).
-pub fn with_entry<R>(menus: &Menus, f: impl FnOnce(&mut Entry) -> R) -> R {
+pub(super) fn with_entry<R>(menus: &Menus, f: impl FnOnce(&mut Entry) -> R) -> R {
     let mut e = entry(menus);
     let r = f(&mut e);
     put_entry(menus, &e);
@@ -65,7 +65,7 @@ const BACKED_UP: &std::ffi::CStr = c"Backed up name=";
 /// Starts an entry on the text field `field`, as the saved game and replay screens do it:
 /// the text is copied to the backup, "Backed up name=<backup>" goes to the log if `log` is
 /// set, the field is cleared, the length is 0 and an entry is going on.
-pub fn begin_logged(
+pub(super) fn begin_logged(
     menus: &'static Menus,
     at: impl Into<crate::memory::place::BytePlace>,
     log: bool,

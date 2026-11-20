@@ -3,7 +3,7 @@
 use crate::errors::Refused;
 use crate::net::owner::Net;
 use crate::net::tables::with_connection;
-pub fn keep_connection(net: &Net, number: u32) -> Result<(), Refused> {
+pub(super) fn keep_connection(net: &Net, number: u32) -> Result<(), Refused> {
     let (provider, name) = with_connection(&net.link, number, |c| (c.provider, c.name))?;
     net.setup()
         .saved_connection

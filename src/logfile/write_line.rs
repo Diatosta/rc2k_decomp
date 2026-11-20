@@ -49,7 +49,7 @@ static LINE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 static OPEN_LOG: std::sync::Mutex<Option<std::fs::File>> = std::sync::Mutex::new(None);
 
 /// Lets go of the kept log file: the next write opens the path again (the log was deleted).
-pub fn close_log() {
+pub(super) fn close_log() {
     #[cfg(not(windows))]
     {
         *OPEN_LOG

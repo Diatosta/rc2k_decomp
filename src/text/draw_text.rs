@@ -91,7 +91,7 @@ pub struct Outcome {
 }
 
 /// A canvas of this crate as the core's.
-pub struct Adapt<'a> {
+pub(super) struct Adapt<'a> {
     canvas: &'a mut dyn Canvas,
     kerning: State,
 }

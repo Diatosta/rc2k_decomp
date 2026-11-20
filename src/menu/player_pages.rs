@@ -30,7 +30,7 @@ macro_rules! of_player {
 }
 
 /// Player `N`'s setup pages (`N` is 0 for the first player).
-pub struct PlayerPage<const N: usize>;
+pub(super) struct PlayerPage<const N: usize>;
 
 impl<const N: usize> PlayerPage<N> {
     /// The details page: name, nationality and the way into the controller pages.
@@ -144,7 +144,7 @@ impl<const N: usize> PlayerPage<N> {
     };
 
     /// The controller page: the controller, force feedback and axis mode.
-    pub const CONTROLLER: Screen = Screen {
+    pub(super) const CONTROLLER: Screen = Screen {
         lists: &[
             List {
                 pointer: |m| &m.screens.flow.unread_list,
@@ -316,7 +316,7 @@ impl<const N: usize> PlayerPage<N> {
     };
 
     /// The keyboard assignment page "REDEFINE KEYBOARD".
-    pub const REDEFINE_KEYS: Screen = Screen {
+    pub(super) const REDEFINE_KEYS: Screen = Screen {
         lists: &[
             List {
                 pointer: |m| &m.screens.flow.unread_list,

@@ -10,7 +10,7 @@
 
 use crate::race::owner::Race;
 
-pub fn mark_viewer_items(
+pub(super) fn mark_viewer_items(
     race: &Race,
     list: crate::memory::list_handle::ListMenu,
 ) -> Result<(), crate::errors::BadInput> {

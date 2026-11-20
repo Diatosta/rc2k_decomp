@@ -7,7 +7,7 @@ use crate::physics::car_store::Car;
 use crate::test_support::paths::{bytes, first_addr, get_u32, set_bytes, set_u32};
 
 /// The size of the 1999 record.
-pub const SIZE_1999: usize = 0xFE0;
+const SIZE_1999: usize = 0xFE0;
 
 const FIELDS: [(&str, usize, usize); 263] = [
     ("frame_head", 0x0, 8),
@@ -359,12 +359,16 @@ fn run_on(car: &Car, cells: &[impl crate::memory::session::Cell32], n: usize) ->
 
 /// Cell `n` of the table `cells` of `car` as the 1999 layout reads it, running on past the
 /// table's end into the fields that follow it (`run_on`).
-pub fn read_on_1999<C: crate::memory::session::Cell32>(car: &Car, cells: &[C], n: usize) -> u32 {
+pub(super) fn read_on_1999<C: crate::memory::session::Cell32>(
+    car: &Car,
+    cells: &[C],
+    n: usize,
+) -> u32 {
     load_1999(car, run_on(car, cells, n))
 }
 
 /// `read_on_1999`'s write.
-pub fn write_on_1999<C: crate::memory::session::Cell32>(
+pub(super) fn write_on_1999<C: crate::memory::session::Cell32>(
     car: &Car,
     cells: &[C],
     n: usize,

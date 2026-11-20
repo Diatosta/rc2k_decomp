@@ -96,7 +96,7 @@ fn tests(car: &Car, tables: &PhysicsTables, gear_figures: &GearFigures) -> Resul
 
 /// The steps on `r`.
 // Core: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
-pub fn auto_gearbox(
+pub(super) fn auto_gearbox(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,

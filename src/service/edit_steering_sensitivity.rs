@@ -7,7 +7,7 @@ use crate::menu::owner::Menus;
 use crate::service::pages::{STEERING_SENSITIVITY, simple_page};
 use crate::system::owner::System;
 
-pub fn edit_steering_sensitivity(
+pub(super) fn edit_steering_sensitivity(
     menus: &Menus,
     system: &System,
     input: &crate::input::owner::Input,

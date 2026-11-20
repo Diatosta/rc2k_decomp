@@ -44,7 +44,7 @@ pub fn revs_sound(
 /// Which side of the car the engine sound is heard: the car's place plus its motion, or
 /// less it.
 #[derive(Clone, Copy)]
-pub enum EnginePlace {
+pub(super) enum EnginePlace {
     /// The revs sound: place + motion.
     Ahead,
     /// The throttle sound: place - motion.
@@ -54,7 +54,7 @@ pub enum EnginePlace {
 /// The end of `revs_sound` and `throttle_sound`, with the request's sound number set:
 /// stops the sound when the engine is stopped; else fills the request (pitch from the revs,
 /// volume from `volume_input`) and plays it.
-pub fn send_engine_sound(
+pub(super) fn send_engine_sound(
     so: &SoundObject,
     set: &SoundSet,
     volume_input: &PlainFloat,
@@ -108,7 +108,7 @@ pub(super) fn fill_request(
 /// `volume_input`, times the surface's `gain` when the view is not the car's own). Each value is
 /// rounded to 32 bits as the x87 does. Shared by the car's engine sounds (`sound::speed_sound`
 /// too).
-pub fn fill_pitch_and_volume(
+pub(super) fn fill_pitch_and_volume(
     so: &SoundObject,
     set: &SoundSet,
     pitch_input: &PlainFloat,

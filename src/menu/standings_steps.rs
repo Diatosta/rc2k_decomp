@@ -10,7 +10,7 @@ use rc2k_core::menu::standings::Numbering;
 
 /// Gives every entry of `table` a figure of 0 (table A, entry +0x44) or a position of 0
 /// (table B, +0x70).
-pub fn clear_standings(
+pub(super) fn clear_standings(
     table: Which,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
@@ -34,7 +34,7 @@ pub fn clear_standings(
 /// Numbers the entries of `table` 1, 2, .. in order (with the class mode 2 only those with
 /// a group), each player's number also into its record. Table A's count goes into
 /// `EventState.standings_count`.
-pub fn number_all(
+pub(super) fn number_all(
     screens: &Screens,
     play: &Play,
     table: Which,
@@ -54,7 +54,7 @@ pub fn number_all(
 
 /// Numbers the entries of group `class` of `table` 1, 2, .. in order, each player's number
 /// also into its record.
-pub fn number_standings(
+pub(super) fn number_standings(
     play: &Play,
     table: Which,
     class: u32,

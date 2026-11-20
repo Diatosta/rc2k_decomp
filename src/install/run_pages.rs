@@ -9,7 +9,7 @@ use crate::memory::list_handle::ListMenu;
 use rc2k_core::install::flow::{self, Page, Step, Ways};
 
 /// The list `page` is shown as. The drive page has three, by the number of drives found.
-pub fn list_of(install: &'static crate::install::owner::Install, page: Page) -> ListMenu {
+fn list_of(install: &'static crate::install::owner::Install, page: Page) -> ListMenu {
     let list = match page {
         Page::Language => ListId::Language,
         Page::Main => ListId::Main,
@@ -31,7 +31,7 @@ fn language_is_settled(install: &crate::install::owner::Install) -> bool {
 }
 
 /// The steps from `first` on.
-pub fn run_pages(
+pub(super) fn run_pages(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
     first: Step,

@@ -13,7 +13,7 @@ use crate::menu::text_entry::begin_logged;
 use crate::race::owner::Race;
 
 /// `log` = false leaves the log lines out.
-pub fn begin_replay_name(
+pub(super) fn begin_replay_name(
     menus: &'static Menus,
     race: &'static Race,
     log: bool,

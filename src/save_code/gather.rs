@@ -33,7 +33,7 @@ pub fn driver_names(o: Owners<'static>) -> Result<DriverNames, Refused> {
 }
 
 /// The six tables' bytes, if the best times are loaded.
-pub fn current_tables(o: Owners<'static>) -> Result<Option<[Vec<u8>; 6]>, Refused> {
+pub(super) fn current_tables(o: Owners<'static>) -> Result<Option<[Vec<u8>; 6]>, Refused> {
     let times = &o.saves.best_times;
     if [times.allocated.get(), times.loaded.get()] != [1, 1] {
         return Ok(None);

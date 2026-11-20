@@ -16,7 +16,7 @@ fn buffer(v: &Voice) -> Result<u32, Refused> {
 }
 
 /// A play that failed goes to the program's log: the sound it was for stays silent.
-pub fn log_failed_play(what: &str, result: i32) {
+pub(super) fn log_failed_play(what: &str, result: i32) {
     crate::program_log::log(&format!(
         "audio: playing {what} failed (result {:#x})",
         result as u32
@@ -24,14 +24,14 @@ pub fn log_failed_play(what: &str, result: i32) {
 }
 
 /// `GetStatus` into a dword: the status.
-pub fn is_playing(v: &Voice) -> Result<u32, Refused> {
+pub(super) fn is_playing(v: &Voice) -> Result<u32, Refused> {
     let b = buffer(v)?;
     // A failed call leaves the status 0.
     Ok(crate::platform::sound::status(b).unwrap_or(0))
 }
 
 /// `SetCurrentPosition` with 0.
-pub fn rewind_buffer(v: &Voice) -> Result<i32, Refused> {
+pub(super) fn rewind_buffer(v: &Voice) -> Result<i32, Refused> {
     let b = buffer(v)?;
     Ok(crate::platform::sound::set_current_position(b, 0))
 }
@@ -49,13 +49,13 @@ pub fn play_buffer(v: &Voice) -> Result<(i32, bool), Refused> {
 }
 
 /// `Stop`.
-pub fn stop_buffer(v: &Voice) -> Result<i32, Refused> {
+pub(super) fn stop_buffer(v: &Voice) -> Result<i32, Refused> {
     let b = buffer(v)?;
     Ok(crate::platform::sound::stop(b))
 }
 
 /// The 3D listener's `CommitDeferredSettings`.
-pub fn commit_3d(state: &AudioOwn) -> Result<i32, Refused> {
+pub(super) fn commit_3d(state: &AudioOwn) -> Result<i32, Refused> {
     let object = state.sound_listener.get();
     if object == 0 {
         return Err(BadInput("no 3D listener").into());

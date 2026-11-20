@@ -13,7 +13,7 @@ use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::CarEffects;
 
 /// `emit_twin_particle_second`'s variables.
-pub fn twenty_second(effects: &Effects) -> TwinSet<'_> {
+pub(super) fn twenty_second(effects: &Effects) -> TwinSet<'_> {
     TwinSet {
         kind: 0x16,
         level: 1,
@@ -22,13 +22,16 @@ pub fn twenty_second(effects: &Effects) -> TwinSet<'_> {
     }
 }
 
-pub fn emit_twin_particle_second(effects: &Effects, object: &CarEffects) -> Result<(), Refused> {
+pub(super) fn emit_twin_particle_second(
+    effects: &Effects,
+    object: &CarEffects,
+) -> Result<(), Refused> {
     emit_twin(effects, &twenty_second(effects), object)
 }
 
 impl TwinTuning {
     /// The values the game starts with.
-    pub const fn twenty_second() -> Self {
+    pub(super) const fn twenty_second() -> Self {
         TwinTuning {
             chance_random: PlainDword::new(0x0),
             lift: PlainFloat::new(65536.0),

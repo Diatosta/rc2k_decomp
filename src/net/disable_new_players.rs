@@ -6,7 +6,7 @@ use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{NetTexts, texts};
 
 const CLOSED: u32 = 0x21; // DPSESSION_NEWPLAYERSDISABLED | DPSESSION_JOINDISABLED
-pub fn disable_new_players(net: &Net, lines: &NetTexts) {
+pub(super) fn disable_new_players(net: &Net, lines: &NetTexts) {
     if !net.vars.own.state().is_host() {
         return;
     }
@@ -28,7 +28,7 @@ pub fn disable_new_players(net: &Net, lines: &NetTexts) {
 /// new players again (0x21 cleared), so a player who left can join again between races.
 /// Caller: `net::lobby_loop`, each frame no player is still racing (only then: a player let
 /// in while others raced would be sent their race's messages).
-pub fn enable_new_players(net: &Net) {
+pub(super) fn enable_new_players(net: &Net) {
     let flags = net.link.session_desc().flags.get();
     if !net.vars.own.state().is_host() || flags & CLOSED == 0 || !net.link.has_dplay() {
         return;

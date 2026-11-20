@@ -33,7 +33,7 @@ pub fn starts_shutdown(was: u32) -> bool {
 
 /// The threads the shutdown waits for (input, audio, the network's receiving thread), and
 /// for how long at most (all of them, milliseconds).
-pub const WAITED: usize = 3;
+pub(crate) const WAITED: usize = 3;
 pub const WAIT_MS: u32 = 3000;
 
 /// The handles as the wait gets them: the slots' handles pushed in order, so the last first;

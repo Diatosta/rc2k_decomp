@@ -64,7 +64,7 @@ impl BestTables {
     }
 
     /// Every table given back.
-    pub fn give_back_all(&self) {
+    pub(super) fn give_back_all(&self) {
         for n in 0..rc2k_core::saves::tables::TABLES {
             self.typed(n).give_back();
         }

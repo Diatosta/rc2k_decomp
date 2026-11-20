@@ -263,7 +263,7 @@ pub fn release(this: u32) -> u32 {
 
 // ---- IDirectPlay4A ----
 
-pub fn add_player_to_group(this: u32, group: u32, player: u32) -> u32 {
+pub(super) fn add_player_to_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.add_to_group(group, player))
 }
 
@@ -290,7 +290,7 @@ pub fn close(this: u32) -> u32 {
 }
 
 /// `CreateGroup`: the group's id, or the error.
-pub fn create_group(this: u32, name: &[u8], data: &[u8]) -> Result<u32, u32> {
+pub(super) fn create_group(this: u32, name: &[u8], data: &[u8]) -> Result<u32, u32> {
     let Some(s) = session(this) else {
         return Err(DPERR_UNINITIALIZED);
     };
@@ -302,7 +302,7 @@ pub fn create_group(this: u32, name: &[u8], data: &[u8]) -> Result<u32, u32> {
 
 /// `CreatePlayer` (its event signalled when a message comes for it): the player's id, or
 /// the error.
-pub fn create_player(this: u32, name: &[u8], event: u32, data: &[u8]) -> Result<u32, u32> {
+pub(super) fn create_player(this: u32, name: &[u8], event: u32, data: &[u8]) -> Result<u32, u32> {
     let Some(s) = session(this) else {
         return Err(DPERR_UNINITIALIZED);
     };
@@ -312,7 +312,7 @@ pub fn create_player(this: u32, name: &[u8], event: u32, data: &[u8]) -> Result<
     }
 }
 
-pub fn delete_player_from_group(this: u32, group: u32, player: u32) -> u32 {
+pub(super) fn delete_player_from_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.remove_from_group(group, player))
 }
 
@@ -321,7 +321,7 @@ pub fn kick(this: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.kick(player))
 }
 
-pub fn destroy_player(this: u32, player: u32) -> u32 {
+pub(super) fn destroy_player(this: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.destroy_player(player))
 }
 
@@ -357,11 +357,11 @@ fn enumerate(this: u32, callback: EnumPlayersCallback<'_>, context: u32, kind: u
     DP_OK
 }
 
-pub fn enum_groups(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
+pub(super) fn enum_groups(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
     enumerate(this, callback, context, 0)
 }
 
-pub fn enum_players(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
+pub(super) fn enum_players(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
     enumerate(this, callback, context, 1)
 }
 
@@ -390,7 +390,7 @@ pub fn desc(d: &crate::net::store::SessionDesc, name: &[u8]) -> Desc {
 type EnumSessionsCallback<'a> = &'a dyn Fn(Option<&Desc>, u32, u32) -> u32;
 
 /// `EnumSessions` for `application`'s sessions.
-pub fn enum_sessions(
+pub(super) fn enum_sessions(
     this: u32,
     application: &Guid,
     callback: EnumSessionsCallback<'_>,
@@ -425,7 +425,7 @@ pub fn enum_sessions(
 }
 
 /// `GetPlayerData` into `out`: the result and the data's size.
-pub fn get_player_data(this: u32, player: u32, out: &mut [u8]) -> (u32, u32) {
+pub(super) fn get_player_data(this: u32, player: u32, out: &mut [u8]) -> (u32, u32) {
     let Some(s) = session(this) else {
         return (DPERR_UNINITIALIZED, 0);
     };
@@ -442,7 +442,7 @@ pub fn open(this: u32, d: &Desc, flags: u32) -> u32 {
 
 /// `open`, with the password a created session is locked by or a joined one is answered with
 /// (empty: none).
-pub fn open_with_password(this: u32, d: &Desc, flags: u32, password: &[u8]) -> u32 {
+pub(super) fn open_with_password(this: u32, d: &Desc, flags: u32, password: &[u8]) -> u32 {
     let (port, steam) = match with_state(this, |s| {
         if !s.initialized {
             Err(DPERR_UNINITIALIZED)
@@ -559,12 +559,12 @@ pub fn receive(this: u32, out: &mut [u8]) -> Received {
 }
 
 /// The session's host's player (none without a session or a player of the host's).
-pub fn host_player(this: u32) -> Option<u32> {
+pub(super) fn host_player(this: u32) -> Option<u32> {
     session(this).and_then(|s| s.host_player())
 }
 
 /// The round trip in ms to the host of the machine `player` is on (`Session::ping_of`).
-pub fn ping_of(this: u32, player: u32) -> Option<u32> {
+pub(super) fn ping_of(this: u32, player: u32) -> Option<u32> {
     session(this).and_then(|s| s.ping_of(player))
 }
 
@@ -572,11 +572,11 @@ pub fn send(this: u32, from: u32, to: u32, data: &[u8]) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.send(from, to, data))
 }
 
-pub fn set_player_data(this: u32, player: u32, data: &[u8]) -> u32 {
+pub(super) fn set_player_data(this: u32, player: u32, data: &[u8]) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.set_player_data(player, data))
 }
 
-pub fn set_session_desc(this: u32, desc: &Desc) -> u32 {
+pub(super) fn set_session_desc(this: u32, desc: &Desc) -> u32 {
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
@@ -588,7 +588,7 @@ pub fn set_session_desc(this: u32, desc: &Desc) -> u32 {
 type EnumConnectionsCallback<'a> = &'a dyn Fn(&Guid, &[u8], &[u8], u32, u32) -> u32;
 
 /// `EnumConnections`: TCP/IP, then Steam when it is there.
-pub fn enum_connections(callback: EnumConnectionsCallback<'_>, context: u32) -> u32 {
+pub(super) fn enum_connections(callback: EnumConnectionsCallback<'_>, context: u32) -> u32 {
     let address = compound(&[(DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec())]);
     let name = c"Internet TCP/IP Connection For DirectPlay";
     callback(
@@ -644,7 +644,7 @@ fn compound(parts: &[(Guid, Vec<u8>)]) -> Vec<u8> {
 }
 
 /// DirectPlay's `InitializeConnection` on an address Rust holds (`None`: a null one).
-pub fn initialize_connection_with(this: u32, address: Option<&[u8]>) -> u32 {
+pub(super) fn initialize_connection_with(this: u32, address: Option<&[u8]>) -> u32 {
     if with_state(this, |s| s.initialized) {
         return DPERR_ALREADYINITIALIZED;
     }
@@ -663,7 +663,7 @@ pub fn initialize_connection_with(this: u32, address: Option<&[u8]>) -> u32 {
 static PORT_IN_USE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 /// The port a failed attempt to host found in use, once.
-pub fn take_port_in_use() -> Option<u16> {
+pub(super) fn take_port_in_use() -> Option<u16> {
     match PORT_IN_USE.swap(0, std::sync::atomic::Ordering::Relaxed) {
         0 => None,
         port => u16::try_from(port).ok(),
@@ -707,7 +707,7 @@ fn initialize(s: &mut State, parts: Vec<(Guid, Vec<u8>)>) -> u32 {
 pub type Element = (Guid, Vec<u8>);
 
 /// `CreateCompoundAddress` sized for `room` bytes: the result and the address's size.
-pub fn create_compound_address(parts: &[Element], room: u32) -> (u32, u32) {
+pub(super) fn create_compound_address(parts: &[Element], room: u32) -> (u32, u32) {
     let size = compound(parts).len() as u32;
     if room < size {
         (DPERR_BUFFERTOOSMALL, size)
@@ -720,7 +720,7 @@ pub fn create_compound_address(parts: &[Element], room: u32) -> (u32, u32) {
 /// tests that send through the game's own code: the object, the player, the port. Release
 /// the object with `release`.
 #[cfg(test)]
-pub fn hosted_for_tests() -> (u32, u32, u16) {
+pub(super) fn hosted_for_tests() -> (u32, u32, u16) {
     let first = 48_200 + (std::process::id() % 100) as u16;
     for port in first..first + 50 {
         let this = create(&CLSID_DIRECTPLAY, &IID_IDIRECTPLAY4A).expect("the object");
@@ -746,7 +746,7 @@ pub fn hosted_for_tests() -> (u32, u32, u16) {
 }
 
 /// `CreateCompoundAddress` into Rust's memory: the address's bytes.
-pub fn compound_address(parts: &[Element]) -> Vec<u8> {
+pub(super) fn compound_address(parts: &[Element]) -> Vec<u8> {
     compound(parts)
 }
 

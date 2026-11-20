@@ -126,7 +126,7 @@ impl Picture {
     }
 
     /// The width and height of plane `p`'s part that is picture.
-    pub fn plane_size(&self, p: usize) -> (usize, usize) {
+    pub(crate) fn plane_size(&self, p: usize) -> (usize, usize) {
         if p == 0 {
             (self.width, self.height)
         } else {

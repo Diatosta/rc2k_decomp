@@ -7,8 +7,8 @@ pub const MOST_LISTED: u32 = 0x100;
 pub const MOST_PLAYERS: u32 = 8;
 
 /// The tables' record bytes: connections, sessions.
-pub const CONNECTION_LEN: u32 = 0x54;
-pub const SESSION_LEN: u32 = 0x68;
+pub(crate) const CONNECTION_LEN: u32 = 0x54;
+pub(crate) const SESSION_LEN: u32 = 0x68;
 
 /// The fatal errors of a record's number past its list, and of a table not taken.
 pub const NO_CONNECTION: u32 = 0x80A6_1010;
@@ -81,8 +81,8 @@ pub fn player_found(listed: u32) -> Option<u32> {
 
 /// The fatal errors when the network's memory for the tables cannot be had: connections,
 /// sessions.
-pub const NO_CONNECTION_MEMORY: u32 = 0x80E6_8021;
-pub const NO_SESSION_MEMORY: u32 = 0x80E6_8022;
+pub(crate) const NO_CONNECTION_MEMORY: u32 = 0x80E6_8021;
+pub(crate) const NO_SESSION_MEMORY: u32 = 0x80E6_8022;
 
 /// The two tables taken (`allocate_lists`), in order: their bytes and the fatal error of
 /// their memory not had.

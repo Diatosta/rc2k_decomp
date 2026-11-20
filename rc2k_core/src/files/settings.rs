@@ -15,7 +15,7 @@ fn at(text: &(impl Bytes + ?Sized), place: usize) -> Result<u8, Invalid> {
 /// there and be followed by `=` or a character of a space or less. The value starts at the first
 /// character above a space after that, an `=` between them skipped once; a line that ends first
 /// has its (empty) value at its line feed. A text that ends with the key itself is refused.
-pub fn find_key(
+pub(crate) fn find_key(
     text: &(impl Bytes + ?Sized),
     key: &[u8],
     case: &CaseTable,
@@ -388,7 +388,7 @@ pub fn read_driver_names(
 /// The drivers' entries.
 pub const DRIVERS: usize = 180;
 /// The most of a name kept.
-pub const NAME_MAX: usize = 30;
+pub(crate) const NAME_MAX: usize = 30;
 
 /// Each driver's entry (`None` for a driver without its key).
 pub fn driver_names(

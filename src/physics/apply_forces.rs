@@ -10,7 +10,7 @@ use crate::physics::tables_store::ForceRecord;
 use crate::physics::tables_store::PhysicsTables;
 
 /// `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the work car.
-pub fn apply_forces(
+pub(super) fn apply_forces(
     car: &Car,
     tables: &PhysicsTables,
     records: &[ForceRecord],

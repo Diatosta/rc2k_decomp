@@ -48,29 +48,30 @@ pub const OWN_INDEX_LEN: usize = 16 + 8 * MOST_BLOCKS as usize;
 pub use crate::drive::replay_frames::CAR_DWORDS;
 
 /// The tail's first part: the state of cars 4 .. 7.
-pub const TAIL_KEY_BYTES: usize = TAIL_CARS * CAR_DWORDS * 4;
+pub(crate) const TAIL_KEY_BYTES: usize = TAIL_CARS * CAR_DWORDS * 4;
 /// The tail's second part: the inputs of cars 4 .. 7, 8 bytes a car and step.
-pub const TAIL_TAPE_BYTES: usize = STEPS * TAIL_CARS * 8;
+pub(crate) const TAIL_TAPE_BYTES: usize = STEPS * TAIL_CARS * 8;
 /// Where the states begin in the tail: their length (a dword), then their bytes.
-pub const STATES_AT: usize = TAIL_KEY_BYTES + TAIL_TAPE_BYTES;
+pub(crate) const STATES_AT: usize = TAIL_KEY_BYTES + TAIL_TAPE_BYTES;
 /// The most bytes the states of one block take; a second that needs more is held at its last
 /// step that fits (the file's size stays bounded).
-pub const STATES_CAP: usize = 42_000;
+pub(crate) const STATES_CAP: usize = 42_000;
 /// The tail's bytes.
-pub const TAIL_BYTES: usize = STATES_AT + 4 + STATES_CAP;
+pub(crate) const TAIL_BYTES: usize = STATES_AT + 4 + STATES_CAP;
 /// The dwords of the tail.
 pub const TAIL_DWORDS: usize = TAIL_BYTES / 4;
 /// A block's bytes once unpacked.
 pub const BLOCK_BYTES: usize = crate::drive::replay_frames::EXTENDED_FRAME_BYTES + TAIL_BYTES;
 const _: () = assert!(TAIL_BYTES.is_multiple_of(4));
 
+#[cfg(test)]
 /// Whether a header's first dword is this format's.
-pub fn is_magic(word: u32) -> bool {
+pub(crate) fn is_magic(word: u32) -> bool {
     word == MAGIC
 }
 
 /// Whether a header's first dword is one of the two formats' (the original's or this one).
-pub fn is_replay_magic(word: u32) -> bool {
+pub(crate) fn is_replay_magic(word: u32) -> bool {
     word == HEADER_MAGIC || word == MAGIC
 }
 
@@ -108,7 +109,7 @@ pub const STATE_AT: [usize; STATE_WORDS] = {
     at
 };
 /// The dwords recorded of a car at each step.
-pub const STATE_WORDS: usize = 3 + 16 + 3 + 3 + 1 + 1 + 1 + 1 + 2 + 4 + 2 + 3;
+pub(crate) const STATE_WORDS: usize = 3 + 16 + 3 + 3 + 1 + 1 + 1 + 1 + 2 + 4 + 2 + 3;
 
 /// What is recorded of a car at one step.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -200,8 +201,9 @@ fn uncoded(code: Code, c: u32) -> u32 {
 }
 
 impl CarState {
+    #[cfg(test)]
     /// The state as a recorded one reads back: the floats kept to their coded bits.
-    pub fn as_recorded(&self) -> CarState {
+    pub(crate) fn as_recorded(&self) -> CarState {
         CarState {
             words: std::array::from_fn(|n| uncoded(CODES[n], coded(CODES[n], self.words[n]))),
         }
@@ -271,7 +273,7 @@ impl History {
 /// the second's start, `bases`), the differences as varints. The steps from the first that does
 /// not fit in `cap` bytes are left out. A car of the mask missing at a step keeps its last
 /// state.
-pub fn encode_states(
+pub(crate) fn encode_states(
     bases: &[CarState; MAX_CARS],
     ticks: &[Tick],
     mask: u8,
@@ -308,7 +310,11 @@ pub fn encode_states(
 
 /// What `encode_states` made, back into the steps (the floats as recorded: `as_recorded`); none
 /// for damaged bytes.
-pub fn decode_states(bases: &[CarState; MAX_CARS], bytes: &[u8], mask: u8) -> Option<Vec<Tick>> {
+pub(crate) fn decode_states(
+    bases: &[CarState; MAX_CARS],
+    bytes: &[u8],
+    mask: u8,
+) -> Option<Vec<Tick>> {
     let steps = *bytes.first()? as usize;
     if steps > STEPS {
         return None;
@@ -463,7 +469,7 @@ impl CarEntry {
         self.flags & flag::PLAYER != 0
     }
 
-    pub fn is_recorded_by_states(&self) -> bool {
+    pub(crate) fn is_recorded_by_states(&self) -> bool {
         self.flags & flag::STATES != 0
     }
 }
@@ -627,10 +633,11 @@ impl Extension {
             .map_or(0, |l| l as u8)
     }
 
+    #[cfg(test)]
     /// The car a layout's player is. The head byte of a block names the cars shown: 0 and 1 the
     /// first and the second player alone, 2 and 3 both, and from 4 the third player on (4 the
     /// third, 5 the fourth ... 9 the eighth), as the extra tape's replays name cars 2 and 3.
-    pub fn layout_player(&self, layout: u32) -> Option<usize> {
+    pub(crate) fn layout_player(&self, layout: u32) -> Option<usize> {
         let player = match layout {
             0 | 1 => layout as usize,
             4..=9 => layout as usize - 2,

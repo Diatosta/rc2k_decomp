@@ -5,7 +5,7 @@ use crate::audio::own::AudioThread;
 use crate::errors::Refused;
 use crate::system::owner::System;
 
-pub const MODE_MIXER: u32 = 0x4_0000;
+pub(super) const MODE_MIXER: u32 = 0x4_0000;
 /// `SetCooperativeLevel`: write the primary buffer.
 const WRITE_PRIMARY: u32 = 4;
 

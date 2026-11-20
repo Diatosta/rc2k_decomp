@@ -213,7 +213,7 @@ pub fn copy_settings_in(
 
 /// `race::copy_settings_out`: "COPY SHAUN TO GRAHAM"; skipped (and logged so)
 /// while a replay is shown.
-pub fn copy_settings_out(
+pub(super) fn copy_settings_out(
     race: &Race,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {

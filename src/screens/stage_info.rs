@@ -10,7 +10,7 @@ use crate::screens::game_screen::{Held, HeldText};
 use crate::text::draw_text::Canvas;
 
 /// The page's stage record, on the system's tables.
-pub fn stage_record_in(
+fn stage_record_in(
     system: &crate::system::owner::System,
     play: &Play,
 ) -> Result<RecordRef, BadInput> {
@@ -29,7 +29,7 @@ pub fn stage_record_in(
 /// the given times and the stage record's fastest (nationality, name, car, speed). The fastest's
 /// flag sprite gets `Arcade.level` as its palette (unused). The speed is formatted before
 /// anything is drawn (its refusals first).
-pub fn draw_stage_best_and_fastest(
+fn draw_stage_best_and_fastest(
     o: crate::owners::Owners<'static>,
     play: &Play,
     system: &crate::system::owner::System,

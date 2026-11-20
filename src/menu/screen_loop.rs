@@ -536,7 +536,7 @@ pub struct Entry {
 
 impl Entry {
     /// The view's offset and zoom a front-end screen draws with.
-    pub fn set_view(&self, x: i32, y: i32, zoom: u32) {
+    pub(super) fn set_view(&self, x: i32, y: i32, zoom: u32) {
         let window = &self.front_end.window;
         window.view_offset[0].set(x as u32);
         window.view_offset[1].set(y as u32);
@@ -560,7 +560,7 @@ impl Entry {
     }
 
     /// The same entry, carrying the list of cars the carousel shows.
-    pub fn with_list(&self, cars: Option<CarList>) -> Self {
+    pub(super) fn with_list(&self, cars: Option<CarList>) -> Self {
         Entry {
             menus: self.menus,
             cars,
@@ -593,7 +593,7 @@ pub struct SetUp<'a> {
 
 impl SetUp<'_> {
     /// The view's offset and zoom the screen draws with.
-    pub fn set_view(&self, x: i32, y: i32, zoom: u32) {
+    pub(super) fn set_view(&self, x: i32, y: i32, zoom: u32) {
         let window = &self.front_end.window;
         window.view_offset[0].set(x as u32);
         window.view_offset[1].set(y as u32);
@@ -601,7 +601,7 @@ impl SetUp<'_> {
     }
 
     /// The clip's left and right edges (also as the floats the clipper reads).
-    pub fn set_clip_sides(&self, left: i32, right: i32) {
+    pub(super) fn set_clip_sides(&self, left: i32, right: i32) {
         let window = &self.front_end.window;
         window.clip_edges[2].set(left as u32);
         window.clip_edges[3].set(right as u32);
@@ -610,7 +610,7 @@ impl SetUp<'_> {
     }
 
     /// Prepares the menu scene.
-    pub fn prepare_scene(&self) {
+    pub(super) fn prepare_scene(&self) {
         crate::scene::prepare_menu_scene::prepare_menu_scene(
             self.race,
             self.scene,
@@ -625,7 +625,7 @@ impl SetUp<'_> {
     }
 
     /// Sets up the carousel with the given list of cars.
-    pub fn carousel_with(&self, cars: Option<CarList>) -> Result<(), Refused> {
+    pub(super) fn carousel_with(&self, cars: Option<CarList>) -> Result<(), Refused> {
         crate::scene::set_up_carousel::set_up_carousel(
             CarListParts::of(self.menus),
             &self.scene.scratch,
@@ -640,7 +640,7 @@ pub fn quitting(system: &System) -> bool {
 }
 
 /// `scene::prepare_menu_scene`.
-pub fn prepare_scene(owners: &Owners<'static>) {
+pub(super) fn prepare_scene(owners: &Owners<'static>) {
     crate::scene::prepare_menu_scene::prepare_menu_scene(
         owners.race,
         owners.scene,
@@ -909,7 +909,7 @@ fn clear_escape(screens: &Screens) -> bool {
 }
 
 /// A call whose failure is the fatal error `code`.
-pub fn call_or_fatal(entry: &Entry, function: Callee, code: u32) -> Result<(), Refused> {
+fn call_or_fatal(entry: &Entry, function: Callee, code: u32) -> Result<(), Refused> {
     if { function.run(entry) }? {
         log(&format!("a screen loop raises fatal error {code:#x}"));
         return Err(FatalError { code, message: "" }.into());

@@ -252,7 +252,7 @@ impl DamageModel {
     /// The wear table's figure in `column` of the row for `tyre_kind` (-1 is the row of a car with
     /// none set). The table is indexed by dwords from the unset row on, so a column past 15 reads
     /// the next row; past the last row it reads whatever follows the table, which is refused.
-    pub fn wear_figure_entry(&self, tyre_kind: u32, column: u32) -> Result<u32, BadInput> {
+    pub(super) fn wear_figure_entry(&self, tyre_kind: u32, column: u32) -> Result<u32, BadInput> {
         let rows = (tyre_kind as i32).wrapping_add(1);
         if !(0..=6).contains(&rows) {
             return Err(BadInput("a tyre kind outside the wear table"));

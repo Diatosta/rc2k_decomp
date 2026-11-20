@@ -51,9 +51,7 @@ const SCRATCH: At = Grades(0x2C);
 /// The first grade.
 const FIRST: At = Car(0x3F4);
 /// The gear bits.
-pub const GEAR_BITS: At = Car(0x434);
-/// The last ramp table.
-pub const LAST_TABLE: At = Grades(0x228);
+pub(crate) const GEAR_BITS: At = Car(0x434);
 /// The gears counted into the bits.
 pub const GEARS: u32 = 9;
 
@@ -235,7 +233,7 @@ pub fn rate_damage(m: &mut impl Figures) -> u32 {
 }
 
 /// The drive kind: 0 or 1.
-pub const DRIVE_KIND: At = Car(0x40);
+pub(crate) const DRIVE_KIND: At = Car(0x40);
 
 /// The interpolations (out, setting, hi, lo), in order but for the drive kind's.
 const BEFORE: [(At, At, At, At); 4] = [

@@ -161,7 +161,7 @@ fn list_entries<'a>(
     }
 }
 
-pub fn load_sounds(
+pub(super) fn load_sounds(
     audio: &AudioThread,
     system: &System,
     sets: &SoundSets,

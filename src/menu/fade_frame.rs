@@ -11,7 +11,7 @@ use crate::owners::Owners;
 
 /// Whether the frame was made: as `picture_frame`, with the fade's overlay drawn in a scene
 /// between the unlock and the showing (`scene::begin_scene` never fails).
-pub fn fade_frame(o: Owners<'static>) -> Result<bool, Refused> {
+pub(super) fn fade_frame(o: Owners<'static>) -> Result<bool, Refused> {
     let copied = crate::gfx::with_locked_surface::with_locked_surface(
         crate::gfx::with_locked_surface::lock(o.gfx, o.system),
         || {

@@ -49,7 +49,7 @@ pub const IGNORED: u8 = 0x38;
 
 /// The cheats' bit (bit 14) that lets key 0x14 add time, and the time it adds to the service's
 /// budget.
-pub const ADD_TIME_BIT: u32 = 14;
+pub(crate) const ADD_TIME_BIT: u32 = 14;
 pub const ADDED_TIME: u32 = 60;
 
 /// A highlight move.

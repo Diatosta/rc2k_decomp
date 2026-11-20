@@ -222,7 +222,7 @@ impl Player {
 pub struct ControlsBlock([u8; CONTROLS_LEN]);
 
 /// The bindings' bytes.
-pub const CONTROLS_LEN: usize = 0x2C;
+pub(crate) const CONTROLS_LEN: usize = 0x2C;
 
 impl ControlsBlock {
     /// The block from its bytes.
@@ -409,15 +409,17 @@ pub enum Setting {
 }
 
 impl Player {
+    #[cfg(test)]
     /// The first dead zone one less while above 0 (signed).
-    pub fn lower_end_zone(&mut self) {
+    pub(crate) fn lower_end_zone(&mut self) {
         if (self.end_zone_pct as i32) > 0 {
             self.end_zone_pct -= 1;
         }
     }
 
+    #[cfg(test)]
     /// The second dead zone one less unless 0.
-    pub fn lower_centre_dead_zone(&mut self) {
+    pub(crate) fn lower_centre_dead_zone(&mut self) {
         if self.centre_dead_zone_pct != 0 {
             self.centre_dead_zone_pct = self.centre_dead_zone_pct.wrapping_sub(1);
         }
@@ -445,7 +447,8 @@ impl Player {
         self.bindings.word(k)
     }
 
-    pub fn set_binding(&mut self, k: usize, v: u32) {
+    #[cfg(test)]
+    pub(crate) fn set_binding(&mut self, k: usize, v: u32) {
         self.bindings.set_word(k, v);
     }
 
@@ -580,7 +583,7 @@ pub fn entry_kind(score: i32) -> u32 {
 }
 
 /// Up by one, back to 0 after `last`.
-pub fn wrap_up(value: u32, last: u32) -> u32 {
+pub(crate) fn wrap_up(value: u32, last: u32) -> u32 {
     if value == last {
         0
     } else {
@@ -589,7 +592,7 @@ pub fn wrap_up(value: u32, last: u32) -> u32 {
 }
 
 /// Down by one, to `last` from 0.
-pub fn wrap_down(value: u32, last: u32) -> u32 {
+pub(crate) fn wrap_down(value: u32, last: u32) -> u32 {
     if value == 0 {
         last
     } else {
@@ -639,7 +642,7 @@ pub const KEY_ESCAPE: u8 = 1;
 
 /// The work copy with `key` put at `place`; false (nothing changed) if the key is reserved.
 /// A key the copy already has gets the place's old key (the two swap).
-pub fn place_key(keys: &mut [u8; KEYS], place: usize, key: u8, reserved: &[u8]) -> bool {
+pub(crate) fn place_key(keys: &mut [u8; KEYS], place: usize, key: u8, reserved: &[u8]) -> bool {
     if let Some(had) = keys.iter().position(|&k| k == key) {
         keys[had] = keys[place];
     } else if reserved.contains(&key) {

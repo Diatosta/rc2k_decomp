@@ -30,7 +30,7 @@ use crate::race::view_scratch::{DrawCtx, ViewScratch};
 /// threads to spare (`car_aside`: one of them is drawing the view's car) and every entry is a
 /// course face, else on the view's thread alone. Refused (before anything): an entry of
 /// 0x4000000 or more, as `draw_entries` refuses it.
-pub fn draw_sort_list<'a>(
+pub(super) fn draw_sort_list<'a>(
     ctx: &DrawCtx<'a>,
     helper: Option<crate::scene::workers::Helper<'a>>,
     car_aside: bool,

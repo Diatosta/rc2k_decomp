@@ -22,7 +22,7 @@ use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::system::owner::System;
 
 /// Whether it was saved. `slot` the slot to save into.
-pub fn save_viewed_replay(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
+pub(super) fn save_viewed_replay(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
     let done = save(race, system, slot)?;
     race.viewer_buffers().undo_blocks.set(0);
     // The replays list tags the slot by what it holds now.
@@ -40,7 +40,7 @@ pub fn save_viewed_replay(race: &Race, system: &System, slot: u32) -> Result<boo
 /// The viewed replay, as it is now (edits and all), written to the file at `path` in the format
 /// it is viewed in, for a program that renders it; whether it was written. Nothing of the
 /// viewer changes: the undo's table, which the writing uses as scratch, is put back.
-pub fn save_to_file(race: &Race, system: &System, path: &[u8]) -> Result<bool, Refused> {
+pub(super) fn save_to_file(race: &Race, system: &System, path: &[u8]) -> Result<bool, Refused> {
     let buffers = race.viewer_buffers();
     let places: Vec<u32> = buffers
         .undo_places

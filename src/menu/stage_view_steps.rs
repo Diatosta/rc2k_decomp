@@ -152,7 +152,7 @@ pub fn load_welcome_picture(o: Owners<'static>) -> Result<(), Refused> {
 
 /// `menu::previous_stage_page` (`up` false) / `next_stage_page`: the page stepped, the
 /// stage's map drawn and its speech played.
-pub fn step_stage_page(o: Owners<'static>, up: bool) -> Result<(), Refused> {
+pub(super) fn step_stage_page(o: Owners<'static>, up: bool) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
     let (page, pages) = (
@@ -170,7 +170,7 @@ pub fn step_stage_page(o: Owners<'static>, up: bool) -> Result<(), Refused> {
 }
 
 /// The stage item's two looks: (+0x1C, +0x20, +0x50).
-pub fn style_stage_item(menus: &Menus, b: bool) -> Result<(), Refused> {
+pub(super) fn style_stage_item(menus: &Menus, b: bool) -> Result<(), Refused> {
     use crate::menu::item_sprites_store::ItemSprite;
     let item = crate::menu::item_at::item_at(menus, 1)?;
     let (a, c, font) = if b {

@@ -78,7 +78,7 @@ impl Entry {
 }
 
 /// The widest a player's name may be shown, in pixels (`menu::fit_player_names`).
-pub const WIDEST_NAME: u32 = 0x15E;
+pub(crate) const WIDEST_NAME: u32 = 0x15E;
 
 /// `menu::fit_name`, of `menu::fit_player_names`: a name of `len` characters cut, one character at
 /// a time, until it is no wider than `WIDEST_NAME`; `measure(len)` ends the name at `len` (its NUL
@@ -146,7 +146,7 @@ pub fn appends(c: u8, len: i32, max: i32) -> bool {
 }
 
 /// The widest a name may measure, in pixels: one this wide or wider loses the character.
-pub const WIDEST: i32 = 0xEC;
+pub(crate) const WIDEST: i32 = 0xEC;
 
 pub fn too_wide(width: i32) -> bool {
     width >= WIDEST

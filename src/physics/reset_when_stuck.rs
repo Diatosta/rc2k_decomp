@@ -8,7 +8,7 @@ use crate::physics::step_families::ResetInputs;
 use rc2k_core::physics::start::stuck_tick;
 
 // Core: `rc2k_core::physics::start::stuck_tick`.
-pub fn reset_when_stuck(
+pub(super) fn reset_when_stuck(
     c: &ResetInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {

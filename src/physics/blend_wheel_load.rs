@@ -10,7 +10,7 @@ use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 /// The blend of this step.
-pub fn blend_wheel_load(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
+pub(super) fn blend_wheel_load(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let depth = &car.contact_depth;
     let less = |a: f32, b: f32| compare_full(a, b) & 0x100 != 0;
     if less(depth.get(), tables.wheel_load_limit.get()) {

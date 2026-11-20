@@ -13,7 +13,7 @@ use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 
 /// The room of the last race's replay file's name.
-pub const LAST_RACE_LEN: usize = 0x10B;
+pub(super) const LAST_RACE_LEN: usize = 0x10B;
 
 /// The replay files' names, the number's two digits last.
 pub struct Templates {
@@ -93,7 +93,7 @@ pub fn replay_path(race: &Race, slot: u32) -> Result<ReplayPath, Refused> {
 
 /// The extension of a replay file in the own format (`rc2k_core::race::replay_v2`): the file of
 /// a slot beside the original's, `replay07.rc2r` beside `replay07`.
-pub const OWN_FORMAT_SUFFIX: &[u8] = b".rc2r";
+const OWN_FORMAT_SUFFIX: &[u8] = b".rc2r";
 
 /// The own-format file that goes with a saved or shipped replay's path.
 pub fn own_format(path: &[u8]) -> Vec<u8> {

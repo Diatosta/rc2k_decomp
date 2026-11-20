@@ -13,7 +13,9 @@ use crate::errors::BadInput;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 
 /// Returns the layout it stored.
-pub fn lay_out_pcx(gfx: &crate::gfx::owner::Gfx) -> Result<rc2k_core::gfx::pcx::Layout, BadInput> {
+pub(super) fn lay_out_pcx(
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<rc2k_core::gfx::pcx::Layout, BadInput> {
     let pictures = &gfx.pictures;
     let target = rc2k_core::gfx::pcx::Target {
         width: pictures.picture.width.get(),

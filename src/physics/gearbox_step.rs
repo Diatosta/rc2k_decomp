@@ -17,7 +17,7 @@ use crate::race::owner_shared::RaceShared;
 
 /// The steps on `r`.
 // Core: `rc2k_core::physics::gearbox::gearbox_turn`.
-pub fn gearbox_step(
+pub(super) fn gearbox_step(
     numbers: &Numbers,
     shared: &RaceShared,
     gear_figures: &crate::physics::gear_store::GearFigures,

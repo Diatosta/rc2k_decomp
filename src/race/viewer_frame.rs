@@ -18,7 +18,7 @@ use crate::owners::Owners;
 use crate::race::owner::Race;
 
 /// Draws one viewer frame; returns whether the frame was lost.
-pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
+pub(super) fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
     let (system, gfx, race) = (o.system, o.gfx, o.race);
     let replay = &race.replay;
     if race.shared.replay_file().replay_at_end.is_set() {

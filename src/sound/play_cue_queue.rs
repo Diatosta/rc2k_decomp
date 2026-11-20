@@ -15,7 +15,7 @@ use crate::sound::sample_duration::sample_duration;
 
 /// The logic is `rc2k_core::sound::cars::cue_turn`; the drops through `sound::drop_cue`, the queue
 /// in the game's memory meanwhile. Object `so`'s queue of cues: the next one played when it is due.
-pub fn play_cue_queue(
+pub(super) fn play_cue_queue(
     so: &crate::sound::store::SoundObject,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,

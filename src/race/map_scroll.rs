@@ -9,7 +9,7 @@ use crate::race::owner::Race;
 
 /// Draws the map picture's slot `KindTextureTables.kind_first_textures[198]` (+ `current_car`
 /// unless `session`) from tile (corner x >> 4, corner y >> 4).
-pub fn map_tiles(
+pub(super) fn map_tiles(
     race: &Race,
     car: &Car,
     car_number: u32,
@@ -38,7 +38,7 @@ pub fn map_tiles(
 }
 
 /// What `scroll_map` reads through the course: refused before anything.
-pub fn scroll_refuses(race: &Race) -> Result<(), Refused> {
+pub(super) fn scroll_refuses(race: &Race) -> Result<(), Refused> {
     if race.shared.vars.get().checkpoint_count.get() >= 2
         && (!crate::race::course_places::held(&race.course.stage.course)
             || !crate::race::scene_points::held(&race.course.stage.course))
@@ -50,7 +50,7 @@ pub fn scroll_refuses(race: &Race) -> Result<(), Refused> {
 
 /// Puts the car on the map: `map_place` at its last checkpoint's place plus its distance from that
 /// checkpoint's face's point (x as it is, z negated, both on the map's scale).
-pub fn place_on_map(race: &Race, car: &Car) -> Result<(), Refused> {
+pub(super) fn place_on_map(race: &Race, car: &Car) -> Result<(), Refused> {
     let [x, y] = map_position(race, car)?;
     car.map_place[0].set(x);
     car.map_place[1].set(y);
@@ -59,7 +59,7 @@ pub fn place_on_map(race: &Race, car: &Car) -> Result<(), Refused> {
 
 /// Where the car is on the map (16.16 map pixels, x then y), as `place_on_map` works it out,
 /// written nowhere.
-pub fn map_position(race: &Race, car: &Car) -> Result<[u32; 2], Refused> {
+pub(super) fn map_position(race: &Race, car: &Car) -> Result<[u32; 2], Refused> {
     use rc2k_core::race::map::on_map;
     let n = car.checkpoint.get();
     let map_x = crate::race::checkpoints_store::map_x_run_on(race.checkpoints(), n as usize).get();
@@ -90,7 +90,7 @@ pub fn map_position(race: &Race, car: &Car) -> Result<[u32; 2], Refused> {
 /// 16-pixel steps), redraws it (`map_tiles`) and sets the redrawn flag; then sets its place in the
 /// picture ((place - corner << 16 - 0x300000) x 2). Refuses (before anything) no course faces or
 /// points.
-pub fn scroll_map(
+fn scroll_map(
     race: &Race,
     car: &Car,
     car_number: u32,
@@ -135,7 +135,7 @@ fn further_map_tiles(
 
 /// `scroll_map` with the picture's redraw (`redraw`, run once the corner has moved) left to the
 /// caller.
-pub fn scroll_map_with(
+fn scroll_map_with(
     race: &Race,
     car: &Car,
     redraw: impl FnOnce() -> Result<(), Refused>,
@@ -171,7 +171,7 @@ pub fn scroll_map_with(
 /// Runs `scroll_map` on each view's car, on its block: with `session` the third view car only,
 /// else the first and, unless `views` is 1, the second. Refuses (before anything) a view car
 /// without its block, or what `scroll_map` refuses.
-pub fn scroll_maps(
+pub(super) fn scroll_maps(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,

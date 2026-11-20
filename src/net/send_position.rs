@@ -5,7 +5,7 @@ use crate::net::owner::Net;
 use crate::net::send_inputs::{Message, send_fields};
 use crate::race::owner::Race;
 
-pub const POSITION: Message = Message {
+const POSITION: Message = Message {
     text: c"send p", // "send p"
     kind: rc2k_core::net::race::Kind::Position,
 };

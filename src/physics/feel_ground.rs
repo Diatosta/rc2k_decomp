@@ -14,7 +14,7 @@ use crate::physics::step_families::GroundInputs;
 use rc2k_core::physics::walls::WheelsOff;
 
 // Core: `rc2k_core::physics::walls::WheelsOff`.
-pub fn feel_ground(c: &GroundInputs<'_>) -> Result<(), Refused> {
+pub(super) fn feel_ground(c: &GroundInputs<'_>) -> Result<(), Refused> {
     if c.car.probe_count.get() > rc2k_core::physics::walls::PROBE_ROOM {
         return Err(BadInput("more than 0x40 probe points").into());
     }

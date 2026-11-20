@@ -40,7 +40,7 @@ const EQUALS: [&std::ffi::CStr; 13] = [
 ];
 const PARTS: u32 = 14;
 /// The current player and its car's table.
-pub fn player_and_table<'a>(
+fn player_and_table<'a>(
     menus: &'a Menus,
     screens: &Screens,
 ) -> Result<(PlayerCell<'a>, crate::menu::cars_store::DescriptionTable), BadInput> {

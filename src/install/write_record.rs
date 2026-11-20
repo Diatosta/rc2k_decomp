@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::install::installer::media_mode;
 
 /// The record written; whether the write worked (`install_files` reads it).
-pub fn write_record(
+pub(super) fn write_record(
     install: &'static crate::install::owner::Install,
     strings: &'static crate::strings::owner::Strings,
 ) -> Result<bool, Refused> {

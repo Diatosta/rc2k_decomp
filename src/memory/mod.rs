@@ -2,18 +2,18 @@
 //! typed cells the game's data lives in (`cells`, `session`, `place`, `part_cell`,
 //! `list_handle`, `shared_memory`).
 
-pub mod cells;
-pub mod draw_order;
-pub mod free_list;
-pub mod host_hooks;
-pub mod list_handle;
-pub mod owned;
-pub mod part_cell;
-pub mod place;
-pub mod session;
-pub mod shared_memory;
-pub mod shared_table;
-pub mod take_from_list;
+pub(crate) mod cells;
+pub(crate) mod draw_order;
+pub(crate) mod free_list;
+pub(crate) mod host_hooks;
+pub(crate) mod list_handle;
+pub(crate) mod owned;
+pub(crate) mod part_cell;
+pub(crate) mod place;
+pub(crate) mod session;
+pub(crate) mod shared_memory;
+pub(crate) mod shared_table;
+pub(crate) mod take_from_list;
 
 /// A list of blocks: what `allocate` adds to and `free_list` gives back in one go. Every
 /// user of the allocator has one of its own. (`rc2k_core::memory::List`, laid out as the

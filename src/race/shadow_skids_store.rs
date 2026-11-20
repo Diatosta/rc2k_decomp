@@ -15,7 +15,7 @@ use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 /// as whole numbers (`race::car_shadow`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
-pub struct ShadowPoint {
+pub(super) struct ShadowPoint {
     /// +0x0: x.
     pub x: PlainDword,
     /// +0x4: y.

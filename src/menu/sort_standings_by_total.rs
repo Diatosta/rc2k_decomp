@@ -6,7 +6,7 @@
 use crate::errors::Refused;
 use crate::menu::owner::{Play, Screens};
 use crate::menu::standings::*;
-pub fn sort_standings_by_total(
+pub(super) fn sort_standings_by_total(
     screens: &Screens,
     play: &Play,
     tables: &crate::saves::best_times::BestTables,

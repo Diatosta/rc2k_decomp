@@ -17,7 +17,7 @@ impl Writer {
     }
 
     /// A number in seven-bit groups, the low ones first, the last without the high bit.
-    pub fn varint(&mut self, mut v: u32) {
+    pub(crate) fn varint(&mut self, mut v: u32) {
         while v >= 0x80 {
             self.0.push((v & 0x7F) as u8 | 0x80);
             v >>= 7;
@@ -69,7 +69,7 @@ impl<'a> Reader<'a> {
         ))
     }
 
-    pub fn varint(&mut self) -> Result<u32, CodeError> {
+    pub(crate) fn varint(&mut self) -> Result<u32, CodeError> {
         let mut v = 0u32;
         for shift in (0..35).step_by(7) {
             let b = self.u8()?;

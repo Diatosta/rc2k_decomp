@@ -8,7 +8,7 @@ use crate::errors::{BadInput, Refused};
 use crate::net::owner::Net;
 use crate::net::sort_players::{bubble_blocks, swap_blocks};
 use rc2k_core::net::players;
-pub fn list_players(net: &Net) -> Result<bool, Refused> {
+pub(super) fn list_players(net: &Net) -> Result<bool, Refused> {
     let (vars, link) = (&net.vars, &net.link);
     if !link.has_dplay() {
         return Ok(false);
@@ -62,7 +62,7 @@ pub fn list_players(net: &Net) -> Result<bool, Refused> {
 
 /// `net::list_players` with its result dropped, so a failed listing is never reported to the
 /// caller (as the game does).
-pub fn list_players_regs(net: &Net) -> Result<(), Refused> {
+pub(super) fn list_players_regs(net: &Net) -> Result<(), Refused> {
     list_players(net)?;
     Ok(())
 }

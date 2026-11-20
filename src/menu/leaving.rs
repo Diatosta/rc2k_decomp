@@ -18,7 +18,7 @@ pub fn leaving(menus: &Menus) -> Leaving {
     }
 }
 
-pub fn put_leaving(menus: &Menus, l: &Leaving) {
+fn put_leaving(menus: &Menus, l: &Leaving) {
     let screens = &menus.screens;
     let flags = &screens.loop_flags;
     flags.event_left.set(l.event_left);
@@ -36,14 +36,14 @@ pub fn question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables) 
     }
 }
 
-pub fn put_question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables, q: &Question) {
+fn put_question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables, q: &Question) {
     flow.asking.set(q.asking);
     pages.yes_no_answer.set(q.answer);
     captions.left_by_key.set(q.answered);
 }
 
 /// The switches changed by `f`.
-pub fn with_leaving<R>(menus: &Menus, f: impl FnOnce(&mut Leaving) -> R) -> R {
+pub(super) fn with_leaving<R>(menus: &Menus, f: impl FnOnce(&mut Leaving) -> R) -> R {
     let mut l = leaving(menus);
     let r = f(&mut l);
     put_leaving(menus, &l);
@@ -51,7 +51,10 @@ pub fn with_leaving<R>(menus: &Menus, f: impl FnOnce(&mut Leaving) -> R) -> R {
 }
 
 /// The question and the switches changed by `f`.
-pub fn with_question<R>(menus: &Menus, f: impl FnOnce(&mut Question, &mut Leaving) -> R) -> R {
+pub(super) fn with_question<R>(
+    menus: &Menus,
+    f: impl FnOnce(&mut Question, &mut Leaving) -> R,
+) -> R {
     let tables = &menus.tables;
     let (mut q, mut l) = (
         question(&menus.screens.flow, &tables.pages, &tables.captions),

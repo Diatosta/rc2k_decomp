@@ -66,7 +66,12 @@ pub fn size_of_mode(mode: u32) -> Option<(u32, u32)> {
 /// `mode` (a mode of the table's kind) with the size `(width, height)` in place of its size.
 /// `table` holds the table's sizes with their keys (the mode's low byte); a size not there gets
 /// a number. None when the numbers are used up.
-pub fn mode_for(mode: u32, table: &[(u32, u32, u32)], width: u32, height: u32) -> Option<u32> {
+pub(super) fn mode_for(
+    mode: u32,
+    table: &[(u32, u32, u32)],
+    width: u32,
+    height: u32,
+) -> Option<u32> {
     let base = mode & 0x00FF_FF00;
     if let Some(&(_, _, key)) = table.iter().find(|&&(w, h, _)| (w, h) == (width, height)) {
         return Some(base | key);
@@ -104,7 +109,7 @@ pub fn window() -> Option<(u32, u32)> {
 }
 
 /// What the list made last offered as the window's own size (see `window_listed`).
-pub fn set_window_listed(size: Option<(u32, u32)>) {
+pub(super) fn set_window_listed(size: Option<(u32, u32)>) {
     lock().window_listed = size;
 }
 
@@ -131,7 +136,7 @@ pub fn race_mode_for(
 }
 
 /// The monitor's modes (each size once) and desktop size, as last found.
-pub fn set_monitor(modes: Vec<(u32, u32)>, desktop: Option<(u32, u32)>) {
+pub(super) fn set_monitor(modes: Vec<(u32, u32)>, desktop: Option<(u32, u32)>) {
     let mut sizes = lock();
     sizes.monitor = modes;
     sizes.desktop = desktop;

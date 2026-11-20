@@ -769,7 +769,7 @@ pub fn countdown_lights(
 
 /// Runs `countdown_lights` for the first view and the second (fields 0x10,
 /// `race().frame.panel_and_overlay.overlay.forget_flag_1`).
-pub fn both_countdown_lights(race: &Race) -> Result<(), BadInput> {
+fn both_countdown_lights(race: &Race) -> Result<(), BadInput> {
     let frame = &race.frame;
     {
         for (view, flag) in [
@@ -790,7 +790,7 @@ pub fn both_countdown_lights(race: &Race) -> Result<(), BadInput> {
 /// The two views' colour buffers for `split_colours`:
 /// `race().frame.panel_and_overlay.overlay.overlay_part_kinds_a`,
 /// `race().frame.panel_and_overlay.overlay.overlay_part_kinds_b`.
-pub fn colour_buffers(frame: &Frame) -> [&'_ [PlainDword; 64]; 2] {
+fn colour_buffers(frame: &Frame) -> [&'_ [PlainDword; 64]; 2] {
     [
         &frame.panel_and_overlay.get().overlay.overlay_part_kinds_a,
         &frame.panel_and_overlay.get().overlay.overlay_part_kinds_b,
@@ -815,7 +815,7 @@ pub fn check_split_colours(race: &Race) -> Result<(), Refused> {
 /// Runs `split_colours` for the first view's block into
 /// `race().frame.panel_and_overlay.overlay.overlay_part_kinds_a`, then the second's into
 /// `overlay_part_kinds_b`. Refused (before anything) as `split_colours` would for either.
-pub fn both_split_colours(race: &Race) -> Result<(), Refused> {
+fn both_split_colours(race: &Race) -> Result<(), Refused> {
     check_split_colours(race)?;
     for (view, buffer) in (0..2).zip(colour_buffers(&race.frame)) {
         split_colours(

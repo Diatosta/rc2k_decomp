@@ -53,7 +53,7 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
 }
 
 /// `record` is the particle it bursts from.
-pub fn burst_particles(
+pub(super) fn burst_particles(
     engine_tables: &crate::math::engine_tables::EngineTables,
     particles: &Particles,
     ring: &Ring,

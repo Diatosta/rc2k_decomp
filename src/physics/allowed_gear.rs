@@ -12,7 +12,7 @@ use crate::race::numbers_store::Numbers;
 
 /// On the engine damage word, the engine power factor and the gear bits at these places.
 // Core: `rc2k_core::physics::gearbox::allowed_gear`.
-pub fn allowed_gear_at(
+fn allowed_gear_at(
     numbers: &Numbers,
     locked: &PlainFloat,
     open: &PlainFloat,

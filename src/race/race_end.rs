@@ -7,7 +7,7 @@ use crate::race::owner::Race;
 use rc2k_core::audio::commands::Command;
 
 /// Where a header setting lives in the race's variables (its first place).
-pub fn setting_cell(
+pub(super) fn setting_cell(
     race: &Race,
     s: rc2k_core::race::replay::Setting,
 ) -> &dyn crate::memory::session::DwordLike {
@@ -27,7 +27,7 @@ pub fn setting_cell(
 }
 
 /// Where a header setting lives in the replay's car header (from `header_stage` on).
-pub fn header_cell(
+pub(super) fn header_cell(
     race: &Race,
     s: rc2k_core::race::replay::Setting,
 ) -> &crate::memory::session::PlainDword {
@@ -354,7 +354,7 @@ fn tidy_everything_as(
 /// arcade's cars, sets the next race flag 1, the start states, loads the stage, opens the replay's
 /// header and file, sets `after_credits` 0, runs the race (`drive::play_race`), closes the replay,
 /// tidies everything and takes the settings out.
-pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let race = o.race;
     race.physics.split_tables().arcade_kind.set(1);
     crate::logfile::write_line::state::INDENT.set(0);
@@ -392,14 +392,14 @@ pub fn release_textures(scene: &crate::scene::owner::Scene, gfx: &crate::gfx::ow
 }
 
 /// Sets `mask_kind` 0 and runs `race::run_race`.
-pub fn start_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+fn start_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     o.race.shared.switches.get().mask_kind.set(0u32);
     run_race(o)
 }
 
 /// Runs `race::render3d_tidy`, `race::objects_tidy`, `race::release_textures` and
 /// `race::start_race`.
-pub fn race_from_menu(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn race_from_menu(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     // A trouble the game can go back from (a stage's data that cannot be read) tears the race
     // down as when the player quits it, then goes on up to the main menu.
     match crate::race::dialogs::guarded(|| race_from_menu_plain(o)) {

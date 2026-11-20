@@ -16,7 +16,7 @@ pub const ENTRIES: u32 = 0x400;
 #[cfg(test)]
 pub const ENTRY_LEN: u32 = 0x94;
 /// The block's bytes, as counted.
-pub const RING_BYTES: u32 = 0x2_5000;
+const RING_BYTES: u32 = 0x2_5000;
 
 /// One ring entry: 37 dwords (the size, alpha and pull fields stay dwords: kinds differ in
 /// whether they hold a float or a whole number). The three-axis fields are arrays x, y, z.
@@ -211,7 +211,7 @@ pub fn set<T>(
 /// An entry that died: the ring's count is one less; the entry at the cursor is passed over
 /// by moving the cursor on, any other is unlinked and linked in just before the cursor (the
 /// end of the walk's order), so the live ones stay together from the cursor on.
-pub fn retire_entry(ring: &Ring, e: u32) -> Result<(), BadInput> {
+fn retire_entry(ring: &Ring, e: u32) -> Result<(), BadInput> {
     ring.work.count.set(ring.work.count.get().wrapping_sub(1));
     let cursor: u32 = ring.work.cursor.get();
     let moved_on = ring.entries.with(|r| -> Option<Option<u32>> {
@@ -245,7 +245,7 @@ pub fn retire_entry(ring: &Ring, e: u32) -> Result<(), BadInput> {
 /// The ring walked once: `visit` is called with each entry, from the cursor along `next`, as
 /// many times as the count held at the start; an entry it says has died is retired
 /// (`retire_entry`). The next entry is read before the visit.
-pub fn walk_ring(
+pub(super) fn walk_ring(
     ring: &Ring,
     mut visit: impl FnMut(u32) -> Result<bool, crate::errors::Refused>,
 ) -> Result<(), crate::errors::Refused> {
@@ -268,7 +268,7 @@ pub fn walk_ring(
 /// The ring walked as `walk_ring`, with each entry copied out under one lock of the ring, given
 /// to `visit` to work on (the draws it calls reach the ring's other stores, not the entries'
 /// fields it changes) and written back under another, instead of a lock for every field.
-pub fn walk_ring_copies(
+pub(super) fn walk_ring_copies(
     ring: &Ring,
     mut visit: impl FnMut(u32, &mut Entry) -> Result<bool, crate::errors::Refused>,
 ) -> Result<(), crate::errors::Refused> {
@@ -314,7 +314,7 @@ pub fn st<T: bh::Stored>(ring: &Ring, e: u32, x: X, field: impl FnOnce(&mut Entr
 /// `f` on an entry holding the bytes `lo .. hi` of the test buffer `base` (the differential
 /// tests' operand), the bytes copied back after it.
 #[cfg(test)]
-pub fn with_entry_copy_at<R>(
+pub(super) fn with_entry_copy_at<R>(
     base: crate::effects::asm_test::Operand,
     lo: u32,
     hi: u32,
@@ -337,7 +337,7 @@ pub fn with_entry_copy_at<R>(
 /// `f` on entry 1 of a test ring holding the bytes `lo .. hi` of the test buffer `base`
 /// (the differential tests' operand), the bytes copied back after it.
 #[cfg(test)]
-pub fn with_entry_at<R>(
+pub(super) fn with_entry_at<R>(
     ring: &Ring,
     base: crate::effects::asm_test::Operand,
     lo: u32,

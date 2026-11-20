@@ -152,7 +152,11 @@ impl MenuLists {
     /// The picture of car `car` on car page `page`, from the page's list (`page_picture_lists`,
     /// in its order). The cars of the 34 descriptions run to 0x20, past a list's 25: a car past a
     /// list reads on into the lists and tables after it.
-    pub fn page_picture(&self, page: u32, car: usize) -> Result<u32, crate::errors::BadInput> {
+    pub(super) fn page_picture(
+        &self,
+        page: u32,
+        car: usize,
+    ) -> Result<u32, crate::errors::BadInput> {
         let own = match page {
             0 => &self.page_pictures_a,
             1 => &self.page_pictures_c,
@@ -186,7 +190,7 @@ impl MenuLists {
 
     /// The map overlay of event slot `slot` (0 ..= 35 in the image's tables; the records can
     /// be loaded from a file, so a slot past the list reads on into the fields after it).
-    pub fn map_overlay(
+    pub(super) fn map_overlay(
         &self,
         menus: &crate::menu::owner::Menus,
         slot: usize,
@@ -236,7 +240,7 @@ impl MenuLists {
 
     /// The welcome picture of section `section` (0 ..= 0x20, held by `small_section`), in the
     /// championship's list or the others', past the six on into the fields after them.
-    pub fn welcome_picture(
+    pub(super) fn welcome_picture(
         &self,
         championship: bool,
         section: usize,

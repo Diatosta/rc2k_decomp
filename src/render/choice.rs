@@ -131,7 +131,7 @@ pub fn gpu_wanted() -> bool {
 
 #[cfg(not(handheld))]
 /// Whether the OpenGL renderer is to be tried (after the GPU API's, in the default order).
-pub fn gl_wanted() -> bool {
+pub(super) fn gl_wanted() -> bool {
     matches!(wish(), Wish::GpuFirst | Wish::Gl)
 }
 

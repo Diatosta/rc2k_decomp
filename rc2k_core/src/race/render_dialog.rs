@@ -13,7 +13,7 @@ use crate::options::model::VideoChoices;
 /// The frame rates the dialog offers: the numbers of the graphics page's frame limits (the
 /// display's own pace as its rate; "off" has none), and 30 and 60 whatever the page lists,
 /// since a video needs a fixed rate. Slowest first.
-pub fn frame_rates(limits: &[FrameLimit], display_rate: f64) -> Vec<u32> {
+pub(crate) fn frame_rates(limits: &[FrameLimit], display_rate: f64) -> Vec<u32> {
     let mut rates: Vec<u32> = limits
         .iter()
         .filter_map(|l| match l {
@@ -400,8 +400,9 @@ pub fn progress(block: u32, from: u32, end: u32) -> f64 {
     (f64::from(block.saturating_sub(from)) / f64::from(length)).clamp(0.0, 1.0)
 }
 
+#[cfg(test)]
 /// The size the video is made at: the chosen one, or the screen's.
-pub fn video_size(chosen: Option<(u32, u32)>, screen: (u32, u32)) -> (u32, u32) {
+pub(crate) fn video_size(chosen: Option<(u32, u32)>, screen: (u32, u32)) -> (u32, u32) {
     chosen.unwrap_or(screen)
 }
 

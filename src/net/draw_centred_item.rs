@@ -11,7 +11,7 @@ const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED
 
 /// The string `string` for item `item` at (`x`, `y`) in the item's font;
 /// returns the next y (y plus the font's line height).
-pub fn draw_centred_item(
+pub(super) fn draw_centred_item(
     o: crate::owners::Owners<'static>,
     net: &crate::net::owner::Net,
     string: u32,

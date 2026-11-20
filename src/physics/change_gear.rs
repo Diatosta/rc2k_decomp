@@ -17,7 +17,7 @@ use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.
 #[derive(Clone, Copy)]
-pub struct ChangePlaces<'a> {
+struct ChangePlaces<'a> {
     pub wanted: &'a PlainInt,
     /// By address: `bt` on memory, its bit number past the first dword.
     pub bits: &'a PlainDword,
@@ -46,7 +46,7 @@ fn ratio_gear(g: i32) -> Result<(), Refused> {
 
 /// The core.
 // Core: `rc2k_core::physics::gear_shifts::change`.
-pub fn change_gear_at(
+fn change_gear_at(
     numbers: &Numbers,
     gp: &GearPlaces<'_>,
     c: &ChangePlaces<'_>,

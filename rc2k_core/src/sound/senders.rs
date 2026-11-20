@@ -12,7 +12,7 @@ pub enum MenuVolume {
 }
 
 /// The menus' sounds by the first bit set, in this order: (bit, sound, volume).
-pub const MENU_SOUNDS: [(u32, u32, MenuVolume); 9] = [
+pub(crate) const MENU_SOUNDS: [(u32, u32, MenuVolume); 9] = [
     (0x80, 0xE4, MenuVolume::A),
     (0x10, 0x163, MenuVolume::B),
     (0x20, 0x197, MenuVolume::B),
@@ -24,7 +24,7 @@ pub const MENU_SOUNDS: [(u32, u32, MenuVolume); 9] = [
     (0x01, 0x1C7, MenuVolume::C),
 ];
 /// The time between two menu sounds, in milliseconds.
-pub const MENU_SOUND_GAP: u32 = 0x7D;
+pub(crate) const MENU_SOUND_GAP: u32 = 0x7D;
 
 /// A menu sound asked for (`which` its bits) at `now`, the next allowed at `next`: None
 /// for no bits or before the time (by the sign of the difference); else the time after it

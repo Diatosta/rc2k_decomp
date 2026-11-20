@@ -115,7 +115,7 @@ pub fn begin(support: &Path) -> Result<bool, String> {
 /// The commands that make the installed bundle `app` ready, in order: the quarantine mark
 /// removed from the copy, the copy signed again (ad hoc: no developer account or tools needed),
 /// registered with Launch Services, opened as a new instance.
-pub fn finishing_commands(app: &Path) -> Vec<Vec<std::ffi::OsString>> {
+fn finishing_commands(app: &Path) -> Vec<Vec<std::ffi::OsString>> {
     let a = app.as_os_str().to_os_string();
     let lsregister = "/System/Library/Frameworks/CoreServices.framework/Frameworks/\
                       LaunchServices.framework/Support/lsregister";

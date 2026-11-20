@@ -13,7 +13,7 @@
 use crate::screens::controls_store::ControlsScreen;
 
 /// Control `control` learns from now.
-pub fn learn_binding(
+pub(super) fn learn_binding(
     controls: &ControlsScreen,
     picture_clock: &crate::clock::tick_count::PictureClock,
     input: &crate::input::owner::Input,

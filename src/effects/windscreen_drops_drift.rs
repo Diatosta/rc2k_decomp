@@ -38,7 +38,7 @@ fn move_kept(
     move_kept_x87(drops, m, &effects.setup.clock);
 }
 
-pub fn windscreen_drops_drift(
+pub(super) fn windscreen_drops_drift(
     frame: &Frame,
     drops: &WindscreenDrops,
     effects: &crate::effects::owner::Effects,

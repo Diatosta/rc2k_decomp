@@ -16,7 +16,7 @@ static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
 static LIMIT: Mutex<Option<LineLimit>> = Mutex::new(None);
 
 /// A message of `player` (`u32::MAX`: not known) that was dropped for `why`.
-pub fn dropped_message(player: u32, why: &str) {
+pub(super) fn dropped_message(player: u32, why: &str) {
     let who = if player == u32::MAX {
         "?".to_string()
     } else {

@@ -8,7 +8,11 @@ use crate::input::store::ForceFeedback;
 use crate::input::types::InputDevice;
 
 /// The six effects of the device `record` told `what` (the loop of both functions).
-pub fn all_six(feedback: &ForceFeedback, record: &InputDevice, what: u32) -> Result<(), Refused> {
+pub(super) fn all_six(
+    feedback: &ForceFeedback,
+    record: &InputDevice,
+    what: u32,
+) -> Result<(), Refused> {
     for effect in 0..6 {
         crate::input::set_effect::set_effect(feedback, record, effect, what, 0, 0)?;
     }
@@ -16,6 +20,9 @@ pub fn all_six(feedback: &ForceFeedback, record: &InputDevice, what: u32) -> Res
 }
 
 /// The device `record`'s effects started.
-pub fn start_device_effects(feedback: &ForceFeedback, record: &InputDevice) -> Result<(), Refused> {
+pub(super) fn start_device_effects(
+    feedback: &ForceFeedback,
+    record: &InputDevice,
+) -> Result<(), Refused> {
     all_six(feedback, record, 2)
 }

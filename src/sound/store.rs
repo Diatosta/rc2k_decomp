@@ -240,7 +240,7 @@ impl SoundObject {
 
     /// The timed slot at a byte offset in the 1999 object layout (the core's lists of slots are
     /// by offset). Any other offset is a bug of the caller.
-    pub fn slot_at(&self, offset: u32) -> &SoundSlot {
+    pub(super) fn slot_at(&self, offset: u32) -> &SoundSlot {
         match offset {
             0x14C => &self.slots[0],
             0x164 => &self.slots[1],
@@ -633,7 +633,7 @@ pub struct SoundSlot {
 }
 
 /// A timed slot's six dwords (`sound::play_timed_slot`).
-pub trait TimedCells {
+pub(super) trait TimedCells {
     fn load(&self) -> rc2k_core::sound::cars::TimedSlot;
     fn store(&self, slot: &rc2k_core::sound::cars::TimedSlot);
 }

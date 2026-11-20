@@ -80,7 +80,7 @@ pub fn note_ground_search(found: bool) {
 
 /// The ground searches run and those that found a face, so far.
 #[cfg(debug_ui)]
-pub fn ground_searches() -> (u32, u32) {
+pub(super) fn ground_searches() -> (u32, u32) {
     (
         GROUND_SEARCHES[0].load(Relaxed),
         GROUND_SEARCHES[1].load(Relaxed),

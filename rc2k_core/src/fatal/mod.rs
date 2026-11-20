@@ -9,7 +9,7 @@ use crate::strings::format::{binary, hex};
 pub const FATAL: u32 = 0x8000_0000;
 /// Bit 28: the message alone (no heading, no file, no registers), and the message box's
 /// caption "Rally: Guru Meditation" cut to "Rally".
-pub const TEXT_ONLY: u32 = 0x1000_0000;
+pub(crate) const TEXT_ONLY: u32 = 0x1000_0000;
 /// The room for the report, its NUL included.
 pub const TEXT_LEN: usize = 0x400;
 /// Where the caption is cut for a code with bit 28 (its byte 5 made 0).

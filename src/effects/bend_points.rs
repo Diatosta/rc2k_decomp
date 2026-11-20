@@ -14,7 +14,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87::ext_to_int;
 use crate::memory::session::write_first;
 
-pub fn bend_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
+pub(super) fn bend_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
         let switch: u32 = paths.spline_head.switch.get();
         if switch == paths.spline_kinds.chosen[0].get() {

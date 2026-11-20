@@ -3,34 +3,34 @@
 //! system it runs on (`resolve_path`) and offers the ways the game reads a file: whole, packed
 //! (`read_packed_file`), or through a small buffered stream.
 
-pub mod close_stream;
-pub mod copy_file;
-pub mod directories;
-pub mod drive_free_space_kb;
-pub mod drive_type;
-pub mod file_exists;
-pub mod file_size;
-pub mod handle;
-pub mod instance;
-pub mod numbered_path;
-pub mod open_stream;
-pub mod read_file;
-pub mod read_first_match;
-pub mod read_level_file;
-pub mod read_packed_file;
-pub mod read_stream_block;
-pub mod read_stream_byte;
-pub mod read_whole_file;
+pub(crate) mod close_stream;
+pub(crate) mod copy_file;
+pub(crate) mod directories;
+pub(crate) mod drive_free_space_kb;
+pub(crate) mod drive_type;
+pub(crate) mod file_exists;
+pub(crate) mod file_size;
+pub(crate) mod handle;
+pub(crate) mod instance;
+pub(crate) mod numbered_path;
+pub(crate) mod open_stream;
+pub(crate) mod read_file;
+pub(crate) mod read_first_match;
+pub(crate) mod read_level_file;
+mod read_packed_file;
+pub(crate) mod read_stream_block;
+pub(crate) mod read_stream_byte;
+pub(crate) mod read_whole_file;
 #[cfg(unix)]
-pub mod redirect;
-pub mod resolve_path;
-pub mod scratch;
-pub mod search;
-pub mod stream;
-pub mod swap_missing_extension;
-pub mod write_file;
+pub(crate) mod redirect;
+pub(crate) mod resolve_path;
+pub(crate) mod scratch;
+pub(crate) mod search;
+pub(crate) mod stream;
+pub(crate) mod swap_missing_extension;
+pub(crate) mod write_file;
 
-pub mod write_stream_block;
+pub(crate) mod write_stream_block;
 
 pub use rc2k_core::files::ansi::{ansi_bytes, ansi_text};
 
@@ -45,7 +45,7 @@ pub fn cstring_in(bytes: &[u8]) -> Result<Vec<u8>, crate::errors::BadInput> {
 }
 
 /// The text at byte `offset` of the store, read within its next `len` bytes.
-pub fn cstring_from(
+fn cstring_from(
     store: &dyn crate::memory::cells::Store,
     offset: usize,
     len: usize,

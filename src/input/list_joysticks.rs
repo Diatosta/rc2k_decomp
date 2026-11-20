@@ -5,7 +5,7 @@
 
 use crate::input::owner::Input;
 
-pub fn list_joysticks(input: &Input, system: &crate::system::owner::System) {
+pub(super) fn list_joysticks(input: &Input, system: &crate::system::owner::System) {
     if input.devices.no_joysticks.is_set() {
         return;
     }
@@ -25,7 +25,7 @@ pub fn list_joysticks(input: &Input, system: &crate::system::owner::System) {
 /// table yet, so a pad plugged in after the start can be chosen on the controller pages and
 /// driven with. A pad unplugged and plugged back keeps its place (`platform::input`), so its
 /// entry, and the players who chose it, stay as they were.
-pub fn list_new_joysticks(input: &Input, system: &crate::system::owner::System) {
+pub(super) fn list_new_joysticks(input: &Input, system: &crate::system::owner::System) {
     if input.devices.no_joysticks.is_set() || input.devices.direct_input.get() == 0 {
         return;
     }

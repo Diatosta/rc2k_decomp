@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::install::read_registry::Registry;
 use crate::install::store::text_of;
 
-pub fn register_lobby(
+pub(super) fn register_lobby(
     install: &crate::install::owner::Install,
     registry: &mut dyn Registry,
     strings: &crate::strings::owner::Strings,

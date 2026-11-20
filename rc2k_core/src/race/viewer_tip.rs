@@ -23,8 +23,8 @@ pub const SPEED_BUTTON: u32 = 0x10;
 pub const HUD_BUTTONS: [u32; 2] = [0xE, 0x18];
 
 /// How long the name stays at full strength, and how long it then takes to fade (milliseconds).
-pub const STAY_MS: u32 = 1000;
-pub const FADE_MS: u32 = 250;
+pub(crate) const STAY_MS: u32 = 1000;
+pub(crate) const FADE_MS: u32 = 250;
 
 /// The strength of the name `elapsed_ms` after the highlight moved, 0 ..= 255; none once it has
 /// faded.
@@ -61,7 +61,7 @@ pub fn over(own: u32, under: u32, strength: u8) -> u32 {
 }
 
 /// The replay speeds a block's speed byte stands for: normal, half and a quarter.
-pub const SPEEDS: u32 = 3;
+pub(crate) const SPEEDS: u32 = 3;
 
 /// The text of a button's name: its number picks one of the `BUTTONS` texts that follow
 /// `id::VIEWER_TIPS`. A number past the buttons is none.

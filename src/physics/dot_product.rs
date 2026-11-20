@@ -6,6 +6,6 @@ use crate::math::cells::{Cells, load};
 use crate::scene::vector3::*;
 
 /// The product as it is left in st(0).
-pub fn dot_product(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> [u8; 10] {
+pub(super) fn dot_product(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> [u8; 10] {
     dot_product3(load(a), load(b))
 }

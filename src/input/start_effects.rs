@@ -10,7 +10,7 @@ pub fn records(devices: &Devices) -> &[crate::input::types::InputDevice; 4] {
 }
 
 /// Both devices' effects started.
-pub fn start_effects(input: &Input) -> Result<(), Refused> {
+pub(super) fn start_effects(input: &Input) -> Result<(), Refused> {
     for record in records(&input.devices) {
         crate::input::start_device_effects::start_device_effects(&input.force_feedback, record)?;
     }

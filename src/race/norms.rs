@@ -110,7 +110,7 @@ pub struct Normals {
 /// Every face's normals, starting from the work vector `work_vector`: a triangle whose points are
 /// not all below the scene's point count keeps the vector the last one left. Reads the loaded
 /// course and writes nothing. Refused: no faces, 0x100000 or more, or a read past a table.
-pub fn face_normals(
+fn face_normals(
     race: &Race,
     scratch: &crate::scene::workers::DrawingScratch,
     work_vector: [u32; 3],
@@ -160,7 +160,7 @@ pub fn face_normals(
 /// Works out the normals (`face_normals`) and stores them in the faces and
 /// the work vector, plane work and scratch word the work leaves.
 /// Refuses no faces or 0x100000 or more.
-pub fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub(super) fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let count: u32 = race.course.course.get().course_face_count.get();
     rc2k_core::race::faces::check_face_count(count)?;
     let work_vector = crate::memory::session::read_first(&race.frame.scratch().work_vector);

@@ -24,7 +24,7 @@ pub struct ViewOutput {
 
 impl ViewOutput {
     /// The view's value into its block (`race::store_view_value`).
-    pub fn store_view_value(self, race: &Race) -> Result<(), Refused> {
+    pub(super) fn store_view_value(self, race: &Race) -> Result<(), Refused> {
         match self.view_value {
             Some((block, value)) => crate::race::frame_draw::store_view_value(race, block, value),
             None => Ok(()),

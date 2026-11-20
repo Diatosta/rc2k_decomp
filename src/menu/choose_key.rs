@@ -5,7 +5,7 @@
 
 use crate::menu::owner::Screens;
 
-pub fn choose_key(screens: &Screens, place: u32) {
+pub(super) fn choose_key(screens: &Screens, place: u32) {
     let r = rc2k_core::menu::player::Redefining::start(place);
 
     screens.entry.redefining_key.set(r.on);

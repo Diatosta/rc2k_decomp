@@ -10,7 +10,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 
 // Core: `rc2k_core::physics::gearbox::asked_gear`.
-pub fn take_asked_gear(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
+pub(super) fn take_asked_gear(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     let run = || -> Result<(), Refused> {
         shared.car().gear_changed.set(0);
         let word: u32 = shared.car().input_keys.get();

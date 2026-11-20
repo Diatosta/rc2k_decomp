@@ -15,7 +15,7 @@ use rc2k_core::saves::code::qr::{self, Modules};
 pub const SCREEN: u32 = 0x05081A;
 pub const PANEL: u32 = 0x0C1238;
 pub const BUTTON: u32 = 0x27347A;
-pub const CHOSEN: u32 = 0xC8202A;
+const CHOSEN: u32 = 0xC8202A;
 pub const UNUSABLE: u32 = 0x14183A;
 const WHITE: u32 = 0xFF_FFFF;
 const BLACK: u32 = 0;
@@ -23,11 +23,11 @@ const BLACK: u32 = 0;
 pub const MARGIN: i32 = 16;
 pub const LINE_H: i32 = 30;
 /// A button's height: on a touch screen 1.9 lines, tall enough for a finger.
-pub const BUTTON_H: i32 = pointer::by_style(38, 56);
+pub(super) const BUTTON_H: i32 = pointer::by_style(38, 56);
 /// The space between buttons side by side (a touch screen's are further apart).
-pub const BUTTON_GAP: i32 = pointer::by_style(MARGIN / 2, 12);
+pub(super) const BUTTON_GAP: i32 = pointer::by_style(MARGIN / 2, 12);
 /// The space between two buttons one above the other: half a button on a touch screen.
-pub const WAYS_GAP: i32 = pointer::by_style(6, BUTTON_H / 2);
+pub(super) const WAYS_GAP: i32 = pointer::by_style(6, BUTTON_H / 2);
 /// The font's own top offset puts its letters a little below the y they are given.
 const TEXT_UP: i32 = 12;
 
@@ -95,7 +95,7 @@ pub fn button(o: Owners<'static>, rect: [i32; 4], label: &str, chosen: bool, usa
 }
 
 /// The text cut into lines of `per_line` letters.
-pub fn lines_of(text: &str, per_line: usize) -> impl Iterator<Item = &str> {
+pub(super) fn lines_of(text: &str, per_line: usize) -> impl Iterator<Item = &str> {
     text.as_bytes()
         .chunks(per_line.max(1))
         // The text is of ASCII letters (the code's alphabet), so a cut is always between letters.
@@ -103,7 +103,7 @@ pub fn lines_of(text: &str, per_line: usize) -> impl Iterator<Item = &str> {
 }
 
 /// How many letters of the code fit a line of `room` pixels: its widest letter decides.
-pub fn letters_per_line(o: Owners<'static>, room: i32) -> usize {
+pub(super) fn letters_per_line(o: Owners<'static>, room: i32) -> usize {
     let widest = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
         .chars()
         .map(|c| width(o, &c.to_string()))
@@ -117,7 +117,7 @@ pub fn letters_per_line(o: Owners<'static>, room: i32) -> usize {
 /// Written a pixel row at a time into the surface (a code of the largest size has tens of
 /// thousands of runs, which drawn as filled rectangles cost every frame what the page cannot
 /// spare); a box that does not lie inside the surface is not drawn.
-pub fn qr_code(o: Owners<'static>, modules: &Modules, x: i32, y: i32, scale: usize) {
+pub(super) fn qr_code(o: Owners<'static>, modules: &Modules, x: i32, y: i32, scale: usize) {
     let surface = crate::gfx::surface::surface(o.gfx);
     let Some(target) = crate::gfx::surface::target(o.gfx) else {
         return;

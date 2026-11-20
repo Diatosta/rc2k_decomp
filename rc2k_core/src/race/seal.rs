@@ -2,7 +2,7 @@
 //! enciphered by a DES-like cipher.
 
 /// The longest time sealed (0x22550FF).
-pub const MOST_TIME: u32 = 0x0225_50FF;
+pub(crate) const MOST_TIME: u32 = 0x0225_50FF;
 
 /// The first block's time (held to `MOST_TIME`, or `absent` when that is negative) xor the
 /// key, rotated right by the key's low five bits. `time` is asked only when used.

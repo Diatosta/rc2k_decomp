@@ -25,7 +25,7 @@ fn less(k: f32, z: f32) -> [u8; 10] {
     clippy::too_many_arguments,
     reason = "the effects' groups, the owners and the vertex buffer"
 )]
-pub fn run_windscreen_flakes(
+pub(super) fn run_windscreen_flakes(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     drops: &WindscreenDrops,

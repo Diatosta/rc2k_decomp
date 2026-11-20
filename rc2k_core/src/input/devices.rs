@@ -4,19 +4,13 @@
 use crate::Invalid;
 
 pub const RECORD_LEN: usize = 0x4F8;
-/// Offsets in the record.
-pub const DEVICE: usize = 4;
 pub const KIND: usize = 8;
-pub const ACQUIRED: usize = 0x24;
 pub const BUTTONS: usize = 0x38;
-pub const READING: usize = 0x414;
-pub const HAT_KIND: usize = 0x418;
 pub const BINDINGS: usize = 0x41C;
-pub const BINDINGS_COUNT: usize = 12;
 pub const READINGS: usize = 0x4DC;
 pub const BITS: usize = 0x4E8;
 /// All of a reading: left (whose axis is negated), and the others.
-pub const FULL_LEFT: u32 = 0xFFFF_FF00;
+pub(crate) const FULL_LEFT: u32 = 0xFFFF_FF00;
 pub const FULL: u32 = 0x100;
 
 /// The bits a reading has with the hat centred.

@@ -22,10 +22,10 @@ const EXTRA_AT: usize = SLOTS_AT + 4 * SLOT_DWORDS;
 /// The car fields at their file offsets that the replay viewer or the sound listener sets
 /// itself: `drive::replay_check` leaves them out when it compares a played frame with the
 /// recorded one.
-pub const FRAME_HEAD_AT: usize = 0x0;
-pub const LAST_PACE_CALL_AT: usize = 0x9c;
-pub const OPTION_BITS_AT: usize = 0x220;
-pub const GEAR_CHANGE_PENDING_AT: usize = 0x23c;
+pub(super) const FRAME_HEAD_AT: usize = 0x0;
+pub(super) const LAST_PACE_CALL_AT: usize = 0x9c;
+pub(super) const OPTION_BITS_AT: usize = 0x220;
+pub(super) const GEAR_CHANGE_PENDING_AT: usize = 0x23c;
 
 /// The bytes of a car the file carries that no code reads (file offset, length). The 1999
 /// game wrote zeros there; so does every frame saved from here.
@@ -352,7 +352,7 @@ pub fn gather(cars: &[Car], work: &RaceWork) -> ReplayFrame {
 
 /// A replay frame's starting state put into the first four cars, the loose parts and the
 /// driver's state.
-pub fn scatter(frame: &ReplayFrame, cars: &[Car], work: &RaceWork) {
+pub(super) fn scatter(frame: &ReplayFrame, cars: &[Car], work: &RaceWork) {
     let bytes = frame.start_bytes();
     pieces(cars, work, &mut |base, piece| {
         move_piece(
@@ -366,7 +366,7 @@ pub fn scatter(frame: &ReplayFrame, cars: &[Car], work: &RaceWork) {
 }
 
 /// A car's first `CAR_DWORDS` dwords, field by field at the file's offsets.
-pub fn gather_car(car: &Car) -> [u32; CAR_DWORDS] {
+pub(super) fn gather_car(car: &Car) -> [u32; CAR_DWORDS] {
     let mut bytes = vec![0u8; CAR_BYTES];
     car_fields(
         car,
@@ -379,7 +379,7 @@ pub fn gather_car(car: &Car) -> [u32; CAR_DWORDS] {
 }
 
 /// A car's fields put from its dwords in the file's layout.
-pub fn scatter_car(words: &[u32; CAR_DWORDS], car: &Car) {
+fn scatter_car(words: &[u32; CAR_DWORDS], car: &Car) {
     let bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
     car_fields(
         car,
@@ -407,7 +407,7 @@ impl Move for ScatterState<'_> {
 }
 
 /// A car's recorded state put into it, the car's other fields left as they are.
-pub fn scatter_state(state: &CarState, car: &Car) {
+pub(super) fn scatter_state(state: &CarState, car: &Car) {
     let mut words = [0u32; CAR_DWORDS];
     state.put(&mut words);
     let bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
@@ -415,12 +415,12 @@ pub fn scatter_state(state: &CarState, car: &Car) {
 }
 
 /// The state of cars 4 .. 7 (the tail's keyframes); a car past the slice is left zero.
-pub fn gather_tail(cars: &[Car]) -> [[u32; CAR_DWORDS]; TAIL_CARS] {
+pub(super) fn gather_tail(cars: &[Car]) -> [[u32; CAR_DWORDS]; TAIL_CARS] {
     std::array::from_fn(|k| cars.get(HEAD_CARS + k).map_or([0; CAR_DWORDS], gather_car))
 }
 
 /// The tail's keyframes put into cars 4 .. 7, as far as the race has cars (`count` cars).
-pub fn scatter_tail(keys: &[[u32; CAR_DWORDS]; TAIL_CARS], cars: &[Car], count: usize) {
+pub(super) fn scatter_tail(keys: &[[u32; CAR_DWORDS]; TAIL_CARS], cars: &[Car], count: usize) {
     for (k, words) in keys.iter().enumerate() {
         if HEAD_CARS + k < count
             && let Some(car) = cars.get(HEAD_CARS + k)

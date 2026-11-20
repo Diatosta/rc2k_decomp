@@ -6,7 +6,7 @@ use crate::Invalid;
 
 pub const TABLES: usize = 9;
 /// A stage's entry in the two tables of stages, in bytes.
-pub const STAGE_ENTRY_LEN: u32 = 0x618;
+pub(crate) const STAGE_ENTRY_LEN: u32 = 0x618;
 /// More records than any table has.
 pub const MOST_RECORDS: u32 = 0x1000;
 

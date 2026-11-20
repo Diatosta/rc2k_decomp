@@ -13,7 +13,7 @@ use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::splits::{SplitFigure, split_figure};
 
 // Core: `rc2k_core::physics::splits::split_figure`.
-pub fn split_by_mode(
+pub(super) fn split_by_mode(
     o: crate::owners::Owners<'static>,
     split_tables: &SplitTables,
     league: &League,

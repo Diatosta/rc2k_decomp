@@ -42,7 +42,7 @@ fn push_id(
 /// The stage line string `id`, " ", the record's +0x40 as a fraction of 6
 /// (`strings::append_fraction`), ": ", the name of its track-pack entry
 /// (`records::trakpak_entry`'s first dword, a string id), and its NUL.
-pub fn stage_line_bytes(
+pub(super) fn stage_line_bytes(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     id: u32,
     record: RecordRef,

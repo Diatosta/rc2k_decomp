@@ -6,9 +6,9 @@
 //! right edge, so a dial stays in its corner at any width, 16:9 to 32:9 and beyond.
 
 /// The layout's width.
-pub const VIRTUAL_WIDTH: f32 = 800.0;
+pub(crate) const VIRTUAL_WIDTH: f32 = 800.0;
 /// The layout's height.
-pub const VIRTUAL_HEIGHT: f32 = 600.0;
+pub(crate) const VIRTUAL_HEIGHT: f32 = 600.0;
 
 /// The edge or middle a piece keeps to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -219,7 +219,7 @@ pub fn offset(width: u32, height: u32, anchor: Anchor) -> f64 {
 }
 
 /// The anchor of a piece whose middle lies at `x` in the layout.
-pub fn anchor_of(x: f32, rule: Rule) -> Anchor {
+pub(crate) fn anchor_of(x: f32, rule: Rule) -> Anchor {
     match rule {
         Rule::Centre => Anchor::Centre,
         Rule::Halves if x < VIRTUAL_WIDTH / 2.0 => Anchor::Left,
@@ -257,12 +257,12 @@ pub enum Keep {
 
 /// Where the top bar's middle part begins and ends in the layout: the bar's two end caps, which
 /// hold the clocks and names, lie left and right of it.
-pub const BAR_WINDOW: (f32, f32) = (137.0, 687.0);
+pub(crate) const BAR_WINDOW: (f32, f32) = (137.0, 687.0);
 
 /// A layout x of the top bar on a screen wider than 4:3, the bar stretched over the whole
 /// width: the left cap keeps to the screen's left edge and the right cap to its right edge, both
 /// in the layout's shape, and the middle part takes the width between them.
-pub fn bar_x(x: f32, width: u32, height: u32) -> f32 {
+pub(crate) fn bar_x(x: f32, width: u32, height: u32) -> f32 {
     let s = f64::from(height) / f64::from(VIRTUAL_HEIGHT);
     let (low, high) = (f64::from(BAR_WINDOW.0), f64::from(BAR_WINDOW.1));
     let x = f64::from(x);
@@ -287,7 +287,7 @@ pub fn bar_x(x: f32, width: u32, height: u32) -> f32 {
 /// `left` is the sprite's left edge in the layout, which the layout puts at `scale` times the
 /// progress plus `start` (`HudBlock.marker_k`); the progress then goes to the bar's own place
 /// (`stage_bars::BAR_START` .. `BAR_END`) and through `bar_x`.
-pub fn marker_edge_x(left: f32, scale: f32, start: f32, width: u32, height: u32) -> f32 {
+pub(crate) fn marker_edge_x(left: f32, scale: f32, start: f32, width: u32, height: u32) -> f32 {
     use crate::hud::stage_bars;
     let progress = (f64::from(left) - f64::from(start)) / f64::from(scale);
     let (from, to) = (
@@ -300,7 +300,7 @@ pub fn marker_edge_x(left: f32, scale: f32, start: f32, width: u32, height: u32)
 /// A layout y on a part narrower than 4:3 `width` x `height`, the layout across the part's width at
 /// one factor (width over 800): a piece whose middle `mid` lies in the layout's top third keeps to
 /// the part's top, one in the bottom third to its bottom, the others to the middle.
-pub fn narrow_y(y: f32, mid: f32, width: u32, height: u32) -> f32 {
+pub(crate) fn narrow_y(y: f32, mid: f32, width: u32, height: u32) -> f32 {
     let s = f64::from(width) / f64::from(VIRTUAL_WIDTH);
     let (y, mid) = (f64::from(y), f64::from(mid));
     let third = f64::from(VIRTUAL_HEIGHT) / 3.0;
@@ -315,7 +315,7 @@ pub fn narrow_y(y: f32, mid: f32, width: u32, height: u32) -> f32 {
 
 /// The width of each player's layout when two players are side by side (the 800-wide layout
 /// holds both, the first in its left half).
-pub const PART_WIDTH: f32 = VIRTUAL_WIDTH / 2.0;
+pub(crate) const PART_WIDTH: f32 = VIRTUAL_WIDTH / 2.0;
 
 /// The size of one layout pixel of the side by side layout across a part's HUD box `box_width`
 /// wide and `part_height` high: the part's height over 600 while the box is wider than the

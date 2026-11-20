@@ -59,7 +59,7 @@ fn run_at(car: &Car, numbers: &Numbers) {
 
 // Core: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
-pub fn engine_sound(
+pub(super) fn engine_sound(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     shared: &RaceShared,

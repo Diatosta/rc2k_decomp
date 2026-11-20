@@ -31,7 +31,7 @@ fn project(
     project_x87(front, buffer, &weather.rain, &weather.rain_rules);
 }
 
-pub fn draw_rain_streak(
+pub(super) fn draw_rain_streak(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     weather: &Weather,
     place: [[u8; 10]; 3],

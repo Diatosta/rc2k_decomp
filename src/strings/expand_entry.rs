@@ -9,7 +9,7 @@ static WARNED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::ne
 /// (`rc2k_core::strings::table::StringTable::expand`). A bad entry, or no table yet, is logged once
 /// and gives nothing (fixed: "Text lookup with a bad string id reads anywhere",
 /// `wiki/Fixed-bugs.md`).
-pub fn expand_entry(
+pub(super) fn expand_entry(
     strings: &crate::strings::owner::Strings,
     id: u32,
     emit: &mut impl FnMut(&[u8]),

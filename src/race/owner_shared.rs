@@ -124,7 +124,7 @@ impl RaceShared {
     }
 
     /// `race_car` in the blocks `blocks` (a drawing part's, `scene::workers::DrawReads`).
-    pub fn race_car_in<'b>(
+    pub(super) fn race_car_in<'b>(
         work: &RaceWork,
         blocks: &'b CarBlocks,
         n: usize,
@@ -187,7 +187,7 @@ impl RaceShared {
     }
 
     /// View `n`'s car block, or the end of the program for none (as `Car::at` on its address).
-    pub fn view_car_or_end(&self, n: usize) -> &Car {
+    pub(super) fn view_car_or_end(&self, n: usize) -> &Car {
         self.view_car(n).unwrap_or_else(|| {
             crate::fatal::raise::end(
                 "physics::Car::at",

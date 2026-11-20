@@ -14,7 +14,7 @@ pub type States = Arc<[u32; STATES]>;
 const RECENT: usize = 8;
 
 /// The sets handed out last, the oldest replaced first.
-pub struct SharedStates {
+pub(super) struct SharedStates {
     recent: [Option<States>; RECENT],
     /// The slot the next new set goes into.
     next: usize,

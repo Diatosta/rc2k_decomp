@@ -56,7 +56,7 @@ pub struct ProbeInputs<'a> {
 }
 
 impl<'a> ProbeInputs<'a> {
-    pub fn of_ground(c: &GroundInputs<'a>) -> Self {
+    pub(super) fn of_ground(c: &GroundInputs<'a>) -> Self {
         ProbeInputs {
             numbers: c.numbers,
             tables: c.tables,
@@ -69,7 +69,7 @@ impl<'a> ProbeInputs<'a> {
 /// The steps.
 // Core: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the turns and the
 // bump's scaling stay x87).
-pub fn probe_ground_at(
+pub(super) fn probe_ground_at(
     c: &ProbeInputs<'_>,
     car: &Car<impl CellKind>,
     q: &GroundQuery<'_>,

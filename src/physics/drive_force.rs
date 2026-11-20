@@ -14,7 +14,7 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for the Rust callers' exact comparisons.
-pub fn drive_force(
+pub(super) fn drive_force(
     course: &Course,
     shared: &RaceShared,
     gear_figures: &GearFigures,

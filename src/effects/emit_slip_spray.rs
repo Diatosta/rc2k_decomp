@@ -88,7 +88,7 @@ fn emits(set: &JitterSet<'_>, wheel: &MarkRecord) -> Result<bool, Refused> {
     })
 }
 
-pub fn emit_slip_spray(
+pub(super) fn emit_slip_spray(
     effects: &Effects,
     wheel: &MarkRecord,
     object: &CarEffects,
@@ -97,7 +97,7 @@ pub fn emit_slip_spray(
 }
 
 /// The shared body, on `set`'s variables.
-pub fn emit_slip_spray_with(
+pub(super) fn emit_slip_spray_with(
     effects: &Effects,
     set: &JitterSet<'_>,
     wheel: &MarkRecord,

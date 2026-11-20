@@ -47,7 +47,7 @@ pub fn page_key(key: u8) -> PageKey {
 }
 
 /// The slot lists' pages hold this many slots.
-pub const SLOTS_PER_PAGE: u32 = 30;
+pub(crate) const SLOTS_PER_PAGE: u32 = 30;
 
 /// The slot the highlighted item of a slot list stands for: page x 30 + item - 1, one less
 /// from item 0x11 on (signed; past the list's 99 slots the caller refuses).

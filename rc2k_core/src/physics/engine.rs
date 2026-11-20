@@ -9,7 +9,7 @@
 use super::x87::{below, loaded};
 
 /// The whole number toward 0 (chopped), `i32::MIN` for what does not fit or is not a number.
-pub fn fistp_chop(v: f64) -> i32 {
+pub(crate) fn fistp_chop(v: f64) -> i32 {
     let r = v.trunc();
     if r.is_nan() || r < i32::MIN as f64 || r >= 2147483648.0 {
         i32::MIN
@@ -75,10 +75,11 @@ pub fn engine_torque(
     }
 }
 
+#[cfg(test)]
 /// The cut: at or past the top (unordered counts as below: no cut) the cut is set to 5;
 /// below it, while the cut counts down, it goes down by one. Either way the torque is 0 then
 /// (Some(the cut)); else None.
-pub fn torque_cut(speed: f32, top: f32, cut: u32) -> Option<u32> {
+pub(crate) fn torque_cut(speed: f32, top: f32, cut: u32) -> Option<u32> {
     if !below(speed as f64, top as f64) {
         Some(5)
     } else if cut != 0 {
@@ -166,8 +167,8 @@ pub fn shares_figures(figure: f32, kept: f32) -> bool {
 }
 
 /// The revs heard are held to this range (by the sign of the difference).
-pub const REVS_LOW: u32 = 2000;
-pub const REVS_HIGH: u32 = 12000;
+pub(crate) const REVS_LOW: u32 = 2000;
+pub(crate) const REVS_HIGH: u32 = 12000;
 
 /// Eases the revs heard toward `target` by 50/256 of the gap, then holds them to
 /// `REVS_LOW` ..= `REVS_HIGH`. Returns (the revs, the step).

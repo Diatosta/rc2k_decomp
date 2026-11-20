@@ -12,11 +12,11 @@ use crate::physics::gear_bit::bits_at;
 
 /// On the bits at `bits`: the free lower gear (None when neutral is reached first).
 // Core: `rc2k_core::physics::gearbox::GearBits::lower_free`.
-pub fn lower_free_gear_at(bits: &PlainDword, gear: i32) -> Result<Option<i32>, Refused> {
+fn lower_free_gear_at(bits: &PlainDword, gear: i32) -> Result<Option<i32>, Refused> {
     let s = { bits_at(bits) }.lower_free(gear, 0)?;
     Ok(s.found.then_some(s.gear))
 }
 
-pub fn lower_free_gear(car: &Car, gear: i32) -> Result<Option<i32>, Refused> {
+pub(super) fn lower_free_gear(car: &Car, gear: i32) -> Result<Option<i32>, Refused> {
     lower_free_gear_at(&car.lost_gear_bits, gear)
 }

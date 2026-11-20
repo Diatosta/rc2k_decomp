@@ -16,7 +16,7 @@ pub struct PixelFormat {
 
 impl PixelFormat {
     /// The four rotation counts, if this is the kind of layout that has them.
-    pub fn rotations(&self) -> Option<[u32; 4]> {
+    pub(crate) fn rotations(&self) -> Option<[u32; 4]> {
         ((self.layout as i32) < 0).then(|| self.layout.to_le_bytes().map(|b| b as u32 & 31))
     }
 }
@@ -188,9 +188,10 @@ pub fn alpha_from_kept(buffer: &mut [u8], count: usize) -> Option<()> {
     Some(())
 }
 
+#[cfg(test)]
 /// Alpha made 0xFF; a colour whose top five bits are all 0 becomes the key, magenta
 /// (0xF800F8 by those bits) with alpha 0.
-pub fn key_colours(pixels: &mut [u32], key: u32) {
+pub(crate) fn key_colours(pixels: &mut [u32], key: u32) {
     let key = key | 0xFF00_0000;
     for p in pixels {
         *p = match *p & 0xF8_F8F8 {
@@ -349,10 +350,11 @@ pub fn palette_to_dwords(buffer: &mut [u8], count: usize, palette: &[u32; 256]) 
     Some(())
 }
 
+#[cfg(test)]
 /// A pixel of four eight-bit components as format 4's two bytes: the top four bits of the first
 /// and second component in the first byte (low half, high half), of the third and fourth in the
 /// second.
-pub fn to_4444(c: [u8; 4]) -> [u8; 2] {
+pub(crate) fn to_4444(c: [u8; 4]) -> [u8; 2] {
     [c[0] >> 4 | c[1] & 0xF0, c[2] >> 4 | c[3] & 0xF0]
 }
 

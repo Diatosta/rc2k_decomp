@@ -29,7 +29,7 @@ use crate::math::x87;
 use crate::race::owner_shared::RaceShared;
 
 /// Ecx as it leaves it.
-pub fn spawn_windscreen_flake(
+pub(super) fn spawn_windscreen_flake(
     shared: &RaceShared,
     fl: &WindscreenFlakes,
     x: u32,

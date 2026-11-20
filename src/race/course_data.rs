@@ -13,7 +13,7 @@ const KINDS: u32 = 0x100;
 pub const MOST_RECORDS: u32 = 0x7_8000;
 
 /// Writes `number`'s two digits (its low byte's div 10, + '0') into both cdat paths.
-pub fn set_cdat_number(course: &Course, number: u32) {
+pub(super) fn set_cdat_number(course: &Course, number: u32) {
     let digits = rc2k_core::race::stage::two_digits(number as u8);
     let p = course.level_paths();
     p.cdat_src.set(0x14, digits[0]);
@@ -55,7 +55,7 @@ fn store_course_header(course: &Course, header: &[u32; HEADER_WORDS]) {
 }
 
 /// Sets `lit_face_count` to 0.
-pub fn clear_lit_faces(physics: &Physics) {
+fn clear_lit_faces(physics: &Physics) {
     physics.contact.get().lit_face_count.set(0u32);
 }
 
@@ -92,7 +92,7 @@ pub fn reset_face_lights(race: &Race) -> Result<(), Refused> {
 /// 11 .. 14 times 16), each kind's in the order met, by swapping each one found into the next
 /// place; `first_records` and `last_records` get each kind's first and last number, -1
 /// for both with none. Refused: more records than a course file's room holds.
-pub fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
+fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
     // The records are read whole: every one is swapped into place, so all of them are read
     // (`rc2k_core::race::stage::group_by_kind`).
     {
@@ -141,7 +141,7 @@ fn load_log(n: usize) {
 /// goes back to the menu from), takes it apart (`rc2k_core::race::loading::read_course`),
 /// stores the header and the parts, lays the course out and resets the faces' lights, with
 /// "loadlevel", "done", "next", "this", "then", "ok" in the log.
-pub fn load_level(race: &Race) -> Result<(), Refused> {
+pub(super) fn load_level(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     use crate::files::read_level_file;
     set_cdat_number(course, 0);
@@ -176,7 +176,7 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
 
 /// Sets `cdat_number` 0 and runs `load_level`, `group_records_by_kind` and `build_best_line`;
 /// the stage's "locacurrcourse" step.
-pub fn locate_current_course(
+pub(super) fn locate_current_course(
     race: &Race,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {

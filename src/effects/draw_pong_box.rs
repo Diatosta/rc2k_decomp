@@ -37,7 +37,7 @@ fn projected(
     projected_x87(front, buffer, &fl.tables);
 }
 
-pub fn draw_pong_box(
+pub(super) fn draw_pong_box(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     pong: &Pong,
     fl: &WindscreenFlakes,

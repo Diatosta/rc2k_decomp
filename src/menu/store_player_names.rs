@@ -11,7 +11,7 @@ use crate::menu::owner::Play;
 use crate::menu::player_names::{cars, name_bytes};
 
 /// `log` gets each line's text.
-pub fn store_player_names(
+pub(super) fn store_player_names(
     menus: &Menus,
     play: &Play,
     log: &mut dyn FnMut(&[u8]),

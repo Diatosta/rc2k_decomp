@@ -5,8 +5,8 @@
 use crate::Invalid;
 
 /// The batch's room: vertices (0x20 bytes each) and indices (words).
-pub const VERTEX_ROOM: u32 = 0x400;
-pub const INDEX_ROOM: u32 = 0x600;
+pub(crate) const VERTEX_ROOM: u32 = 0x400;
+pub(crate) const INDEX_ROOM: u32 = 0x600;
 /// More vertices than this and the batch is drawn before the next polygon.
 pub const FULL: u32 = 0x64;
 /// The most vertices of a polygon the batch takes.
@@ -81,7 +81,7 @@ pub fn polygon_indices(first: u32, count: u32) -> Vec<u16> {
 
 /// The kinds' first slots (0x400 entries; the HUD asks for 0xC0 ..
 /// 0xDC).
-pub const KIND_SLOTS: u32 = 0x400;
+pub(crate) const KIND_SLOTS: u32 = 0x400;
 
 /// `set_batch_texture`: the entry of the texture shown; refuses one
 /// past the table, before anything.

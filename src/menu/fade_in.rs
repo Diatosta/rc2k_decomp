@@ -8,6 +8,6 @@
 use crate::errors::Refused;
 use crate::owners::Owners;
 
-pub fn fade_in(o: Owners<'static>) -> Result<(), Refused> {
+pub(super) fn fade_in(o: Owners<'static>) -> Result<(), Refused> {
     crate::menu::fades::fade(o, false)
 }

@@ -8,7 +8,7 @@ use crate::Invalid;
 /// A face record's size.
 pub const FACE_BYTES: usize = 0x40;
 /// A corner that is not there (a triangle's fourth).
-pub const NO_CORNER: u32 = u32::MAX;
+pub(crate) const NO_CORNER: u32 = u32::MAX;
 /// The kind byte of the faces whose lights `reset_lights` clears (and of the lit ones).
 pub const LIT_KIND: u8 = 0xFF;
 
@@ -187,7 +187,7 @@ pub fn texture_coordinates(
 }
 
 /// The scene point records' mask (0x1000 records).
-pub const POINT_RECORD_MASK: u32 = 0xFFF;
+pub(crate) const POINT_RECORD_MASK: u32 = 0xFFF;
 
 /// The four new points after the last (all marked unmade) and, for each corner that is there,
 /// the point it is copied from and the new one it then names.
@@ -248,7 +248,7 @@ pub fn face_object(how: Gathered, first: u8, second: impl FnOnce() -> u8) -> u32
 /// The lamps' object.
 pub const LAMP_OBJECT: u32 = 0x3B;
 /// The most lamps.
-pub const MOST_LAMPS: u32 = 16;
+pub(crate) const MOST_LAMPS: u32 = 16;
 /// A lamp's third dword: its colour.
 pub const LAMP_COLOUR: u32 = 0x00FF_FFFF;
 
@@ -340,7 +340,7 @@ pub fn depth_key(depth: u32) -> u32 {
 }
 
 /// The depth entries' room.
-pub const MOST_DEPTH_ENTRIES: u32 = 0x1000;
+pub(crate) const MOST_DEPTH_ENTRIES: u32 = 0x1000;
 
 /// Refused past the room.
 pub fn depth_entry_room(count: u32) -> Result<(), Invalid> {
@@ -506,7 +506,7 @@ impl Face {
 pub struct Record(pub [u8; RECORD_BYTES]);
 
 /// A course record's size.
-pub const RECORD_BYTES: usize = 0x20;
+pub(crate) const RECORD_BYTES: usize = 0x20;
 
 impl Default for Record {
     fn default() -> Self {

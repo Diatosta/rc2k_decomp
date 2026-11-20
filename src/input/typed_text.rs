@@ -141,7 +141,7 @@ pub fn field_y() -> Option<i32> {
 }
 
 /// What the on-screen keyboard has typed into the field, and whether to show it as stars.
-pub fn osk_echo() -> (Vec<u8>, bool) {
+pub(super) fn osk_echo() -> (Vec<u8>, bool) {
     let st = state();
     let secret = st.secret_at.is_some_and(|at| at.elapsed() < FIELD_GRACE);
     (st.echo.clone(), secret)

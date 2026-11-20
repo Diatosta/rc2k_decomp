@@ -27,7 +27,11 @@ use rc2k_core::physics::contacts;
 /// Whether the point `point` (its three whole numbers, read by the caller) of the object of course
 /// face `face` (its number) is inside.
 // Core: `rc2k_core::physics::contacts::{point_part, inside_box, kind_hits}` (the x87 steps stay).
-pub fn point_hits_car(c: &ContactInputs<'_>, point: [u32; 3], face: u32) -> Result<bool, Refused> {
+pub(super) fn point_hits_car(
+    c: &ContactInputs<'_>,
+    point: [u32; 3],
+    face: u32,
+) -> Result<bool, Refused> {
     let contact = c.contact;
     let rd =
         |offset: u32| crate::race::course_places::face_field::<u32>(c.course.reads(), face, offset);

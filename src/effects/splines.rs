@@ -10,7 +10,7 @@ use crate::math::x87;
 use crate::memory::session::{PlainBytes, PlainDword, PlainFlag, PlainFloat, read_bits};
 use crate::race::owner_course::Course;
 
-pub const SPLINE_LEN: u32 = 0xE90;
+pub(super) const SPLINE_LEN: u32 = 0xE90;
 /// The most points a record holds.
 pub const MOST_POINTS: u32 = 0x80;
 const COUNT: u32 = 0x50;
@@ -260,7 +260,7 @@ pub fn reset_pong(pong: &crate::effects::pong::Pong, effects: &crate::effects::o
 /// (both the last first). Its last step, finding the farthest points, keeps nothing (a
 /// slip kept as is): not made. Refuses an object past 0xFF, a negative face count or faces
 /// past the course's faces.
-pub fn gather_spline_points(
+fn gather_spline_points(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
@@ -338,7 +338,7 @@ fn multiply_turns(paths: &Paths) {
 /// +0x28 into the work turns, X x Y into the XY turn, that x Z into the turn, and the
 /// record's points turned by it in place. Refuses more than 0x80 points or an angle with
 /// no sine and cosine, before writing anything.
-pub fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
+fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     use crate::math::matrix3::{Axis, turn_matrix3, turnable};
     s.count(paths)?;
     let mut angles = [negated(0); 3];
@@ -381,7 +381,7 @@ pub fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
 /// coordinates; then, from the last, each written plus the record's +0xC54 .. through the
 /// record's pointer at +0x454. Refuses more than 0x80 points, an angle with no sine and
 /// cosine, and a null pointer among the points', before writing anything.
-pub fn place_shape_points(
+pub(super) fn place_shape_points(
     object_points: &crate::scene::object_points::ObjectPoints,
     paths: &Paths,
     s: Spline,
@@ -404,7 +404,7 @@ pub fn place_shape_points(
 }
 
 /// Whether the record's three angles (at `offsets`, not negated) can be turned by.
-pub fn turnable_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<(), Refused> {
+pub(super) fn turnable_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<(), Refused> {
     use crate::math::matrix3::{extended, turnable};
     for o in offsets {
         turnable(&extended(s.get(paths, o)?))?;
@@ -415,7 +415,7 @@ pub fn turnable_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<()
 /// The turns about X, Y, Z by the record's floats at `offsets` (not negated) into the work
 /// turns, X x Y into the XY turn, that x Z into the turn, as
 /// `effects::place_shape_points` and `effects::place_graded_points` do.
-pub fn turn_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<(), Refused> {
+pub(super) fn turn_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<(), Refused> {
     use crate::math::matrix3::{Axis, extended, turn_matrix3};
     for ((axis, to), o) in [
         (Axis::X, &paths.spline_work.turn_x),
@@ -434,7 +434,7 @@ pub fn turn_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<(), Re
 /// Record `s`'s `count` points from point `first` turned by the turn into the ordered
 /// coordinates (`scene::transform_int_points`). Refuses points past the
 /// record's 0x80.
-pub fn transform_int_points_from(
+pub(super) fn transform_int_points_from(
     paths: &Paths,
     s: Spline,
     first: u32,
@@ -454,7 +454,7 @@ pub fn transform_int_points_from(
 
 /// Ordered point `k` plus record `s`'s +0xC54 .. written through the record's pointer
 /// `pointer` (at +0x454).
-pub fn write_point(
+pub(super) fn write_point(
     object_points: &crate::scene::object_points::ObjectPoints,
     paths: &Paths,
     s: Spline,
@@ -581,7 +581,7 @@ fn spline_checks(
 /// third's +0x44 .. the highest point plus the spline shift. Then the place counted.
 /// Refuses a negative place, an object past 0xFF or faces past the course's faces, an angle
 /// with no sine and cosine, before writing anything else.
-pub fn make_spline(
+fn make_spline(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
@@ -656,7 +656,7 @@ const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
 /// (+0x26BC, the last first). Refuses a kind of 0x22 or
 /// more, more than 19 objects, and what `make_spline` would refuse for any of them, before
 /// writing anything.
-pub fn load_splines(
+pub(super) fn load_splines(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,

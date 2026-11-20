@@ -22,7 +22,7 @@ fn car_of(race: &Race, view: usize) -> Option<&crate::physics::car_store::Car> {
 /// Takes the notice the third and fourth players' cars ask for, as the banner's own update does for
 /// the first two (`race::update_name_plates`): the asked notice becomes the shown one, so the next
 /// one in the car's queue can follow.
-pub fn take_asked(race: &Race) {
+pub(super) fn take_asked(race: &Race) {
     let views = race.shared.view.get().views.get();
     if views <= 2 {
         return;

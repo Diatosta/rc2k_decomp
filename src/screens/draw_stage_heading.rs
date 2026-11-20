@@ -16,7 +16,7 @@ use rc2k_core::screens::stage_panel::stage_line;
 
 /// The same line starting with another label string (the stage panels build one with 0x482).
 /// The logic is in `rc2k_core::screens::stage_panel::stage_line`.
-pub fn heading_text(
+pub(super) fn heading_text(
     o: StringOwners<'_>,
     record: RecordRef,
     label: u32,
@@ -46,7 +46,7 @@ pub fn string_bytes(o: StringOwners<'_>, id: u32) -> Result<Vec<u8>, crate::erro
 
 /// Builds the line in the game's line buffer and draws it. Returns whether it was too wide.
 /// The logic is in `rc2k_core::screens::stage_panel::heading`.
-pub fn draw_stage_heading(
+pub(super) fn draw_stage_heading(
     o: crate::owners::Owners<'static>,
     record: RecordRef,
     canvas: &mut dyn Canvas,

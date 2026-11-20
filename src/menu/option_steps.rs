@@ -67,7 +67,7 @@ pub fn volume_step(o: Owners<'static>, v: Volume<'_>) {
 }
 
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
-pub fn next_screen_mode(options: &MenuOptions, gfx: &Gfx) {
+pub(super) fn next_screen_mode(options: &MenuOptions, gfx: &Gfx) {
     let display = &gfx.display;
     let mode = rc2k_core::menu::steps::next_mode(
         display.choices.resolution.get(),
@@ -80,7 +80,11 @@ pub fn next_screen_mode(options: &MenuOptions, gfx: &Gfx) {
 
 /// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
 /// step down or up.
-pub fn step_texture_setting(options: &MenuOptions, up: bool, race: &crate::race::owner::Race) {
+pub(super) fn step_texture_setting(
+    options: &MenuOptions,
+    up: bool,
+    race: &crate::race::owner::Race,
+) {
     let v = rc2k_core::menu::steps::texture(options.car_detail.get(), up);
     options.car_detail.set(v);
     race.shared.state.settings.car_detail.set(v);
@@ -95,14 +99,14 @@ pub struct StartPick<'a> {
     pub pick: &'a PlainDword,
 }
 
-pub fn start_pick_a<'a>(flow: &'a ScreenFlow, captions: &'a CaptionTables) -> StartPick<'a> {
+pub(super) fn start_pick_a<'a>(flow: &'a ScreenFlow, captions: &'a CaptionTables) -> StartPick<'a> {
     StartPick {
         number: &flow.start_section,
         table_at: 21,
         pick: &captions.caption_lists[7],
     }
 }
-pub fn start_pick_b<'a>(flow: &'a ScreenFlow, captions: &'a CaptionTables) -> StartPick<'a> {
+pub(super) fn start_pick_b<'a>(flow: &'a ScreenFlow, captions: &'a CaptionTables) -> StartPick<'a> {
     StartPick {
         number: &flow.start_section_a8,
         table_at: 13,
@@ -111,7 +115,7 @@ pub fn start_pick_b<'a>(flow: &'a ScreenFlow, captions: &'a CaptionTables) -> St
 }
 
 /// `menu::next_colour_a` and the three others.
-pub fn step_start_pick(tables: &Tables, c: StartPick<'_>, up: bool) {
+pub(super) fn step_start_pick(tables: &Tables, c: StartPick<'_>, up: bool) {
     let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
     c.number.set(n as u32);
     // `n` is not checked (a number kept in a savegame): the list is the last field
@@ -143,7 +147,7 @@ fn choices(menus: &Menus) -> [(&PlainDword, usize); 5] {
     ]
 }
 /// `menu::apply_audio_choices`.
-pub fn apply_audio_choices(
+pub(super) fn apply_audio_choices(
     menus: &Menus,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {

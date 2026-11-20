@@ -41,25 +41,25 @@ pub const APP_GUID: [u8; 16] = with_runs::<16>(&[
 ]);
 
 /// `IID_IDirectPlay4A`: never written.
-pub const IID_DPLAY4A: [u8; 16] = with_runs::<16>(&[
+pub(super) const IID_DPLAY4A: [u8; 16] = with_runs::<16>(&[
     (0, b"A\xfe>\x13\xdc2\xd0\x11\x9c\xfb"),
     (11, b"\xa0\xc9\x0aC\xcb"),
 ]);
 
 /// `IID_IDirectPlayLobby2A`: never written.
-pub const IID_LOBBY2A: [u8; 16] = with_runs::<16>(&[
+pub(super) const IID_LOBBY2A: [u8; 16] = with_runs::<16>(&[
     (0, b"\x80\xaf\xb4\x1b\x03\xa3\xd0\x11\x9cO"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
 /// `CLSID_DirectPlay`: never written.
-pub const CLSID_DPLAY: [u8; 16] = with_runs::<16>(&[
+pub(super) const CLSID_DPLAY: [u8; 16] = with_runs::<16>(&[
     (0, b" m\xeb\xd1#\x89\xd0\x11\x9d\x97"),
     (11, b"\xa0\xc9\x0aC\xcb"),
 ]);
 
 /// `CLSID_DirectPlayLobby`: never written.
-pub const CLSID_LOBBY: [u8; 16] = with_runs::<16>(&[
+pub(super) const CLSID_LOBBY: [u8; 16] = with_runs::<16>(&[
     (0, b"\x10\xf8\xe8/\xa5\xb2\xd0\x11\xa7\x87"),
     (12, b"\xf8\x03\xab\xfc"),
 ]);
@@ -71,37 +71,37 @@ pub const SP_TCPIP: [u8; 16] = with_runs::<16>(&[
 ]);
 
 /// `DPSPGUID_SERIAL`: never written.
-pub const SP_SERIAL: [u8; 16] = with_runs::<16>(&[
+pub(super) const SP_SERIAL: [u8; 16] = with_runs::<16>(&[
     (0, b"`h\x1d\x0f\xd9\x88\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
 /// `DPSPGUID_MODEM`: never written.
-pub const SP_MODEM: [u8; 16] = with_runs::<16>(&[
+pub(super) const SP_MODEM: [u8; 16] = with_runs::<16>(&[
     (0, b"`\xa7\xeaDh\xcb\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
 /// `DPAID_ServiceProvider`: never written.
-pub const AID_SERVICE_PROVIDER: [u8; 16] = with_runs::<16>(&[
+pub(super) const AID_SERVICE_PROVIDER: [u8; 16] = with_runs::<16>(&[
     (0, b"\xc0\x16\xd9\x07\xaf\xe0\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
 /// `DPAID_INet`: never written.
-pub const AID_INET: [u8; 16] = with_runs::<16>(&[
+pub(super) const AID_INET: [u8; 16] = with_runs::<16>(&[
     (0, b"\xa0M\xa5\xc4\xaf\xe0\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
 /// `DPAID_INetPort`: never written.
-pub const AID_INET_PORT: [u8; 16] = with_runs::<16>(&[
+pub(super) const AID_INET_PORT: [u8; 16] = with_runs::<16>(&[
     (0, b"AER\xe4\xa5\x8e\xd1\x11\x8a\x96"),
     (11, b"`\x97\xb0\x14\x11"),
 ]);
 
 /// "susanivanovafanclub", the host's group's name; never written.
-pub const GROUP_NAME: [u8; 20] = with_runs::<20>(&[(0, b"susanivanovafanclub")]);
+pub(super) const GROUP_NAME: [u8; 20] = with_runs::<20>(&[(0, b"susanivanovafanclub")]);
 
 /// A player's 16 bytes of DirectPlay player data (`NetPlayerRecord`; this machine's own record
 /// is `own`).
@@ -132,7 +132,7 @@ impl PlayerRecord {
         State::from_byte(self.head.get(record::STATE))
     }
 
-    pub fn set_state(&self, state: State) {
+    pub(super) fn set_state(&self, state: State) {
         self.head.set(record::STATE, state.byte());
     }
 
@@ -219,7 +219,10 @@ impl Inboxes {
 }
 
 /// Player `n`'s inbox among the locked ones; a number of 8 or more is refused.
-pub fn inbox_of(inboxes: &mut [Inbox; 8], n: u32) -> Result<&mut Inbox, crate::errors::BadInput> {
+pub(super) fn inbox_of(
+    inboxes: &mut [Inbox; 8],
+    n: u32,
+) -> Result<&mut Inbox, crate::errors::BadInput> {
     inboxes
         .get_mut(n as usize)
         .ok_or(crate::errors::BadInput("a player number of 8 or more"))
@@ -643,23 +646,23 @@ impl NetShared {
 
     /// Player `n`'s block for a core's closure, which cannot carry a refusal: a number the
     /// block table has no room for ends the program with it.
-    pub fn player_block_or_end(&self, n: u32) -> &PlayerBlock {
+    pub(super) fn player_block_or_end(&self, n: u32) -> &PlayerBlock {
         self.player_block(n)
             .unwrap_or_else(|e| crate::fatal::raise::end("a player's block", e))
     }
 
     /// Whether player `n` has answered the sync (the players are at most 8).
-    pub fn synced(&self, n: usize) -> Result<bool, crate::errors::BadInput> {
+    pub(super) fn synced(&self, n: usize) -> Result<bool, crate::errors::BadInput> {
         Ok(self.synced_flag(n)?.is_set())
     }
 
-    pub fn set_synced(&self, n: usize, value: bool) -> Result<(), crate::errors::BadInput> {
+    pub(super) fn set_synced(&self, n: usize, value: bool) -> Result<(), crate::errors::BadInput> {
         self.synced_flag(n)?.set(value);
         Ok(())
     }
 
     /// No player has answered.
-    pub fn clear_synced(&self) {
+    pub(super) fn clear_synced(&self) {
         for flag in &self.synced {
             flag.set(false);
         }

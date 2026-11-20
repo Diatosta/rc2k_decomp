@@ -19,7 +19,7 @@ pub const JUMP_ANGLE: u32 = 1 << 30;
 
 /// Matrix entries further apart than this between two ticks (a rotation of about 60 degrees)
 /// were set, not turned.
-pub const JUMP_ENTRY: f32 = 1.0;
+pub(crate) const JUMP_ENTRY: f32 = 1.0;
 
 /// How far a frame is between the last two ticks (0: the one before, 1: the last), from the
 /// time since the last tick in milliseconds (`rest`, 0 .. 10): the picture shown is a tick

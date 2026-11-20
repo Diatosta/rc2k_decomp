@@ -61,7 +61,7 @@ pub struct ViewerBuffers {
 
 /// The buffers as held by `crate::test_support::own::race().shared`.
 #[cfg(test)]
-pub struct InBuffers;
+pub(super) struct InBuffers;
 
 #[cfg(test)]
 impl core::ops::Deref for InBuffers {
@@ -72,7 +72,7 @@ impl core::ops::Deref for InBuffers {
 }
 
 #[cfg(test)]
-pub static VIEWER_BUFFERS: InBuffers = InBuffers;
+static VIEWER_BUFFERS: InBuffers = InBuffers;
 
 /// The replay block's bytes (0x2810), `EXTENDED_FRAME_BYTES` with the extra tape.
 pub const BLOCK_BYTES: usize = 4 * 0xA04;

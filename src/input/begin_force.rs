@@ -15,7 +15,7 @@ use std::mem::size_of;
 const USING_TEXT: &std::ffi::CStr = c"INP: using force feedback";
 
 /// The `DIPROPDWORD` for the whole device with `data`.
-pub fn dword_property(data: u32) -> DiPropDword {
+pub(super) fn dword_property(data: u32) -> DiPropDword {
     DiPropDword {
         header: DiPropHeader {
             size: size_of::<DiPropDword>() as u32,

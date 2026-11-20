@@ -12,7 +12,7 @@ use crate::input::store::Devices;
 use crate::input::types::InputDevice;
 
 /// The device `record` given back.
-pub fn release_device(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
+pub(super) fn release_device(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
     let device = record.device.get();
     if device != 0 {
         let effects = controller(devices, record)?.force_feedback.get() == 1;

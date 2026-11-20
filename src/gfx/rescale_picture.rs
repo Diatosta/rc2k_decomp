@@ -65,7 +65,10 @@ impl Rescaler {
     }
 }
 
-pub fn rescale_picture(rescaler: &Rescaler, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+pub(super) fn rescale_picture(
+    rescaler: &Rescaler,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let pictures = &gfx.pictures;
     let (from_width, from_height): (u32, u32) =
         (pictures.decoder.width.get(), pictures.decoder.height.get());

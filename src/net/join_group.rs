@@ -3,7 +3,7 @@
 
 use crate::net::create_group::join;
 use crate::net::link::Link;
-pub fn join_group(link: &Link) -> bool {
+pub(super) fn join_group(link: &Link) -> bool {
     let result = {
         crate::net::dp_objects::enum_groups(
             link.dplay(),

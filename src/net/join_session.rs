@@ -10,14 +10,14 @@ use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{NetTexts, texts};
 
 /// The `Open` as the receiving thread calls it when it is posted.
-pub fn posted_open_join(net: &Net, _lines: &NetTexts) -> u32 {
+fn posted_open_join(net: &Net, _lines: &NetTexts) -> u32 {
     open(&net.link, OPEN_JOIN, b"")
 }
 
 fn join_group(link: &crate::net::link::Link) -> Result<bool, Refused> {
     Ok(crate::net::join_group::join_group(link))
 }
-pub fn join_session(
+pub(super) fn join_session(
     o: crate::owners::Owners<'static>,
     lines: &NetTexts,
     number: u32,

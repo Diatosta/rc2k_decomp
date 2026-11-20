@@ -28,17 +28,17 @@ pub fn log_number(value: u32, end: bool) {
 }
 
 /// The primary buffer stopped.
-pub fn stop_primary(state: &AudioOwn) {
+pub(super) fn stop_primary(state: &AudioOwn) {
     crate::audio::thread_parts::stop_primary(state);
 }
 
 /// The 3D listener released.
-pub fn release_listener(state: &AudioOwn) {
+pub(super) fn release_listener(state: &AudioOwn) {
     crate::audio::thread_parts::release_sound_listener(state);
 }
 
 /// The primary buffer's format set for `mode` (at the mix rate setting): false when it failed.
-pub fn set_primary_format(state: &AudioOwn, mode: u32) -> Result<bool, Refused> {
+pub(super) fn set_primary_format(state: &AudioOwn, mode: u32) -> Result<bool, Refused> {
     let rate = state.mix_rate_setting.get();
     crate::audio::primary::set_primary_format(state, mode, rate)
 }
@@ -49,7 +49,7 @@ pub fn open_listener(state: &AudioOwn, system: &System) -> Result<bool, Refused>
 }
 
 /// DirectSound opened (GUID `guid`) with the game's variables: false when it failed.
-pub fn open_sound_in_game(
+pub(super) fn open_sound_in_game(
     state: &AudioOwn,
     system: &'static System,
     guid: u32,
@@ -124,7 +124,7 @@ pub fn read_caps(state: &AudioOwn) -> Result<bool, Refused> {
 }
 
 /// DirectSound's cooperative level 1 (normal), released, forgotten.
-pub fn close_sound(state: &AudioOwn, system: &System) -> Result<(), Refused> {
+pub(super) fn close_sound(state: &AudioOwn, system: &System) -> Result<(), Refused> {
     {
         let ds = state.direct_sound.get();
         if ds != 0 {
@@ -141,10 +141,10 @@ const OPEN_TEXT: &std::ffi::CStr = c"AUD: open sound";
 const OPEN_FAILED_TEXT: &std::ffi::CStr = c"AUD: open failed rc=";
 
 /// `DirectSoundCreate` for the device's GUID: the device, or the failure's result.
-pub type CreateSound<'a> = &'a mut dyn FnMut(u32) -> Result<u32, i32>;
+type CreateSound<'a> = &'a mut dyn FnMut(u32) -> Result<u32, i32>;
 
 /// The program's DirectSound on SDL (`platform::sound`), whatever the GUID.
-pub fn game_direct_sound_create(_guid: u32, focus: &'static Dword) -> Result<u32, i32> {
+fn game_direct_sound_create(_guid: u32, focus: &'static Dword) -> Result<u32, i32> {
     crate::platform::sound::create_device(focus)
 }
 

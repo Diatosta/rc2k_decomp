@@ -34,7 +34,7 @@ fn read_whole(file: u32) -> (Vec<u8>, bool) {
     }
 }
 
-pub fn read_pcx_24bit(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
+pub(super) fn read_pcx_24bit(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
     let Some(file) = open_by_mode(path, 0)? else {
         return Ok(false);
     };

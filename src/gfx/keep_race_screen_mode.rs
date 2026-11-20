@@ -7,7 +7,7 @@ use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
 
 /// Keeps the race's mode `mode`: the flags it leaves (`try_screen_mode`'s).
-pub fn keep_race_screen_mode(
+pub(super) fn keep_race_screen_mode(
     gfx: &Gfx,
     system: &crate::system::owner::System,
     d3d: &crate::d3d::owner::D3d,

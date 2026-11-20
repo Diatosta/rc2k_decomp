@@ -26,7 +26,7 @@ const TABLE_ROOM: u32 = 0x20;
 /// Every screen size the game knows at 32 bits a pixel (its window takes any), entered as
 /// `gfx::mode_callback` enters a mode: the card's, the kind's and the size's bits, once each, while
 /// the table has room.
-pub fn standalone_modes(display: &Display, card: u32) -> Result<(), BadInput> {
+pub(super) fn standalone_modes(display: &Display, card: u32) -> Result<(), BadInput> {
     let table = &display.modes.table;
     // The 32-bit pixel kind alone (the second of the two): the screen is never 16 bits.
     let kind_bit: u32 = display.modes.pixel_kinds[2].get();

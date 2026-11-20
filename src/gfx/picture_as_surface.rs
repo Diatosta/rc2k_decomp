@@ -14,13 +14,13 @@ use crate::gfx::set_clip::set_clip;
 // `Gfx.drawing.draw_surface` is the surface block, twelve dwords: x, y, width, height, bits a pixel, bytes a
 // pixel, bytes of a row's pixels, dwords of a row, the pixel format, the pitch, the pixels, the gap
 // after a row.
-pub const SURFACE_DWORDS: usize = 12;
+const SURFACE_DWORDS: usize = 12;
 const SIZE_COUNT: u32 = 8;
 const PIXEL_KIND_COUNT: u32 = 2;
 
 /// The surface block for a picture with these flags, from its third dword on (the corner is not
 /// touched).
-pub fn surface_of(
+fn surface_of(
     modes: &Modes,
     flags: u32,
     pixels: u32,

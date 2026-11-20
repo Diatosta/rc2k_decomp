@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
 
-pub fn rank_time_trial_best(
+pub(super) fn rank_time_trial_best(
     menus: &crate::menu::owner::Menus,
     system: &crate::system::owner::System,
     tables: &crate::saves::best_times::BestTables,

@@ -13,7 +13,7 @@ use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
-pub fn best_class_scores(
+pub(super) fn best_class_scores(
     menus: &crate::menu::owner::Menus,
     tables: &crate::saves::best_times::BestTables,
     entry: &Entry,

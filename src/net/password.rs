@@ -33,7 +33,7 @@ pub fn masked() -> Vec<u8> {
 }
 
 /// Notes whether the last join was refused for its password.
-pub fn note_refused(refused: bool) {
+pub(super) fn note_refused(refused: bool) {
     REFUSED.store(refused, Ordering::SeqCst);
 }
 
@@ -51,7 +51,7 @@ pub fn joining() -> Vec<u8> {
 }
 
 /// Keeps the joiner's answer `text` (up to its first NUL).
-pub fn set_joining(text: &[u8]) {
+pub(super) fn set_joining(text: &[u8]) {
     let end = text.iter().position(|&b| b == 0).unwrap_or(text.len());
     *JOINING
         .lock()
@@ -59,7 +59,7 @@ pub fn set_joining(text: &[u8]) {
 }
 
 /// Notes whether the joiner went back from the password question.
-pub fn note_cancelled(cancelled: bool) {
+pub(super) fn note_cancelled(cancelled: bool) {
     CANCELLED.store(cancelled, Ordering::SeqCst);
 }
 

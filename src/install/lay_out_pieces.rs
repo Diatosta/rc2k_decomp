@@ -40,7 +40,7 @@ impl ListSource for GameList {
     }
 }
 
-pub fn lay_out_pieces(
+pub(super) fn lay_out_pieces(
     install: &'static crate::install::owner::Install,
     list: ListMenu,
 ) -> Result<(), Refused> {

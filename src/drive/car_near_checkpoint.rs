@@ -4,7 +4,7 @@
 use crate::physics::car_store::Car;
 use rc2k_core::physics::line_places::car_near;
 
-pub fn near_at(car: &Car, checkpoint: u32) -> bool {
+pub(super) fn near_at(car: &Car, checkpoint: u32) -> bool {
     car_near(
         car.driver_kind.get() != 0,
         || car.checkpoint.get(),

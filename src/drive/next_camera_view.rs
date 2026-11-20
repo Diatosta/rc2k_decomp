@@ -11,7 +11,7 @@ use crate::race::kind_store::KindTables;
 use crate::race::owner::Race;
 use rc2k_core::drive::camera_views::next_view;
 
-pub fn next_view_at(
+pub(super) fn next_view_at(
     kinds: &KindTables,
     car: &Car,
     players: &PlainDword,

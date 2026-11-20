@@ -135,7 +135,7 @@ pub struct RankedRow<T> {
 }
 
 /// `class_rows`' answer: each row's entry and place.
-pub type ClassRows = Vec<(u32, u32)>;
+pub(crate) type ClassRows = Vec<(u32, u32)>;
 
 /// The most entries `class_rows` walks before it gives up on the list's end.
 pub const MOST_ENTRIES: u32 = 0x400;

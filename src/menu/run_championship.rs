@@ -17,7 +17,7 @@ use crate::errors::Refused;
 use crate::menu::flow_game::Game;
 
 /// The two championships' driver: `a8` for `menu::run_a8_championship`'s differences.
-pub fn run_event(o: crate::owners::Owners<'static>, a8: bool) -> Result<(), Refused> {
+pub(super) fn run_event(o: crate::owners::Owners<'static>, a8: bool) -> Result<(), Refused> {
     Game::new(o).run(|g| rc2k_core::menu::championship::run(g, a8))
 }
 

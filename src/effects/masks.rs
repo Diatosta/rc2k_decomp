@@ -44,7 +44,7 @@ pub const MOST_POINTS: u32 = rc2k_core::effects::masks::MOST_POINTS;
 /// `collect_points`: face `face`'s points (+0 the count, from +0x10, 16 bytes
 /// apart) added to the list unless there already, up to 0x40, each with the face. Refuses a list of
 /// more than 0x40. The logic is in `rc2k_core::effects::masks::PointList::add_face`.
-pub fn collect_points(
+pub(super) fn collect_points(
     object_faces: &crate::scene::object_faces::ObjectFaces,
     list: &PointList<'_>,
     face: u32,
@@ -148,7 +148,7 @@ pub const WORK_LEN: u32 = 0x8_0000;
 // `make_masks` counted on its list, given back with it.
 
 /// The work's dword at byte offset `at`.
-pub fn work_get(masks: &Masks, at: u32) -> Result<u32, BadInput> {
+pub(super) fn work_get(masks: &Masks, at: u32) -> Result<u32, BadInput> {
     masks
         .work
         .with(|w| w.get(at as usize / 4).copied())?
@@ -157,7 +157,7 @@ pub fn work_get(masks: &Masks, at: u32) -> Result<u32, BadInput> {
 }
 
 /// The work's dword at byte offset `at` set to `v`.
-pub fn work_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
+pub(super) fn work_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
     masks
         .work
         .with(|w| match w.get_mut(at as usize / 4) {
@@ -175,7 +175,7 @@ pub fn work_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
 /// shape's ring (`span_ring`, with its corner table), mask (`draw_mask`) and pixels
 /// (`map_shapes`); the list freed (`memory::free_list`). Refuses as its steps do, mid-way
 /// (the work block is on the list, which is freed with its own).
-pub fn make_masks(
+pub(super) fn make_masks(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
     masks: &Masks,

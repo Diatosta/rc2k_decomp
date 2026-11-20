@@ -5,7 +5,7 @@ use crate::audio::own::AudioThread;
 use crate::audio::voices::{SAMPLES, VOICES};
 use crate::errors::{BadInput, Refused};
 
-pub fn free_voices(audio: &AudioThread) -> Result<(), Refused> {
+pub(super) fn free_voices(audio: &AudioThread) -> Result<(), Refused> {
     let count = audio.state.voice_count.get();
     if count > VOICES {
         return Err(BadInput("more than `VOICES` voices").into());

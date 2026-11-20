@@ -100,7 +100,7 @@ impl ScreenId {
     /// Whether leaving the screen saves the settings: the options pages, the players' pages and
     /// the reviews after a stage (where the options are opened from), so a crash or a killed
     /// process keeps what was changed. Saved once on leaving, not on every key.
-    pub fn changes_settings(self) -> bool {
+    pub(super) fn changes_settings(self) -> bool {
         matches!(
             self,
             ScreenId::Advanced

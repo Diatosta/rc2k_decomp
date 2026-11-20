@@ -17,7 +17,7 @@ pub fn held_section(section: i32) -> u32 {
 
 /// A time (a signed whole number) times a factor, rounded to the nearest whole number
 /// (ties to even; out of range the x87's "integer indefinite").
-pub fn scale_time(time: u32, factor: f32) -> u32 {
+pub(crate) fn scale_time(time: u32, factor: f32) -> u32 {
     fistp64(time as i32 as f64 * factor as f64) as u32
 }
 

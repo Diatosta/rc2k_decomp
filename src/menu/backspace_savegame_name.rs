@@ -11,7 +11,10 @@ use crate::menu::owner::Menus;
 use crate::menu::text_entry::{entry as text_entry, length, put_entry};
 use crate::saves::owner::Saves;
 
-pub fn backspace_savegame_name(menus: &Menus, saves: &'static Saves) -> Result<(), BadInput> {
+pub(super) fn backspace_savegame_name(
+    menus: &Menus,
+    saves: &'static Saves,
+) -> Result<(), BadInput> {
     if length(menus) == 0 {
         return Ok(());
     }
@@ -19,7 +22,7 @@ pub fn backspace_savegame_name(menus: &Menus, saves: &'static Saves) -> Result<(
 }
 
 /// Takes the last character off the entry being typed into `name`.
-pub fn backspace_name(
+pub(super) fn backspace_name(
     menus: &Menus,
     name: crate::memory::place::BytePlace,
 ) -> Result<(), BadInput> {

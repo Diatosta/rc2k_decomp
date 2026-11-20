@@ -8,7 +8,7 @@ use rc2k_core::net::screens::{self, Number};
 
 /// The number `number` for item `item` at `y`, as the text being typed, "nothing" or its
 /// digits (the last two built in the game's text buffer); returns the next y.
-pub fn draw_number_value(
+pub(super) fn draw_number_value(
     o: crate::owners::Owners<'static>,
     number: u32,
     item: u32,

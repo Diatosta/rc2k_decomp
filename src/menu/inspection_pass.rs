@@ -16,7 +16,7 @@ use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
-pub fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
+pub(super) fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
     use rc2k_core::menu::passes;
     let players = counted_players(&menus.screens, &menus.play)?;

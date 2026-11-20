@@ -30,7 +30,7 @@ fn read<const N: usize>(
     Ok(())
 }
 
-pub fn open_installer(
+pub(super) fn open_installer(
     install: &crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {

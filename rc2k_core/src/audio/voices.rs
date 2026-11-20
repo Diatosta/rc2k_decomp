@@ -17,7 +17,7 @@ pub const BASE_SAMPLES: u32 = 0x1CD;
 /// `n` in block `b` being `BASE_SAMPLES + b * PLAYER_COPIES + n`.
 pub const PLAYER_COPIES: u32 = 0xD0;
 /// The blocks of copies: for cars 2 and 3, 4 and 5, 6 and 7.
-pub const COPY_BLOCKS: u32 = 3;
+pub(crate) const COPY_BLOCKS: u32 = 3;
 /// The co-driver's voice records: pairs from here, the first of a pair the first player's voice
 /// and the second the second player's.
 pub const CODRIVER_FIRST: u32 = 0xED;
@@ -42,23 +42,23 @@ pub const fn codriver_copy(record: u32) -> Option<u32> {
 /// copies of the voices (a split screen of three or four players uses every voice of the 0x200 up).
 pub const VOICES: u32 = 0x240;
 /// The mixer channels that are cleared (`audio::clear_channels`).
-pub const CHANNELS_CLEARED: u32 = 0x10;
+pub(crate) const CHANNELS_CLEARED: u32 = 0x10;
 
 /// "As the sample record says" in a command.
 pub const DEFAULT: u32 = 0xFFFF_FF91;
 /// "The voice's own frequency".
-pub const OWN_FREQUENCY: u32 = 0xFFFF_FF90;
+pub(crate) const OWN_FREQUENCY: u32 = 0xFFFF_FF90;
 /// "As the sample record says", for a place's float.
-pub const DEFAULT_PLACE: u32 = 0xFF80_0000;
+pub(crate) const DEFAULT_PLACE: u32 = 0xFF80_0000;
 /// The sound mode's bit: places in 3D.
 pub const MODE_3D: u32 = 0x10_0000;
 
-pub const DIRTY_VOLUME: u32 = 1;
-pub const DIRTY_PAN: u32 = 2;
-pub const DIRTY_FREQUENCY: u32 = 4;
-pub const DIRTY_PLACE: u32 = 8;
-pub const DIRTY_PLAY: u32 = 0x10;
-pub const DIRTY_RESTART: u32 = 0x20;
+pub(crate) const DIRTY_VOLUME: u32 = 1;
+pub(crate) const DIRTY_PAN: u32 = 2;
+pub(crate) const DIRTY_FREQUENCY: u32 = 4;
+pub(crate) const DIRTY_PLACE: u32 = 8;
+pub(crate) const DIRTY_PLAY: u32 = 0x10;
+pub(crate) const DIRTY_RESTART: u32 = 0x20;
 /// `Voice::flags`: the voice's sample is loaded.
 pub const LOADED: u32 = 0x10;
 

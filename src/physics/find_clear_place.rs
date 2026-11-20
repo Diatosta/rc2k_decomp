@@ -75,7 +75,7 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     Ok(())
 }
 
-pub fn find_clear_place(
+pub(super) fn find_clear_place(
     c: &ClearPlaceInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {

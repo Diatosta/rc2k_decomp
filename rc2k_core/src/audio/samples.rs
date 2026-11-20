@@ -8,12 +8,12 @@ use crate::strings::bytes::Bytes;
 pub type FormatBitTable = [(u32, u32); 2];
 
 /// The value a table has for `flag`.
-pub fn value_for(table: &FormatBitTable, flag: u32) -> Option<u32> {
+pub(crate) fn value_for(table: &FormatBitTable, flag: u32) -> Option<u32> {
     table.iter().find(|e| e.0 == flag).map(|e| e.1)
 }
 
 /// The flag a table has for `value`.
-pub fn flag_for(table: &FormatBitTable, value: u32) -> Option<u32> {
+pub(crate) fn flag_for(table: &FormatBitTable, value: u32) -> Option<u32> {
     table.iter().find(|e| e.1 == value).map(|e| e.0)
 }
 
@@ -174,7 +174,7 @@ pub fn parse(
 /// A volume or rate meaning the sample record's own.
 pub const OWN: u32 = 0xFFFF_FF91;
 /// A rate meaning the sample's voice's own frequency.
-pub const VOICE_RATE: u32 = 0xFFFF_FF90;
+pub(crate) const VOICE_RATE: u32 = 0xFFFF_FF90;
 
 /// What `settings` and `duration_ms` read of a sample record and its first voice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -192,7 +192,7 @@ pub struct Loaded {
 
 /// A rate as asked: `OWN` the record's (and that may be `VOICE_RATE`), `VOICE_RATE` the
 /// voice's, held to 100 ..= 200,000 (signed).
-pub fn rate_of(rate: u32, s: &Loaded) -> u32 {
+pub(crate) fn rate_of(rate: u32, s: &Loaded) -> u32 {
     let rate = if rate == OWN { s.frequency } else { rate };
     let rate = if rate == VOICE_RATE {
         s.own_frequency
@@ -232,11 +232,11 @@ pub fn duration_ms(rate: u32, sample: Option<&Loaded>) -> Result<u32, Invalid> {
 }
 
 /// The mode bits of a sample's shift (its rate halved so many times).
-pub const SHIFT: u32 = 0xF;
+pub(crate) const SHIFT: u32 = 0xF;
 /// A format bit: eight bits a value.
-pub const EIGHT_BITS: u32 = 0x10;
+pub(crate) const EIGHT_BITS: u32 = 0x10;
 /// A format bit: one value a frame.
-pub const MONO: u32 = 0x100;
+pub(crate) const MONO: u32 = 0x100;
 
 /// The mode a voice's sample is prepared for (`audio::sample_mode`): the sound mode, with a record
 /// (its number and group) at least shift 1 for groups 1 and 2, 2 for group 3, and only the shift

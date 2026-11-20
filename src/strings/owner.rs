@@ -93,7 +93,7 @@ pub const DRIVERS: usize = 180;
 pub const NAMES_LEN: usize = DRIVERS * 4;
 pub const POOL_ROOM: usize = 0x960000 - 0x95EFC8;
 /// The names block's length.
-pub const NAMES_SIZE: usize = NAMES_LEN + POOL_ROOM;
+pub(super) const NAMES_SIZE: usize = NAMES_LEN + POOL_ROOM;
 
 /// The driver names' work areas (`settings::read_driver_names`).
 pub struct Drivers {

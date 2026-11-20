@@ -5,7 +5,7 @@
 use crate::Invalid;
 
 /// Steps a choice may take before the walk is taken to go round for ever.
-pub const ROUND: usize = 0x202;
+pub(crate) const ROUND: usize = 0x202;
 
 /// A choice's marks (bits 6 and 7 of its second byte): when marked, it is passed over.
 pub const MARKS: u8 = 0xC0;

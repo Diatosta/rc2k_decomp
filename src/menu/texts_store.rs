@@ -2111,11 +2111,11 @@ const fn speech(list: NameList, index: u16) -> u32 {
 }
 
 /// A speech row's end mark.
-pub const SPEECH_END: u32 = 0xFFFF_FFFF;
+const SPEECH_END: u32 = 0xFFFF_FFFF;
 
 /// A row of the speech tables: a car's (three entries) or a stage's (four).
 #[derive(Clone, Copy, Debug)]
-pub enum SpeechRow {
+pub(super) enum SpeechRow {
     Car(usize),
     Stage(usize),
 }

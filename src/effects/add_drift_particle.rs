@@ -18,7 +18,7 @@ use crate::race::owner_frame::Frame;
 const FULL: u32 = 0xFFF;
 const LIFE: u32 = 0xC350;
 
-pub fn add_drift_particle(
+pub(super) fn add_drift_particle(
     frame: &Frame,
     particles: &Particles,
     ring: &Ring,

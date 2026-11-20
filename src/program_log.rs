@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 /// The program's log (`rc2k.log`), set by `start`. Nothing is written before that.
-pub static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
+pub(super) static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 /// The log, kept open for the run: opening it for every line cost a file open each (and a
 /// virus scanner's look at it on Windows).

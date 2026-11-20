@@ -14,7 +14,7 @@ use crate::hud::store::texture;
 use crate::race::owner_frame::Frame;
 
 /// The HUD of two players side by side.
-pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+pub(super) fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     use crate::hud::*;
     let panel = &frame.panel_and_overlay.get().panel;
     let [f1, f2] = [panel.hud_flags[0].get(), panel.hud_flags[1].get()];

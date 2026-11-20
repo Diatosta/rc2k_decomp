@@ -124,7 +124,7 @@ pub trait Event {
 }
 
 /// The repairs' set.
-pub const ALL_REPAIRS: u32 = 0xF;
+pub(crate) const ALL_REPAIRS: u32 = 0xF;
 
 /// A starter's steps: the set-up (the one-player ones in their own order; the A8's
 /// first begins the event unless a saved game goes on), each player's repairs and car

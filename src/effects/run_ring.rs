@@ -628,7 +628,7 @@ fn boxed_kind(
     Ok(x87::compare_status(en.place[1], en.ground_y) == 0x100)
 }
 
-pub fn run_ring(
+pub(super) fn run_ring(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,

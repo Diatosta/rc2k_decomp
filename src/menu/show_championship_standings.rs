@@ -10,7 +10,7 @@ use crate::menu::champ_store::ChampView;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
-pub fn show_championship_standings(
+pub(super) fn show_championship_standings(
     champ: &ChampView,
     entry: &Entry,
     tables: &crate::saves::best_times::BestTables,

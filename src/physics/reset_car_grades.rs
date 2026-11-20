@@ -81,7 +81,7 @@ fn write_all(car: &Car, writes: Vec<(Field, u32)>) {
 
 /// The block `car`, the two settings read at `s0c`, `s08` (the same at any precision).
 // Core: `rc2k_core::physics::grades::{percentage, reset_writes}`.
-pub fn reset_grades_at(numbers: &Numbers, car: &Car, s0c: &PlainDword, s08: &PlainDword) {
+pub(super) fn reset_grades_at(numbers: &Numbers, car: &Car, s0c: &PlainDword, s08: &PlainDword) {
     let (k256, k100) = (numbers.k256.get(), numbers.hundred.get());
     let a = percentage(s0c.get() as i32, k256, k100);
     let c = percentage(s08.get() as i32, k256, k100);

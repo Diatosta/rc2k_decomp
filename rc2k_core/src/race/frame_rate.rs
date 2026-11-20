@@ -2,7 +2,7 @@
 //! Floats keep `f64` intermediates, the stored rate rounded to `f32`.
 
 /// The frames between two measures.
-pub const MEASURE_EVERY: u32 = 0x10;
+pub(crate) const MEASURE_EVERY: u32 = 0x10;
 
 /// The frame counter one on and whether to measure now (at 0x10 the count goes back to 0).
 pub fn count_frame(count: u32) -> (u32, bool) {

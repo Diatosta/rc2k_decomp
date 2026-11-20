@@ -7,6 +7,6 @@ use crate::audio::property_sets::*;
 use crate::errors::Refused;
 
 /// True when it worked.
-pub fn open_voice_manager(state: &AudioOwn, holder: Holder) -> Result<bool, Refused> {
+pub(super) fn open_voice_manager(state: &AudioOwn, holder: Holder) -> Result<bool, Refused> {
     open_property_set(state, &Opening::voice_manager(state), holder)
 }

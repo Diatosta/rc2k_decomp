@@ -9,7 +9,7 @@ use rc2k_core::physics::listed_cars::cue_object;
 
 /// `cue` queued last for the car `which` (a player's), if it sounds.
 // Core: `rc2k_core::physics::listed_cars::cue_object`.
-pub fn cue_car_sound_last(
+pub(super) fn cue_car_sound_last(
     which: u32,
     cue: u32,
     sound: &crate::sound::owner::Sound,

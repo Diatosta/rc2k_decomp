@@ -282,7 +282,7 @@ pub fn point_number(
 
 /// Point `n`'s x and z, read as one point.
 #[track_caller]
-pub fn point_xz(
+pub(super) fn point_xz(
     course: CourseReads<'_>,
     points: &OwnPoints,
     n: u32,
@@ -292,7 +292,7 @@ pub fn point_xz(
 
 /// Point `from` copied over point `to` (as `bytes` reads `from`).
 #[track_caller]
-pub fn copy_point(
+pub(super) fn copy_point(
     course: CourseReads<'_>,
     points: &OwnPoints,
     from: u32,
@@ -319,7 +319,7 @@ pub fn point_word(
 
 /// Coordinate `k` (0 x, 1 y, 2 z) of point `n` set to `v`.
 #[track_caller]
-pub fn put_point_word(
+pub(super) fn put_point_word(
     course: CourseReads<'_>,
     points: &OwnPoints,
     n: u32,
@@ -370,7 +370,7 @@ fn put(course: CourseReads<'_>, points: &OwnPoints, at: u32, v: u32) -> Result<(
 /// `f` with the scene points `words` held, the points as they were afterwards (the differential
 /// tests: the reference reads the same words at their address).
 #[cfg(test)]
-pub fn with_test_points<R>(tables: &CourseData, words: &[u32], f: impl FnOnce() -> R) -> R {
+pub(super) fn with_test_points<R>(tables: &CourseData, words: &[u32], f: impl FnOnce() -> R) -> R {
     let kept = table(tables).all().ok();
     table(tables)
         .set(

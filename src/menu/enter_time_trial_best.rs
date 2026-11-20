@@ -14,7 +14,7 @@ use crate::menu::event_flow::*;
 use crate::menu::owner::Menus;
 use crate::menu::standings::name_address_of;
 
-pub fn enter_time_trial_best(
+pub(super) fn enter_time_trial_best(
     race: &crate::race::owner::Race,
     menus: &Menus,
     system: &crate::system::owner::System,

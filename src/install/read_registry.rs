@@ -9,7 +9,7 @@ const REG_BINARY: u32 = 3;
 
 /// What `RegQueryValueExA` gave: its result, the value's type and size when the value is
 /// there, its bytes when they fitted.
-pub struct Query {
+pub(super) struct Query {
     pub result: u32,
     pub kind: Option<u32>,
     pub size: Option<u32>,
@@ -18,7 +18,7 @@ pub struct Query {
 
 /// The registry calls the installer makes (under `HKEY_LOCAL_MACHINE`), so that a test can
 /// answer them; here the portable record (`install::portable`).
-pub trait Registry {
+pub(super) trait Registry {
     /// `RegOpenKeyExA`: the key, or the error.
     fn open(&mut self, name: &[u8]) -> Result<u32, u32>;
     /// `RegQueryValueExA` with `room` bytes for the data.
@@ -47,7 +47,7 @@ fn take(install: &crate::install::owner::Install, q: &Query, put: impl FnOnce(&[
     }
 }
 
-pub fn read_registry(install: &crate::install::owner::Install, registry: &mut dyn Registry) {
+pub(super) fn read_registry(install: &crate::install::owner::Install, registry: &mut dyn Registry) {
     let Ok(key) = registry.open(&install.names.key_name.text()) else {
         return;
     };
@@ -85,6 +85,6 @@ pub fn read_registry(install: &crate::install::owner::Install, registry: &mut dy
 }
 
 /// The registry, or here the portable record (`install::portable`).
-pub fn read_registry_here(install: &crate::install::owner::Install) {
+pub(super) fn read_registry_here(install: &crate::install::owner::Install) {
     read_registry(install, &mut crate::install::portable::Portable::default());
 }

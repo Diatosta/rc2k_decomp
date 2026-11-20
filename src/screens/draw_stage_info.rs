@@ -20,11 +20,11 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-pub const TITLE_X: i32 = 0x2EB;
+pub(super) const TITLE_X: i32 = 0x2EB;
 pub const TITLE_Y: i32 = 0x77;
 
 /// The record of the event's stage, and its section.
-pub fn event_stage(
+pub(super) fn event_stage(
     screens: &Screens,
     system: &System,
 ) -> Result<(RecordRef, u32), crate::errors::BadInput> {
@@ -39,7 +39,7 @@ pub fn event_stage(
 
 /// The title string of the event's section: from a table in mode 0x13, otherwise from the
 /// section's first record.
-pub fn event_title(
+pub(super) fn event_title(
     lists: &crate::menu::lists_store::MenuLists,
     champ: &ChampView,
     event: &EventState,

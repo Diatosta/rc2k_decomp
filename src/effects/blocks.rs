@@ -8,18 +8,18 @@ use crate::math::x87;
 use crate::memory::session::write_bits;
 use crate::memory::session::{PlainDword, PlainFloat, PlainWord};
 
-pub const PLACES_LEN: u32 = 0x7024;
-pub const RING_LEN: u32 = 0x4C000;
+const PLACES_LEN: u32 = 0x7024;
+const RING_LEN: u32 = 0x4C000;
 pub const RING_ENTRY: u32 = rc2k_core::effects::rings::RING_ENTRY;
-pub const LINKS_LEN: u32 = 0x71020;
+const LINKS_LEN: u32 = 0x71020;
 pub const CORNERS: u32 = 0x100;
 
-pub const SETTINGS_BLOCKS: u32 = 8;
+const SETTINGS_BLOCKS: u32 = 8;
 
 /// `effects::allocate_places`, step 6: 0x7024 bytes on `PlacesBlock.list[0]` into
 /// the places' block, its first three floats `PlacesBlock.start[0]` ... Nothing reads the
 /// block, so it is only counted on its list (the memory figures) and not kept.
-pub fn allocate_places(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
+pub(super) fn allocate_places(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     crate::memory::owned::count_on(&effects.blocks.places.list, PLACES_LEN)
 }
 
@@ -28,13 +28,13 @@ pub fn allocate_places(effects: &crate::effects::owner::Effects) -> Result<(), R
 /// place, +0x18 .. +0x20 the last place, +0x24 the ground, +0x28 .. +0x34 the motion (+0x30
 /// the lift), +0x38 the size, +0x3C the colour, +0x40 the colour's step, +0x44 the life,
 /// +0x48 the colours' place.
-pub type Particle = [u32; (RING_ENTRY / 4) as usize];
+pub(super) type Particle = [u32; (RING_ENTRY / 4) as usize];
 
 /// The dword at `offset` of particle `p`, a particle of `Particles::ring` (taken by
 /// `allocate_ring`, given back by `effects::tidy_marks`) named by its number + 1 (0 none), as
 /// in the links and in `RingPool.ring` / `RingPool.free`; refused for none, a number past the ring
 /// or an offset past the entry.
-pub fn particle(particles: &Particles, p: u32, offset: u32) -> Result<u32, BadInput> {
+pub(super) fn particle(particles: &Particles, p: u32, offset: u32) -> Result<u32, BadInput> {
     particles
         .ring
         .with(|r| {
@@ -47,7 +47,12 @@ pub fn particle(particles: &Particles, p: u32, offset: u32) -> Result<u32, BadIn
 }
 
 /// The dword at `offset` of particle `p` set to `v`; refused as `particle`.
-pub fn set_particle(particles: &Particles, p: u32, offset: u32, v: u32) -> Result<(), BadInput> {
+pub(super) fn set_particle(
+    particles: &Particles,
+    p: u32,
+    offset: u32,
+    v: u32,
+) -> Result<(), BadInput> {
     particles
         .ring
         .with(|r| {
@@ -150,7 +155,9 @@ pub fn scale_corners(
 /// `effects::reset_settings_blocks`, in step 3: the eight blocks of 0x4C8 in the marks'
 /// settings from +0x60 (the last first): +0x4C .. +0x60 the six floats from
 /// `EmitterVars.settings_start[0]`, the last three again at +0x64, +0x70, +0x7C, +0x30 8.
-pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
+pub(super) fn reset_settings_blocks(
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
         let marks = effects.settings()?;
         for n in (0..SETTINGS_BLOCKS).rev() {

@@ -10,7 +10,7 @@ use crate::install::read_registry::Registry;
 const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
 
-pub fn write_registry(
+pub(super) fn write_registry(
     install: &crate::install::owner::Install,
     registry: &mut dyn Registry,
 ) -> Result<(), Refused> {

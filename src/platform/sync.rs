@@ -13,11 +13,11 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 /// WaitForSingleObject's answers.
-pub const WAIT_OBJECT_0: u32 = 0;
+const WAIT_OBJECT_0: u32 = 0;
 pub const WAIT_TIMEOUT: u32 = 0x102;
 pub const WAIT_FAILED: u32 = u32::MAX;
 /// A wait with no end.
-pub const INFINITE: u32 = u32::MAX;
+pub(super) const INFINITE: u32 = u32::MAX;
 
 #[derive(Debug)]
 enum State {

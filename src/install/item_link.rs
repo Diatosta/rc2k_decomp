@@ -7,7 +7,7 @@ use crate::memory::list_handle::ListItem;
 use rc2k_core::install::items::{self, LinkWay};
 
 /// Enter on a link; whether it was taken.
-pub fn item_link(
+pub(super) fn item_link(
     install: &crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
     item: ListItem,

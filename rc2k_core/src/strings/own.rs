@@ -22,7 +22,7 @@ pub const FIRST: u32 = 0x2000;
 pub const LAST: u32 = 0x21FF;
 
 /// Whether `id` is an own text's.
-pub fn is_own(id: u32) -> bool {
+pub(crate) fn is_own(id: u32) -> bool {
     (FIRST..=LAST).contains(&id)
 }
 
@@ -592,11 +592,11 @@ pub const KEYS: &[(&str, u32)] = &[
 ];
 
 /// The English file, built in.
-pub const ENGLISH: &str = include_str!("../../../assets/locale/english.rc2k.toml");
+pub(crate) const ENGLISH: &str = include_str!("../../../assets/locale/english.rc2k.toml");
 
 /// Every language's file, built in: the language's name (the `.LOC` file's, in lower case) and
 /// the file's text.
-pub const LANGUAGES: &[(&str, &str)] = &[
+pub(crate) const LANGUAGES: &[(&str, &str)] = &[
     ("english", ENGLISH),
     (
         "portuges",

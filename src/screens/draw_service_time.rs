@@ -16,7 +16,7 @@ use crate::text::draw_text::Canvas;
 
 // (label string, font) for the four readouts.
 /// Returns whether the last text drawn was too wide for its box.
-pub fn draw_service_time(
+pub(super) fn draw_service_time(
     o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {

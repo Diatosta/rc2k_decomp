@@ -32,4 +32,4 @@ impl LexiconMemory {
 
 /// The record all empty messages share: +4 how often it was used (never reset), +0xC its index
 /// entry. Written here only.
-pub const EMPTY_MESSAGE_LEN: usize = 0x10;
+pub(super) const EMPTY_MESSAGE_LEN: usize = 0x10;

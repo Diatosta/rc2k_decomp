@@ -187,7 +187,7 @@ pub fn volume<S: Screen<Font = Font, Work = Work>>(
 }
 
 /// The options checklist's lines: string, x, y, font.
-pub const CHECKLIST_LINES: [(u32, i32, i32, Font); 14] = [
+pub(crate) const CHECKLIST_LINES: [(u32, i32, i32, Font); 14] = [
     (0x524, 0x190, 0x64, Font::Title),
     (0x525, 0x186, 0x82, Font::Head),
     (0x526, 0x186, 0x9D, Font::Head),

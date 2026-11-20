@@ -140,7 +140,7 @@ pub fn draw_mask(mask: &mut [u8], entries: &[ShapeRows]) -> Result<(), Invalid> 
 }
 
 /// The rows of a mask put into the texture, and the texture's row the first goes to.
-pub const TEXTURE_ROWS: u32 = 0x7E;
+pub(crate) const TEXTURE_ROWS: u32 = 0x7E;
 pub const TEXTURE_ROW_AT: u32 = 0x80;
 
 /// `swap_mask`: with the settings' switch (+0x2704) not the one last seen, which mask goes into the

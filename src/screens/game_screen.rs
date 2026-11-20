@@ -17,7 +17,7 @@ use rc2k_core::screens::screen::{Buffer, Drawn, Screen};
 use std::marker::PhantomData;
 
 /// A family's font: the handle of its record.
-pub trait GameFont: Copy {
+trait GameFont: Copy {
     /// The font record in the game.
     fn pointer(self) -> FontRef;
 }
@@ -40,7 +40,7 @@ impl GameFont for MenuFont {
 }
 
 /// A family's work variable: the game state it reports to, if any.
-pub trait GameWork: Copy {
+trait GameWork: Copy {
     /// Where the value is kept, `None` for a variable nothing reads.
     fn cell(self, menus: &'static Menus, race: &'static Race) -> Option<&'static dyn DwordLike>;
 }
@@ -48,7 +48,7 @@ pub trait GameWork: Copy {
 /// A text a screen draws (`HeldText`: a place in a typed store, bounded by it, or a name
 /// held by value). The game's tables keep texts as addresses; the screens get them as
 /// places (a player's name by `player_name`).
-pub trait GameText: Copy {
+trait GameText: Copy {
     /// Drawn in `font` at x, y.
     fn draw(
         self,
@@ -105,7 +105,7 @@ impl Held {
 
 /// A typed entry's name (its text up to the NUL, None without one in the entry) held for
 /// drawing; refused without its NUL or past the held room.
-pub fn held_name(text: Option<Vec<u8>>) -> Result<HeldText, crate::errors::BadInput> {
+pub(super) fn held_name(text: Option<Vec<u8>>) -> Result<HeldText, crate::errors::BadInput> {
     text.and_then(|t| Held::new(&t))
         .map(HeldText::Held)
         .ok_or(crate::errors::BadInput("a name past its entry"))
@@ -129,7 +129,7 @@ fn text_in(run: &dyn crate::memory::place::Run, at: usize) -> Vec<u8> {
 /// bytes as they are now; refused without its NUL inside the field or past the held room.
 /// The screens build their rows and draw them in the same call, so nothing changes the
 /// field in between.
-pub fn held_field(
+pub(super) fn held_field(
     field: &dyn crate::memory::place::Run,
 ) -> Result<HeldText, crate::errors::BadInput> {
     let mut text = text_in(field, 0);
@@ -169,7 +169,7 @@ impl SlotNames {
 }
 
 /// The name of player `player` (counted from 0), drawn from the names' store.
-pub fn player_name_of(player: usize) -> HeldText {
+pub(super) fn player_name_of(player: usize) -> HeldText {
     HeldText::Name(crate::menu::player_names::NameAt::of(player))
 }
 
@@ -357,7 +357,7 @@ fn clip_edge_cell(
 }
 
 /// Where a shared buffer is.
-pub fn buffer_at(
+fn buffer_at(
     strings: &'static crate::strings::owner::Strings,
     text_buffers: &'static crate::screens::text_buffers_store::TextBuffers,
     buffer: Buffer,
@@ -371,7 +371,7 @@ pub fn buffer_at(
 
 /// `bytes` (with their NUL) into a shared buffer; refused past its end (the line buffer is
 /// 0x100 bytes, and the next buffer follows).
-pub fn store_in(
+fn store_in(
     strings: &'static crate::strings::owner::Strings,
     text_buffers: &'static crate::screens::text_buffers_store::TextBuffers,
     buffer: Buffer,
@@ -724,7 +724,7 @@ impl GameWork for rc2k_core::screens::slot_lists::Work {
 }
 
 /// The load and save pages' lists' screen.
-pub type SlotScreen<'a> =
+pub(super) type SlotScreen<'a> =
     GameScreen<'a, rc2k_core::screens::slot_lists::Font, rc2k_core::screens::slot_lists::Work>;
 
 impl GameFont for rc2k_core::screens::savegame_preview::Font {
@@ -745,7 +745,7 @@ impl GameWork for rc2k_core::screens::savegame_preview::Work {
 }
 
 /// The load-game preview's screen.
-pub type PreviewScreen<'a> = GameScreen<
+pub(super) type PreviewScreen<'a> = GameScreen<
     'a,
     rc2k_core::screens::savegame_preview::Font,
     rc2k_core::screens::savegame_preview::Work,
@@ -846,7 +846,7 @@ impl GameWork for rc2k_core::screens::player_result::Work {
 }
 
 /// The player's result pages' screen.
-pub type PlayerResultScreen<'a> = GameScreen<
+pub(super) type PlayerResultScreen<'a> = GameScreen<
     'a,
     rc2k_core::screens::player_result::Font,
     rc2k_core::screens::player_result::Work,
@@ -890,7 +890,7 @@ impl GameWork for rc2k_core::screens::notes::Work {
 }
 
 /// A one-string screen drawn: what its drawing answers.
-pub fn draw_note(
+pub(super) fn draw_note(
     o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,
     note: &rc2k_core::screens::notes::Note,
@@ -923,7 +923,7 @@ impl GameWork for rc2k_core::screens::player_details::Work {
 }
 
 /// The players' details pages' screen.
-pub type DetailsScreen<'a> = GameScreen<
+pub(super) type DetailsScreen<'a> = GameScreen<
     'a,
     rc2k_core::screens::player_details::Font,
     rc2k_core::screens::player_details::Work,
@@ -1016,7 +1016,7 @@ impl GameWork for rc2k_core::screens::service::Work {
 }
 
 /// The service area's readouts' screen.
-pub type ServiceScreen<'a> =
+pub(super) type ServiceScreen<'a> =
     GameScreen<'a, rc2k_core::screens::service::Font, rc2k_core::screens::service::Work>;
 
 impl GameFont for rc2k_core::screens::highlighted_caption::Font {

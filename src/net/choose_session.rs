@@ -68,7 +68,7 @@ pub enum Pick {
     Instance([u8; 16]),
 }
 
-pub fn choose_session(
+pub(super) fn choose_session(
     o: crate::owners::Owners<'static>,
     lines: &NetTexts,
     pick: Pick,

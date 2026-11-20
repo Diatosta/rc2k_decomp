@@ -11,7 +11,7 @@
 
 /// The logic is `rc2k_core::sound::spot_voices::merge` and `merge_between`. The voices of `sound`
 /// merged.
-pub fn merge_spot_voices(
+pub(super) fn merge_spot_voices(
     sound: u32,
     owner: &crate::sound::owner::Sound,
     system: &crate::system::owner::System,

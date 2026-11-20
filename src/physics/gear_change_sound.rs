@@ -14,7 +14,7 @@ use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
 /// On the current car's sound object and the word at this place.
 // Core: `rc2k_core::physics::gearbox::gear_change`.
-pub fn gear_change_sound_at(
+fn gear_change_sound_at(
     o: &crate::sound::store::SoundObject,
     word: &PlainInt,
 ) -> Result<(), Refused> {
@@ -28,7 +28,7 @@ pub fn gear_change_sound_at(
     Ok(())
 }
 
-pub fn gear_change_sound(
+pub(super) fn gear_change_sound(
     car: &Car,
     sound: &crate::sound::owner::Sound,
     work: &crate::race::work_store::RaceWork,

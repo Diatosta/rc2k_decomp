@@ -150,7 +150,7 @@ pub type ChampHistory = Table<HistoryEntry>;
 
 /// `bytes` written into an entry from `at` on (a name with its NUL, which may run past its
 /// room). None: past the entry.
-pub fn patch_time(e: &mut BestTime, at: usize, bytes: &[u8]) -> Option<()> {
+pub(crate) fn patch_time(e: &mut BestTime, at: usize, bytes: &[u8]) -> Option<()> {
     let mut b = [0; TIME_LEN];
     e.write(&mut b);
     b.get_mut(at..at + bytes.len())?.copy_from_slice(bytes);
@@ -159,7 +159,7 @@ pub fn patch_time(e: &mut BestTime, at: usize, bytes: &[u8]) -> Option<()> {
 }
 
 /// As `patch_time`, in a history entry.
-pub fn patch_history(e: &mut HistoryEntry, at: usize, bytes: &[u8]) -> Option<()> {
+pub(crate) fn patch_history(e: &mut HistoryEntry, at: usize, bytes: &[u8]) -> Option<()> {
     let mut b = [0; HISTORY_LEN];
     e.write(&mut b);
     b.get_mut(at..at + bytes.len())?.copy_from_slice(bytes);
@@ -202,8 +202,8 @@ impl Rival {
     }
 }
 
-pub const SUMMARY_ROWS: usize = 0x5A;
-pub const SUMMARY_LEN: usize = SUMMARY_ROWS * 0x50;
+pub(crate) const SUMMARY_ROWS: usize = 0x5A;
+pub(crate) const SUMMARY_LEN: usize = SUMMARY_ROWS * 0x50;
 
 /// The summary (7,200 bytes).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -244,9 +244,9 @@ impl crate::saves::tables::FileTable for Summary {
 }
 
 /// Table A's size: `ROOM` best times and the last dword.
-pub const RANKED_LEN: usize = ROOM * TIME_LEN + 4;
+pub(crate) const RANKED_LEN: usize = ROOM * TIME_LEN + 4;
 /// Table B's size.
-pub const HISTORY_TABLE_LEN: usize = ROOM * HISTORY_LEN + 4;
+pub(crate) const HISTORY_TABLE_LEN: usize = ROOM * HISTORY_LEN + 4;
 
 impl crate::saves::tables::FileTable for RankedTimes {
     fn zeroed(bytes: usize) -> Option<Self> {
@@ -298,7 +298,7 @@ impl crate::saves::tables::FileTable for ChampHistory {
 
 /// Exchange sort over a table's first `count` entries: for each i < j, entries j and i
 /// exchanged (j first) when j's key is at most i's (`down` false) or at least i's, signed.
-pub fn exchange_sort<T>(
+pub(crate) fn exchange_sort<T>(
     list: &mut [T],
     count: usize,
     key: impl Fn(&T) -> u32,
@@ -316,7 +316,7 @@ pub fn exchange_sort<T>(
 }
 
 /// The fields a sort of table A moves (its name too).
-pub const A_FIELDS: [Field; 9] = [
+pub(crate) const A_FIELDS: [Field; 9] = [
     Field::NameId,
     Field::Key,
     Field::Player,
@@ -349,7 +349,12 @@ pub enum BKey {
 
 /// Exchanges entries `a` and `b` of table B: +0x34, +4, +0, +8, +0x10, +0xC, +0x38 .. +0x6C and
 /// the name's 0x1F bytes (via `kept`, which ends with `a`'s); position and status stay.
-pub fn exchange_b(list: &mut [HistoryEntry], a: usize, b: usize, kept: &mut [u8; NAME_MOVED]) {
+pub(crate) fn exchange_b(
+    list: &mut [HistoryEntry],
+    a: usize,
+    b: usize,
+    kept: &mut [u8; NAME_MOVED],
+) {
     let (x, y) = (list[a], list[b]);
     for (to, from) in [(a, y), (b, x)] {
         let e = &mut list[to];

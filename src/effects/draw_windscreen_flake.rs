@@ -40,7 +40,7 @@ fn projected(
 }
 
 /// Draws `item` in `colour`.
-pub fn draw_windscreen_flake(
+pub(super) fn draw_windscreen_flake(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     fl: &WindscreenFlakes,
     item: &WindscreenFlakeItem,

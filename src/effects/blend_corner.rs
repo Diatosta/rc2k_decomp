@@ -9,7 +9,7 @@ use crate::race::effects_settings_store::CarEffects;
 
 /// `block` the car record whose block holds the factors, `to` where the point goes, `from`
 /// the point blended, `base` the base point.
-pub fn blend_corner(
+pub(super) fn blend_corner(
     block: &CarEffects,
     to: u32,
     from: u32,

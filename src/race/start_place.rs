@@ -90,7 +90,7 @@ pub fn place_car_on_line(
 /// `race::distance_to_checkpoint`: for `c` a checkpoint (0 .. count - 1, a signed test), sets
 /// `scratch` to the distance in x and z (`x87::int_hypot`) from (`ground_x`, `ground_z`) to its
 /// face's first point; else to -1. Refuses a checkpoint past the list.
-pub fn distance_to_checkpoint(
+fn distance_to_checkpoint(
     physics: &Physics,
     course: &Course,
     checkpoints: &crate::race::checkpoints_store::Checkpoints,

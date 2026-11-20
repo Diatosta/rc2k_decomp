@@ -110,7 +110,7 @@ impl SampleData {
     }
 
     /// An id for a buffer's bytes from `offset` on (a sound file's data where it was read).
-    pub fn in_buffer(&self, which: Buffer, offset: u32) -> u32 {
+    pub(super) fn in_buffer(&self, which: Buffer, offset: u32) -> u32 {
         self.add(match which {
             Buffer::Work => Data::Work { offset },
             Buffer::Header => Data::Header { offset },
@@ -129,7 +129,11 @@ impl SampleData {
 
     /// `f` on id `id`'s bytes: from its start to its memory's end. Refuses an id that names
     /// nothing, or a buffer place past the buffer.
-    pub fn with_data<R>(&self, id: u32, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInput> {
+    pub(super) fn with_data<R>(
+        &self,
+        id: u32,
+        f: impl FnOnce(&mut [u8]) -> R,
+    ) -> Result<R, BadInput> {
         let mut table = locked(&self.table);
         let entry = table
             .get_mut((id as usize).wrapping_sub(1))
@@ -147,7 +151,7 @@ impl SampleData {
     }
 
     /// `f` with every id's bytes readable.
-    pub fn with_view<R>(&self, f: impl FnOnce(&View) -> R) -> R {
+    pub(super) fn with_view<R>(&self, f: impl FnOnce(&View) -> R) -> R {
         let table = locked(&self.table);
         let work = locked(&self.work);
         let header = locked(&self.header);
@@ -179,7 +183,7 @@ impl SampleData {
     }
 
     /// Every id forgotten (the voices are gone: `audio::free_voices`).
-    pub fn forget_all(&self) {
+    pub(super) fn forget_all(&self) {
         locked(&self.table).clear();
     }
 }

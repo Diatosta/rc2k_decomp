@@ -8,10 +8,10 @@ use crate::files::stream::Stream;
 use crate::memory::session::{PlainBytes, PlainDword, with_runs};
 
 pub const HEADER_LEN: usize = 0x80;
-pub const HEADER_PLANES: usize = 0x41;
-pub const FILE_PALETTE_LEN: usize = 0x300;
+pub(super) const HEADER_PLANES: usize = 0x41;
+pub(super) const FILE_PALETTE_LEN: usize = 0x300;
 /// The stream block's length (`files::stream::Stream`).
-pub const STREAM_LEN: usize = core::mem::size_of::<Stream>();
+const STREAM_LEN: usize = core::mem::size_of::<Stream>();
 
 /// The PCX file being decoded.
 #[cfg_attr(test, repr(C))]
@@ -66,7 +66,7 @@ pub fn read_header(
 
 /// The header read through `stream` (`files::read_stream_block`): whether it worked. The bytes past
 /// A short read stay as they were.
-pub fn read_stream_header(
+pub(super) fn read_stream_header(
     stream: &mut Stream,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<bool, crate::errors::BadInput> {
@@ -79,7 +79,7 @@ pub fn read_stream_header(
 
 /// `path` opened as the stream (mode 0), `rows` run on it, the stream closed: whether all three
 /// worked.
-pub fn on_stream(
+pub(super) fn on_stream(
     path: &[u8],
     rows: impl FnOnce(&mut Stream) -> Result<bool, crate::errors::BadInput>,
 ) -> Result<bool, crate::errors::BadInput> {

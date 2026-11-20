@@ -3,7 +3,7 @@
 
 use crate::service::setup_values::{Stepper, Target};
 
-pub const STEPPER: Stepper = Stepper {
+pub(super) const STEPPER: Stepper = Stepper {
     target: Target::CarField(rc2k_core::menu::player::SetupField::BrakeBalance),
     max: 100,
     up: false,

@@ -13,7 +13,7 @@ use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
-pub fn show_class_championship_standings(
+pub(super) fn show_class_championship_standings(
     champ: &ChampView,
     event: &EventState,
     class: u32,

@@ -17,7 +17,7 @@ impl Trap {
     }
 
     /// A checked read's answer, or its zero when refused (kept for `finish`).
-    pub fn keep_read<T: Default>(&self, read: Result<T, BadInput>) -> T {
+    pub(super) fn keep_read<T: Default>(&self, read: Result<T, BadInput>) -> T {
         read.unwrap_or_else(|e| {
             self.keep(e);
             T::default()

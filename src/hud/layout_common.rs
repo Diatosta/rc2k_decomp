@@ -22,7 +22,7 @@ pub fn time_digits(hud: &Hud, value: u32, base: u32) -> [u32; 6] {
 pub use rc2k_core::hud::anchor::Keep;
 
 /// The layout's own rule set at the start of a HUD.
-pub fn start_keep(hud: &Hud, keep: Keep) {
+pub(super) fn start_keep(hud: &Hud, keep: Keep) {
     hud.block.base_rule.set(keep as u32);
     hud.block.anchor_rule.set(keep as u32);
 }
@@ -33,7 +33,7 @@ pub fn keep(hud: &Hud, keep: Keep) {
 }
 
 /// The pieces drawn next keep as the layout's own rule again.
-pub fn keep_layout(hud: &Hud) {
+pub(super) fn keep_layout(hud: &Hud) {
     hud.block.anchor_rule.set(hud.block.base_rule.get());
 }
 
@@ -61,7 +61,13 @@ pub type Draw<'a> = &'a mut dyn FnMut(u32, u32, u32) -> Result<(), Refused>;
 
 /// A clock panel: the time `t` (digits from 0x18), its sign 0x22 / 0x23, then its
 /// rectangles (`panels::clock_rects`) at `xs`, row `y`.
-pub fn clock_panel(hud: &Hud, t: u32, xs: [u32; 8], y: u32, draw: Draw) -> Result<(), Refused> {
+pub(super) fn clock_panel(
+    hud: &Hud,
+    t: u32,
+    xs: [u32; 8],
+    y: u32,
+    draw: Draw,
+) -> Result<(), Refused> {
     time_digits(hud, t, panels::CLOCK_BASE);
     sign(hud, t, 0x22, 0x23);
     for (rect, x) in panels::clock_rects(t).into_iter().zip(xs) {
@@ -72,7 +78,13 @@ pub fn clock_panel(hud: &Hud, t: u32, xs: [u32; 8], y: u32, draw: Draw) -> Resul
 
 /// A split-time panel: the time `t` (digits from 0xC, sign 0 / 1), then its rectangles
 /// (`panels::lap_rects`) at `xs`, row `y`.
-pub fn lap_panel(hud: &Hud, t: u32, xs: [u32; 8], y: u32, draw: Draw) -> Result<(), Refused> {
+pub(super) fn lap_panel(
+    hud: &Hud,
+    t: u32,
+    xs: [u32; 8],
+    y: u32,
+    draw: Draw,
+) -> Result<(), Refused> {
     time_digits(hud, t, panels::LAP_BASE);
     sign(hud, t, 0, 1);
     for (rect, x) in panels::lap_rects(t).into_iter().zip(xs) {
@@ -84,7 +96,13 @@ pub fn lap_panel(hud: &Hud, t: u32, xs: [u32; 8], y: u32, draw: Draw) -> Result<
 /// The time `v` (digits from 0xC, sign 0 / 1) as its last three digits at `xs`, row `y`,
 /// the leading ones left out while they are 0 (`leading`;
 /// `panels::leading_digits`).
-pub fn leading_time(hud: &Hud, v: u32, xs: [u32; 3], y: u32, draw: Draw) -> Result<(), Refused> {
+pub(super) fn leading_time(
+    hud: &Hud,
+    v: u32,
+    xs: [u32; 3],
+    y: u32,
+    draw: Draw,
+) -> Result<(), Refused> {
     time_digits(hud, v, panels::LAP_BASE);
     sign(hud, v, 0, 1);
     hud.block.leading.set(1);
@@ -134,20 +152,25 @@ pub fn scaled(
 }
 
 /// The state of the dials: alpha 0xE0 and the first dial's texture.
-pub fn begin_dials(hud: &Hud) {
+pub(super) fn begin_dials(hud: &Hud) {
     hud.block.quad.alpha.set(0xE0);
     hud.block.texture.set(texture::DIAL_FIRST);
 }
 
 /// The state of a white, opaque draw on `texture`.
-pub fn white_opaque(hud: &Hud, texture: u32) {
+pub(super) fn white_opaque(hud: &Hud, texture: u32) {
     hud.block.quad.colour.set(0xFFFF_FFFF);
     hud.block.quad.alpha.set(0xFF);
     hud.block.texture.set(texture);
 }
 
 /// A black, opaque solid quad over `rect` (left, top, right, bottom): the divider of two players.
-pub fn black_divider(frame: &Frame, hud: &Hud, pen: Pen, rect: [u32; 4]) -> Result<(), Refused> {
+pub(super) fn black_divider(
+    frame: &Frame,
+    hud: &Hud,
+    pen: Pen,
+    rect: [u32; 4],
+) -> Result<(), Refused> {
     hud.block.texture.set(texture::SPRITES);
     hud.block.quad.alpha.set(0xFF);
     hud.block.quad.colour.set(0);
@@ -183,7 +206,7 @@ fn clamped_gear(gear: u32) -> (i32, Option<String>) {
 
 /// The rectangle of the gear sprite for the gear value `gear`: 0x41 over the gear, which is
 /// clamped to what physics allows (the first clamp of a race is logged).
-pub fn gear_rect(gear: u32) -> u32 {
+pub(super) fn gear_rect(gear: u32) -> u32 {
     let (shown, line) = clamped_gear(gear);
     if let Some(line) = line
         && !GEAR_CLAMP_LOGGED.swap(true, std::sync::atomic::Ordering::Relaxed)

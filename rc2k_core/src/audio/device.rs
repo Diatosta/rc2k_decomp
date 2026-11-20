@@ -9,8 +9,8 @@
 use super::voices::MODE_3D;
 
 /// The device bits.
-pub const DEVICE_BITS: u32 = 0xF000;
-pub const DIRECT_SOUND: u32 = 0x1000;
+pub(crate) const DEVICE_BITS: u32 = 0xF000;
+pub(crate) const DIRECT_SOUND: u32 = 0x1000;
 /// The device bit of Aureal's A3D, which is no longer a device.
 const A3D2: u32 = 0x2000;
 
@@ -24,7 +24,7 @@ pub fn without_a3d(mode: u32) -> u32 {
     }
 }
 /// The way bits.
-pub const OWN_BUFFERS: u32 = 0x1_0000;
+pub(crate) const OWN_BUFFERS: u32 = 0x1_0000;
 pub const MIXER: u32 = 0x4_0000;
 
 /// `audio::reopen_sound`: DirectSound is opened again when the mode's device bits differ
@@ -135,7 +135,7 @@ pub fn primary_flags(mode: u32) -> u32 {
 }
 
 /// The loudest master volume.
-pub const LOUDEST: u32 = 0x40;
+pub(crate) const LOUDEST: u32 = 0x40;
 
 /// `audio::make_primary`'s master volume: one past `LOUDEST` (unsigned) becomes the kept
 /// volume's index (`index`, asked only then), and is stored back (the second answer).
@@ -153,8 +153,8 @@ pub fn without_3d(mode: u32) -> u32 {
 }
 
 /// `audio::open_listener`'s codes when it does not ask: no FPU, the listener off.
-pub const NO_FPU: u32 = 0xFFFF_FF91;
-pub const LISTENER_OFF: u32 = 0xFFFF_FF90;
+pub(crate) const NO_FPU: u32 = 0xFFFF_FF91;
+pub(crate) const LISTENER_OFF: u32 = 0xFFFF_FF90;
 
 /// `audio::open_listener`: the code it fails with before asking for the listener (no FPU,
 /// or the listener switched off), or None to ask (`no_listener` read only with an FPU).
@@ -222,7 +222,7 @@ pub enum Fact {
 /// The menus' mode, the probe's first.
 pub const MENU_MODE: u32 = 0x1_1221;
 /// The caps' flag of hardware mixing, of emulation.
-pub const CAPS_HARDWARE: u32 = 0x100;
+pub(crate) const CAPS_HARDWARE: u32 = 0x100;
 pub const CAPS_EMULATED: u32 = 0x20;
 
 /// `audio::start`'s probe of an opened DirectSound: with hardware mixing, free hardware
@@ -251,7 +251,7 @@ pub fn modes_kept(race: u32, menu: impl FnOnce() -> u32) -> bool {
 }
 
 /// The audio thread's turn, in milliseconds.
-pub const TURN_MS: u32 = 20;
+pub(crate) const TURN_MS: u32 = 20;
 
 /// `audio::thread`'s sleep before a turn: what is left of `TURN_MS` since the last turn's
 /// tick (signed), at least 1.

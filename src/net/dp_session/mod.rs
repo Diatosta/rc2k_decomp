@@ -55,16 +55,16 @@ pub const DEFAULT_PORT: u16 = 47624;
 
 // DirectPlay's results (MAKE_DPHRESULT: 0x88770000 + the number).
 pub const DP_OK: u32 = 0;
-pub const DPERR_ACCESSDENIED: u32 = 0x8877_000A;
-pub const DPERR_CANTADDPLAYER: u32 = 0x8877_0028;
+const DPERR_ACCESSDENIED: u32 = 0x8877_000A;
+const DPERR_CANTADDPLAYER: u32 = 0x8877_0028;
 pub const DPERR_INVALIDPLAYER: u32 = 0x8877_0096;
-pub const DPERR_INVALIDGROUP: u32 = 0x8877_009B;
+const DPERR_INVALIDGROUP: u32 = 0x8877_009B;
 pub const DPERR_NOCONNECTION: u32 = 0x8877_00AA;
 /// The other machine runs another version of the protocol (not a DirectPlay number).
-pub const DPERR_VERSION: u32 = 0x8877_00E0;
+const DPERR_VERSION: u32 = 0x8877_00E0;
 pub const DPERR_TIMEOUT: u32 = 0x8877_00F0;
-pub const DPERR_SESSIONLOST: u32 = 0x8877_0136;
-pub const DPERR_NONEWPLAYERS: u32 = 0x8877_014A;
+const DPERR_SESSIONLOST: u32 = 0x8877_0136;
+const DPERR_NONEWPLAYERS: u32 = 0x8877_014A;
 /// The host wants a password and the proof of it was wrong or missing (not a DirectPlay number).
 pub const DPERR_INVALIDPASSWORD: u32 = 0x8877_00E1;
 

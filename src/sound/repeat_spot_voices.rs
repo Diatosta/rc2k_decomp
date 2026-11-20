@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 
 /// The logic is `rc2k_core::sound::spot_voices::repeat`.
-pub fn repeat_spot_voices(
+pub(super) fn repeat_spot_voices(
     sound: &crate::sound::owner::Sound,
     random: &crate::math::next_random::Randoms,
 ) -> Result<(), Refused> {

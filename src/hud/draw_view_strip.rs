@@ -109,7 +109,7 @@ fn quad(
 }
 
 /// The shared tail (see the header).
-pub fn overlay_tail(overlay: &Overlay) -> Result<(), Refused> {
+pub(super) fn overlay_tail(overlay: &Overlay) -> Result<(), Refused> {
     let Overlay {
         race,
         system,

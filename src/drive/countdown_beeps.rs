@@ -5,7 +5,10 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn countdown_beeps(race: &Race, audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
+pub(super) fn countdown_beeps(
+    race: &Race,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), Refused> {
     for (car, to) in [
         (0u32, &race.frame.panel_and_overlay.get().panel.lights[0]),
         (1, &race.frame.panel_and_overlay.get().panel.lights[1]),

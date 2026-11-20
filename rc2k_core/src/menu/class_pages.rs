@@ -4,10 +4,10 @@ use crate::Invalid;
 use std::ops::Range;
 
 /// The most classes the passes take.
-pub const MOST_CLASSES: u32 = 0x100;
+pub(crate) const MOST_CLASSES: u32 = 0x100;
 
 /// `MenuState.menus.class_mode` when the class pages start at class 1.
-pub const FROM_CLASS_1: u32 = 2;
+pub(crate) const FROM_CLASS_1: u32 = 2;
 
 /// The A8 championship's event mode.
 pub const A8: u32 = 0x13;

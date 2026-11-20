@@ -6,7 +6,7 @@ use crate::net::apply_message::apply_message;
 use crate::net::copy_received::{MOST_PLAYERS, copy_received};
 use crate::net::owner::Net;
 use crate::race::owner::Race;
-pub fn apply_received(race: &Race, net: &Net) -> Result<(), Refused> {
+pub(super) fn apply_received(race: &Race, net: &Net) -> Result<(), Refused> {
     let vars = &net.vars;
     let count = || net.race_slot.cars();
     if count() == 0 || count() > MOST_PLAYERS {

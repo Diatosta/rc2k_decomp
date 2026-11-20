@@ -62,7 +62,7 @@ impl Net {
     }
 
     /// A chat message from `player`, waiting for the game's thread.
-    pub fn queue_chat(&self, player: u32, text: Vec<u8>, sequence: Option<u32>) {
+    pub(super) fn queue_chat(&self, player: u32, text: Vec<u8>, sequence: Option<u32>) {
         self.chat_waiting
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -74,13 +74,13 @@ impl Net {
     }
 
     /// The number for the next line the host orders.
-    pub fn next_chat_sequence(&self) -> u32 {
+    pub(super) fn next_chat_sequence(&self) -> u32 {
         self.chat_sequence
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 
     /// The waiting chat messages in the order they came, none left waiting.
-    pub fn take_waiting_chat(&self) -> Vec<WaitingChat> {
+    pub(super) fn take_waiting_chat(&self) -> Vec<WaitingChat> {
         std::mem::take(
             &mut *self
                 .chat_waiting

@@ -33,7 +33,7 @@ use rc2k_core::film::{indeo4, mpeg_film, mpeg1_video};
 
 /// What the player needs of an AVI: the picture's size, the time a frame (microseconds),
 /// the decoder's four characters and the video chunks (their bytes' place and length).
-pub struct Avi {
+struct Avi {
     pub width: u32,
     pub height: u32,
     pub frame_us: u32,
@@ -47,7 +47,7 @@ fn le32(b: &[u8], at: usize) -> Option<u32> {
 }
 
 /// The AVI's header and its first video stream's chunks, in their order in `movi`.
-pub fn parse_avi(b: &[u8]) -> Result<Avi, String> {
+fn parse_avi(b: &[u8]) -> Result<Avi, String> {
     if b.get(0..4) != Some(b"RIFF") || b.get(8..12) != Some(b"AVI ") {
         return Err("not an AVI (RIFF ... AVI)".into());
     }
@@ -359,7 +359,7 @@ fn bad_film(name: &str) {
 
 /// Plays the film at `path` (see the header): true at the film's end, false for a key or a film
 /// that does not play.
-pub fn play_film(
+fn play_film(
     o: crate::owners::Owners<'static>,
     path: &dyn crate::memory::session::TextPlace,
 ) -> bool {

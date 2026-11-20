@@ -17,7 +17,7 @@ use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::owner::Race;
 
 /// The cells the blend reads and writes.
-pub struct BlendCells<'a> {
+struct BlendCells<'a> {
     /// The work car's checkpoint.
     pub checkpoint: &'a PlainDword,
     /// The lead car's checkpoint.
@@ -33,7 +33,7 @@ pub struct BlendCells<'a> {
 }
 
 /// The Rust core on the variables `v`: the held count.
-pub fn blend_at(race: &Race, v: &BlendCells<'_>) -> u32 {
+fn blend_at(race: &Race, v: &BlendCells<'_>) -> u32 {
     let mut n = v.checkpoint.get().wrapping_sub(v.lead_checkpoint.get());
     if (n as i32) < 0 {
         n = 0;

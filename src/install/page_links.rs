@@ -45,6 +45,7 @@ pub enum ListId {
 }
 
 impl ListId {
+    #[cfg(test)]
     /// The lists, in the order of the enum.
     pub(crate) const ALL: [ListId; 8] = [
         ListId::Language,
@@ -63,11 +64,11 @@ impl ListId {
 pub struct PageLink(u32);
 
 impl PageLink {
-    pub const fn folder_edit() -> Self {
+    pub(super) const fn folder_edit() -> Self {
         Self(EDIT << KIND_SHIFT)
     }
 
-    pub const fn of_font(font: FontId) -> Self {
+    pub(super) const fn of_font(font: FontId) -> Self {
         Self((FONT << KIND_SHIFT) | font.number())
     }
 
@@ -83,7 +84,7 @@ impl PageLink {
     }
 
     /// The link to box `index` of the pages' boxes (0 the title item's, 1 the title's).
-    pub const fn box_at(index: u32) -> Self {
+    pub(super) const fn box_at(index: u32) -> Self {
         assert!(index < BOXES);
         Self((BOX << KIND_SHIFT) | index)
     }
@@ -118,7 +119,10 @@ impl PageLink {
         }
     }
 
-    pub fn edit_record(self, install: &'static Install) -> Result<&'static EditRecord, BadInput> {
+    pub(super) fn edit_record(
+        self,
+        install: &'static Install,
+    ) -> Result<&'static EditRecord, BadInput> {
         match self.kind() {
             EDIT if self.number() == 0 => Ok(&install.pages.folder_edit),
             _ => Err(BadInput("a page link that is no edit record")),
@@ -144,7 +148,7 @@ impl PageLink {
     }
 
     /// Whether the link names the blended palette (the only palette the pages name).
-    pub fn is_blended_palette(self) -> bool {
+    pub(super) fn is_blended_palette(self) -> bool {
         self.0 == BLENDED_PALETTE << KIND_SHIFT
     }
 }

@@ -27,7 +27,7 @@ fn selector(record: &InputDevice, place: u32) -> u8 {
 }
 
 /// The device `record` polled (see the header).
-pub fn poll_device(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
+pub(super) fn poll_device(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
     let device = record.device.get();
     if record.acquired.get() != 1 || device == 0 {
         return Ok(());

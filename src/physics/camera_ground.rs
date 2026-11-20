@@ -12,7 +12,7 @@ use crate::physics::step_families::CameraGroundInputs;
 
 /// One probe at (x, z) from the face kept at `slot`; true when found (the face found
 /// kept there).
-pub fn probe_at(
+pub(super) fn probe_at(
     c: &CameraGroundInputs<'_>,
     x: u32,
     z: u32,

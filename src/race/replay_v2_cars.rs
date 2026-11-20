@@ -17,7 +17,7 @@ fn held(name: &[u8]) -> Vec<u8> {
 
 /// The race's cars: the players' (local ones named by the front end, the network's by their
 /// records), then the computer's.
-pub fn cars_of_race(race: &Race, net: &Net, menus: &crate::menu::owner::Menus) -> Extension {
+pub(super) fn cars_of_race(race: &Race, net: &Net, menus: &crate::menu::owner::Menus) -> Extension {
     let view = race.shared.view.get();
     let cars = (view.race_cars.get() as usize).clamp(1, MAX_CARS);
     let network = net.race_slot.is_on();

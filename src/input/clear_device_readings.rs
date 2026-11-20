@@ -4,7 +4,7 @@
 use crate::input::types::InputDevice;
 
 /// See the header.
-pub fn clear_device_readings(record: &InputDevice) {
+pub(super) fn clear_device_readings(record: &InputDevice) {
     // The state copies and the readings 0, the bits reading the hat centred.
     for axis in &record.axes {
         axis.set(0);

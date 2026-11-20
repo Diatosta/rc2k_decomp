@@ -3,7 +3,7 @@
 
 use crate::service::setup_values::{Stepper, Target};
 
-pub const STEPPER: Stepper = Stepper {
+pub(super) const STEPPER: Stepper = Stepper {
     target: Target::Chosen(1),
     max: 5,
     up: true,

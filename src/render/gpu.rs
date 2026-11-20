@@ -377,7 +377,7 @@ impl Gpu {
 }
 
 /// Every pixel of the canvas marked as not written.
-pub fn mark_unwritten(canvas: &mut [u8]) {
+pub(super) fn mark_unwritten(canvas: &mut [u8]) {
     for pixel in canvas.as_chunks_mut::<4>().0 {
         *pixel = UNWRITTEN.to_le_bytes();
     }

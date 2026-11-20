@@ -8,7 +8,7 @@ use crate::memory::list_handle::ListItem;
 use rc2k_core::install::items::{self, MARKS};
 
 /// An item of choices' chosen byte; and whether choice `cl` is free.
-pub fn choice_places(
+pub(super) fn choice_places(
     install: &'static crate::install::owner::Install,
     item: ListItem,
 ) -> (ItemByte, impl Fn(u8) -> bool + use<>) {
@@ -18,7 +18,7 @@ pub fn choice_places(
 }
 
 /// The choice reached stored, when it changed.
-pub fn store_choice(chosen_at: ItemByte, chosen: u8, cl: u8) {
+pub(super) fn store_choice(chosen_at: ItemByte, chosen: u8, cl: u8) {
     if cl != chosen {
         chosen_at.set(cl);
     }

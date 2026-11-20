@@ -7,7 +7,7 @@ use crate::menu::owner::Menus;
 use crate::service::pages::{BRAKE_BALANCE, simple_page};
 use crate::system::owner::System;
 
-pub fn edit_brake_balance(
+pub(super) fn edit_brake_balance(
     menus: &Menus,
     system: &System,
     input: &crate::input::owner::Input,

@@ -21,7 +21,7 @@ fn first_class(state: &MenuState, champ: &ChampView) -> u32 {
     class_pages::first_championship_class(state.menus.class_mode.get(), || champ.event_mode.get())
 }
 
-pub fn class_championship_pass(
+pub(super) fn class_championship_pass(
     menus: &Menus,
     entry: &Entry,
     tables: &crate::saves::best_times::BestTables,

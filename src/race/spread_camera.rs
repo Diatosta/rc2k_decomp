@@ -11,7 +11,7 @@ use crate::race::trap::Trap;
 use crate::race::viewer::CameraByte;
 
 /// Spreads the changed camera byte `byte` (`old` is its old value) over the following blocks.
-pub fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<(), Refused> {
+pub(super) fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<(), Refused> {
     let replay = &race.replay;
     // The camera bytes of the following blocks, 8 bytes apart (a stride over bytes).
     let at = |n: u32| byte.blocks_on(n);

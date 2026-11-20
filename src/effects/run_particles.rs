@@ -388,12 +388,12 @@ pub fn run_particles(
 }
 
 /// The trail particles' colours.
-pub struct TrailColours {
+struct TrailColours {
     /// The trail particles' 298 colours (`effects::run_particles`).
     pub colours: [u32; 298],
 }
 
-pub static TRAIL_PALETTE: TrailColours = TrailColours {
+static TRAIL_PALETTE: TrailColours = TrailColours {
     colours: [
         0xFF0000, 0xFF0200, 0xFF0400, 0xFF0600, 0xFF0800, 0xFF0A00, 0xFF0C00, 0xFF0E00, 0xFF1000,
         0xFF1200, 0xFF1400, 0xFF1600, 0xFF1800, 0xFF1A00, 0xFF1C00, 0xFF1E00, 0xFF2000, 0xFF2200,

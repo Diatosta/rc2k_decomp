@@ -83,12 +83,12 @@ pub fn draw_turned_sprite(
 }
 
 /// The turned sprite's texture places.
-pub struct SpriteUv {
+struct SpriteUv {
     /// Four (u, v) pairs, one per corner
     pub uv: [f32; 8],
 }
 
 /// The turned sprite's first texture places.
-pub static SPRITE_UV: SpriteUv = SpriteUv {
+static SPRITE_UV: SpriteUv = SpriteUv {
     uv: [0.0, 0.0, 0.9999, 0.0, 0.9999, 0.9999, 0.0, 0.9999],
 };

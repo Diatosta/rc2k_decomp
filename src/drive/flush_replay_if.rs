@@ -8,7 +8,7 @@ use crate::race::owner::Race;
 use crate::system::owner::System;
 use rc2k_core::drive::replay_frames::flush_due;
 
-pub fn flush_replay_if(
+pub(super) fn flush_replay_if(
     race: &Race,
     system: &System,
     net: &crate::net::owner::Net,

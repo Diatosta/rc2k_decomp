@@ -23,16 +23,16 @@ use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};
 
-pub fn lower_left_chosen(service: &Service) -> &PlainDword {
+pub(super) fn lower_left_chosen(service: &Service) -> &PlainDword {
     &service.setups[2].chosen
 }
-pub fn lower_left_installed(service: &Service) -> &PlainDword {
+pub(super) fn lower_left_installed(service: &Service) -> &PlainDword {
     &service.setups[2].installed
 }
-pub fn lower_right_chosen(service: &Service) -> &PlainDword {
+pub(super) fn lower_right_chosen(service: &Service) -> &PlainDword {
     &service.setups[3].chosen
 }
-pub fn lower_right_installed(service: &Service) -> &PlainDword {
+pub(super) fn lower_right_installed(service: &Service) -> &PlainDword {
     &service.setups[3].installed
 }
 

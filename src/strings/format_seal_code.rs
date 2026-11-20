@@ -5,7 +5,7 @@ use crate::strings::owner::Strings;
 
 /// The seal text buffer's room (`Text::seal_text`); the byte after the 19 characters is the text's
 /// NUL.
-pub const SEAL_TEXT_LEN: usize = 0x14;
+pub(super) const SEAL_TEXT_LEN: usize = 0x14;
 
 /// The 19 characters.
 pub fn seal_code(a: u32, b: u32) -> Vec<u8> {

@@ -21,7 +21,7 @@ const NO_MAP: FatalError = FatalError {
 /// `MenuLists.map_overlays[0][+0x3C]`; `ukmap.png` is loaded with it (a failed load: fatal error
 /// 0x80712345), the picture flags are the screen mode flags & 0xFFF, and the picture is made the
 /// surface, then sprite 160 is drawn at (0, 0). Refuses a choice without its tables.
-pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
+pub(super) fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
     let (menus, system, gfx) = (o.menus, o.system, o.gfx);
     use crate::gfx::blit_glyph::blit_glyph_on_surface;
     use crate::gfx::convert_picture::convert_picture_now_in;
@@ -98,7 +98,7 @@ pub fn switch_stage_group(menus: &Menus, draw: Draw) -> Result<(), Refused> {
 }
 
 /// `menu::next_stage_sub`: 5 or more (unsigned) to 0, else on.
-pub fn next_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refused> {
+pub(super) fn next_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
         &menus.screens.event.stage.sub,
         |s| rc2k_core::menu::steps::stage_sub(s, true),
@@ -107,7 +107,7 @@ pub fn next_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refused> {
 }
 
 /// `menu::previous_stage_sub`: below 1 (signed) to 5, else back.
-pub fn previous_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refused> {
+pub(super) fn previous_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
         &menus.screens.event.stage.sub,
         |s| rc2k_core::menu::steps::stage_sub(s, false),
@@ -116,7 +116,7 @@ pub fn previous_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refused> {
 }
 
 /// `menu::next_stage_number`: 6 or more (unsigned) to 1, else on.
-pub fn next_stage_number(menus: &Menus, draw: Draw) -> Result<(), Refused> {
+pub(super) fn next_stage_number(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
         &menus.screens.event.stage.number,
         |n| rc2k_core::menu::steps::stage_number(n, true),
@@ -125,7 +125,7 @@ pub fn next_stage_number(menus: &Menus, draw: Draw) -> Result<(), Refused> {
 }
 
 /// `menu::previous_stage_number`: below 2 (signed) to 6, else back one.
-pub fn previous_stage_number(menus: &Menus, draw: Draw) -> Result<(), Refused> {
+pub(super) fn previous_stage_number(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
         &menus.screens.event.stage.number,
         |n| rc2k_core::menu::steps::stage_number(n, false),

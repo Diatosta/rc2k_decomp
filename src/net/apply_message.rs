@@ -32,7 +32,7 @@ pub fn wanted(car: &Car) -> &[PlainDword] {
 }
 
 /// The glide's steps left (+0xFCC).
-pub fn glide_steps(car: &Car) -> &PlainDword {
+pub(super) fn glide_steps(car: &Car) -> &PlainDword {
     &car.glide_steps_left
 }
 

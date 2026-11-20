@@ -11,7 +11,7 @@ use crate::text::font::Font;
 use rc2k_core::strings::text::{TIME_STEPS, columns};
 
 /// Where the one-character text is built, relative to the text.
-pub const CELL_OFFSET: usize = 0x40;
+const CELL_OFFSET: usize = 0x40;
 
 pub fn draw_time_fixed_pitch(
     font: &mut Font,
@@ -29,7 +29,10 @@ pub fn draw_time_fixed_pitch(
 
 /// Copies the text's byte `i` to its cell with a NUL after it and returns the cell, which is what
 /// is drawn.
-pub fn put_cell(text: crate::strings::text_buffer::TextBuf, i: usize) -> Result<[u8; 2], Refused> {
+pub(super) fn put_cell(
+    text: crate::strings::text_buffer::TextBuf,
+    i: usize,
+) -> Result<[u8; 2], Refused> {
     let b = text.byte(i, "a fixed-pitch text")?;
     let cell = [b, 0];
     text.write_at(CELL_OFFSET, &cell, "a fixed-pitch text's cell")?;

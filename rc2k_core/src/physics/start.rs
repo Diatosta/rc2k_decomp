@@ -32,8 +32,8 @@ const START: u32 = 0x320;
 const PENALTY_COUNT: u32 = 500;
 const PENALTY: u32 = 1000;
 /// The notices shown: the jump start, and the car put back.
-pub const JUMP_START_NOTICE: u32 = 0xCC;
-pub const PUT_BACK_NOTICE: u32 = 0xCA;
+pub(crate) const JUMP_START_NOTICE: u32 = 0xCC;
+pub(crate) const PUT_BACK_NOTICE: u32 = 0xCA;
 
 /// What the false-start check did: the timer when it was compared, and whether the car is
 /// to be put back at its start.
@@ -60,7 +60,7 @@ pub enum StartCount {
 }
 
 /// The stuck count at which the car is put back on the line.
-pub const STUCK_LIMIT: u32 = 700;
+pub(crate) const STUCK_LIMIT: u32 = 700;
 
 /// With the grades' mode 0 or 2 the stuck count is 0; else it goes up, and at 700 or more
 /// (unsigned) the car is to be put back on the line.

@@ -8,11 +8,11 @@
 //! it: the frame rate is measured with a clock of its own.)
 
 /// The flags' alignment check bit and ID bit.
-pub const AC_FLAG: u32 = 0x4_0000;
-pub const ID_FLAG: u32 = 0x20_0000;
+pub(crate) const AC_FLAG: u32 = 0x4_0000;
+pub(crate) const ID_FLAG: u32 = 0x20_0000;
 /// The vendors' texts as `cpuid` 0's ebx, edx, ecx.
-pub const AMD: [u32; 3] = [0x6874_7541, 0x6974_6E65, 0x444D_4163];
-pub const CYRIX: [u32; 3] = [0x6972_7943, 0x736E_4978, 0x6461_6574];
+pub(crate) const AMD: [u32; 3] = [0x6874_7541, 0x6974_6E65, 0x444D_4163];
+pub(crate) const CYRIX: [u32; 3] = [0x6972_7943, 0x736E_4978, 0x6461_6574];
 
 /// What the processor answers (the platform's, or a test's).
 pub trait Processor {

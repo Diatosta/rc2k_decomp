@@ -28,7 +28,7 @@ const WORDS: [&std::ffi::CStr; 14] = [
 /// `EventState.stage.number` x 0xA4, its dword at +0x3C the stage in `stage_best_times_alt` when
 /// `EventState.stage.group` is 1, else in `ChampView.time_trial_best_times`). None when a table or
 /// the summary they go to (`BestTables::summary`) is not taken.
-pub fn rally_times_places<'t>(
+fn rally_times_places<'t>(
     system: &crate::system::owner::System,
     menus: &crate::menu::owner::Menus,
     best: &'t crate::saves::best_times::BestTables,
@@ -61,7 +61,7 @@ pub fn rally_times_places<'t>(
 /// nationality, car and name id, and the sixteen checkpoints; each is logged (the count,
 /// "GB_Timed", the sixteen "CTs", "GB_Shaun", the name, the sixteen again, rules). Refuses, before
 /// anything, a missing table on the way and a stage past its table.
-pub fn copy_rally_times(
+pub(super) fn copy_rally_times(
     system: &crate::system::owner::System,
     menus: &crate::menu::owner::Menus,
     best: &crate::saves::best_times::BestTables,

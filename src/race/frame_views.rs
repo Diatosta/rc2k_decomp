@@ -133,7 +133,7 @@ pub fn mirror_view_window(
 
 /// Draws a flat triangle of three vertices at (1, 1, 0) with texture 0 and colour 0
 /// (`scene::draw_fan`, `polygon_vertex_count` 3).
-pub fn draw_flat_triangle(
+pub(super) fn draw_flat_triangle(
     part: &crate::scene::workers::PartScratch,
     scene: &crate::scene::owner::Scene,
 ) {
@@ -180,7 +180,7 @@ fn shadow_refuses(
 
 /// Draws the marks' overlays, then the shadow (`effects::draw_overlays`, `effects::draw_shadow`).
 /// Refuses (before anything) the second shadow's refusals.
-pub fn draw_marks_overlays(
+fn draw_marks_overlays(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     gfx: &crate::gfx::owner::Gfx,
     cheats: &crate::menu::cheats_store::Cheats,
@@ -219,7 +219,7 @@ pub fn load_first_car(shared: &RaceShared) -> Result<(), Refused> {
 /// `gfx::components_to_pixel` (the destination's) with alpha 0xFF, over the destination's width and
 /// height. Both surfaces are locked and unlocked (`d3d::lock_texture` / `d3d::unlock_texture`).
 /// Refuses (before the copy) a null destination format.
-pub fn copy_mirror_picture(
+fn copy_mirror_picture(
     frame: &Frame,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
@@ -310,7 +310,7 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
 /// and 0x400 are set too, and the mirror's picture is copied (`race::copy_mirror_picture`, then its
 /// slot forgotten). Refuses (before anything) a null view block
 /// or a slot past 0x3FF.
-pub fn forget_view_textures(
+pub(super) fn forget_view_textures(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
@@ -429,7 +429,7 @@ fn window_corners(view: &crate::race::view_scratch::ViewScratch) {
 /// glare, with the view fog's far value (`fog_far`, held to 0 ..= 0xFF) as the alpha, colour
 /// `lamp_table_c` red, `glare_bytes` green and `StagePrefs.glare_bytes[1]` blue, none when 0.
 /// `sun_on_screen` is put back afterwards.
-pub fn draw_screen_tint(
+pub(super) fn draw_screen_tint(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
@@ -465,7 +465,7 @@ pub fn draw_screen_tint(
 
 /// With the device on (`d3d_drawing_on`), sets the clip rectangle (`cleared_rectangle` ..) to the
 /// whole screen and clears the depth there (`d3d::clear_viewport_unless_held`).
-pub fn clear_view_depth(
+fn clear_view_depth(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
     part: &crate::scene::workers::PartScratch,
@@ -680,7 +680,7 @@ pub fn run_view_marks(
 
 /// The same clear as `d3d::clear_viewport` (flag 2) over `cleared_rectangle`, unless
 /// `v3_driver_fix` is not 0.
-pub fn clear_viewport_unless_held(
+fn clear_viewport_unless_held(
     draw: &crate::scene::draw_store::SceneDraw,
     part: &crate::scene::workers::PartScratch,
     own: &[crate::memory::session::PlainDword; 4],

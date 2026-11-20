@@ -14,7 +14,7 @@ pub fn first_starts(last: u32) -> [(u32, u32); 2] {
 
 /// A value held below `hi` and, with `lo_zero`, at 0 or above; both by the sign of the
 /// difference.
-pub fn hold_signs(v: u32, lo_zero: bool, hi: u32) -> u32 {
+pub(crate) fn hold_signs(v: u32, lo_zero: bool, hi: u32) -> u32 {
     let mut v = v;
     if lo_zero && (v as i32) < 0 {
         v = 0;
@@ -65,9 +65,9 @@ pub fn wanted_gap(sum: u32, other: u32, back: u32) -> u32 {
 }
 
 /// The eased gap's scale.
-pub const EASE_SCALE: u32 = 0x14A;
+pub(crate) const EASE_SCALE: u32 = 0x14A;
 /// How far the eased gap may be before it jumps.
-pub const EASE_JUMP: u32 = 1000;
+pub(crate) const EASE_JUMP: u32 = 1000;
 
 /// The first pass: (the distance made positive; the eased gap when it jumps to the
 /// wanted one, which the distance then holds).

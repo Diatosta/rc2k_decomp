@@ -23,7 +23,7 @@ use crate::text::measure_text::measure_text_at;
 
 const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
 
-pub fn edit_player_name(
+pub(super) fn edit_player_name(
     input: &crate::input::owner::Input,
     menus: &'static Menus,
     screens: &Screens,

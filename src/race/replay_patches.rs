@@ -29,7 +29,7 @@ fn move_dwords<'a, T: DwordLike + 'a, F: DwordLike + 'a>(
 }
 
 /// `apply_replay_patches`.
-pub fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
+pub(super) fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::viewer_flow::patches_change`.
     use rc2k_core::race::viewer_flow::patches_change;
     let shared = &race.shared;
@@ -55,7 +55,7 @@ pub fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
 }
 
 /// `restore_replay_patches`.
-pub fn restore_replay_patches(race: &Race) -> Result<(), Refused> {
+pub(super) fn restore_replay_patches(race: &Race) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::viewer_flow::patches_change`.
     use rc2k_core::race::viewer_flow::patches_change;
     let shared = &race.shared;

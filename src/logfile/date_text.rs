@@ -39,7 +39,7 @@ pub fn date_text(system: &crate::system::owner::System) -> Result<Vec<u8>, BadIn
 
 /// The text at the cursor, and after it CR, LF and two NULs. Returns the
 /// text with the CR and LF (what a read up to the first NUL finds there).
-pub fn write_date_text(
+pub(super) fn write_date_text(
     system: &crate::system::owner::System,
     at: &dyn crate::memory::cells::Store,
 ) -> Result<Vec<u8>, BadInput> {

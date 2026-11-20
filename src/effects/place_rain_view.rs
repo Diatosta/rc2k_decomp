@@ -39,7 +39,7 @@ pub fn first(weather: &Weather) -> ViewPlace<'_> {
 }
 
 /// The shared body (see the header), on `v`'s variables.
-pub fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
+pub(super) fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
     let start = [0, 0, v.start_z];
     let set_point = |p: [u32; 3]| {
         for (cell, x) in v.point.iter().zip(p) {
@@ -68,6 +68,6 @@ pub fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
 }
 
 /// Refuses as `transform_int_points` (never).
-pub fn place_rain_view(weather: &Weather) -> Result<(), Refused> {
+pub(super) fn place_rain_view(weather: &Weather) -> Result<(), Refused> {
     place_view_with(&first(weather))
 }

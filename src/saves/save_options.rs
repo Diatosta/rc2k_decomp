@@ -13,12 +13,12 @@ use crate::saves::options_state::capture;
 
 const HEAD_LEN: usize = 0x10;
 /// The whole file's length.
-pub fn file_len() -> usize {
+fn file_len() -> usize {
     HEAD_LEN + rc2k_core::options::model::PIECES_LEN + 4
 }
 
 /// True if the file was written.
-pub fn save_options(
+pub(super) fn save_options(
     o: Owners<'static>,
     path: &dyn crate::memory::cells::Store,
 ) -> Result<bool, Refused> {

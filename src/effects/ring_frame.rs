@@ -22,7 +22,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1,
     clippy::too_many_arguments,
     reason = "the effects' groups, the owners and the view's fog"
 )]
-pub fn ring_frame(
+pub(super) fn ring_frame(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     weather: &crate::effects::rain::Weather,

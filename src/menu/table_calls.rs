@@ -14,12 +14,12 @@ use rc2k_core::fatal::Context;
 use rc2k_core::menu::tables::ItemFn;
 
 /// A menu item's callback for a direction (`menu::navigation`).
-pub fn call_key(o: Owners<'static>, function: ItemFn) -> Result<(), Refused> {
+pub(super) fn call_key(o: Owners<'static>, function: ItemFn) -> Result<(), Refused> {
     item_fn(o, function)
 }
 
 /// A menu item's action (`menu::run_item_action`). A refusal ends the program here.
-pub fn call_action(o: Owners<'static>, function: ItemFn) {
+pub(super) fn call_action(o: Owners<'static>, function: ItemFn) {
     if let Err(e) = item_fn(o, function) {
         refused(&format!("{function:?}"), e, &Context::default());
     }

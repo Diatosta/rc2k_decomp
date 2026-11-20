@@ -134,9 +134,6 @@ pub fn views_replay(there: u32) -> bool {
 
 // ---- the physics patches ----
 
-/// The patch switches: 13 dwords.
-pub const PATCH_DWORDS: usize = 13;
-
 /// Whether the patches change: applying when the header has them and they are not in force,
 /// restoring when it has them and they are.
 pub fn patches_change(in_header: u32, in_force: u32, restoring: bool) -> bool {

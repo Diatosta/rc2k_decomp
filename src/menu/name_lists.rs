@@ -37,7 +37,7 @@ fn highlighted(
 }
 
 /// The name of the highlighted saved game.
-pub fn savegame_name(menus: &Menus, saves: &'static Saves) -> Result<BytePlace, BadInput> {
+pub(super) fn savegame_name(menus: &Menus, saves: &'static Saves) -> Result<BytePlace, BadInput> {
     highlighted(
         menus,
         &saves.save_games.names,

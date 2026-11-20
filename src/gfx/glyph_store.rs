@@ -27,7 +27,7 @@ use rc2k_core::strings::bytes::Bytes as _;
 use std::sync::{Arc, Mutex};
 
 /// A palette's bytes.
-pub const PALETTE_BYTES: usize = 0x400;
+pub(super) const PALETTE_BYTES: usize = 0x400;
 const PALETTE_IDS: usize = 18;
 /// The palettes from this id on belong to the store itself, not to a list.
 const FIRST_OWN_PALETTE: usize = 17;
@@ -123,7 +123,7 @@ fn slot(s: &mut Store, place: u32) -> Option<(&mut Held, usize)> {
 /// write to the table and with the table's being given back and another made at its place. A
 /// cache of what a table decodes to is good while this is the number it was made at. `None`
 /// for a place that is not a held glyph table (a palette, the jade font).
-pub fn table_generation(fonts: &FontStores, place: u32) -> Option<u64> {
+pub(super) fn table_generation(fonts: &FontStores, place: u32) -> Option<u64> {
     (TABLE_FIRST..JADE).contains(&place).then_some(())?;
     let mut s = store(fonts);
     slot(&mut s, place).map(|(held, _)| held.generation)
@@ -131,7 +131,10 @@ pub fn table_generation(fonts: &FontStores, place: u32) -> Option<u64> {
 
 /// A new palette, zeroed, counted on nothing (the caller has carved its bytes off `list`): its
 /// place. Refused when all fifteen are held.
-pub fn new_palette(fonts: &FontStores, list: &crate::memory::ListCells) -> Result<u32, BadInput> {
+pub(super) fn new_palette(
+    fonts: &FontStores,
+    list: &crate::memory::ListCells,
+) -> Result<u32, BadInput> {
     let mut s = store(fonts);
     let id = (1..FIRST_FIXED_PALETTE)
         .find(|&id| s.palettes[id].is_none())

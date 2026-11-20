@@ -8,7 +8,7 @@ use crate::physics::cells::set_changed;
 use crate::physics::queue_notice::{load, store};
 use rc2k_core::physics::notices::Notice;
 
-pub fn take_notice(car: &Car) {
+pub(super) fn take_notice(car: &Car) {
     let was = Notice {
         id: car.notice_id.get(),
         shown: car.notice_shown.get(),

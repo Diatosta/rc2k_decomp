@@ -6,8 +6,9 @@ use super::x87::{below, loaded};
 /// The car kinds' table size.
 pub const KINDS: u32 = 0x22;
 
+#[cfg(test)]
 /// Whether the car's kind collects mud: below 0x22 and its entry (asked then) not 0.
-pub fn gets_mud(kind: u32, kinds: impl FnOnce(u32) -> u32) -> bool {
+pub(crate) fn gets_mud(kind: u32, kinds: impl FnOnce(u32) -> u32) -> bool {
     kind < KINDS && kinds(kind) != 0
 }
 

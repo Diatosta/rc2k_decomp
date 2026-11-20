@@ -100,10 +100,11 @@ pub struct Search {
     pub half: f32,
 }
 
+#[cfg(test)]
 /// The angle whose cosine is `cosine` (the two vectors' dot product, normalised first),
 /// found by 16 halvings, and the last compare's status (0x100 for less, 0x500 for
 /// unordered, else 0).
-pub fn search_angle(cosine: f32, k: Search) -> (f32, u32) {
+pub(crate) fn search_angle(cosine: f32, k: Search) -> (f32, u32) {
     let d = cosine as f64;
     let (mut angle, mut step, mut status) = (k.start, k.step, 0);
     for _ in 0..16 {

@@ -9,7 +9,11 @@ use crate::menu::standings::*;
 use crate::race::owner::Race;
 
 /// `byte` is the low byte sealed; the sealed block's two dwords come out.
-pub fn sealed_player_time(menus: &Menus, race: &Race, byte: u32) -> Result<[u32; 2], Refused> {
+pub(super) fn sealed_player_time(
+    menus: &Menus,
+    race: &Race,
+    byte: u32,
+) -> Result<[u32; 2], Refused> {
     let screens = &menus.screens;
     let n: u32 = screens.event.current_player.get();
     if n >= 4 {

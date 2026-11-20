@@ -30,9 +30,9 @@ use serde::{Deserialize, Serialize};
 /// How many axes a controller's profile numbers.
 pub const AXES: usize = 8;
 /// How many hats.
-pub const HATS: usize = 4;
+pub(crate) const HATS: usize = 4;
 /// The most a sensitivity goes to either side.
-pub const SENSITIVITY_LIMIT: i32 = 100;
+pub(crate) const SENSITIVITY_LIMIT: i32 = 100;
 
 /// A controller's reading as SDL gives it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -304,7 +304,7 @@ impl MenuControl {
     }
 
     /// The direction of a hat that is this control's, for the four moves.
-    pub fn hat_bit(self) -> Option<u8> {
+    pub(crate) fn hat_bit(self) -> Option<u8> {
         match self {
             MenuControl::Up => Some(1),
             MenuControl::Right => Some(2),
@@ -605,8 +605,9 @@ impl Profile {
         &mut self.axes[at]
     }
 
+    #[cfg(test)]
     /// The range of an axis in degrees for a wheel: the range's share of the full rotation.
-    pub fn range_degrees(&self, axis: u8) -> u32 {
+    pub(crate) fn range_degrees(&self, axis: u8) -> u32 {
         self.settings(axis).range * self.full_rotation_degrees / 1000
     }
 }
@@ -646,7 +647,7 @@ fn scaled(v: f64) -> i32 {
 
 /// An axis binding's value on the game's scale: -0x100 .. 0x100 for a centred axis, 0 .. 0x100
 /// for the others.
-pub fn axis_value(profile: &Profile, using: &AxisUse, raw: &RawInput) -> i32 {
+pub(crate) fn axis_value(profile: &Profile, using: &AxisUse, raw: &RawInput) -> i32 {
     let axis = using.axis();
     let settings = profile.settings(axis);
     let mut u = raw.axes.get(axis as usize).map_or(0.0, |&v| unit(v));
@@ -715,7 +716,7 @@ pub struct ShifterGate {
 }
 
 /// How many readings the neutral is asked for after the lever leaves a gate.
-pub const NEUTRAL_READINGS: u8 = 3;
+pub(crate) const NEUTRAL_READINGS: u8 = 3;
 
 impl ShifterGate {
     /// The bits of a reading made with the shifter on (their gear nibble a gate's code, or 0 with
@@ -1102,7 +1103,7 @@ const LISTED_CONTROLS: [u32; 30] = [
 ];
 
 /// How far an axis must move from where it rested (of -32768 .. 32767) to count.
-pub const MOVED: i32 = 16384;
+pub(crate) const MOVED: i32 = 16384;
 
 /// What a controller's movement shows the player meant.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1211,7 +1212,7 @@ impl MenuControl {
     /// it: a gamepad's south, east and west buttons, its left shoulder (the right one too) and
     /// its cross (buttons as `PAD_BUTTONS` numbers them); another controller's second and third
     /// buttons and first hat.
-    pub fn default_for(self, kind: Kind) -> Option<Digital> {
+    pub(crate) fn default_for(self, kind: Kind) -> Option<Digital> {
         let button = |button| Some(Digital::Button { button });
         let hat = |direction| Some(Digital::Hat { hat: 0, direction });
         match (self, kind == Kind::Pad) {

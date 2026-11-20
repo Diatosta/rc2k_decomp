@@ -25,27 +25,27 @@
 #![allow(unsafe_code)]
 
 #[cfg(target_os = "android")]
-pub mod android;
-pub mod caps;
-pub mod event;
-pub mod ffi;
+pub(crate) mod android;
+pub(crate) mod caps;
+pub(crate) mod event;
+pub(crate) mod ffi;
 #[cfg(handheld)]
-pub mod handheld;
-pub mod icon;
-pub mod input;
-pub mod os;
-pub mod pacing;
-pub mod pointer;
-pub mod pool;
-pub mod safe_area;
-pub mod sound;
-pub mod sync;
-pub mod timing;
+pub(crate) mod handheld;
+pub(crate) mod icon;
+pub(crate) mod input;
+pub(crate) mod os;
+pub(crate) mod pacing;
+pub(crate) mod pointer;
+pub(crate) mod pool;
+pub(crate) mod safe_area;
+pub(crate) mod sound;
+pub(crate) mod sync;
+pub(crate) mod timing;
 #[cfg(phone)]
-pub mod touch;
+pub(crate) mod touch;
 #[cfg(web)]
-pub mod web_pads;
-pub mod window_mode;
+pub(crate) mod web_pads;
+pub(crate) mod window_mode;
 #[cfg_attr(handheld, path = "window_system_panel.rs")]
 mod window_system;
 

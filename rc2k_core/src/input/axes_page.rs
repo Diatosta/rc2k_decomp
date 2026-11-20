@@ -12,14 +12,14 @@ pub const ROWS: usize = 6;
 /// The most the dead zone is set to (per mille).
 pub const MAX_DEAD_ZONE: u32 = 900;
 /// The least the range is set to (per mille).
-pub const MIN_RANGE: u32 = 100;
+pub(crate) const MIN_RANGE: u32 = 100;
 /// What one step of the dead zone, the range or a wheel's rotation changes: 1 % and 10 degrees.
 pub const STEP: u32 = 10;
 /// What one step of the sensitivity changes.
-pub const SENSITIVITY_STEP: i32 = 10;
+pub(crate) const SENSITIVITY_STEP: i32 = 10;
 /// A wheel's rotation, least and most (degrees).
-pub const MIN_ROTATION: u32 = 90;
-pub const MAX_ROTATION: u32 = 1800;
+pub(crate) const MIN_ROTATION: u32 = 90;
+pub(crate) const MAX_ROTATION: u32 = 1800;
 
 /// The settings of one axis.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

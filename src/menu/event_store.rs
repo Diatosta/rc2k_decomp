@@ -50,7 +50,7 @@ pub struct TrialState {
 }
 
 /// The number of car classes.
-pub const CLASSES: u32 = 4;
+pub(super) const CLASSES: u32 = 4;
 
 /// What the class and car pages show.
 #[derive(rc2k_derive::Cells)]

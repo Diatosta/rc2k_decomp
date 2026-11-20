@@ -8,9 +8,9 @@ pub const OWN: u32 = 0xFFFF_FF91;
 /// No one-off sound waiting (-2).
 pub const NONE: u32 = 0xFFFF_FFFE;
 /// The most cues a queue holds.
-pub const MOST_CUES: u32 = 16;
+pub(crate) const MOST_CUES: u32 = 16;
 /// The most sounds a cue holds.
-pub const MOST_SOUNDS: u32 = 6;
+pub(crate) const MOST_SOUNDS: u32 = 6;
 
 /// A spoken cue (0x20 bytes in the game's layout).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -174,7 +174,7 @@ pub struct TimedSlot {
 }
 
 /// The sound that starts even while playing.
-pub const ALWAYS_STARTS: u32 = 0xE9;
+pub(crate) const ALWAYS_STARTS: u32 = 0xE9;
 
 /// What a slot's turn did.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -57,7 +57,7 @@ pub fn step(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Refused> 
 
 /// The axis page's highlighted row one step: the axis picked (item 2, round the axes the
 /// controller has), or the axis's dead zone, sensitivity, range or invert (items 3 .. 6).
-pub fn page_step(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Refused> {
+pub(super) fn page_step(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
     let item: u32 = screens.loop_flags.item.get();
@@ -147,7 +147,7 @@ pub fn page_shown(controls: &ControlsScreen, shifter: bool) -> usize {
 }
 
 /// The buttons page shows its next page of controls, the first after the last.
-pub fn turn_controls_page(controls: &ControlsScreen, shifter: bool) {
+pub(super) fn turn_controls_page(controls: &ControlsScreen, shifter: bool) {
     let next = (page_shown(controls, shifter) + 1) % pages(shifter);
     controls.page.set(next as u32);
 }
@@ -178,7 +178,7 @@ pub fn row_label(row: Row) -> u32 {
 }
 
 /// The row at `slot` starts learning its control.
-pub fn learn_row(o: crate::owners::Owners<'static>, slot: u8) {
+pub(super) fn learn_row(o: crate::owners::Owners<'static>, slot: u8) {
     let controls = &o.menus.screens.controls;
     if let Some(row) = row_at(controls, shifter_on(o.menus, o.input), slot as usize) {
         crate::menu::learn_bindings::learn_binding(

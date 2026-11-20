@@ -160,7 +160,7 @@ pub fn refusal(
     })
 }
 
-pub fn emit_wheel_grit_bursts(
+pub(super) fn emit_wheel_grit_bursts(
     effects: &Effects,
     wheel: &MarkRecord,
     object: &CarEffects,
@@ -169,7 +169,7 @@ pub fn emit_wheel_grit_bursts(
 }
 
 /// The shared body, on `set`'s variables.
-pub fn emit_bursts_with(
+pub(super) fn emit_bursts_with(
     effects: &Effects,
     set: &BurstSet<'_>,
     wheel: &MarkRecord,

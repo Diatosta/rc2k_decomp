@@ -5,7 +5,7 @@ use crate::install::installer::item_action_at;
 use crate::memory::list_handle::ListItem;
 
 /// Enter on an action item; whether it was taken.
-pub fn item_action(
+pub(super) fn item_action(
     install: &crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
     item: ListItem,

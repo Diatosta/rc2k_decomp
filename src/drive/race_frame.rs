@@ -17,7 +17,7 @@ pub fn race_frame(
 
 /// `race_frame`, with `over` run after the scene is drawn and before the frame is shown: what it
 /// writes on the screen's pixels lies over the scene.
-pub fn race_frame_over(
+pub(super) fn race_frame_over(
     race: &Race,
     o: crate::owners::Owners<'static>,
     eax: u32,

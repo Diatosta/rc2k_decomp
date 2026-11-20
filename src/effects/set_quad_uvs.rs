@@ -6,7 +6,7 @@
 /// The record of the corners' slopes whose eight values are the set (0xC60 bytes on).
 const SET_RECORD: usize = 0xC60 / 0x24;
 
-pub fn set_quad_uvs(
+pub(super) fn set_quad_uvs(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,

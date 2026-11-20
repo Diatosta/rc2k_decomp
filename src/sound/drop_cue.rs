@@ -17,7 +17,7 @@ pub fn drop_cue(q: &crate::sound::store::CueQueue, place: u32) -> Result<(), Ref
 }
 
 /// The queue's 0x84 dwords: its four header dwords, then the cues' eight each.
-pub fn read_words(
+pub(super) fn read_words(
     q: &crate::sound::store::CueQueue,
 ) -> Result<[u32; 0x84], crate::errors::BadInput> {
     let head = [&q.first, &q.place, &q.due, &q.count];
@@ -34,7 +34,7 @@ pub fn read_words(
 }
 
 /// `words` as the queue's dwords.
-pub fn write_words(
+pub(super) fn write_words(
     q: &crate::sound::store::CueQueue,
     words: [u32; 0x84],
 ) -> Result<(), crate::errors::BadInput> {

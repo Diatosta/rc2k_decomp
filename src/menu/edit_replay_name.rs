@@ -37,7 +37,7 @@ fn end_name(menus: &Menus, name: crate::memory::place::BytePlace) -> Result<(), 
 }
 
 /// Returns true after Escape, or when the cursor is off (see the module doc).
-pub fn edit_replay_name(
+pub(super) fn edit_replay_name(
     input: &crate::input::owner::Input,
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,

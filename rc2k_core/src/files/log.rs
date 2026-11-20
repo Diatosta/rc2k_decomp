@@ -211,11 +211,16 @@ pub fn entry(enabled: i32, level: impl FnOnce() -> u32) -> Entry {
 }
 
 /// The most bytes a log line keeps: bytes are stored while the line is no longer than this.
-pub const LINE_LIMIT: usize = 0x93E42C - 0x93E080;
+pub(crate) const LINE_LIMIT: usize = 0x93E42C - 0x93E080;
 
 /// A line and the new line-start flag: at a line's start (flag 1) `indent` spaces (0 .. 80),
 /// then the message (cut at `LINE_LIMIT`), then "\r\n" (a new line starts) or a space.
-pub fn format_line(msg: &[u8], newline: bool, indent: i32, line_start: u32) -> (Vec<u8>, u32) {
+pub(crate) fn format_line(
+    msg: &[u8],
+    newline: bool,
+    indent: i32,
+    line_start: u32,
+) -> (Vec<u8>, u32) {
     let mut out = Vec::new();
     let mut flag = line_start;
     if flag == 1 {

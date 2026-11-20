@@ -7,7 +7,7 @@ use crate::memory::list_handle::ListItem;
 use rc2k_core::install::items::ItemKey;
 
 /// Whether the key was taken.
-pub fn key_right(
+pub(super) fn key_right(
     install: &'static crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
     item: ListItem,

@@ -6,7 +6,7 @@
 
 use crate::sound::spot_voices::{load_voices, store_voices};
 
-pub fn exclusive_spot_voices(sound: &crate::sound::owner::Sound) {
+pub(super) fn exclusive_spot_voices(sound: &crate::sound::owner::Sound) {
     // The logic is `rc2k_core::sound::spot_voices::keep_exclusive`.
     let mut voices = load_voices(sound);
     rc2k_core::sound::spot_voices::keep_exclusive(&mut voices);

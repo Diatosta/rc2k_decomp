@@ -268,7 +268,7 @@ impl RaceWork {
     /// The number of car record `n` (`car_records[n]`, the handle of one of the effects' car
     /// records, `race::effects_settings_store`; `RaceShared::car_record`). Refused past the eight
     /// and for a value that is no record's handle.
-    pub fn car_record_number(&self, n: usize) -> Result<usize, BadInput> {
+    pub(super) fn car_record_number(&self, n: usize) -> Result<usize, BadInput> {
         let name = self
             .car_records
             .get(n)

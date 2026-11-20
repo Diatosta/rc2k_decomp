@@ -9,7 +9,7 @@ pub const RECORD_LEN: usize = 0xA4;
 /// The tag of a stage's record.
 pub const STAGE: u32 = 0;
 /// The tag of a section's first record (a rally, a class).
-pub const SECTION: u32 = 4;
+pub(crate) const SECTION: u32 = 4;
 /// The tag after the last record.
 pub const END: u32 = u32::MAX;
 
@@ -99,7 +99,7 @@ pub fn record_count(table: &(impl Bytes + ?Sized), most: usize) -> Result<usize,
 }
 
 /// The longest time a record seals (hundredths of a second).
-pub const LONGEST_TIME: u32 = 0x22550FF;
+pub(crate) const LONGEST_TIME: u32 = 0x22550FF;
 
 /// A time as sealed for the records (`seal_time`): at most `LONGEST_TIME`; negated when a
 /// cheat of 0x16000 is on, or negated with bit 30 cleared with cheat 0x40000 or the patch
@@ -125,13 +125,16 @@ pub fn seal_block(value: u32, bytes: [u8; 3]) -> [u8; 8] {
     b
 }
 
+#[cfg(test)]
 /// Where a track pack's header has its entries, and their size.
-pub const PACK_ENTRIES: usize = 0x34;
-pub const PACK_ENTRY_LEN: usize = 0x40;
+pub(crate) const PACK_ENTRIES: usize = 0x34;
+#[cfg(test)]
+pub(crate) const PACK_ENTRY_LEN: usize = 0x40;
 
+#[cfg(test)]
 /// The place in the loaded pack's header of the entry a record names (`trakpak_entry`);
 /// `None` when the record belongs to another pack.
-pub fn pack_entry(index: u32, pack: u32, loaded_pack: u32) -> Option<usize> {
+pub(crate) fn pack_entry(index: u32, pack: u32, loaded_pack: u32) -> Option<usize> {
     (pack == loaded_pack).then(|| PACK_ENTRIES + index as usize * PACK_ENTRY_LEN)
 }
 

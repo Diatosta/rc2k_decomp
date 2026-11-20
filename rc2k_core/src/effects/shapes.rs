@@ -40,7 +40,7 @@ pub fn pi_over(c: i32) -> f64 {
 
 /// 1 - sqrt(1 - ((i - a) b)^2) in `f64`, negated when `negate`: a quarter circle's curve (a NaN
 /// past it).
-pub fn curve_value(i: i32, a: f32, b: f32, negate: bool) -> f32 {
+pub(crate) fn curve_value(i: i32, a: f32, b: f32, negate: bool) -> f32 {
     let x = (i as f64 - a as f64) * b as f64;
     let v = 1.0 - (1.0 - x * x).sqrt();
     (if negate { -v } else { v }) as f32

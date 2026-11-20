@@ -17,7 +17,7 @@ fn wake(sound: &crate::sound::owner::Sound, n: u32) -> Result<(), BadInput> {
 /// `race::start_race_sounds`: starts the race clock (`sound::start_race_clock`); unless
 /// `RaceSounds.count` is 0 it is held to 1 .. 8 and that many objects are woken. Then the sounds
 /// are let play (`sound::let_sounds_play`) and `RaceClock.started` is set to 1.
-pub fn start_race_sounds(
+pub(super) fn start_race_sounds(
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
     picture_clock: &crate::clock::tick_count::PictureClock,

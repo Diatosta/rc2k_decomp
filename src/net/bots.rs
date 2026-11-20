@@ -9,7 +9,7 @@ use rc2k_core::net::{bots, record};
 use std::sync::atomic::{AtomicU8, Ordering::Relaxed};
 
 /// The host's setting as its record says (0 when no host is listed).
-pub fn host_setting(net: &Net) -> u32 {
+pub(super) fn host_setting(net: &Net) -> u32 {
     (0..net.race_slot.players())
         .map(|n| net.vars.player_block_or_end(n))
         .find(|block| block.record.state().is_host())
@@ -27,7 +27,7 @@ fn host_direction(net: &Net) -> u8 {
 }
 
 /// Whether the host has the bots start spread on the course like the arcade's opponents.
-pub fn host_arcade_start(net: &Net) -> bool {
+pub(super) fn host_arcade_start(net: &Net) -> bool {
     bots::arcade_start(host_direction(net))
 }
 
@@ -40,12 +40,12 @@ fn host_kind(net: &Net) -> u32 {
 }
 
 /// The bots a race of the listed players would have.
-pub fn listed_count(net: &Net) -> u32 {
+pub(super) fn listed_count(net: &Net) -> u32 {
     bots::count(host_setting(net), net.race_slot.players())
 }
 
 /// The host presses the bots' button: the next setting, published at once with the record.
-pub fn cycle_own_setting(net: &Net) -> Result<(), Refused> {
+pub(super) fn cycle_own_setting(net: &Net) -> Result<(), Refused> {
     let held = net.vars.own.head.get(record::DIRECTION);
     let next = bots::next_setting(bots::setting(held));
     net.vars
@@ -56,7 +56,7 @@ pub fn cycle_own_setting(net: &Net) -> Result<(), Refused> {
 }
 
 /// The host presses the way-to-start button: grid, then arcade, published with the record.
-pub fn toggle_own_start(net: &Net) -> Result<(), Refused> {
+pub(super) fn toggle_own_start(net: &Net) -> Result<(), Refused> {
     let held = net.vars.own.head.get(record::DIRECTION);
     net.vars.own.head.set(
         record::DIRECTION,

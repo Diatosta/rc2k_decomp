@@ -55,7 +55,7 @@ impl MarksClock {
     }
 }
 
-pub const WAVE_LEVELS: u32 = 0x11;
+const WAVE_LEVELS: u32 = 0x11;
 pub const SINES: u32 = 0x140;
 
 /// `effects::seed_noise`: 0x100 steps of the marks' seed (times 0x9D plus 0x47), each giving
@@ -78,7 +78,7 @@ pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
 /// become floats (over `WaveState.scale`, less `WaveState.less`), the 0x140 sines of 0,
 /// step, 2 step .. (`math::x87::sine_table`); then the done flag is set. Done before:
 /// nothing.
-pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
+pub(super) fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
     if paths.wave.done.is_set() {
         return Ok(());
     }
@@ -104,7 +104,7 @@ pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
 }
 
 /// `effects::clear_slots`: the first dword of the 0x20 slots 0.
-pub fn clear_slots(effects: &crate::effects::owner::Effects) {
+pub(super) fn clear_slots(effects: &crate::effects::owner::Effects) {
     for slot in &effects.blocks.slots.slots {
         slot.life.set(0);
     }
@@ -116,7 +116,7 @@ pub fn clear_slots(effects: &crate::effects::owner::Effects) {
 /// settings' +0x10 is 1), a quarter and a sixteenth of them (shifted), the reciprocal one
 /// over them and that times `MarksFloats.quarter`, and the ticks' bits taken as a float
 /// (a slip kept as is) times `ClockK.ticks_scale`.
-pub fn tick_clock(
+pub(super) fn tick_clock(
     shared: &RaceShared,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
@@ -158,7 +158,7 @@ pub fn tick_clock(
 }
 
 pub const CURVE_LEN: u32 = 0x1000;
-pub const CURVE_RECORDS: u32 = 0x20;
+const CURVE_RECORDS: u32 = 0x20;
 
 /// `effects::make_noise_curve`, `init_marks`' step 5, with the marks' seed started
 /// at 0x7FFFFFF:
@@ -174,7 +174,7 @@ pub const CURVE_RECORDS: u32 = 0x20;
 ///
 /// Refuses a divisor that is 0 or 1 or -1 (the division would trap).
 // The logic is in `rc2k_core::effects::noise::{walk, smooth, random_tables, record_values}`
-pub fn make_noise_curve(
+pub(super) fn make_noise_curve(
     weather: &Weather,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,

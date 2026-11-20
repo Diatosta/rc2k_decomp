@@ -11,7 +11,7 @@ use crate::race::frame_store::FrameWork;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
-pub fn start_go_notice(
+pub(super) fn start_go_notice(
     frame_work: &FrameWork,
     work: &RaceWork,
     car: &Car,

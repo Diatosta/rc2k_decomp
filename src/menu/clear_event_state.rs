@@ -4,7 +4,7 @@
 use crate::memory::cells::Store;
 use crate::menu::owner::Menus;
 
-pub fn clear_event_state(menus: &Menus) -> Result<(), crate::errors::BadInput> {
+pub(super) fn clear_event_state(menus: &Menus) -> Result<(), crate::errors::BadInput> {
     menus.screens.event.stages_done.store(0, &[0; 4])?;
     menus.play.results.clear_for_event();
     Ok(())

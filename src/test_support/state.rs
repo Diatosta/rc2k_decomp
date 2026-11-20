@@ -22,14 +22,14 @@ impl Snapshot {
 
 /// A record's cells copied out whole, to be copied back: the typed counterpart of `Snapshot`
 /// for a test that writes one record it holds.
-pub struct RecordSnapshot<'a, T: crate::memory::cells::Cells> {
+struct RecordSnapshot<'a, T: crate::memory::cells::Cells> {
     record: &'a T,
     copy: T,
 }
 
 impl Snapshot {
     /// A copy of every cell of `record` (a zeroed record filled by `copy_from`).
-    pub fn of_record<T: crate::memory::cells::Cells>(record: &T) -> RecordSnapshot<'_, T> {
+    fn of_record<T: crate::memory::cells::Cells>(record: &T) -> RecordSnapshot<'_, T> {
         let copy = crate::memory::cells::zeroed_cells::<T>();
         copy.copy_from(record);
         RecordSnapshot { record, copy }

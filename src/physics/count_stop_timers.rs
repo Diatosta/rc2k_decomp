@@ -12,7 +12,7 @@ use rc2k_core::physics::motion::stop_timers;
 /// The stand timers and the finish flag counted on while the car stands (a compare of
 /// floats only: the same at any precision).
 // Core: `rc2k_core::physics::motion::stop_timers`.
-pub fn count_stop_timers(car: &Car, numbers: &Numbers) {
+pub(super) fn count_stop_timers(car: &Car, numbers: &Numbers) {
     let one = numbers.one.get();
     let cells = [
         &car.started_stand_timer,

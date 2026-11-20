@@ -14,7 +14,7 @@ use rc2k_core::race::viewer_flow::Play;
 
 /// The shared tail: from block `play.from`, frame `play.frame`, to block
 /// `play.end`. The start read's carry is not looked at.
-pub fn play_tail(
+pub(super) fn play_tail(
     race: &Race,
     o: crate::owners::Owners<'static>,
     play: Play,
@@ -29,7 +29,7 @@ pub fn play_tail(
 }
 
 /// `play_marked`.
-pub fn play_marked(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn play_marked(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::viewer_flow::marked_play`.
     play_tail(
         race,

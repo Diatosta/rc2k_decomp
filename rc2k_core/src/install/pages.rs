@@ -31,7 +31,7 @@ pub const UNUSABLE: u8 = 0x80;
 pub type Mark = (u32, u8, u8);
 
 /// The string id of the update script's title.
-pub const UPDATE_TITLE: u16 = 0xBD;
+pub(crate) const UPDATE_TITLE: u16 = 0xBD;
 
 /// The main page's marks: not this version, "play" (+0x28) unusable; no installation, "uninstall"
 /// (+0x38) unusable; registration not offered, its item (+0x48) hidden; for the update script,
@@ -63,7 +63,7 @@ pub fn main_page_marks(
 }
 
 /// The drives' texts: 26 of them, 0x10 bytes each, the first byte the letter.
-pub const DRIVE_TEXTS: u32 = 0x1A;
+pub(crate) const DRIVE_TEXTS: u32 = 0x1A;
 pub const DRIVE_TEXT: u32 = 0x10;
 
 /// The drive page at its start: the place of the typed letter (lowered) among the drives' texts
@@ -86,8 +86,8 @@ pub fn chosen_drive(highlight: u32) -> Option<u32> {
 }
 
 /// The folder page's problems: 1 a bad folder, 2 no room.
-pub const BAD_FOLDER: u32 = 1;
-pub const NO_ROOM: u32 = 2;
+pub(crate) const BAD_FOLDER: u32 = 1;
+pub(crate) const NO_ROOM: u32 = 2;
 
 /// Which of the folder page's two notices are hidden (+0x38 and +0x48 for a bad folder,
 /// +0x58 and +0x68 for no room): those that are not the problem.

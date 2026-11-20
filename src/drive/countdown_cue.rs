@@ -4,7 +4,7 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn countdown_cue(
+pub(super) fn countdown_cue(
     race: &Race,
     sound: u32,
     audio: &crate::audio::owner::Audio,

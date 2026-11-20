@@ -30,7 +30,7 @@ fn record_tables(system: &System) -> [crate::records::stages_store::RecordTable;
 
 /// `fit_player_names` gets an x that is not looked at: it is where a measuring starts, which
 /// a width does not depend on.
-pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, sound, system, gfx) = (o.menus, o.sound, o.system, o.gfx);
     let (race, saves) = (o.race, o.saves);
     let best_times = &saves.best_times;

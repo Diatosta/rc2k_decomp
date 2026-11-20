@@ -100,7 +100,7 @@ impl Shadow<'_> {
 }
 
 /// A shadow (see the header) on `sh`'s variables; `depth` the two depth calls first.
-pub fn draw_shadow_with(
+pub(super) fn draw_shadow_with(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     masks: &Masks,
     sh: &Shadow,

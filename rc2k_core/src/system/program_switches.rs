@@ -3,7 +3,7 @@
 //! (`--allow-another`), or runs as a numbered instance with its own saved state (`--instance`). The words after the program's own name, as `menu::launch` takes them.
 
 /// The switches that take a value (the next word, or after `=`).
-pub const VALUED: [&str; 11] = [
+pub(crate) const VALUED: [&str; 11] = [
     "renderer",
     "instance",
     "game-data",
@@ -56,13 +56,13 @@ pub struct Switches {
 
 /// The video sizes taken: each side from this many pixels up to that many (even sides are
 /// needed by the common video formats; the game draws any).
-pub const SIZE_RANGE: std::ops::RangeInclusive<u32> = 160..=16384;
+pub(crate) const SIZE_RANGE: std::ops::RangeInclusive<u32> = 160..=16384;
 
 /// The video frame rates taken.
-pub const FPS_RANGE: std::ops::RangeInclusive<u32> = 1..=480;
+pub(crate) const FPS_RANGE: std::ops::RangeInclusive<u32> = 1..=480;
 
 /// A size as `--size` gives it: `1280x720`.
-pub fn parse_size(text: &str) -> Option<(u32, u32)> {
+pub(crate) fn parse_size(text: &str) -> Option<(u32, u32)> {
     let (w, h) = text.split_once(['x', 'X'])?;
     let (w, h) = (w.trim().parse().ok()?, h.trim().parse().ok()?);
     (SIZE_RANGE.contains(&w) && SIZE_RANGE.contains(&h)).then_some((w, h))
@@ -70,14 +70,14 @@ pub fn parse_size(text: &str) -> Option<(u32, u32)> {
 
 /// A time as `--from` and `--to` give it, in seconds with up to two decimals, as hundredths of a
 /// second; a replay holds at most 90 minutes, so a time is under 600 seconds.
-pub fn parse_seconds(text: &str) -> Option<u32> {
+pub(crate) fn parse_seconds(text: &str) -> Option<u32> {
     let seconds: f64 = text.trim().parse().ok()?;
     (seconds.is_finite() && (0.0..600.0).contains(&seconds))
         .then(|| (seconds * 100.0).round() as u32)
 }
 
 /// The most instances `--instance` names.
-pub const MOST_INSTANCES: u32 = 8;
+pub(crate) const MOST_INSTANCES: u32 = 8;
 
 impl Switches {
     /// The switches among `args` (the words after the program's own name). Refused: a

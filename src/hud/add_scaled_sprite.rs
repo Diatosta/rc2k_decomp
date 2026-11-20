@@ -12,7 +12,7 @@ use rc2k_core::math::extended::to_f64;
 
 /// The scales as `f64`s (what the x87 holds at the game's double precision): the sprite at `rect`
 /// with its corner at `x`, `y`.
-pub fn add_scaled_sprite_plain(
+pub(super) fn add_scaled_sprite_plain(
     frame: &Frame,
     hud: &Hud,
     pen: Pen,
@@ -30,7 +30,7 @@ pub fn add_scaled_sprite_plain(
 }
 
 /// `add_scaled_sprite_plain` with the scales as the x87 holds them.
-pub fn add_scaled_sprite(
+pub(super) fn add_scaled_sprite(
     frame: &Frame,
     hud: &Hud,
     pen: Pen,

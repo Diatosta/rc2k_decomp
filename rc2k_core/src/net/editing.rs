@@ -10,7 +10,7 @@ pub const NOT_EDITING: u32 = u32::MAX;
 /// A text's bytes (cleared, and kept for Escape).
 pub const TEXT_LEN: usize = 0x40;
 /// The most characters a text takes.
-pub const MOST_CHARS: usize = 0x3F;
+pub(crate) const MOST_CHARS: usize = 0x3F;
 /// The widest an edited text may be on the network screens.
 pub const WIDTH: u32 = 0x30C;
 

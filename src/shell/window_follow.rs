@@ -19,7 +19,7 @@ const NONE: u64 = u64::MAX;
 static LAST_EVENT: AtomicU64 = AtomicU64::new(NONE);
 
 /// SDL says the window changed size (its own doing or ours: told apart by `size_to_take`).
-pub fn note_resize(now: u64) {
+pub(super) fn note_resize(now: u64) {
     LAST_EVENT.store(now, Relaxed);
 }
 

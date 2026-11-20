@@ -11,7 +11,7 @@ use rc2k_core::saves::entries::BestTime;
 const LIMIT: u32 = 0x400;
 
 /// The entry of table A the search stops at (a copy).
-pub fn class_entry(
+fn class_entry(
     class: u32,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<BestTime, BadInput> {

@@ -38,7 +38,7 @@ pub fn players_all_out(
     crate::race::frame::players_all_out(race, net_race)
 }
 
-pub fn stop_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn stop_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::race::race_end::reset_race_sounds(&crate::race::race_end::SoundVars::game(o.sound), o)
 }
 

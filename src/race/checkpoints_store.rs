@@ -161,17 +161,17 @@ pub fn angle_run_on(table: &Checkpoints, n: usize) -> &PlainDword {
 }
 
 /// Checkpoint `n`'s distance cell, run on past the table.
-pub fn distance_run_on(table: &Checkpoints, n: usize) -> &PlainDword {
+pub(super) fn distance_run_on(table: &Checkpoints, n: usize) -> &PlainDword {
     checkpoint_cell!(table, distances, 0, n)
 }
 
 /// Checkpoint `n`'s map x (`map_x[n]`), run on past the table.
-pub fn map_x_run_on(table: &Checkpoints, n: usize) -> &PlainDword {
+pub(super) fn map_x_run_on(table: &Checkpoints, n: usize) -> &PlainDword {
     checkpoint_cell!(table, map_x, 0, n)
 }
 
 /// Checkpoint `n`'s map y (`map_y[n]`), run on past the table.
-pub fn map_y_run_on(table: &Checkpoints, n: usize) -> &PlainDword {
+pub(super) fn map_y_run_on(table: &Checkpoints, n: usize) -> &PlainDword {
     checkpoint_cell!(table, map_y, 0, n)
 }
 

@@ -10,8 +10,6 @@ use crate::Invalid;
 
 /// The most records a run takes.
 pub const MOST_RECORDS: u32 = 0x100;
-/// The dwords `clear_records` empties in each record (the first six of eight).
-pub const CLEARED_DWORDS: u32 = 6;
 
 /// A run over `count` records: 0 is refused (the loop would run 2^32 times), as is a count past
 /// `MOST_RECORDS`; `why` says whose.

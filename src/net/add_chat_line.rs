@@ -51,7 +51,7 @@ pub fn text_in(bytes: &[u8]) -> Result<&[u8], BadInput> {
         .map(|end| &bytes[..end])
         .ok_or(BadInput("a text without its end in its block"))
 }
-pub fn add_chat_line(
+pub(super) fn add_chat_line(
     net: &Net,
     gfx: &'static Gfx,
     player: u32,

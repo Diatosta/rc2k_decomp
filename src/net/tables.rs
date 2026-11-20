@@ -93,7 +93,7 @@ fn listed(link: &Link, index: u32, count: u32, codes: [u32; 2]) -> Result<(), Re
 }
 
 /// `f` on connection `index` (`net::connection_entry`'s checks first).
-pub fn with_connection<R>(
+pub(super) fn with_connection<R>(
     link: &Link,
     index: u32,
     f: impl FnOnce(&mut Connection) -> R,
@@ -110,7 +110,7 @@ pub fn with_connection<R>(
 }
 
 /// `f` on session `index` (`net::session_entry`'s checks first).
-pub fn with_session<R>(
+pub(super) fn with_session<R>(
     link: &Link,
     index: u32,
     f: impl FnOnce(&mut Session) -> R,
@@ -128,7 +128,7 @@ pub fn with_session<R>(
 
 /// `strings::copy_printable` of the text `text` (none: empty) with `room` (its NUL
 /// included) into `to`.
-pub fn copy_printable_into(text: &[u8], to: &mut [u8], room: u32) -> Result<(), Refused> {
+pub(super) fn copy_printable_into(text: &[u8], to: &mut [u8], room: u32) -> Result<(), Refused> {
     let written = crate::strings::copy_printable::printable_from(text, room)?;
     to.get_mut(..written.len())
         .ok_or(BadInput("a name past its record"))?

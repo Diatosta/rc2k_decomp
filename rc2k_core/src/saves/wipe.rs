@@ -48,7 +48,7 @@ pub trait Tree {
 /// The files of `var` that stay: the installation's two records (without them the program
 /// takes the folder for a download and runs the installer) and the log of the run in progress
 /// (it is open, and it is not the player's).
-pub const KEPT_IN_VAR: [&str; 3] = ["ral.zog", "install.cfg", "logfile.txt"];
+pub(crate) const KEPT_IN_VAR: [&str; 3] = ["ral.zog", "install.cfg", "logfile.txt"];
 
 /// What a deletion did.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -61,7 +61,7 @@ pub struct Outcome {
 
 /// Whether `name` (a file of `var`) stays: compared without regard to case, as the game finds
 /// its files.
-pub fn is_kept(name: &str) -> bool {
+pub(crate) fn is_kept(name: &str) -> bool {
     KEPT_IN_VAR.iter().any(|k| k.eq_ignore_ascii_case(name))
 }
 

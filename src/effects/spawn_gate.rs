@@ -27,7 +27,7 @@ impl SpawnGate {
 }
 
 /// The drops' gate.
-pub static DROPS: SpawnGate = SpawnGate::new();
+pub(super) static DROPS: SpawnGate = SpawnGate::new();
 
 /// The flakes' gate.
-pub static FLAKES: SpawnGate = SpawnGate::new();
+pub(super) static FLAKES: SpawnGate = SpawnGate::new();

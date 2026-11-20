@@ -2,7 +2,7 @@
 
 use crate::errors::Refused;
 
-pub fn close_installer(
+pub(super) fn close_installer(
     install: &crate::install::owner::Install,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {

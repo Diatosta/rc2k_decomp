@@ -8,7 +8,7 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 
 /// `scene::set_texture`, `scene::depth_test_off`, and with the settings' +0x2754 `draw_lens_flare`.
-pub fn flare_frame(
+pub(super) fn flare_frame(
     engine_tables: &crate::math::engine_tables::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     paths: &Paths,

@@ -17,7 +17,7 @@ use rc2k_core::physics::progress;
 /// (`race::nearest_checkpoint_in`), or, when that is too far, of them all
 /// (`race::nearest_checkpoint`).
 // Core: `rc2k_core::physics::progress::{near_window, search_all}`.
-pub fn find_car_checkpoint(
+pub(super) fn find_car_checkpoint(
     physics: &Physics,
     course: &Course,
     shared: &RaceShared,

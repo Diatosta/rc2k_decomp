@@ -12,7 +12,7 @@ use crate::scene::rotate_point::rotate_point;
 
 /// The point `v` turned by the matrix `m`: loaded as z, y, x, turned by `rotate_point` and stored
 /// back as floats.
-pub fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
+pub(super) fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
     let point = std::array::from_fn(|k| extended(v.float(k)));
     let out = rotate_point(m, point);
     for (k, e) in out.iter().enumerate() {
@@ -20,6 +20,6 @@ pub fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
     }
 }
 
-pub fn turn_by_car_matrix(car: &Car, v: &(impl Cells + ?Sized)) {
+pub(super) fn turn_by_car_matrix(car: &Car, v: &(impl Cells + ?Sized)) {
     turn_cells(&car.crash_matrix, v);
 }

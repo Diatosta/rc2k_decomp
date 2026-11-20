@@ -14,7 +14,7 @@ use crate::race::owner::Race;
 
 pub use rc2k_core::race::mud::LAST_THROWN;
 
-pub fn throw_mud_texel(
+pub(super) fn throw_mud_texel(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,

@@ -30,7 +30,7 @@ fn product3_to_int(a: u32, b: u32, c: f32) -> u32 {
 }
 
 /// `a * b` as a whole number.
-pub fn product_to_int(a: u32, b: f32) -> u32 {
+fn product_to_int(a: u32, b: f32) -> u32 {
     let (v, mut out) = ([a, b.to_bits()], [0u32]);
     x87_2(&v[..], cells(&mut out));
     out[0]
@@ -60,7 +60,7 @@ fn angle_and_place(y: f32, x: f32, per_angle: f32, centre: f32) -> (u32, u32) {
 
 /// Plays the request's sound at its place around the listener; `mode` is the sound mode.
 /// Outside the 3D modes the place sent on is the pan worked out here.
-pub fn play_placed_sound(
+pub(super) fn play_placed_sound(
     request: &SoundRequest,
     mode: u32,
     owner: &crate::sound::owner::Sound,
@@ -115,7 +115,7 @@ pub fn play_placed_sound(
 }
 
 /// In the game.
-pub fn play_placed_sound_in_game(
+pub(super) fn play_placed_sound_in_game(
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,

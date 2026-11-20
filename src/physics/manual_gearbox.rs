@@ -145,7 +145,7 @@ fn start_line(
 
 /// The steps on `r`.
 // Core: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
-pub fn manual_gearbox(
+pub(super) fn manual_gearbox(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,

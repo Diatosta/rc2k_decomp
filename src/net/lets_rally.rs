@@ -11,7 +11,7 @@ use crate::race::viewer_screen_store::texts;
 use rc2k_core::net::record;
 
 /// True when the link ends: no player but the host, Escape, or the car not finished.
-pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
+pub(super) fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     let (race, net, sound) = (o.race, o.net, o.sound);
     use crate::race::sound_tables;
     log_bytes(

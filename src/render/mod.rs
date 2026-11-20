@@ -5,26 +5,26 @@
 #![allow(unsafe_code)]
 
 pub(crate) mod backend;
-pub mod background;
-pub mod batches;
-pub mod canvas_rows;
-pub mod choice;
-pub mod dev;
+pub(crate) mod background;
+mod batches;
+mod canvas_rows;
+pub(crate) mod choice;
+pub(crate) mod dev;
 #[cfg_attr(handheld, path = "frame_end_panel.rs")]
 mod frame_end;
-pub mod gl_batching;
-pub mod gles;
-pub mod wash;
+mod gl_batching;
+pub(crate) mod gles;
+pub(crate) mod wash;
 // The handheld has no Vulkan: its GPU is reached through `gles`, by the same name here.
 #[cfg(handheld)]
-pub use gles as gpu;
+pub(crate) use gles as gpu;
 #[cfg(not(handheld))]
-pub mod gpu;
-pub mod rasteriser;
+pub(crate) mod gpu;
+pub(crate) mod rasteriser;
 #[cfg(target_arch = "aarch64")]
-pub mod rasteriser_neon;
-pub mod small_frame;
-pub mod software;
+mod rasteriser_neon;
+mod small_frame;
+mod software;
 
 pub use self::frame_end::*;
 use std::collections::HashSet;
@@ -36,13 +36,13 @@ pub const STATES: usize = 0x40;
 
 /// A map keyed by texture ids: the ids are two small integers, which the std hasher's SipHash
 /// costs far more to hash than the lookup is worth (one per run of fans in a flush).
-pub type TextureMap<V> =
+type TextureMap<V> =
     std::collections::HashMap<TextureId, V, std::hash::BuildHasherDefault<TextureIdHasher>>;
 
 /// Hashes a `TextureId`'s two integers by folding each into the state with a multiply (the Fx
 /// hash); it is for keys of that kind only.
 #[derive(Default)]
-pub struct TextureIdHasher(u64);
+struct TextureIdHasher(u64);
 
 impl std::hash::Hasher for TextureIdHasher {
     fn finish(&self) -> u64 {
@@ -136,7 +136,7 @@ impl CommandList {
     }
 
     /// An empty list with room for as many commands, vertices and textures as `like` holds.
-    pub fn with_room_of(like: &CommandList) -> Self {
+    fn with_room_of(like: &CommandList) -> Self {
         Self {
             commands: Vec::with_capacity(like.commands.capacity()),
             vertices: Vec::with_capacity(like.vertices.capacity()),
@@ -214,7 +214,7 @@ impl CommandList {
     }
 
     /// A fan's vertices (`span` one of this list's fans').
-    pub fn fan_vertices(&self, span: VertexSpan) -> &[crate::render::rasteriser::Vertex] {
+    fn fan_vertices(&self, span: VertexSpan) -> &[crate::render::rasteriser::Vertex] {
         &self.vertices[span.range()]
     }
 
@@ -338,7 +338,7 @@ pub fn step_render_scale(up: bool) {
 static FLUSH_SCALE: AtomicU32 = AtomicU32::new(100);
 
 /// The percent of the screen's size the 3D of the flush being drawn takes.
-pub fn flush_scale() -> u32 {
+fn flush_scale() -> u32 {
     FLUSH_SCALE.load(Relaxed)
 }
 
@@ -358,7 +358,7 @@ pub fn set_menu_high(percent: u32) {
 /// The percent of the frame's size the 3D of the menu flush being drawn is drawn at, when that
 /// is more than the frame's own size: the menus' models then keep the window's sharpness while
 /// the 2D stays the frame's pixels enlarged.
-pub fn menu_high_percent() -> Option<u32> {
+fn menu_high_percent() -> Option<u32> {
     let percent = MENU_HIGH.load(Relaxed);
     (percent > 100 && !FLUSH_RACING.load(Relaxed)).then_some(percent)
 }
@@ -632,7 +632,7 @@ fn pixels_as_bgra(pixels: &[u8], note: &TextureNote) -> Vec<u8> {
 impl Target {
     /// `f` on the screen's rows: for the backends, which draw while the game's code waits for
     /// the call (nothing else writes the canvas meanwhile).
-    pub fn with_canvas<R>(&self, f: impl FnOnce(&mut [u8]) -> R) -> R {
+    fn with_canvas<R>(&self, f: impl FnOnce(&mut [u8]) -> R) -> R {
         // SAFETY: `bytes`' promise: the backends call this on the game's thread, which waits for
         // the call, and `f` (their drawing) takes no other slice of the canvas; the slice lives
         // through `f` only, while the screen keeps its pixels.

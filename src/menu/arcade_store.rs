@@ -39,7 +39,7 @@ impl Arcade {
     }
 
     /// Starts `level` at its first stage.
-    pub fn start_level(&self, level: u32) {
+    pub(super) fn start_level(&self, level: u32) {
         self.level.set(level);
         self.stage.set(0);
     }

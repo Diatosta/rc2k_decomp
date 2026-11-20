@@ -14,7 +14,7 @@ use crate::memory::list_handle::ListItem;
 pub type Piece = rc2k_core::install::layout::Piece<ListItem>;
 
 /// The item a piece was made from; a piece made from none is refused.
-pub fn item_of(piece: &Piece) -> ListItem {
+pub(super) fn item_of(piece: &Piece) -> ListItem {
     piece
         .item
         .unwrap_or_else(|| refuse(crate::errors::BadInput("a piece made from no item")))

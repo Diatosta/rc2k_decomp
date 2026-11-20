@@ -9,7 +9,7 @@ use rc2k_core::strings::table::Source;
 /// What is returned for a text kept in a variable: the text's address, which as the next string id
 /// (`text_from_ids`) is past every table entry. Any id past the table does the same, nothing being
 /// appended for it.
-pub const AFTER_VARIABLE_TEXT: u32 = 0x8000_0000;
+const AFTER_VARIABLE_TEXT: u32 = 0x8000_0000;
 
 /// The owners the text of a string id can come from: the made texts live in the screens' text
 /// buffers, the menus' notice, and the installer's rows, names and variables; the driver names in

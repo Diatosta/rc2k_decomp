@@ -16,8 +16,8 @@ pub const FRAME: u32 = 0x21_2463;
 pub const WIDTH: u32 = 0x229;
 /// Where the bar's parts begin (the first part's border) and end (the last part's) across the
 /// layout.
-pub const BAR_START: u32 = 0x89;
-pub const BAR_END: u32 = WIDTH + 0x86 + 1;
+pub(crate) const BAR_START: u32 = 0x89;
+pub(crate) const BAR_END: u32 = WIDTH + 0x86 + 1;
 /// The last colour offset: the colours are four dwords read at a byte
 /// offset.
 pub const LAST_KIND: u32 = 0xC;

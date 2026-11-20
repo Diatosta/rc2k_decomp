@@ -22,7 +22,7 @@ fn first_class() -> u32 {
     class_pages::FIRST_RALLY_CLASS
 }
 
-pub fn class_rally_results_pass(
+pub(super) fn class_rally_results_pass(
     screens: &Screens,
     play: &Play,
     pages: &MenuPages,

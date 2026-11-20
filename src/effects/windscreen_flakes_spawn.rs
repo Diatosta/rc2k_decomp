@@ -26,7 +26,7 @@ fn rate(drops: &WindscreenDrops, fl: &WindscreenFlakes, effects: &crate::effects
     );
 }
 
-pub fn windscreen_flakes_spawn(
+pub(super) fn windscreen_flakes_spawn(
     shared: &RaceShared,
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,

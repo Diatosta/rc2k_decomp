@@ -73,7 +73,7 @@ fn lines_with(
 /// `effects::measure_slot_lines`: faces `from` and `to`, block `block`: for each
 /// of the block's 8 slots whose kind (the low byte of +0xD0 ..) is the face's +7, its
 /// lines into the slot's sum (+0xF0 ..). The x87's, for `measure_lines`.
-pub fn measure_slot_lines(
+fn measure_slot_lines(
     course: &Course,
     paths: &Paths,
     from: u32,
@@ -104,7 +104,7 @@ pub fn measure_slot_lines(
 /// of the block's 0x11 kinds (the low byte of +0x130 ..) that is the face's +6, with the
 /// face's +0xB 1: its point count added to +0x240 .., its lines into +0x1B8 ... The x87's,
 /// for `measure_lines`.
-pub fn measure_kind_lines(
+fn measure_kind_lines(
     course: &Course,
     paths: &Paths,
     from: u32,
@@ -293,7 +293,7 @@ pub fn measure_lines(
 /// cleared; then the measure-every flag 0 and the make-shares flag 1. Refuses as
 /// `measure_lines` with every block, before writing anything.
 // The logic is in `rc2k_core::effects::lines::{measured, block_at}`
-pub fn measure_starting_sums(
+fn measure_starting_sums(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
@@ -343,7 +343,7 @@ fn block_points(paths: &Paths, handle: u32) -> Result<&Owned<Vec<[u32; 3]>>, Bad
 }
 
 /// Base point `n` of the table `handle` names (`effects::morph_object_points`).
-pub fn block_point(paths: &Paths, handle: u32, n: u32) -> Result<[u32; 3], BadInput> {
+pub(super) fn block_point(paths: &Paths, handle: u32, n: u32) -> Result<[u32; 3], BadInput> {
     block_points(paths, handle)?
         .with(|t| t.get(n as usize).copied())?
         .ok_or(BadInput("a base point past its table"))
@@ -353,7 +353,7 @@ pub fn block_point(paths: &Paths, handle: u32, n: u32) -> Result<[u32; 3], BadIn
 /// point count of 12 bytes from its first point, to the table the block's +0x8C names.
 /// Refuses an object past 0xFF.
 // The logic is in `rc2k_core::effects::lines::check_object`
-pub fn copy_block_points(
+fn copy_block_points(
     course: &Course,
     paths: &Paths,
     block: &CarEffects,
@@ -384,7 +384,7 @@ pub fn copy_block_points(
 /// and +0x90 .. +0xAC the eight floats of `LinesWork.block_start`. Refuses as
 /// `measure_starting_sums`, before anything is taken.
 // The logic is in `rc2k_core::effects::lines::{measured, block_at}`
-pub fn set_up_blocks(
+pub(super) fn set_up_blocks(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,

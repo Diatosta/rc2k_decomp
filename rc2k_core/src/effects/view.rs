@@ -49,7 +49,7 @@ impl KeptVectors {
     }
 
     /// `effects::turn_kept_zy`: z and y by the first angle's.
-    pub fn turn_zy(&mut self, first: SineCosine) {
+    pub(crate) fn turn_zy(&mut self, first: SineCosine) {
         self.turn(2, 1, first);
     }
 }

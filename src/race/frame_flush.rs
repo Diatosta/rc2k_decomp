@@ -135,7 +135,7 @@ fn int_over_two(
 /// drawn with the glow's render states, texture `KindTextureTables.kind_first_slots[192]`
 /// (`scene::set_texture`), the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth
 /// buffer on.
-pub fn draw_view_backdrop(
+pub(super) fn draw_view_backdrop(
     reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::scene::workers::PartScratch,

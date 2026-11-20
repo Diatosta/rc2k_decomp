@@ -65,7 +65,7 @@ impl std::error::Error for Refused {}
 
 /// The largest picture side taken (the format allows 65,535; the buffers for that would
 /// be gigabytes).
-pub const LARGEST_SIDE: usize = 2048;
+pub(crate) const LARGEST_SIDE: usize = 2048;
 
 /// A decoded picture: full-size luma, and two chroma planes a quarter as wide and high
 /// (rounded up), each plane row after row with no padding.
@@ -80,8 +80,9 @@ pub struct Picture {
 }
 
 impl Picture {
+    #[cfg(test)]
     /// The pixel format's name as FFmpeg has it.
-    pub const PIXEL_FORMAT_NAME: &'static str = "yuv410p";
+    pub(crate) const PIXEL_FORMAT_NAME: &'static str = "yuv410p";
 
     /// The picture's width in pixels.
     pub fn width(&self) -> usize {

@@ -9,7 +9,7 @@ use std::ops::Range;
 pub const ITEM_LEN: u32 = 0x5C;
 pub const MENU_HEAD_LEN: u32 = 4;
 /// An item's +0x48 when the moves up and down pass over it (greyed or hidden).
-pub const PASSED_OVER: u32 = 0xFFFF_FC1C;
+pub(crate) const PASSED_OVER: u32 = 0xFFFF_FC1C;
 
 /// Where item `number` (from 1) of the current menu lies (`menu` gives the menu, asked only for an
 /// item it can find). Refused: item 0.
@@ -78,12 +78,10 @@ pub fn shown_in_game_option(n: u32) -> Look {
     }
 }
 
-/// An item's type (+0x10), what `LoopFlags.item` (the highlighted item) holds.
-pub const ITEM_TYPE: u32 = 0x10;
 /// A menu's items end with this dword.
-pub const ITEMS_END: u32 = u32::MAX;
+pub(crate) const ITEMS_END: u32 = u32::MAX;
 /// The most items `run_item_action` looks through.
-pub const MOST_ITEMS: u32 = 256;
+pub(crate) const MOST_ITEMS: u32 = 256;
 
 /// `menu::run_item_action`'s search: the number (from 0) of the first item whose type
 /// (`item_type(n)`) is `highlighted`, or None when the items end first (`word(n)` an item's first

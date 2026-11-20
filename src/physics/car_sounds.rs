@@ -65,7 +65,7 @@ pub fn place(
 
 /// The converted place (`rc2k_core::physics::sound_places::place`) into the three floats
 /// `into`.
-pub fn place_plain(
+fn place_plain(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     heard_turn: &crate::race::heard_turn::HeardTurn,
@@ -103,7 +103,7 @@ fn one_off(
 /// The converted steps' end: the sound and the band in the object's `slot`, the place
 /// (with `offset`), the object told to play.
 // Core: `rc2k_core::physics::sound_places`.
-pub fn cue_plain(
+pub(super) fn cue_plain(
     c: &SoundInputs<'_>,
     o: &SoundObject,
     slot: Slot,

@@ -55,18 +55,19 @@ const _: () = assert!(size_of::<Font>() == 0x20);
 /// Draw each line from x as given, without measuring it first.
 pub const MODE_AT_X: u8 = 0;
 /// Measure each line, then draw it from x.
-pub const MODE_LEFT: u8 = 1;
+pub(crate) const MODE_LEFT: u8 = 1;
 /// Measure each line, then draw it so that it ends at x + box width.
-pub const MODE_RIGHT: u8 = 2;
+pub(crate) const MODE_RIGHT: u8 = 2;
+#[cfg(test)]
 /// Measure each line, then centre it in the box. Any value above 4 behaves the same.
-pub const MODE_CENTRE: u8 = 3;
+pub(crate) const MODE_CENTRE: u8 = 3;
 /// Measure only: nothing is drawn, the font's line counter and widest line are updated.
 pub const MODE_MEASURE: u8 = 4;
 
 /// Stop as soon as a measured line gets wider than the box.
 pub const FLAG_FAIL_IF_WIDER: u8 = 2;
 /// Pull each glyph left as far as the outline of the line so far allows.
-pub const FLAG_KERNING: u8 = 4;
+pub(crate) const FLAG_KERNING: u8 = 4;
 
 /// Rows of the kerning outline.
 pub const KERNING_ROWS: usize = 64;
@@ -123,7 +124,10 @@ fn trailing_of(kerning: &Kerning, row: usize) -> u8 {
 
 /// The outline updated for one glyph `record`; how far the glyph moves left. Rows past the
 /// 64th are left out.
-pub fn add_record(kerning: &mut Kerning, record: &(impl Bytes + ?Sized)) -> Result<u32, Invalid> {
+pub(crate) fn add_record(
+    kerning: &mut Kerning,
+    record: &(impl Bytes + ?Sized),
+) -> Result<u32, Invalid> {
     let adv = byte(record, 2)?;
     if adv == 0 {
         return Ok(0); // no outline: the table untouched
@@ -173,7 +177,7 @@ pub fn add_record(kerning: &mut Kerning, record: &(impl Bytes + ?Sized)) -> Resu
 }
 
 /// `add_record` for glyph `glyph` of a table.
-pub fn add_glyph(
+pub(crate) fn add_glyph(
     kerning: &mut Kerning,
     glyphs: &(impl Bytes + ?Sized),
     glyph: u32,

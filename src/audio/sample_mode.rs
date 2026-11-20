@@ -7,7 +7,11 @@ use crate::audio::store::SampleRecords;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
-pub fn sample_mode_of(records: &SampleRecords, mode: u32, sound: u32) -> Result<u32, Refused> {
+pub(super) fn sample_mode_of(
+    records: &SampleRecords,
+    mode: u32,
+    sound: u32,
+) -> Result<u32, Refused> {
     if (sound as i32) < 0 {
         return Ok(mode);
     }

@@ -12,7 +12,7 @@ use crate::effects::{copy_first_point, run_shapes, scale_setting, tilt_shape};
 use crate::errors::{BadInput, Refused};
 use crate::race::owner_shared::RaceShared;
 
-pub fn shapes_frame(
+pub(super) fn shapes_frame(
     shared: &RaceShared,
     masks: &Masks,
     drops: &WindscreenDrops,

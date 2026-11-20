@@ -12,7 +12,7 @@ use crate::strings::append_string_by_id::{StringOwners, append_string_by_id};
 const CAPTION_LEN: usize = 0x100;
 
 /// A string and its NUL into a text buffer of the game's, if it fits.
-pub fn put_string(
+pub(super) fn put_string(
     o: StringOwners<'_>,
     id: u32,
     buffer: &crate::memory::session::PlainBytes<0x100>,

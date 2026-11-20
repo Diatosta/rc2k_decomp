@@ -99,7 +99,7 @@ pub fn reseed(
 }
 
 /// The main menu's set-up: the launch, if one was asked for and has not run yet.
-pub fn run_once(entry: &crate::menu::screen_loop::Entry) -> Result<(), Refused> {
+pub(super) fn run_once(entry: &crate::menu::screen_loop::Entry) -> Result<(), Refused> {
     static RAN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     match asked() {
         Some(asked) if !RAN.swap(true, Ordering::Relaxed) => match asked {
@@ -114,7 +114,7 @@ pub fn run_once(entry: &crate::menu::screen_loop::Entry) -> Result<(), Refused> 
 /// The first car choice(s) of an event whose flow is not the menus' `Game`'s (the arcade, a
 /// championship): given the car list the screen would show, the list the car was chosen in,
 /// or `None` when the screen is the player's.
-pub type CarAnswer<'a> = &'a mut dyn FnMut(CarList) -> Result<Option<CarList>, Refused>;
+pub(super) type CarAnswer<'a> = &'a mut dyn FnMut(CarList) -> Result<Option<CarList>, Refused>;
 
 /// Whether the program ends when the first race is over (a launch's `--then quit` in an event
 /// the launch's wrapper does not see the race of).

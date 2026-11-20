@@ -9,7 +9,7 @@ use crate::net::chat_line_locked::chat_line_locked;
 use crate::net::owner::Net;
 
 /// Every waiting message added as `net::chat_line_locked` adds it; the first refusal ends it.
-pub fn drain_chat(net: &Net, gfx: &'static Gfx) -> Result<(), Refused> {
+pub(super) fn drain_chat(net: &Net, gfx: &'static Gfx) -> Result<(), Refused> {
     let mut waiting = net.take_waiting_chat();
     // The host's numbers, for lines that arrived together (a stable sort: unnumbered ones, which
     // only the host has, stay as they came).

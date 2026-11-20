@@ -9,7 +9,7 @@ use crate::physics::cells::set_changed;
 use rc2k_core::physics::ground::SkidStart;
 
 // Core: `rc2k_core::physics::ground::SkidStart::start`.
-pub fn start_skid_mark(car: &Car) {
+pub(super) fn start_skid_mark(car: &Car) {
     // The squeezes are tested as two qwords: any bit set counts (a -0.0 too).
     let wheels = car.wheel_squeeze.each_ref().map(|w| w.get().to_bits());
     let was = SkidStart {

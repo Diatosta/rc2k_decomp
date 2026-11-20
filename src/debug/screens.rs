@@ -27,7 +27,7 @@ pub fn raced() -> bool {
 
 /// Says whether free play starts at the start.
 #[cfg(debug_ui)]
-pub fn place_free_play(on: bool) {
+pub(super) fn place_free_play(on: bool) {
     PLACE_FREE_PLAY.store(on, Ordering::Relaxed);
 }
 
@@ -44,19 +44,19 @@ static WANTED: AtomicU32 = AtomicU32::new(0);
 
 /// The section best times of `section` (0 .. 5) at the menu's next frame.
 #[cfg(debug_ui)]
-pub fn ask_section_times(section: u32) {
+pub(super) fn ask_section_times(section: u32) {
     WANTED.store(section + 1, Ordering::Relaxed);
 }
 
 /// The car specification screen at the menu's next frame.
 #[cfg(debug_ui)]
-pub fn ask_cspecs() {
+pub(super) fn ask_cspecs() {
     WANTED.store(CSPECS, Ordering::Relaxed);
 }
 
 /// Whether the section has its table (the draw refuses one without).
 #[cfg(debug_ui)]
-pub fn section_has_times(saves: &Saves, section: usize) -> bool {
+pub(super) fn section_has_times(saves: &Saves, section: usize) -> bool {
     saves.rally_times.table_named(section).is_ok()
 }
 

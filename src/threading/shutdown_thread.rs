@@ -9,7 +9,7 @@ use crate::threading::thread_slot::SlotThread;
 use std::sync::atomic::Ordering;
 
 /// Ends the thread.
-pub fn shutdown_thread() -> Result<(), crate::errors::Refused> {
+pub(super) fn shutdown_thread() -> Result<(), crate::errors::Refused> {
     log_text(b"SHUTDOWN:START", true, 2);
     let running = &SlotThread::Shutdown.slot().running;
     running.store(true, Ordering::SeqCst);

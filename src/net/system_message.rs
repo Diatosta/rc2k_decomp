@@ -10,7 +10,7 @@ use rc2k_core::net::message::SystemMessage;
 use rc2k_core::net::players::{A_PLAYER, System};
 
 /// The message is in `crate::test_support::own::net().vars.receiver.receive_data`.
-pub fn system_message(
+pub(super) fn system_message(
     net: &Net,
     lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {

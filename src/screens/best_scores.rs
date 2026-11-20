@@ -83,7 +83,7 @@ pub struct Table {
     pub sprite_dy: i32,
 }
 
-pub const BEST_SCORES: Table = Table {
+const BEST_SCORES: Table = Table {
     at: Source::Scores,
     keeps_y: true,
     group_at: None,
@@ -91,7 +91,7 @@ pub const BEST_SCORES: Table = Table {
     highlight: false,
     sprite_dy: 0,
 };
-pub const CLASS_TIMES: Table = Table {
+const CLASS_TIMES: Table = Table {
     at: Source::LevelScores,
     keeps_y: false,
     group_at: None,
@@ -101,7 +101,7 @@ pub const CLASS_TIMES: Table = Table {
 };
 /// `screens::draw_class_times_marked`'s: the class `arcade.level`, the player's
 /// own times (`mark` 1) in the highlight fonts, the sprites 4 lower.
-pub const MARKED_CLASS_TIMES: Table = Table {
+pub(super) const MARKED_CLASS_TIMES: Table = Table {
     at: Source::LevelScores,
     keeps_y: true,
     group_at: Some(arcade_level),
@@ -112,7 +112,7 @@ pub const MARKED_CLASS_TIMES: Table = Table {
 
 /// The family's screen for `rc2k_core::screens::best_scores`: the names are copied out
 /// of the typed tables (`HeldText::Held`), the game's texts drawn where they are.
-pub type ScoresScreen<'a> = GameScreen<
+pub(super) type ScoresScreen<'a> = GameScreen<
     'a,
     rc2k_core::screens::best_scores::Font,
     rc2k_core::screens::best_scores::Work,
@@ -123,7 +123,7 @@ pub type ScoresScreen<'a> = GameScreen<
 /// the rank font), the car's sprite and the flag's sprite (24 and 25 swapped) on the rank's
 /// line; each text starts at the last one's y and the next row is 0x19 below. The sprites take
 /// the line buffer past its NUL as their palette (unused). Refuses no table.
-pub fn draw_scores(
+pub(super) fn draw_scores(
     o: crate::owners::Owners<'static>,
     t: &Table,
     canvas: &mut dyn Canvas,
@@ -304,14 +304,14 @@ fn rally_table<'t>(_: &Menus, tables: &'t crate::saves::best_times::BestTables) 
 }
 
 /// `screens::draw_stage_times`'.
-pub const STAGE_TIMES: StageTimes = StageTimes {
+pub(super) const STAGE_TIMES: StageTimes = StageTimes {
     records: champ_records,
     record: event_stage_number,
     table: champ_table,
     rally: false,
 };
 /// `screens::draw_rally_stage_times`'.
-pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
+pub(super) const RALLY_STAGE_TIMES: StageTimes = StageTimes {
     records: rally_records,
     record: arcade_stage,
     table: rally_table,
@@ -321,7 +321,7 @@ pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
 /// The stage's name (string +0x38 of the records) and its stage line (string 0x482 ..., built
 /// in the line buffer), in the heading font. Used for the stage and rally times headings.
 /// Refuses no stage records.
-pub fn draw_times_heading(
+pub(super) fn draw_times_heading(
     o: crate::owners::Owners<'static>,
     system: &System,
     p: &StageTimes,
@@ -393,7 +393,7 @@ pub use rc2k_core::screens::best_scores::Keep;
 /// after the ten, the next stage's first or the block's zeros past the table, is read for
 /// it). Refuses a stage past the table, and an entry after the ten past the block.
 /// The logic is in `rc2k_core::screens::best_scores::time_rows`.
-pub fn draw_time_rows(
+fn draw_time_rows(
     o: crate::owners::Owners<'static>,
     table: &StageTable,
     stage: usize,
@@ -454,7 +454,10 @@ pub fn record_at(
 }
 
 /// Whether the record table has the section (the look-up has no end): for the refusals.
-pub fn section_there(menus: &Menus, system: &System) -> Result<bool, crate::errors::BadInput> {
+pub(super) fn section_there(
+    menus: &Menus,
+    system: &System,
+) -> Result<bool, crate::errors::BadInput> {
     crate::records::find_record::has_section(
         &system.records().stage_tables,
         system.records().stage_tables.championship(),
@@ -543,13 +546,13 @@ pub fn draw_record_times(
 
 /// `screens::draw_event_best_scores`': group `event.shown.class`, the player's own
 /// (+0x14 1) in the highlight fonts.
-pub const EVENT_BEST_SCORES: Table = Table {
+pub(super) const EVENT_BEST_SCORES: Table = Table {
     group_at: Some(event_class),
     highlight: true,
     ..BEST_SCORES
 };
 /// `screens::draw_overall_best_scores`': group 4.
-pub const OVERALL_BEST_SCORES: Table = Table {
+pub(super) const OVERALL_BEST_SCORES: Table = Table {
     group_fixed: Some(4),
     highlight: true,
     ..BEST_SCORES
@@ -558,7 +561,7 @@ pub const OVERALL_BEST_SCORES: Table = Table {
 /// The heading in the heading font: in event mode 0x13 the section's name (the section's entry
 /// of the heading list), else string `other` (the first: 0x35E + `event.shown.class`; the second
 /// 0x362); then the scores as `draw_scores`. Refuses no table.
-pub fn draw_scores_with_heading(
+pub(super) fn draw_scores_with_heading(
     o: crate::owners::Owners<'static>,
     t: &Table,
     event: bool,

@@ -106,7 +106,7 @@ pub fn race_pictures(
 }
 
 /// What a device record reads through in the race: set at the race's start.
-pub fn set_race_profile(input: &Input, device: usize, profile: Option<Profile>) {
+pub(super) fn set_race_profile(input: &Input, device: usize, profile: Option<Profile>) {
     let mut held = input
         .race_profiles
         .lock()
@@ -117,7 +117,7 @@ pub fn set_race_profile(input: &Input, device: usize, profile: Option<Profile>) 
 }
 
 /// The player whose controls car `device` took.
-pub fn race_player(input: &Input, device: usize) -> u32 {
+pub(super) fn race_player(input: &Input, device: usize) -> u32 {
     input
         .race_players
         .get(device)
@@ -126,12 +126,12 @@ pub fn race_player(input: &Input, device: usize) -> u32 {
 
 /// Whether the player on race device `device` has the engine's part of the force feedback on
 /// (on for a device with no profile: a keyboard has no feedback to take it from).
-pub fn race_engine_vibration(input: &Input, device: usize) -> bool {
+pub(super) fn race_engine_vibration(input: &Input, device: usize) -> bool {
     race_profile(input, device).is_none_or(|p| p.engine_vibration)
 }
 
 /// The profile device `device` reads through.
-pub fn race_profile(input: &Input, device: usize) -> Option<Profile> {
+pub(super) fn race_profile(input: &Input, device: usize) -> Option<Profile> {
     input
         .race_profiles
         .lock()

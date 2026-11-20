@@ -259,13 +259,13 @@ impl Mode {
     }
 
     /// Whether the mode's stages are chosen on the stage screen (the others bring their own).
-    pub fn chooses_stage(self) -> bool {
+    pub(crate) fn chooses_stage(self) -> bool {
         matches!(self, Mode::Single | Mode::TimeTrial)
     }
 }
 
 /// The service area's tyres, in the order of its choice (the game's text numbers 0x4B0 on).
-pub const TYRES: [&str; 6] = [
+pub(crate) const TYRES: [&str; 6] = [
     "Slicks",
     "Intermediate",
     "Wets",
@@ -274,9 +274,9 @@ pub const TYRES: [&str; 6] = [
     "Snow",
 ];
 /// The service area's gear ratio choices.
-pub const GEAR_RATIOS: u32 = 5;
+pub(crate) const GEAR_RATIOS: u32 = 5;
 /// The four sliders' positions: 0 up to this.
-pub const SLIDER_MAX: u32 = 100;
+pub(crate) const SLIDER_MAX: u32 = 100;
 
 /// The time trial's tune, each value as the car's record keeps it (`None`: as the record has it).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -399,7 +399,7 @@ impl std::fmt::Display for LaunchError {
 }
 
 /// The switches that take a value (the next word, or after `=`).
-pub const VALUED: [&str; 24] = [
+pub(crate) const VALUED: [&str; 24] = [
     "join",
     "name",
     "port",
@@ -561,9 +561,9 @@ pub struct ReplayLaunch {
 }
 
 /// The longest player name the lobby takes, in bytes.
-pub const NAME_LONGEST: usize = 30;
+pub(crate) const NAME_LONGEST: usize = 30;
 /// The longest address the settings screen's field holds, in bytes.
-pub const ADDRESS_LONGEST: usize = 63;
+pub(crate) const ADDRESS_LONGEST: usize = 63;
 
 /// What a network launch does in the lobby's place: make the session, or join one.
 #[derive(Clone, Debug, PartialEq, Eq)]

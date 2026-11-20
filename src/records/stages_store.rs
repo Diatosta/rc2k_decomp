@@ -208,7 +208,7 @@ impl Record {
     }
 
     /// A record holder's name (the bytes as kept: no NUL when it fills them).
-    pub fn holder_name(&self, h: Holder) -> [u8; HOLDER_NAME_LEN] {
+    pub(super) fn holder_name(&self, h: Holder) -> [u8; HOLDER_NAME_LEN] {
         let (.., name) = self.holder_cells(h);
         std::array::from_fn(|k| name.get(k))
     }
@@ -283,7 +283,7 @@ impl Record {
     }
 
     /// Its bytes as the old layout and the options file hold them.
-    pub fn image_bytes(&self) -> impl Iterator<Item = u8> {
+    fn image_bytes(&self) -> impl Iterator<Item = u8> {
         self.words().into_iter().flat_map(|w| w.get().to_le_bytes())
     }
 
@@ -566,7 +566,7 @@ pub struct StageTables {
 }
 
 /// The tail's bytes.
-pub const TAIL_LEN: usize = 0xB2;
+const TAIL_LEN: usize = 0xB2;
 
 /// An entry of a built-in list: a thing, or the -1 that ends the list.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -609,7 +609,7 @@ impl ImageName for RecordTable {
 /// One of the three lists of event tables, one after the other: the two stage groups' and the
 /// arcade levels'; a list read past its -1 reads on into the next (`group_event_table`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StageList {
+enum StageList {
     GroupA,
     GroupB,
     Levels,
@@ -658,7 +658,7 @@ pub const RESULT_TABLES: [Listed<TimesVariable>; 5] = [
 ];
 
 /// Per stage group, its list of event tables.
-pub const GROUP_LISTS: [StageList; 4] = [
+const GROUP_LISTS: [StageList; 4] = [
     StageList::GroupB,
     StageList::GroupA,
     StageList::GroupB,
@@ -677,10 +677,10 @@ const EVENTS_DOWN: [Listed<RecordTable>; 7] = [
 ];
 
 /// The first stage group's six event tables and a -1.
-pub const GROUP_LIST_A: [Listed<RecordTable>; 7] = EVENTS_DOWN;
+const GROUP_LIST_A: [Listed<RecordTable>; 7] = EVENTS_DOWN;
 
 /// The second stage group's six event tables and a -1.
-pub const GROUP_LIST_B: [Listed<RecordTable>; 7] = [
+const GROUP_LIST_B: [Listed<RecordTable>; 7] = [
     Listed::Entry(RecordTable::Event(6)),
     Listed::Entry(RecordTable::Event(7)),
     Listed::Entry(RecordTable::Event(8)),
@@ -691,7 +691,7 @@ pub const GROUP_LIST_B: [Listed<RecordTable>; 7] = [
 ];
 
 /// Per arcade level (and the championship's stages), an event table, and a -1.
-pub const LEVEL_TABLES: [Listed<RecordTable>; 7] = EVENTS_DOWN;
+const LEVEL_TABLES: [Listed<RecordTable>; 7] = EVENTS_DOWN;
 
 /// The tables' pieces in the old layout's order: the chain a read on goes along.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -791,7 +791,7 @@ impl Piece {
 impl StageTables {
     /// Dword `n` from piece `from`'s first on, reading on into the pieces after it; `None` past
     /// the last piece.
-    pub fn word_on(&self, from: Piece, n: usize) -> Option<u32> {
+    pub(super) fn word_on(&self, from: Piece, n: usize) -> Option<u32> {
         let mut n = n;
         for piece in from.and_after() {
             let count = piece.count(self);
@@ -804,7 +804,7 @@ impl StageTables {
     }
 
     /// Byte `at` from piece `from`'s first on (`word_on`'s bytes, and the tail's last two).
-    pub fn byte_on(&self, from: Piece, at: usize) -> Option<u8> {
+    fn byte_on(&self, from: Piece, at: usize) -> Option<u8> {
         let mut at = at;
         for piece in from.and_after() {
             let len = piece.len(self);

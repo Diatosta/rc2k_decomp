@@ -124,7 +124,7 @@ fn turn_skid_point(
 /// two points and the two before (vertices 3, 2, 0, 1), fogged (`scene::fog_polygon`), cut by
 /// depth and to the screen and drawn in black in mode 3 without the depth test. Refuses what the
 /// scene's functions refuse (mid-way; not met with four vertices).
-pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     let mut views = u32::MAX;
     let mode: u32 = ctx.reads.vars.run_kind.get();
@@ -247,7 +247,9 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
 }
 
 /// `race::draw_skidmarks_if_on`: `draw_skidmarks` unless `drawing` is set.
-pub fn draw_skidmarks_if_on(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+pub(super) fn draw_skidmarks_if_on(
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
+) -> Result<(), Refused> {
     if ctx.reads.frame_work.drawing.get() != 0 {
         return Ok(());
     }

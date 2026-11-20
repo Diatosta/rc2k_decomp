@@ -32,12 +32,12 @@ fn scratch(lists: &CarLists) -> List<'_> {
     (&lists.cars_scratch, 0x32)
 }
 
-pub fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
+pub(super) fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
     Ok(car_lists::entries(list.1, |n| list.0[n].get())?)
 }
 
 /// The entries and a -1 after them. The caller has made sure of the room.
-pub fn write_list(list: List, entries: &[u32]) {
+pub(super) fn write_list(list: List, entries: &[u32]) {
     for (n, &entry) in entries.iter().enumerate() {
         list.0[n].set(entry);
     }

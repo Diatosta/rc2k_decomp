@@ -54,13 +54,13 @@ fn notices() -> std::sync::MutexGuard<'static, Vec<Notice>> {
 }
 
 /// A network race begins: nobody has left it.
-pub fn begin_race() {
+pub(super) fn begin_race() {
     forget();
     RACING.store(true, Ordering::SeqCst);
 }
 
 /// The network race is over.
-pub fn end_race() {
+pub(super) fn end_race() {
     RACING.store(false, Ordering::SeqCst);
     forget();
 }
@@ -75,7 +75,7 @@ fn forget() {
 
 /// The session's player with DirectPlay id `id` was destroyed (the receiving thread): in a race,
 /// that player has left it.
-pub fn player_destroyed(net: &Net, id: u32) {
+pub(super) fn player_destroyed(net: &Net, id: u32) {
     if !RACING.load(Ordering::SeqCst) || !net.race_slot.is_on() {
         return;
     }
@@ -90,7 +90,7 @@ pub fn player_destroyed(net: &Net, id: u32) {
 /// The session was lost during a race or in the lobby (the receiving thread): the host has gone and with it the
 /// session. The race ends here as a player's own leaving ends it, and the player is told once the
 /// menus are back.
-pub fn session_lost(net: &Net) {
+pub(super) fn session_lost(net: &Net) {
     if !net.race_slot.is_on() {
         return;
     }

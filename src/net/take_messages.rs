@@ -38,7 +38,7 @@ pub fn joined(net: &Net) {
     net.vars.receiver.round_unknown.set(true);
 }
 
-pub fn take_messages(
+pub(super) fn take_messages(
     net: &Net,
     lines: &crate::race::viewer_screen_store::NetTexts,
     clock: &crate::clock::tick_count::PictureClock,

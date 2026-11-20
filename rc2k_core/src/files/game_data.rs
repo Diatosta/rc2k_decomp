@@ -6,7 +6,7 @@
 /// and the installed copy both hold it).
 pub const MARKER: &str = "files/d/gfx/jade.bun";
 /// The files that say a folder is an installation, not the download / CD layout.
-pub const INSTALLED_MARKS: [&str; 2] = ["var/ral.zog", "var/install.cfg"];
+pub(crate) const INSTALLED_MARKS: [&str; 2] = ["var/ral.zog", "var/install.cfg"];
 
 /// What a folder holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -30,9 +30,10 @@ pub fn classify(has: impl Fn(&str) -> bool) -> Kind {
     }
 }
 
+#[cfg(test)]
 /// The folder among `candidates` (paths under the unpacked zip, `""` its root, shallowest
 /// first) that holds the game, with its kind: the first that is not `Nothing`.
-pub fn find_game_folder<'a>(
+pub(crate) fn find_game_folder<'a>(
     candidates: &[&'a str],
     has: impl Fn(&str, &str) -> bool,
 ) -> Option<(&'a str, Kind)> {

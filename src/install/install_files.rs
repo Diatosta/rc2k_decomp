@@ -99,7 +99,7 @@ fn message(
     Ok(Copied::Stopped)
 }
 
-pub fn install_files(
+pub(super) fn install_files(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
 ) -> Result<Copied, Refused> {

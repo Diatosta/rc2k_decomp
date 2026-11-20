@@ -98,7 +98,7 @@ fn piece_name(piece: StartPiece) -> String {
 }
 
 /// At a whole frame of a replay played, before its recorded state is loaded.
-pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
+pub(super) fn compare_frame(race: &Race) -> Result<(), BadInput> {
     let staging = race.replay.staging();
     let clock = race.car_blocks().cars[0].step_clock.get();
     if staging.start_word(2)? != clock {

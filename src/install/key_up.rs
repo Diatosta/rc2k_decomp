@@ -7,7 +7,7 @@ use rc2k_core::install::items::{Helper, ItemKey};
 
 /// A key on `item`: the helper the key has for the item's kind, `number` for the number
 /// keys' helpers; whether the key was taken.
-pub fn item_key(
+pub(super) fn item_key(
     install: &'static crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
     item: ListItem,
@@ -31,7 +31,7 @@ pub fn item_key(
 }
 
 /// Whether the key was taken.
-pub fn key_up(
+pub(super) fn key_up(
     install: &'static crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
     item: ListItem,

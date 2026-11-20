@@ -281,7 +281,7 @@ const MOST_LEVELS: usize = 8;
 
 /// The smaller levels of `texture` (halving each side down to one texel, at most `MOST_LEVELS`),
 /// each texel the average of the four it covers in the level above (a box filter), per channel.
-pub fn mip_chain(texture: &Texture) -> Vec<MipLevel> {
+pub(super) fn mip_chain(texture: &Texture) -> Vec<MipLevel> {
     let base = Texels::of(texture, false);
     let (mut w, mut h) = (texture.width.max(1), texture.height.max(1));
     let mut above: Vec<u32> = (0..h)
@@ -850,7 +850,7 @@ impl Triangle<'_> {
     not(any(target_arch = "x86", target_arch = "x86_64")),
     allow(dead_code)
 )] // the SSE path's
-pub static SCALAR_ONLY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static SCALAR_ONLY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 #[cfg(test)]
 mod tests;

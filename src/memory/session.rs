@@ -562,7 +562,7 @@ impl<const N: usize> Bytes<N> {
 /// A dword at an address that is not a multiple of 4 (the audio block's has-3D flag): four
 /// byte atomics, as `Bytes`.
 #[repr(transparent)]
-pub struct Loose([AtomicU8; 4]);
+pub(super) struct Loose([AtomicU8; 4]);
 
 impl Loose {
     pub const fn new(value: u32) -> Self {

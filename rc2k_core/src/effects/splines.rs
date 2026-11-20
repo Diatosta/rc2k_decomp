@@ -8,8 +8,8 @@ use crate::effects::points::{Collected, add_points};
 /// The most points a record holds.
 pub const MOST_POINTS: u32 = 0x80;
 /// The heights the grades part at: constants (the record's own +0x18 and +0x1C are not used).
-pub const LOW: i32 = 0x3830;
-pub const HIGH: i32 = 0x6720;
+pub(crate) const LOW: i32 = 0x3830;
+pub(crate) const HIGH: i32 = 0x6720;
 /// The grades.
 pub const GRADES: u32 = 3;
 

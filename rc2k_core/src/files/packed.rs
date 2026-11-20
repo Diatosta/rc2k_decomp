@@ -47,8 +47,9 @@ impl Bits {
     }
 }
 
+#[cfg(test)]
 /// Whether a file read into a buffer is packed.
-pub fn is_packed(buffer: &[u8]) -> bool {
+pub(crate) fn is_packed(buffer: &[u8]) -> bool {
     get(buffer, 0) == Ok(MAGIC)
 }
 

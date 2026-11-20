@@ -9,7 +9,7 @@ use crate::physics::probe_ground::probe_ground_at;
 use crate::physics::step_families::GroundInputs;
 
 /// The steps.
-pub fn probe_and_keep_at(c: &GroundInputs<'_>) -> Result<(), Refused> {
+fn probe_and_keep_at(c: &GroundInputs<'_>) -> Result<(), Refused> {
     let contact = c.contact;
     probe_ground_at(
         &crate::physics::probe_ground::ProbeInputs::of_ground(c),
@@ -37,6 +37,6 @@ pub fn probe_and_keep_at(c: &GroundInputs<'_>) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn probe_and_keep(c: &GroundInputs<'_>) -> Result<(), Refused> {
+pub(super) fn probe_and_keep(c: &GroundInputs<'_>) -> Result<(), Refused> {
     probe_and_keep_at(c)
 }

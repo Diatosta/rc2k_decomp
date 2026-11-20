@@ -41,7 +41,7 @@ pub fn press(
 }
 
 /// A button's call made.
-pub fn make_call(o: Owners<'static>, call: Call) -> Result<(), Refused> {
+pub(super) fn make_call(o: Owners<'static>, call: Call) -> Result<(), Refused> {
     match call {
         Call::Background => load_car_background(o.menus, o.gfx, o.system),
         Call::Stream => play_car_stream(

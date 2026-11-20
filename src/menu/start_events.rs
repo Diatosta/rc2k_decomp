@@ -25,7 +25,7 @@ fn split_screen_only_in_single_rally() -> Refused {
 }
 
 /// Begins `event` for the players `seats` stand for.
-pub fn start_event_item(
+pub(super) fn start_event_item(
     o: Owners<'static>,
     event: EventStart,
     seats: Seats,

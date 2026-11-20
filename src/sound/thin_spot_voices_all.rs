@@ -6,7 +6,7 @@
 use crate::errors::Refused;
 
 /// `sound::thin_spot_voices` for each sound thinned.
-pub fn thin_spot_voices_all(
+pub(super) fn thin_spot_voices_all(
     owner: &crate::sound::owner::Sound,
     system: &crate::system::owner::System,
     random: &crate::math::next_random::Randoms,

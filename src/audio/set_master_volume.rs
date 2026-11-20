@@ -3,7 +3,7 @@
 
 use crate::audio::own::AudioOwn;
 
-pub fn set_master_volume(state: &AudioOwn, volume: u32) {
+pub(super) fn set_master_volume(state: &AudioOwn, volume: u32) {
     let buffer = state.primary_buffer.get();
     if buffer == 0 {
         return;

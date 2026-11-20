@@ -16,7 +16,7 @@ use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
 const QUERY_FAILED: &std::ffi::CStr = c"AUD: 1-DSBQuery3D failed";
-pub const MODE_OWN_BUFFERS: u32 = 0x1_0000;
+pub(super) const MODE_OWN_BUFFERS: u32 = 0x1_0000;
 use rc2k_core::audio::voices::MODE_HARDWARE_3D;
 const MODE_EAX: u32 = 0x100_0000;
 

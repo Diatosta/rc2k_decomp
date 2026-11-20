@@ -14,7 +14,7 @@ const NEW_MODES_TEXT: &std::ffi::CStr = c"AUD: New modes";
 pub use rc2k_core::audio::modes::{AudioOptions, Facts};
 
 /// The machine's facts.
-pub fn game_facts(state: &AudioShared) -> Facts {
+fn game_facts(state: &AudioShared) -> Facts {
     Facts {
         qualities: state
             .quality_modes

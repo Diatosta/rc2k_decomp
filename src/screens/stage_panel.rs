@@ -39,7 +39,7 @@ pub fn group_title(group: u32) -> Result<u32, BadInput> {
 /// add one only after a section's last record, `menu::view_stage_loop` puts back what it
 /// took, and a savegame holds what the game saved; a section the table has not is refused by
 /// the record look-ups before any title is drawn. Refused past the field.
-pub fn section_title(
+pub(super) fn section_title(
     lists: &crate::menu::lists_store::MenuLists,
     section: u32,
 ) -> Result<u32, BadInput> {
@@ -67,7 +67,7 @@ pub fn label(
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the
 /// four panels build it; only `draw_time_trial_stage_info` also draws it (the text it
 /// returns, with its NUL).
-pub fn build_second_heading(
+pub(super) fn build_second_heading(
     o: crate::owners::Owners<'_>,
     record: RecordRef,
 ) -> Result<Vec<u8>, Refused> {
@@ -90,7 +90,7 @@ pub fn build_second_heading(
 /// +0x14 weather string, +0x1C temperature, +0x20 wind in tenths of a mile per hour,
 /// +0x24/+0x28/+0x2C/+0x30 surface percentages, +0x38 a number and +0x3C which of two labels
 /// goes with it. The record gives +0x10, the start time as hours * 100 + minutes.
-pub fn draw_stage_body(
+pub(super) fn draw_stage_body(
     o: crate::owners::Owners<'static>,
     gfx: &Gfx,
     record: RecordRef,
@@ -103,7 +103,7 @@ pub fn draw_stage_body(
 /// `draw_stage_body` with the two headings (surface, weather) in `heading_font`: the rally
 /// stage page (`screens::draw_rally_stage_info`) uses `FontObjects.objects[14].first_char`, the
 /// others `FontObjects.objects[17].first_char`.
-pub fn draw_stage_body_in(
+pub(super) fn draw_stage_body_in(
     o: crate::owners::Owners<'static>,
     gfx: &Gfx,
     record: RecordRef,
@@ -165,7 +165,7 @@ pub fn draw_stage_body_in(
 
 /// The panel's screen for `rc2k_core::screens::stage_panel`: the best times' names copied
 /// out of their tables (`HeldText::Held`), the game's texts drawn where they are.
-pub type PanelScreen<'a> = GameScreen<
+pub(super) type PanelScreen<'a> = GameScreen<
     'a,
     rc2k_core::screens::stage_panel::Font,
     rc2k_core::screens::stage_panel::Work,
@@ -174,7 +174,7 @@ pub type PanelScreen<'a> = GameScreen<
 
 /// Stage `stage`'s best time (its first) in `table`, copied out. Refuses no table and a stage
 /// past it.
-pub fn best_of(
+pub(super) fn best_of(
     table: &crate::menu::event_flow::StageTable,
     stage: u32,
 ) -> Result<rc2k_core::saves::entries::BestTime, crate::errors::BadInput> {
@@ -188,7 +188,7 @@ pub fn best_of(
 
 /// The record rows, with the stage's best time (the record's +0x3C its stage) from
 /// `table`. Returns whether the last text was too wide for its box.
-pub fn draw_records_from(
+pub(super) fn draw_records_from(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     table: &crate::menu::event_flow::StageTable,
@@ -206,7 +206,7 @@ pub fn draw_records_from(
 /// group 1 is selected, else from the usual one, and not at all while either the group 1
 /// table or the chosen one is missing. Returns whether the last text was too wide
 /// for its box (false when nothing is drawn).
-pub fn draw_records_for_group(
+pub(super) fn draw_records_for_group(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     group: u32,
@@ -232,7 +232,7 @@ pub fn draw_records_for_group(
 
 /// The string id (+0x14) of item `n` (from 0) of the current menu, or None without a menu
 /// (or past its end).
-pub fn menu_item_id<'a>(
+pub(super) fn menu_item_id<'a>(
     screens: &'a Screens,
     tables: &'a crate::menu::menus_store::MenuTables,
     n: u32,

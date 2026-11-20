@@ -10,7 +10,7 @@ use crate::race::numbers_store::Numbers;
 
 /// The exact version, for `physics::car_physics_step` and `physics::apply_wheel_torques`: the last
 /// move.
-pub fn move_car(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> u32 {
+pub(super) fn move_car(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> u32 {
     let k65536 = numbers.k65536.get();
     let dt = tables.step_time.get();
     let mut last = 0;

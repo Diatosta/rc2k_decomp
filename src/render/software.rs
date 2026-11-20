@@ -33,10 +33,10 @@ pub struct Depth {
     pub values: Vec<f32>,
 }
 
-pub static DEPTH: Mutex<Option<Depth>> = Mutex::new(None);
+static DEPTH: Mutex<Option<Depth>> = Mutex::new(None);
 
 /// The depth buffer at the screen's size, made or made again.
-pub fn with_depth<R>(width: usize, height: usize, f: impl FnOnce(&mut Depth) -> R) -> R {
+fn with_depth<R>(width: usize, height: usize, f: impl FnOnce(&mut Depth) -> R) -> R {
     let mut depth = DEPTH.lock().unwrap();
     if depth
         .as_ref()

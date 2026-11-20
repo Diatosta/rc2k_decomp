@@ -10,8 +10,6 @@ use crate::strings::bytes::Bytes;
 pub const MARKER: &[u8; 13] = b"$VER: Rally 5";
 /// The bytes read at a time, and scanned.
 pub const CHUNK: u32 = 0xFF00;
-/// The bytes of the chunk before carried to the front.
-pub const CARRIED: u32 = 0x100;
 /// The most bytes looked through for the version's NUL (less one).
 const TO_NUL: u32 = 0x80;
 

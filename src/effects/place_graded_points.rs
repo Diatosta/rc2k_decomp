@@ -46,7 +46,7 @@ fn refusal(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn place_graded_points(
+pub(super) fn place_graded_points(
     object_points: &crate::scene::object_points::ObjectPoints,
     paths: &Paths,
     s: Spline,

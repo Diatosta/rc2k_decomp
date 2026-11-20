@@ -4,7 +4,7 @@
 /// Where x is: the button's middle (`ALIGN_CENTRE`), its left edge (`ALIGN_LEFT`) or where its
 /// right end piece goes (`ALIGN_RIGHT`).
 pub const ALIGN_CENTRE: u32 = 1;
-pub const ALIGN_LEFT: u32 = 2;
+pub(crate) const ALIGN_LEFT: u32 = 2;
 pub const ALIGN_RIGHT: u32 = 3;
 
 /// How a button is drawn.

@@ -313,7 +313,7 @@ const fn pool() -> Pool {
 /// A texture format by handle: `FORMAT_TAG | n` for `descriptions[n]`, 0 none.
 pub const FORMAT_TAG: u32 = 0xCC00_0000;
 /// The handle for `descriptions[index]`.
-pub const fn format_of(index: u32) -> u32 {
+const fn format_of(index: u32) -> u32 {
     assert!(index < 5);
     FORMAT_TAG | index
 }
@@ -419,7 +419,7 @@ impl<'a> Record<'a> {
         self.0.get()
     }
 
-    pub fn set_keeps_alpha(&self, keeps: u32) {
+    fn set_keeps_alpha(&self, keeps: u32) {
         self.0.update(|record| record.keeps_alpha = keeps);
     }
 

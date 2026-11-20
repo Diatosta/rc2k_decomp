@@ -3,7 +3,7 @@
 //! the desktop, and a size set by hand in `rc2k.toml`. Each is shown with its ratio.
 
 /// Sizes of the usual ratios (4:3, 16:10, 16:9, 21:9, 32:9), offered when they fit the desktop.
-pub const COMMON: [(u32, u32); 21] = [
+pub(crate) const COMMON: [(u32, u32); 21] = [
     (1280, 960),
     (1400, 1050),
     (1280, 800),
@@ -31,7 +31,7 @@ pub const COMMON: [(u32, u32); 21] = [
 const NAMED: [(u32, u32); 7] = [(4, 3), (5, 4), (3, 2), (16, 10), (16, 9), (21, 9), (32, 9)];
 
 /// The smallest size offered at all (the game's own smallest).
-pub const SMALLEST: (u32, u32) = (640, 480);
+pub(crate) const SMALLEST: (u32, u32) = (640, 480);
 
 /// The ratio of a size as a text, e.g. "16:9": the nearest named ratio when the size is within
 /// 6 percent of one (3440 x 1440 is "21:9"), else the size's own reduced ratio.
@@ -118,7 +118,7 @@ pub fn capped_desktop(desktop: Option<(u32, u32)>, max_width: u32) -> Option<(u3
 
 /// The widest frame a phone's own size is cut down to by default: the menus' canvas is drawn by
 /// the processor and shown whole each frame, which a screen of three million pixels makes slow.
-pub const PHONE_WIDEST: u32 = 1920;
+pub(crate) const PHONE_WIDEST: u32 = 1920;
 
 /// The shares (numerator, denominator) of a screen's own size a small screen offers beside it:
 /// fewer pixels to draw where the frame rate needs it.

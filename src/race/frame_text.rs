@@ -11,7 +11,7 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 
 /// Draws "fps: n" at (0x190, 4) when the frame rate (`frame_rate`, rounded) is not 0 and `show`
 /// is set; sets `text_mode` 2 either way.
-pub fn draw_frame_rate(
+pub(super) fn draw_frame_rate(
     race: &Race,
     strings: &'static crate::strings::owner::Strings,
     canvas: &mut dyn Canvas,
@@ -58,7 +58,7 @@ fn credit_line(
 }
 
 /// The script's words.
-pub const SCRIPT_WORDS: usize = 670;
+const SCRIPT_WORDS: usize = 670;
 
 /// The credits' state and script.
 #[derive(rc2k_derive::Cells)]
@@ -146,7 +146,7 @@ impl Credits {
 /// `start_tune`). Otherwise draws the script from the top down, moves the top up a pixel for each
 /// 0x12 ms passed, and sets `Credits.done` once the last line is above -0xAF and the music has
 /// stopped.
-pub fn roll_credits(
+pub(super) fn roll_credits(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     frame: &Frame,
     eax: u32,
@@ -221,6 +221,6 @@ pub fn roll_credits(
 }
 
 /// Starts tune 2 and waits for the command.
-pub fn credits_tune(o: crate::owners::Owners<'static>) {
+pub(super) fn credits_tune(o: crate::owners::Owners<'static>) {
     crate::sound::play_tune_2::play_tune_2(o);
 }

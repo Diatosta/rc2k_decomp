@@ -15,7 +15,7 @@ use crate::screens::stage_panel::{
 use crate::text::draw_text::Canvas;
 
 /// The string ids this function gives menu items 0 and 1: the group's and the table's titles.
-pub fn menu_titles(
+pub(super) fn menu_titles(
     menus: &Menus,
     system: &crate::system::owner::System,
 ) -> Result<Option<(u32, u32)>, BadInput> {

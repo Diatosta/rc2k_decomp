@@ -7,7 +7,7 @@ use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;
 use rc2k_core::physics::notices::Notice;
 
-pub fn count_down_notice(car: &Car) {
+pub(super) fn count_down_notice(car: &Car) {
     let was = Notice {
         shown: car.notice_shown.get(),
         time: car.notice_time.get(),

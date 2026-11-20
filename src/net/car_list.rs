@@ -41,7 +41,7 @@ pub fn any_won(
     }
     Ok(answer?)
 }
-pub fn car_list(lists: &CarLists) -> Result<CarList, Refused> {
+pub(super) fn car_list(lists: &CarLists) -> Result<CarList, Refused> {
     Ok(if any_won(&lists.cars_second, &lists.secret_cars)? {
         CarList::WithClio
     } else {

@@ -126,7 +126,7 @@ fn walk(
 
 /// `folder` and every folder under it added to the folders' table, their files to
 /// the files'.
-pub fn list_folder_tree(
+pub(super) fn list_folder_tree(
     install: &'static crate::install::owner::Install,
     folder: impl Into<crate::memory::place::BytePlace>,
 ) -> Result<(), Refused> {

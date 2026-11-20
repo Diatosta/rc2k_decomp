@@ -9,7 +9,7 @@ pub const PREFS_SIZE: usize = 0x206C;
 /// The 256 texture kinds, as dwords.
 pub const TEXTURE_KINDS_AT: usize = 0x100;
 /// How many texture kinds there are.
-pub const TEXTURE_KINDS: usize = 256;
+pub(crate) const TEXTURE_KINDS: usize = 256;
 /// The stage's precipitation range: the low and the high end of the noise scale the rain and snow
 /// amount is read from (two dwords).
 pub const PRECIPITATION_RANGE_AT: usize = 0x690;
@@ -56,7 +56,7 @@ impl StagePrefsFile {
     }
 
     /// The kind of texture `n` (below `TEXTURE_KINDS`).
-    pub fn texture_kind(&self, n: usize) -> u32 {
+    pub(crate) fn texture_kind(&self, n: usize) -> u32 {
         self.dword(TEXTURE_KINDS_AT + 4 * n)
     }
 
@@ -119,7 +119,7 @@ pub const MARK_INFO: (usize, usize) = (0x1C_2000, 0x8000);
 /// Where `files\b\textinfo` goes, and how much of it.
 pub const TEXTURE_INFO_B: (usize, usize) = (0x1F_4000, 0x1F_4000);
 /// Where the three line feeds go.
-pub const LINE_FEEDS_AT: usize = 0x5_BD21;
+pub(crate) const LINE_FEEDS_AT: usize = 0x5_BD21;
 /// The tail's source and its destination (0x800 bytes), copied last.
 pub const TAIL: (usize, usize, usize) = (0x17_E800, 0x17_F000, 0x800);
 /// The bytes of a texture kind's record in the info.
@@ -169,8 +169,9 @@ impl CourseInfo {
         &self.bytes
     }
 
+    #[cfg(test)]
     /// The record of texture kind `kind` (`None` past the info).
-    pub fn kind_record(&self, kind: u32) -> Option<&[u8]> {
+    pub(crate) fn kind_record(&self, kind: u32) -> Option<&[u8]> {
         let at = (kind as usize).checked_mul(KIND_RECORD)?;
         self.bytes.get(at..at.checked_add(KIND_RECORD)?)
     }

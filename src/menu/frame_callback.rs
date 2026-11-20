@@ -19,7 +19,7 @@ use rc2k_core::menu::notice;
 const NOTICE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 
 /// Runs the functions of the list `list` points at.
-pub fn run_listed(o: Owners<'static>, list: &ListCell) -> Result<(), Refused> {
+pub(super) fn run_listed(o: Owners<'static>, list: &ListCell) -> Result<(), Refused> {
     crate::menu::run_list::run_list(o, list.get()?)
 }
 
@@ -37,7 +37,7 @@ pub fn copy_picture(
 }
 
 /// `menu::draw_menu` on the game's canvas.
-pub fn draw_menu(
+pub(super) fn draw_menu(
     o: Owners<'static>,
     menu: crate::menu::menus_store::MenuId,
 ) -> Result<(), Refused> {

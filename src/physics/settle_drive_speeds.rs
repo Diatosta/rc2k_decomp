@@ -17,7 +17,7 @@ use crate::race::owner_shared::RaceShared;
 
 /// The switches: the game's or a test's.
 #[derive(Clone, Copy)]
-pub struct SettlePlaces<'a> {
+struct SettlePlaces<'a> {
     /// `front_wheels_off`: settle the first driven speed (in neutral).
     pub first: &'a PlainDword,
     /// `rear_wheels_off`: settle the second.
@@ -58,7 +58,7 @@ fn settle(v: &(impl FloatView + ?Sized), step: f32) {
 }
 
 /// The steps.
-pub fn settle_drive_speeds_at(
+fn settle_drive_speeds_at(
     tables: &PhysicsTables,
     numbers: &Numbers,
     g: &GearPlaces<'_>,
@@ -90,7 +90,7 @@ pub fn settle_drive_speeds_at(
 }
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn settle_drive_speeds(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
+pub(super) fn settle_drive_speeds(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     settle_drive_speeds_at(
         shared.physics_tables.get(),
         numbers,

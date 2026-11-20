@@ -5,7 +5,7 @@
 use crate::math::geometry::fistp64;
 
 /// The screen width the icons are centred on (the centre is half of it).
-pub const MIDDLE: u32 = 0x320;
+pub(crate) const MIDDLE: u32 = 0x320;
 
 /// Whether an entry is drawn: its +0x84 is not -1.
 pub fn shown(texture: u32) -> bool {

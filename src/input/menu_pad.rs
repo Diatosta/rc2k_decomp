@@ -28,7 +28,7 @@ pub enum MenuAction {
 // ---- answers to the game's yes / no questions ----
 
 /// Not an answer yet.
-pub const NO_ANSWER: u32 = 0;
+pub(super) const NO_ANSWER: u32 = 0;
 
 /// Notes the answer the last button gave (`input::yes_no_key`'s values), for a question to
 /// take. The race's question (`drive::quit_question`) reads a typed character, the first of the

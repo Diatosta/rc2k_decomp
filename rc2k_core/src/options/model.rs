@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// The pieces' lengths together.
 pub const PIECES_LEN: usize = 0xB656;
 /// How many pieces the old file has.
-pub const PIECE_COUNT: usize = 69;
+pub(crate) const PIECE_COUNT: usize = 69;
 
 /// A value of the old file, one piece.
 pub trait Field {
@@ -209,7 +209,7 @@ impl Default for Display {
 }
 
 /// The films' volume at its fullest (the sliders' range is 0 ..= 0x40).
-pub const FILM_VOLUME_FULL: u32 = 0x40;
+pub(crate) const FILM_VOLUME_FULL: u32 = 0x40;
 
 fn film_volume_full() -> u32 {
     FILM_VOLUME_FULL

@@ -9,7 +9,7 @@ use crate::errors::Refused;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
-pub fn best_overall_scores(
+pub(super) fn best_overall_scores(
     menus: &crate::menu::owner::Menus,
     entry: &Entry,
     tables: &crate::saves::best_times::BestTables,

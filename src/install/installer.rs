@@ -49,18 +49,18 @@ pub fn media_mode() -> u32 {
 }
 
 /// The media mode of a full installation: every file is in the installed folder.
-pub const FULL_INSTALLATION: u32 = 3;
+pub(super) const FULL_INSTALLATION: u32 = 3;
 
 /// The installation is a full one (the only kind this installer makes): the game reads the
 /// media mode (`files::state::MEDIA_MODE`) to know where its files are.
-pub fn set_full_installation() {
+pub(super) fn set_full_installation() {
     crate::files::state::MEDIA_MODE.set(FULL_INSTALLATION);
 }
 
 /// A link item's action (the item's +8): the no-room page's "go on anyway".
-pub const GO_ON_ANYWAY: u32 = 1;
+pub(super) const GO_ON_ANYWAY: u32 = 1;
 /// A text item's action (the item's +0xC): the text's line is ended.
-pub const END_TEXT_LINE: u32 = 1;
+pub(super) const END_TEXT_LINE: u32 = 1;
 
 // The installer's other variables (the update switch, the remove-items switch, the install.bun
 // flag, the room by installation, the list variables, the third page's action, the file
@@ -87,7 +87,7 @@ pub fn wb(at: impl Into<BytePlace>, v: u8) {
 }
 
 #[track_caller]
-pub fn rw(at: impl Into<BytePlace>) -> u16 {
+pub(super) fn rw(at: impl Into<BytePlace>) -> u16 {
     let b = at
         .into()
         .read(2, "an installer word")
@@ -117,7 +117,7 @@ pub fn text_at(place: impl Into<BytePlace>) -> Vec<u8> {
 }
 
 /// The text at `place` with its NUL, as the text drawers and measurers read it (to its NUL).
-pub fn text_with_nul(place: impl Into<BytePlace>) -> Vec<u8> {
+pub(super) fn text_with_nul(place: impl Into<BytePlace>) -> Vec<u8> {
     let mut text = text_at(place);
     text.push(0);
     text
@@ -131,7 +131,7 @@ pub fn store_text(at: impl Into<BytePlace>, bytes: &[u8]) {
 }
 
 /// `strings::append_string_by_id`: string `id` appended to `out`.
-pub fn push_string_by_id(
+pub(super) fn push_string_by_id(
     o: crate::strings::append_string_by_id::StringOwners<'static>,
     out: &mut Vec<u8>,
     id: u32,
@@ -146,12 +146,12 @@ fn path_text(path: impl Into<BytePlace>) -> Vec<u8> {
 }
 
 /// Makes `path` the current directory; whether it worked.
-pub fn set_cd(path: impl Into<BytePlace>) -> bool {
+pub(super) fn set_cd(path: impl Into<BytePlace>) -> bool {
     crate::files::directories::set_current_directory(&path_text(path))
 }
 
 /// Makes the folder `path`; whether it worked.
-pub fn make_dir(path: impl Into<BytePlace>) -> bool {
+pub(super) fn make_dir(path: impl Into<BytePlace>) -> bool {
     crate::files::directories::make_directory(&path_text(path))
 }
 
@@ -195,7 +195,7 @@ pub fn find_first(pattern: &[u8], skipped: u32) -> bool {
 }
 
 /// The search's next file not of the `skipped` attributes; whether one was found.
-pub fn find_next(skipped: u32) -> bool {
+pub(super) fn find_next(skipped: u32) -> bool {
     crate::race::find_snapshot_number::find_next_wanted(skipped)
 }
 
@@ -349,7 +349,7 @@ pub fn measure_string(
 }
 
 /// 0x100 colours of `from` made pixels of the surface's format into `to`.
-pub fn components_to_pixels(
+pub(super) fn components_to_pixels(
     from: &[crate::memory::session::PlainDword; 256],
     to: &[crate::memory::session::PlainDword; 256],
     gfx: &crate::gfx::owner::Gfx,
@@ -409,7 +409,7 @@ pub fn logged<T>(what: &str, done: Result<T, Refused>) -> Result<T, Refused> {
 
 /// A link's or an action item's action (+8). The items hold only the not-enough-room page's
 /// "go on anyway".
-pub fn item_action_at(
+pub(super) fn item_action_at(
     install: &crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
     place: u32,
@@ -425,7 +425,7 @@ pub fn item_action_at(
 
 /// A text item's action (+0xC), given its +8: more text at `cursor`; the cursor after. The
 /// game's items hold only `install::end_text_line`.
-pub fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
+pub(super) fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
     match place {
         END_TEXT_LINE => {
             crate::install::end_text_line::end_text_line(out);
@@ -436,6 +436,6 @@ pub fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
 }
 
 /// An action item's drawing (+0xC): the lists have no action items.
-pub fn draw_action(_place: u32) -> Result<(), Refused> {
+pub(super) fn draw_action(_place: u32) -> Result<(), Refused> {
     Err(BadInput("an action item's drawing (the game's lists have none)").into())
 }

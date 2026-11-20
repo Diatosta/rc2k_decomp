@@ -61,7 +61,7 @@ pub fn without_secret(
 
 /// The car added to a list of `room` dwords unless it is there; true if it was added.
 /// Refused: no room for the car and the end after it.
-pub fn add_car(cars: &mut Vec<u32>, room: usize, car: u32) -> Result<bool, Invalid> {
+pub(crate) fn add_car(cars: &mut Vec<u32>, room: usize, car: u32) -> Result<bool, Invalid> {
     if cars.contains(&car) {
         return Ok(false);
     }

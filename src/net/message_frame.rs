@@ -7,7 +7,7 @@ pub const FONT_B: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::
 
 /// A frame with one string: locked, the background, the string, unlocked, shown; nothing if
 /// the lock fails.
-pub fn string_frame(
+fn string_frame(
     o: crate::owners::Owners<'static>,
     id: u32,
     font: crate::gfx::typefaces::FontId,
@@ -21,7 +21,7 @@ pub fn string_frame(
 }
 
 /// `string_frame` after the lock.
-pub fn string_frame_locked(
+pub(super) fn string_frame_locked(
     o: crate::owners::Owners<'static>,
     locked: crate::gfx::with_locked_surface::LockedSurface<'_>,
     id: u32,
@@ -44,7 +44,7 @@ pub fn string_frame_locked(
     Ok(())
 }
 /// A frame with a text built by the caller where the messages are, centred as they are.
-pub fn text_frame(o: crate::owners::Owners<'static>, text: &[u8]) -> Result<(), Refused> {
+pub(super) fn text_frame(o: crate::owners::Owners<'static>, text: &[u8]) -> Result<(), Refused> {
     let Some(locked) = lock_surface(o.gfx, o.system) else {
         return Ok(());
     };
@@ -62,6 +62,9 @@ pub fn text_frame(o: crate::owners::Owners<'static>, text: &[u8]) -> Result<(), 
     Ok(())
 }
 
-pub fn message_frame(o: crate::owners::Owners<'static>, message: u32) -> Result<(), Refused> {
+pub(super) fn message_frame(
+    o: crate::owners::Owners<'static>,
+    message: u32,
+) -> Result<(), Refused> {
     string_frame(o, message, FONT_B, 0x190, 0x12C)
 }

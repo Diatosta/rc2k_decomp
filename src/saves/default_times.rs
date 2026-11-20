@@ -40,11 +40,11 @@ pub fn to_the_log(piece: Piece) {
     }
 }
 
-pub fn to_nowhere(_: Piece) {}
+pub(super) fn to_nowhere(_: Piece) {}
 
 /// The game's side of the core's functions (`rc2k_core::saves::defaults`): its random
 /// numbers, its drivers, its checkpoint counts and its log (or none).
-pub struct GameSource<'a> {
+pub(super) struct GameSource<'a> {
     pub log: Log<'a>,
     pub so: crate::strings::append_string_by_id::StringOwners<'a>,
     pub menus: &'a Menus,

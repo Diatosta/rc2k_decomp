@@ -12,7 +12,7 @@ use crate::race::owner::Race;
 use crate::system::owner::System;
 
 /// Steps one frame; returns whether the replay stopped.
-pub fn step_viewed_replay(race: &Race, system: &System) -> Result<bool, Refused> {
+pub(super) fn step_viewed_replay(race: &Race, system: &System) -> Result<bool, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     let stop = |at_end: bool| {

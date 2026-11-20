@@ -7,7 +7,7 @@ use crate::gfx::picture::has_picture;
 
 /// The number of pixels, picture width * picture height. Refuses none (it would write before the
 /// buffer) and more than a signed number holds (it would do one pixel and stop), and a null buffer.
-pub fn pixel_count(gfx: &crate::gfx::owner::Gfx) -> Result<usize, BadInput> {
+pub(super) fn pixel_count(gfx: &crate::gfx::owner::Gfx) -> Result<usize, BadInput> {
     let pictures = &gfx.pictures;
     let count = pictures
         .picture

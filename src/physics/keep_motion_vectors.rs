@@ -6,7 +6,7 @@ use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 
 /// Bit copies of floats into words.
-pub fn keep_motion_vectors(car: &Car, tables: &PhysicsTables) {
+pub(super) fn keep_motion_vectors(car: &Car, tables: &PhysicsTables) {
     if tables.contact_step.get() != 0 {
         return;
     }

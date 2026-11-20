@@ -7,11 +7,11 @@ use super::leaving::Switch;
 use crate::Invalid;
 
 /// Players 2 and 3's times (+0x88) in the time trial (3 597 928 and 3 602 000 ms).
-pub const TIME_2: u32 = 0x36F268;
-pub const TIME_3: u32 = 0x36F650;
+pub(crate) const TIME_2: u32 = 0x36F268;
+pub(crate) const TIME_3: u32 = 0x36F650;
 
 /// A race's result: none, and left (-2).
-pub const NO_RESULT: u32 = u32::MAX;
+pub(crate) const NO_RESULT: u32 = u32::MAX;
 pub const LEFT: u32 = 0xFFFF_FFFE;
 
 /// The single rally's car list: the first with `ScreenFlow.car_list_kind` 1, else the second; the

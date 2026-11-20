@@ -446,7 +446,7 @@ fn note(part: &crate::scene::workers::PartScratch, what: impl FnOnce(&mut Pendin
 }
 
 /// The commands part `part` has noted since the last flush or take (`d3d::run_states`).
-pub fn noted_len(part: &crate::scene::workers::PartScratch) -> usize {
+pub(super) fn noted_len(part: &crate::scene::workers::PartScratch) -> usize {
     part.noted.lock().noted.len()
 }
 
@@ -485,7 +485,7 @@ pub fn flush() {
 /// the next flush.
 /// A triangle strip (`D3DPT_TRIANGLESTRIP`): triangle n of vertices n, n + 1, n + 2, every
 /// second one's first two swapped so that all keep the strip's winding (as Direct3D does).
-pub fn draw_strip(
+pub(super) fn draw_strip(
     part: &crate::scene::workers::PartScratch,
     vertices: &[crate::render::rasteriser::Vertex],
 ) {
@@ -705,7 +705,7 @@ pub fn copy_screen_to_system_texture(number: u32, figures: &crate::memory::sessi
 /// vertices, drawn as a fan of three; `vertex(n)` the vertex `n` (below `vertex_count`),
 /// `index(k)` the `k`-th index. An index past the vertices ends the list (Direct3D would
 /// have refused the call).
-pub fn draw_triangles(
+pub(super) fn draw_triangles(
     part: &crate::scene::workers::PartScratch,
     vertex_count: u32,
     index_count: u32,
@@ -722,7 +722,7 @@ pub fn draw_triangles(
 }
 
 /// `draw_triangles` on a batch's own buffers. A count past them ends the game.
-pub fn draw_indexed_bytes(
+pub(super) fn draw_indexed_bytes(
     part: &crate::scene::workers::PartScratch,
     vertices: &impl crate::memory::session::ByteBuffer,
     vertex_room: usize,

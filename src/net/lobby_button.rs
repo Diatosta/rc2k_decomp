@@ -12,7 +12,7 @@ use rc2k_core::net::screens;
     clippy::too_many_arguments,
     reason = "the button's string, item and place, and the owners"
 )]
-pub fn lobby_button(
+pub(super) fn lobby_button(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     net: &Net,
     string: u32,

@@ -2,7 +2,7 @@
 //! kept.
 
 /// Nothing is kept.
-pub struct Interval;
+pub(super) struct Interval;
 
 impl Interval {
     pub const fn new() -> Interval {

@@ -112,7 +112,7 @@ pub const GRADES: [Grade; 34] = [
 /// For each of `GRADES`, stores as the grade the number of its thresholds, taken in order, that lie
 /// below the block's value (a NaN passes them all). Each threshold tried goes through `scratch`;
 /// its one caller reads nothing of it.
-pub fn grade_car_values(car: &Car, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+fn grade_car_values(car: &Car, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     // `scratch` gets the last threshold tried (the ones before it are written over at once); the
     // core is `rc2k_core::race::cars::grade`.
     for &(from, to, thresholds) in &GRADES {

@@ -20,7 +20,7 @@ use rc2k_core::physics::gear_shifts as shifts;
 
 /// The steps on `r`.
 // Core: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares stay x87).
-pub fn pick_start_gear(
+pub(super) fn pick_start_gear(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,

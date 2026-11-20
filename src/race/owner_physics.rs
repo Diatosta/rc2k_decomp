@@ -15,7 +15,7 @@ use crate::race::car_specs_store::CarSpecs;
 /// What only the game's thread reaches: the camera, the ground, the pace notes, the split
 /// tables, the damage model and the car specs (no drawing part, audio, key or network thread
 /// touches them; the drawing's searches have their own copies).
-pub struct PhysicsMain {
+struct PhysicsMain {
     pub camera: CameraWork,
     pub ground: GroundWork,
     pub pace: PaceNotes,

@@ -21,11 +21,11 @@ pub fn records(devices: &Devices) -> &[InputDevice; 4] {
 }
 
 /// The device's state, 0x50 bytes.
-pub const STATE_LEN: usize = 0x50;
+pub(super) const STATE_LEN: usize = 0x50;
 
 /// A record's bytes, for the core (`rc2k_core::input::devices`).
 #[cfg(test)]
-pub fn record_bytes(record: &InputDevice) -> rc2k_core::input::devices::Record {
+pub(super) fn record_bytes(record: &InputDevice) -> rc2k_core::input::devices::Record {
     record.to_bytes()
 }
 
@@ -49,7 +49,7 @@ impl Deferred {
 
 /// What the program does with a refusal where a Windows callback leaves no way to hand it
 /// on: it ends, saying which function refused and why.
-pub fn refused_here(name: &str, e: impl Into<crate::errors::Refused>) {
+pub(super) fn refused_here(name: &str, e: impl Into<crate::errors::Refused>) {
     crate::fatal::raise::refused(name, e);
 }
 
@@ -58,7 +58,7 @@ pub fn key_table(devices: &Devices) -> rc2k_core::input::devices::KeyTable {
     devices.key_table()
 }
 
-pub fn joy_state(devices: &Devices) -> rc2k_core::input::devices::State {
+pub(super) fn joy_state(devices: &Devices) -> rc2k_core::input::devices::State {
     let mut state = [0u8; STATE_LEN];
     for (n, dword) in devices.device_state.iter().enumerate() {
         state[4 * n..4 * n + 4].copy_from_slice(&dword.get().to_le_bytes());

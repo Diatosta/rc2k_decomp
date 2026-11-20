@@ -18,7 +18,7 @@ fn box_values(place: &[PlainFloat; 2], size: &[PlainFloat; 2]) -> [[u8; 10]; 4] 
     [&size[1], &size[0], &place[1], &place[0]].map(|f| extended(f.get()))
 }
 
-pub fn run_pong(
+pub(super) fn run_pong(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     race: &crate::race::owner::Race,
     pong: &Pong,

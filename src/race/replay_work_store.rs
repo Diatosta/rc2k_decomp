@@ -138,7 +138,7 @@ impl ReplayWork {
 
 /// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> usize {
+fn piece_addr() -> usize {
     core::ptr::from_ref(crate::test_support::own::race().replay.replay_work()).addr()
 }
 

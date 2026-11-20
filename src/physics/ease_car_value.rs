@@ -8,7 +8,7 @@ use crate::physics::cells::set_changed;
 use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::easing::ease_value;
 
-pub fn ease_car_value(car: &Car, vars: &RaceVars) {
+pub(super) fn ease_car_value(car: &Car, vars: &RaceVars) {
     let was = car.eased_value.get();
     let mut value = was;
     ease_value(

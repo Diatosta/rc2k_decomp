@@ -313,7 +313,7 @@ impl ViewVars<PlainCells> {
 }
 
 /// A view record's handle in `view_records` is `VIEW_TAG | k` for the record `k` of the 52.
-pub const VIEW_TAG: u32 = 0xC300_0000;
+const VIEW_TAG: u32 = 0xC300_0000;
 
 /// The 52 view records at the start, each as its 23 dwords (floats as their bits).
 const FIRST_RECORDS: [[u32; 23]; 52] = [

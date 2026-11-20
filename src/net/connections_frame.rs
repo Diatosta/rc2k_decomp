@@ -11,7 +11,7 @@ const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_
 /// A list screen's frame: the title, then up to sixteen names from the list's top, each the
 /// name (`name`) of an item below the count, the highlighted one blinking. Shared with
 /// `net::sessions_frame`.
-pub fn list_frame(
+pub(super) fn list_frame(
     o: crate::owners::Owners<'static>,
     title: u32,
     count: &crate::memory::session::Dword,
@@ -60,7 +60,7 @@ pub fn list_frame(
     crate::shell::frame::show_frame_now(o);
     Ok(())
 }
-pub fn connections_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn connections_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let net = o.net;
     list_frame(o, screens::CONNECTIONS_TITLE, net.link.connections(), |n| {
         crate::net::tables::with_connection(&net.link, n, |c| c.name)

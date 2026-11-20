@@ -6,6 +6,6 @@
 use crate::sound::queue::{END_OF_TURN, send_command_in};
 
 /// Command 0xA (the audio thread reads none of its words: they go as 0).
-pub fn send_end_of_turn(audio: &crate::audio::owner::Audio) {
+pub(super) fn send_end_of_turn(audio: &crate::audio::owner::Audio) {
     send_command_in(audio, END_OF_TURN);
 }

@@ -8,7 +8,7 @@ use crate::net::lobby::log_bytes;
 use crate::net::owner::Net;
 use crate::net::{allocate_lists, create_dplay, open_lobby};
 use crate::race::viewer_screen_store::{NetTexts, texts};
-pub fn find_connections(
+pub(super) fn find_connections(
     net: &Net,
     strings: &crate::strings::owner::Strings,
     lines: &NetTexts,

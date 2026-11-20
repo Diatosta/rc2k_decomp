@@ -21,7 +21,7 @@ pub fn same() -> bool {
 
 /// Logs rows that hold a written pixel but were not noted as written (the GPU path would never
 /// draw them).
-pub fn note_missed_rows(scanned: &[bool], noted: &[bool]) {
+fn note_missed_rows(scanned: &[bool], noted: &[bool]) {
     use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
     static LOGGED: AtomicU32 = AtomicU32::new(0);
     let missed: Vec<usize> = (0..scanned.len().min(noted.len()))
@@ -56,7 +56,7 @@ pub struct Targets {
 
 /// The canvas as it was when the background was copied onto it: the background where the
 /// canvas is unwritten, the canvas's rows (`runs`) over it. With no background, the canvas.
-pub fn canvas_as_before(
+fn canvas_as_before(
     canvas: &[u8],
     runs: &[(usize, usize)],
     stride: usize,

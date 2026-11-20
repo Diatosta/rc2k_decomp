@@ -10,9 +10,9 @@ use crate::system::tables::{Entry, with_any_bit, with_bits};
 /// The mode table's room, in entries.
 pub const MODES_ROOM: u32 = 0x20;
 /// A mode Direct3D can draw in.
-pub const DRAWS_3D: u32 = 0x10_0000;
+pub(crate) const DRAWS_3D: u32 = 0x10_0000;
 /// A mode with extra flags in its second dword.
-pub const HAS_EXTRA: u32 = 0x20_0000;
+pub(crate) const HAS_EXTRA: u32 = 0x20_0000;
 
 /// The 3D modes marked: from the table's start, each entry with all of `kind`'s
 /// bits, and from there the next with any of `depth`'s (the depth formats Direct3D has),
@@ -48,7 +48,7 @@ pub enum Lookup {
 }
 
 /// The bits a mode is looked up by: all but the third byte's low nibble.
-pub fn lookup_bits(mode: u32) -> u32 {
+pub(crate) fn lookup_bits(mode: u32) -> u32 {
     mode & 0xF0_FFFF
 }
 
@@ -136,10 +136,10 @@ pub fn at_32_bits(mode: u32) -> u32 {
 
 /// The race modes tried in this order when the kept ones do not both work: 800 x 600, then
 /// 1024 x 768, then 640 x 480, each at 32 bits.
-pub const RACE_CHOICES: [u32; 3] = [0x32_1802, 0x32_1808, 0x32_1801];
+pub(crate) const RACE_CHOICES: [u32; 3] = [0x32_1802, 0x32_1808, 0x32_1801];
 
 /// The menus' mode tried after the race's own kind at size 2.
-pub const MENU_CHOICES: [u32; 1] = [0x32_1802];
+pub(crate) const MENU_CHOICES: [u32; 1] = [0x32_1802];
 
 /// The (menu, race) modes: the kept ones when both work (`works`, the menu's tried first); else,
 /// when a 3D mode of size 2 is listed and one with both 3D bits (`listed`: a table entry with all

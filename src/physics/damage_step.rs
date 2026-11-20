@@ -6,7 +6,11 @@ use crate::physics::car_store::Car;
 use crate::physics::store::DamageModel;
 use crate::race::work_store::RaceWork;
 
-pub fn damage_step(car: &Car, damage: &DamageModel, work: &RaceWork) -> Result<(), BadInput> {
+pub(super) fn damage_step(
+    car: &Car,
+    damage: &DamageModel,
+    work: &RaceWork,
+) -> Result<(), BadInput> {
     // The steps' arithmetic is written for rounding to nearest, the mode the damage model runs in.
     debug_assert!(crate::math::x87::rounds_to_nearest());
     crate::physics::damage_factors::steps(car, damage);

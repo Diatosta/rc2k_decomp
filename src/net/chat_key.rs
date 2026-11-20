@@ -6,7 +6,7 @@ use crate::net::owner::Net;
 
 /// The key `key` for the chat message being typed; once it ends the
 /// editing, a message typed is sent and the input cleared.
-pub fn chat_key(
+pub(super) fn chat_key(
     strings: &crate::strings::owner::Strings,
     net: &Net,
     key: u8,

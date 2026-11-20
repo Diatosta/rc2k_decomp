@@ -255,10 +255,10 @@ impl Devices {
 }
 
 /// A device record by handle: `DEVICE_TAG | n` for `records[n]`.
-pub const DEVICE_TAG: u32 = 0xCE00_0000;
+const DEVICE_TAG: u32 = 0xCE00_0000;
 
 /// The record a handle names (`None` for 0). A value that is no handle ends the program.
-pub fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
+pub(super) fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
     if handle == 0 {
         return None;
     }

@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 
-pub fn viewer_tidy_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
+pub(super) fn viewer_tidy_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     let shared = &race.shared;
     // The fonts' switch is read after the first steps.
     use rc2k_core::race::viewer_flow::{TIDY_AFTER, TIDY_FIRST, TidyStep, frees_fonts, tidies};

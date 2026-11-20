@@ -14,7 +14,7 @@ use crate::physics::step_families::CameraGroundInputs;
 use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
 
 // Core: `rc2k_core::physics::camera_ground::{low_switch_looks, is_low, low_switch}`.
-pub fn camera_low_switch(c: &CameraGroundInputs<'_>) -> Result<(), Refused> {
+pub(super) fn camera_low_switch(c: &CameraGroundInputs<'_>) -> Result<(), Refused> {
     if !low_switch_looks(
         c0(&c.car.crash_matrix[5], ZERO),
         c.car.camera_switch_active.get(),

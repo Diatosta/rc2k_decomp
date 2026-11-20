@@ -37,7 +37,7 @@ impl SceneHandOff {
     }
 
     /// The view's output kept (on its part).
-    pub fn keep_output(&self, output: ViewOutput) {
+    pub(super) fn keep_output(&self, output: ViewOutput) {
         let (there, (block, value)) = output.view_value.map_or((0, (0, 0)), |v| (1, v));
         self.view_value[0].set(there);
         self.view_value[1].set(block as u32);
@@ -46,12 +46,12 @@ impl SceneHandOff {
     }
 
     /// The mirror's drawing kept (it was drawn, or not).
-    pub fn keep_mirror_drawn(&self, drawn: bool) {
+    pub(super) fn keep_mirror_drawn(&self, drawn: bool) {
         self.mirror_drawn.set(u32::from(drawn));
     }
 
     /// Whether the mirror was drawn.
-    pub fn mirror_drawn(&self) -> bool {
+    pub(super) fn mirror_drawn(&self) -> bool {
         self.mirror_drawn.get() != 0
     }
 

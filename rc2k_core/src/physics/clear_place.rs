@@ -3,7 +3,7 @@
 //! sixteen directions, until a try restores nothing; if none does, the car is reset.
 
 /// One past the last try; none clear: the car is reset.
-pub const TRIES_END: u32 = 0x100;
+pub(crate) const TRIES_END: u32 = 0x100;
 
 /// The car's speed scale before the tries' figure.
 pub const TRY_MARK: u32 = 0x5A;

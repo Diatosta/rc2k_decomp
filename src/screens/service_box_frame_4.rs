@@ -5,7 +5,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::screens::service_boxes::chosen_frame;
 
-pub fn service_box_frame_4(o: Owners<'static>) -> Result<(), Refused> {
+pub(super) fn service_box_frame_4(o: Owners<'static>) -> Result<(), Refused> {
     chosen_frame(
         o,
         0xF,

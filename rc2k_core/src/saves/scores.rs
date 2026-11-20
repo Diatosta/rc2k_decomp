@@ -2,14 +2,14 @@
 //! fifth the overall) of ten entries, best first.
 
 pub const GROUPS: usize = 5;
-pub const PER_GROUP: usize = 10;
+pub(crate) const PER_GROUP: usize = 10;
 pub const ENTRY_LEN: usize = 0x3C;
 /// The table's bytes in `var\hst.dat`.
 pub const TABLE_LEN: usize = GROUPS * PER_GROUP * ENTRY_LEN;
 /// The name's room in bytes.
 pub const NAME_ROOM: usize = 0x20;
 /// What a ranking moves of a name (and what an entered name gets): its room less the last byte.
-pub const NAME_MOVED: usize = 0x1F;
+pub(crate) const NAME_MOVED: usize = 0x1F;
 
 /// One best score (0x3C bytes).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -132,7 +132,7 @@ fn exchange(ten: &mut Group, upper: usize, lower: usize, kept: &mut [u8; NAME_MO
 
 /// Moves a group's last entry up: nine steps from the bottom, each pair exchanged when the
 /// lower score (signed) is at least the upper's.
-pub fn rank_in_group(ten: &mut Group, kept: &mut [u8; NAME_MOVED]) {
+pub(crate) fn rank_in_group(ten: &mut Group, kept: &mut [u8; NAME_MOVED]) {
     for lower in (1..PER_GROUP).rev() {
         let upper = lower - 1;
         if ten[lower].score as i32 >= ten[upper].score as i32 {

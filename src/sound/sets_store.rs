@@ -15,7 +15,7 @@ use rc2k_core::audio::commands::RaceField;
 /// `TAG | field << 16 | entry` (the field's number in `RaceField::ALL`, the entry in it);
 /// 0 does not occur. The list runs on through the fields after its own as far as the
 /// sounds read (`SoundSets::list_entry`).
-pub const RACE_LIST_TAG: u32 = 0xC400_0000;
+const RACE_LIST_TAG: u32 = 0xC400_0000;
 
 /// The handle of the list that starts at entry `entry` of `field`.
 const fn race_list(field: RaceField, entry: u32) -> u32 {
@@ -839,7 +839,7 @@ impl SoundSets {
     }
 
     /// The sets of the kind-table entry `n` (two a kind of car), as a handle.
-    pub fn kind_list(
+    pub(super) fn kind_list(
         &self,
         n: usize,
     ) -> Result<rc2k_core::audio::commands::SoundList, crate::errors::BadInput> {
@@ -1559,7 +1559,7 @@ impl SoundKinds {
     }
 
     /// The computers' cars' set (40 bytes).
-    pub fn computers_set(&self) -> &SoundSet {
+    pub(super) fn computers_set(&self) -> &SoundSet {
         &self.computers
     }
 }

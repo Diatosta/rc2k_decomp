@@ -17,7 +17,7 @@ const MOST_ROWS: u32 = 0x1000;
 
 /// The dword at byte `at` of the runs' table (`MASKS.run_table`; the runs, and the shapes'
 /// `rows`, are offsets in it).
-pub fn run_get(masks: &Masks, at: u32) -> Result<u32, BadInput> {
+pub(super) fn run_get(masks: &Masks, at: u32) -> Result<u32, BadInput> {
     let bytes = masks
         .vars
         .run_table
@@ -35,7 +35,7 @@ fn run_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
 
 /// The rows the edge pair's loop runs (its check: the row rounded below y1 rounded, the
 /// row counting up by `MaskConstants.ones[2]`), or `None` past `MOST_ROWS`.
-pub fn edge_rows(edge: &[u32; 6], effects: &crate::effects::owner::Effects) -> Option<u32> {
+fn edge_rows(edge: &[u32; 6], effects: &crate::effects::owner::Effects) -> Option<u32> {
     let one = effects.setup.mask_constants.ones[2].get();
     let mut row = x87::round_float(edge[0]);
     let end = x87::to_int(edge[1]);
@@ -70,7 +70,7 @@ fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
 /// rounding as it is set (the triangle sets toward zero); a half of no height has slopes 0
 /// (nothing reads them). Gives where the next row would go. Refuses rows past the work
 /// block or more than 0x1000, before writing.
-pub fn span_edges(
+pub(super) fn span_edges(
     masks: &Masks,
     to: u32,
     effects: &crate::effects::owner::Effects,
@@ -170,7 +170,10 @@ fn halves(t: &[u32; 6]) -> ([[u32; 6]; 2], f32) {
 
 /// The rows a triangle's spans take (its corners as given, sorted here), or `None` when
 /// one half would run away; with the x87 rounding toward zero, as `span_triangle` has it.
-pub fn triangle_rows(corners: [u32; 6], effects: &crate::effects::owner::Effects) -> Option<u32> {
+pub(super) fn triangle_rows(
+    corners: [u32; 6],
+    effects: &crate::effects::owner::Effects,
+) -> Option<u32> {
     let came = x87::control_word();
     x87::set_control_word((came & 0xF3FF) | 0xC00);
     let (h, _) = halves(&sorted(corners).0);
@@ -183,7 +186,7 @@ pub fn triangle_rows(corners: [u32; 6], effects: &crate::effects::owner::Effects
 }
 
 /// Refuses `triangles` runs or `rows` spans (`None`: away) past their room.
-pub fn spans_fit(masks: &Masks, triangles: u32, rows: Option<u32>) -> Result<(), Refused> {
+pub(super) fn spans_fit(masks: &Masks, triangles: u32, rows: Option<u32>) -> Result<(), Refused> {
     let runs: u32 = masks.vars.runs.get();
     if runs as u64 + 16 * triangles as u64 > 0x2000 {
         return Err(BadInput("mask runs past their table").into());
@@ -198,7 +201,7 @@ pub fn spans_fit(masks: &Masks, triangles: u32, rows: Option<u32>) -> Result<(),
 /// `MaskVars.spans_total` counting the spans. All with the x87 rounding toward zero; its control
 /// word put back after. Refuses runs past their table, and spans past the work block or
 /// away, before writing.
-pub fn span_triangle(
+pub(super) fn span_triangle(
     masks: &Masks,
     at: &[PlainFloat; 6],
     effects: &crate::effects::owner::Effects,
@@ -255,7 +258,7 @@ pub fn span_triangle(
 /// `effects::span_quad`: the quad `at` (four x, y floats) as two triangles, its
 /// corners 0, 1, 2 and then 2, 3, 0 each `span_triangle`d. Refuses as
 /// `span_triangle` (the second only after the first is made).
-pub fn span_quad(
+pub(super) fn span_quad(
     masks: &Masks,
     at: &[PlainFloat; 8],
     effects: &crate::effects::owner::Effects,

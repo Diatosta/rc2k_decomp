@@ -10,7 +10,7 @@ pub const PER_LIST: usize = 10;
 /// The name's room in bytes.
 pub const NAME_ROOM: usize = 0x20;
 /// What a move takes of a name (and what an entered name gets): its room less the last byte.
-pub const NAME_MOVED: usize = 0x1F;
+pub(crate) const NAME_MOVED: usize = 0x1F;
 
 /// The head of a best entry (0x50 bytes).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -222,7 +222,7 @@ pub fn exchange<T: Ranked>(
 
 /// Moves the tenth up: nine steps from the bottom, each pair exchanged when
 /// `exchange_if(lower's key, upper's key)`.
-pub fn bubble_up<T: Ranked>(
+pub(crate) fn bubble_up<T: Ranked>(
     list: &mut [T; PER_LIST],
     fields: &[Field],
     exchange_if: fn(u32, u32) -> bool,
@@ -237,7 +237,7 @@ pub fn bubble_up<T: Ranked>(
 }
 
 /// The fields an arcade level's score moves (the first eight of the arcade's best times').
-pub const SCORE_FIELDS: [Field; 8] = [
+pub(crate) const SCORE_FIELDS: [Field; 8] = [
     Field::NameId,
     Field::Key,
     Field::Player,
@@ -262,7 +262,7 @@ pub fn clear_marks<T: Ranked>(list: &mut [T; PER_LIST]) {
 
 pub const LEVELS: usize = 7;
 /// The levels' table's bytes in `var\hst.dat`.
-pub const LEVELS_LEN: usize = LEVELS * PER_LIST * ENTRY_LEN;
+pub(crate) const LEVELS_LEN: usize = LEVELS * PER_LIST * ENTRY_LEN;
 
 /// The levels' best scores.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -420,7 +420,7 @@ impl Ranked for BestTime {
 pub type Times = [BestTime; PER_LIST];
 
 /// The fields a record's entry moves (`menu::rank_record_entry`).
-pub const RECORD_FIELDS: [Field; 12] = [
+pub(crate) const RECORD_FIELDS: [Field; 12] = [
     Field::NameId,
     Field::Key,
     Field::Player,
@@ -436,7 +436,7 @@ pub const RECORD_FIELDS: [Field; 12] = [
 ];
 
 /// The fields the arcade's and the time trial's best times move.
-pub const TIME_FIELDS: [Field; 12] = [
+pub(crate) const TIME_FIELDS: [Field; 12] = [
     Field::NameId,
     Field::Key,
     Field::Player,
@@ -473,7 +473,7 @@ pub struct StageTimes {
 }
 
 /// A stage's ten entries in the file, in bytes.
-pub const STAGE_LEN: usize = PER_LIST * TIME_LEN;
+pub(crate) const STAGE_LEN: usize = PER_LIST * TIME_LEN;
 
 impl StageTimes {
     /// The zero bytes the block holds past the table (its pages less its header): what a read

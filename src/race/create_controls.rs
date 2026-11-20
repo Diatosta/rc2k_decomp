@@ -3,7 +3,7 @@
 
 //! The race's players go with it, for the input thread to set up a device for each.
 
-pub fn create_controls(input: &crate::input::owner::Input, players: u32) {
+pub(super) fn create_controls(input: &crate::input::owner::Input, players: u32) {
     input.devices.race_players.set(players);
     input.devices.input_command.set(3);
 }

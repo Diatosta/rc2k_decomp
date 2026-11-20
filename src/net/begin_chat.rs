@@ -6,7 +6,7 @@ use crate::net::owner::Net;
 const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
 
 /// Starts the chat line's edit (item, input, width 0x30C and the chat font).
-pub fn begin_chat(
+pub(super) fn begin_chat(
     net: &Net,
     list_state: &crate::menu::list_state::ListState,
 ) -> Result<(), crate::errors::Refused> {

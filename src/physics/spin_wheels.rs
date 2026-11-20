@@ -10,7 +10,7 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 
 /// The exact version, for `physics::car_physics_step`: the last turn added.
-pub fn spin_wheels(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> u32 {
+pub(super) fn spin_wheels(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> u32 {
     let (wheel, dt, k65536, scale) = (
         &tables.wheel_spin_share,
         &tables.step_time,

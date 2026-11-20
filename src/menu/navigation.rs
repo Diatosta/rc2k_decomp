@@ -38,7 +38,7 @@ impl Direction {
 }
 
 /// The click is `sound::play_menu_sound` with sound 1; the callback gets the item.
-pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Refused> {
+pub(super) fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
     // The logic is in `rc2k_core::menu::navigation` (`turn`, `link`, `walk`), everything worked

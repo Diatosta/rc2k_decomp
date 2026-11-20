@@ -10,13 +10,13 @@ pub const MOST_CARS: u32 = 8;
 pub const LAST_KIND: i32 = 0x16;
 pub const ROW_LEN: usize = 0x134;
 /// The stages' records.
-pub const STAGE_RECORDS: u32 = 0x34;
+pub(crate) const STAGE_RECORDS: u32 = 0x34;
 
 /// The groups of a kind's row (counted from the row's first group) the record's `slot_kinds` (its
 /// first seven) are set from.
 pub const SLOT_KIND_GROUPS: [usize; 7] = [0, 8, 9, 6, 7, 5, 10];
 /// The seventeen numbers of the record's `kinds`.
-pub const FIXED: [u32; 17] = [
+pub(crate) const FIXED: [u32; 17] = [
     0xA, 0xB, 0x18, 0x19, 0xC, 0xD, 0x16, 0x17, 0x1A, 0x1B, 0xE, 0xF, 0x10, 0x11, 0x13, 0x14, 0x12,
 ];
 

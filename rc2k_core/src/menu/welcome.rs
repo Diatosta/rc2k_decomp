@@ -5,11 +5,11 @@ use super::flow::{Call, Game, Picture, Var};
 use super::leaving::Switch;
 
 /// The picture that cannot be read: fatal error 0x80712345, no message.
-pub const NO_PICTURE: (u32, &str) = (0x8071_2345, "");
+pub(crate) const NO_PICTURE: (u32, &str) = (0x8071_2345, "");
 /// Escape's key code.
 pub const ESCAPE: u8 = 1;
 /// How long the championship's picture waits for a key before the speech is watched (ms).
-pub const FIRST_WAIT: u32 = 0xBB8;
+pub(crate) const FIRST_WAIT: u32 = 0xBB8;
 
 /// The picture loaded and converted.
 fn picture<G: Game>(e: &mut G, p: Picture) -> Result<(), G::Error> {

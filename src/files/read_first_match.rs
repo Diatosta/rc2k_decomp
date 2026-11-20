@@ -12,7 +12,7 @@ use crate::files::state::set_last_file_path;
 /// None if nothing matched, else what the reading of the file found came to: `pattern`
 /// (without its NUL) read into `into` (what the file does not reach over kept, as the
 /// game's buffer). Refuses what `resolve_path` and `read_file` refuse.
-pub fn first_match_read(
+fn first_match_read(
     scratch: &Scratch,
     pattern: &[u8],
     into: &mut [u8],

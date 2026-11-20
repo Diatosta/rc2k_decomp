@@ -22,7 +22,7 @@ pub fn callback(guids: &InputGuids, info: &DiEffectInfo, record: &InputDevice) -
     }
 }
 
-pub fn effect_found(
+pub(super) fn effect_found(
     guids: &InputGuids,
     info: &DiEffectInfo,
     record: &InputDevice,

@@ -5,7 +5,7 @@
 use crate::strings::format::{Pad, decimal};
 
 /// No time yet: an hour in milliseconds.
-pub const HOUR: u32 = 3_600_000;
+pub(crate) const HOUR: u32 = 3_600_000;
 
 /// Result slot `k` emptied (`menu::clear_result_slots`): -1, but 0 in the seventh and the
 /// last (two groups of six sections' points and their total).
@@ -28,7 +28,7 @@ pub enum MapStage {
 }
 
 /// The most pages `count_stage_pages` takes.
-pub const MOST_PAGES: u32 = 256;
+pub(crate) const MOST_PAGES: u32 = 256;
 
 /// `menu::count_stage_pages`: how many records after the stage's (`kind(n)` the first
 /// dword of the n-th after it) have a first dword 0, in a row. None past `MOST_PAGES`.

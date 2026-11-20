@@ -12,7 +12,7 @@ use rc2k_core::physics::listed_cars::listed_entry;
 
 /// `cue` for the listed car, if it is listed: its entry returned.
 // Core: `rc2k_core::physics::listed_cars::listed_entry`.
-pub fn cue_listed_car_sound_last(
+pub(super) fn cue_listed_car_sound_last(
     frame_work: &FrameWork,
     work: &RaceWork,
     cue: u32,

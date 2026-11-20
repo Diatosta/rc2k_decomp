@@ -29,7 +29,7 @@ use crate::service::{
 use crate::system::owner::System;
 use rc2k_core::menu::player::SetupField;
 
-pub const KEY_CONFIRM: u8 = 0x1C;
+const KEY_CONFIRM: u8 = 0x1C;
 
 /// A page whose value is changed in the car itself.
 #[derive(Clone, Copy)]
@@ -52,12 +52,12 @@ pub struct ChangePage {
     pub item: u32,
 }
 
-pub const STEERING_SENSITIVITY: SimplePage = SimplePage {
+pub(super) const STEERING_SENSITIVITY: SimplePage = SimplePage {
     down: step_steering_sensitivity_down::STEPPER,
     up: step_steering_sensitivity_up::STEPPER,
     in_car: SetupField::SteeringSensitivity,
 };
-pub const BRAKE_BALANCE: SimplePage = SimplePage {
+pub(super) const BRAKE_BALANCE: SimplePage = SimplePage {
     down: step_brake_balance_down::STEPPER,
     up: step_brake_balance_up::STEPPER,
     in_car: SetupField::BrakeBalance,
@@ -129,7 +129,7 @@ fn key_and_step(
     Ok(key)
 }
 
-pub fn simple_page(
+pub(super) fn simple_page(
     menus: &Menus,
     system: &System,
     input: &crate::input::owner::Input,
@@ -145,7 +145,7 @@ pub fn simple_page(
 
 /// `confirm`: act as if the confirm key had been pressed, without taking a key (callers
 /// outside the key handler pass true).
-pub fn change_page(
+pub(super) fn change_page(
     menus: &Menus,
     system: &System,
     input: &crate::input::owner::Input,

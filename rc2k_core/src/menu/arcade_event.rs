@@ -97,10 +97,10 @@ pub trait Arcade {
 /// The cheat that keeps the race's switch off: bit 0x12.
 pub const CHEAT: u32 = 1 << 0x12;
 /// The last level, and the stages of a level.
-pub const LAST_LEVEL: u32 = 5;
+pub(crate) const LAST_LEVEL: u32 = 5;
 pub const STAGES: i32 = 6;
 /// The race's result without a time.
-pub const NO_RESULT: u32 = u32::MAX;
+pub(crate) const NO_RESULT: u32 = u32::MAX;
 
 enum At {
     Level,

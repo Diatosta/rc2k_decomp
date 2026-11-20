@@ -37,7 +37,7 @@ fn run_main_menu(o: Owners<'static>) -> Result<(), Refused> {
 /// What the main menu's item that ran into a trouble the game can go back from does: the
 /// screens' leaving flags are cleared (a screen that was left in the middle may have set them),
 /// the player is told and chooses the main menu or to quit.
-pub fn back_at_main_menu(o: Owners<'static>, reason: &str) {
+pub(super) fn back_at_main_menu(o: Owners<'static>, reason: &str) {
     log(&format!(
         "menu::run_front_end: back at the main menu: {reason}"
     ));

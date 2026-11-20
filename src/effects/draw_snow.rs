@@ -104,7 +104,7 @@ fn refusal(weather: &Weather, effects: &crate::effects::owner::Effects) -> Optio
     None
 }
 
-pub fn draw_snow(
+pub(super) fn draw_snow(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     weather: &Weather,
     scene: &crate::scene::owner::Scene,

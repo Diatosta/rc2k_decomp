@@ -2,13 +2,13 @@
 //! no place for it. Every comparison takes the sign of the difference.
 
 /// How near the stage's start and end (in checkpoints) no car is put.
-pub const END_MARGIN: u32 = 8;
+pub(crate) const END_MARGIN: u32 = 8;
 
 /// A block's state when it is a computer car's, for `reset_point_blocked`.
-pub const IN_STAGE: u32 = 2;
+pub(crate) const IN_STAGE: u32 = 2;
 
 /// Whether a checkpoint is less than `END_MARGIN` from the start (signed).
-pub fn near_start(checkpoint: u32) -> bool {
+pub(crate) fn near_start(checkpoint: u32) -> bool {
     (checkpoint.wrapping_sub(END_MARGIN) as i32) < 0
 }
 
@@ -18,7 +18,7 @@ pub fn end_of(count: u32) -> u32 {
 }
 
 /// Whether a checkpoint is at or past `end` (signed).
-pub fn near_end(checkpoint: u32, end: u32) -> bool {
+pub(crate) fn near_end(checkpoint: u32, end: u32) -> bool {
     (checkpoint.wrapping_sub(end) as i32) >= 0
 }
 

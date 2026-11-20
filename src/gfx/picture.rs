@@ -13,7 +13,7 @@ use crate::memory::owned::Owned;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
 /// The buffer holds a whole screen: 800 x 600 pixels of four bytes.
-pub const PICTURE_DWORDS: usize = 0x75300;
+pub(super) const PICTURE_DWORDS: usize = 0x75300;
 
 /// The picture's width, height and row length set (`rc2k_core::gfx::picture_size`).
 pub fn set_size(pictures: &Pictures, size: rc2k_core::gfx::picture_size::PictureSize) {
@@ -129,7 +129,7 @@ pub fn with_picture<R>(pictures: &Pictures, f: impl FnOnce(&mut [u8]) -> R) -> R
 }
 
 /// Whether a picture buffer is set (`PICTURE.buffer` not 0).
-pub fn has_picture(pictures: &Pictures) -> bool {
+pub(super) fn has_picture(pictures: &Pictures) -> bool {
     pictures.picture.buffer.is_set()
 }
 
@@ -175,7 +175,7 @@ pub fn put(buffer: &mut [u8], at: usize, bytes: &[u8]) -> bool {
 }
 
 /// `bytes` into a buffer's bytes at `at`, a decoder's write: past the end it ends the game.
-pub fn put_or_end(buffer: &mut [u8], at: usize, bytes: &[u8]) {
+pub(super) fn put_or_end(buffer: &mut [u8], at: usize, bytes: &[u8]) {
     match at
         .checked_add(bytes.len())
         .and_then(|end| buffer.get_mut(at..end))

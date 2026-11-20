@@ -16,7 +16,11 @@ pub const JOIN: u8 = 0x29;
 pub const SLOTS: u32 = 8;
 
 /// Where the face's code for `slot` is. Refused past slot 7.
-pub fn code_place(face: u32, slot: u32, offset: impl FnOnce(u32) -> u32) -> Result<u32, Invalid> {
+pub(crate) fn code_place(
+    face: u32,
+    slot: u32,
+    offset: impl FnOnce(u32) -> u32,
+) -> Result<u32, Invalid> {
     if slot >= SLOTS {
         return Err(Invalid("a pace note slot past 7"));
     }
@@ -24,7 +28,7 @@ pub fn code_place(face: u32, slot: u32, offset: impl FnOnce(u32) -> u32) -> Resu
 }
 
 /// The next (slot, checkpoint): at slot 8 or more it wraps to 0 and the checkpoint advances.
-pub fn next_slot(slot: u32, checkpoint: u32) -> (u32, u32) {
+pub(crate) fn next_slot(slot: u32, checkpoint: u32) -> (u32, u32) {
     let slot = slot.wrapping_add(1);
     if slot >= SLOTS {
         (0, checkpoint.wrapping_add(1))
@@ -34,25 +38,25 @@ pub fn next_slot(slot: u32, checkpoint: u32) -> (u32, u32) {
 }
 
 /// The last distance word (41 words, 0 ..= 40).
-pub const MOST_TENS: u32 = 40;
+pub(crate) const MOST_TENS: u32 = 40;
 
 /// The word index for a distance (16.16) in tens, at most 40.
-pub fn distance_tens(distance: u32) -> u32 {
+pub(crate) fn distance_tens(distance: u32) -> u32 {
     ((distance >> 16) / 10).min(MOST_TENS)
 }
 
 /// Whether a code starts a note.
-pub fn starts_note(code: u32) -> bool {
+pub(crate) fn starts_note(code: u32) -> bool {
     code != 0 && code != B && code < D
 }
 
 /// Whether a code ends a note.
-pub fn ends_note(code: u32) -> bool {
+pub(crate) fn ends_note(code: u32) -> bool {
     code == B || code == D
 }
 
 /// Whether a code takes the place of a joint just written ('/', '<', '4' .. '8').
-pub fn replaces_join(code: u8) -> bool {
+pub(crate) fn replaces_join(code: u8) -> bool {
     code == 0x2F || code == 0x3C || (0x34..=0x38).contains(&code)
 }
 
@@ -70,7 +74,7 @@ pub struct Corner {
 
 /// The checkpoint a corner's turn is measured from: the next note's start less one, held to
 /// 0 ..= 0x1869F, as a checkpoint (>> 3).
-pub fn corner_start(start: u32) -> u32 {
+pub(crate) fn corner_start(start: u32) -> u32 {
     let mut s = start.wrapping_sub(1);
     if (s as i32) < 0 {
         s = 0;

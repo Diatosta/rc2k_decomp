@@ -34,7 +34,7 @@ pub fn register(handle: u32, bytes: &Arc<PoolBytes>) {
 }
 
 /// The registrations so far.
-pub fn registrations() -> u64 {
+fn registrations() -> u64 {
     REGISTRATIONS.load(std::sync::atomic::Ordering::Acquire)
 }
 
@@ -160,7 +160,7 @@ impl Place {
     }
 
     /// `bytes` written `n` bytes on, ending the program on a refusal.
-    pub fn must_write_bytes_at(&self, n: u32, bytes: &[u8], what: &str) {
+    pub(super) fn must_write_bytes_at(&self, n: u32, bytes: &[u8], what: &str) {
         let at = self.at.wrapping_add(n);
         if let Err(e) = self
             .check(at, bytes.len(), what)

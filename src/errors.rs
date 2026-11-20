@@ -62,7 +62,7 @@ impl From<rc2k_core::Invalid> for Refused {
 
 /// The carry and zero results a function returns for callers that test them.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct CarryZeroFlags {
+pub(super) struct CarryZeroFlags {
     pub carry: bool,
     pub zero: bool,
 }
@@ -71,7 +71,7 @@ pub struct CarryZeroFlags {
 /// refusal is kept and the reads after it answer 0; the caller runs `check` right after the
 /// core call, before it uses anything the core made.
 #[derive(Default)]
-pub struct Fault(std::cell::Cell<Option<BadInput>>);
+pub(super) struct Fault(std::cell::Cell<Option<BadInput>>);
 
 impl Fault {
     /// The value, or the type's default after keeping the refusal.

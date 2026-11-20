@@ -7,10 +7,10 @@ use crate::Invalid;
 pub const PAGES: u32 = 4;
 
 /// The cars with slideshow pictures: the first 0x18.
-pub const SLIDESHOW_CARS: u32 = 0x18;
+pub(crate) const SLIDESHOW_CARS: u32 = 0x18;
 
 /// A car's pictures are numbered 0 .. 99.
-pub const PICTURES: i32 = 100;
+pub(crate) const PICTURES: i32 = 100;
 
 /// The car whose pictures stand for `car`: 0x21 counts as 0x17.
 pub fn picture_car(car: u32) -> u32 {
@@ -35,7 +35,7 @@ pub fn slideshow_car(car: u32) -> Result<u32, Invalid> {
 
 /// The picture number after `number` the way looked (`back`: down, from 0 round to 99; else up,
 /// from 99 round to 0; signed).
-pub fn next_picture(number: u32, back: bool) -> u32 {
+pub(crate) fn next_picture(number: u32, back: bool) -> u32 {
     let n = number as i32;
     let next = if back {
         let n = n.wrapping_sub(1);

@@ -9,7 +9,7 @@ use crate::errors::Refused;
 
 /// `digit` is the digit.
 // The logic is in `rc2k_core::effects::pong::{pattern, cells}`
-pub fn pong_digit(
+pub(super) fn pong_digit(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     pong: &Pong,
     fl: &WindscreenFlakes,

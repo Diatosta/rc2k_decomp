@@ -13,7 +13,7 @@ use rc2k_core::physics::saved_car::save_count;
 
 /// Saves the car's state (`restore_saved_car`'s, the other way). The core is
 /// `rc2k_core::physics::saved_car::save_count` (at most 0x40 faces: the list's room).
-pub fn save_car_state(
+pub(super) fn save_car_state(
     car: &Car,
     tables: &PhysicsTables,
     contact: &ContactWork,

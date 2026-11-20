@@ -34,7 +34,7 @@ const CAR_DAMAGE: [usize; 8] = [0, 2, 3, 4, 6, 7, 8, 10];
 
 impl Player {
     /// The part's run of wear dwords zeroed, before the work is shown.
-    pub fn clear_wear(&mut self, part: Part) {
+    pub(crate) fn clear_wear(&mut self, part: Part) {
         let (first, dwords, _) = part.places();
         self.parts_wear[first..first + dwords].fill(0);
     }
@@ -69,7 +69,7 @@ impl Player {
 }
 
 /// The service area's pictures (`files\g\graphics\screens\servNN.png`).
-pub const PICTURES: u32 = 60;
+pub(crate) const PICTURES: u32 = 60;
 
 /// The picture of the service area for a car: car 0x21 has car 0x17's. Refuses a car
 /// past the pictures' table.

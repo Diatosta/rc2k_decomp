@@ -4,34 +4,34 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 
 #[cfg(target_os = "android")]
-pub mod android;
+pub(crate) mod android;
 #[cfg(target_os = "android")]
-pub mod android_java;
-pub mod arch;
+pub(crate) mod android_java;
+pub(crate) mod arch;
 #[cfg(target_os = "ios")]
-pub mod dns_sd;
-pub mod gl;
+pub(crate) mod dns_sd;
+pub(crate) mod gl;
 #[cfg(debug_ui)]
-pub mod imgui;
+pub(crate) mod imgui;
 #[cfg(handheld)]
-pub mod linux_handheld;
+pub(crate) mod linux_handheld;
 #[cfg(rc2k_pgo)]
-pub mod pgo;
+mod pgo;
 #[cfg(phone)]
-pub mod phone_vibrator;
-pub mod photo_library;
-pub mod process;
-pub mod sdl;
-pub mod sdl_camera;
-pub mod sdl_clipboard;
+mod phone_vibrator;
+pub(crate) mod photo_library;
+pub(crate) mod process;
+pub(crate) mod sdl;
+pub(crate) mod sdl_camera;
+pub(crate) mod sdl_clipboard;
 #[cfg(not(handheld))]
-pub mod sdl_gpu;
-pub mod sdl_input;
+pub(crate) mod sdl_gpu;
+pub(crate) mod sdl_input;
 #[cfg(unix)]
-pub mod unix;
+pub(crate) mod unix;
 #[cfg(phone)]
-pub mod vibrate;
+mod vibrate;
 #[cfg(web)]
 pub mod web;
 #[cfg(windows)]
-pub mod win32;
+pub(crate) mod win32;

@@ -253,7 +253,7 @@ pub(crate) fn gpu_stopped() {
 
 /// Whether the desktop's OpenGL backend is the one running (the handheld's GL ES is its GPU
 /// renderer, `gpu_running`).
-pub fn gl_running() -> bool {
+pub(super) fn gl_running() -> bool {
     backend::gl_runs()
 }
 

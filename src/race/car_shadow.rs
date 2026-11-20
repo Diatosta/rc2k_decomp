@@ -23,7 +23,7 @@ use crate::scene::polygon_store::PolygonEntry;
 /// call, given down to its parts. Every value is written before it is read, so nothing carries over
 /// from one call to the next.
 #[derive(rc2k_derive::Cells)]
-pub struct ShadowWork {
+pub(super) struct ShadowWork {
     /// The shadow's points, records of 0x20 bytes (0x40 at most), the hull's records after.
     points: [ShadowPoint; 0x100],
     /// The car's corners (`shadow_point_count`; from its block's +0x260).
@@ -131,7 +131,7 @@ fn two_pi_plus(v: u32) -> u32 {
 /// relative to the first's (`work.first_angle`; below 0 plus 2 pi), times 65536 as a whole number,
 /// +0x14 0; with two records or more they are sorted by angle (`sorting::sort_records`). Refused
 /// (before anything): no points or more than 0x40.
-pub fn shadow_angles(
+pub(super) fn shadow_angles(
     numbers: &crate::race::numbers_store::Numbers,
     work: &ShadowWork,
 ) -> Result<(), Refused> {
@@ -178,7 +178,7 @@ pub fn shadow_angles(
 /// numbers, `product` its first half, not negative), moving the rest down and starting
 /// again, until none is; `work.hull_count` is the points left. Refused (before anything): fewer
 /// than two points or more than 0x40.
-pub fn shadow_hull(work: &ShadowWork) -> Result<(), Refused> {
+fn shadow_hull(work: &ShadowWork) -> Result<(), Refused> {
     use rc2k_core::race::shadow::{Record, hull, hull_records};
     let count: u32 = work.point_count.get();
     if !(2..=0x40).contains(&count) {
@@ -220,7 +220,7 @@ fn circle_place(e: &PolygonEntry, k: u32, n: u32, radius: u32, unit: u32) {
 /// +0x21 `stage_prefs.shadow_alpha` / 2, +0x10 / +0x14 a circle's texture place: cos / sin of 2 pi
 /// k / n times `CIRCLE[0]` plus it, rounded, over `CIRCLE[1]`). Refused (before anything): a hull
 /// of no points or more than 0x40.
-pub fn shadow_polygon(
+fn shadow_polygon(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
     points: &OwnPoints,
     work: &ShadowWork,
@@ -487,7 +487,7 @@ fn clip_to_edge(
 /// the work car in x before one within 0x100000 in z is met (or none is); else cut by its three
 /// edges in turn while three vertices are left (`clip_to_edge`, with `inside_edge` the side test
 /// and `edge_crossing` the crossing).
-pub fn clip_shadow_to_face(
+fn clip_shadow_to_face(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
@@ -560,7 +560,7 @@ fn raise_onto_face(
 /// and to the screen and drawn (`scene::draw_polygon_in_game`) in mode 5 with texture
 /// `work.texture`. Refused: what the projection and the clips refuse (after the work is set; not
 /// met with a hull's few vertices) and a hull list past 0x40.
-pub fn shadow_on_face(
+fn shadow_on_face(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
@@ -691,7 +691,7 @@ fn shadow_on_record(
 
 /// Puts the shadow (`shadow_on_face`) on the last course record's faces, then on every record in
 /// the 3 x 3 cells round the work car (`shadow_on_record` each).
-pub fn shadow_faces(
+fn shadow_faces(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
@@ -755,7 +755,7 @@ fn angle_of(at: &ShadowPoint) -> u32 {
     clippy::too_many_arguments,
     reason = "the drawing's stores the part reads, as they are lent"
 )]
-pub fn shadow_points(
+pub(super) fn shadow_points(
     reads: crate::scene::workers::DrawReads<'_>,
     points: &OwnPoints,
     work: &ShadowWork,
@@ -831,7 +831,7 @@ fn lifted(
 /// list (`work.list`, `work.list_count`) and texture 0xC3 (`work.texture`), and puts the shadow on
 /// the faces round the car (`shadow_faces`), with the sun at height `sun`. Refused: what its parts
 /// refuse (before anything for the points and the counts).
-pub fn cast_car_shadow(
+fn cast_car_shadow(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
@@ -865,7 +865,9 @@ pub fn cast_car_shadow(
 /// 0 reads its block directly and its corner count from its +0x260, and calls `cast_car_shadow`
 /// once with `settings_words[2]` set, then once more with the sun at height 0x40; the
 /// depth test goes back on. Refused (before anything): no cars or more than eight, or a null block.
-pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+pub(super) fn cast_car_shadows(
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
+) -> Result<(), Refused> {
     use rc2k_core::race::shadow::{
         SHADOW_STRENGTH, SUN_PASS, casts_shadow, check_shadow_cars, first_pass,
     };

@@ -11,7 +11,7 @@ fn field(player: &mut Player) -> &mut u32 {
     &mut player.codriver_sex
 }
 
-pub fn flip_codriver(menus: &Menus) -> Result<(), Refused> {
+pub(super) fn flip_codriver(menus: &Menus) -> Result<(), Refused> {
     change(menus, field, |value| {
         rc2k_core::menu::player::stepped(rc2k_core::menu::player::Setting::CodriverSex, value, true)
     })

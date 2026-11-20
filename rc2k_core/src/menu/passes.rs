@@ -2,7 +2,7 @@
 //! at, when the event is over, the service's minutes and money, and the pauses between the screens.
 
 /// A player's +0xD0: taking part, and out (failed the inspection).
-pub const TAKING_PART: u32 = 1;
+pub(crate) const TAKING_PART: u32 = 1;
 pub const OUT: u32 = 2;
 
 /// The pauses (ms): after the inspection's screen, after the fade in (service), after
@@ -16,7 +16,7 @@ pub const DROPPED_KEYS: u32 = 6;
 
 /// The service's minutes: 900 more each service between stages; the
 /// time trial's before its stage.
-pub const SERVICE_MINUTES: u32 = 900;
+pub(crate) const SERVICE_MINUTES: u32 = 900;
 pub const TIME_TRIAL_MINUTES: u32 = 0xA8C;
 
 pub fn takes_part(kind: u32) -> bool {

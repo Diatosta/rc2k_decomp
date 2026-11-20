@@ -7,13 +7,13 @@ use crate::Invalid;
 /// The blocks a replay's table holds.
 pub const MOST_BLOCKS: u32 = crate::race::replay_v2::MOST_BLOCKS;
 /// The frames of a block.
-pub const BLOCK_FRAMES: u32 = 100;
+pub(crate) const BLOCK_FRAMES: u32 = 100;
 /// The slot of the last race's replay.
 pub const LAST_RACE: u32 = 0xDE;
 /// The slot of a replay file named when the program was started.
 pub const GIVEN_FILE: u32 = 0xDD;
 /// The slots from which the game's own replays are numbered.
-pub const OWN_FROM: u32 = 100;
+pub(crate) const OWN_FROM: u32 = 100;
 
 /// A replay's file by its slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -132,9 +132,9 @@ pub fn spread(count: u32, old: u8, byte: impl Fn(u32) -> u8) -> Result<Spread, I
 }
 
 /// The last camera's number.
-pub const LAST_CAMERA: u8 = 0x2E;
+pub(crate) const LAST_CAMERA: u8 = 0x2E;
 /// The names of the cameras a step passes over.
-pub const SKIPPED_NAMES: [u16; 2] = [0x1C1, 0x1C2];
+pub(crate) const SKIPPED_NAMES: [u16; 2] = [0x1C1, 0x1C2];
 
 /// Whether a camera of this name is passed over (unless every camera is offered).
 pub fn camera_skipped(name: u16) -> bool {
@@ -200,9 +200,9 @@ pub struct ViewerState {
 }
 
 /// The item's bit for "greyed".
-pub const GREY: u8 = 0x80;
+pub(crate) const GREY: u8 = 0x80;
 /// The item's bit for "ticked".
-pub const TICK: u8 = 0x40;
+pub(crate) const TICK: u8 = 0x40;
 
 /// The items marked (item, bit), in menu order.
 pub fn item_marks(s: &ViewerState) -> Vec<(u32, u8)> {

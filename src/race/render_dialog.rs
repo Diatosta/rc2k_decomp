@@ -37,7 +37,7 @@ pub fn set_kept(choices: rc2k_core::options::model::VideoChoices) {
 /// The sizes the graphics page lists: its own list when the page has made it, else the one the
 /// page would make (the game's sizes, the monitor's modes, the usual sizes that fit the desktop
 /// and the one set by hand), smallest first.
-pub fn page_sizes(o: Owners<'static>) -> Vec<(u32, u32)> {
+fn page_sizes(o: Owners<'static>) -> Vec<(u32, u32)> {
     let choices = &o.gfx.display.choices;
     let mut sizes: Vec<(u32, u32)> = Vec::new();
     if choices.listed.get() == 1 {
@@ -77,7 +77,7 @@ pub fn page_sizes(o: Owners<'static>) -> Vec<(u32, u32)> {
 }
 
 /// The frame rates a video offers on this display.
-pub fn page_rates() -> Vec<u32> {
+fn page_rates() -> Vec<u32> {
     let refresh = crate::platform::pacing::display_refresh();
     rc2k_core::race::render_dialog::video_rates(refresh)
 }

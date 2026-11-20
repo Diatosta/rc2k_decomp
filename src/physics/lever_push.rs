@@ -15,7 +15,7 @@ use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::race::numbers_store::Numbers;
 use crate::scene::view_matrix::cross_product;
 
-pub fn lever_push(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
+pub(super) fn lever_push(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     for k in 0..3 {
         tables.lever_push_place[k].set(car.spin[k].get());
     }

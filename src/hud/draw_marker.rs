@@ -36,7 +36,7 @@ pub fn draw_marker(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
 /// The other cars of a network race on the stage bar, each its own colour (the marker colours
 /// after the first), the own car's marker is drawn after them; in a split screen of three or four
 /// each part's bar shows the other players, each in their own colour. Nothing in other races.
-pub fn draw_other_markers(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+pub(super) fn draw_other_markers(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     let panel = &frame.panel_and_overlay.get().panel;
     let split = panel.split_players.get().min(4) as usize;
     let count = if split > 0 {

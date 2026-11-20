@@ -47,7 +47,7 @@ pub fn own_car(ctx: &DrawCtx<'_>) -> Option<u32> {
 /// `race::draw_list_entry` draws with the texture filter's switches set to 0 after it (kind
 /// 0xFF or below 0x10): the car's entry, after the whole sort list, then finds them at 0. A
 /// face whose kind cannot be read answers no (the list's drawing refuses it, as before).
-pub fn filter_cleared(
+pub(super) fn filter_cleared(
     ctx: &DrawCtx<'_>,
     entries: &[crate::memory::session::PlainDword],
     count: u32,
@@ -75,7 +75,7 @@ pub struct CarAside<'a, 'b> {
 /// Car `number` (`own_car`) drawn aside of the view `ctx` draws, from its state now with the
 /// texture filter's switches at 0 (`filter_cleared`), while `rest` draws on; `rest` puts the
 /// car's drawing at its entry (`CarAside`).
-pub fn draw_with_car_aside<'a, R>(
+pub(super) fn draw_with_car_aside<'a, R>(
     helper: crate::scene::workers::Helper<'a>,
     ctx: &DrawCtx<'a>,
     number: u32,
@@ -147,7 +147,7 @@ fn draw_car(ctx: &DrawCtx<'_>, number: u32) -> Result<(), Refused> {
 
 impl CarAside<'_, '_> {
     /// The car's depth entry's second word (`race::add_car_depth_entry`), the top bit clear.
-    pub fn entry_word(&self) -> u32 {
+    pub(super) fn entry_word(&self) -> u32 {
         self.number + 0x200_0000
     }
 

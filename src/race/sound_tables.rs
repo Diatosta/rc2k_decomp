@@ -23,7 +23,7 @@ fn span_plain(second: u32, first: u32) -> u32 {
 
 /// `race::sound_span`: makes the two dwords `first` and `second` floats and sets `span` (the
 /// dword after them) to their difference.
-pub fn sound_span(first: &PlainDword, second: &PlainDword, span: &PlainDword) {
+fn sound_span(first: &PlainDword, second: &PlainDword, span: &PlainDword) {
     whole_to_float(first);
     whole_to_float(second);
     span.set(span_plain(second.get(), first.get()));
@@ -31,14 +31,14 @@ pub fn sound_span(first: &PlainDword, second: &PlainDword, span: &PlainDword) {
 
 /// `race::sound_row`: sets a `row`'s pitch and volume spans. The set's other three words are 0 in
 /// every shipped set and read by no sound code, so they are left alone.
-pub fn sound_row(row: &SoundSet) {
+fn sound_row(row: &SoundSet) {
     sound_span(&row.pitch_low, &row.pitch_high, &row.pitch_scale);
     sound_span(&row.volume_low, &row.volume_high, &row.volume_scale);
 }
 
 /// Where `prepare_sound_tables_plain` finds its variables (the live ones, or a test's).
 #[derive(Clone, Copy)]
-pub struct TableVars<'a> {
+struct TableVars<'a> {
     /// `SurfaceSounds.tables_done`: 1 once done.
     pub done: &'a PlainDword,
     /// `SoundKinds.sines`: 0x40 floats.
@@ -70,7 +70,7 @@ pub const RECORDS: u32 = 0x22;
 /// (`SoundKinds.kinds`) gets its rev span (`sound_span`), turned into its reciprocal, and its
 /// three rows (`sound_row`). Then the 0x40 floats of `sines` are set to 1 + 0.05 sin(x) for x from
 /// 0 by pi / 32, and `Machine.scratch` keeps the last x.
-pub fn prepare_sound_tables_plain(v: &TableVars<'_>) -> Result<(), BadInput> {
+fn prepare_sound_tables_plain(v: &TableVars<'_>) -> Result<(), BadInput> {
     use rc2k_core::race::sound_tables::{reciprocal, sines};
     if v.done.get() == 1 {
         return Ok(());
@@ -96,7 +96,7 @@ pub fn prepare_sound_tables_plain(v: &TableVars<'_>) -> Result<(), BadInput> {
 
 /// `race::restart_race_sounds`: waits for the commands, resets the race's sounds, lets them play
 /// and sets `RaceClock.started` to 1.
-pub fn restart_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+fn restart_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     use crate::race::race_end::{SoundVars, reset_race_sounds, wait_for_commands};
     let (sound, audio) = (o.sound, o.audio);
     wait_for_commands(o);
@@ -190,7 +190,7 @@ pub fn set_up_race_sound_objects(
 /// the sound objects of a two-player race, so the second car can be heard when it is the one
 /// shown. With `every_car` (the car models of a replay of more than two cars) each car has a
 /// player's sound object, so that every car is heard.
-pub fn set_up_viewer_race_sound_objects(
+pub(super) fn set_up_viewer_race_sound_objects(
     o: crate::owners::Owners<'static>,
     v: &ObjectVars<'_>,
     both_cars: bool,

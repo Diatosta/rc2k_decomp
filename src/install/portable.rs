@@ -35,7 +35,7 @@ const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
 
 /// The status in a record's text (`status=N`), if it is there.
-pub fn parse_status(record: &str) -> Option<u8> {
+fn parse_status(record: &str) -> Option<u8> {
     record.lines().find_map(|line| {
         let line = line.trim();
         let value = line
@@ -65,7 +65,7 @@ fn here() -> Option<Vec<u8>> {
 /// for the kept key and written as the record when it is closed (the lobby's key and a
 /// key's removal done without effect, each answering success as the registry would).
 #[derive(Default)]
-pub struct Portable {
+pub(super) struct Portable {
     /// What the kept key is given until it is closed: its status and the folder it goes to.
     pending: Pending,
 }

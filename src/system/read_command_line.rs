@@ -12,7 +12,7 @@ use crate::memory::session::PlainDword;
 use crate::system::owner::Start;
 
 /// The `-v` part: the box, and the program ended. Does not return.
-pub fn show_version_and_leave(start: &Start) -> ! {
+fn show_version_and_leave(start: &Start) -> ! {
     let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
     let caption = &crate::fatal::state::CAPTION;
     // The `:` of the caption text is cut (the title is "Rally" alone).

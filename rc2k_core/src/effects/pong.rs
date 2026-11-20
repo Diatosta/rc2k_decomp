@@ -7,12 +7,13 @@
 //! either precision.
 
 use crate::Invalid;
+#[cfg(test)]
 use crate::physics::x87::loaded;
 use std::cmp::Ordering;
 
 /// The digits' patterns: ten, 0x14 bytes each, four cells a row, five rows.
 pub const DIGITS: u32 = 10;
-pub const PATTERN_LEN: u32 = 0x14;
+pub(crate) const PATTERN_LEN: u32 = 0x14;
 pub const COLUMNS: u32 = 4;
 pub const ROWS: u32 = 5;
 /// How far a digit moves the score's place on.
@@ -93,10 +94,10 @@ pub struct Rules {
 }
 
 /// How far the bat moves in a frame while steered.
-pub const BAT_STEP: f32 = 32.0;
+pub(crate) const BAT_STEP: f32 = 32.0;
 
 /// The ball's steps a frame after a reset.
-pub const START_STEPS: u32 = 5;
+pub(crate) const START_STEPS: u32 = 5;
 
 /// `a - b` in `f64`, stored as `f32`.
 fn less(a: f32, b: f32) -> f32 {
@@ -140,7 +141,7 @@ impl Court {
     /// `effects::pong_bat_back`: the bat put back to its place before the move when it
     /// overlaps the ball. Returns the last status, or with the bat put back its place's
     /// bits.
-    pub fn bat_back(&mut self) -> Back {
+    pub(crate) fn bat_back(&mut self) -> Back {
         let (over, status) = self.overlap();
         if !over {
             return Back::Kept(status);
@@ -174,11 +175,12 @@ impl Court {
         (place, self.bat_back())
     }
 
+    #[cfg(test)]
     /// `effects::pong_ball_hits`: when the ball overlaps the bat a hit, four more steps a
     /// frame, the ball a step back and its new way, from the bat's centre to the ball's
     /// made `length` long (an across of exactly 0 bits less the nudge), each part scaled.
     /// Returns the last status, or after a hit the new way.
-    pub fn ball_hits(&mut self, rules: &Rules) -> Hit {
+    pub(crate) fn ball_hits(&mut self, rules: &Rules) -> Hit {
         let (over, status) = self.overlap();
         if !over {
             return Hit::Missed(status);
@@ -209,12 +211,13 @@ impl Court {
         Hit::Hit(self.way.map(f32::to_bits))
     }
 
+    #[cfg(test)]
     /// `effects::move_pong_ball`: one step: the ball plus its way, `ball_hits`; below the
     /// left wall (or unordered) put at its place and the across way turned; not below the
     /// right wall less its width and the margin a reset (`reset`); below the top put at
     /// its place, below the bottom less its height put there less its height, the along
     /// way turned each time. Returns `ball_hits`' result and the last status.
-    pub fn move_ball(&mut self, rules: &Rules) -> (Hit, u32) {
+    pub(crate) fn move_ball(&mut self, rules: &Rules) -> (Hit, u32) {
         for n in 0..2 {
             self.ball[n] = (self.ball[n] as f64 + self.way[n] as f64) as f32;
         }

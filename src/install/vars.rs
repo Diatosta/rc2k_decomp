@@ -220,7 +220,7 @@ impl StringRecord {
     }
 
     /// The link the record keeps for its font.
-    pub fn font_link(&self) -> PageLink {
+    pub(super) fn font_link(&self) -> PageLink {
         self.font.get()
     }
 }
@@ -248,14 +248,14 @@ impl GlyphRecord {
     }
 
     /// The link the record keeps for its palette.
-    pub fn palette_link(&self) -> PageLink {
+    pub(super) fn palette_link(&self) -> PageLink {
         self.palette.get()
     }
 }
 
 /// The byte of `InstallerNames::script` that is the mark: 1 goes on into the script's rest (the
 /// save and settings folders removed too), 5 ends the script there (`install::removal_page`).
-pub const SCRIPT_MARK: usize = 17;
+pub(super) const SCRIPT_MARK: usize = 17;
 
 /// The page: the fonts and the pages' tables.
 #[derive(rc2k_derive::Cells)]
@@ -456,7 +456,7 @@ impl InstallerPages {
 impl InstallerPages {
     /// The byte `index` of `kind_fonts` (8 bytes a font kind); an index past the table ends
     /// the program as every checked installer read does.
-    pub fn kind_font(install: &crate::install::owner::Install, index: u32) -> u8 {
+    pub(super) fn kind_font(install: &crate::install::owner::Install, index: u32) -> u8 {
         if index >= 108 {
             crate::install::installer::refuse(crate::errors::BadInput(
                 "a font kind past the installer's table",

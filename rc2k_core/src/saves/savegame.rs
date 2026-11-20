@@ -6,7 +6,7 @@
 //! of 0x94 bytes.
 
 /// The seven dwords at the start.
-pub const HEAD_DWORDS: usize = 7;
+pub(crate) const HEAD_DWORDS: usize = 7;
 pub const CARS: usize = 4;
 pub const CAR_LEN: usize = 0x28C;
 pub const RECORDS: usize = 0xB4;

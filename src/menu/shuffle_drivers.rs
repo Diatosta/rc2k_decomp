@@ -22,7 +22,7 @@ fn tables() -> [(usize, u32); 4] {
     ]
 }
 
-pub fn shuffle_drivers(
+pub(super) fn shuffle_drivers(
     menus: &Menus,
     random: &crate::math::next_random::Randoms,
 ) -> Result<(), Refused> {

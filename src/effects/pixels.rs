@@ -219,7 +219,7 @@ fn rows_fit(masks: &Masks, entries: u32, index: u32) -> Result<(), Refused> {
 /// offset in the table) `MaskVars.row_distance` the row's squared distance
 /// (`x87::int_plus_less_squared`) and `map_pixel` for each of its span's pixels. Refuses rows or
 /// spans outside the 0x100 x 0x80 table, before writing.
-pub fn map_shape_rows(
+pub(super) fn map_shape_rows(
     masks: &Masks,
     drops: &WindscreenDrops,
     entries: u32,
@@ -261,7 +261,7 @@ pub fn map_shape_rows(
 
 /// `effects::map_shape`: quad `shape` of the shape `shapes`:
 /// `MaskVars.mask_value` the quad, its two entries (2 n, 2 n + 1) of the rows at +8 mapped
-pub fn map_shape(
+fn map_shape(
     masks: &Masks,
     drops: &WindscreenDrops,
     shapes: &Shape,
@@ -307,7 +307,7 @@ const LINE_FROM: [(u32, u32); 8] = [
 /// from corner entries k and k + 1 into `MaskVars.lines` and `map_shape`. The kept tables
 /// (`MaskPicks.table_in_use`, `MaskPicks.corners`) hold the shape's number. Refuses a
 /// count of 0 or less or past 0x80, and rows or spans outside the table, before writing.
-pub fn map_shapes(
+pub(super) fn map_shapes(
     masks: &Masks,
     drops: &WindscreenDrops,
     n: u32,

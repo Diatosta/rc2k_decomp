@@ -91,6 +91,6 @@ pub fn show_on_panel(
 }
 
 /// Never: the handheld's GL ES is its GPU renderer (`gpu_running`).
-pub fn gl_running() -> bool {
+pub(super) fn gl_running() -> bool {
     false
 }

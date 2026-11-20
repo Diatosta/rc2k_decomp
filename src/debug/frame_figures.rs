@@ -19,7 +19,7 @@ pub struct Figures {
     pub light_turned: [AtomicU32; 3],
 }
 
-pub static FIGURES: Figures = Figures {
+pub(super) static FIGURES: Figures = Figures {
     polygons: AtomicU32::new(0),
     ground_searches: AtomicU32::new(0),
     ground_found: AtomicU32::new(0),
@@ -52,7 +52,7 @@ pub fn take() {
 
 /// The first view's scene has been drawn (on the game's thread): its first flare turned by
 /// its view matrix, as `race::add_flare` turned it (a pure reckoning: nothing is written).
-pub fn note_first_view(scene: &crate::scene::owner::Scene) {
+pub(super) fn note_first_view(scene: &crate::scene::owner::Scene) {
     let view = scene.scratch.main_view(0);
     if view.lamps.flare_count.get() == 0 {
         return;

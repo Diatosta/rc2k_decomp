@@ -176,7 +176,7 @@ pub fn arcade_event(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 }
 
 /// The arcade event with a launch's answer to its first car choice.
-pub fn arcade_event_with<'a>(
+pub(super) fn arcade_event_with<'a>(
     o: crate::owners::Owners<'static>,
     answer: Option<crate::menu::launch::CarAnswer<'a>>,
 ) -> Result<(), Refused> {

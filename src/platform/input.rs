@@ -49,7 +49,7 @@ static MENU_PADS: Mutex<Vec<(SDL_JoystickID, Gamepad)>> = Mutex::new(Vec::new())
 /// A joystick has appeared (SDL's event, also for those there at the start): open as a gamepad
 /// if SDL knows it as one, so its buttons reach the menus (`input::menu_pad`) whether or not
 /// the game has asked for its devices yet.
-pub fn pad_added(id: SDL_JoystickID) {
+pub(super) fn pad_added(id: SDL_JoystickID) {
     let name = sdl_input::joystick_name_for_id(id, "a joystick");
     #[cfg(handheld)]
     if crate::platform::handheld::is_built_in_pad(&name) {
@@ -77,7 +77,7 @@ pub fn pad_added(id: SDL_JoystickID) {
 }
 
 /// A joystick has gone (SDL's event): the menus' gamepad of it closed.
-pub fn pad_removed(id: SDL_JoystickID) {
+pub(super) fn pad_removed(id: SDL_JoystickID) {
     let mut pads = MENU_PADS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);

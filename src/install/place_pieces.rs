@@ -6,7 +6,9 @@ use crate::install::page_links::PageLink;
 use crate::install::page_records::{BoxRecord, item_of};
 use crate::install::place_row::place_row;
 
-pub fn place_pieces(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub(super) fn place_pieces(
+    install: &'static crate::install::owner::Install,
+) -> Result<(), Refused> {
     let rows = {
         let laid = install.pieces.borrow();
         rc2k_core::install::layout::rows(laid.len() as u32, |k| {

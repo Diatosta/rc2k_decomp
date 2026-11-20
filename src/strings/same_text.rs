@@ -47,7 +47,7 @@ pub fn set_case_table(table: &[u8; 256]) {
 
 /// How the first text's first differing character stands to the second's
 /// (`rc2k_core::strings::case::CaseTable::compare`).
-pub fn compare_texts(
+fn compare_texts(
     a: &(impl Bytes + ?Sized),
     b: &(impl Bytes + ?Sized),
 ) -> Result<Ordering, BadInput> {

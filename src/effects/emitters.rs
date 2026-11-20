@@ -12,7 +12,7 @@ use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 
 pub use crate::effects::ring_store::Ring;
 
-pub const MOST_TAKEN: u32 = 0x3FE;
+pub(super) const MOST_TAKEN: u32 = 0x3FE;
 
 /// A variable the emitters keep a random in (a typed dword, `&Dword`).
 pub trait Random: Copy {
@@ -30,7 +30,7 @@ impl Random for &PlainDword {
 }
 
 /// A random of the emitters' kind: times 0xC5 plus 0x5D, kept.
-pub fn next_c5(at: impl Random) -> u32 {
+pub(super) fn next_c5(at: impl Random) -> u32 {
     let r = at.load().wrapping_mul(0xC5).wrapping_add(0x5D);
     at.store(r);
     r
@@ -47,7 +47,7 @@ pub fn next_entry(ring: &Ring) -> Result<Option<u32>, Refused> {
 }
 
 /// The next entry taken (its number + 1; its +8 `EmitterVars.tag`, +0x90 `tag`, +0xC `kind`).
-pub fn take_entry(
+pub(super) fn take_entry(
     ring: &Ring,
     effects: &crate::effects::owner::Effects,
     tag: u32,
@@ -67,7 +67,7 @@ pub fn take_entry(
 
 /// The dword at byte `offset` of a car's matrix (16 cells) or matrices; refused past the
 /// cells.
-pub fn matrix_cell<C: crate::memory::session::Cell32>(
+pub(super) fn matrix_cell<C: crate::memory::session::Cell32>(
     matrix: &[C],
     offset: u32,
 ) -> Result<u32, Refused> {
@@ -78,7 +78,7 @@ pub fn matrix_cell<C: crate::memory::session::Cell32>(
 }
 
 /// As `matrix_cell`, the cell read as the float it holds.
-pub fn matrix_float<C: crate::memory::session::Cell32>(
+pub(super) fn matrix_float<C: crate::memory::session::Cell32>(
     matrix: &[C],
     offset: u32,
 ) -> Result<f32, Refused> {
@@ -86,7 +86,7 @@ pub fn matrix_float<C: crate::memory::session::Cell32>(
 }
 
 /// The car the emitters are on (`EmitterVars.car`, a handle); refused when none is set.
-pub fn emitting_car(
+pub(super) fn emitting_car(
     effects: &crate::effects::owner::Effects,
 ) -> Result<&'static CarEffects, BadInput> {
     effects
@@ -95,7 +95,7 @@ pub fn emitting_car(
 }
 
 /// Whether the emitters are on a car whose matrix is set (the emitters' refusal).
-pub fn car_with_matrix(effects: &Effects) -> Result<bool, Refused> {
+pub(super) fn car_with_matrix(effects: &Effects) -> Result<bool, Refused> {
     match effects.car_record(effects.kinds.emitter.car.get()) {
         Some(car) => Ok(effects.has_whole(car)),
         None => Ok(false),
@@ -132,7 +132,11 @@ pub fn gate(
 }
 
 /// The gate after the rate (see `gate`).
-pub fn gate_with(wheel: &MarkRecord, object: &CarEffects, rate: i32) -> Result<Gate, Refused> {
+pub(super) fn gate_with(
+    wheel: &MarkRecord,
+    object: &CarEffects,
+    rate: i32,
+) -> Result<Gate, Refused> {
     Ok({
         let sum = object.rate.get().wrapping_add(rate as u32);
         if (sum as i32) < 0x1000 {

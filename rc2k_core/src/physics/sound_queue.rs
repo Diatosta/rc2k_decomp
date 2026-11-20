@@ -10,12 +10,12 @@ pub const ROOM: u32 = 16;
 pub const ENTRY_DWORDS: u32 = 8;
 
 /// The highest cue: the table holds cues 0 ..= 0x70.
-pub const LAST_CUE: u32 = 0x70;
+pub(crate) const LAST_CUE: u32 = 0x70;
 
 /// The most sounds a cue lists.
-pub const MOST_SOUNDS: u32 = 6;
+pub(crate) const MOST_SOUNDS: u32 = 6;
 /// The end of a sound list.
-pub const LIST_END: u32 = u32::MAX;
+pub(crate) const LIST_END: u32 = u32::MAX;
 
 /// Where a cue goes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

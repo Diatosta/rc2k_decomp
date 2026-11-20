@@ -9,7 +9,7 @@ use crate::physics::step_families::ContactInputs;
 
 /// The steps, not guarded.
 // Core: `rc2k_core::physics::ground_search::cells_around`.
-pub fn face_contacts_around(
+pub(super) fn face_contacts_around(
     c: &ContactInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {

@@ -1103,7 +1103,7 @@ impl PhysicsTables {
 
     /// Where ground kind `n`'s table starts in `surface_tables`, as a dword's number. A kind past
     /// the 16, or a start past the tables, is refused.
-    pub fn surface_table_index(&self, n: u32) -> Result<usize, crate::errors::BadInput> {
+    pub(super) fn surface_table_index(&self, n: u32) -> Result<usize, crate::errors::BadInput> {
         let record = self
             .surfaces
             .get(n as usize)

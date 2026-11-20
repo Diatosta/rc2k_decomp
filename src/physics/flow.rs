@@ -10,7 +10,7 @@ use crate::memory::session::{Dword, Float, PlainDword, PlainFloat};
 /// The bits of 0.0. The game keeps one such constant in `race.course.numbers.zero`
 /// (`numbers.zero`, 0.0); nothing in the program writes that cell, so the
 /// physics reads this constant instead of going through the race for it.
-pub const ZERO_BITS: u32 = 0;
+pub(super) const ZERO_BITS: u32 = 0;
 
 /// A float cell read and written as the float it holds.
 pub trait FloatView {
@@ -108,14 +108,14 @@ pub fn hold_low(v: &impl FloatView, lim: &impl FloatView) {
 }
 
 /// `hold_low` against a limit given as a value.
-pub fn hold_low_to(v: &impl FloatView, lim: f32) {
+fn hold_low_to(v: &impl FloatView, lim: f32) {
     if c0(v.float(), lim) {
         v.set_float(x87::loaded(lim));
     }
 }
 
 /// `hold_low` against a limit given as its bits.
-pub fn hold_low_bits(v: &impl FloatView, lim: u32) {
+pub(super) fn hold_low_bits(v: &impl FloatView, lim: u32) {
     hold_low_to(v, f32::from_bits(lim));
 }
 
@@ -135,7 +135,7 @@ pub fn negate(v: &impl FloatView) {
 
 /// The value at `v` brought toward 0 by the step at `step`, never past it; 0 (either
 /// sign) or unordered left alone.
-pub fn ease_zero(v: &impl FloatView, step: &impl FloatView) {
+pub(super) fn ease_zero(v: &impl FloatView, step: &impl FloatView) {
     let x = v.float();
     if c3(x, 0.0) {
         return;
@@ -159,7 +159,7 @@ pub fn ease_zero(v: &impl FloatView, step: &impl FloatView) {
 /// `t` is (x0, y0, x1, y1); the value at `x` below x0 (or unordered) gives y0, below x1
 /// gives y0 + (x - x0) / (x1 - x0) x (y1 - y0) (y0 when x1 - x0, unrounded, equals the
 /// value at `zero`), else y1; into `out`.
-pub fn table_lerp(
+pub(super) fn table_lerp(
     x: &impl FloatView,
     t: &[PlainFloat; 4],
     zero: &impl FloatView,
@@ -219,7 +219,7 @@ pub fn copy_cells(to: &[impl FloatView], from: &[impl FloatView]) {
 }
 
 /// The first three cells of `to` set to `v` (three dword moves).
-pub fn fill_cells(to: &[impl FloatView], v: f32) {
+pub(super) fn fill_cells(to: &[impl FloatView], v: f32) {
     for cell in &to[..3] {
         cell.set_float(v);
     }

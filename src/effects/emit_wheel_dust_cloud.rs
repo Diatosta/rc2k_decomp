@@ -85,7 +85,7 @@ fn refusal(
     })
 }
 
-pub fn emit_wheel_dust_cloud(
+pub(super) fn emit_wheel_dust_cloud(
     masks: &Masks,
     particles: &Particles,
     ring: &Ring,

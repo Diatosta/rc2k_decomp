@@ -7,7 +7,7 @@
 use crate::errors::Refused;
 
 /// Whether the copy and the showing worked is not looked at.
-pub fn inspection_screen(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn inspection_screen(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let scene = o.scene;
     let front_end = o.scene.scratch.front_end_polygon();
     front_end.window.view_offset[0].set(0);

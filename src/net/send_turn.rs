@@ -9,7 +9,7 @@ use rc2k_core::net::race::SENT;
 /// One of the three messages sent.
 type Send = fn(&Race, &Net) -> Result<(), Refused>;
 
-pub fn send_turn(race: &Race, net: &Net) -> Result<(), Refused> {
+pub(super) fn send_turn(race: &Race, net: &Net) -> Result<(), Refused> {
     let sends: [Send; 3] = [
         send_inputs::send_inputs,
         send_position::send_position,

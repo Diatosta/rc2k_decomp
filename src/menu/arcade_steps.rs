@@ -107,7 +107,7 @@ pub fn keep_arcade_stage_best(
     Ok(())
 }
 
-pub fn check_arcade_level_score(menus: &Menus, tables: &BestTables) -> Result<(), Refused> {
+pub(super) fn check_arcade_level_score(menus: &Menus, tables: &BestTables) -> Result<(), Refused> {
     let best = with_level_scores(&menus.play, tables, |ten| ten[9].key)?;
     if bests::makes_score(menus.play.results.players[0].total.get(), best) {
         menus.screens.event.trial.qualifies.set(1);
@@ -115,7 +115,7 @@ pub fn check_arcade_level_score(menus: &Menus, tables: &BestTables) -> Result<()
     Ok(())
 }
 
-pub fn check_arcade_stage_time(
+pub(super) fn check_arcade_stage_time(
     menus: &Menus,
     system: &System,
     tables: &BestTables,
@@ -157,7 +157,7 @@ fn new_best(
     })
 }
 
-pub fn enter_arcade_stage_time(
+pub(super) fn enter_arcade_stage_time(
     menus: &Menus,
     system: &System,
     race: &crate::race::owner::Race,
@@ -187,7 +187,7 @@ pub fn enter_arcade_stage_time(
     Ok(())
 }
 
-pub fn enter_arcade_level_score(menus: &Menus, tables: &BestTables) -> Result<(), Refused> {
+pub(super) fn enter_arcade_level_score(menus: &Menus, tables: &BestTables) -> Result<(), Refused> {
     with_level_scores(&menus.play, tables, |_| ())?;
     let (n, player) = current(menus)?;
     name_player(&player.get())?;
@@ -202,7 +202,7 @@ pub fn enter_arcade_level_score(menus: &Menus, tables: &BestTables) -> Result<()
     Ok(())
 }
 
-pub fn score_arcade_stage(menus: &Menus) -> Result<(), Refused> {
+pub(super) fn score_arcade_stage(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     let first = crate::menu::standings::player(menus, 0);
     let player = &play.results.players[0];
@@ -219,12 +219,12 @@ pub fn score_arcade_stage(menus: &Menus) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn clear_arcade_score_marks(play: &Play, tables: &BestTables) -> Result<(), Refused> {
+pub(super) fn clear_arcade_score_marks(play: &Play, tables: &BestTables) -> Result<(), Refused> {
     with_level_scores(play, tables, rc2k_core::saves::entries::clear_marks)?;
     Ok(())
 }
 
-pub fn clear_arcade_time_marks(
+pub(super) fn clear_arcade_time_marks(
     play: &Play,
     system: &System,
     tables: &BestTables,
@@ -233,7 +233,7 @@ pub fn clear_arcade_time_marks(
     Ok(())
 }
 
-pub fn take_arcade_stage_best(
+pub(super) fn take_arcade_stage_best(
     play: &Play,
     system: &System,
     race: &Race,
@@ -263,7 +263,7 @@ pub fn add_shown_car(menus: &Menus) -> Result<(), Refused> {
 
 /// `menu::remove_shown_car`: the moving down; `then` the list's numbers
 /// (`saves::list_car_numbers`).
-pub fn remove_shown_car(
+pub(super) fn remove_shown_car(
     menus: &Menus,
     then: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {

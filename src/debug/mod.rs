@@ -4,7 +4,7 @@
 //! SDL; `wear_page`: the display page's surface names and reads.
 
 #[cfg(debug_ui)]
-pub mod imgui_sdl;
+pub(crate) mod imgui_sdl;
 /// No debug UI in the 32-bit build (Dear ImGui's crate has no such Windows target).
 #[cfg(not(debug_ui))]
 pub mod imgui_sdl {
@@ -46,33 +46,33 @@ pub mod imgui_sdl {
     }
 }
 #[cfg(debug_ui)]
-pub mod dev_front_end;
+mod dev_front_end;
 #[cfg(debug_ui)]
-pub mod display_rows;
+mod display_rows;
 #[cfg(debug_ui)]
-pub mod dyno;
+mod dyno;
 #[cfg(debug_ui)]
-pub mod effects_page;
+mod effects_page;
 #[cfg(debug_ui)]
-pub mod frame_figures;
+mod frame_figures;
 #[cfg(debug_ui)]
-pub mod gpu_cuts;
+mod gpu_cuts;
 #[cfg(debug_ui)]
-pub mod kstar;
-pub mod overlay;
+mod kstar;
+pub(crate) mod overlay;
 #[cfg(debug_ui)]
-pub mod players;
+mod players;
 #[cfg(debug_ui)]
-pub mod row_cells;
-pub mod screens;
+mod row_cells;
+pub(crate) mod screens;
 #[cfg(debug_ui)]
-pub mod switches;
-pub mod timing;
+mod switches;
+pub(crate) mod timing;
 #[cfg(debug_ui)]
-pub mod ui;
+mod ui;
 #[cfg(debug_ui)]
-pub mod ui_plot;
+mod ui_plot;
 #[cfg(debug_ui)]
-pub mod watch_rows;
+mod watch_rows;
 #[cfg(debug_ui)]
-pub mod wear_page;
+mod wear_page;

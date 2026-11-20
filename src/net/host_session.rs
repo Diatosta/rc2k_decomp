@@ -12,7 +12,7 @@ use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{NetTexts, texts};
 
 const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
-pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
+pub(super) const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
 /// `Open(description, flags)`.
 pub fn open(link: &Link, flags: u32, name: &[u8]) -> u32 {
@@ -30,10 +30,13 @@ pub fn open(link: &Link, flags: u32, name: &[u8]) -> u32 {
 }
 
 /// The `Open` as the receiving thread calls it when it is posted.
-pub fn posted_open_host(net: &Net, _lines: &NetTexts) -> u32 {
+pub(super) fn posted_open_host(net: &Net, _lines: &NetTexts) -> u32 {
     open(&net.link, OPEN_CREATE, &net.link.host_name().read())
 }
-pub fn host_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, Refused> {
+pub(super) fn host_session(
+    o: crate::owners::Owners<'static>,
+    lines: &NetTexts,
+) -> Result<bool, Refused> {
     let net = o.net;
     log_bytes(&lines.text(texts::NET_HOST), false, 2);
     log_bytes(&net.setup().machine_name.read(), true, 2);

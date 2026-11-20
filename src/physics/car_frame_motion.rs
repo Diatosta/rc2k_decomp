@@ -7,7 +7,7 @@ use crate::math::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 /// The motion `from` turned by the matrix `m` into `to`.
-pub fn car_frame_motion(
+pub(super) fn car_frame_motion(
     from: &(impl Cells + ?Sized),
     m: &(impl Cells + ?Sized),
     to: &(impl Cells + ?Sized),

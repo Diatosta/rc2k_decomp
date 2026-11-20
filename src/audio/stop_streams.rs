@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use rc2k_core::audio::commands::StreamAction;
 
 /// Both streams stopped.
-pub fn stop_streams(audio: &AudioThread) -> Result<(), Refused> {
+pub(super) fn stop_streams(audio: &AudioThread) -> Result<(), Refused> {
     stream_command(audio, 0, 0, StreamAction::Stop)?;
     music_command(&audio.state, 0, 0, 0, StreamAction::Stop)
 }

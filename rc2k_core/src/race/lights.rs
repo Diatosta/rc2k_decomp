@@ -54,7 +54,7 @@ pub fn light_word(
 }
 
 /// The light word's bit for lights on (set in every drawn car's).
-pub const LIGHTS_ON: u32 = 0x20;
+pub(crate) const LIGHTS_ON: u32 = 0x20;
 
 /// Whether a car's lights are drawn, from its light word.
 pub fn lights_on(word: u32) -> bool {
@@ -62,7 +62,7 @@ pub fn lights_on(word: u32) -> bool {
 }
 
 /// The depth entries one car's lights may add (its own and its flares).
-pub const ENTRIES_A_CAR: u32 = 25;
+pub(crate) const ENTRIES_A_CAR: u32 = 25;
 
 /// What the car lights refuse: no race cars or more than eight, and a depth list without room
 /// for every car's entries.
@@ -77,7 +77,7 @@ pub fn check_car_lights(cars: u32, count: u32, room: u32) -> Result<(), Invalid>
 }
 
 /// The count from which a car part's sound wakes.
-pub const WAKE_COUNT: u32 = 10;
+pub(crate) const WAKE_COUNT: u32 = 10;
 
 /// What happens to one part slot's sound.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -122,7 +122,7 @@ pub fn multiply_colours(a: u32, b: u32) -> u32 {
 }
 
 /// A whole number held to 0 ..= 0xFF (signed).
-pub fn clamp_byte(v: u32) -> u32 {
+pub(crate) fn clamp_byte(v: u32) -> u32 {
     (v as i32).clamp(0, 0xFF) as u32
 }
 
@@ -173,7 +173,7 @@ pub fn lamp_grey(distance: u32, strength: u32) -> (u32, u32) {
 }
 
 /// The lamps there are at most (the light colour refuses past them).
-pub const MOST_LIGHT_LAMPS: u32 = 16;
+pub(crate) const MOST_LIGHT_LAMPS: u32 = 16;
 
 /// The light colour's refusals: no cars, more than eight, a null block, more than 16 lamps.
 pub fn check_light_colour(

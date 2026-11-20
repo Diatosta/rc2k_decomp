@@ -44,7 +44,7 @@ impl Entries<'_> {
         self.bytes[o..o + NAME_LEN].try_into().unwrap()
     }
 
-    pub fn set_name(&mut self, n: usize, at: usize, name: &[u8; NAME_LEN]) {
+    pub(crate) fn set_name(&mut self, n: usize, at: usize, name: &[u8; NAME_LEN]) {
         self.set_bytes(n, at, name);
     }
 
@@ -90,15 +90,15 @@ impl Entries<'_> {
 
 /// Table A's fields a sort moves, and its name.
 #[cfg(test)]
-pub const A_FIELDS: [usize; 9] = [0xC, 0x14, 4, 0, 8, 0x1C, 0x10, 0x18, 0x4C];
+pub(crate) const A_FIELDS: [usize; 9] = [0xC, 0x14, 4, 0, 8, 0x1C, 0x10, 0x18, 0x4C];
 #[cfg(test)]
-pub const A_NAME: usize = 0x20;
+pub(crate) const A_NAME: usize = 0x20;
 /// Table B's name; its fields are `b_fields()`.
 #[cfg(test)]
-pub const B_NAME: usize = 0x14;
+pub(crate) const B_NAME: usize = 0x14;
 
 #[cfg(test)]
-pub fn b_fields() -> Vec<usize> {
+pub(crate) fn b_fields() -> Vec<usize> {
     let mut f = vec![0x34, 4, 0, 8, 0x10, 0xC];
     f.extend((0x38..=0x6C).step_by(4));
     f
@@ -108,7 +108,7 @@ pub fn b_fields() -> Vec<usize> {
 /// for each i < j, entry j and i swapped (j first) when j's key is at most i's (`down` false) or at
 /// least i's (`down`).
 #[cfg(test)]
-pub fn exchange_sort(
+pub(crate) fn exchange_sort(
     t: &mut Entries,
     key: usize,
     down: bool,
@@ -211,18 +211,14 @@ pub const ROOM: u32 = 200;
 pub const NO_TIME: u32 = 0x36_F272;
 /// Table A's emptied entry: its first eight dwords.
 #[cfg(test)]
-pub const EMPTY_A: [u32; 8] = [u32::MAX, u32::MAX, 0, 0, 0, NO_TIME, NO_TIME, 0];
+pub(crate) const EMPTY_A: [u32; 8] = [u32::MAX, u32::MAX, 0, 0, 0, NO_TIME, NO_TIME, 0];
 /// `EMPTY_A` stored in an entry's bytes (the typed version's test).
 #[cfg(test)]
-pub fn empty_bytes_a(b: &mut [u8]) {
+pub(crate) fn empty_bytes_a(b: &mut [u8]) {
     for (k, v) in EMPTY_A.into_iter().enumerate() {
         b[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
     }
 }
-
-/// Table B's emptied entry: its first five dwords.
-#[cfg(test)]
-pub const EMPTY_B: [u32; 5] = [u32::MAX; 5];
 
 /// Which entries a numbering counts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -256,13 +252,6 @@ pub fn number(groups: &[u32], which: Numbering) -> Vec<Option<u32>> {
         })
         .collect()
 }
-
-/// Table A's figure and table B's, each entry's emptied (0) by `menu::clear_standings_a` /
-/// `_b`.
-#[cfg(test)]
-pub const A_FIGURE: usize = 0x44;
-#[cfg(test)]
-pub const B_FIGURE: usize = 0x70;
 
 /// What `menu::copy_standing_entry` takes from a player's record for a table A entry.
 pub struct PlayerA {
@@ -415,7 +404,7 @@ pub const B_GROUP_FIRSTS: [usize; 4] = [89, 119, 169, 179];
 
 /// The summary's rows (`menu::copy_standings_summary`).
 #[cfg(test)]
-pub const SUMMARY_ROWS: usize = 0x5A;
+pub(crate) const SUMMARY_ROWS: usize = 0x5A;
 
 /// The summary's rows (+0, +4, +8, +0xC of each: the entry's +0xC, +8, +0x10, +0x14) from table A's
 /// first `SUMMARY_ROWS` entries with a group (+0x1C not 0; `grouped`) or without. None when the

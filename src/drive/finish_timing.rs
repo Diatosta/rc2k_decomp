@@ -54,7 +54,7 @@ fn share(replay: &Replay) {
 }
 
 /// The core from the clock's reading `now` (already in the scene clock).
-pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
+fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
     let finish = race.replay.finish.get();
     let since = now.wrapping_sub(finish.start_clock.get());
     scene.drawing.scene.get().scratch.set(since);

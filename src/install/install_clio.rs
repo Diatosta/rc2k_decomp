@@ -99,7 +99,7 @@ fn work(
     Ok(Stop::SetBack)
 }
 
-pub fn install_clio(
+pub(super) fn install_clio(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {

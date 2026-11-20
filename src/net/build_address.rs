@@ -10,7 +10,11 @@ use crate::net::lobby::log_bytes;
 use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{NetTexts, texts};
 use rc2k_core::net::address::{self, Provider};
-pub fn build_address(net: &Net, lines: &NetTexts, connection_number: u32) -> Result<bool, Refused> {
+pub(super) fn build_address(
+    net: &Net,
+    lines: &NetTexts,
+    connection_number: u32,
+) -> Result<bool, Refused> {
     let (vars, link) = (&net.vars, &net.link);
     log_bytes(&lines.text(texts::NET_DPCA), true, 2);
     if link.lobby() == 0 {

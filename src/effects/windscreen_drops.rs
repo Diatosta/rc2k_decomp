@@ -25,7 +25,7 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 use crate::math::x87;
 
-pub fn spawn_windscreen_drop(
+pub(super) fn spawn_windscreen_drop(
     drops: &WindscreenDrops,
     x: u32,
     z: u32,
@@ -76,7 +76,10 @@ pub const ITEMS: u32 = 0x800;
 pub const ITEM_LEN: u32 = 0x30;
 
 // The logic is in `rc2k_core::effects::expiry::{cell, windscreen_drop_draw, windscreen_drop_hit}`
-pub fn expire_windscreen_drops(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
+pub(super) fn expire_windscreen_drops(
+    masks: &Masks,
+    drops: &WindscreenDrops,
+) -> Result<(), Refused> {
     use rc2k_core::effects::expiry;
     {
         let items = &drops.hex.items;
@@ -111,7 +114,7 @@ pub fn expire_windscreen_drops(masks: &Masks, drops: &WindscreenDrops) -> Result
 }
 
 // The logic is in `rc2k_core::effects::steps::steps`
-pub fn windscreen_drops_step(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
+pub(super) fn windscreen_drops_step(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     {
         let clock: u32 = drops.state.clock.get();
         let steps = rc2k_core::effects::steps::steps(drops.picks.index.get(), clock);

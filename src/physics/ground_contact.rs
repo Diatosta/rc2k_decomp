@@ -55,6 +55,6 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn ground_contact(c: &ContactInputs<'_>) -> Result<(), Refused> {
+pub(super) fn ground_contact(c: &ContactInputs<'_>) -> Result<(), Refused> {
     steps(c)
 }

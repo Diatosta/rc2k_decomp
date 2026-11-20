@@ -10,7 +10,7 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn free_rev_clutch(
+pub(super) fn free_rev_clutch(
     course: &Course,
     shared: &RaceShared,
     figures: &crate::physics::gear_store::GearFigures,

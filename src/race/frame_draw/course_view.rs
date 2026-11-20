@@ -8,12 +8,12 @@ use crate::race::trap::Trap;
 use crate::race::view_scratch::{DrawCtx, SortLists};
 
 /// The most entries in a sort list (`race::view_scratch`).
-pub const SORT_MAX: u32 = crate::race::view_scratch::ENTRIES as u32;
+pub(super) const SORT_MAX: u32 = crate::race::view_scratch::ENTRIES as u32;
 
 /// Adds entry `sort_entry_count` of the view's sort entries for `face`: +4 the face, +0 0, or with
 /// the face number (without its top bit) below 0x1000000 the object `kind` << 16 | the face's low
 /// 16 bits; the count + 1. Refused (before anything): an entry past the 0x1000.
-pub fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Refused> {
+fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Refused> {
     let n: u32 = lists.sort_entry_count.get();
     if n >= SORT_MAX {
         return Err(BadInput("a sort entry past the 0x1000").into());
@@ -93,7 +93,7 @@ pub fn points_there(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), 
 /// first point's record (+4): `object_position` = |x| and `face_depth` =
 /// depth + `depth_shift` as whole numbers, hidden when the depth is below |x| (the sign
 /// of the difference). Refused (before anything): no point records or points.
-pub fn face_hidden(
+fn face_hidden(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: &rc2k_core::race::faces::Face,
 ) -> Result<bool, Refused> {
@@ -188,7 +188,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
 /// Adds `face`'s depth entry (`face_depth`) as entry `depth_entry_count` of the view's depth
 /// entries: +0 the key, +4 the face; the count + 1. Refused (before anything): an entry past the
 /// 0x1000, or what `face_depth` refuses.
-pub fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
+fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
     let DrawCtx { view, .. } = *ctx;
     let lists = &view.lists;
     let n: u32 = lists.depth_entry_count.get();

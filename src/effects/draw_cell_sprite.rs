@@ -58,7 +58,7 @@ fn square(
     clippy::too_many_arguments,
     reason = "the original's five registers and the cell places, and now the two owners"
 )]
-pub fn draw_cell_sprite(
+pub(super) fn draw_cell_sprite(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,

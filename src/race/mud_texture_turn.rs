@@ -10,7 +10,7 @@ use crate::race::muddy_texel::texture_and_mud;
 use crate::race::owner::Race;
 use crate::race::tint_to_mud_colour::mud_colour;
 
-pub fn mud_texture_turn(
+pub(super) fn mud_texture_turn(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,

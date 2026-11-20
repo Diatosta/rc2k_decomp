@@ -70,7 +70,7 @@ fn refusal(race: &Race) -> Option<&'static str> {
     None
 }
 
-pub fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if let Some(why) = refusal(race) {
         return Err(BadInput(why).into());
     }

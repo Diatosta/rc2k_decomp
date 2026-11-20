@@ -15,7 +15,7 @@ use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::progress::{FINISH_NOTICE, finished_at, split_due};
 
 // Core: `rc2k_core::physics::progress::{split_due, finished_at}`.
-pub fn take_split(
+pub(super) fn take_split(
     o: crate::owners::Owners<'static>,
     split_tables: &SplitTables,
     league: &League,

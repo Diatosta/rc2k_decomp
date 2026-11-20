@@ -157,7 +157,7 @@ pub fn decode_8bit<E>(
 /// row's start (wrapping). A run goes on across the ends of planes and rows, but the byte it
 /// repeats is 0 from the end of a row on. `None` for a picture without rows or columns (the
 /// counts would wrap).
-pub fn decode_planes<E>(
+pub(crate) fn decode_planes<E>(
     layout: &Layout,
     mut next: impl FnMut() -> Result<u8, E>,
     mut put: impl FnMut(u32, u8),
@@ -209,7 +209,8 @@ pub fn decode_planes<E>(
 }
 
 /// What `decode_planes_in` refuses: a pixel that would land past the buffer.
-pub const PAST_BUFFER: crate::Invalid = crate::Invalid("a decoded pixel past the picture buffer");
+pub(crate) const PAST_BUFFER: crate::Invalid =
+    crate::Invalid("a decoded pixel past the picture buffer");
 
 /// `decode_planes` on a file held in memory: `file` is everything after the header (the bytes
 /// past its end read as 0), `out` the buffer from the first row's start. The same bytes land in
@@ -311,9 +312,10 @@ fn decode_planes_bytewise(
     Ok(done)
 }
 
+#[cfg(test)]
 /// The header of a screenshot: run coded, 8 bits, 300 dpi both ways, right and bottom the size
 /// less one, the 16-colour palette greys 0 .. 15, three planes of `width` bytes.
-pub fn screen_header(width: u32, height: u32) -> [u8; HEADER_LEN] {
+pub(crate) fn screen_header(width: u32, height: u32) -> [u8; HEADER_LEN] {
     let mut h = [0u8; HEADER_LEN];
     h[..4].copy_from_slice(&0x0801_050Au32.to_le_bytes());
     h[8..10].copy_from_slice(&(width.wrapping_sub(1) as u16).to_le_bytes());
@@ -348,12 +350,13 @@ pub fn screen_planes(
     planes
 }
 
+#[cfg(test)]
 /// One line run coded as the screenshot writer does it: runs up to 63 (the counter is
 /// checked as it reaches 0x3F, so a run that long is written and the counting starts again
 /// from none), a lone byte below 0xC0 as itself. The runs go over the planes' ends. Then
 /// the carry's low half as the coding leaves it (low byte the last run's byte, next byte
 /// the line's last byte).
-pub fn encode_line(line: &[u8], carry: &mut u32) -> Vec<u8> {
+pub(crate) fn encode_line(line: &[u8], carry: &mut u32) -> Vec<u8> {
     let mut coded = Vec::new();
     let Some(&first) = line.first() else {
         return coded;

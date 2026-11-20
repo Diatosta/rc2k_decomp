@@ -21,7 +21,7 @@ pub struct IconStyle {
     pub draws: &'static [IconDraw],
 }
 
-pub static LAYOUT_0: IconStyle = IconStyle {
+pub(super) static LAYOUT_0: IconStyle = IconStyle {
     scale: 0,
     draws: &[IconDraw {
         shift: 0,
@@ -29,7 +29,7 @@ pub static LAYOUT_0: IconStyle = IconStyle {
         view: 0,
     }],
 };
-pub static LAYOUT_1: IconStyle = IconStyle {
+pub(super) static LAYOUT_1: IconStyle = IconStyle {
     scale: 2,
     draws: &[
         IconDraw {
@@ -44,7 +44,7 @@ pub static LAYOUT_1: IconStyle = IconStyle {
         },
     ],
 };
-pub static LAYOUT_2: IconStyle = IconStyle {
+pub(super) static LAYOUT_2: IconStyle = IconStyle {
     scale: 1,
     draws: &[
         IconDraw {

@@ -66,7 +66,7 @@ pub fn face_shares_at(course: CourseReads<'_>, q: &GroundQuery<'_>) -> Result<()
 }
 
 /// `face_under_point`'s refusal, worked out without writing.
-pub fn face_refusal(course: CourseReads<'_>, face: u32) -> Option<&'static str> {
+fn face_refusal(course: CourseReads<'_>, face: u32) -> Option<&'static str> {
     ground_search::check_face(face, course.course.course_face_count.get())
         .err()
         .map(|e| e.0)
@@ -75,7 +75,7 @@ pub fn face_refusal(course: CourseReads<'_>, face: u32) -> Option<&'static str> 
 /// `physics::face_under_point`: whether the point is inside face `number` (see
 /// `physics/face_under_point.rs`).
 // Core: `rc2k_core::physics::ground_search::face_under_point`.
-pub fn face_under_point_at(
+fn face_under_point_at(
     course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     number: u32,
@@ -126,7 +126,7 @@ pub fn face_under_point_at(
 }
 
 /// `search_record_faces`' refusal, worked out without writing.
-pub fn record_refusal(course: CourseReads<'_>, record: u32) -> Option<&'static str> {
+fn record_refusal(course: CourseReads<'_>, record: u32) -> Option<&'static str> {
     let course_store = course;
     {
         if let Err(e) =
@@ -146,7 +146,7 @@ pub fn record_refusal(course: CourseReads<'_>, record: u32) -> Option<&'static s
 /// `physics::search_record_faces`: faces +8 ..= +0xC of course record
 /// `record`, each by `face_under_point`; true when one has the point.
 // Core: `rc2k_core::physics::ground_search::search_faces`.
-pub fn search_record_faces_at(
+pub(super) fn search_record_faces_at(
     course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     record: u32,
@@ -163,7 +163,7 @@ pub fn search_record_faces_at(
 /// `physics::search_cell`: the cell of (`x`, `z`) (each >> 21; key
 /// z << 11 + x), its record by `find_course_record`, then its faces. True when found.
 // Core: `rc2k_core::physics::ground_search::cell_key`.
-pub fn search_cell_at(
+fn search_cell_at(
     course: CourseReads<'_>,
     q: &GroundQuery<'_>,
     x: u32,
@@ -179,7 +179,10 @@ pub fn search_cell_at(
 /// `physics::try_last_face`: the saved last face (`last_face`); when it is a face (not -1,
 /// below the count) `face_under_point` on it. True when found.
 // Core: `rc2k_core::physics::ground_search::last_face`.
-pub fn try_last_face_at(course: CourseReads<'_>, q: &GroundQuery<'_>) -> Result<bool, Refused> {
+pub(super) fn try_last_face_at(
+    course: CourseReads<'_>,
+    q: &GroundQuery<'_>,
+) -> Result<bool, Refused> {
     let last = q.last.get();
     if ground_search::last_face(last, course.course.course_face_count.get()).is_none() {
         return Ok(false);

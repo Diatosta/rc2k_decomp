@@ -19,7 +19,7 @@ pub const THIRD: u32 = 2;
 
 /// The answer a key gives: the key is in the key word's low byte, and 0 as a whole means no
 /// key.
-pub fn answer_for_key(
+pub(super) fn answer_for_key(
     so: StringOwners<'_>,
     input: &crate::input::owner::Input,
     key_word: u32,

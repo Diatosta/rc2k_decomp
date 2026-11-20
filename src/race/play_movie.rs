@@ -9,7 +9,7 @@ const IN_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - in";
 const OUT_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - out";
 
 /// Plays the replay between the two log lines.
-pub fn play_movie(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn play_movie(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::logfile::log_write::log_nul(&IN_TEXT, false, 1);
     crate::drive::race_parts::restart_clock(race, &o.system.session.picture_clock);
     race.shared

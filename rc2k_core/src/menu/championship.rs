@@ -8,13 +8,13 @@ use super::leaving::Switch;
 /// The records' kinds (their first dword).
 pub const STAGE: u32 = 0;
 pub const SERVICE: u32 = 1;
-pub const THE_END: u32 = 3;
-pub const SECTION_END: u32 = 4;
+pub(crate) const THE_END: u32 = 3;
+pub(crate) const SECTION_END: u32 = 4;
 pub const WELCOME: u32 = 5;
 
 /// An unknown record kind: fatal error 0x8070DBA0 "Invalid Level Type" (the A8's
 /// 0x8070DBA9 "Invalid Level Type(A8)").
-pub fn invalid_level(a8: bool) -> (u32, &'static str) {
+pub(crate) fn invalid_level(a8: bool) -> (u32, &'static str) {
     if a8 {
         (0x8070_DBA9, "Invalid Level Type(A8)")
     } else {

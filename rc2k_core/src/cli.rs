@@ -340,7 +340,7 @@ pub const SWITCHES: &[Switch] = &[
 
 /// Whether `name` (a switch with its dashes, no `=`) is a switch of the table that takes a
 /// value, which is then the next word.
-pub fn takes_value(name: &str) -> bool {
+pub(crate) fn takes_value(name: &str) -> bool {
     SWITCHES.iter().any(|s| s.name == name && s.value.is_some())
 }
 

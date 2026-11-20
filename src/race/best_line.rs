@@ -547,7 +547,7 @@ fn write_n(table: &[PlainDword], n: u32, value: u32) -> Result<(), BadInput> {
 }
 
 /// Writes the best line into the race's tables.
-pub fn store_best_line(
+fn store_best_line(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     line: &BestLine,
@@ -630,7 +630,10 @@ const RULE: &std::ffi::CStr = c"---------------------------------";
 /// Builds the stage's best line, stores it and keeps it for `store_loaded_best_line`, logging as
 /// it goes: a rule, each step's word, "best line completed", the summary and a rule.
 /// `line_place` and `line_fraction` end at 0.
-pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub(super) fn build_best_line(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     use crate::logfile::log_int::log_int;
     let text =
         |at: &std::ffi::CStr, newline: bool| crate::logfile::log_write::log_nul(&at, newline, 1);
@@ -698,7 +701,7 @@ fn reset_line_lights(scene: &crate::scene::owner::Scene) {
 /// Runs `check` with a synthetic course held: `faces` and `points` (x, y, z words), the stage's
 /// counts and layout set, everything put back after.
 #[cfg(test)]
-pub fn with_course<R>(
+pub(super) fn with_course<R>(
     faces: &[[u8; 64]],
     points: &[[i32; 3]],
     check: impl FnOnce(&Race) -> R,

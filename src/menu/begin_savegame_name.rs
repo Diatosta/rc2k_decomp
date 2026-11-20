@@ -12,7 +12,7 @@ use crate::menu::text_entry::begin_logged;
 use crate::saves::owner::Saves;
 
 /// `log` = false leaves the log lines out.
-pub fn begin_savegame_name(
+pub(super) fn begin_savegame_name(
     menus: &'static Menus,
     saves: &'static Saves,
     log: bool,

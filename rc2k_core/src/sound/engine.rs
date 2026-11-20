@@ -78,8 +78,8 @@ pub fn gear_pitch(factor: f32, pitch: f32) -> f32 {
 }
 
 /// Kind bits: the gear change's cue, the back-fires.
-pub const GEAR_CUE: u32 = 0x2000;
-pub const BACK_FIRES: u32 = 0x1000;
+pub(crate) const GEAR_CUE: u32 = 0x2000;
+pub(crate) const BACK_FIRES: u32 = 0x1000;
 
 /// The revs extrapolated, worked out before anything is written: the readings' rise over their gap
 /// (held to 1000) times the time since the last, or None without one (a new reading, the revs held,

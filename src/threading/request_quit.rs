@@ -7,7 +7,7 @@ use crate::threading::thread_slot::{SlotOwners, SlotThread};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// `requested` is the shutdown switch; `start` starts the shutdown thread.
-pub fn request_quit_with(
+fn request_quit_with(
     requested: &AtomicU32,
     start: &mut dyn FnMut() -> Result<(), FatalError>,
 ) -> Result<(), FatalError> {

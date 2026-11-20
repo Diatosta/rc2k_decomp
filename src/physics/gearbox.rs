@@ -58,7 +58,7 @@ pub fn revs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<(), 
 }
 
 /// `revs_from_speed`.
-pub fn revs_speed(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
+pub(super) fn revs_speed(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
     { revs_from_speed_at(&GearPlaces::game(car, tables)) }?;
     Ok(())
 }

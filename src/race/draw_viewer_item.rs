@@ -19,7 +19,7 @@ fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInpu
 }
 
 /// `item` the list item, `index` its number.
-pub fn draw_viewer_item(
+pub(super) fn draw_viewer_item(
     race: &Race,
     list_state: &crate::menu::list_state::ListState,
     item: &Item,

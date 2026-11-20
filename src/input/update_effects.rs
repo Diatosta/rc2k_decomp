@@ -52,7 +52,7 @@ impl<'a> Vars<'a> {
 
 /// On the variables in `v`. The logic is in `rc2k_core::input::effects::loads` (the way worked out
 /// before any call: nothing a call changes decides it).
-pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Result<(), Refused> {
+fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Result<(), Refused> {
     use rc2k_core::input::effects::{Players, loads};
     if v.count.get() == 0 {
         return Ok(());
@@ -129,7 +129,7 @@ pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Resu
 }
 
 /// The race's force feedback brought up to date.
-pub fn update_effects(
+pub(super) fn update_effects(
     input: &Input,
     sound: &Sound,
     race: &Race,

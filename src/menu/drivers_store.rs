@@ -88,7 +88,7 @@ impl Driver {
 }
 
 /// A driver's record in the savegame, in bytes.
-pub const DRIVER_LEN: usize = 0x94;
+pub(super) const DRIVER_LEN: usize = 0x94;
 
 const _: () = assert!(core::mem::size_of::<Driver>() == DRIVER_LEN);
 
@@ -129,7 +129,7 @@ pub fn records_from_bytes(records: &[Driver], bytes: &[u8]) -> Result<(), crate:
 }
 
 /// A driver's +0x24 while in the event.
-pub const IN_EVENT: u32 = 1;
+pub(super) const IN_EVENT: u32 = 1;
 
 impl Driver {
     /// Back in the event with no times (`menu::reset_drivers`).
@@ -147,7 +147,7 @@ impl Driver {
     }
 
     /// The twelve condition figures back at 100 (`menu::reset_driver_condition`).
-    pub fn reset_condition(&self) {
+    pub(super) fn reset_condition(&self) {
         for c in &self.condition {
             c.set(100);
         }
@@ -166,7 +166,7 @@ impl Driver {
     }
 
     /// The total of the overall points.
-    pub fn overall_total(&self) -> &PlainDword {
+    pub(super) fn overall_total(&self) -> &PlainDword {
         &self.results[6]
     }
 
@@ -176,7 +176,7 @@ impl Driver {
     }
 
     /// The total of the stage points.
-    pub fn stage_total(&self) -> &PlainDword {
+    pub(super) fn stage_total(&self) -> &PlainDword {
         &self.results[13]
     }
 }

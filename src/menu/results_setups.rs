@@ -128,18 +128,18 @@ pub fn score(menus: &Menus, system: &System, n: usize) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn rank_stage_times(menus: &Menus) -> Result<(), Refused> {
+pub(super) fn rank_stage_times(menus: &Menus) -> Result<(), Refused> {
     rank(menus, false)
 }
 
-pub fn rank_totals(menus: &Menus) -> Result<(), Refused> {
+pub(super) fn rank_totals(menus: &Menus) -> Result<(), Refused> {
     rank(menus, true)
 }
 
-pub fn score_four_players(menus: &Menus, system: &System) -> Result<(), Refused> {
+pub(super) fn score_four_players(menus: &Menus, system: &System) -> Result<(), Refused> {
     score(menus, system, 4)
 }
 
-pub fn score_two_players(menus: &Menus, system: &System) -> Result<(), Refused> {
+pub(super) fn score_two_players(menus: &Menus, system: &System) -> Result<(), Refused> {
     score(menus, system, 2)
 }

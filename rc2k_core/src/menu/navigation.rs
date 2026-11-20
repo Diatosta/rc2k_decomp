@@ -9,7 +9,7 @@ pub const NO_LINK: u32 = 0x6F;
 pub const ASK_ITEM: u32 = 0xFFFF_FC1A;
 pub const CAN_BE_CHOSEN: u32 = 0xFFFF_FC1B;
 /// No menu has more items; a walk past it is refused.
-pub const STEP_LIMIT: u32 = 256;
+pub(crate) const STEP_LIMIT: u32 = 256;
 
 /// The counter left and right turn while it is on (`Carousel::count` its count,
 /// `Carousel::front` the value, `Carousel::direction` the way,

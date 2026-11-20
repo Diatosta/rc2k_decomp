@@ -13,7 +13,7 @@ use crate::files::read_file::read_file_into;
 use crate::memory::session::{PlainBytes, PlainDword};
 use crate::service::owner::Service;
 
-pub const SETUP_FILE_LEN: usize = 0x48;
+pub(super) const SETUP_FILE_LEN: usize = 0x48;
 pub const SLOT_COUNT: u32 = 100;
 pub const NAME_LEN: usize = 0x20;
 

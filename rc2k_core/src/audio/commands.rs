@@ -5,7 +5,7 @@
 use std::collections::VecDeque;
 
 /// How many commands the queue holds; one more is dropped.
-pub const CAPACITY: usize = 0x400;
+pub(crate) const CAPACITY: usize = 0x400;
 
 /// The fields of the race's sets of sounds, in the order a list that runs past its field reads on
 /// through them (the order of the game's data layout).
@@ -174,7 +174,7 @@ pub enum Setting {
 
 impl Setting {
     /// The setting a command word names.
-    pub fn from_word(word: u32) -> Setting {
+    pub(crate) fn from_word(word: u32) -> Setting {
         if word == OWN_WORD {
             Setting::Own
         } else {
@@ -212,7 +212,7 @@ pub enum Frequency {
 
 impl Frequency {
     /// The frequency a command word names.
-    pub fn from_word(word: u32) -> Frequency {
+    pub(crate) fn from_word(word: u32) -> Frequency {
         match word {
             OWN_WORD => Frequency::Own,
             VOICE_FREQUENCY_WORD => Frequency::Voice,
@@ -240,7 +240,7 @@ impl Frequency {
 }
 
 /// A place's three coordinates as float bits; 0xFF80_0000 in one is the sample record's.
-pub type PlaceBits = [u32; 3];
+pub(crate) type PlaceBits = [u32; 3];
 
 /// Command 1: a sound started, changed or stopped.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -307,8 +307,9 @@ pub enum StreamAction {
 }
 
 impl StreamAction {
+    #[cfg(test)]
     /// The action a command word names (a word that is none of 0, 1, 3 plays).
-    pub fn from_word(word: u32) -> StreamAction {
+    pub(crate) fn from_word(word: u32) -> StreamAction {
         match word {
             0 => StreamAction::Stop,
             1 => StreamAction::Turn,

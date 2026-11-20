@@ -7,7 +7,7 @@ use crate::effects::rain::Weather;
 use crate::math::x87;
 const FADES: usize = 0x11;
 
-pub fn make_fade_colours(
+pub(super) fn make_fade_colours(
     view_light: u32,
     weather: &Weather,
     effects: &crate::effects::owner::Effects,

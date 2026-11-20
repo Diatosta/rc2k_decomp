@@ -8,7 +8,10 @@ use crate::input::store::Devices;
 use crate::input::types::InputDevice;
 
 /// See the header.
-pub fn end_force(devices: &Devices, record: &InputDevice) -> Result<(), crate::errors::BadInput> {
+pub(super) fn end_force(
+    devices: &Devices,
+    record: &InputDevice,
+) -> Result<(), crate::errors::BadInput> {
     if entry_of(devices, record)?.force_feedback.get() != 1 {
         return Ok(());
     }

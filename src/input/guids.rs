@@ -60,11 +60,11 @@ impl InputGuids {
 }
 
 /// A GUID of these by handle: `GUID_TAG | n`, `n` the effect's number in `EffectGuid::ALL`.
-pub const GUID_TAG: u32 = 0xCD00_0000;
+const GUID_TAG: u32 = 0xCD00_0000;
 
 /// One of the eleven force-feedback effect GUIDs (the image's `GUID_ConstantForce` and so on).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EffectGuid {
+pub(super) enum EffectGuid {
     ConstantForce,
     RampForce,
     Square,
@@ -99,7 +99,7 @@ impl EffectGuid {
     }
 
     /// The GUID a handle names, if it is one.
-    pub fn from_handle(handle: u32) -> Option<Self> {
+    fn from_handle(handle: u32) -> Option<Self> {
         let n = handle.checked_sub(GUID_TAG)?;
         Self::ALL.get(n as usize).copied()
     }
@@ -125,7 +125,10 @@ impl EffectGuid {
 /// device records' `wanted` dwords, which nothing writes: `GUID_Spring`, `GUID_Sine`,
 /// `GUID_ConstantForce` and `GUID_Damper`, so every read is one of the eleven effect GUIDs,
 /// a field of its own. Refused: what is no handle and a handle that names no effect GUID.
-pub fn guid_of(guids: &InputGuids, handle: u32) -> Result<[u8; 16], crate::errors::BadInput> {
+pub(super) fn guid_of(
+    guids: &InputGuids,
+    handle: u32,
+) -> Result<[u8; 16], crate::errors::BadInput> {
     let effect = EffectGuid::from_handle(handle).ok_or(crate::errors::BadInput(
         "an effect's GUID handle that names none",
     ))?;

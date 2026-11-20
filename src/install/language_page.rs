@@ -7,7 +7,7 @@ use crate::memory::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
 /// `state`: which call of the list action this is (0 the start, negative the end).
-pub fn language_page(
+pub(super) fn language_page(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
     state: u32,

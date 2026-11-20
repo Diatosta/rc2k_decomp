@@ -183,7 +183,7 @@ pub fn blend_32(pixel: u32, alpha: u8) -> u32 {
 }
 
 /// A 16-bit pixel (5-6-5) with white blended over it.
-pub fn blend_16(pixel: u16, alpha: u8) -> u16 {
+fn blend_16(pixel: u16, alpha: u8) -> u16 {
     let a = alpha as u32;
     let p = pixel as u32;
     // each channel widened to 8 bits, blended, narrowed again

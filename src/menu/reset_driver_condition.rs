@@ -7,7 +7,7 @@ use crate::menu::drivers_store::Driver;
 use crate::menu::owner::Menus;
 use crate::menu::standings::drivers;
 
-pub fn reset_driver_condition(menus: &Menus) -> Result<(), Refused> {
+pub(super) fn reset_driver_condition(menus: &Menus) -> Result<(), Refused> {
     drivers(menus)?.iter().for_each(Driver::reset_condition);
     Ok(())
 }

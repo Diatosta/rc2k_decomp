@@ -11,7 +11,7 @@ pub const ALPHA: usize = 0;
 pub const LEFT: usize = 1;
 pub const TOP: usize = 2;
 pub const RIGHT: usize = 3;
-pub const BOTTOM: usize = 4;
+pub(crate) const BOTTOM: usize = 4;
 pub const COLOUR: usize = 5;
 /// The corners' texture places: u, v of each corner from here.
 pub const PLACES: usize = 6;
@@ -89,7 +89,7 @@ pub fn quad_vertices(q: &[u32; RECORD], a: f32, b: f32) -> ([Vertex; 4], u32, u3
 }
 
 /// `add_polygon`'s scaling: `v` times `i` over `k` (the virtual screen to the real one).
-pub fn screen_scaled(v: f32, i: u32, k: f32) -> f32 {
+pub(crate) fn screen_scaled(v: f32, i: u32, k: f32) -> f32 {
     (v as f64 * i as i32 as f64 / k as f64) as f32
 }
 

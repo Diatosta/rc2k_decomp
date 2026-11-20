@@ -30,7 +30,7 @@ pub fn players_all_out(
 }
 
 /// Writes a car block's message in the order +0x71C, +0x730, +0x72C.
-pub fn set_car_counter(car: &Car, value: u32) {
+fn set_car_counter(car: &Car, value: u32) {
     let m = rc2k_core::race::cars::Message::new(value);
     car.notice_id.set(m.id);
     car.notice_time_b.set(m.age);
@@ -38,7 +38,7 @@ pub fn set_car_counter(car: &Car, value: u32) {
 }
 
 /// Calls `set_car_counter` on the first two blocks, each with the same value.
-pub fn set_both_counters(race: &Race, value: u32) {
+fn set_both_counters(race: &Race, value: u32) {
     for car in &race.car_blocks().cars[..2] {
         set_car_counter(car, value);
     }
@@ -59,7 +59,7 @@ pub fn view_car(
 
 /// Copies view car `n`'s block (of `blocks`: the game thread's, or a drawing part's reads) into
 /// `view`'s car (`ViewScratch::car`). Refused: a null block, before anything.
-pub fn load_view_car(
+pub(super) fn load_view_car(
     work: &crate::race::work_store::RaceWork,
     blocks: &crate::race::blocks_store::CarBlocks,
     race_view: &crate::race::view_store::RaceView,

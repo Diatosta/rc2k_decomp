@@ -46,7 +46,7 @@ pub const BLOCK_TAG: u32 = 0xCB00_0000;
 pub const BLOCK_COUNT: usize = 8;
 
 /// The handle of block `n` (a number past the blocks fails to compile).
-pub const fn block_handle(n: usize) -> u32 {
+pub(super) const fn block_handle(n: usize) -> u32 {
     assert!(n < BLOCK_COUNT);
     BLOCK_TAG | n as u32
 }
@@ -66,7 +66,7 @@ pub fn block_number(handle: u32) -> Option<usize> {
 }
 
 /// The number of the block a handle names; none for 0 or any value that is no handle.
-pub fn known_block(handle: u32) -> Option<usize> {
+pub(super) fn known_block(handle: u32) -> Option<usize> {
     let n = (handle ^ BLOCK_TAG) as usize;
     (n < BLOCK_COUNT).then_some(n)
 }

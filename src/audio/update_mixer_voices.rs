@@ -31,7 +31,7 @@ fn store(state: &AudioOwn, l: &Lists) {
 }
 
 /// `mix` is `audio::mix`.
-pub fn update_mixer_voices(
+pub(super) fn update_mixer_voices(
     audio: &AudioThread,
     mix: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
@@ -51,7 +51,7 @@ pub fn update_mixer_voices(
 }
 
 /// The voices' turn of the game's own mixer, the mix (`audio::mix`) in it.
-pub fn update_mixer_voices_in_game(audio: &AudioThread) -> Result<(), Refused> {
+pub(super) fn update_mixer_voices_in_game(audio: &AudioThread) -> Result<(), Refused> {
     let mut mix = || -> Result<(), Refused> {
         crate::audio::mix::mix(&audio.state)?;
         Ok(())

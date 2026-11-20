@@ -21,7 +21,7 @@ fn first_class(screens: &Screens) -> u32 {
     class_pages::first_stage_class(screens.state.menus.class_mode.get())
 }
 
-pub fn class_stage_results_pass(
+pub(super) fn class_stage_results_pass(
     screens: &Screens,
     play: &Play,
     pages: &MenuPages,

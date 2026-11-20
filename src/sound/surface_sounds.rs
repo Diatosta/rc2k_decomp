@@ -64,7 +64,7 @@ fn one(
 }
 
 /// The wheels' surface sounds of object `so`, through `request`.
-pub fn surface_sounds(
+pub(super) fn surface_sounds(
     so: &crate::sound::store::SoundObject,
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,

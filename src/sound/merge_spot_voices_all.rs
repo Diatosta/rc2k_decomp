@@ -6,7 +6,7 @@
 use crate::errors::Refused;
 
 /// `sound::merge_spot_voices` for each sound merged.
-pub fn merge_spot_voices_all(
+pub(super) fn merge_spot_voices_all(
     owner: &crate::sound::owner::Sound,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {

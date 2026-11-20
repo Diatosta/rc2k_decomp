@@ -6,7 +6,7 @@
 
 use crate::memory::session::{Cell32, PlainDword, PlainFloat};
 
-pub const VOICE_COUNT: u32 = 0x48;
+pub(super) const VOICE_COUNT: u32 = 0x48;
 pub const MOST_SPOTS: u32 = 36;
 pub const MOST_KIND: u32 = 0x15;
 
@@ -109,7 +109,7 @@ pub fn voice(n: u32, sound: &crate::sound::owner::Sound) -> &SpotVoice {
 }
 
 /// The voices as the core's (`rc2k_core::sound::spot_voices`).
-pub fn load_voices(
+pub(super) fn load_voices(
     sound: &crate::sound::owner::Sound,
 ) -> [rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize] {
     let words: [[u32; 20]; VOICE_COUNT as usize] = std::array::from_fn(|n| {
@@ -120,7 +120,7 @@ pub fn load_voices(
 }
 
 /// The voices stored back.
-pub fn store_voices(
+pub(super) fn store_voices(
     sound: &crate::sound::owner::Sound,
     voices: &[rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize],
 ) {
@@ -134,13 +134,13 @@ pub fn store_voices(
 
 /// A voice as the pickers' work holds it: its number + 1, or 0 for none (nothing reads the voice
 /// back by address).
-pub fn voice_or_0(n: Option<usize>) -> u32 {
+fn voice_or_0(n: Option<usize>) -> u32 {
     n.map_or(0, |n| n as u32 + 1)
 }
 
 /// The pickers' work stored, and the scratch dword (1000.0, then the last distance x 1000) when a
 /// distance was worked out.
-pub fn store_picks(
+pub(super) fn store_picks(
     sound: &crate::sound::owner::Sound,
     picks: &rc2k_core::sound::spot_voices::Picks,
     trail: &rc2k_core::sound::spot_voices::Trail,

@@ -20,7 +20,7 @@ pub struct Message {
     pub kind: Kind,
 }
 
-pub const INPUTS: Message = Message {
+const INPUTS: Message = Message {
     text: c"send j", // "send j"
     kind: Kind::Inputs,
 };
@@ -105,7 +105,7 @@ const EXTRA_FIELDS: [Field; 9] = [
 ];
 
 /// The shared body: the car block, the message built at `RaceWork::net_message`.
-pub fn send_fields(race: &Race, net: &Net, m: &Message) -> Result<(), Refused> {
+pub(super) fn send_fields(race: &Race, net: &Net, m: &Message) -> Result<(), Refused> {
     let shared = &race.shared;
     let car = shared.car();
     let message = &shared.work.get().net_message;

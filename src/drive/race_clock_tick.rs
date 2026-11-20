@@ -5,7 +5,7 @@
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::clocks::RaceClock;
 
-pub fn tick_from(shared: &RaceShared, now: u32) {
+fn tick_from(shared: &RaceShared, now: u32) {
     let mut c = RaceClock {
         counted: shared.physics_tables.get().race_clock_base.get(),
         ..RaceClock::default()

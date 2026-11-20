@@ -4,7 +4,7 @@
 //! built-in texts of the pages the game adds are picked (`own_texts`). The loaded state lives in
 //! `strings`.
 
-pub mod compile_lexicon;
-pub mod load_language;
-pub mod maybe_compile_lexicon;
-pub mod own_texts;
+pub(crate) mod compile_lexicon;
+pub(crate) mod load_language;
+pub(crate) mod maybe_compile_lexicon;
+mod own_texts;

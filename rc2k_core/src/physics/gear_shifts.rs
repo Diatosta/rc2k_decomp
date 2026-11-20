@@ -19,7 +19,7 @@ pub enum Shift {
 }
 
 /// The reverse gear.
-pub const REVERSE: i32 = -1;
+pub(crate) const REVERSE: i32 = -1;
 
 /// The manual box's change up from `gear`: from reverse to neutral, from neutral a start
 /// gear, at the top (`top()`) nothing; `None`: look for the next free gear up.

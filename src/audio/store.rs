@@ -85,7 +85,7 @@ pub struct AudioShared {
 }
 
 /// A voice as the image holds all of them: free (sound -2), 44100 Hz, scale 0x40.
-pub const VOICE_FREE: Voice = Voice {
+const VOICE_FREE: Voice = Voice {
     flags: 0x0,
     sound: 0xfffffffe,
     buffer: 0x0,
@@ -114,7 +114,7 @@ pub const VOICE_FREE: Voice = Voice {
     place: [0x0, 0x0, 0x0],
 };
 /// A mixer channel as the image holds all of them (a 1.0 at +0x20).
-pub const CHANNEL_IDLE: MixerChannel = MixerChannel {
+pub(super) const CHANNEL_IDLE: MixerChannel = MixerChannel {
     used: 0x0,
     gap_4: [0x0, 0x0],
     voice: 0x0,
@@ -268,7 +268,7 @@ pub fn name_in(
 /// A record's `volume_factor`: which level its voices take (0: none, 0x40).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u32)]
-pub enum VolumeLevel {
+pub(super) enum VolumeLevel {
     /// `AudioOwn::unit_volume_factor`.
     Unit = 1,
     /// `Levels::race_effects_volume`.
@@ -280,7 +280,7 @@ pub enum VolumeLevel {
 }
 
 /// The level a record's `volume_factor` names, now (a `VolumeLevel`; 0 is no level).
-pub fn volume_level(
+pub(super) fn volume_level(
     audio: &crate::audio::own::AudioThread,
     code: u32,
 ) -> Result<u32, crate::errors::BadInput> {

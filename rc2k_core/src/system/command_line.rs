@@ -9,7 +9,7 @@ use crate::strings::bytes::Bytes;
 use crate::strings::words::next_argument;
 
 /// The room for a word after `-i`.
-pub const I_WORD_ROOM: usize = 0x100;
+pub(crate) const I_WORD_ROOM: usize = 0x100;
 
 /// One `-i`: its two words (start, length) and two digits.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

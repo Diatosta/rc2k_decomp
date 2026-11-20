@@ -54,7 +54,7 @@ fn highlighted_slot(pages: &MenuPages, loop_flags: &LoopFlags) -> u32 {
 /// Saves the game in `slot`. When the file cannot be written the slot's name goes back to the
 /// one from before, so the list does not show a game that was not saved. A slot or a state the
 /// writer refuses ends the program with the reason.
-pub fn save_game(menus: &Menus, saves: &'static Saves, slot: u32) {
+pub(super) fn save_game(menus: &Menus, saves: &'static Saves, slot: u32) {
     match write_savegame_slot(menus, saves, slot) {
         Ok(true) => {}
         Ok(false) => {

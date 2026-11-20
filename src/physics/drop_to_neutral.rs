@@ -9,7 +9,7 @@ use rc2k_core::physics::gearing::drops_to_neutral;
 
 /// A compare of floats only: the same at any precision.
 // Core: `rc2k_core::physics::gearing::drops_to_neutral`.
-pub fn drop_to_neutral(car: &Car, tables: &PhysicsTables) {
+pub(super) fn drop_to_neutral(car: &Car, tables: &PhysicsTables) {
     if !drops_to_neutral(
         car.contact_flag.get(),
         car.gear.get(),

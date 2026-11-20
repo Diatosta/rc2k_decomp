@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::net::link::Link;
 
 /// The group's id, type and short name.
-pub fn group_found(link: &Link, id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
+pub(super) fn group_found(link: &Link, id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
     if kind != 0 {
         return Ok(1);
     }

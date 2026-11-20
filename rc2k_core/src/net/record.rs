@@ -9,10 +9,10 @@ use crate::net::players::State;
 pub const STATE: usize = 0;
 pub const CAR: usize = 1;
 pub const COLOURS: usize = 2;
-pub const NATIONALITY: usize = 3;
+pub(crate) const NATIONALITY: usize = 3;
 pub const STAGE: usize = 4;
 pub const DIRECTION: usize = 5;
-pub const RACE_NUMBER: usize = 6;
+pub(crate) const RACE_NUMBER: usize = 6;
 pub const RANDOM: usize = 7;
 
 /// A player's record as it travels: the 16 bytes of DirectPlay player data.
@@ -66,7 +66,7 @@ impl Record {
 }
 
 /// The stage a record names when none was chosen (the chosen stage 0), with direction 0.
-pub const DEFAULT_STAGE: u8 = 0x29;
+pub(crate) const DEFAULT_STAGE: u8 = 0x29;
 
 /// This machine's player as its record starts (`fill_own_player`): what the record's
 /// first seven bytes become, the state 0; the random byte goes in after.
@@ -99,7 +99,7 @@ pub fn is_host(state: u8) -> bool {
 }
 
 /// The most players a race's tables hold.
-pub const RACE_PLAYERS: u32 = 8;
+pub(crate) const RACE_PLAYERS: u32 = 8;
 
 /// A race's players: refused, none or more than the tables' eight.
 pub fn race_players(players: u32) -> Result<u32, Invalid> {

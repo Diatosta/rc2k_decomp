@@ -4,11 +4,11 @@
 use crate::Invalid;
 
 /// The most faces the kept list holds.
-pub const MOST_SAVED: u32 = 0x40;
+pub(crate) const MOST_SAVED: u32 = 0x40;
 /// The most faces the work copy's list holds.
 pub const MOST_LISTED: u32 = (0x1E0 + 0x10) / 4;
 /// The matrix's dwords.
-pub const MATRIX: usize = 0x10;
+pub(crate) const MATRIX: usize = 0x10;
 
 /// The pieces kept, as dwords.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

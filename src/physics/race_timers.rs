@@ -16,7 +16,7 @@ use crate::physics::take_split_counted::take_split_counted;
 use crate::race::owner::Race;
 
 // Core: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
-pub fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
+pub(super) fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let sound = o.sound;
     let (physics, numbers, league) = (
         &race.physics,

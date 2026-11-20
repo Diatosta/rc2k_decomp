@@ -14,7 +14,7 @@ use crate::owners::Owners;
 use crate::shell::frame::show_frame_now;
 
 /// Whether the frame of `menu` was made.
-pub fn inspection_frame(
+pub(super) fn inspection_frame(
     o: Owners<'static>,
     menu: crate::menu::menus_store::MenuId,
 ) -> Result<bool, Refused> {

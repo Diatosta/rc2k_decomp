@@ -23,7 +23,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 /// repairs shown. `tune` is run for the current player where the area's choices would be made
 /// (after the figures, before the entry kind is set); a player out at inspection is refused, as
 /// there is no inspection page to show.
-pub fn time_trial_service_unshown(
+pub(super) fn time_trial_service_unshown(
     menus: &Menus,
     tune: &mut dyn FnMut(&Menus) -> Result<(), Refused>,
 ) -> Result<(), Refused> {

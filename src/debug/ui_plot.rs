@@ -3,7 +3,7 @@
 use dear_imgui_rs::Ui;
 
 /// A rectangle of the window taking values to places.
-pub struct Plot {
+pub(super) struct Plot {
     at: [f32; 2],
     size: [f32; 2],
     x: [f32; 2],

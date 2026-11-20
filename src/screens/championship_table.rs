@@ -15,7 +15,7 @@ const NOT_FOUND: FatalError = FatalError {
 /// The first history entry of class `class` and position `position` (the first entry is looked
 /// at before the end test); none before an entry of -1 is fatal error 0x8070A7FA. `walked`: the
 /// history's entries as far as its end entry.
-pub fn find_history_entry(
+fn find_history_entry(
     walked: &[HistoryEntry],
     class: u32,
     position: u32,

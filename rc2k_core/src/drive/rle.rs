@@ -5,7 +5,7 @@ use crate::Invalid;
 use crate::strings::bytes::Bytes;
 
 /// The most bytes unpacked: past it the packing is refused (a guard against a broken frame).
-pub const MOST_OUT: u32 = 0x10_0000;
+pub(crate) const MOST_OUT: u32 = 0x10_0000;
 
 fn byte(packed: &(impl Bytes + ?Sized), at: u32) -> Result<u8, Invalid> {
     packed
@@ -14,7 +14,7 @@ fn byte(packed: &(impl Bytes + ?Sized), at: u32) -> Result<u8, Invalid> {
 }
 
 /// The bytes the packing unpacks to; refused past `MOST_OUT`.
-pub fn unpacked_len(packed: &(impl Bytes + ?Sized)) -> Result<u32, Invalid> {
+pub(crate) fn unpacked_len(packed: &(impl Bytes + ?Sized)) -> Result<u32, Invalid> {
     let (mut from, mut n) = (0u32, 0u32);
     loop {
         let c = byte(packed, from)? as i8 as i32;

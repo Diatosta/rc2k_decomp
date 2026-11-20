@@ -32,7 +32,7 @@ impl EntryState {
         rc2k_core::menu::keys::MenuSound::from_code(self.menu_sound.get())
     }
 
-    pub fn set_sound(&self, sound: rc2k_core::menu::keys::MenuSound) {
+    pub(super) fn set_sound(&self, sound: rc2k_core::menu::keys::MenuSound) {
         self.menu_sound.set(sound.code());
     }
 }

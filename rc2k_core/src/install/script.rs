@@ -9,7 +9,7 @@ use crate::Invalid;
 use crate::strings::bytes::Bytes;
 
 /// The longest name looked for before a name is taken to have no end.
-pub const NAME_LIMIT: usize = 0x1000;
+pub(crate) const NAME_LIMIT: usize = 0x1000;
 /// The bytes a script may take (its skips included) before it is taken to have no end.
 pub const LIMIT: usize = 0x10000;
 

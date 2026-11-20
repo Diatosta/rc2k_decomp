@@ -28,7 +28,7 @@ pub fn part_matrices(cars: &CarDrawState) -> [&'_ [PlainFloat]; 4] {
 /// Car part matrix: matrix `a` times the body's turn (`body_turn_matrix`) into `turned_matrix`,
 /// times the car's turn (`placed_matrices`) into `lit_matrix`, times `view_matrix` into
 /// `made_object_matrix`. There is one such function for each of the four parts.
-pub fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &(impl Cells + ?Sized)) {
+fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &(impl Cells + ?Sized)) {
     multiply_matrices(a, &m.body_turn_matrix, &m.turned_matrix);
     multiply_matrices(&m.turned_matrix, car_turn(cars), &m.lit_matrix);
     multiply_matrices(
@@ -40,7 +40,7 @@ pub fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &(impl Cells + 
 
 /// Car body matrix: the turns about x and z by 0 (`set_fine_turn`)
 /// multiplied into `lit_matrix`, then as a part's matrix on it.
-pub fn car_body_matrix(course: CourseReads<'_>, cars: &CarDrawState, m: &ViewMatrices) {
+fn car_body_matrix(course: CourseReads<'_>, cars: &CarDrawState, m: &ViewMatrices) {
     use crate::scene::view_matrix::{Axis, set_fine_turn};
     set_fine_turn(course, m, Axis::X, 0);
     set_fine_turn(course, m, Axis::Z, 0);
@@ -451,7 +451,7 @@ fn near_size(cars: &CarDrawState) -> u32 {
 
 /// Sets `shine` for the car (0x3FCE0 less `mud_thrown_counts`, held to 0 .. 0x40000, times
 /// `shine_scale`, >> 18), draws the car `car` (`draw_car`) and puts `shine` back.
-pub fn draw_car_shined(
+pub(super) fn draw_car_shined(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     car: usize,
 ) -> Result<(), Refused> {

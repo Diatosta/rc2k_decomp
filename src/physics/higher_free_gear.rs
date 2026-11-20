@@ -13,16 +13,12 @@ use crate::physics::tables_store::PhysicsTables;
 
 /// On the bits at `bits` and the count `count`.
 // Core: `rc2k_core::physics::gearbox::GearBits::higher_free`.
-pub fn higher_free_gear_at(
-    bits: &PlainDword,
-    count: u32,
-    gear: i32,
-) -> Result<Option<i32>, Refused> {
+fn higher_free_gear_at(bits: &PlainDword, count: u32, gear: i32) -> Result<Option<i32>, Refused> {
     let s = { bits_at(bits) }.higher_free(gear, count)?;
     Ok(s.found.then_some(s.gear))
 }
 
-pub fn higher_free_gear(
+pub(super) fn higher_free_gear(
     car: &Car,
     tables: &PhysicsTables,
     gear: i32,

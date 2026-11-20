@@ -180,7 +180,7 @@ fn local_copy(picked: &str) -> Result<String, String> {
 
 /// A folder with no game data in the current folder is replaced by the one picked (the program
 /// goes on there), or the program ends when none is picked.
-pub fn find_game_data(given: Option<&str>) {
+pub(super) fn find_game_data(given: Option<&str>) {
     // An installed macOS bundle holds its own files (`files::redirect`).
     #[cfg(unix)]
     if crate::files::redirect::active() {

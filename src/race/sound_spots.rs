@@ -57,7 +57,7 @@ fn scaled(t: [u8; 10], k: impl crate::math::x87_float::Loadable) -> u32 {
 /// object 0x3F, its sound (+8) is 1 .. 0x15 and there is room (fewer than 0x24). Its point and
 /// place (the point plus its offset) are turned by the view's matrix and scaled. A test for sound
 /// 0x1B2 needing lamps can never hold (the sound is a byte).
-pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Result<(), BadInput> {
+fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Result<(), BadInput> {
     use crate::race::skidmarks::int_80;
     {
         // The turn and scale stay the x87's: the callers compare exactly.
@@ -111,7 +111,7 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
 /// `race::cell_sound_spots`: runs `face_sound_spot` on each face of cell `cell`'s record
 /// (`course_grid[c]`; the record's +8 .. +0xC give the faces, none for -1 or a first past the
 /// last).
-pub fn cell_sound_spots(
+fn cell_sound_spots(
     race: &Race,
     view: &ViewMatrices,
     grid: &ViewGrid,
@@ -144,7 +144,7 @@ pub fn cell_sound_spots(
 /// 5 x 5 cells of `view`'s grid from (`grid_reach` - 2) x 0x21 (rows 0x20 apart), turned by its
 /// matrix. Refuses (before anything) a cell past the grid, or no records, faces or points when a
 /// cell has a record.
-pub fn find_sound_spots(
+pub(super) fn find_sound_spots(
     race: &Race,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {

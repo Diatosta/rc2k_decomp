@@ -5,6 +5,7 @@
 //! As in `math::geometry`, what the x87 keeps on its stack is an `f64`: the same at the
 //! game's double precision; at extended a sum may land one off at a rounding edge.
 
+#[cfg(test)]
 use crate::math::geometry::fistp64;
 
 /// A block's slots (+0xD0 their kinds, +0xF0 their sums) and kinds (+0x130 the kinds,
@@ -12,9 +13,10 @@ use crate::math::geometry::fistp64;
 pub const SLOTS: u32 = 8;
 pub const KINDS: u32 = 0x11;
 
+#[cfg(test)]
 /// `sum` plus the length of (x, y, z), the squares added as x + (y + z), rounded to a whole
 /// number.
-pub fn length_plus(d: [i32; 3], sum: i32) -> i32 {
+pub(crate) fn length_plus(d: [i32; 3], sum: i32) -> i32 {
     let [x, y, z] = d.map(|v| v as f64 * v as f64);
     fistp64((x + (y + z)).sqrt() + sum as f64)
 }

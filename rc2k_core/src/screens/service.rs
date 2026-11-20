@@ -36,7 +36,7 @@ pub fn repair_times<S: Screen<Font = Font>>(s: &mut S, times: &[u32; 16]) -> Res
 }
 
 /// The free time the service area gives (`service::state::FREE_SERVICE_TIME`).
-pub const FREE_SERVICE_TIME: i32 = 900;
+pub(crate) const FREE_SERVICE_TIME: i32 = 900;
 const LEFT_X: i32 = 0x42;
 const RIGHT_X: i32 = 0x2DE;
 const Y: i32 = 0x2C;

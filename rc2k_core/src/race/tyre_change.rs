@@ -15,7 +15,7 @@ pub mod stage {
 /// Longest a change runs (ms) before it ends with an empty gauge.
 pub const LONGEST: u32 = 60000;
 /// The time (ms) the gauge takes to fill.
-pub const FILL_MS: u32 = 500;
+pub(crate) const FILL_MS: u32 = 500;
 
 /// The gauge's state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

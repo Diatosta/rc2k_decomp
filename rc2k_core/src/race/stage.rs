@@ -18,7 +18,7 @@ fn digit<B: Bytes + ?Sized>(text: &B, at: usize) -> Option<u32> {
 
 /// The `places` digits (2 or 3) at `at` as a number; None if any is not a digit (no read past
 /// the first non-digit).
-pub fn parse_digits<B: Bytes + ?Sized>(text: &B, at: usize, places: usize) -> Option<u32> {
+pub(crate) fn parse_digits<B: Bytes + ?Sized>(text: &B, at: usize, places: usize) -> Option<u32> {
     (0..places).try_fold(0u32, |n, k| Some(n * 10 + digit(text, at.wrapping_add(k))?))
 }
 
@@ -96,24 +96,24 @@ pub fn stage_car_numbers<B: Bytes + ?Sized>(
 }
 
 /// The stages that are tweaked.
-pub const TWEAKED_STAGES: [u32; 3] = [0x15, 0x3E, 0x36];
+pub(crate) const TWEAKED_STAGES: [u32; 3] = [0x15, 0x3E, 0x36];
 
 /// Whether the stage is tweaked.
-pub fn stage_tweaked(stage: u32) -> bool {
+pub(crate) fn stage_tweaked(stage: u32) -> bool {
     TWEAKED_STAGES.contains(&stage)
 }
 
 /// Which stages swap which texture kind for which.
-pub const TEXTURE_SWAPS: [([u32; 3], u32, u32); 4] = [
+pub(crate) const TEXTURE_SWAPS: [([u32; 3], u32, u32); 4] = [
     ([0x20, 0x22, 0x24], 0x2F82, 0x2FD0),
     ([0x34, 0x36, 0x38], 0x2F91, 0x2FE0),
     ([0x3D, 0x3F, 0x41], 0x2F72, 0x2FD2),
     ([0x3E, 0x40, 0x42], 0x2F71, 0x2FD1),
 ];
 /// The texture kinds searched for the old kind.
-pub const SWAP_KINDS: u32 = 0xFF;
+pub(crate) const SWAP_KINDS: u32 = 0xFF;
 /// The places of the swapped list.
-pub const SWAPPED_PLACES: u32 = 0x40;
+pub(crate) const SWAPPED_PLACES: u32 = 0x40;
 
 /// How `swap_texture` ended.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -134,7 +134,7 @@ pub enum Swap {
 /// what was done. The first kind (of the first 0xFF, via `kinds`) equal to the old one becomes
 /// the new one; then, unless the new kind is in the swapped list, it goes >> 4 into the first
 /// free place (the test uses the kind before the shift: kept as is).
-pub fn swap_texture(
+pub(crate) fn swap_texture(
     stage: u32,
     kinds: impl Fn(u32) -> u32,
     swapped: impl Fn(u32) -> u32,
@@ -164,7 +164,7 @@ pub fn swap_texture(
 }
 
 /// The kinds the course's records come in.
-pub const RECORD_KINDS: usize = 0x100;
+pub(crate) const RECORD_KINDS: usize = 0x100;
 
 /// A course record's kind: its low four bits plus bits 11 ..= 14 times 16.
 pub fn record_kind(word: u32) -> u32 {

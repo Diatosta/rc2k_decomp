@@ -4,9 +4,10 @@
 
 use super::x87::{below, loaded};
 
+#[cfg(test)]
 /// The low-speed factor: None when |`speed`| is not below `limit` (so the forces are left),
 /// else (|speed| / limit + `add`) x `times`.
-pub fn low_speed_factor(speed: f32, limit: f32, add: f32, times: f32) -> Option<f32> {
+pub(crate) fn low_speed_factor(speed: f32, limit: f32, add: f32, times: f32) -> Option<f32> {
     if !below(speed.abs() as f64, limit as f64) {
         return None;
     }

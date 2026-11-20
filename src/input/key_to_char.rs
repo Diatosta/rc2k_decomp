@@ -34,7 +34,7 @@ pub fn has_layout(input: &Input) -> bool {
 
 /// The character a key types, for the yes/no question, which in layout mode 2 always uses
 /// the keyboard file's first layout and leave the current one as it was.
-pub fn key_to_char_for_text(input: &Input, key_word: u32) -> Result<u32, BadInput> {
+pub(super) fn key_to_char_for_text(input: &Input, key_word: u32) -> Result<u32, BadInput> {
     typed(input, key_word)
 }
 

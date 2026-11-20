@@ -30,7 +30,7 @@ const LINE_LEN: usize = 0x100;
 /// An item's text: one string, or with `spaced` one character at a time 18 pixels apart from
 /// x - 26. An empty spaced text draws nothing. Refused: a string of 0x100 bytes or more with
 /// its NUL.
-pub fn item_text<S: Screen<Work = Work>>(
+pub(crate) fn item_text<S: Screen<Work = Work>>(
     s: &mut S,
     id: u32,
     font: S::Font,
@@ -57,9 +57,9 @@ pub fn item_text<S: Screen<Work = Work>>(
 
 /// What is behind an item's text: nothing, or one of the buttons below.
 pub const NOTHING: u32 = 0xFFFF_FFA9;
-pub const OWN_BUTTON: u32 = 0xFFFF_FFA5;
-pub const RIGHT_BUTTON: u32 = 0xFFFF_FFA7;
-pub const CENTRED_BUTTON: u32 = 0xFFFF_FFA6;
+pub(crate) const OWN_BUTTON: u32 = 0xFFFF_FFA5;
+pub(crate) const RIGHT_BUTTON: u32 = 0xFFFF_FFA7;
+pub(crate) const CENTRED_BUTTON: u32 = 0xFFFF_FFA6;
 /// Also nothing, looked at only when the item is not highlighted; as a highlighted item's sprite
 /// it means nothing at all behind it.
 pub const NOTHING_EITHER: u32 = 0xFFFF_FFAA;

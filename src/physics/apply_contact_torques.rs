@@ -10,7 +10,7 @@ use crate::physics::tables_store::PhysicsTables;
 const COUNT: usize = 7;
 
 /// The Rust core, the switch given, `run` doing the records (`apply_torques`).
-pub fn apply_contact_torques_with<'a>(
+fn apply_contact_torques_with<'a>(
     switch: u32,
     records: &'a [ForceRecord],
     run: impl FnOnce(&'a [ForceRecord]) -> Result<(), Refused>,
@@ -21,7 +21,7 @@ pub fn apply_contact_torques_with<'a>(
     run(records)
 }
 
-pub fn apply_contact_torques(
+pub(super) fn apply_contact_torques(
     tables: &PhysicsTables,
     contact: &ContactWork,
     car: &Car,

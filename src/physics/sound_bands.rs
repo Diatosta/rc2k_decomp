@@ -43,7 +43,7 @@ pub const CRASH_BAND: Band = Band {
 };
 
 /// The exact x87 version on the value and the factor; the scratch keeps the rounded number.
-pub fn band_at(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 {
+fn band_at(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 {
     let n = x87::mul_to_int(value, factor) as u32;
     scratch.set(n);
     let mut b = n.wrapping_sub(step);
@@ -57,7 +57,7 @@ pub fn band_at(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 
 }
 
 /// The band on the game's variables (the exact x87 version).
-pub fn band_value(c: &SoundInputs<'_>, band: &Band) -> u32 {
+pub(super) fn band_value(c: &SoundInputs<'_>, band: &Band) -> u32 {
     band_at(
         (band.value)(c),
         (band.factor)(c),
@@ -68,14 +68,14 @@ pub fn band_value(c: &SoundInputs<'_>, band: &Band) -> u32 {
 
 /// The converted version (`rc2k_core::physics::sound_bands`, plain floats).
 // Core: `rc2k_core::physics::sound_bands::sound_band`.
-pub fn band_at_plain(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 {
+fn band_at_plain(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 {
     let (n, b) = sound_band(value, factor, step);
     scratch.set(n as u32);
     b
 }
 
 /// The converted band on the game's variables.
-pub fn band_value_plain(c: &SoundInputs<'_>, band: &Band) -> u32 {
+pub(super) fn band_value_plain(c: &SoundInputs<'_>, band: &Band) -> u32 {
     band_at_plain(
         (band.value)(c),
         (band.factor)(c),

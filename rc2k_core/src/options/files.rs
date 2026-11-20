@@ -80,7 +80,7 @@ pub fn load_old(store: &dyn Store, paths: &Paths) -> Result<Option<Options>, Opt
 
 /// The options from the new file, the values it lacks taken from `base`; `None` when it is not
 /// there or is of an older version.
-pub fn load_new(
+pub(crate) fn load_new(
     store: &dyn Store,
     paths: &Paths,
     base: &Options,
@@ -96,9 +96,9 @@ pub fn load_new(
 }
 
 /// Reads the old file by the caller's own way.
-pub type OldReader<'a> = &'a mut dyn FnMut() -> Result<Option<Options>, OptionsError>;
+pub(crate) type OldReader<'a> = &'a mut dyn FnMut() -> Result<Option<Options>, OptionsError>;
 /// Writes the old file by the caller's own way.
-pub type OldWriter<'a> = &'a mut dyn FnMut(&Options) -> Result<(), OptionsError>;
+pub(crate) type OldWriter<'a> = &'a mut dyn FnMut(&Options) -> Result<(), OptionsError>;
 
 /// The options `load` found.
 #[derive(Clone, Debug, PartialEq)]
@@ -161,7 +161,11 @@ pub fn load(
 }
 
 /// Writes the new file (keeping the unknown keys it holds).
-pub fn save_new(store: &dyn Store, paths: &Paths, options: &Options) -> Result<(), OptionsError> {
+pub(crate) fn save_new(
+    store: &dyn Store,
+    paths: &Paths,
+    options: &Options,
+) -> Result<(), OptionsError> {
     let existing = read_file(store, &paths.new)?.and_then(|b| String::from_utf8(b).ok());
     let text = toml_file::write(options, existing.as_deref())?;
     write_file(store, &paths.new, text.as_bytes())

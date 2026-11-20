@@ -35,7 +35,7 @@ pub type Course = rc2k_core::race::pace_notes::Course;
 /// it, face n at 0x40 n, read by number in `face_byte`) and the checkpoints' count. Without the
 /// table (the walk runs only after `race::load_level` has taken it) the window is empty and a face
 /// read refused.
-pub fn game_course(race: &Race) -> Course {
+pub(super) fn game_course(race: &Race) -> Course {
     let shared = &race.shared;
     let data = &race.course.stage.course;
     let len = if crate::race::course_places::held(data) {

@@ -14,7 +14,7 @@
 use crate::Invalid;
 
 /// The quality modes.
-pub const QUALITIES: u32 = 4;
+pub(crate) const QUALITIES: u32 = 4;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -29,7 +29,7 @@ pub struct AudioOptions {
 }
 
 /// How many choices the screen has.
-pub const CHOICES: usize = 5;
+pub(crate) const CHOICES: usize = 5;
 
 /// The choices' places in `choice` and `applied`.
 pub const QUALITY: usize = 0;

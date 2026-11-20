@@ -5,7 +5,7 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
-pub fn sort_standings_b_by_figure(
+pub(super) fn sort_standings_b_by_figure(
     menus: &Menus,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {

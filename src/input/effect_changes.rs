@@ -16,7 +16,7 @@ use crate::input::types::{ForceEffect, InputDevice};
 
 /// The change `what` (with `a`, `b`) of the effect `effect` of the device `record`, by
 /// the effect's function `number` (`input::effect_N_change`).
-pub fn effect_change(
+pub(super) fn effect_change(
     devices: &Devices,
     number: u32,
     record: &InputDevice,
@@ -68,7 +68,7 @@ pub fn effect_change(
 
 /// The effect's own change function (`ForceEffect::change`, the number of one of the six) with
 /// the change.
-pub fn effect_change_at(
+pub(super) fn effect_change_at(
     devices: &Devices,
     function: u32,
     record: &InputDevice,

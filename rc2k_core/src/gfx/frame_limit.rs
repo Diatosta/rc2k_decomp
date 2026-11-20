@@ -8,14 +8,14 @@ use std::time::Duration;
 
 /// The most frames a second shown without the smooth frames: the simulation's ticks. A frame
 /// between two ticks would show nothing new.
-pub const MOST_FRAMES: f64 = 100.0;
+pub(crate) const MOST_FRAMES: f64 = 100.0;
 
 /// The most frames a second a rate may be, whatever the display.
 const MOST_SMOOTH_FRAMES: f64 = 1000.0;
 
 /// The most frames a second shown: the ticks' hundred, or with `smooth` frames what the display
 /// has.
-pub fn most_frames(smooth: bool) -> f64 {
+pub(crate) fn most_frames(smooth: bool) -> f64 {
     if smooth {
         MOST_SMOOTH_FRAMES
     } else {
@@ -24,7 +24,7 @@ pub fn most_frames(smooth: bool) -> f64 {
 }
 
 /// The refreshes a second taken for a display that names none (or an absurd number).
-pub const USUAL_REFRESH: f64 = 60.0;
+pub(crate) const USUAL_REFRESH: f64 = 60.0;
 
 /// What limits the frames.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -40,7 +40,7 @@ pub enum FrameLimit {
 }
 
 /// The refresh rate the pace is worked from: a usual one when the display names none.
-pub fn usable_refresh(refresh: Option<f64>) -> f64 {
+pub(crate) fn usable_refresh(refresh: Option<f64>) -> f64 {
     refresh
         .filter(|rate| (24.0..=1000.0).contains(rate))
         .unwrap_or(USUAL_REFRESH)
@@ -123,7 +123,7 @@ impl FrameLimit {
 }
 
 /// Whether `limit` is the default (left out of the options file).
-pub fn is_default(limit: &FrameLimit) -> bool {
+pub(crate) fn is_default(limit: &FrameLimit) -> bool {
     *limit == FrameLimit::default()
 }
 

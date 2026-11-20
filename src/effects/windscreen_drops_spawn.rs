@@ -20,7 +20,7 @@ fn rate(drops: &WindscreenDrops, effects: &crate::effects::owner::Effects) {
     rate_x87(drops, &effects.frame.kept_view, &effects.setup.work);
 }
 
-pub fn windscreen_drops_spawn(
+pub(super) fn windscreen_drops_spawn(
     drops: &WindscreenDrops,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {

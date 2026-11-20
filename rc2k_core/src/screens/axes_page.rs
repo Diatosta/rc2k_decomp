@@ -10,29 +10,29 @@ use crate::screens::controller_page::{Font, Work};
 use crate::screens::screen::{Bar, Screen};
 
 /// The first row's text y and the rows' spacing (the items' own).
-pub const FIRST_ROW_Y: i32 = 183;
+pub(crate) const FIRST_ROW_Y: i32 = 183;
 pub const ROW_SPACING: i32 = 30;
 /// The x the values start at, as the other controller pages' do.
-pub const VALUE_X: i32 = 0x1BC;
+pub(crate) const VALUE_X: i32 = 0x1BC;
 /// The live bar's width on the list and on an axis's page, and its height.
-pub const LIST_BAR_WIDTH: i32 = 140;
-pub const PAGE_BAR_WIDTH: i32 = 200;
-pub const BAR_HEIGHT: i32 = 18;
+pub(crate) const LIST_BAR_WIDTH: i32 = 140;
+pub(crate) const PAGE_BAR_WIDTH: i32 = 200;
+pub(crate) const BAR_HEIGHT: i32 = 18;
 /// The bar's track and fill colours, and the mark of a centred axis's middle.
-pub const TRACK_RGB: u32 = 0x0004_0A2E;
-pub const FILL_RGB: u32 = 0x0020_B4EC;
-pub const MIDDLE_RGB: u32 = 0x00B8_D8FF;
+pub(crate) const TRACK_RGB: u32 = 0x0004_0A2E;
+pub(crate) const FILL_RGB: u32 = 0x0020_B4EC;
+pub(crate) const MIDDLE_RGB: u32 = 0x00B8_D8FF;
 /// A slider's place (right of a value's short text) and sprites: the track, the fill and its end piece.
 /// The width is the track's scale, 200 pixels from its left edge to the end of its last division
 /// (its middle line is at 100): a full slider has its end piece at the track's right end.
-pub const SLIDER_X: i32 = 556;
-pub const SLIDER_WIDTH: i32 = 200;
-pub const SLIDER_TRACK: u32 = 5;
-pub const SLIDER_FILL: u32 = 3;
-pub const SLIDER_END: u32 = 7;
+pub(crate) const SLIDER_X: i32 = 556;
+pub(crate) const SLIDER_WIDTH: i32 = 200;
+pub(crate) const SLIDER_TRACK: u32 = 5;
+pub(crate) const SLIDER_FILL: u32 = 3;
+pub(crate) const SLIDER_END: u32 = 7;
 
 /// The y of the text of row `n`.
-pub fn row_y(n: usize) -> i32 {
+pub(crate) fn row_y(n: usize) -> i32 {
     FIRST_ROW_Y + ROW_SPACING * n as i32
 }
 

@@ -38,7 +38,7 @@ fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
 /// differences, x `one_over_two_pi` x 65536, & 0xFFFF) << 16 + 0x40000000 goes into
 /// `wall_heading`; (0, 0, 1) turned by it (`math::rotate_float_point_about_y`) goes into
 /// `contact_normal`.
-pub fn edge_normal(
+pub(super) fn edge_normal(
     engine_tables: &crate::math::engine_tables::EngineTables,
     contact: &ContactWork,
     course: &Course,

@@ -13,7 +13,7 @@ use crate::race::game_map::{GameMap, Tile};
 use crate::race::owner_frame::Frame;
 use rc2k_core::race::map::TILE;
 
-pub fn blit_map_tiles(
+pub(super) fn blit_map_tiles(
     frame: &Frame,
     game_map: &Owned<GameMap>,
     texture: u32,

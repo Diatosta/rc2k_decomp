@@ -153,7 +153,7 @@ use crate::text::draw_text::GameCanvas;
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// Runs item function `f` with what the item hands it (`c`).
-pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
+pub(super) fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
     let menus = o.menus;
     let race = o.race;
     match f {
@@ -511,7 +511,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
 }
 
 /// Runs screen function `f` (the draw lists' and the frames'; it takes nothing).
-pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
+pub(super) fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
     let menus = o.menus;
     match f {
         ScreenFn::DrawSectionBestTimes => draw_section_best_times::draw_section_best_times(

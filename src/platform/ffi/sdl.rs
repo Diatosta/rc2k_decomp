@@ -192,7 +192,7 @@ impl Window {
 
     /// The least size the player can drag the window to.
     #[cfg(not(handheld))]
-    pub fn set_minimum_size(self, width: usize, height: usize) {
+    fn set_minimum_size(self, width: usize, height: usize) {
         // SAFETY: as `restore_if_minimised`.
         unsafe { SDL_SetWindowMinimumSize(self.0, width as i32, height as i32) };
     }
@@ -819,7 +819,7 @@ pub const RESIZABLE: bool = cfg!(any(
 
 /// The least size of a window the player resizes (the least race size the options keep).
 #[cfg(not(handheld))]
-pub const MIN_WINDOW: (usize, usize) = (320, 240);
+pub(super) const MIN_WINDOW: (usize, usize) = (320, 240);
 
 /// A window of the given size with a title.
 pub fn create_window(title: &std::ffi::CStr, width: usize, height: usize) -> Option<Window> {

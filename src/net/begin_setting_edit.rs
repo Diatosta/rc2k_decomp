@@ -7,7 +7,7 @@ use crate::net::owner::Net;
 use rc2k_core::net::editing::{self, Setting};
 
 /// Starts a setting's edit (item, text, width and font).
-pub fn begin_setting_edit(
+pub(super) fn begin_setting_edit(
     net: &Net,
     list_state: &crate::menu::list_state::ListState,
 ) -> Result<(), crate::errors::Refused> {

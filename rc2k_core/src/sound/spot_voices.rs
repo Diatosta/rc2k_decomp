@@ -204,7 +204,7 @@ pub fn hear(voices: &mut [Voice; VOICES], k: &Hearing) {
 
 /// A voice's distance x 1000 as a whole number: nearest, ties to even; out of range or not a number
 /// gives 0x80000000.
-pub fn distance_1000(distance: f32) -> u32 {
+pub(crate) fn distance_1000(distance: f32) -> u32 {
     let product = (distance as f64 * 1000.0).round_ties_even();
     if product.is_nan() || product < i32::MIN as f64 || product > i32::MAX as f64 {
         0x8000_0000

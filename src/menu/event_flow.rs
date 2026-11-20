@@ -37,7 +37,7 @@ pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {
 }
 
 /// The variable of a leaving switch.
-pub fn switch_cell<'a>(menus: &'a Menus, system: &'a System, s: Switch) -> &'a dyn FlagLike {
+pub(super) fn switch_cell<'a>(menus: &'a Menus, system: &'a System, s: Switch) -> &'a dyn FlagLike {
     let screens = &menus.screens;
     match s {
         Switch::EventLeft => &screens.loop_flags.event_left,
@@ -118,7 +118,7 @@ pub fn stage_times<'t>(
 }
 
 /// `f` on the chosen stage's ten best times; refused as `stage_times`.
-pub fn with_stage_times<R>(
+pub(super) fn with_stage_times<R>(
     menus: &Menus,
     system: &System,
     tables: &BestTables,

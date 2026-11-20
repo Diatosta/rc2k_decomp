@@ -7,8 +7,9 @@
 pub const SLOTS: usize = 0x20;
 pub const TIME: u32 = 0x3C;
 
+#[cfg(test)]
 /// The last free slot (its first dword 0 or less, signed), from 0x1F down.
-pub fn free_slot(first: impl Fn(usize) -> i32) -> Option<usize> {
+pub(crate) fn free_slot(first: impl Fn(usize) -> i32) -> Option<usize> {
     (0..SLOTS).rev().find(|&n| first(n) <= 0)
 }
 
@@ -17,8 +18,9 @@ pub fn next_random(random: u32) -> u32 {
     random.wrapping_mul(0xC5).wrapping_add(0x5D)
 }
 
+#[cfg(test)]
 /// A new slot: its float the random's low word plus `base` (in `f64`, stored as `f32`).
-pub fn new_slot(what: u32, at: u32, random: u32, base: f32) -> [u32; 5] {
+pub(crate) fn new_slot(what: u32, at: u32, random: u32, base: f32) -> [u32; 5] {
     let value = ((random & 0xFFFF) as f64 + base as f64) as f32;
     [TIME, what, at, 0, value.to_bits()]
 }

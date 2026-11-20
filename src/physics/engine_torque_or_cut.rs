@@ -7,7 +7,7 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for `physics::drive_force`.
-pub fn engine_torque_or_cut(
+pub(super) fn engine_torque_or_cut(
     course: &Course,
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,

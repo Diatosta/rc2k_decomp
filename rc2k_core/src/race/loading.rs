@@ -95,7 +95,7 @@ fn scaled(v: u32, size: u32, of: u32) -> (u32, u32) {
 }
 
 /// The share loaded held to 0 ..= 100 (signed).
-pub fn held_share(share: u32) -> u32 {
+pub(crate) fn held_share(share: u32) -> u32 {
     (share as i32).clamp(0, 0x64) as u32
 }
 

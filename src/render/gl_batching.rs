@@ -86,14 +86,14 @@ pub enum Job<Draw> {
 
 /// Whether the batches are told what their draws can leave out (`Batches::of_layered`'s
 /// `fast_path`): unless `RC2K_FAST_PATH=0`, read once.
-pub fn fast_path_wanted() -> bool {
+fn fast_path_wanted() -> bool {
     static WANTED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *WANTED.get_or_init(|| std::env::var("RC2K_FAST_PATH").map_or(true, |v| v != "0"))
 }
 
 /// Whether every pixel's alpha of a texture's picture (`texture_as_bgra`'s bytes) is full: a
 /// first pass over it can take a second (`Batches::of`).
-pub fn opaque_picture(bytes: &[u8]) -> bool {
+fn opaque_picture(bytes: &[u8]) -> bool {
     bytes
         .as_chunks::<4>()
         .0
@@ -129,7 +129,7 @@ impl Opacity {
 /// the textures gone noted as let go of; the rest as they are. The part's commands are of no
 /// use to the GL once batched unless `keep_commands`: they are emptied here, so that the
 /// render states they share are let go of on this thread and not on the GL's.
-pub fn batched(
+pub(super) fn batched(
     opacity: &mut Opacity,
     job: Job<Part>,
     same_array: fn(&TextureNote, &TextureNote) -> bool,

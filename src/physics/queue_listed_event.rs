@@ -9,7 +9,11 @@ use crate::physics::queue_car_event::queue_car_event;
 use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::car_events::listed_event;
 
-pub fn queue_listed_event(car: &Car, tables: &PhysicsTables, ebx: u32) -> Result<(), Refused> {
+pub(super) fn queue_listed_event(
+    car: &Car,
+    tables: &PhysicsTables,
+    ebx: u32,
+) -> Result<(), Refused> {
     let Some((event, queued)) = listed_event(ebx, |n| tables.listed_events[n as usize].get())
     else {
         return Ok(());

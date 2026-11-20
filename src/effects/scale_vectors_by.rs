@@ -6,7 +6,7 @@
 use crate::effects::view_vectors::VectorSource;
 use crate::math::x87;
 
-pub fn scale_vectors_by(effects: &crate::effects::owner::Effects) {
+pub(super) fn scale_vectors_by(effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
     scale_triples(&[
         &frame.view_sources.sources[0],
@@ -15,7 +15,7 @@ pub fn scale_vectors_by(effects: &crate::effects::owner::Effects) {
 }
 
 /// Each record: its vector's three floats by its factor (`fld; fmul`) into its scaled vector.
-pub fn scale_triples(records: &[&VectorSource]) {
+pub(super) fn scale_triples(records: &[&VectorSource]) {
     for r in records {
         let k = r.factor.get();
         for n in 0..3 {

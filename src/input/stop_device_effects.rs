@@ -9,6 +9,9 @@ use crate::input::store::ForceFeedback;
 use crate::input::types::InputDevice;
 
 /// The device `record`'s effects stopped.
-pub fn stop_device_effects(feedback: &ForceFeedback, record: &InputDevice) -> Result<(), Refused> {
+pub(super) fn stop_device_effects(
+    feedback: &ForceFeedback,
+    record: &InputDevice,
+) -> Result<(), Refused> {
     all_six(feedback, record, 4)
 }

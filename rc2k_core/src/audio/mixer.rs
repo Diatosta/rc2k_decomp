@@ -8,9 +8,9 @@
 use crate::Invalid;
 
 /// A sample format bit: eight bits a value (unsigned, 0x80 the middle), else sixteen.
-pub const EIGHT_BITS: u32 = 0x10;
+pub(crate) const EIGHT_BITS: u32 = 0x10;
 /// A sample format bit: one value a frame, else left and right.
-pub const MONO: u32 = 0x100;
+pub(crate) const MONO: u32 = 0x100;
 /// A channel's kind that goes back to its start at its end.
 pub const LOOPING: u32 = 1;
 

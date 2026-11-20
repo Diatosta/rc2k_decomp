@@ -35,13 +35,13 @@ fn copied_words(race: &Race) -> [&PlainDword; 5] {
 }
 
 /// This machine's car's block.
-pub fn own_block(
+pub(super) fn own_block(
     shared: &RaceShared,
     player: u32,
 ) -> Result<&crate::physics::car_store::Car, crate::errors::BadInput> {
     shared.race_car(player as usize)
 }
-pub fn set_hud_options(
+pub(super) fn set_hud_options(
     race: &Race,
     net: &crate::net::owner::Net,
     gfx: &Gfx,

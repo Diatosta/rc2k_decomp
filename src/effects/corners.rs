@@ -89,7 +89,7 @@ fn turns(
 /// corner (x, y plus the list's lowest point, less the box's +0x18, +0x1C) over them as
 /// floats; y from 0x80; and `clamp_pair`. Refuses a kind of 0x22 or more, a farthest pair
 /// past 0x3F, what `turn_shape_points` refuses at any step, before writing.
-pub fn make_corners(
+pub(super) fn make_corners(
     masks: &Masks,
     drops: &WindscreenDrops,
     effects: &crate::effects::owner::Effects,

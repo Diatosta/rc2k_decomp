@@ -2,7 +2,7 @@
 //! the stage's plate, and whether the decals show.
 
 /// What the number's digits read when there is none.
-pub const NO_DIGIT: u32 = 999;
+pub(crate) const NO_DIGIT: u32 = 999;
 
 /// A lamp's side mark: 1 unless |x| is below the limit or x is not a number.
 pub fn lamp_side(x: f32, limit: f32) -> u32 {

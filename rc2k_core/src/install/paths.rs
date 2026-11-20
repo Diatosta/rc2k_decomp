@@ -5,7 +5,7 @@ use crate::Invalid;
 use crate::strings::bytes::Bytes;
 
 /// The characters no folder name may hold. The `\` in it is never compared: a `\` is a separator.
-pub const NOT_IN_NAMES: &[u8] = b"\"+*,;=/:<>?\\{}[]|\x7f";
+pub(crate) const NOT_IN_NAMES: &[u8] = b"\"+*,;=/:<>?\\{}[]|\x7f";
 
 /// The longest path taken, less one (the installer's places are 0x100 bytes).
 pub const LONGEST: usize = 0xF8;

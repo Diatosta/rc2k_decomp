@@ -9,7 +9,7 @@
 use crate::errors::Refused;
 
 /// The shared spots' voices for the turn.
-pub fn spot_sounds(
+pub(super) fn spot_sounds(
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
     system: &crate::system::owner::System,

@@ -41,7 +41,7 @@ impl MarkShapes {
 }
 
 /// The working block's farthest pair of list `n`.
-pub fn farthest_pair(drops: &WindscreenDrops, n: usize) -> &[PlainDword; 2] {
+pub(super) fn farthest_pair(drops: &WindscreenDrops, n: usize) -> &[PlainDword; 2] {
     drops.shape_work.work.farthest(n)
 }
 
@@ -82,7 +82,7 @@ fn listed(count: &PlainDword) -> Result<u32, BadInput> {
 /// one face, the farthest apart by the turned lists A / B (the length rounded; a later
 /// pair as far wins) into the farthest pairs A / B (the inner then the outer number).
 /// Refuses a list of more than 0x40.
-pub fn find_farthest_pairs(drops: &WindscreenDrops) -> Result<(), Refused> {
+fn find_farthest_pairs(drops: &WindscreenDrops) -> Result<(), Refused> {
     {
         let lists: [PointList; 2] = [PointList::a(drops), PointList::b(drops)];
         for list in lists {
@@ -114,7 +114,7 @@ pub fn find_farthest_pairs(drops: &WindscreenDrops) -> Result<(), Refused> {
 }
 
 /// What `turn_shape_points` refuses for turns `a`, `b`.
-pub fn turn_shape_checks(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), Refused> {
+pub(super) fn turn_shape_checks(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), Refused> {
     for n in 0..2 {
         let n = set(drops).count(n).get();
         if n as i32 > MOST_POINTS as i32 || n == 0x8000_0000 {
@@ -132,7 +132,7 @@ pub fn turn_shape_checks(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), 
 /// into the turned lists A and B, and each turned point plus the list's whole-number offset into
 /// the point its target names (the last first). Refuses a list of more than 0x40 or of
 /// 0x80000000, or an angle with no sine and cosine, before writing.
-pub fn turn_shape_points(
+pub(super) fn turn_shape_points(
     object_points: &crate::scene::object_points::ObjectPoints,
     drops: &WindscreenDrops,
     a: u32,
@@ -203,7 +203,7 @@ fn all_steps<'a>(
 /// switch (`MaskPicks.flags[0]` / `_08`) is 0, and `turn_shape_points` with them. The object's
 /// offset (times 0xAB8) is worked out and not used: the one set is turned every time (a slip kept
 /// as is). Refuses what `turn_shape_points` would, before writing.
-pub fn turn_all_shapes(
+pub(super) fn turn_all_shapes(
     masks: &Masks,
     drops: &WindscreenDrops,
     effects: &crate::effects::owner::Effects,
@@ -301,7 +301,7 @@ fn shape_set_checks(
 /// `find_farthest_pairs`; the block copied to set n, n counted.
 /// Refuses a set count past 0x22, an object past 0xFF or faces past the course's faces, a
 /// tilt with no sine and cosine, before writing.
-pub fn make_shape_set(
+fn make_shape_set(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
     drops: &WindscreenDrops,
@@ -422,7 +422,7 @@ pub fn make_shape_set(
 /// first) the set's inputs (the tilt twice; the kind's two values and two floats) and
 /// `make_shape_set`. Refuses a kind of 0x22 or more, more than 19 objects, what
 /// `make_shape_set` refuses for any of them, before writing.
-pub fn make_shape_sets(
+pub(super) fn make_shape_sets(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
     drops: &WindscreenDrops,

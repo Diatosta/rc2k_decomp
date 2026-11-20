@@ -122,13 +122,13 @@ impl Masks {
 
 /// A mask's pixels (256 x 128 dwords); taken counted on its list (`load_mask_pictures`),
 /// given back by `tidy_marks`.
-pub type MaskPixels = Vec<u32>;
+type MaskPixels = Vec<u32>;
 /// The dwords of a mask block.
-pub const MASK_PIXELS: usize = 0x8000;
+pub(super) const MASK_PIXELS: usize = 0x8000;
 
 /// Which mask `swap_mask` draws from (`MaskBlocks.chosen`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Mask {
+pub(super) enum Mask {
     Plain = 1,
     Bordered = 2,
 }
@@ -178,7 +178,7 @@ pub struct KindPictures {
 }
 
 /// The pictures' numbers.
-pub static KIND_PICTURES: KindPictures = KindPictures {
+pub(super) static KIND_PICTURES: KindPictures = KindPictures {
     numbers: [
         0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF, 0x10, 0x11,
         0x12, 0x13, 0x14, 0x15, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16,

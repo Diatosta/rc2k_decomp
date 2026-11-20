@@ -23,7 +23,7 @@ fn lower(frame: &Frame, y: u32) -> u32 {
 }
 
 /// The HUD of two players one above the other.
-pub fn layout_2(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+pub(super) fn layout_2(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     use crate::hud::*;
     let panel = &frame.panel_and_overlay.get().panel;
     let [f1, f2] = [panel.hud_flags[0].get(), panel.hud_flags[1].get()];

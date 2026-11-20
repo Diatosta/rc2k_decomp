@@ -21,7 +21,11 @@ fn next_seed(effects: &crate::effects::owner::Effects) -> u32 {
     s
 }
 
-pub fn drift_offsets(race: &Race, weather: &Weather, effects: &crate::effects::owner::Effects) {
+pub(super) fn drift_offsets(
+    race: &Race,
+    weather: &Weather,
+    effects: &crate::effects::owner::Effects,
+) {
     let (r, k) = (&weather.rain, &weather.rain_rules);
     {
         let since = race

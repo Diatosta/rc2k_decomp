@@ -63,7 +63,7 @@ impl Button {
 }
 
 /// How long a tap on a latched button is held down for the game to see it.
-pub const LATCH_MS: u64 = 120;
+pub(crate) const LATCH_MS: u64 = 120;
 
 /// Where everything is for one screen.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -122,7 +122,7 @@ impl Layout {
     }
 
     /// The button under a point.
-    pub fn button_at(&self, x: f32, y: f32) -> Option<Button> {
+    pub(crate) fn button_at(&self, x: f32, y: f32) -> Option<Button> {
         Button::ALL
             .into_iter()
             .find(|b| self.rect(*b).contains(x, y))

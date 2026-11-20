@@ -25,19 +25,19 @@ pub struct Sort {
     pub down: bool,
 }
 
-pub const BY_Y: Sort = Sort {
+const BY_Y: Sort = Sort {
     key: 4,
     down: false,
 };
-pub const BY_Z: Sort = Sort {
+const BY_Z: Sort = Sort {
     key: 8,
     down: false,
 };
-pub const BY_X_DOWN: Sort = Sort { key: 0, down: true };
+const BY_X_DOWN: Sort = Sort { key: 0, down: true };
 
 /// The sorts (by y, by z, and two by x downwards): the points from `first` to `last` (both
 /// included), step by step. Refuses (before anything) what `sorting::sort_records` refuses.
-pub fn sort_points(
+fn sort_points(
     object_points: &crate::scene::object_points::ObjectPoints,
     s: Sort,
     first: u32,
@@ -171,7 +171,7 @@ pub fn set_up_car_points(
 /// kinds (its `known_kind`, `kind_11_table` and `kind_10_table` of its block's +0x24) at slots
 /// 0x50 + 0x14 * n, +11, +10; then loads the objects and sets up each car's points. Refuses more
 /// than the eight cars' blocks.
-pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     // Logic in `rc2k_core::race::stage_objects::{FIXED_KINDS, DEFAULT_SLOTS, CAR_KINDS, car_slot,
     // check_object_cars}` (each car's slots one step on from the first's).
@@ -223,7 +223,10 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
 /// Logs "LOAD OBJECTS - START" between two lines of dashes, runs `set_object_kinds`, then logs
 /// "total points", "total polys" and "facemem used" with their numbers, "LOAD OBJECTS - FINIS"
 /// and the dashes.
-pub fn reload_objects(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub(super) fn reload_objects(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     log(c"-------------------------------------", true);
     log(c"LOAD OBJECTS - START", true);
     set_object_kinds(race, scene)?;

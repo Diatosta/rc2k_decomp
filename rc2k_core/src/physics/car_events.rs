@@ -86,9 +86,9 @@ impl CarEvents {
     }
 }
 
-pub const LISTED_EVENTS: u32 = 0x20;
+pub(crate) const LISTED_EVENTS: u32 = 0x20;
 /// No event.
-pub const NO_EVENT: u32 = u32::MAX;
+pub(crate) const NO_EVENT: u32 = u32::MAX;
 
 /// For a number in the table, its entry and whether it is queued (not -1); None past the table.
 pub fn listed_event(n: u32, entry: impl FnOnce(u32) -> u32) -> Option<(u32, bool)> {

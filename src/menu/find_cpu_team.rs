@@ -9,7 +9,7 @@ use crate::menu::drivers_store::Driver;
 use crate::menu::owner::Menus;
 
 /// The driver.
-pub fn find_cpu_team(menus: &Menus, team: u32) -> Result<&Driver, Refused> {
+pub(super) fn find_cpu_team(menus: &Menus, team: u32) -> Result<&Driver, Refused> {
     crate::menu::standings::drivers(menus)?
         .iter()
         .find(|d| d.name_entry.get() == team)

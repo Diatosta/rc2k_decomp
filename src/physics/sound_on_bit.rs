@@ -10,7 +10,7 @@ use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::parts::take_bit;
 
 // Core: `rc2k_core::physics::parts::take_bit`.
-pub fn sound_on_bit(
+pub(super) fn sound_on_bit(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     shared: &RaceShared,

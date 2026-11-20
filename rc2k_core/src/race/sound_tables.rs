@@ -23,7 +23,7 @@ pub fn reciprocal(v: f32) -> f32 {
 /// The sine table's length.
 pub const SINES: usize = 0x40;
 /// The sines' scale (0.05).
-pub const WOBBLE: f32 = f32::from_bits(0x3D4C_CCCD);
+pub(crate) const WOBBLE: f32 = f32::from_bits(0x3D4C_CCCD);
 
 /// The sine table's step: pi / 32.
 pub fn sine_step() -> f32 {

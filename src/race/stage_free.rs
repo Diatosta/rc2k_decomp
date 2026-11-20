@@ -18,7 +18,7 @@ pub struct Freeing {
 }
 
 /// Frees the course memory.
-pub const COURSE: Freeing = Freeing {
+pub(super) const COURSE: Freeing = Freeing {
     // course_memory_list
     list: |race| &race.course.lists.get().course_memory_list,
     counted: true,
@@ -29,7 +29,7 @@ pub const COURSE: Freeing = Freeing {
     },
 };
 /// Frees the second course list.
-pub const COURSE_2: Freeing = Freeing {
+pub(super) const COURSE_2: Freeing = Freeing {
     list: |race| &race.course.lists.get().second_course_list,
     counted: true,
     // `second_course_list_a`, `second_course_list_b`
@@ -44,7 +44,7 @@ pub const COURSE_2: Freeing = Freeing {
     given_back: |_, _| {},
 };
 /// Frees the point records.
-pub const POINT_RECORDS: Freeing = Freeing {
+pub(super) const POINT_RECORDS: Freeing = Freeing {
     list: |race| &race.course.lists.get().point_records_list,
     counted: true,
     // point_records
@@ -52,7 +52,7 @@ pub const POINT_RECORDS: Freeing = Freeing {
     given_back: |_, scratch| crate::scene::point_records::give_back(scratch),
 };
 /// Frees the object points.
-pub const OBJECT_POINTS: Freeing = Freeing {
+pub(super) const OBJECT_POINTS: Freeing = Freeing {
     list: |race| &race.course.lists.get().object_points_list,
     counted: true,
     // object_points, face_memory
@@ -66,7 +66,7 @@ pub const OBJECT_POINTS: Freeing = Freeing {
     },
 };
 /// Frees the mud.
-pub const MUD: Freeing = Freeing {
+pub(super) const MUD: Freeing = Freeing {
     list: |race| &race.course.lists.get().mud_list,
     counted: true,
     // mud
@@ -75,7 +75,7 @@ pub const MUD: Freeing = Freeing {
 };
 
 /// `race::free_game_fonts`.
-pub fn free_game_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+pub(super) fn free_game_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     let l = &gfx.fonts.game_fonts_memory.memory;
     let list = l.get();
     if list.head != 0 {

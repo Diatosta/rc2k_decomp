@@ -35,7 +35,7 @@ pub struct Running<'a> {
 }
 
 /// A shake faster than this (its period shorter, in microseconds) is the light motor's.
-pub const FAST_PERIOD_US: i32 = 100_000;
+pub(crate) const FAST_PERIOD_US: i32 = 100_000;
 
 const FULL: i64 = 10_000;
 

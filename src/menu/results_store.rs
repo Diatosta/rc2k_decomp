@@ -132,7 +132,7 @@ impl Results {
     }
 
     /// The figures an event's start clears: every player's, and the round (the order is kept).
-    pub fn clear_for_event(&self) {
+    pub(super) fn clear_for_event(&self) {
         self.round.set(0);
         for player in &self.players {
             player.clear();

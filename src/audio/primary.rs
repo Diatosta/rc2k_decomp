@@ -16,7 +16,7 @@ pub fn volume_index(state: &AudioOwn, volume: i32) -> u32 {
 
 /// `describe_wave_format` for the mode and `rate`, then `SetFormat`. False when there is no
 /// primary buffer or it failed.
-pub fn set_primary_format(state: &AudioOwn, mode: u32, rate: u32) -> Result<bool, Refused> {
+pub(super) fn set_primary_format(state: &AudioOwn, mode: u32, rate: u32) -> Result<bool, Refused> {
     {
         let p = state.primary_buffer.get();
         if p == 0 {

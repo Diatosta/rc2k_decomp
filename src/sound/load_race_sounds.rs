@@ -208,7 +208,7 @@ pub fn load_race_sounds(
 }
 
 /// In the game: each list sent as command 3.
-pub fn load_race_sounds_in_game(
+pub(super) fn load_race_sounds_in_game(
     race: &Race,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,

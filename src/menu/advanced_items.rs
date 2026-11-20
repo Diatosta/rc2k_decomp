@@ -24,7 +24,7 @@ pub fn page() -> usize {
 }
 
 /// The page shows its other part.
-pub fn turn_page() -> Result<(), Refused> {
+pub(super) fn turn_page() -> Result<(), Refused> {
     PAGE.store(1 - page().min(1), Ordering::Relaxed);
     Ok(())
 }
@@ -94,7 +94,7 @@ pub fn applied_renderer(o: Owners<'static>) -> Renderer {
 }
 
 /// Drops what was stepped and not applied (the page is opened).
-pub fn forget_changes() {
+pub(super) fn forget_changes() {
     PAGE.store(0, Ordering::Relaxed);
     if let Ok(mut state) = STATE.lock() {
         *state = None;
@@ -144,7 +144,7 @@ pub fn step(o: Owners<'static>, row: u8, up: bool) -> Result<(), Refused> {
 
 /// Enter on a row of the part shown: the last row (the deletion of all saved data) asks
 /// and deletes; the settings' rows are stepped with the left and right keys, so nothing here.
-pub fn delete_saved_data(o: Owners<'static>) -> Result<(), Refused> {
+pub(super) fn delete_saved_data(o: Owners<'static>) -> Result<(), Refused> {
     let row =
         rc2k_core::options::advanced::rows_on_page(page(), caps::SHARE_SHEET).start + DELETE_SLOT;
     if !matches!(ROWS.get(row).map(|r| r.kind), Some(Kind::DeleteData)) {
@@ -155,7 +155,7 @@ pub fn delete_saved_data(o: Owners<'static>) -> Result<(), Refused> {
 
 /// The item slot of the part shown that holds the deletion row (on the second part, the one
 /// after the settings).
-pub const DELETE_SLOT: usize = ROWS.len() - 2 - rc2k_core::options::advanced::PAGE_ROWS;
+const DELETE_SLOT: usize = ROWS.len() - 2 - rc2k_core::options::advanced::PAGE_ROWS;
 
 /// The renderer swapped for `renderer` at once where the platform can (the desktop's); the
 /// swap's failure is logged and the page keeps saying "next start" beside the renderer, as the

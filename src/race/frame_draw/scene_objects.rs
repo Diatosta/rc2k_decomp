@@ -29,7 +29,7 @@ pub fn end_kept_reflections(view: &crate::race::view_scratch::ViewScratch) {
 /// `place` ..) and moved by the view (into `ctx.view.matrices.matrix_scratch`), times
 /// the view's turn into `made_object_matrix`; the reflections kept around the drawing
 /// (`scene::draw_scene_object`). Refuses (before anything) as `check_slot_object`.
-pub fn draw_slot_object(
+fn draw_slot_object(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     slot: &crate::race::work_store::RaceSlot,
 ) -> Result<(), Refused> {
@@ -101,7 +101,7 @@ pub fn draw_slot_object(
 
 /// What `scene::draw_scene_object` would refuse for slot `at`'s object, before anything: a car's
 /// object (0x50 .. 0xEF) without its block.
-pub fn check_slot_object(
+fn check_slot_object(
     work: &crate::race::work_store::RaceWork,
     slot: &crate::race::work_store::RaceSlot,
 ) -> Result<(), Refused> {
@@ -248,7 +248,7 @@ pub fn add_car_depth_entry(ctx: &DrawCtx, car: usize, number: u32) -> Result<(),
 
 /// The tables' 256 entries. `add_flare`'s count runs on to 0x400 (a slip kept as is: each table
 /// runs over the next and the last past its end); flares past the tables are not added.
-pub const FLARES_MAX: u32 = 0x100;
+const FLARES_MAX: u32 = 0x100;
 
 /// A flare at `place` .. (object `object_number`, size `size`, colour
 /// `other_light`) into the six flare tables (0x100 dwords each, from
@@ -712,10 +712,7 @@ pub fn draw_flare(
 /// `place` .., its +4 x 8 the size, +8 the colour, object
 /// `marker_object`; `view_kind` 2, `place_object_matrix`, `light_kind` 0
 /// and the drawing.
-pub fn draw_lamp_flare(
-    ctx: &crate::race::view_scratch::DrawCtx<'_>,
-    lamp: u32,
-) -> Result<(), Refused> {
+fn draw_lamp_flare(ctx: &crate::race::view_scratch::DrawCtx<'_>, lamp: u32) -> Result<(), Refused> {
     let edi = lights::own_lamp(&ctx.view.lamps, lamp)?;
     let [x, y, z] = crate::race::scene_points::point_number(
         ctx.reads.course(),

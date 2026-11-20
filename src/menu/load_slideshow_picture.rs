@@ -34,7 +34,7 @@ pub enum Step<'a> {
     Convert,
 }
 
-pub fn load_slideshow_picture(
+pub(super) fn load_slideshow_picture(
     menus: &'static Menus,
     way: u32,
     step: &mut dyn FnMut(Step<'_>) -> Result<bool, Refused>,
@@ -79,7 +79,7 @@ pub fn load_slideshow_picture(
 }
 
 /// With the game's own steps for what it calls.
-pub fn load_slideshow_picture_in(o: Owners<'static>, way: u32) -> Result<(), Refused> {
+pub(super) fn load_slideshow_picture_in(o: Owners<'static>, way: u32) -> Result<(), Refused> {
     load_slideshow_picture(o.menus, way, &mut |step| match step {
         Step::Overlay(path, over) => {
             load_picture_with_overlay_in(&MirroredPath::new(path), over, o.gfx, o.system, o.strings)

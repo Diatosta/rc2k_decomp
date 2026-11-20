@@ -62,7 +62,7 @@ pub fn with_laid<T: Laid, R>(mk: Operand, f: impl FnOnce(&T) -> R) -> R {
 }
 
 /// `with_laid` for a store that has several copies in the recorded layout, the one at `start`.
-pub fn with_laid_at<T: Laid, R>(mk: Operand, start: usize, f: impl FnOnce(&T) -> R) -> R {
+pub(super) fn with_laid_at<T: Laid, R>(mk: Operand, start: usize, f: impl FnOnce(&T) -> R) -> R {
     let place = |r: &Run| (start + r.at).wrapping_sub(BLOCK);
     let local = zeroed::<T>();
     for r in T::RUNS {
@@ -79,7 +79,7 @@ pub fn with_laid_at<T: Laid, R>(mk: Operand, start: usize, f: impl FnOnce(&T) ->
 
 /// A copy of the store `T` made from the buffer as `with_laid` does, but zero where the buffer
 /// does not reach (a block reads only the fields it uses), and never put back.
-pub fn copy_of<T: Laid>(mk: Operand) -> &'static T {
+pub(super) fn copy_of<T: Laid>(mk: Operand) -> &'static T {
     let local = zeroed::<T>();
     for r in T::RUNS {
         let bytes = mk.bytes_or_zero((T::START + r.at).wrapping_sub(BLOCK), r.len);

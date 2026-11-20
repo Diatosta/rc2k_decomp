@@ -13,7 +13,7 @@ pub const HEADER_LEN: u32 = 0xC00;
 
 pub use rc2k_core::audio::streams::AudioStream;
 
-pub fn volume_of(state: &AudioOwn, index: u32) -> Result<u32, Refused> {
+fn volume_of(state: &AudioOwn, index: u32) -> Result<u32, Refused> {
     Ok(rc2k_core::audio::levels::stream_volume(index, |n| {
         crate::audio::buffer_settings::volumes(state, n)
     })?)
@@ -26,7 +26,7 @@ pub type Filled = Option<(u32, bool)>;
 /// `into`'s bytes (a locked part's) filled from the file; what is not there becomes silence (0, or
 /// 0x80 for eight bits), and a read that found nothing uses up `tail` (the player stops when it
 /// goes below 0). An empty `into` is no part.
-pub fn fill_stream_part(s: &mut AudioStream, into: &mut [u8]) -> Filled {
+fn fill_stream_part(s: &mut AudioStream, into: &mut [u8]) -> Filled {
     if into.is_empty() {
         return None;
     }
@@ -61,7 +61,7 @@ pub fn stop_stream(s: &mut AudioStream) -> Result<(), Refused> {
 }
 
 /// `SetVolume` with the player's volume.
-pub fn set_stream_volume(state: &AudioOwn, s: &AudioStream) -> Result<(), Refused> {
+pub(super) fn set_stream_volume(state: &AudioOwn, s: &AudioStream) -> Result<(), Refused> {
     if s.buffer == 0 {
         return Err(BadInput("a stream without its buffer").into());
     }

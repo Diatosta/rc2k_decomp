@@ -16,7 +16,7 @@ pub mod id {
 }
 
 /// Whether this platform's callback structures are packed to 8 bytes (Windows) and not 4.
-pub const LARGE_PACK: bool = !cfg!(any(target_os = "linux", target_os = "macos"));
+pub(super) const LARGE_PACK: bool = !cfg!(any(target_os = "linux", target_os = "macos"));
 
 /// `ESteamNetworkingConnectionState`.
 pub mod state {
@@ -26,7 +26,7 @@ pub mod state {
 }
 
 /// `EResult::k_EResultOK`.
-pub const RESULT_OK: i32 = 1;
+pub(super) const RESULT_OK: i32 = 1;
 /// `EChatRoomEnterResponse::k_EChatRoomEnterResponseSuccess`.
 const ENTER_SUCCESS: u32 = 1;
 
@@ -46,12 +46,12 @@ fn u64_at(b: &[u8], at: usize) -> Option<u64> {
 
 /// An answer to an asynchronous call is ready: the call, the callback its answer is, the
 /// answer's size.
-pub fn api_call_completed(b: &[u8]) -> Option<(u64, i32, u32)> {
+pub(super) fn api_call_completed(b: &[u8]) -> Option<(u64, i32, u32)> {
     Some((u64_at(b, 0)?, u32_at(b, 8)? as i32, u32_at(b, 12)?))
 }
 
 /// The lobby `LobbyCreated_t` reports, or the `EResult` that says why not.
-pub fn lobby_created(b: &[u8], large: bool) -> Option<Result<u64, i32>> {
+pub(super) fn lobby_created(b: &[u8], large: bool) -> Option<Result<u64, i32>> {
     let result = u32_at(b, 0)? as i32;
     if result != RESULT_OK {
         return Some(Err(result));
@@ -60,17 +60,17 @@ pub fn lobby_created(b: &[u8], large: bool) -> Option<Result<u64, i32>> {
 }
 
 /// Whether `LobbyEnter_t` says the lobby was entered.
-pub fn lobby_entered(b: &[u8]) -> Option<bool> {
+pub(super) fn lobby_entered(b: &[u8]) -> Option<bool> {
     Some(u32_at(b, 16)? == ENTER_SUCCESS)
 }
 
 /// How many lobbies `LobbyMatchList_t` found.
-pub fn lobby_match_count(b: &[u8]) -> Option<u32> {
+pub(super) fn lobby_match_count(b: &[u8]) -> Option<u32> {
     u32_at(b, 0)
 }
 
 /// The lobby `GameLobbyJoinRequested_t` names.
-pub fn join_requested_lobby(b: &[u8]) -> Option<u64> {
+pub(super) fn join_requested_lobby(b: &[u8]) -> Option<u64> {
     u64_at(b, 0)
 }
 
@@ -83,7 +83,7 @@ pub struct StatusChange {
     pub state: i32,
 }
 
-pub fn connection_status_changed(b: &[u8], large: bool) -> Option<StatusChange> {
+pub(super) fn connection_status_changed(b: &[u8], large: bool) -> Option<StatusChange> {
     let info = if large { 8 } else { 4 };
     if b.len() < info + INFO_STATE + 4 {
         return None;
@@ -96,12 +96,12 @@ pub fn connection_status_changed(b: &[u8], large: bool) -> Option<StatusChange> 
 }
 
 /// The state in a `SteamNetConnectionInfo_t`.
-pub fn info_state(info: &[u8]) -> Option<i32> {
+pub(super) fn info_state(info: &[u8]) -> Option<i32> {
     Some(u32_at(info, INFO_STATE)? as i32)
 }
 
 /// Whether a connection in this state is still usable or on its way.
-pub fn is_live(state: i32) -> bool {
+pub(super) fn is_live(state: i32) -> bool {
     matches!(
         state,
         state::CONNECTING | state::FINDING_ROUTE | state::CONNECTED

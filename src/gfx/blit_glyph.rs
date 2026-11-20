@@ -47,15 +47,15 @@ fn write_scratch(s: &Scratch, gfx: &crate::gfx::owner::Gfx) {
 }
 
 /// The three conditions that are fatal errors, each with a null message.
-pub const NO_SURFACE: FatalError = FatalError {
+const NO_SURFACE: FatalError = FatalError {
     code: 0x80A1_9D97,
     message: "",
 };
-pub const NO_GLYPH_TABLE: FatalError = FatalError {
+const NO_GLYPH_TABLE: FatalError = FatalError {
     code: 0x80A7_DF31,
     message: "",
 };
-pub const GLYPH_OUT_OF_RANGE: FatalError = FatalError {
+const GLYPH_OUT_OF_RANGE: FatalError = FatalError {
     code: 0x80A7_DF32,
     message: "",
 };
@@ -131,7 +131,7 @@ pub fn blit_glyph(
 /// `None`, and the blit is refused afterwards (the core's colour has no failure). `has_palette`
 /// says which refusal that is.
 #[allow(clippy::too_many_arguments)] // the five inputs, the surface, the clip and the sink
-pub fn blit_glyph_by(
+pub(super) fn blit_glyph_by(
     record: &Glyphs,
     x: i32,
     y: i32,

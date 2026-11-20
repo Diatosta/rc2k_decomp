@@ -8,7 +8,7 @@ use crate::errors::Refused;
 use crate::menu::standings::*;
 
 /// The first player of `group` in table A.
-pub fn first_player_a(
+pub(super) fn first_player_a(
     group: u32,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<Found, Refused> {

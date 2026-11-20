@@ -54,13 +54,13 @@ use crate::errors::{BadInput, Refused};
 use crate::memory::session::PlainDword;
 
 /// Releases the stage's textures (`gfx::release_all_textures`).
-pub fn release_stage_textures(gfx: &crate::gfx::owner::Gfx) {
+pub(super) fn release_stage_textures(gfx: &crate::gfx::owner::Gfx) {
     crate::d3d::device::release_all_textures(gfx);
 }
 
 /// Seals the stage time: the first block's time (`stage_time`, held to 0x22550FF unsigned; its
 /// `stop_state` if that is negative) xor-ed and turned right by its low five bits, into the dword.
-pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
+pub(super) fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;
     // Logic in `rc2k_core::race::seal::seal_time`.
     {
@@ -189,7 +189,7 @@ pub fn set_start_states(
 /// `stage_time` to `RaceState.results.results[0].time` / `RaceState.results.results[1].time` and
 /// `stage_car_total` x 100 less each, held to 0 .. 300000, to `RaceState.results.results[0].word` /
 /// `RaceState.results.results[1].word`; 1 and 3 the two `stage_time`s; others nothing.
-pub fn store_results_by_mode(race: &Race) {
+pub(super) fn store_results_by_mode(race: &Race) {
     let physics = &race.physics;
     let shared = &race.shared;
     // Logic in `rc2k_core::race::cars::margin`.

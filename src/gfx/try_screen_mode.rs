@@ -10,7 +10,7 @@ use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
 
 /// Tries `mode`: the carry and zero flags it leaves (carry: it does not work).
-pub fn try_screen_mode(
+pub(super) fn try_screen_mode(
     gfx: &Gfx,
     system: &crate::system::owner::System,
     d3d: &crate::d3d::owner::D3d,

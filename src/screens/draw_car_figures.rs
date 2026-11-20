@@ -33,7 +33,7 @@ pub fn draw_car_figures(
 /// One page (0 to 3) of the record at `record`; returns whether the last text drawn was too wide
 /// for its box. The logic is in `rc2k_core::screens::car_pages::page` (the record written back when
 /// it changed it: the Clio's strings).
-pub fn draw_car_page(
+fn draw_car_page(
     o: crate::owners::Owners<'static>,
     page: u32,
     record: u32,

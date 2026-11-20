@@ -3,8 +3,8 @@
 //! camera. `gather` reads the state out of the game, `apply` writes one back the way the game
 //! saves it, `page` is what the player sees.
 
-pub mod apply;
-pub mod gather;
-pub mod page;
+mod apply;
+mod gather;
+pub(crate) mod page;
 mod page_draw;
 mod scan;

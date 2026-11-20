@@ -133,7 +133,7 @@ pub fn noise_cell(x: u32, z: u32) -> NoiseCell {
 }
 
 /// The noise's mix: a + the low 32 bits of ((b - a) f) >> 14, and the product's high dword.
-pub fn noise_lerp(a: u32, b: u32, f: u32) -> (u32, u32) {
+pub(crate) fn noise_lerp(a: u32, b: u32, f: u32) -> (u32, u32) {
     let p = i64::from(b.wrapping_sub(a) as i32) * i64::from(f as i32);
     (((p >> 14) as u32).wrapping_add(a), (p >> 32) as u32)
 }

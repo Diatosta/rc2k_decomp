@@ -5,7 +5,7 @@
 //! frame has in the window times this share.
 
 /// The choices, in percent of the screen's width and height, smallest first.
-pub const CHOICES: [u32; 7] = [50, 75, 100, 125, 150, 175, 200];
+pub(crate) const CHOICES: [u32; 7] = [50, 75, 100, 125, 150, 175, 200];
 
 /// The share when nothing was chosen.
 pub const DEFAULT: u32 = 100;
@@ -58,12 +58,12 @@ pub fn covered(at: usize, full: usize, small: usize) -> impl Iterator<Item = (us
 }
 
 /// Whether `percent` is the default (left out of the options file).
-pub fn is_default(percent: &u32) -> bool {
+pub(crate) fn is_default(percent: &u32) -> bool {
     *percent == DEFAULT
 }
 
 /// The default, for the options file's missing field.
-pub fn default_percent() -> u32 {
+pub(crate) fn default_percent() -> u32 {
     DEFAULT
 }
 

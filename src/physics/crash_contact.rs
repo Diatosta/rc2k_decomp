@@ -53,7 +53,7 @@ pub fn sign(v: u32) -> bool {
 /// `probe_face_flip[n]` at 1 its second) into `contact_normal`; the car's `spin` into
 /// `contact_turn_speed`; the point (`probe_turned_x[n]`, `probe_turned_y[n]`, `probe_turned_z[n]`)
 /// into `contact_point`.
-pub fn take_contact(
+pub(super) fn take_contact(
     contact: &ContactWork,
     course: &Course,
     car: &Car,

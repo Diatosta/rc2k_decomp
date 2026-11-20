@@ -121,7 +121,7 @@ fn mask(
 /// (`gfx::read_picture_file`) into its block and drawn (`gfx::put_surface_pixel`); unlocked, the
 /// texture slot forgotten (`scene::forget_slot_texture`), the 0x80000 block's list freed,
 /// `MaskBlocks.seen` -1.
-pub fn load_mask_pictures(
+pub(super) fn load_mask_pictures(
     masks: &Masks,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,

@@ -1,8 +1,8 @@
 //! The fatal-error reporter.
 
-pub mod raise;
-pub mod report;
-pub mod show_report_at_exit;
+pub(crate) mod raise;
+mod report;
+pub(crate) mod show_report_at_exit;
 
 /// The reporter's variables.
 pub mod state {

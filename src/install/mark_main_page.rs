@@ -5,7 +5,7 @@
 use crate::memory::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
-pub fn mark_main_page(install: &crate::install::owner::Install, list: ListMenu) {
+pub(super) fn mark_main_page(install: &crate::install::owner::Install, list: ListMenu) {
     let title = list.item(1).text_id();
     let marks = pages::main_page_marks(
         install.run.same_version.get() == 1,

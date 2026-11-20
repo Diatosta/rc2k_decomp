@@ -1,5 +1,5 @@
 //! Empties the lobby's chat: eight empty lines.
-pub fn clear_chat(vars: &crate::net::store::NetShared) {
+pub(super) fn clear_chat(vars: &crate::net::store::NetShared) {
     // The logic is in `rc2k_core::net::chat::EMPTY`.
     if let Err(e) = vars
         .chat

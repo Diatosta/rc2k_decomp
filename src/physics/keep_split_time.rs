@@ -9,7 +9,7 @@ use crate::physics::split_tables_store::SplitTables;
 use rc2k_core::physics::splits::kept_split_slot;
 
 /// Core: `rc2k_core::physics::splits::kept_split_slot` (below 0x40).
-pub fn keep_split_time(car: &Car, split_tables: &SplitTables) -> Result<(), Refused> {
+pub(super) fn keep_split_time(car: &Car, split_tables: &SplitTables) -> Result<(), Refused> {
     let k = kept_split_slot(
         car.splits_passed.get(),
         split_tables.split_colour_count.get(),

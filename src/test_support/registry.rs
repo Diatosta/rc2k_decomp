@@ -1235,7 +1235,7 @@ pub struct Entry {
 
 /// The stores of the owners `o` in the list's order (the golden file numbers a repeated name in
 /// this order); the stores that belong to no owner are the same in every list.
-pub fn listed_of(o: Owners<'static>) -> &'static [Entry] {
+fn listed_of(o: Owners<'static>) -> &'static [Entry] {
     let list: Vec<Entry> = listed_stores(o)
         .into_iter()
         .map(|l| Entry {

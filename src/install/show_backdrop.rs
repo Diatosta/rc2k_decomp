@@ -4,7 +4,7 @@
 use crate::errors::Refused;
 use crate::install::installer::run_frame;
 
-pub fn show_backdrop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn show_backdrop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     for _ in 0..3 {
         run_frame(
             o,

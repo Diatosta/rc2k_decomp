@@ -34,7 +34,7 @@ fn would_apply(input: &Input, controller: u32) -> Result<bool, Refused> {
 }
 
 /// `menu::apply_controller`.
-pub fn apply_controller(menus: &Menus, input: &Input) -> Result<(), Refused> {
+pub(super) fn apply_controller(menus: &Menus, input: &Input) -> Result<(), Refused> {
     let p = player(menus)?;
     let c = p.get().controller;
     if would_apply(input, c)? {
@@ -44,7 +44,7 @@ pub fn apply_controller(menus: &Menus, input: &Input) -> Result<(), Refused> {
 }
 
 /// `menu::release_controller`.
-pub fn release_controller(input: &Input) {
+pub(super) fn release_controller(input: &Input) {
     request_device_release(input);
 }
 

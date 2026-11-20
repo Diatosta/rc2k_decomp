@@ -87,7 +87,7 @@ pub fn hand_over(inbox: &mut Inbox) -> (u32, Vec<u8>) {
 }
 
 /// A message's room in the send buffer (0x100 bytes, the sequence byte first).
-pub const SEND_ROOM: u32 = 0x100;
+pub(crate) const SEND_ROOM: u32 = 0x100;
 
 /// The sequence byte of the next message sent: one on, the top bit set.
 pub fn next_sequence(last: u8) -> u8 {

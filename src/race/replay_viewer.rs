@@ -495,7 +495,7 @@ fn mark(
 
 /// A replay that could not be opened is said so: it is skipped and the player stays in the
 /// menu. The last race's slot is left out: no race may have been recorded.
-pub fn tell_damaged(slot: u32) {
+pub(super) fn tell_damaged(slot: u32) {
     if slot < 100 {
         crate::race::dialogs::notice(
             rc2k_core::strings::own::id::DAMAGED_REPLAY,

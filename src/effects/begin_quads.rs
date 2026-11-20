@@ -12,7 +12,7 @@ use crate::memory::session::PlainFloat;
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
 /// Sets the texture, the depth state and the render states, then readies the four vertices.
-pub fn begin_quads(
+pub(super) fn begin_quads(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     effects: &crate::effects::owner::Effects,
     scene: &crate::scene::owner::Scene,

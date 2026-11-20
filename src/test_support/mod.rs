@@ -1,14 +1,14 @@
 //! What the tests share to put the game's state back, by store name and field path rather
 //! than by address: `state` (a snapshot of every store).
 
-pub mod frozen;
-pub mod own;
-pub mod paths;
-pub mod race_places;
-pub mod race_vectors;
+pub(crate) mod frozen;
+pub(crate) mod own;
+pub(crate) mod paths;
+mod race_places;
+pub(crate) mod race_vectors;
 mod registry;
-pub mod state;
-pub mod vectors;
+pub(crate) mod state;
+pub(crate) mod vectors;
 
 /// The lock of the tests that write the process-wide statics (`logfile`, `files`, `memory`,
 /// `fatal`, `workers`' parts and the like: the stores the registry lists whose names do not begin

@@ -6,7 +6,7 @@ use crate::memory::list_handle::ListItem;
 use rc2k_core::install::items::EnterWay;
 
 /// Enter on `item`; whether it was taken.
-pub fn item_enter(
+pub(super) fn item_enter(
     install: &'static crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
     item: ListItem,

@@ -24,7 +24,7 @@ pub const USER_NAME_ROOM: u32 = 0x1F;
 /// The driver's name drawn from these strings: the first, and how many.
 pub const DRIVER_NAME_IDS: (u32, u32) = (0x5A5, 0xB4);
 /// A drawn driver's name may not start so (a developer's name: drawn again).
-pub const TAKEN_PREFIX: [u8; 4] = *b"andr";
+pub(crate) const TAKEN_PREFIX: [u8; 4] = *b"andr";
 /// The tyre change's best time given with a new driver's name, in hundredths (210.00 s).
 pub const TYRE_CHANGE_RECORD: u32 = 0x5208;
 /// The slots of saved games, replays and car setups, and their default names' strings.

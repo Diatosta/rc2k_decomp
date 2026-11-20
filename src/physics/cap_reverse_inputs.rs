@@ -10,7 +10,7 @@ use rc2k_core::physics::drive_forces::cap_reverse;
 /// The converted version (`rc2k_core::physics::drive_forces::cap_reverse`) on the gear,
 /// the forward speed and the two wheel slips; compares and copies of floats only, the same
 /// at any precision.
-pub fn cap_reverse_inputs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
+pub(super) fn cap_reverse_inputs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let gear = car.gear.get();
     if gear != -1 {
         return; // the speed and the values are not read

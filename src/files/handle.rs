@@ -45,7 +45,7 @@ const MODES: [[u32; 4]; MODE_COUNT as usize] = [
 /// file, 4 open or create for writing.
 pub const MODE_COUNT: u32 = 5;
 
-pub const NO_HANDLE: u32 = u32::MAX;
+pub(super) const NO_HANDLE: u32 = u32::MAX;
 
 /// The handle, or None if the file could not be opened. The last file path is the resolved
 /// path afterwards, either way. Refuses what `resolve_path` refuses and a mode the table does
@@ -158,14 +158,14 @@ pub fn handle_size(file: u32) -> Option<u32> {
 }
 
 /// The file's last write time as DOS date << 16 | time, or None.
-pub fn file_time(file: u32) -> Option<u32> {
+fn file_time(file: u32) -> Option<u32> {
     let modified = with_file(file, |f| f.metadata().and_then(|m| m.modified())).ok()?;
     rc2k_core::files::dos_time::from_ticks(ticks_of(modified)?)
 }
 
 /// A DOS date << 16 | time put on the file as its last access and write
 /// time; whether it worked (not for fields that are not a time).
-pub fn set_file_time(file: u32, dos: u32) -> bool {
+fn set_file_time(file: u32, dos: u32) -> bool {
     let Some(time) = rc2k_core::files::dos_time::to_ticks(dos).and_then(time_of) else {
         return false;
     };
@@ -205,7 +205,7 @@ pub fn close(file: u32) -> bool {
 /// The game's file primitives as the core's file system: paths resolve as the game's do (a
 /// refusal is an error, the last file path is set), handles are `FILES`'. A path is its bytes
 /// without a NUL.
-pub struct GameFiles<'a>(std::marker::PhantomData<&'a [u8]>);
+pub(super) struct GameFiles<'a>(std::marker::PhantomData<&'a [u8]>);
 
 impl GameFiles<'_> {
     pub fn new() -> Self {

@@ -7,7 +7,7 @@
 use crate::errors::Refused;
 use crate::install::installer::{load_language, logged, normalise, set_cd};
 
-pub fn install_from_command(
+pub(super) fn install_from_command(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {

@@ -13,14 +13,14 @@ use std::sync::atomic::Ordering;
 
 /// A piece of code posted to the receiving thread: it gets the network's state and the
 /// lines's texts.
-pub type PostedCall = fn(&Net, &NetTexts) -> u32;
+pub(super) type PostedCall = fn(&Net, &NetTexts) -> u32;
 
 /// How often the poster looks for the answer, pumping the window's messages in between.
 const POLL_MS: u32 = 5;
 
 /// The call posted, while `posted_call` is 1.
 static POSTED: Mutex<Option<PostedCall>> = Mutex::new(None);
-pub fn post_call(o: crate::owners::Owners<'static>, code: PostedCall) -> u32 {
+pub(super) fn post_call(o: crate::owners::Owners<'static>, code: PostedCall) -> u32 {
     let net = o.net;
     if net.vars.receiver.posting.get() == 1 {
         *POSTED
@@ -49,7 +49,7 @@ pub fn post_call(o: crate::owners::Owners<'static>, code: PostedCall) -> u32 {
 }
 
 /// The call posted, taken by the receiving thread (none waiting: `None`).
-pub fn take_posted(vars: &NetShared) -> Option<PostedCall> {
+pub(super) fn take_posted(vars: &NetShared) -> Option<PostedCall> {
     if vars.receiver.posted_call.atomic().swap(0, Ordering::SeqCst) == 0 {
         return None;
     }

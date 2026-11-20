@@ -9,7 +9,7 @@ pub const SAVED_CAR_LEN: usize = 0x28C;
 
 /// The player settings a loaded game keeps (the controls and choices made since it was saved),
 /// as (offset, length): the keys' bytes +0x1C, the dwords +0x2C .. +0x78 and +0x178.
-pub const KEPT_SETTINGS: [(usize, usize); 3] = [(0x1C, 0xC), (0x2C, 0x50), (0x178, 4)];
+pub(crate) const KEPT_SETTINGS: [(usize, usize); 3] = [(0x1C, 0xC), (0x2C, 0x50), (0x178, 4)];
 
 /// Writes the kept settings from `player` over the saved `car`. Refused: a read past the
 /// player.

@@ -5,7 +5,7 @@ use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
-pub const MIX_BUFFER_LEN: u32 = 0x3C00;
+pub(super) const MIX_BUFFER_LEN: u32 = 0x3C00;
 
 /// `bytes` of the primary buffer's worth, `>> shift` frames, of every used channel added into
 /// the mix buffer (zeroed first, two dwords a frame: the sample times the channel's left and its right

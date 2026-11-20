@@ -10,7 +10,7 @@ use crate::sound::sets_store::SoundRequest;
 
 /// The logic is `rc2k_core::sound::spot_voices::free_unheard`; each stop through `request`
 /// (its sound written first).
-pub fn free_spot_voices(
+pub(super) fn free_spot_voices(
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,

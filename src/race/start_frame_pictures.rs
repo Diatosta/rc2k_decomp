@@ -10,7 +10,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 /// Starts the picture series; `picture_ms` is the ms a picture takes, or 0 for the rate's.
-pub fn start_frame_pictures(
+pub(super) fn start_frame_pictures(
     race: &Race,
     clock: &crate::clock::tick_count::PictureClock,
     picture_ms: u32,

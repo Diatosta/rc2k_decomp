@@ -62,7 +62,7 @@ pub const STAGE_ROWS: Rows = Rows {
     holder: RecordHolder::Fastest,
 };
 
-pub const TIME_TRIAL_ROWS: Rows = Rows {
+pub(super) const TIME_TRIAL_ROWS: Rows = Rows {
     holder: RecordHolder::TimeTrial,
 };
 
@@ -79,7 +79,7 @@ pub fn draw_stage_records(
 
 /// `draw_stage_records` with the top-speed row's places given. The logic is in
 /// `rc2k_core::screens::stage_panel::records`.
-pub fn draw_records_rows(
+pub(super) fn draw_records_rows(
     o: crate::owners::Owners<'static>,
     system: &System,
     entry: &rc2k_core::saves::entries::BestTime,

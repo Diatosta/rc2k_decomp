@@ -16,7 +16,7 @@ use super::mp2_tables as tables;
 use super::mpeg_bits::{Bits, FilmError, refuse};
 
 /// The samples a channel in a layer II frame.
-pub const FRAME_SAMPLES: usize = 1152;
+pub(crate) const FRAME_SAMPLES: usize = 1152;
 
 const SUBBANDS: usize = 32;
 /// The fractional bits of a subband sample.

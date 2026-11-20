@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::net::lobby_loop::{all_states, sync};
 use crate::net::owner::Net;
 use rc2k_core::net::players::State;
-pub fn race_wait(
+pub(super) fn race_wait(
     net: &Net,
     clock: &crate::clock::tick_count::PictureClock,
 ) -> Result<u32, Refused> {

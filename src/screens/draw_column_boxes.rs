@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::screens::service_boxes::quad;
 
-pub fn draw_column_boxes(o: Owners<'static>) -> Result<(), Refused> {
+pub(super) fn draw_column_boxes(o: Owners<'static>) -> Result<(), Refused> {
     let screens = &o.menus.screens;
     // The logic is in `rc2k_core::screens::panels::row_box`.
     use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};

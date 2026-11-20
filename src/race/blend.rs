@@ -281,7 +281,7 @@ impl Blended<'_> {
 
     /// `f` run with the ticks' values in the blocks, for what keeps state from one frame to the
     /// next that depends on the places it saw (the maps' scroll).
-    pub fn at_the_tick<T>(&self, f: impl FnOnce() -> T) -> T {
+    pub(super) fn at_the_tick<T>(&self, f: impl FnOnce() -> T) -> T {
         for (n, tick, _) in &self.saved {
             write(&self.race.car_blocks().cars[*n], tick);
         }

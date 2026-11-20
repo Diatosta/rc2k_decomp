@@ -12,7 +12,7 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::race::numbers_store::Numbers;
 
-pub fn set_wheel_weights(
+pub(super) fn set_wheel_weights(
     car: &Car,
     tables: &PhysicsTables,
     contact: &ContactWork,

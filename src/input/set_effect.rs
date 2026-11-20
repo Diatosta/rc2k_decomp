@@ -10,7 +10,7 @@ use crate::input::types::InputDevice;
 
 /// Effect `effect` (0 .. 5) of the device `record` told `what` (2 start, 3 set, 4
 /// stop) with the numbers `a` and `b`; "set" only while the race runs (`race_on`).
-pub fn set_effect(
+pub(super) fn set_effect(
     feedback: &ForceFeedback,
     record: &InputDevice,
     effect: u32,

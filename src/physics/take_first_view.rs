@@ -44,7 +44,11 @@ pub fn take_first_view(
 
 /// The record's turn, point and share figures into a view: three vectors of floats (held in the
 /// record's dwords), then two dwords.
-pub fn take_figures(s: &ViewRecord, floats: [&[PlainFloat; 3]; 3], dwords: [&PlainDword; 2]) {
+pub(super) fn take_figures(
+    s: &ViewRecord,
+    floats: [&[PlainFloat; 3]; 3],
+    dwords: [&PlainDword; 2],
+) {
     let v = s.taken();
     for (n, cell) in floats.into_iter().flatten().enumerate() {
         cell.set(f32::from_bits(v[n]));

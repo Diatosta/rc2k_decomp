@@ -6,7 +6,7 @@
 //! per-change cost low.
 
 /// How many window pixels one pixel of the wash covers on each side.
-pub const SHRINK: u32 = 16;
+pub(crate) const SHRINK: u32 = 16;
 /// The box blur's radius in the wash's pixels (applied three times, which approaches a gaussian
 /// blur of about 3 % of the window's width).
 const BLUR_RADIUS: usize = 3;

@@ -42,7 +42,7 @@ pub enum Op {
     Float,
 }
 
-pub struct Spec {
+pub(super) struct Spec {
     pub operands: &'static [Op],
     /// The block has `fsin` / `fcos` (libm's, one float ulp off at most).
     pub sincos: bool,
@@ -121,7 +121,7 @@ impl Operand {
 
     /// The `len` bytes at `off`, the ones outside the buffer 0 (a block that reads only part
     /// of it).
-    pub fn bytes_or_zero(self, off: usize, len: usize) -> Vec<u8> {
+    pub(super) fn bytes_or_zero(self, off: usize, len: usize) -> Vec<u8> {
         (0..len)
             .map(|i| {
                 if self.contains(off + i, 1) {
@@ -235,7 +235,7 @@ impl PartialEq for Buf {
 /// buffer `mk` (the buffer stands for the marks' block): the record's cells are made from the
 /// bytes there, one after another in field order (no gaps in the recorded layout), and put back
 /// afterwards. The buffer must hold the whole record.
-pub fn with_copy<T: crate::memory::cells::Cells, R>(
+pub(super) fn with_copy<T: crate::memory::cells::Cells, R>(
     mk: Operand,
     start: usize,
     f: impl FnOnce(&T) -> R,
@@ -254,14 +254,14 @@ pub fn with_copy<T: crate::memory::cells::Cells, R>(
 
 /// The `N` floats in a row at offset `start` of the marks' block in the test buffer `mk`, for
 /// the plain-float constant tables the vectors read.
-pub fn floats_at<const N: usize>(mk: Operand, start: usize) -> [f32; N] {
+pub(super) fn floats_at<const N: usize>(mk: Operand, start: usize) -> [f32; N] {
     let bytes = mk.read(start.wrapping_sub(START), 4 * N);
     std::array::from_fn(|i| f32::from_le_bytes(bytes[4 * i..4 * i + 4].try_into().unwrap()))
 }
 
 /// Runs `f` on the marks' settings record at the test address `base` (an operand with
 /// `lo: 0, hi: 0x2768`), as `with_copy`.
-pub fn with_settings<R>(
+pub(super) fn with_settings<R>(
     base: Operand,
     f: impl FnOnce(&crate::race::effects_settings_store::EffectsSettings) -> R,
 ) -> R {
@@ -329,7 +329,7 @@ fn fill(buf: &mut [u8], lo: usize, reads: &[(usize, Kind)], r: &mut Rng, sincos:
 }
 
 /// A float the block leaves on the x87 stack, as bits (any NaN the same).
-pub fn canon(x: f64) -> u64 {
+pub(super) fn canon(x: f64) -> u64 {
     if x.is_nan() {
         0x7FF8_0000_0000_0000
     } else {
@@ -571,7 +571,7 @@ impl Drop for CellsBack {
 /// listed write (the buffers' and the race block's) and the returned value's printed form.
 /// The inputs are laid into the typed cells of the places (`race_cell`); the bytes outside
 /// the listed writes must be left as they were.
-pub fn recorded_writes<R: std::fmt::Debug>(
+pub(super) fn recorded_writes<R: std::fmt::Debug>(
     name: &str,
     spec: &Spec,
     plain: impl Fn(&[Operand]) -> R,
@@ -581,7 +581,7 @@ pub fn recorded_writes<R: std::fmt::Debug>(
 }
 
 /// `recorded_writes` for a block over test buffers only: its operands are never the race block's.
-pub fn recorded_buffer_writes<R: std::fmt::Debug>(
+pub(super) fn recorded_buffer_writes<R: std::fmt::Debug>(
     name: &str,
     spec: &Spec,
     plain: impl Fn(&[Operand]) -> R,
@@ -768,7 +768,7 @@ fn run_writes<R: std::fmt::Debug>(
 
 /// The vertex float at byte `off` of the vertices (x, y, z, u or v of a vertex).
 #[cfg(test)]
-pub fn vertex_cell(off: usize) -> &'static crate::memory::session::PlainFloat {
+pub(super) fn vertex_cell(off: usize) -> &'static crate::memory::session::PlainFloat {
     let v = &crate::d3d::vertices_store::VERTICES.vertices[off / 32];
     match off % 32 {
         0x0 => &v.x,
@@ -785,7 +785,7 @@ pub fn vertex_cell(off: usize) -> &'static crate::memory::session::PlainFloat {
 /// on purpose: they are bit-exact whatever the float, where a float moved through the x87
 /// (32-bit builds) would quiet a signalling NaN.
 #[cfg(test)]
-pub fn staged_vertices<R>(at: Operand, offsets: &[usize], f: impl FnOnce() -> R) -> R {
+pub(super) fn staged_vertices<R>(at: Operand, offsets: &[usize], f: impl FnOnce() -> R) -> R {
     let host = |off: usize| (at + off).at(0, 4).cast::<u32>();
     let saved: Vec<u32> = offsets.iter().map(|&o| vertex_cell(o).bits()).collect();
     for &o in offsets {

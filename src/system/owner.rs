@@ -93,7 +93,7 @@ impl Records {
 /// What only the game's thread reaches: the start-up's keeps, the scratch areas, the
 /// record tables, the main loop's state, the machine's facts and the menus' clocks (the
 /// audio, key and network threads and the drawing parts touch none).
-pub struct SystemMain {
+struct SystemMain {
     pub start: Start,
     pub work: Work,
     pub records: Records,

@@ -26,7 +26,7 @@ pub fn controller<'a>(
 }
 
 /// The pending changes of the device `record`'s effects.
-pub fn device_effects(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
+pub(super) fn device_effects(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
     if record.effects_on.get() != 1 || record.device.get() == 0 {
         return Ok(());
     }

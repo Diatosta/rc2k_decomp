@@ -139,7 +139,7 @@ pub static RECTANGLES: crate::memory::session::Bytes<0x208> = crate::memory::ses
 /// the three switch tables (0 `switch_pictures_a`, 1 `switch_pictures_b`, 2 `switch_pictures_c`
 /// of the viewer panel; the list names a table by its image address).
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ViewerPicture {
+pub(super) enum ViewerPicture {
     /// The rectangle's image address in the viewer panel.
     Rectangle(usize),
     Switch(usize),
@@ -175,7 +175,10 @@ impl ReplayViewBlock {
     }
 
     /// Where item `index`'s screen rectangle (its +4) is.
-    pub fn item_place(replay: &Replay, index: u32) -> Result<BytePlace, crate::errors::BadInput> {
+    pub(super) fn item_place(
+        replay: &Replay,
+        index: u32,
+    ) -> Result<BytePlace, crate::errors::BadInput> {
         Self::named(
             Self::item(replay, index)?.box_link.get(),
             "a viewer item's place off the rectangles",
@@ -184,7 +187,7 @@ impl ReplayViewBlock {
 
     /// What item `index`'s picture (its +0xC: a rectangle, or one of the switch tables) is: the
     /// picture's name is compared with the three tables' addresses.
-    pub fn item_picture(
+    pub(super) fn item_picture(
         replay: &Replay,
         index: u32,
     ) -> Result<ViewerPicture, crate::errors::BadInput> {

@@ -9,7 +9,7 @@
 
 /// The logic is `rc2k_core::sound::spot_voices::thin` and `thin_choose`. The voices of `sound`
 /// thinned.
-pub fn thin_spot_voices(
+pub(super) fn thin_spot_voices(
     sound: u32,
     owner: &crate::sound::owner::Sound,
     system: &crate::system::owner::System,

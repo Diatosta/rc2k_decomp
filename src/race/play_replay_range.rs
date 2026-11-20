@@ -9,7 +9,10 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn play_replay_range(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn play_replay_range(
+    race: &Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
     let sound = o.sound;
     let replay = &race.replay;
     use crate::race::race_end;

@@ -125,7 +125,7 @@ pub fn take_source_change() -> bool {
 
 /// A real gamepad's button or stick was used (`id` 0: a stand-in's event, which has none): it
 /// drives player 1 from now on. The virtual gamepad's own events are not that.
-pub fn pad_used(id: SDL_JoystickID) {
+pub(super) fn pad_used(id: SDL_JoystickID) {
     let mut st = state();
     if st.pad.is_some_and(|(ours, _)| ours == id) {
         return;
@@ -137,7 +137,7 @@ pub fn pad_used(id: SDL_JoystickID) {
 }
 
 /// The virtual gamepad plugged in, before the game lists its controllers.
-pub fn attach_at_start() {
+pub(super) fn attach_at_start() {
     let mut st = state();
     if st.pad.is_some() {
         return;
@@ -156,7 +156,7 @@ pub fn attach_at_start() {
 }
 
 /// SDL has found a joystick: a real one (not the virtual gamepad) hides the overlay.
-pub fn pad_added(id: SDL_JoystickID) {
+pub(super) fn pad_added(id: SDL_JoystickID) {
     let mut st = state();
     if st.pad.is_some_and(|(ours, _)| ours == id) {
         return;
@@ -167,7 +167,7 @@ pub fn pad_added(id: SDL_JoystickID) {
 }
 
 /// A joystick has gone.
-pub fn pad_removed(id: SDL_JoystickID) {
+pub(super) fn pad_removed(id: SDL_JoystickID) {
     let mut st = state();
     if st.pad.is_some_and(|(ours, _)| ours == id) {
         return;

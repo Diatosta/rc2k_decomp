@@ -188,7 +188,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
 
 /// `race::lay_skidmarks_if_on`: `lay_skidmarks` unless `scene_switch` or `replay_still_on`
 /// is set.
-pub fn lay_skidmarks_if_on(race: &Race) -> Result<(), Refused> {
+pub(super) fn lay_skidmarks_if_on(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
     if race.shared.vars.get().scene_switch.get() != 0
         || frame.frame_work.get().replay_still_on.get() != 0

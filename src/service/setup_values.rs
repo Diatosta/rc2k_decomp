@@ -77,6 +77,6 @@ impl Change {
 }
 
 /// The setup items: gear ratio, tyre, ride height, suspension stiffness.
-pub fn setup_item(service: &Service, setup: usize) -> &SetupItem {
+pub(super) fn setup_item(service: &Service, setup: usize) -> &SetupItem {
     &service.setups[setup]
 }

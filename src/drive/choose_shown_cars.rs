@@ -24,7 +24,7 @@ fn put(v: &[&dyn DwordLike], k: usize, x: u32) {
 }
 
 /// On the variables at `v` (`game`'s order).
-pub fn choose_at(
+fn choose_at(
     v: &[&dyn DwordLike],
     listed: &[PlainDword],
     players: &[usize],

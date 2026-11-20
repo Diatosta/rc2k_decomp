@@ -8,8 +8,8 @@
 /// Keys in a table.
 pub const KEYS: usize = 0x80;
 /// The mouse's buttons as keys.
-pub const LEFT_BUTTON_KEY: usize = 0x73;
-pub const RIGHT_BUTTON_KEY: usize = 0x74;
+pub(crate) const LEFT_BUTTON_KEY: usize = 0x73;
+pub(crate) const RIGHT_BUTTON_KEY: usize = 0x74;
 /// Pairs of keys made one: the two controls, the two shifts.
 pub const PAIRS: [(usize, usize); 2] = [(0x1D, 0x61), (0x2A, 0x36)];
 /// The screenshot key, looked at in the frame's copy.
@@ -102,7 +102,7 @@ impl KeyTables {
 }
 
 /// The dwords the end of a frame clears: the debug page and the race freeze.
-pub const DEBUG_WORDS: usize = 2;
+pub(crate) const DEBUG_WORDS: usize = 2;
 
 /// `input::end_frame`: with screenshots on, `check` looks at the screenshot key; the dwords as
 /// left.

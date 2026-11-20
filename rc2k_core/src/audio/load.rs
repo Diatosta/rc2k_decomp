@@ -10,7 +10,7 @@ use crate::Invalid;
 
 /// The list's end and a sound passed over.
 pub const END: u32 = 0xFFFF_FFFF;
-pub const SKIP: u32 = 0xFFFF_FFFE;
+pub(crate) const SKIP: u32 = 0xFFFF_FFFE;
 /// The most entries looked at for the end.
 pub const LIST_ROOM: usize = 0x1000;
 

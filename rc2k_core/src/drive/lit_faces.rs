@@ -24,7 +24,7 @@ pub fn count_down(f: &mut FaceBytes) -> bool {
 }
 
 /// The distance past which the pace is 1.
-pub const FAR: u32 = 0x2_0000;
+pub(crate) const FAR: u32 = 0x2_0000;
 
 /// The pace from the distance: 1 far away, up to 17 close by.
 pub fn pace(distance: u32) -> u32 {
@@ -53,7 +53,7 @@ pub fn blink(f: &mut FaceBytes, blink: impl FnOnce(u8) -> u8) -> Option<u8> {
 
 /// The tops kind 2 and kinds 3, 8 rise +0x13 to.
 pub const RISE_TOP: u8 = 0x30;
-pub const ALIGNED_RISE_TOP: u8 = 0x40;
+pub(crate) const ALIGNED_RISE_TOP: u8 = 0x40;
 
 /// +0x13 up by one `pace` times, stopping at `top`: (true when it is at the top: the face
 /// leaves; the steps left).

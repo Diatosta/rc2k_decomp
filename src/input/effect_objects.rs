@@ -13,7 +13,7 @@ use crate::input::types::ForceEffect;
 /// What the DirectInput stand-in takes from the effect's `DIEFFECT`. Its pointers
 /// (`directions`, `envelope`, `type_specific`) say whether the part is there; they always
 /// point at the effect's own arrays (`effect_changes`, `make_effect`), so those are read.
-pub fn parameters_of(effect: &ForceEffect) -> EffectParameters {
+pub(super) fn parameters_of(effect: &ForceEffect) -> EffectParameters {
     let d = &effect.effect;
     let specific = d.type_specific_size.get() / 4;
     EffectParameters {
@@ -42,7 +42,7 @@ pub fn parameters_of(effect: &ForceEffect) -> EffectParameters {
 }
 
 /// Gives the effect's DirectInput object back.
-pub fn release_effect(effect: &ForceEffect) {
+pub(super) fn release_effect(effect: &ForceEffect) {
     let object = effect.object.get();
     if object != 0 {
         crate::input::di_objects::stop(object);
@@ -52,7 +52,7 @@ pub fn release_effect(effect: &ForceEffect) {
 }
 
 /// Downloads and starts the effect.
-pub fn start_effect(effect: &ForceEffect) {
+pub(super) fn start_effect(effect: &ForceEffect) {
     let object = effect.object.get();
     if object != 0 {
         crate::input::di_objects::download(object);
@@ -61,7 +61,7 @@ pub fn start_effect(effect: &ForceEffect) {
 }
 
 /// Sets the effect's parameters with `flags`.
-pub fn set_effect_parameters(effect: &ForceEffect, flags: u32) {
+pub(super) fn set_effect_parameters(effect: &ForceEffect, flags: u32) {
     let object = effect.object.get();
     if object != 0 {
         crate::input::di_objects::set_parameters(object, &parameters_of(effect), flags);

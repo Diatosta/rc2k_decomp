@@ -153,7 +153,7 @@ fn frames_to_ms(n: u64, fps: u32) -> u64 {
 
 /// The race's loop is about to run: the clock starts, and the device's audio callback gives
 /// silence, since the sound is taken frame by frame instead (`sound_turn`).
-pub fn race_loop_begins() {
+pub(super) fn race_loop_begins() {
     if active() {
         FRAMES.store(1, Relaxed);
         crate::platform::sound::set_silent_for_video(true);
@@ -166,7 +166,7 @@ static RACE_FRAME: AtomicBool = AtomicBool::new(false);
 
 /// A race frame has been drawn and is about to be shown: it goes into the video and the clock
 /// moves on one frame.
-pub fn frame_drawn() {
+pub(super) fn frame_drawn() {
     if active() && FRAMES.load(Relaxed) != 0 {
         FRAMES.fetch_add(1, Relaxed);
         RACE_FRAME.store(true, Relaxed);
@@ -174,7 +174,7 @@ pub fn frame_drawn() {
 }
 
 /// The frame about to be shown is wanted for the video.
-pub fn frame_wanted() -> bool {
+pub(super) fn frame_wanted() -> bool {
     active() && RACE_FRAME.load(Relaxed)
 }
 
@@ -202,7 +202,7 @@ static PROGRESS_AT: Mutex<Option<std::time::Instant>> = Mutex::new(None);
 /// A render that a parent program watches (`RC2K_RENDER_PROGRESS` names a file) writes how far it
 /// has come, `fraction` of the part, about every half second: a line "percent frames" (the
 /// percent with a decimal).
-pub fn note_progress(fraction: f64) {
+pub(super) fn note_progress(fraction: f64) {
     let Some(path) = std::env::var_os("RC2K_RENDER_PROGRESS") else {
         return;
     };
@@ -326,7 +326,7 @@ static SPARE: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
 const SPARE_MOST: usize = 8;
 
 /// A buffer for a frame's pixels: one from an earlier frame when there is one.
-pub fn spare_buffer() -> Vec<u8> {
+pub(super) fn spare_buffer() -> Vec<u8> {
     SPARE
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -335,7 +335,7 @@ pub fn spare_buffer() -> Vec<u8> {
 }
 
 /// A copy of the frame's pixels, in a buffer from an earlier frame when there is one.
-pub fn copy_frame(pixels: &[u8]) -> Vec<u8> {
+pub(super) fn copy_frame(pixels: &[u8]) -> Vec<u8> {
     let mut copy = spare_buffer();
     copy.resize(pixels.len(), 0);
     copy.copy_from_slice(pixels);
@@ -372,13 +372,13 @@ const STAGES: usize = 4;
 static STAGE_MICROS: [AtomicU64; STAGES] = [const { AtomicU64::new(0) }; STAGES];
 
 /// A stage of a frame took `time`.
-pub fn note_stage(stage: Stage, time: std::time::Duration) {
+pub(super) fn note_stage(stage: Stage, time: std::time::Duration) {
     STAGE_MICROS[stage as usize].fetch_add(time.as_micros() as u64, Relaxed);
 }
 
 /// A frame of the video has been taken (its pixels come with `send`, which may be later): the
 /// frames and the sound that follows them are counted from here. The first one starts the file.
-pub fn frame_taken(width: u32, height: u32) {
+pub(super) fn frame_taken(width: u32, height: u32) {
     RACE_FRAME.store(false, Relaxed);
     let Some(job) = job() else { return };
     let mut writer = WRITER
@@ -408,7 +408,7 @@ fn note_problem(kind: &str, detail: &str) {
 }
 
 /// The ending of the file the problems go in, in place of the progress file's.
-pub const PROBLEMS_EXTENSION: &str = "problems";
+pub(super) const PROBLEMS_EXTENSION: &str = "problems";
 
 /// Whether the frames are made as NV12 (`render::video_read_next`): an `ffmpeg` is there to take
 /// them and the card converts them. The writer's own answer once it has started.
@@ -460,7 +460,7 @@ pub fn send(pixels: Vec<u8>) {
 /// The sound of the frame just taken: the audio thread takes a turn (so every sound the race
 /// asked for is in the mixer), then the mixer's samples for the frame's stretch of time go to
 /// the sound file.
-pub fn sound_turn(audio: &crate::audio::owner::Audio) {
+pub(super) fn sound_turn(audio: &crate::audio::owner::Audio) {
     let Some(job) = job() else { return };
     // The audio thread takes the commands queued and ends a turn; the wait is bounded so a
     // stuck thread cannot hold the render.
@@ -506,7 +506,7 @@ fn sound_frames_due(video_frames: u64, fps: u32) -> u64 {
 
 /// The exit code of a render whose hardware encoder made a damaged picture (the video is
 /// removed): the program that started it renders again with the software encoder.
-pub const DAMAGED: u32 = 4;
+pub(super) const DAMAGED: u32 = 4;
 
 /// The video's file closed (the program ends): the frames still waiting written first. `Some`: the
 /// exit code the render ends with when it did not make a good video.
@@ -680,7 +680,7 @@ struct Tools {
 }
 
 /// Whether an `ffmpeg` is on the path (the render's dialog says if it is not).
-pub fn encoder_found() -> bool {
+pub(super) fn encoder_found() -> bool {
     find_ffmpeg().is_some()
 }
 
@@ -742,7 +742,7 @@ fn frames_folder(out: &Path) -> PathBuf {
 
 /// Everything a render of `out` leaves in the folder while it runs or after it stopped halfway:
 /// the video, the picture and the sound it is made from, and the folder of numbered pictures.
-pub fn leftovers(out: &Path) -> Vec<PathBuf> {
+pub(super) fn leftovers(out: &Path) -> Vec<PathBuf> {
     vec![
         out.to_path_buf(),
         silent_path(out),

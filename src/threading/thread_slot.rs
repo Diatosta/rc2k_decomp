@@ -25,7 +25,7 @@ impl SlotThread {
     ];
     /// The threads started with the game, in the order they are started; the shutdown waits
     /// for these.
-    pub const WORKERS: [SlotThread; 3] =
+    pub(super) const WORKERS: [SlotThread; 3] =
         [SlotThread::Input, SlotThread::Audio, SlotThread::NetReceive];
 
     /// The thread's name, as a debugger, a profiler or a fault report shows it.

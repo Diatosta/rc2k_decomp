@@ -8,6 +8,6 @@ use crate::math::cells::Cells;
 use crate::physics::car_store::Car;
 use crate::physics::turn_by_car_matrix::turn_cells;
 
-pub fn turn_by_inverse(car: &Car, v: &(impl Cells + ?Sized)) {
+pub(super) fn turn_by_inverse(car: &Car, v: &(impl Cells + ?Sized)) {
     turn_cells(&car.car_inverse_matrix, v);
 }

@@ -33,7 +33,7 @@ fn ribbon(
     clippy::too_many_arguments,
     reason = "the effects' groups, the owners and the vertex buffer"
 )]
-pub fn draw_ribbon(
+pub(super) fn draw_ribbon(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     cell: u32,

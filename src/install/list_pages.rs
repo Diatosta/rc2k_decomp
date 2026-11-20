@@ -89,6 +89,7 @@ fn list_parts(
     }
 }
 
+#[cfg(test)]
 /// The typed items of one of the installer's lists.
 pub(crate) fn list_items(
     install: &'static crate::install::owner::Install,
@@ -116,9 +117,10 @@ impl ListMenu {
     }
 }
 
+#[cfg(test)]
 /// Which typed item of the installer's pages an item is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ItemPosition {
+pub(super) enum ItemPosition {
     /// The title's item.
     Title,
     /// Item `.1` of list `.0`.
@@ -126,6 +128,7 @@ pub enum ItemPosition {
 }
 
 impl ListItem {
+    #[cfg(test)]
     /// Where `item`, one of the pages' typed items, is.
     fn position(
         install: &'static crate::install::owner::Install,
@@ -142,8 +145,9 @@ impl ListItem {
         })
     }
 
+    #[cfg(test)]
     /// Which typed item of the installer's pages this is (none for the viewer's items).
-    pub fn installer_position(
+    pub(super) fn installer_position(
         self,
         install: &'static crate::install::owner::Install,
     ) -> Option<ItemPosition> {
@@ -151,7 +155,7 @@ impl ListItem {
     }
 
     /// The title's item (the pages' `title` record).
-    pub fn of_title(install: &'static crate::install::owner::Install) -> Self {
+    pub(super) fn of_title(install: &'static crate::install::owner::Install) -> Self {
         Self(&install.pages.title)
     }
 
@@ -193,7 +197,7 @@ impl ListItem {
     }
 
     /// +0xC as the item's edit record (an edit item).
-    pub fn edit_field(self, install: &'static crate::install::owner::Install) -> EditField {
+    pub(super) fn edit_field(self, install: &'static crate::install::owner::Install) -> EditField {
         EditField(
             PageLink::from_raw(self.data())
                 .edit_record(install)
@@ -268,7 +272,7 @@ impl EditField {
         self.0.flags.get()
     }
 
-    pub fn set_flags(self, flags: u8) {
+    pub(super) fn set_flags(self, flags: u8) {
         self.0.flags.set(flags);
     }
 
@@ -276,7 +280,7 @@ impl EditField {
         self.0.most.get()
     }
 
-    pub fn default_text(self) -> u16 {
+    pub(super) fn default_text(self) -> u16 {
         self.0.default_text.get()
     }
 

@@ -55,7 +55,7 @@ pub struct Finish {
 impl Finish {
     /// The stage number for finish stage `n`. The original does not check `n` against the seven
     /// stages: past them it reads the fields after the table, in order.
-    pub fn finish_stage(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
+    pub(super) fn finish_stage(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
         if let Some(stage) = self.finish_stages.get(n) {
             return Ok(stage.get());
         }

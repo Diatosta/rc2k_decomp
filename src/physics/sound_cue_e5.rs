@@ -14,7 +14,7 @@ use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 /// The core: the car number and the listed table; the object is the car's sound object (by car
 /// number & 7).
 // Core: `rc2k_core::physics::listed_cars::{cue_e5_object, CUE_E5}`.
-pub fn sound_cue_e5_at(
+fn sound_cue_e5_at(
     current: &impl crate::memory::session::DwordLike,
     listed: &[PlainDword; 8],
     sound: &crate::sound::owner::Sound,

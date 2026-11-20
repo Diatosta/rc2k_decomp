@@ -21,7 +21,7 @@ pub fn set_render_state(part: &crate::scene::workers::PartScratch, value: u32, s
 }
 
 /// The quads' fixed words: z 0, rhw 1.0, the colour, the specular 0.
-pub fn quad_words(buffer: &PolygonVertices, colour: u32) {
+pub(super) fn quad_words(buffer: &PolygonVertices, colour: u32) {
     for item in buffer.vertices.iter().take(4) {
         let v = &item;
         v.z.set(0.0);
@@ -34,7 +34,7 @@ pub fn quad_words(buffer: &PolygonVertices, colour: u32) {
 /// The quads' shared tail: the texture places from the rectangle `uv` (x, y, w, h, whole
 /// numbers) times the panel's texel scale, and the corners scaled to the screen (width and
 /// height times the panel's two smaller scales, through the machine's scratch float).
-pub fn quad_tail(
+pub(super) fn quad_tail(
     buffer: &PolygonVertices,
     uv: [u32; 4],
     panel: &ViewerPanelBlock,

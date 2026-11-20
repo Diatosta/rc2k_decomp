@@ -23,7 +23,7 @@ const ROOM: u32 = 0x100_0000;
 const PLACES_BASE: u32 = 0xD000_0000;
 
 /// Scene point 0's place: the numbering `race::scene_points` reads points by.
-pub const fn points_base() -> u32 {
+pub(super) const fn points_base() -> u32 {
     PLACES_BASE + 2 * ROOM
 }
 
@@ -59,18 +59,18 @@ impl CourseData {
     }
 
     /// The faces' first points or the scene points have changed.
-    pub fn first_points_changed(&self) {
+    pub(super) fn first_points_changed(&self) {
         self.first_points_changed.fetch_add(1, Ordering::Relaxed);
     }
 
     /// How many times the faces' first points or the scene points have changed.
-    pub fn first_points_changes(&self) -> u64 {
+    pub(super) fn first_points_changes(&self) -> u64 {
         self.first_points_changed.load(Ordering::Relaxed)
     }
 }
 
 /// The course info taken (`len` bytes, zeroed).
-pub fn take_info(data: &CourseData, len: u32) -> Result<(), BadInput> {
+pub(super) fn take_info(data: &CourseData, len: u32) -> Result<(), BadInput> {
     if len > ROOM {
         return Err(BadInput("a course info larger than its room"));
     }
@@ -83,7 +83,7 @@ pub fn info_held(data: &CourseData) -> bool {
 }
 
 /// The whole course info set to `bytes` (the same length as the table taken).
-pub fn set_info(data: &CourseData, bytes: &[u8]) -> Result<(), BadInput> {
+pub(super) fn set_info(data: &CourseData, bytes: &[u8]) -> Result<(), BadInput> {
     data.info
         .write(0, bytes)?
         .ok_or(BadInput("an info larger than the course info"))
@@ -97,12 +97,12 @@ pub fn info_bytes(data: &CourseData, offset: u32, len: usize) -> Result<Vec<u8>,
 }
 
 /// How many times the faces' first points or the scene points have changed.
-pub fn first_points_changes(data: &CourseData) -> u64 {
+pub(super) fn first_points_changes(data: &CourseData) -> u64 {
     data.first_points_changes()
 }
 
 /// The faces' first points or the scene points have changed.
-pub fn first_points_changed(data: &CourseData) {
+pub(super) fn first_points_changed(data: &CourseData) {
     data.first_points_changed();
 }
 
@@ -128,7 +128,7 @@ pub fn give_back(data: &CourseData) {
 }
 
 /// `f` given readers of the faces' and the scene points' dwords by byte (`None` past them).
-pub fn with_faces_and_points<R>(
+pub(super) fn with_faces_and_points<R>(
     data: &CourseData,
     f: impl FnOnce(&dyn Fn(usize) -> Option<u32>, &dyn Fn(usize) -> Option<u32>) -> R,
 ) -> Result<R, BadInput> {
@@ -294,13 +294,13 @@ pub fn faces_table(course: &Course, count: u32) -> Result<Vec<u8>, BadInput> {
 }
 
 /// Face `n` set to `face`.
-pub fn write_face_number(course: &Course, n: u32, face: Face) -> Result<(), BadInput> {
+pub(super) fn write_face_number(course: &Course, n: u32, face: Face) -> Result<(), BadInput> {
     let data = &course.stage.course;
     write_table(data, &data.faces, face_index(n, 0)?, &face.0)
 }
 
 /// The first `count` records' bytes.
-pub fn records_table(
+pub(super) fn records_table(
     course: crate::race::owner_course::CourseReads<'_>,
     count: u32,
 ) -> Result<Vec<u8>, BadInput> {
@@ -313,7 +313,7 @@ pub fn records_table(
 
 /// Whether the first `count` records are held, refused as `records_table` refuses: their
 /// fields can then be read one at a time (`record_field`) with no copy of the table.
-pub fn records_held(
+pub(super) fn records_held(
     course: crate::race::owner_course::CourseReads<'_>,
     count: u32,
 ) -> Result<(), BadInput> {
@@ -325,7 +325,7 @@ pub fn records_held(
 }
 
 /// The records from record 0 set to `bytes`.
-pub fn write_records_table(course: &Course, bytes: &[u8]) -> Result<(), BadInput> {
+pub(super) fn write_records_table(course: &Course, bytes: &[u8]) -> Result<(), BadInput> {
     let data = &course.stage.course;
     write_table(data, &data.records, record_index(0, 0)?, bytes)
 }

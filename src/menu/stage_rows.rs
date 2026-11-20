@@ -12,7 +12,7 @@ use crate::menu::champ_store::ChampView;
 use crate::menu::event_store::EventState;
 
 /// `of_90` the fixed count, `on` the direction.
-pub fn step_rows(
+pub(super) fn step_rows(
     champ: &ChampView,
     event: &EventState,
     text_buffers: &crate::screens::text_buffers_store::TextBuffers,

@@ -8,7 +8,7 @@ use crate::race::owner::Race;
 use crate::race::viewer::LAST_RACE;
 
 /// `slot` the slot to save the last race's replay into. Whether it was saved.
-pub fn save_last_replay(
+pub(super) fn save_last_replay(
     race: &Race,
     system: &crate::system::owner::System,
     slot: u32,

@@ -91,8 +91,8 @@ pub enum PadMake {
 }
 
 /// USB ids of Valve's hardware.
-pub const VALVE: u16 = 0x28DE;
-pub const STEAM_DECK: u16 = 0x1205;
+pub(crate) const VALVE: u16 = 0x28DE;
+pub(crate) const STEAM_DECK: u16 = 0x1205;
 
 /// The family a gamepad's buttons are drawn from when the player leaves it to the program: a
 /// Steam Deck by its USB ids (or Steam's own pad, or, when the program runs on a Deck under
@@ -243,7 +243,7 @@ impl Icon {
     }
 
     /// The picture of a hat's direction.
-    pub fn of_hat(direction: HatDirection) -> Icon {
+    pub(crate) fn of_hat(direction: HatDirection) -> Icon {
         match direction {
             HatDirection::Up => Icon::DpadUp,
             HatDirection::Right => Icon::DpadRight,
@@ -291,7 +291,7 @@ const PLAYSTATION_ORDER: [Icon; 14] = [
 /// shown as `family`. A gamepad's buttons are in the profiles' own numbering whatever its make;
 /// another controller's are in DirectInput's order for a PlayStation pad, or for an Xbox one
 /// (the Steam Deck's as an Xbox's). None for a button the order has no picture for.
-pub fn button_icon(family: Family, kind: Kind, button: u8) -> Option<Icon> {
+pub(crate) fn button_icon(family: Family, kind: Kind, button: u8) -> Option<Icon> {
     let order: &[Icon] = if kind == Kind::Pad || family != Family::PlayStation {
         &PAD_ORDER
     } else {

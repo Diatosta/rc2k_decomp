@@ -56,7 +56,7 @@ fn unlock_refusing(
 
 /// `memory::allocate`, `d3d::lock_texture` / `unlock_texture`, `gfx::read_picture_file`,
 /// `gfx::put_surface_pixel`, `scene::forget_slot_texture`, `memory::free_list`.
-pub fn set_up_surface(
+pub(super) fn set_up_surface(
     ring: &Ring,
     masks: &Masks,
     scene: &crate::scene::owner::Scene,

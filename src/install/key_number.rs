@@ -7,7 +7,7 @@ use crate::memory::list_handle::ListItem;
 use rc2k_core::install::items::ItemKey;
 
 /// `key` the number key; whether it was taken.
-pub fn key_number(
+pub(super) fn key_number(
     install: &'static crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
     key: u32,

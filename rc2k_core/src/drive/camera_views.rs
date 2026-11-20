@@ -22,7 +22,7 @@ pub struct CameraView {
 /// The views (0 .. 6); 2 and 3 only for cars that have them.
 pub const VIEWS: u32 = 7;
 /// The cars with an entry in the table of who has views 2 and 3.
-pub const CARS_WITH_ENTRY: u32 = 0x22;
+pub(crate) const CARS_WITH_ENTRY: u32 = 0x22;
 
 impl CameraView {
     /// Takes the wanted view at step count `step` and gives `step` back.

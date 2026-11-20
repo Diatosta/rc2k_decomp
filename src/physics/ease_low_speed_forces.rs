@@ -10,7 +10,7 @@ use crate::physics::tables_store::PhysicsTables;
 
 /// The factor, the speed and the two forces; the exact version, for
 /// `physics::drive_wheels_step`.
-pub fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables) {
+pub(super) fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables) {
     let factor = &tables.low_speed_share;
     let speed = &car.local_velocity[2];
     factor.set(1.0);

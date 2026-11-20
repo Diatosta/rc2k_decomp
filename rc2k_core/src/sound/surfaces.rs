@@ -13,7 +13,7 @@ use crate::Invalid;
 pub const WHEELS: [u32; 4] = [0x44, 0x58, 0x6C, 0x80];
 /// Surfaces in the table, pairs of sets.
 pub const SURFACES: u32 = 16;
-pub const SET_PAIRS: u32 = 7;
+pub(crate) const SET_PAIRS: u32 = 7;
 
 /// The wheel whose surface counts and the other of its pair (indexes into `WHEELS`), from the two
 /// differences' signs (the float's sign bit read as an integer's).

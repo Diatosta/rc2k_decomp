@@ -13,7 +13,7 @@ use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;
 
 /// The gear sounds of object `so`, through `request`.
-pub fn car_gear_sounds(
+pub(super) fn car_gear_sounds(
     so: &crate::sound::store::SoundObject,
     request: &SoundRequest,
     sound: &crate::sound::owner::Sound,

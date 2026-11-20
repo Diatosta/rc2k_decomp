@@ -16,7 +16,7 @@ fn over_one(distance: f32) -> bool {
     distance.to_bits() as i32 > 0x3F80_0000
 }
 
-pub fn spot_voice_distances(sound: &crate::sound::owner::Sound) {
+pub(super) fn spot_voice_distances(sound: &crate::sound::owner::Sound) {
     for n in 0..VOICE_COUNT {
         let v = voice(n, sound);
         if v.heard.get() != 1 {

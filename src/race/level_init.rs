@@ -14,7 +14,7 @@ use crate::scene::file_numbers_store::texts;
 const FIRST_PART: u32 = rc2k_core::race::loading::FIRST_PART as u32;
 const INFO_PART: u32 = 0x40_0000;
 /// The path strings the course's number is written into: the tens' and the units' places.
-pub fn number_places(
+pub(super) fn number_places(
     p: &'static crate::race::level_paths_store::LevelPaths,
 ) -> [crate::memory::place::BytePlace; 6] {
     use crate::memory::place::BytePlace;
@@ -31,7 +31,7 @@ const TEXTURES: u32 = 0x100;
 
 /// Counts the course's memory (the file's room and the course info) on `list` and takes the course
 /// info (`CourseData::info`).
-pub fn allocate_course_memory(
+pub(super) fn allocate_course_memory(
     course: &Course,
     list: &crate::memory::ListCells,
 ) -> Result<(), Refused> {
@@ -51,7 +51,7 @@ pub fn allocate_course_memory(
 /// Reads `files\a\textinfo`, `files\m\markinfo` and `files\b\textinfo` into the course info
 /// (`CourseInfo` lays them out and makes their finish) and takes it into the course info table.
 /// Refuses no course info.
-pub fn load_texture_info(
+pub(super) fn load_texture_info(
     course: &Course,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
@@ -78,7 +78,7 @@ pub fn load_texture_info(
 
 /// Writes the course's two digits (tens, units, from the low byte divided by 10) into the nine
 /// path strings (the stage's files) that hold the course's number.
-pub fn set_course_number(
+pub(super) fn set_course_number(
     eax: u32,
     race: &'static Race,
     scene: &crate::scene::owner::Scene,
@@ -103,7 +103,10 @@ pub fn set_course_number(
 }
 
 /// Reads the named file, 0x2000 bytes at most, into the error list.
-pub fn load_error_list(frame: &Frame, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub(super) fn load_error_list(
+    frame: &Frame,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_plain_bytes(
         &scene
             .file_numbers()
@@ -118,7 +121,7 @@ pub fn load_error_list(frame: &Frame, scene: &crate::scene::owner::Scene) -> Res
 /// its kind k (`texture_kinds`) and the info's record at k * 0x80, a record of 0x40
 /// (`rc2k_core::race::stage_files::texture_infos`). Refuses a kind whose record lies past the
 /// info, before any is written.
-pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
+pub(super) fn build_texture_infos(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{INFO_SIZE, KIND_RECORD, texture_infos};
     let course = &race.course;
     if !crate::race::course_places::info_held(&course.stage.course) {
@@ -161,7 +164,7 @@ pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
 
 /// Resets `grid_x` and `grid_z`, the course grid's corner (each view keeps its own,
 /// `race::view_grid`), so every view makes its grid again.
-pub fn reset_refresh(scratch: &crate::scene::workers::DrawingScratch) {
+pub(super) fn reset_refresh(scratch: &crate::scene::workers::DrawingScratch) {
     crate::race::view_grid::reset_corners(scratch);
 }
 
@@ -201,7 +204,7 @@ pub fn listed_checkpoints(race: &Race) -> Result<Option<Vec<u32>>, Refused> {
 /// 0x101 entries but may run on for up to 0x201, over the stage's numbers that follow it (0x100
 /// entries: the two fields end together at 0x201); such a stage is refused later by
 /// `race::init_overlay` (more than 0x40 parts).
-pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
+pub(super) fn init_checkpoints(race: &Race) -> Result<(), Refused> {
     let tables = race.physics.split_tables();
     let Some(listed) = listed_checkpoints(race)? else {
         tables.split_colour_count.set(0);

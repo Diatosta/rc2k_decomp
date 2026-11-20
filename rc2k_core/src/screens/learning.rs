@@ -5,7 +5,7 @@
 //! space (0x39) cancels, the control stays as it was.
 
 /// The time a control is learnt for, in ms.
-pub const LEARNING_MS: u32 = 5000;
+pub(crate) const LEARNING_MS: u32 = 5000;
 /// The key that cancels.
 pub const CANCEL_KEY: u8 = 0x39;
 /// The control set when the time runs out (none).

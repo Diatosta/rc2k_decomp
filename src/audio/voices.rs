@@ -67,7 +67,7 @@ pub fn update_voice<R>(state: &AudioShared, id: u32, change: impl FnOnce(&mut Vo
 
 /// The voice being changed stored now, for the property sets' openings that read its `buffer_3d`
 /// from the pool.
-pub fn stored_buffer_3d(
+pub(super) fn stored_buffer_3d(
     state: &AudioOwn,
     id: u32,
     v: &Voice,
@@ -77,7 +77,7 @@ pub fn stored_buffer_3d(
 }
 
 /// The id of the voice at place `n`.
-pub fn voice_id(n: u32) -> u32 {
+pub(super) fn voice_id(n: u32) -> u32 {
     n + 1
 }
 
@@ -100,7 +100,7 @@ pub fn sample(records: &SampleRecords, number: u32) -> SampleRecord {
 }
 
 /// The core's `Pool` over the stores: voices and channels by their ids (place + 1).
-pub struct GamePool<'a> {
+pub(super) struct GamePool<'a> {
     pub state: &'a AudioOwn,
     pub records: &'a SampleRecords,
 }
@@ -147,7 +147,7 @@ pub fn lists(state: &AudioOwn) -> rc2k_core::audio::voices::Lists {
 }
 
 /// The lists stored back (the channel count is not written).
-pub fn store_lists(state: &AudioOwn, l: &rc2k_core::audio::voices::Lists) {
+pub(super) fn store_lists(state: &AudioOwn, l: &rc2k_core::audio::voices::Lists) {
     state.playing_voices.set(l.playing);
     state.stopping_voices.set(l.stopping);
     state.channels_used.set(l.channels_used);

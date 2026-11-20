@@ -121,7 +121,7 @@ fn spare_batches() -> Batches {
 }
 
 /// Batches drawn: emptied and kept for the next flushes.
-pub fn give_back_batches(mut batches: Batches) {
+pub(super) fn give_back_batches(mut batches: Batches) {
     batches.clear();
     let mut spare = SPARE_BATCHES.lock().unwrap();
     if spare.len() < SPARE_BATCHES_KEPT {

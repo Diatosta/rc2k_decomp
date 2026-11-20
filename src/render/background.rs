@@ -41,7 +41,7 @@ pub enum Held {
 /// Brings the noted background `pending` up to a retained texture of `bytes` bytes (the
 /// screen's rows) that holds `held`: when it does not already hold the same picture, `upload`
 /// is given the picture's bytes and `held` becomes it. Whether `upload` ran.
-pub fn bring_up(
+pub(super) fn bring_up(
     pending: Pending,
     held: &mut Option<Held>,
     bytes: usize,
@@ -154,7 +154,7 @@ pub fn clear() {
 
 /// Whether a background was noted since the last call: a menu frame with one stays on the GPU
 /// even with no 3D in it.
-pub fn recorded_this_frame() -> bool {
+pub(super) fn recorded_this_frame() -> bool {
     RECORDED.swap(false, Relaxed)
 }
 

@@ -14,7 +14,11 @@ use rc2k_core::input::profile::{ACTIONS, Keys};
 
 /// The device `record` (number `device`) read (see the header). The poll that copies the
 /// device's state into the record, for the pages that show it, comes first.
-pub fn read_device(input: &Input, device: usize, record: &InputDevice) -> Result<(), Refused> {
+pub(super) fn read_device(
+    input: &Input,
+    device: usize,
+    record: &InputDevice,
+) -> Result<(), Refused> {
     let devices = &input.devices;
     crate::input::poll_device::poll_device(devices, record)?;
     if record.reading.get() != 1 {

@@ -29,7 +29,7 @@ use crate::scene::vector3::normalise;
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
 /// The plane's constants. The offsets are from its start.
-pub struct PlaneTuning {
+struct PlaneTuning {
     /// +0x0: what the settings' rate is multiplied by into the first axis' scale
     pub rate_k: f32,
     /// +0x4: what the two axes' lengths are divided by
@@ -43,7 +43,7 @@ pub struct PlaneTuning {
 }
 
 /// The plane's constants.
-pub static PLANE_TUNING: PlaneTuning = PlaneTuning {
+static PLANE_TUNING: PlaneTuning = PlaneTuning {
     rate_k: 1.0_f32,
     shares: [2048.0_f32, 1024.0_f32],
     places: [

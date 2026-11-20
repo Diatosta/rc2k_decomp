@@ -4,7 +4,7 @@ use crate::errors::Refused;
 use crate::install::installer::copy_file;
 
 /// `from` copied to `to`; whether it was all done. The callers see a failed copy.
-pub fn copy_counted(
+pub(super) fn copy_counted(
     install: &crate::install::owner::Install,
     from: impl Into<crate::memory::place::BytePlace>,
     to: impl Into<crate::memory::place::BytePlace>,

@@ -6,7 +6,7 @@ use crate::menu::owner::Menus;
 use crate::service::pages::{GEAR_RATIO, change_page};
 use crate::system::owner::System;
 
-pub fn edit_gear_ratio(
+pub(super) fn edit_gear_ratio(
     menus: &Menus,
     system: &System,
     input: &crate::input::owner::Input,

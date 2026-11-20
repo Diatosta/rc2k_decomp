@@ -13,7 +13,7 @@ use rc2k_core::net::screens;
 
 /// Called through
 /// `screens::run_frame` by `net::settings_loop`.
-pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let net = o.net;
     let Some(locked) = lock_surface(o.gfx, o.system) else {
         return Ok(());

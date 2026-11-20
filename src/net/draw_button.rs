@@ -12,13 +12,13 @@ use crate::net::owner::Net;
 use crate::net::store::Editing;
 use rc2k_core::net::screens::{self, ButtonFont};
 
-pub const FONT_PLAIN: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON;
-pub const FONT_LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_LIT;
+const FONT_PLAIN: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON;
+const FONT_LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_LIT;
 const FONT_DIM: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_DIM;
 
 /// The font of item `item`'s text: lit when it is the highlighted item and being edited in
 /// `edit`, or in the blink's lit half.
-pub fn item_font(
+pub(super) fn item_font(
     edit: &Editing,
     list_state: &crate::menu::list_state::ListState,
     item: u32,

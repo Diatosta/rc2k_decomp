@@ -12,7 +12,7 @@ use rc2k_core::net::message::{Message, Payload};
 use rc2k_core::net::race::Kind;
 
 /// Sends the current (bot) car's messages that are due at its step count.
-pub fn send_bot_turn(race: &Race, net: &Net) -> Result<(), Refused> {
+pub(super) fn send_bot_turn(race: &Race, net: &Net) -> Result<(), Refused> {
     let car = race.shared.car();
     let number = race.shared.work.get().current_car.get() as u8;
     for kind in [Kind::Position, Kind::Extra] {

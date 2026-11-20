@@ -40,8 +40,6 @@ pub struct Row<T> {
 
 const ROUNDS_X: [i32; 6] = [0x19A, 0x1D0, 0x206, 0x23C, 0x272, 0x2A8];
 
-pub const HISTORY_ENTRY_LEN: u32 = 0x78;
-
 /// The first history entry, from entry 0 on, whose class (+0x10) and position (+0x70) match
 /// (`fields(n)`); entry 0 is looked at before any end test, the others only if `first(n)` is not
 /// -1. `None`: the end met first (fatal error 0x8070A7FA).

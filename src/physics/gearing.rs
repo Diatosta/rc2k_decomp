@@ -17,7 +17,7 @@ use crate::race::numbers_store::Numbers;
 
 /// The variables: the car's work copy's and the ratio table (gear -1 first).
 #[derive(Clone, Copy)]
-pub struct GearPlaces<'a> {
+pub(super) struct GearPlaces<'a> {
     pub gear: &'a PlainInt,
     pub engine_speed: &'a PlainFloat,
     pub drive_speed: &'a PlainFloat,
@@ -55,7 +55,7 @@ fn gear_ratio(p: &GearPlaces<'_>) -> Result<Option<(i32, f32)>, Refused> {
 
 /// `physics::revs_from_wheels`: in gear, engine speed = the driven speed (with
 /// drive kind 1 the two driven speeds' sum times 0.5) over the gear's ratio.
-pub fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), Refused> {
+pub(super) fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
@@ -70,7 +70,7 @@ pub fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), 
 
 /// `physics::wheels_from_revs`: in gear, driven speed = engine speed times the
 /// gear's ratio; with drive kind 1 the second driven speed the same (reloaded first).
-pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
+pub(super) fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
@@ -83,7 +83,7 @@ pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
 }
 
 /// `physics::revs_from_speed`: in gear, engine speed = the car speed over the gear's ratio.
-pub fn revs_from_speed_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
+pub(super) fn revs_from_speed_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };

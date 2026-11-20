@@ -4,7 +4,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::screens::service_boxes::quad;
 
-pub fn draw_column_rules(o: Owners<'static>) -> Result<(), Refused> {
+pub(super) fn draw_column_rules(o: Owners<'static>) -> Result<(), Refused> {
     let screens = &o.menus.screens;
     // The logic is in `rc2k_core::screens::panels::column_rules`.
     for a in rc2k_core::screens::panels::column_rules(screens.state.service_ui.fade_full.get()) {

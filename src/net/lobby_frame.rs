@@ -34,7 +34,7 @@ fn time_text(
 
 /// Called through
 /// `screens::run_frame` by `net::lobby_loop`.
-pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (net, strings, gfx) = (o.net, o.strings, o.gfx);
     let text = &strings.text;
     let vars = &net.vars;

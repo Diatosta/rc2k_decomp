@@ -11,7 +11,7 @@ use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
 /// One compare and copy of floats: the same at any precision.
 // Core: `rc2k_core::physics::motion::count_down`.
-pub fn count_down_timers(car: &Car, vars: &RaceVars) {
+pub(super) fn count_down_timers(car: &Car, vars: &RaceVars) {
     let mut c = StepCounters {
         first: [car.light_hold_steps.get(), car.value_jump_steps.get()],
         standing: car.stopped_steps.get(),

@@ -18,7 +18,7 @@ use crate::menu::owner::Keys;
 use crate::menu::owner::Menus;
 
 pub use rc2k_core::menu::player::{KEYS, Redefined};
-pub const NO_PLACE: u32 = 999;
+const NO_PLACE: u32 = 999;
 /// The reserved list's length is not known; the game's has 18 keys.
 const RESERVED_ROOM: usize = 0x100;
 
@@ -34,7 +34,7 @@ fn reserved(keys: &Keys) -> Result<Option<Vec<u8>>, BadInput> {
 }
 
 /// One frame of redefining a key of `player` (0: refused).
-pub fn redefine_key(
+pub(super) fn redefine_key(
     menus: &Menus,
     input: &crate::input::owner::Input,
     player: Option<crate::menu::standings::PlayerCell>,

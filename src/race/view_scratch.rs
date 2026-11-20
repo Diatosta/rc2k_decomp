@@ -61,7 +61,7 @@ impl SortLists {
     }
 
     /// Depth entry `n` (the key, the second word). One past the 0x1000 refused.
-    pub fn depth_entry(&self, n: u32) -> Result<&[PlainDword], BadInput> {
+    pub(super) fn depth_entry(&self, n: u32) -> Result<&[PlainDword], BadInput> {
         let n = n as usize;
         self.depth_entries()
             .get(2 * n..2 * n + 2)
@@ -78,12 +78,12 @@ impl SortLists {
 
     /// The cells from depth entry `n` on to the end (the sort entries and the overrun after
     /// them): what a flare drawn the described way reads as its description.
-    pub fn depth_from(&self, n: usize) -> &[PlainDword] {
+    pub(super) fn depth_from(&self, n: usize) -> &[PlainDword] {
         self.cells.get(2 * n..).unwrap_or(&[])
     }
 
     /// The same from sort entry `n` on.
-    pub fn sort_from(&self, n: usize) -> &[PlainDword] {
+    pub(super) fn sort_from(&self, n: usize) -> &[PlainDword] {
         self.cells.get(2 * ENTRIES + 2 * n..).unwrap_or(&[])
     }
 }
@@ -182,7 +182,7 @@ impl ViewScratch {
 
     /// The shared view variables (`reads.view_and_records`) into the view's (`vars`), as its
     /// drawing begins.
-    pub fn take_vars(&self, reads: crate::scene::workers::DrawReads<'_>) {
+    pub(super) fn take_vars(&self, reads: crate::scene::workers::DrawReads<'_>) {
         let shared = &reads.view_and_records.view_vars;
         use crate::memory::cells::Cells;
         self.vars.copy_from(shared);
@@ -191,7 +191,7 @@ impl ViewScratch {
 
     /// Hands what the view's drawing changed in its view variables into the shared ones (on the
     /// main thread, once it is drawn).
-    pub fn hand_on_vars(&self, race: &crate::race::owner::Race) {
+    pub(super) fn hand_on_vars(&self, race: &crate::race::owner::Race) {
         use crate::memory::cells::Cells;
         race.frame
             .view_and_records
@@ -253,7 +253,7 @@ impl ViewScratch {
 
     /// What `now` (a copy, `copy_drawing_from`) changed since it was `start` put into this
     /// view, part by part but the sort lists: the copy's drawing put after this view's own.
-    pub fn merge_drawing(&self, now: &ViewScratch, start: &ViewScratch) {
+    pub(super) fn merge_drawing(&self, now: &ViewScratch, start: &ViewScratch) {
         for_each_part!(merge_changes, self, now, start);
     }
 
@@ -283,12 +283,12 @@ static MANY_VIEWS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool
 /// players' views (slot `n` player `n`) and there are no mirrors, where with one or two players
 /// slots 2 and 3 are the first two players' mirrors. Set by the frame's drawing, before its
 /// parts run.
-pub fn set_many_views(many: bool) {
+pub(super) fn set_many_views(many: bool) {
     MANY_VIEWS.store(many, std::sync::atomic::Ordering::Relaxed);
 }
 
 /// Whether the view slots are the players' (`set_many_views`).
-pub fn many_views() -> bool {
+pub(super) fn many_views() -> bool {
     MANY_VIEWS.load(std::sync::atomic::Ordering::Relaxed)
 }
 

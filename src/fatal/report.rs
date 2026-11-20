@@ -67,7 +67,7 @@ pub fn report(
 /// The reporter called by `fatal::raise`, with the registers of the place that refused when
 /// they are known (the report has no register lines otherwise). A code without the fatal bit
 /// returns; with it the game is asked to quit and this thread ends (see the header).
-pub fn report_now(context: Option<&Context>) {
+pub(super) fn report_now(context: Option<&Context>) {
     log(&format!(
         "fatal::report: thread {}",
         crate::platform::sync::thread_id()

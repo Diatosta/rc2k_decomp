@@ -66,7 +66,7 @@ impl Replays {
 /// (`copy_header_settings`), a checksum (from dword 1: add, rotate left 5) into dword 0; then its
 /// 32 blocks of 8 chained through `race::seal_block` with the key "halfmoon" (the cipher's key is
 /// put back after).
-pub fn seal_replay_header(
+pub(super) fn seal_replay_header(
     race: &Race,
     menus: &Menus,
     strings: &crate::strings::owner::Strings,
@@ -220,14 +220,18 @@ fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
 /// Writes `count` bytes at `from` to file `handle`; unless `chunks_plain` is 1 they are packed
 /// (`race::pack_runs`, rounded up to a dword) and the packing is written when smaller. Both
 /// callers write the whole replay block (`block`, 0x2810 bytes): here it is that block.
-pub fn write_replay_chunk(race: &Race, handle: u32) -> Result<(u32, bool), Refused> {
+pub(super) fn write_replay_chunk(race: &Race, handle: u32) -> Result<(u32, bool), Refused> {
     let block = race.viewer_buffers().block_bytes();
     write_chunk_of(race, handle, &block)
 }
 
 /// `write_replay_chunk` of the given block bytes (the original's block is the first of the
 /// own format's bytes).
-pub fn write_chunk_of(race: &Race, handle: u32, block: &[u8]) -> Result<(u32, bool), Refused> {
+pub(super) fn write_chunk_of(
+    race: &Race,
+    handle: u32,
+    block: &[u8],
+) -> Result<(u32, bool), Refused> {
     let shared = &race.shared;
     // A replay with the extra tape has its block's own size (the index's plain size).
     let plain_len = block.len() as u32;
@@ -303,7 +307,11 @@ pub fn write_replay_block(race: &Race, system: &System, replay: &Replay) -> Resu
 /// (`race::write_replay_block`) and the cursor and count go back. Refuses frames past the block's
 /// room (before anything). Its one caller adds the padding frame (the replay view's
 /// `pad_frame`): here the frame's cells, `bytes` their size.
-pub fn add_replay_frame(race: &Race, system: &System, frame: &[PlainDword]) -> Result<(), Refused> {
+pub(super) fn add_replay_frame(
+    race: &Race,
+    system: &System,
+    frame: &[PlainDword],
+) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     if !shared.replay_file().replay_open.is_set() {

@@ -11,7 +11,7 @@ use crate::errors::Refused;
 use crate::gfx::put_surface_pixel::put_surface_pixel;
 use crate::race::mud_texel::texel_place;
 
-pub fn put_mud_texel(
+pub(super) fn put_mud_texel(
     components: u32,
     x: u32,
     y: u32,

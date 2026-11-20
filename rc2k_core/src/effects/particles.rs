@@ -7,19 +7,21 @@ pub fn next_random(r: u32) -> u32 {
     r.wrapping_mul(0x9D).wrapping_add(0x47)
 }
 
+#[cfg(test)]
 /// What `jitter_point` leaves: the point moved (b c d), the random and its last value shifted
 /// right 12.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Jittered {
+pub(crate) struct Jittered {
     pub point: [f32; 3],
     pub seed: u32,
     pub last: i32,
 }
 
+#[cfg(test)]
 /// `effects::jitter_point`: three steps of the random; each moves one of the point's
 /// values (d first, then c, then b) by the step shifted right 12 (arithmetic) remainder
 /// the spread (exact, as `%`), stored.
-pub fn jitter(spread: f32, point: [f32; 3], seed: u32) -> Jittered {
+pub(crate) fn jitter(spread: f32, point: [f32; 3], seed: u32) -> Jittered {
     let mut moved = [point[2], point[1], point[0]];
     let (mut seed, mut last) = (seed, 0);
     for v in moved.iter_mut() {

@@ -32,7 +32,7 @@ pub fn unpack_mouse(devices: &Devices) -> (u32, i32, i32) {
 
 /// `unpack_mouse` into the mouse's position and buttons (bit 0 left, bit 1 right); gives
 /// what `unpack_mouse` gives.
-pub fn take_mouse(input: &Input) -> (u32, i32, i32) {
+fn take_mouse(input: &Input) -> (u32, i32, i32) {
     let (buttons, x, y) = unpack_mouse(&input.devices);
     input.mouse().x.set(x as u32);
     input.mouse().y.set(y as u32);
@@ -64,7 +64,7 @@ pub fn buttons_to_keys(input: &Input) -> u32 {
 
 /// Sets `keys_pressed` to the keys down now and not before (their low bits only, a dword at
 /// a time) and `keys_before` = `keys_now`; gives the last dword's pressed and now.
-pub fn find_pressed_keys(devices: &Devices) -> (u32, u32) {
+fn find_pressed_keys(devices: &Devices) -> (u32, u32) {
     let mut t = tables(devices);
     let found = t.find_pressed();
     devices.keys_before.write(&t.before);
@@ -74,7 +74,7 @@ pub fn find_pressed_keys(devices: &Devices) -> (u32, u32) {
 
 /// For keys 1 .. 0x7F, the count of frames held (0 when
 /// up); at 0x41 the key is pressed again and the count goes back to 0x40.
-pub fn repeat_keys(devices: &Devices) {
+fn repeat_keys(devices: &Devices) {
     let mut t = tables(devices);
     t.repeat();
     devices.key_repeat.write(&t.repeat);
@@ -82,7 +82,7 @@ pub fn repeat_keys(devices: &Devices) {
 }
 
 /// The left and right clicks from keys 0x73 and 0x74 pressed (low bits); gives the right one.
-pub fn take_mouse_clicks(input: &Input) -> u32 {
+fn take_mouse_clicks(input: &Input) -> u32 {
     let clicks = tables(&input.devices).clicks();
     input.mouse().left_click.set(clicks[0]);
     input.mouse().right_click.set(clicks[1]);
@@ -92,7 +92,7 @@ pub fn take_mouse_clicks(input: &Input) -> u32 {
 pub type Screenshot<'a> = &'a mut dyn FnMut();
 
 /// Takes a screenshot while key 0x52 (Numpad 0) is down in `keys_now`.
-pub fn screenshot_if_key(devices: &Devices, shot: Screenshot) {
+fn screenshot_if_key(devices: &Devices, shot: Screenshot) {
     if rc2k_core::input::frame::screenshot_wanted(devices.keys_now.get(SCREENSHOT_KEY as usize)) {
         shot();
     }
@@ -127,7 +127,7 @@ pub fn update_input(o: Owners<'static>) -> (u32, u32) {
     })
 }
 
-pub fn update_input_in(input: &Input, race: &Race, shots_on: u32, shot: Screenshot) -> (u32, u32) {
+fn update_input_in(input: &Input, race: &Race, shots_on: u32, shot: Screenshot) -> (u32, u32) {
     input.mouse().last_x.set(input.mouse().x.get());
     input.mouse().last_y.set(input.mouse().y.get());
     input.mouse().left_click.set(0);
@@ -150,7 +150,7 @@ pub fn update_input_in(input: &Input, race: &Race, shots_on: u32, shot: Screensh
     (right, pressed)
 }
 
-pub fn game_screenshot(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) {
+fn game_screenshot(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) {
     if let Err(e) = crate::gfx::take_screenshot::take_screenshot(gfx, system) {
         crate::fatal::raise::refused("gfx::take_screenshot", e);
     }

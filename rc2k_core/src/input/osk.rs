@@ -18,7 +18,7 @@ const ACCENTS: [&[u8; COLUMNS]; 4] = [
 ];
 
 /// The command keys' row, left to right.
-pub const COMMANDS: [Key; 6] = [
+pub(crate) const COMMANDS: [Key; 6] = [
     Key::Shift,
     Key::Symbols,
     Key::Accents,

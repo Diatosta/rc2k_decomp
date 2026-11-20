@@ -6,7 +6,7 @@
 use crate::errors::Refused;
 use crate::saves::best_times::BestTables;
 
-pub fn clear_score_marks(tables: &BestTables) -> Result<(), Refused> {
+pub(super) fn clear_score_marks(tables: &BestTables) -> Result<(), Refused> {
     tables.scores.with(rc2k_core::saves::scores::clear_marks)?;
     Ok(())
 }

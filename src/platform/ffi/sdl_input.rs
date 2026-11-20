@@ -17,7 +17,7 @@ use std::ffi::CString;
 use std::ffi::c_char;
 
 /// SDL's last error text.
-pub fn last_error() -> String {
+fn last_error() -> String {
     // SAFETY: SDL's NUL-ended error text, copied at once.
     unsafe { CStr::from_ptr(SDL_GetError()) }
         .to_string_lossy()

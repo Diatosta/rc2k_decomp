@@ -7,7 +7,7 @@ use crate::install::read_registry::Registry;
 const REG_SZ: u32 = 1;
 
 /// The text `data` (its NUL added) as the value `name` of the lobby's key.
-pub fn set_lobby_value(
+pub(super) fn set_lobby_value(
     install: &crate::install::owner::Install,
     name: &[u8],
     data: &[u8],

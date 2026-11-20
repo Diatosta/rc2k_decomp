@@ -5,9 +5,9 @@
 pub const A8: u32 = 0x13;
 
 /// The most a page's figure may be (signed).
-pub const OVERALL_MOST: u32 = 0xAB;
-pub const CLASS_MOST: u32 = 0x33;
-pub const A8_CLASS_MOST: u32 = 0x51;
+pub(crate) const OVERALL_MOST: u32 = 0xAB;
+pub(crate) const CLASS_MOST: u32 = 0x33;
+pub(crate) const A8_CLASS_MOST: u32 = 0x51;
 
 /// The results pages.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

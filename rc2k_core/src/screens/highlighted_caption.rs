@@ -21,7 +21,7 @@ pub enum Work {
 }
 
 /// The caption's string.
-pub const CAPTION_STRING: u32 = 0x1004;
+pub(crate) const CAPTION_STRING: u32 = 0x1004;
 
 /// The button and caption, measured from x `measured_at`; returns the caption text's
 /// `too_wide`. A width of 0 is fatal error 0x80701010; refused: a caption narrower than 20.

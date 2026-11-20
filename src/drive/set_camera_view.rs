@@ -8,7 +8,7 @@ use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use rc2k_core::drive::camera_views::CameraView;
 
-pub fn set_view_at(car: &Car, step: &PlainDword) -> Result<(), BadInput> {
+pub(super) fn set_view_at(car: &Car, step: &PlainDword) -> Result<(), BadInput> {
     let mut v = CameraView {
         wanted: car.camera_blend_view.get(),
         ..CameraView::default()

@@ -9,7 +9,10 @@ use crate::physics::step_families::ContactInputs;
 
 /// For course face `face` (its number: the record and the object are both the face): (inside, the
 /// point's number).
-pub fn scene_point_hits_car(c: &ContactInputs<'_>, face: u32) -> Result<(bool, u32), Refused> {
+pub(super) fn scene_point_hits_car(
+    c: &ContactInputs<'_>,
+    face: u32,
+) -> Result<(bool, u32), Refused> {
     let number = crate::race::course_places::face_field::<u32>(c.course.reads(), face, 4)?;
     c.tables
         .scene_point_hits

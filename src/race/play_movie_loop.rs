@@ -24,7 +24,10 @@ fn log_number(n: u32) {
     crate::logfile::log_int::log_int(n as i32, true, 1);
 }
 
-pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn play_movie_loop(
+    race: &Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
     let input = o.input;
     use crate::drive::race_parts;
     crate::race::stage_prefs::init_skidmarks(race)?;

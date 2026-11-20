@@ -4,7 +4,7 @@
 use crate::audio::voices::codriver_copy;
 
 /// The count down's length in hundredths (held there) and the seconds it shows.
-pub const LENGTH: u32 = 1500;
+pub(crate) const LENGTH: u32 = 1500;
 pub const SECONDS: u32 = 6;
 
 /// What the count down does for one car this tick.
@@ -57,7 +57,7 @@ pub struct BeepSound {
 }
 
 /// The beeps' volume.
-pub const BEEP_VOLUME: u32 = 0xFFFF_FF91;
+pub(crate) const BEEP_VOLUME: u32 = 0xFFFF_FF91;
 
 /// The beep for a listed car's sound slot (unsigned), played on its channel: the first two
 /// players' are a pair of records, the split screen's third and fourth (slots 2 and 3, when

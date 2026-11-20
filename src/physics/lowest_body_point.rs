@@ -13,7 +13,7 @@ use crate::race::numbers_store::Numbers;
 
 /// The lowest of the probe points past the first four (its depth and number), and the
 /// wheels' share from its depth.
-pub fn lowest_body_point(
+pub(super) fn lowest_body_point(
     car: &Car,
     numbers: &Numbers,
     contact: &ContactWork,

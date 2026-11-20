@@ -18,7 +18,7 @@ const STATES: [(u32, u32); 7] = [
     (1, 0x1B),
 ];
 
-pub fn windscreen_flakes_setup(
+pub(super) fn windscreen_flakes_setup(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     fl: &WindscreenFlakes,
     scene: &crate::scene::owner::Scene,
@@ -32,7 +32,7 @@ pub fn windscreen_flakes_setup(
 }
 
 /// The set-up with the texture places `places` (`effects::pong_setup` has its own).
-pub fn setup_with(
+pub(super) fn setup_with(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     fl: &WindscreenFlakes,
     places: [f32; 4],

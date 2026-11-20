@@ -45,7 +45,7 @@ pub const PLAIN: Kind = Kind {
 };
 
 /// The highlighted button.
-pub const HIGHLIGHTED: Kind = Kind {
+pub(super) const HIGHLIGHTED: Kind = Kind {
     left_at: 2,
     right_at: 3,
     bad_align: FatalError {
@@ -134,7 +134,7 @@ pub fn draw_button(
 
 /// The button an item describes itself (width at +8, alignment at +0xC), highlighted if the
 /// item is.
-pub fn draw_item_button(
+pub(super) fn draw_item_button(
     menus: &Menus,
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
@@ -154,7 +154,7 @@ pub fn draw_item_button(
 /// The other four: a button as wide as the item's text (measured with the item's font) plus
 /// 12. The text is measured from x 0, as its width does not depend on x. Refused: a measuring
 /// font that does not only measure (it would draw the text at that x).
-pub fn draw_text_button(
+pub(super) fn draw_text_button(
     o: crate::owners::Owners<'static>,
     kind: &Kind,
     align: u32,

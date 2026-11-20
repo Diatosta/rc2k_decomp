@@ -6,7 +6,7 @@
 use crate::audio::own::AudioOwn;
 use crate::errors::{FatalError, Refused};
 
-pub const WAVE_FORMAT_LEN: usize = 0x12;
+const WAVE_FORMAT_LEN: usize = 0x12;
 
 #[repr(C, packed)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -49,14 +49,18 @@ pub fn wave_format(state: &AudioOwn, format: u32, frequency: u32) -> Result<Wave
     }
 }
 
-pub fn describe_wave_format(state: &AudioOwn, format: u32, frequency: u32) -> Result<(), Refused> {
+pub(super) fn describe_wave_format(
+    state: &AudioOwn,
+    format: u32,
+    frequency: u32,
+) -> Result<(), Refused> {
     let f = wave_format(state, format, frequency)?;
     state.wave_format.set(f);
     Ok(())
 }
 
 /// The wave format as the platform's format (what `CreateSoundBuffer` and `SetFormat` read of it).
-pub fn platform_format(state: &AudioOwn) -> crate::platform::sound::Format {
+pub(super) fn platform_format(state: &AudioOwn) -> crate::platform::sound::Format {
     let w = state.wave_format.get();
     crate::platform::sound::Format {
         channels: w.channels as u32,

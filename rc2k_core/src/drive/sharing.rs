@@ -37,7 +37,7 @@ pub fn wheel_cleared(switch: u32, bits: u32, k: u32) -> bool {
 }
 
 /// A hole in the six dwords copied to block +0x700.
-pub const HOLE: u32 = 0x8000_0000;
+pub(crate) const HOLE: u32 = 0x8000_0000;
 
 /// The holes filled in place, in order: each from the next entry (round) that is not a
 /// hole, at most six looked at (all holes: it stays).

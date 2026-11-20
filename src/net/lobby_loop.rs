@@ -17,7 +17,7 @@ use rc2k_core::net::screens;
 
 /// The players' states and-ed together (those with bit 0x80 left out), starting from `bits`,
 /// over `count` players (at least one turn: `count` > 0).
-pub fn all_states(vars: &NetShared, bits: State, count: u32) -> State {
+pub(super) fn all_states(vars: &NetShared, bits: State, count: u32) -> State {
     let state = |n: u32| vars.player_block_or_end(n).record.state();
     // The logic is in `rc2k_core::net::players::all_in_state`.
     rc2k_core::net::players::all_in_state(bits, count, state)
@@ -119,7 +119,7 @@ fn settle_keys(input: &crate::input::owner::Input) {
 }
 
 /// 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
-pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
+pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     let (net, system) = (o.net, o.system);
     let list_state = &o.menus.list;
     net.race_slot.set_players(0);

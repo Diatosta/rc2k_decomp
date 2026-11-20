@@ -3,12 +3,13 @@
 //! is an `f64`, rounded to `f32` where it is stored; the offsets' rounding follows the x87's
 //! control word and comes in as a closure.
 
+#[cfg(test)]
 /// The drift's variables: the clock at the last targets, the wait, the targets and paces
 /// (`RainState.drift_target[0]`, `RainState.drift_target[2]`; `RainState.drift_pace[0]`,
 /// `RainState.drift_pace[2]`), a second random's halves times 0x100 (`RainState.drift_halves[0]`,
 /// `RainState.drift_halves[2]`: only written) and the offsets.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct Drift {
+pub(crate) struct Drift {
     pub since: u32,
     pub wait: u32,
     pub target: [f32; 2],
@@ -17,16 +18,19 @@ pub struct Drift {
     pub offset: [i32; 2],
 }
 
+#[cfg(test)]
 /// What a drift step reports: the time since the last targets, or after new targets the
 /// first half, with the second half and the new wait.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct DriftLeftovers {
+pub(crate) struct DriftLeftovers {
     pub value: u32,
     pub second_half: Option<u32>,
     pub wait: Option<u32>,
 }
 
+#[cfg(test)]
 impl Drift {
+    #[cfg(test)]
     /// One frame at `clock`: when the wait has passed since the last targets (unsigned), new
     /// targets from the marks' random (`random()`, the marks' `next_seed`: its low 12 bits and the
     /// next 12, less 0x7FF, times `scale()`, asked only then), a new wait ((its top byte + 0x40)

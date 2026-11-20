@@ -82,7 +82,7 @@ pub fn emit(
 }
 
 /// `wheel` is the wheel's record, `object` the car's object.
-pub fn emit_wheel_particles(
+pub(super) fn emit_wheel_particles(
     effects: &Effects,
     wheel: &MarkRecord,
     object: &CarEffects,

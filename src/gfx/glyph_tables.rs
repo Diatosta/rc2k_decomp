@@ -36,7 +36,7 @@ impl GlyphTables {
 
 /// The work memory taken, the picture's size set for sheets, the pixel layout the surface's, and no
 /// table yet.
-pub fn begin_glyph_tables(
+pub(super) fn begin_glyph_tables(
     vars: &SheetVars,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
@@ -68,7 +68,7 @@ pub fn begin_glyph_tables(
 
 /// A new table starts where the list stands, after the padding that brings the table before it to
 /// whole dwords.
-pub fn begin_glyph_table(
+pub(super) fn begin_glyph_table(
     fonts: &crate::gfx::owner::FontStores,
     vars: &SheetVars,
     list: &crate::memory::ListCells,
@@ -82,13 +82,13 @@ pub fn begin_glyph_table(
     Ok(())
 }
 
-pub fn end_glyph_tables(strings: &crate::strings::owner::Strings) -> Result<(), BadInput> {
+pub(super) fn end_glyph_tables(strings: &crate::strings::owner::Strings) -> Result<(), BadInput> {
     free_list(&strings.lexicon.memory.memory)
 }
 
 /// The last sheet's palette as 256 pixels of the builder's layout at `to`; nothing if `to` is 0 or
 /// the last sheet was one of components.
-pub fn palette_to_pixels(
+pub(super) fn palette_to_pixels(
     to: u32,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
@@ -113,7 +113,7 @@ pub fn palette_to_pixels(
 /// The last sheet's palette for pixels that are a colour in the low four bits and an alpha in the
 /// top four: entry 0 becomes 0, every entry the colour of its low four bits' entry, and its fourth
 /// byte the alpha, the four bits twice.
-pub fn alpha_palette(gfx: &crate::gfx::owner::Gfx) {
+pub(super) fn alpha_palette(gfx: &crate::gfx::owner::Gfx) {
     let palette = &gfx.pictures.decoder.palette;
     palette[0].set(0);
     for entry in 0..256usize {
