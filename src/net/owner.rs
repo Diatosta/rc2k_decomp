@@ -67,7 +67,13 @@ impl Net {
     /// A chat message from `player`, waiting for the game's thread. The game's thread takes them
     /// only in the lobby: past `CHAT_WAITING_MOST` the oldest are dropped, so that a machine that
     /// sends lines all through a race cannot fill this one's memory.
-    pub(super) fn queue_chat(&self, player: u32, text: Vec<u8>, sequence: Option<u32>) {
+    ///
+    /// The text's control bytes are dropped (the NUL that ends it stays): the text engine reads
+    /// them as commands that move the pen or name glyphs, so a line sent by another machine
+    /// could make a line measure as negative or point past the font's glyphs, which ends the game
+    /// on every machine that shows it. This machine's own typing never makes them.
+    pub(super) fn queue_chat(&self, player: u32, mut text: Vec<u8>, sequence: Option<u32>) {
+        text.retain(|&b| b >= 0x20 || b == 0);
         let mut waiting = self
             .chat_waiting
             .lock()
@@ -154,5 +160,14 @@ mod tests {
             Some(CHAT_WAITING_MOST as u32 + 39)
         );
         assert!(net.take_waiting_chat().is_empty());
+    }
+
+    /// Guards the chat against the text engine's control bytes sent by another machine.
+    #[test]
+    fn a_received_line_keeps_no_control_bytes() {
+        let net: Box<Net> = Box::new(Net::new());
+        net.queue_chat(1, b"a\x0e\xffb\x1f\xffc\n\x01d\0".to_vec(), None);
+        let waiting = net.take_waiting_chat();
+        assert_eq!(waiting[0].text, b"a\xffb\xffcd\0");
     }
 }

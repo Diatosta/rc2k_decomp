@@ -14,7 +14,7 @@ use rc2k_core::hud::icons;
 /// The icon of `lights`, `bottom` its row.
 pub fn draw_icon(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     lights: &Lights,
     bottom: u32,
@@ -22,17 +22,17 @@ pub fn draw_icon(
     if !icons::shown(lights.lit.get()) {
         return Ok(());
     }
-    let scale = hud.block.icon_scale.get();
+    let scale = hud.block.icon_scale;
     let width = lights.width.get();
-    hud.block.icon_size[0].set(icons::scaled(width, scale));
+    hud.block.icon_size[0] = icons::scaled(width, scale);
     let drop = lights.drop.get();
-    hud.block.icon_size[1].set(icons::scaled(drop, scale));
+    hud.block.icon_size[1] = icons::scaled(drop, scale);
     let i = icons::icon(
         width,
         lights.alpha.get(),
         drop,
         scale,
-        hud.block.icon_shift.get(),
+        hud.block.icon_shift,
         bottom,
     );
     for (n, u, v, x, y) in icons::corners(&i) {
@@ -44,7 +44,7 @@ pub fn draw_icon(
         at.colour.set(i.colour);
         at.specular.set(0);
         // The scratch cell keeps the last value stored.
-        hud.block.fistp_scratch.set(y);
+        hud.block.fistp_scratch = y;
     }
     pen.polygons.polygon_vertex_count.set(4u32);
     crate::hud::add_polygon::add_polygon(frame, hud, pen)

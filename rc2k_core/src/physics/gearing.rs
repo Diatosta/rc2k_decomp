@@ -7,16 +7,14 @@
 #[cfg(test)]
 use super::x87::negated;
 use super::x87::{below, loaded};
-#[cfg(test)]
 use crate::Invalid;
 
 #[cfg(test)]
 /// The ratio table's entries: reverse (-1) ..= gear 7.
 pub(crate) const RATIOS: usize = 9;
 
-#[cfg(test)]
 /// The gear's place in the ratio table (gear + 1), or None in neutral; refused outside -1 ..= 7.
-pub(crate) fn ratio_index(gear: i32) -> Result<Option<usize>, Invalid> {
+pub fn ratio_index(gear: i32) -> Result<Option<usize>, Invalid> {
     if gear == 0 {
         return Ok(None);
     }
@@ -48,6 +46,7 @@ pub fn revs_from_speed(speed: f32, ratio: f32) -> f32 {
 }
 
 #[cfg(test)]
+/// Test oracle (not called by the game): the game's step runs on the x87 emulation (`X`, rounding by the thread's control word) in `src/physics/settle_drive_speeds.rs`, whose reference vectors compare it with the original's code; this plain `f64` version would round differently at extended precision, so the game does not call it.
 /// A driven speed brought toward 0 by `step`, never past it. A speed of 0 or not a number is
 /// left (None); one that reaches or crosses 0 becomes +0.
 pub(crate) fn settle_speed(speed: f32, step: f32) -> Option<f32> {
@@ -76,6 +75,7 @@ pub fn drops_to_neutral(
 }
 
 #[cfg(test)]
+/// Test oracle (not called by the game): the game's step runs on the x87 emulation (`X`, rounding by the thread's control word) in `src/physics/make_gear_ratios.rs`, whose reference vectors compare it with the original's code; this plain `f64` version would round differently at extended precision, so the game does not call it.
 /// What the ratios are made from.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct GearSetup {
@@ -105,6 +105,7 @@ fn setup_ratio(ends: [f32; 2], s: &GearSetup) -> f32 {
 }
 
 #[cfg(test)]
+/// Test oracle (not called by the game): the game's step runs on the x87 emulation (`X`, rounding by the thread's control word) in `src/physics/make_gear_ratios.rs`, whose reference vectors compare it with the original's code; this plain `f64` version would round differently at extended precision, so the game does not call it.
 /// The ratios (reverse ..= gear 7) and the step between gears. The top gear's and the first's
 /// come from the setup; gears 2 ..= 5 follow in even steps, the sixth and seventh one more
 /// step each only past five and six gears (with four gears the fourth is a step's); reverse is

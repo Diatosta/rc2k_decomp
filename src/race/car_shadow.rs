@@ -570,7 +570,6 @@ fn shadow_on_face(
     if count > 0x40 {
         return Err(BadInput("a shadow list past 0x40").into());
     }
-    ctx.view.polygon.polygon_drawn.set(0u32);
     let polygon = &ctx.part.polygon;
     for (k, cell) in work.list.iter().enumerate().take(count as usize) {
         list_cell(polygon, k).set(cell.get());
@@ -653,7 +652,6 @@ fn shadow_on_face(
         ctx.reads,
         ctx.reads.screen,
     )?;
-    ctx.view.polygon.polygon_drawn.set(1u32);
     Ok(())
 }
 

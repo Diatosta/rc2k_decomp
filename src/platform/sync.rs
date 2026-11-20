@@ -73,8 +73,22 @@ fn object(handle: u32) -> Option<Arc<Object>> {
 static NEXT_ID: AtomicU32 = AtomicU32::new(1);
 
 thread_local! {
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static ID: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
     /// Whether `spawn` made the thread (`exit_thread` unwinds only there).
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static SPAWNED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 

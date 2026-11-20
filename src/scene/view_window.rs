@@ -33,8 +33,6 @@ pub struct ViewWindow {
     pub clip_screen: [PlainFloat; 4],
     /// `view_offset` as floats.
     pub view_offset_float: [PlainFloat; 2],
-    /// The count of faces done (`scene::draw_object_faces`).
-    pub faces_done: PlainDword,
     /// The depth divisor: (100 less `StagePrefs.nearer`, held) times `Numbers.hundredth_a`.
     pub depth_divisor: PlainFloat,
     /// The farthest depth times `SceneDraw.clip_factor`, rounded.
@@ -58,7 +56,6 @@ impl ViewWindow {
             clip_edges: [const { PlainDword::new(0) }; 4],
             clip_screen: [const { PlainFloat::new(0.0) }; 4],
             view_offset_float: [const { PlainFloat::new(0.0) }; 2],
-            faces_done: PlainDword::new(0),
             depth_divisor: PlainFloat::new(0.0),
             clip_farthest: PlainDword::new(0),
             view_depth: [const { PlainDword::new(0) }; 2],

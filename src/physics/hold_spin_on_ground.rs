@@ -18,9 +18,8 @@ pub(super) fn hold_spin_on_ground(car: &Car, tables: &PhysicsTables) {
         car.spin[0].get(),
         car.spin[2].get(),
     );
-    let flag = hold_spin(&mut limit, &mut x, &mut z);
+    hold_spin(&mut limit, &mut x, &mut z);
     tables.ground_spin_limit.set(limit);
     car.spin[0].set(x);
     car.spin[2].set(z);
-    tables.ground_spin.set(flag != 0);
 }

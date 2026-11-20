@@ -11,9 +11,6 @@ use crate::memory::session::{PlainDword, PlainFloat};
 pub struct GroundWork {
     /// A count kept up by one for each frame drawn (`race::draw_race_scene`).
     pub frames_drawn: PlainDword,
-    /// Set to 0 at the end of loading a stage (`race::stage_loading`, a reading: 1 while one
-    /// loads).
-    pub stage_loading: PlainDword,
     /// `face_normal`'s work: the three points (9 dwords) and the six differences (`race::norms`,
     /// `scene::face_faces_away`); the drawing's is each view's (`ctx.view.object.normal_work`);
     /// this one is written by `race::face_normal` and read by none.

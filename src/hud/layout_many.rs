@@ -20,10 +20,16 @@ const DIVIDER: u32 = 2;
 const OVERVIEW_SIDE: u32 = rc2k_core::race::overview::SIDE;
 
 /// A solid quad of `colour` over `rect` (left, top, right, bottom).
-fn solid(frame: &Frame, hud: &Hud, pen: Pen, rect: [u32; 4], colour: u32) -> Result<(), Refused> {
-    hud.block.texture.set(texture::SPRITES);
-    hud.block.quad.alpha.set(0xFF);
-    hud.block.quad.colour.set(colour);
+fn solid(
+    frame: &Frame,
+    hud: &mut Hud,
+    pen: Pen,
+    rect: [u32; 4],
+    colour: u32,
+) -> Result<(), Refused> {
+    hud.block.texture = texture::SPRITES;
+    hud.block.quad.alpha = 0xFF;
+    hud.block.quad.colour = colour;
     hud.block.quad.set_rect(rect);
     crate::hud::add_solid_quad::add_solid_quad(frame, hud, pen)
 }
@@ -33,7 +39,7 @@ fn solid(frame: &Frame, hud: &Hud, pen: Pen, rect: [u32; 4], colour: u32) -> Res
 /// (held to the picture's edge where it is off it).
 fn overview(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     free: PlayerPart,
     views: u32,
@@ -100,12 +106,9 @@ fn overview(
             rc2k_core::hud::quads::scaled_size(w, scale),
             rc2k_core::hud::quads::scaled_size(h, scale),
         );
-        hud.block.texture.set(texture::SPRITES);
-        hud.block.quad.alpha.set(0xFF);
-        hud.block
-            .quad
-            .colour
-            .set(hud.block.marker_colours[player].get());
+        hud.block.texture = texture::SPRITES;
+        hud.block.quad.alpha = 0xFF;
+        hud.block.quad.colour = hud.block.marker_colours[player];
         crate::hud::add_scaled_sprite::add_scaled_sprite_plain(
             frame,
             hud,
@@ -185,7 +188,7 @@ fn set_lights(l: &crate::race::panel_store::Lights, v: [u32; 4]) {
 /// The HUD of `views` players on their layout's parts: each part gets the one-player HUD, laid out
 /// by the part's own shape. Each player's map disc has a texture of its own, and the map of the
 /// first goes when the overview map has its picture.
-pub fn layout_many(frame: &Frame, hud: &Hud, pen: Pen, views: u32) -> Result<(), Refused> {
+pub fn layout_many(frame: &Frame, hud: &mut Hud, pen: Pen, views: u32) -> Result<(), Refused> {
     let panel = &frame.panel_and_overlay.get().panel;
     let screen = pen.system.session.screen.get();
     let size = (screen.width.get(), screen.height.get());

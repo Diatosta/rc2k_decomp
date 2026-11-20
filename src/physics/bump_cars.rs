@@ -1,5 +1,5 @@
 //! Bumps the work car against another (`other_car_block`, number `other_car_number`): the corner
-//! met goes into `contact_point`, a note of the meeting into `bump_note`; contact record 6's
+//! met goes into `contact_point`; contact record 6's
 //! force is zeroed and both cars' contact flags set; the relative speed goes into
 //! `bump_relative_speed` (its length into `bump_speed_length`); the speeds are shared out
 //! (`bump_share_a` / `bump_share_b`), the places' difference / 65536 times the push scale becomes
@@ -15,7 +15,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
-use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::step_families::ContactInputs;
 use crate::race::numbers_store::Numbers;
 
@@ -41,20 +40,6 @@ fn turn_speed(block: &Car) {
 fn steps(c: &ContactInputs<'_>, other_car: &Car) -> Result<(), Refused> {
     for k in 0..3 {
         c.contact.contact_point[k].set(loaded(&c.contact.corner_turned[k]));
-    }
-    let zero = ZERO;
-    let note = [
-        c.work.current_car.get(),
-        c.contact.other_car_number.get(),
-        c.contact.corner_in[0].bits(),
-        zero,
-        c.contact.corner_in[2].bits(),
-        c.contact.contact_point[0].bits(),
-        zero,
-        c.contact.contact_point[2].bits(),
-    ];
-    for (k, v) in note.iter().enumerate() {
-        c.contact.bump_note[k].set(*v);
     }
     for v in &c.tables.contacts[6].force {
         v.set(0.0);

@@ -62,7 +62,7 @@ pub(super) fn list_players(net: &Net) -> Result<bool, Refused> {
 
 /// `net::list_players` with its result dropped, so a failed listing is never reported to the
 /// caller (as the game does).
-pub(super) fn list_players_regs(net: &Net) -> Result<(), Refused> {
+pub(super) fn refresh_players(net: &Net) -> Result<(), Refused> {
     list_players(net)?;
     Ok(())
 }

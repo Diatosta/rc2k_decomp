@@ -58,6 +58,13 @@ pub struct Owned<T> {
 
 thread_local! {
     /// Only its address is used: what names this thread as a value's holder.
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static THREAD_MARK: u8 = const { 0 };
 }
 

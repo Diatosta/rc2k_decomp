@@ -93,8 +93,6 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     // Along the edge.
     let n = c.contact.probe_index.get();
     walls::check_probe(n)?;
-    c.contact.wall_edge_from.set(from);
-    c.contact.wall_edge_to.set(to);
     edge_normal(
         &c.shared.buffers.reads.get().engine_tables,
         c.contact,

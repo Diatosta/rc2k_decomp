@@ -3,8 +3,6 @@
 //! probe, the contact steps (which hold the other two), the camera, the reset chain and the
 //! clear-place search, the checkpoints, the lighting and the moving slots.
 
-use crate::drive::finish_store::Finish;
-use crate::drive::replay_frames_store::ReplayFrames;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
@@ -86,7 +84,7 @@ pub struct CameraInputs<'a> {
     pub frame_work: &'a FrameWork,
     pub view_records: &'a ViewAndRecords,
     pub lights_data: &'a LightsData,
-    pub replay_frames: &'a ReplayFrames,
+    pub step_first: u32,
     pub checkpoints: &'a crate::race::checkpoints_store::Checkpoints,
     pub kind_tables: &'a crate::race::kind_store::KindTables,
     pub light_records: &'a crate::race::light_records_store::LightRecords,
@@ -123,7 +121,8 @@ pub struct ResetInputs<'a> {
     pub shared: &'a RaceShared,
     pub vars: &'a RaceVars,
     pub view: &'a RaceView,
-    pub finish: &'a Finish,
+    /// The finish state's "no place" switch.
+    pub no_place: u32,
     pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
     pub matrices: &'a SceneMatrices,
     pub ground: GroundInputs<'a>,
@@ -160,7 +159,8 @@ pub struct CheckpointInputs<'a> {
     pub work: &'a RaceWork,
     pub vars: &'a RaceVars,
     pub frame_work: &'a FrameWork,
-    pub finish: &'a Finish,
+    /// The finish state's "no place" switch.
+    pub no_place: u32,
     pub checkpoints: &'a crate::race::checkpoints_store::Checkpoints,
 }
 
@@ -217,7 +217,7 @@ impl<'a> StepInputs<'a> {
             frame_work: self.frame.frame_work.get(),
             view_records: self.frame.view_and_records.get(),
             lights_data: self.course.lights_data(),
-            replay_frames: self.replay_frames,
+            step_first: self.step_first,
             checkpoints: &self.shared.buffers.reads.get().checkpoints,
             kind_tables: &self.replay.viewer_and_kinds.kind_tables,
             light_records: &self.frame.lights_and_gear.get().light_records,
@@ -290,7 +290,7 @@ impl<'a> StepInputs<'a> {
             shared: self.shared,
             vars: self.vars,
             view: self.view,
-            finish: self.replay.finish.get(),
+            no_place: self.replay.no_place(),
             car_blocks: self.shared.car_blocks.get(),
             matrices: self.frame.matrices.get(),
             ground: self.ground(),
@@ -324,7 +324,7 @@ impl<'a> StepInputs<'a> {
             work: self.work,
             vars: self.vars,
             frame_work: self.frame.frame_work.get(),
-            finish: self.replay.finish.get(),
+            no_place: self.replay.no_place(),
             checkpoints: &self.shared.buffers.reads.get().checkpoints,
         }
     }

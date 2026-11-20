@@ -2,8 +2,8 @@
 // library functions that run on the page's thread (the game runs on a worker, which has no
 // `document` or `screen`). Linked by `tools/web/build.sh` with `--js-library`.
 mergeInto(LibraryManager.library, {
-  // The sizes the game offers as resolutions, in device pixels, written as eight 32-bit
-  // numbers at `out`: the page's window (width, height), the screen (width, height), and the
+  // The sizes the game offers as resolutions, in device pixels, written as six 32-bit
+  // numbers at `out` (room for eight): the page's window (width, height), the screen (width, height), and the
   // two of the window in CSS pixels.
   rc2k_web_sizes__proxy: 'sync',
   rc2k_web_sizes__sig: 'vp',

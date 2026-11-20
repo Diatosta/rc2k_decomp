@@ -91,52 +91,74 @@ unsafe fn call(class: &CStr, method: &CStr, path: &CString) -> Option<bool> {
         let delete: unsafe extern "C" fn(Env, Obj) = function(env, DELETE_LOCAL_REF);
 
         // The app's class loader (a native thread's own cannot see the app's classes), and
-        // through it the class `Photos`.
-        let activity_class = object_class(env, activity);
-        let class_class = object_class(env, activity_class);
-        let get_loader = method_id(
-            env,
-            class_class,
-            c"getClassLoader".as_ptr(),
-            c"()Ljava/lang/ClassLoader;".as_ptr(),
-        );
-        let none = [Value { wide: 0 }];
-        let loader = call_object(env, activity_class, get_loader, none.as_ptr());
-        let loader_class = object_class(env, loader);
-        let load = method_id(
-            env,
-            loader_class,
-            c"loadClass".as_ptr(),
-            c"(Ljava/lang/String;)Ljava/lang/Class;".as_ptr(),
-        );
-        let class_name = new_string(env, class.as_ptr());
-        let by_name = [Value { object: class_name }];
-        let photos = call_object(env, loader, load, by_name.as_ptr());
+        // through it the class `Photos`. Each step is checked: a lookup that failed leaves a
+        // Java exception pending, and the next JNI call with one pending is not allowed.
+        let mut locals: Vec<Obj> = vec![activity];
         let mut result = None;
-        if !failed(env) && !photos.is_null() {
+        'call: {
+            let activity_class = object_class(env, activity);
+            locals.push(activity_class);
+            let class_class = object_class(env, activity_class);
+            locals.push(class_class);
+            let get_loader = method_id(
+                env,
+                class_class,
+                c"getClassLoader".as_ptr(),
+                c"()Ljava/lang/ClassLoader;".as_ptr(),
+            );
+            if failed(env) || get_loader.is_null() {
+                break 'call;
+            }
+            let none = [Value { wide: 0 }];
+            let loader = call_object(env, activity_class, get_loader, none.as_ptr());
+            locals.push(loader);
+            if failed(env) || loader.is_null() {
+                break 'call;
+            }
+            let loader_class = object_class(env, loader);
+            locals.push(loader_class);
+            let load = method_id(
+                env,
+                loader_class,
+                c"loadClass".as_ptr(),
+                c"(Ljava/lang/String;)Ljava/lang/Class;".as_ptr(),
+            );
+            if failed(env) || load.is_null() {
+                break 'call;
+            }
+            let class_name = new_string(env, class.as_ptr());
+            locals.push(class_name);
+            if class_name.is_null() {
+                break 'call;
+            }
+            let by_name = [Value { object: class_name }];
+            let photos = call_object(env, loader, load, by_name.as_ptr());
+            locals.push(photos);
+            if failed(env) || photos.is_null() {
+                break 'call;
+            }
             let save = static_method_id(
                 env,
                 photos,
                 method.as_ptr(),
                 c"(Landroid/app/Activity;Ljava/lang/String;)Z".as_ptr(),
             );
-            if !failed(env) && !save.is_null() {
-                let java_path = new_string(env, path.as_ptr());
-                let arguments = [Value { object: activity }, Value { object: java_path }];
-                let ok = call_static_bool(env, photos, save, arguments.as_ptr());
-                result = Some(ok != 0 && !failed(env));
-                delete(env, java_path);
+            if failed(env) || save.is_null() {
+                break 'call;
             }
+            let java_path = new_string(env, path.as_ptr());
+            locals.push(java_path);
+            if java_path.is_null() {
+                break 'call;
+            }
+            let arguments = [Value { object: activity }, Value { object: java_path }];
+            let ok = call_static_bool(env, photos, save, arguments.as_ptr());
+            result = Some(ok != 0 && !failed(env));
         }
+        // An exception left pending by a step that was not checked is cleared before the
+        // references are given back.
         failed(env);
-        for local in [
-            photos,
-            class_name,
-            loader_class,
-            loader,
-            class_class,
-            activity_class,
-        ] {
+        for local in locals {
             if !local.is_null() {
                 delete(env, local);
             }

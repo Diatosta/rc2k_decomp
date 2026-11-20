@@ -359,6 +359,13 @@ pub fn run_frame_now<T>(o: crate::owners::Owners<'static>, frame: impl FnOnce() 
 #[cfg(phone)]
 thread_local! {
     /// The answer buttons' words made for the question now up (none while no question is).
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static ANSWER_LABELS: std::cell::Cell<Option<(rc2k_core::input::touch::Asked, Vec<touch::Label>)>> =
         const { std::cell::Cell::new(None) };
 }

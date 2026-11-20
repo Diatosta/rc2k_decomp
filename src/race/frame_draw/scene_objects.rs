@@ -144,7 +144,6 @@ pub fn draw_screen_quad(
     screen: &crate::memory::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    poly.polygon_drawn.set(0u32);
     let entries = &part.polygon.entries[..4];
     for (k, e) in (0u32..).zip(entries) {
         // the quad vertex's record
@@ -186,7 +185,6 @@ pub fn draw_screen_quad(
         poly.polygon_sides[1].set(0u32);
         crate::scene::draw_polygon::draw_polygon_in_game(view, part, reads, screen)?;
         face.polygon_mode.set(0u32);
-        poly.polygon_drawn.set(1u32);
         crate::scene::depth_buffer_on::depth_buffer(part, true);
     }
     poly.polygon_colour.set(0x00FF_FFFFu32);

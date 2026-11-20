@@ -18,8 +18,9 @@ pub struct Race {
     pub replay: Replay,
     /// The stores the menus, the network and the audio side read too.
     pub shared: RaceShared,
-    /// The HUD's variables, drawn over the race.
-    pub hud: GameThread<Hud>,
+    /// The HUD's variables, drawn over the race: plain fields behind one `RefCell`, borrowed once
+    /// where the race's frame draws the HUD and lent `&mut` from there.
+    pub hud: GameThread<std::cell::RefCell<Hud>>,
     /// The effects (marks, rain, snow, windscreen drops, particles) drawn over the race.
     pub effects: GameThread<Effects>,
 }
@@ -33,7 +34,7 @@ impl Race {
             frame: Frame::new(),
             replay: Replay::new(),
             shared: RaceShared::new(),
-            hud: GameThread::new(Hud::new()),
+            hud: GameThread::new(std::cell::RefCell::new(Hud::new())),
             effects: GameThread::new(Effects::new()),
         }
     }

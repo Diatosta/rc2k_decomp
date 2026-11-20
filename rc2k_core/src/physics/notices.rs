@@ -9,7 +9,7 @@ pub struct Notice {
     /// The notice's id (0: none).
     pub id: u32,
     /// The notice's counter.
-    pub w6f8: u32,
+    pub counter: u32,
     /// The last notice shown.
     pub last: u32,
     /// Non-zero while a notice is shown.
@@ -17,7 +17,7 @@ pub struct Notice {
     /// Its time, counted down while shown.
     pub time: u32,
     /// A second time (0x32 when taken from the queue).
-    pub w708: u32,
+    pub second_time: u32,
 }
 
 /// The notice raised by `value_notice`.
@@ -63,7 +63,7 @@ impl Notice {
         }
         let id = queue.ids[0];
         self.id = id;
-        self.w708 = 0x32;
+        self.second_time = 0x32;
         self.time = 0x12C;
         queue.count = queue.count.wrapping_sub(1);
         for list in [&mut queue.ids, &mut queue.values, &mut queue.levels] {

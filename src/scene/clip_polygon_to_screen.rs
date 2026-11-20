@@ -78,7 +78,7 @@ pub fn clip_polygon_to_screen(
             (8, Edge::Y(poly.window.clip_screen[1].get()), false),
         ] {
             if mask & bit != 0 {
-                listed = clip_pass(part, poly, course, listed, edge, inside_past, mask)?;
+                listed = clip_pass(part, poly, course, listed, edge, inside_past)?;
                 if poly.polygon_vertex_count.get() < 3 {
                     break;
                 }

@@ -13,6 +13,13 @@ pub const COUNT: usize = 4;
 
 thread_local! {
     /// The running thread's copy: 0 unless it is one of the drawing threads.
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static INDEX: Cell<usize> = const { Cell::new(0) };
 }
 

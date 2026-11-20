@@ -29,8 +29,6 @@ pub struct SplitTables {
     pub extra_time: PlainDword,
     /// The kind's time factor (`race::race_cars::set_car_times`).
     pub kind_factor: PlainFloat,
-    /// The kept split times, 64 of them.
-    pub kept_times: [PlainDword; 64],
     /// The 90 rivals' names (`physics::fill_rival_table`, `physics::rank_split_time`).
     pub rival_names: [crate::saves::name_cell::NameIdCell; 90],
     /// The rivals' times.

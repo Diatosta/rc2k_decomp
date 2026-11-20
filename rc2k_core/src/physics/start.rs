@@ -126,7 +126,7 @@ impl CarStart {
             if (self.timer.wrapping_sub(START) as i32) < 0 {
                 self.count = PENALTY_COUNT;
                 notice.id = JUMP_START_NOTICE;
-                notice.w708 = 0;
+                notice.second_time = 0;
                 notice.time = u32::MAX;
             }
         }
@@ -136,11 +136,11 @@ impl CarStart {
                 self.time = self.time.wrapping_add(PENALTY);
                 self.timer = 0;
                 self.held = 0;
-                notice.w708 = 0;
+                notice.second_time = 0;
                 notice.time = 300;
                 notice.last = 0;
                 notice.id = PUT_BACK_NOTICE;
-                notice.w6f8 = 0;
+                notice.counter = 0;
                 notice.shown = 0;
                 done.put_back = true;
             }

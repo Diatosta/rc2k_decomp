@@ -34,7 +34,13 @@ public final class Photos {
         values.put(MediaStore.MediaColumns.MIME_TYPE, "image/png");
         values.put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/Rally Championship");
         values.put(MediaStore.MediaColumns.IS_PENDING, 1);
-        Uri uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+        Uri uri;
+        try {
+            uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+        } catch (RuntimeException e) {
+            // A failed insert must not leave the game's thread with a Java exception pending.
+            return false;
+        }
         if (uri == null) {
             return false;
         }

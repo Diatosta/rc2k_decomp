@@ -117,7 +117,8 @@ pub struct Lent<'s> {
         crate::memory::session::PhaseRead<'s, crate::race::shadow_skids_store::ShadowSkids>,
     lights_and_gear:
         crate::memory::session::PhaseRead<'s, crate::race::groups_store::LightsAndGear>,
-    finish: crate::memory::session::PhaseRead<'s, crate::drive::finish_store::Finish>,
+    /// The finish state's "no place" switch as the frame began.
+    no_place: u32,
     // The frame's work and the panel and overlay.
     frame_work: crate::memory::session::PhaseRead<'s, crate::race::frame_store::FrameWork>,
     frame_cars: &'s crate::race::frame_view::FrameCars,
@@ -179,7 +180,7 @@ impl<'s> Lent<'s> {
             ground_probe: PhaseRead::lend(&race.physics.ground_probe, scope),
             shadow_skids: PhaseRead::lend(&race.frame.shadow_skids, scope),
             lights_and_gear: PhaseRead::lend(&race.frame.lights_and_gear, scope),
-            finish: PhaseRead::lend(&race.replay.finish, scope),
+            no_place: race.replay.no_place(),
             // The frame's work and the panel and overlay.
             frame_work: PhaseRead::lend(&race.frame.frame_work, scope),
             frame_cars: &race.frame.cars,
@@ -229,7 +230,7 @@ impl<'s> Lent<'s> {
             ground_probe: &self.ground_probe,
             shadow_skids: &self.shadow_skids,
             lights_and_gear: &self.lights_and_gear,
-            finish: &self.finish,
+            no_place: self.no_place,
             // The frame's work and the panel and overlay.
             frame_work: &self.frame_work,
             frame_cars: self.frame_cars,
@@ -297,8 +298,8 @@ pub struct DrawReads<'a> {
     /// The models' light records and the gear figures after them
     /// (`race::owner_frame::Frame::lights_and_gear`).
     pub lights_and_gear: &'a crate::race::groups_store::LightsAndGear,
-    /// The finish routine's variables (`race::owner_replay::Replay::finish`).
-    pub finish: &'a crate::drive::finish_store::Finish,
+    /// The finish state's "no place" switch (`race::owner_replay::Replay::no_place`).
+    pub no_place: u32,
     // The frame's work and the panel and overlay.
     /// The frame's draw work (`race::owner_frame::Frame::frame_work`).
     pub frame_work: &'a crate::race::frame_store::FrameWork,
@@ -402,7 +403,7 @@ impl<'a> DrawReads<'a> {
             ground_probe: race.physics.ground_probe.get(),
             shadow_skids: race.frame.shadow_skids.get(),
             lights_and_gear: race.frame.lights_and_gear.get(),
-            finish: race.replay.finish.get(),
+            no_place: race.replay.no_place(),
             // The frame's work and the panel and overlay.
             frame_work: race.frame.frame_work.get(),
             frame_cars: &race.frame.cars,
@@ -439,9 +440,14 @@ impl<'a> DrawReads<'a> {
 /// The most parts of a frame that can be drawn at once on this machine: its cores, up to the
 /// drawing copies. The pool is sized for it, whatever the page asks for.
 pub fn most_threads() -> usize {
-    std::thread::available_parallelism()
-        .map_or(1, usize::from)
-        .min(COUNT)
+    // Asked once: the question reads the process's cgroup files each time on Android and Linux
+    // (about a tenth of a race frame's time on a phone when asked every frame).
+    static MOST: OnceLock<usize> = OnceLock::new();
+    *MOST.get_or_init(|| {
+        std::thread::available_parallelism()
+            .map_or(1, usize::from)
+            .min(COUNT)
+    })
 }
 
 /// How many parts of a frame may be drawn at once, as chosen (0: not chosen, the most). Read

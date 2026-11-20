@@ -20,7 +20,7 @@ pub(super) fn race_wait(
         >= 0
     {
         net.lobby().listed_at.set(now);
-        crate::net::list_players::list_players_regs(net)?;
+        crate::net::list_players::refresh_players(net)?;
     }
     if vars.own.state().is_host() {
         if net.race_slot.players() == 0 {

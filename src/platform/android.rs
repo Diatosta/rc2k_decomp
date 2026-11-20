@@ -49,7 +49,11 @@ pub fn prepare() -> Result<(), i32> {
     }
     eprintln!("rc2k: the game's folder is {}", game.display());
     // The home the program keeps its own files under, where it looks for one.
-    // SAFETY: set before the game's threads start; nothing else reads the environment yet.
+    // SAFETY: `set_var` is unsafe because another thread reading the environment through libc
+    // while it runs is a data race. This is the program's first step on its first thread, so no
+    // thread of the program exists yet; the threads that do (the Java runtime's and SDL's)
+    // are not ours and read their own configuration, not `HOME`. Every reader of `HOME` in the
+    // program (`std::env::var_os`) runs after this returns.
     unsafe {
         std::env::set_var("HOME", &storage);
     }

@@ -535,7 +535,7 @@ fn run(o: &Owners<'static>, line: &str) {
         ("clipget", [path]) => crate::platform::ffi::sdl_clipboard::text()
             .filter(|text| std::fs::write(path, text).is_ok())
             .map(|text| format!("ok {}", text.len())),
-        ("shot", [name]) => {
+        ("shot", [name]) if plain_file_name(name) => {
             pending().shot = Some(((*id).to_string(), (*name).to_string()));
             return;
         }
@@ -556,7 +556,7 @@ fn run(o: &Owners<'static>, line: &str) {
                 }
                 "ok".to_string()
             }),
-        ("wshot", [name]) => {
+        ("wshot", [name]) if plain_file_name(name) => {
             pending().window_shot = Some(((*id).to_string(), (*name).to_string()));
             WINDOW_SHOT.store(true, std::sync::atomic::Ordering::Relaxed);
             return;
@@ -656,6 +656,16 @@ fn screen_frames(gfx: &Gfx) -> u32 {
     gfx.drawing.draw_surface.frames.get().wrapping_sub(s.2)
 }
 
+/// Whether `name` is one plain file name (no folder, no `..`, not absolute): a picture is
+/// written inside the remote folder under it.
+fn plain_file_name(name: &str) -> bool {
+    let mut parts = std::path::Path::new(name).components();
+    matches!(
+        (parts.next(), parts.next()),
+        (Some(std::path::Component::Normal(_)), None)
+    ) && !name.contains(['/', '\\'])
+}
+
 /// At each pump: the releases due, then the commands waiting.
 pub fn poll(o: &Owners<'static>, course: &Course) {
     let Some(folder) = folder() else { return };
@@ -674,10 +684,17 @@ pub fn poll(o: &Owners<'static>, course: &Course) {
         }
         false
     });
+    // The file is renamed first: one written under the name after that is a new command file for
+    // the next pump, not deleted unread. Read as bytes: a file that is not UTF-8 is still taken
+    // (and removed) rather than read again, and failing again, at every pump.
     let path = folder.join("cmd");
-    if let Ok(text) = std::fs::read_to_string(&path) {
-        let _ = std::fs::remove_file(&path);
-        text.lines().for_each(|line| run(o, line));
+    let taken = folder.join("cmd.taken");
+    if std::fs::rename(&path, &taken).is_ok() {
+        let bytes = std::fs::read(&taken).unwrap_or_default();
+        let _ = std::fs::remove_file(&taken);
+        String::from_utf8_lossy(&bytes)
+            .lines()
+            .for_each(|line| run(o, line));
     }
 }
 
@@ -882,12 +899,18 @@ pub fn window_shot_due() -> bool {
 
 /// The window's picture, taken from the backend that showed the frame.
 pub fn window_taken(width: u32, height: u32, bgra: Vec<u8>) {
-    *WINDOW_PIXELS.lock().unwrap() = Some((width, height, bgra));
+    *WINDOW_PIXELS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((width, height, bgra));
 }
 
 /// The window's picture written for the command that asked, once a backend has taken it.
 fn send_window_shot(folder: &std::path::Path) {
-    let Some((width, height, pixels)) = WINDOW_PIXELS.lock().unwrap().take() else {
+    let Some((width, height, pixels)) = WINDOW_PIXELS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take()
+    else {
         return;
     };
     let Some((id, name)) = pending().window_shot.take() else {
@@ -1197,5 +1220,20 @@ pub fn sim_hash_step(race: &Race) {
             .map(|(name, hash)| format!("{name}={:04x}", hash & 0xFFFF))
             .collect();
         crate::program_log::log(&format!("sim chunks {tick}: {}", chunks.join(" ")));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::plain_file_name;
+
+    #[test]
+    fn picture_names_stay_inside_the_folder() {
+        for good in ["menu", "replay_100", "page1edit", "a.b"] {
+            assert!(plain_file_name(good), "{good}");
+        }
+        for bad in ["", ".", "..", "../x", "a/b", "/abs", "a\\b", "x/.."] {
+            assert!(!plain_file_name(bad), "{bad}");
+        }
     }
 }

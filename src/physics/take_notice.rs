@@ -13,7 +13,7 @@ pub(super) fn take_notice(car: &Car) {
         id: car.notice_id.get(),
         shown: car.notice_shown.get(),
         time: car.notice_time.get(),
-        w708: car.notice_time_b.get(),
+        second_time: car.notice_time_b.get(),
         ..Notice::default()
     };
     let queue = load(car);
@@ -22,7 +22,7 @@ pub(super) fn take_notice(car: &Car) {
         return;
     }
     set_changed(&car.notice_id, was.id, notice.id);
-    set_changed(&car.notice_time_b, was.w708, notice.w708);
+    set_changed(&car.notice_time_b, was.second_time, notice.second_time);
     set_changed(&car.notice_time, was.time, notice.time);
     store(car, &queue, &now);
 }

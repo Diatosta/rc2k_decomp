@@ -52,17 +52,15 @@ fn room(
     Ok(room)
 }
 
-/// Stores `parsed` as slot `slot`, taken with `group_mask`.
+/// Stores `parsed` as slot `slot`.
 pub fn add_object_shape(
     race: &crate::race::owner::Race,
     scene: &Scene,
     slot: u32,
-    group_mask: u32,
     parsed: &Parsed,
 ) -> Result<(), BadInput> {
     let course = &race.course;
     scene.object_work().loading_slot.set(slot);
-    scene.draw_switches.get().loading_group_mask.set(group_mask);
     crate::memory::session::write_first(&scene.object_work().shape_counts[5..7], &[u32::MAX, 0]);
     let shape = match parsed {
         Parsed::Shape(shape) => shape,

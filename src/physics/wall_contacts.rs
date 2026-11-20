@@ -73,7 +73,6 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
         }
         walls::Walk::Clear { bits } => {
             contact.wall_face_now.set(contact.wall_face_before.get());
-            contact.wall_bits.set(bits);
             if bits != walls::WALL_BITS {
                 return Ok(());
             }

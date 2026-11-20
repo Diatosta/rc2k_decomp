@@ -24,8 +24,6 @@ pub struct LightState {
     /// The view kind (2 in described objects) (`scene::draw_object_face`, `scene::fog_polygon`,
     /// `race::frame_draw`). Unused: each view has its own in `scene::object_light`.
     pub view_kind: PlainDword,
-    /// The scene state / loading-bar mark (`menu::frame_callback`, `race::loading_bar_frame`).
-    pub scene_state: PlainDword,
     /// `race::place_object_matrix`'s switch: 0 turns the object's matrix by the angles in
     /// the object work angles (y, x, z); non-0 uses the material rules (facing the view, turned
     /// by the view's angles) (`race::frame_draw::scene_objects`).

@@ -11,7 +11,7 @@ use rc2k_core::hud::quads;
 
 /// The quad record's texture places from the rectangle at `s` (shared with
 /// `hud::add_scaled_sprite`): the rectangle.
-pub(super) fn put_places(hud: &Hud, s: RectAt) -> Result<[u32; 4], Refused> {
+pub(super) fn put_places(hud: &mut Hud, s: RectAt) -> Result<[u32; 4], Refused> {
     Ok({
         let rect = s.read(hud)?;
         hud.block.quad.set_places(quads::sprite_places(rect));
@@ -20,14 +20,14 @@ pub(super) fn put_places(hud: &Hud, s: RectAt) -> Result<[u32; 4], Refused> {
 }
 
 /// The quad record's corners (see `quads::sprite_corners`).
-pub(super) fn put_corners(hud: &Hud, x: u32, y: u32, w: u32, h: u32) {
+pub(super) fn put_corners(hud: &mut Hud, x: u32, y: u32, w: u32, h: u32) {
     hud.block.quad.set_rect(quads::sprite_corners(x, y, w, h));
 }
 
 /// The sprite whose rectangle is the place `rect` with its corner at `x`, `y`.
 pub(super) fn add_sprite(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     x: u32,
     y: u32,

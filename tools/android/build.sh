@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # tools/android/build.sh: the Android .apk, from the tools in $RC2K_ANDROID_HOME (see
 # tools/android/README.md). Usage: tools/android/build.sh [x86_64] [arm64] [--debug]
-# (no ABI: both). The package is debuggable (adb run-as, for pushing the game's files) unless
-# --final. Writes dist/android/rc2k-<abi>.apk, signed with a debug key kept in
+# [--debuggable] (no ABI: both). The package is NOT debuggable (any app with adb rights could read
+# a debuggable one's private storage); --debuggable makes it so, for adb run-as, which
+# push_game.sh uses to put the game's files in. Writes dist/android/rc2k-<abi>.apk, signed with a debug key kept in
 # $RC2K_ANDROID_HOME/debug.keystore, or with the release key when RC2K_ANDROID_KEYSTORE names its
 # keystore (RC2K_ANDROID_KEY_PASSWORD its password, RC2K_ANDROID_KEY_ALIAS its alias, default
 # rc2k: the CI's release builds). Packaged by hand with the SDK's own tools (javac, d8, aapt2,
@@ -11,13 +12,13 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 source tools/android/env.sh
 
-abis=(); profile=release; debuggable=(--debug-mode)
+abis=(); profile=release; debuggable=()
 for a in "$@"; do
     case "$a" in
         --debug) profile=debug ;;
-        --final) debuggable=() ;;
+        --debuggable) debuggable=(--debug-mode) ;;
         x86_64|arm64) abis+=("$a") ;;
-        *) echo "usage: $0 [x86_64] [arm64] [--debug] [--final]" >&2; exit 1 ;;
+        *) echo "usage: $0 [x86_64] [arm64] [--debug] [--debuggable]" >&2; exit 1 ;;
     esac
 done
 [ ${#abis[@]} -gt 0 ] || abis=(x86_64 arm64)

@@ -289,7 +289,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("fatal.state.TEXT", &crate::fatal::state::TEXT),
         listed!("files.state.MEDIA_MODE", &crate::files::state::MEDIA_MODE),
         listed!("files.state.DIRECTORIES", &crate::files::state::DIRECTORIES),
-        listed!("owners.race.hud.block", on_game(&o.race.hud.get().block),),
         listed!(
             "owners.gfx.pictures.decoder",
             on_game(&o.gfx.pictures.decoder),
@@ -690,10 +689,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.frame.shadow_skids.get()),
         ),
         listed!(
-            "owners.race.replay.finish",
-            on_game(o.race.replay.finish.get()),
-        ),
-        listed!(
             "owners.race.shared.replay_file",
             on_game(o.race.shared.replay_file()),
         ),
@@ -773,10 +768,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.race.physics.contact",
             on_game(o.race.physics.contact.get()),
-        ),
-        listed!(
-            "owners.race.replay.replay_frames",
-            on_game(o.race.replay.replay_frames()),
         ),
         listed!(
             "owners.race.replay.staging",

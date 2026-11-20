@@ -359,6 +359,13 @@ thread_local! {
     /// noted drawing (the game's thread's): the platform's calls (a surface locked, the frame
     /// shown) carry no owner to reach it by. Set once on the game's thread
     /// (`register_game_scratch`); a thread with none has nothing noted.
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static GAME_SCRATCH: std::cell::Cell<Option<&'static crate::scene::scratch_store::DrawingScratch>> =
         const { std::cell::Cell::new(None) };
 }

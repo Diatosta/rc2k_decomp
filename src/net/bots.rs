@@ -52,7 +52,7 @@ pub(super) fn cycle_own_setting(net: &Net) -> Result<(), Refused> {
         .own
         .head
         .set(record::DIRECTION, bots::with_setting(held, next));
-    crate::net::list_players::list_players_regs(net)
+    crate::net::list_players::refresh_players(net)
 }
 
 /// The host presses the way-to-start button: grid, then arcade, published with the record.
@@ -62,7 +62,7 @@ pub(super) fn toggle_own_start(net: &Net) -> Result<(), Refused> {
         record::DIRECTION,
         bots::with_arcade_start(held, !bots::arcade_start(held)),
     );
-    crate::net::list_players::list_players_regs(net)
+    crate::net::list_players::refresh_players(net)
 }
 
 /// The kinds the bots drive, as every machine works them out from the host's car.

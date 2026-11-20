@@ -656,7 +656,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     assign_light_textures(race, scene)?;
     crate::scene::map_texture_places::map_texture_places(scene);
     crate::scene::load_slot_textures::load_slot_textures(&race.frame, scene)?;
-    if race.replay.finish.get().no_place.get() == 0 {
+    if race.replay.no_place() == 0 {
         crate::race::frame_draw::set_up_panel(race)?;
     }
     if race.shared.view.get().views.get() == 1 {
@@ -755,9 +755,9 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     for state in [0x11, 0x12] {
         set_render_state(part, 2, state);
     }
-    if !race.shared.work.get().in_credits.is_set() && race.replay.finish.get().no_place.get() == 0 {
+    if !race.shared.work.get().in_credits.is_set() && race.replay.no_place() == 0 {
         crate::hud::overlay_pass::overlay_pass(
-            race.hud.get(),
+            &mut race.hud.get().borrow_mut(),
             race,
             o.system,
             o.scene,

@@ -10,9 +10,9 @@ use crate::race::owner_frame::Frame;
 
 use rc2k_core::hud::quads;
 
-pub fn add_quad(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+pub fn add_quad(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
     let q: [u32; quads::RECORD] = hud.block.quad.words();
-    let (a, b) = (hud.block.uv_scale_x.get(), hud.block.uv_scale_y.get());
+    let (a, b) = (hud.block.uv_scale_x, hud.block.uv_scale_y);
     let (vertices, _, _) = quads::quad_vertices(&q, a, b);
     for (n, v) in vertices.into_iter().enumerate() {
         let at = &pen.vertices.vertices[n];

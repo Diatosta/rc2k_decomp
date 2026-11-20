@@ -39,7 +39,6 @@ pub fn car_lighting(
         .get()
         .light_kept
         .set(c.car.light_level.get());
-    scene.lights.work.get().car_light_colour.set(0);
     scene.lights.work.get().lamp_a_colour.set(0);
     c.course
         .course
@@ -103,7 +102,6 @@ pub fn car_lighting(
         return Err(BadInput("a light index past 0xFF").into());
     }
     let colour = scene.light_tables.get().light_table[light as usize].get();
-    scene.lights.work.get().car_light_colour.set(colour);
     c.car.light_colour.set(colour);
     if face_byte(2)? & 4 == 0 {
         return Ok(());

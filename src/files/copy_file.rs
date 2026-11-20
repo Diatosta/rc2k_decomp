@@ -12,6 +12,13 @@ const CHUNK: usize = 0x10_0000;
 
 thread_local! {
     /// The copy's buffer, kept between files (a copy runs on one thread).
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static BUFFER: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 

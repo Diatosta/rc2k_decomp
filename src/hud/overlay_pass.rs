@@ -29,7 +29,7 @@ pub(super) fn shown_layout(shared: &RaceShared) -> u32 {
 }
 
 pub fn overlay_pass(
-    hud: &Hud,
+    hud: &mut Hud,
     race: &Race,
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,

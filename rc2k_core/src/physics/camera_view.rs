@@ -7,9 +7,8 @@ use super::x87::{fistp64, hold_high, hold_low};
 
 pub const MODES: u32 = 0x34;
 
-#[cfg(test)]
 /// The mode held to 0 ..= 0x33.
-pub(crate) fn mode_index(mode: u32) -> u32 {
+pub fn mode_index(mode: u32) -> u32 {
     (mode as i32).clamp(0, MODES as i32 - 1) as u32
 }
 
@@ -31,9 +30,8 @@ pub fn view_place(record: [f32; 3], offset: [f32; 3]) -> [f32; 3] {
     [0, 1, 2].map(|k| (record[k] as f64 + offset[k] as f64) as f32)
 }
 
-#[cfg(test)]
-/// A view's two turns, halved when `halve`.
-pub(crate) fn view_turns(turns: [u32; 2], halve: bool) -> [u32; 2] {
+/// A view's two turns, halved (an arithmetic shift) when `halve`.
+pub fn view_turns(turns: [u32; 2], halve: bool) -> [u32; 2] {
     if halve {
         turns.map(|t| ((t as i32) >> 1) as u32)
     } else {
@@ -42,6 +40,7 @@ pub(crate) fn view_turns(turns: [u32; 2], halve: bool) -> [u32; 2] {
 }
 
 #[cfg(test)]
+/// Test oracle (not called by the game): the game's step runs on the x87 emulation (`X`, rounding by the thread's control word) in `src/physics/ease_view_angles.rs`, whose reference vectors compare it with the original's code; this plain `f64` version would round differently at extended precision, so the game does not call it.
 /// Each angle change times the share and `scale`, rounded, << 16, added to its angle;
 /// returns the last whole number and the last added.
 pub(crate) fn ease_angles(
@@ -69,6 +68,7 @@ pub struct Blend {
 }
 
 #[cfg(test)]
+/// Test oracle (not called by the game): the game's step runs on the x87 emulation (`X`, rounding by the thread's control word) in `src/physics/ease_view_blend.rs`, whose reference vectors compare it with the original's code; this plain `f64` version would round differently at extended precision, so the game does not call it.
 /// `ends` are the four shift figures.
 pub(crate) fn ease_blend(share: f32, below_zero: bool, ends: [f32; 4], scale: f32) -> Blend {
     let share = if below_zero {
@@ -104,6 +104,7 @@ pub fn height_bias(
 }
 
 #[cfg(test)]
+/// Test oracle (not called by the game): the game's step runs on the x87 emulation (`X`, rounding by the thread's control word) in `src/physics/ease_view_turn.rs`, whose reference vectors compare it with the original's code; this plain `f64` version would round differently at extended precision, so the game does not call it.
 /// Moves each turn toward its target by its share; returns the last step.
 pub(crate) fn ease_turns(targets: [u32; 3], turns: &mut [u32; 3], shares: [f32; 3]) -> i32 {
     let mut step = 0;

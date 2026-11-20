@@ -13,7 +13,6 @@ use crate::errors::Refused;
 use crate::math::x87;
 
 pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    ctx.view.polygon.polygon_drawn.set(0);
     for (n, rec) in ctx.part.polygon.entries.iter().enumerate().take(4) {
         rec.record
             .set(crate::scene::point_records::of_quad(n as u32));
@@ -86,7 +85,6 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
             ctx.reads.screen,
         )?;
         ctx.view.face.polygon_mode.set(0);
-        ctx.view.polygon.polygon_drawn.set(1);
         crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
     }
     ctx.view.polygon.polygon_colour.set(0xFF_FFFF);

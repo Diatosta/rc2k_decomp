@@ -24,7 +24,7 @@ pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
     );
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
     if tail {
-        let tenth = replay.replay_frames().tenth.get() as usize;
+        let tenth = replay.replay_frames().tenth as usize;
         let mut v2 = replay.v2().lock();
         let entry = v2
             .tail
@@ -35,7 +35,7 @@ pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
     } else {
         let entry = replay
             .staging()
-            .entry(replay.replay_frames().tenth.get(), car, extended)?;
+            .entry(replay.replay_frames().tenth, car, extended)?;
         entry.input.set(ebx);
         entry.packed.set(packed);
     }

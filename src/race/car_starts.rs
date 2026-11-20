@@ -218,12 +218,12 @@ pub fn start_car(
         let place = start_checkpoint(first, mode, c.work.current_car.get());
         lights.state.get().line_place.set(place);
         lights.state.get().line_fraction.set(0);
-        if c.finish.no_place.get() != 0 {
+        if c.no_place != 0 {
             lights.state.get().line_place.set(0);
             lights.state.get().line_fraction.set(0);
         }
         crate::race::start_place::place_car_on_line(c.shared, course, scene)?;
-        if c.finish.no_place.get() == 0 {
+        if c.no_place == 0 {
             move_turned(c.course, c.shared, 0, 0xFFFE_0000);
             let side = starts_aside(
                 u32::from(net_race.is_on()),

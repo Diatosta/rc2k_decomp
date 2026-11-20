@@ -13,15 +13,11 @@ pub(super) fn play_replay_frame(race: &Race, system: &System) -> Result<(), Refu
     let Some(whole) = rc2k_core::drive::race_steps::play_frame(
         race.course.numbers.get().replay_mode.get(),
         || {
-            race.replay
-                .replay_frames()
-                .step_block
-                .set(race.replay.replay_view().replay_block.get());
-            race.replay
-                .replay_frames()
-                .step_frame
-                .set(race.replay.replay_view().replay_frame.get());
-            race.replay.replay_frames().step_frame.get()
+            race.replay.replay_frames_mut().step_block =
+                race.replay.replay_view().replay_block.get();
+            race.replay.replay_frames_mut().step_frame =
+                race.replay.replay_view().replay_frame.get();
+            race.replay.replay_frames().step_frame
         },
     ) else {
         return Ok(());

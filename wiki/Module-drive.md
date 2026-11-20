@@ -10,7 +10,10 @@ driver, the countdown, the finish, and the recording and playing of replay block
 
 No owner of its own: it works on the race's owner, `Race` (`src/race/owner.rs`). The replay's
 working blocks are in `src/drive/replay_frames_store.rs`, the finish's variables in
-`src/drive/finish_store.rs`; both are parts of `Race`.
+`src/drive/finish_store.rs`; both are parts of `Race` (`Race::replay`) and are plain fields, not
+cells: each sits in a `RefCell` on the game's thread, borrowed for one statement at a time
+(`Replay::finish()` / `finish_mut()`, `replay_frames()` / `replay_frames_mut()`). The drawing
+parts and the physics step are handed the one value they read (`no_place`, `step_first`).
 
 ## Main entry points
 

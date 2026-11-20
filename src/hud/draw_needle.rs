@@ -22,27 +22,20 @@ fn turn_of(v: f32, less: Option<f32>, over: f32, plus: f32, k: [f32; 2]) -> u32 
     }
 }
 
-pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+pub fn draw_needle(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
     use rc2k_core::hud::disc::{needle_angle, needle_corners, needle_turn};
     use rc2k_core::math::extended::to_f64;
-    let kind = hud.block.needle_kind.get() != 0;
-    let value = x87::from_int(hud.block.needle_value.get() as i32);
-    let t = needle_turn(value, kind, hud.block.least.get(), |n| {
-        hud.block.needle_k[n].get()
-    });
-    let tk = [hud.block.uv_scale_y.get(), hud.block.turn_k.get()];
+    let kind = hud.block.needle_kind != 0;
+    let value = x87::from_int(hud.block.needle_value as i32);
+    let t = needle_turn(value, kind, hud.block.least, |n| hud.block.needle_k[n]);
+    let tk = [hud.block.uv_scale_y, hud.block.turn_k];
     // The rounding follows the x87's control word: the x87's.
     let turn = turn_of(t.value, t.less, t.over, t.plus, tk);
-    hud.block.fistp_scratch.set(turn);
+    hud.block.fistp_scratch = turn;
     let angle = needle_angle(turn);
-    for (n, (x, y)) in needle_corners(
-        hud.block
-            .needle_corners
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::bits),
-    )
-    .into_iter()
-    .enumerate()
+    for (n, (x, y)) in needle_corners(hud.block.needle_corners.map(f32::to_bits))
+        .into_iter()
+        .enumerate()
     {
         let vertex = &pen.vertices.vertices[n];
         let point = [extended(y), extended(x)].map(to_f64);

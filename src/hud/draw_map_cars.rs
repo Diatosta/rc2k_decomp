@@ -17,7 +17,7 @@ pub(crate) const RECT: u32 = 0x5D;
 /// the disc's own). With `scaled` the markers shrink as the two players' layouts' sprites do.
 pub(super) fn draw_map_cars(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     slot: usize,
     scaled: bool,
@@ -36,13 +36,10 @@ pub(super) fn draw_map_cars(
         return Ok(());
     }
     let turn = crate::hud::draw_disc::texture_turn(hud);
-    let size = hud.block.disc_size.get();
-    let centre = [
-        hud.block.disc_centre[0].get(),
-        hud.block.disc_centre[1].get(),
-    ];
+    let size = hud.block.disc_size;
+    let centre = [hud.block.disc_centre[0], hud.block.disc_centre[1]];
     let [_, _, width, height] = RectAt::number(RECT).read(hud)?;
-    let k = hud.block.uv_scale_x.get();
+    let k = hud.block.uv_scale_x;
     let scale = crate::hud::draw_markers::int_over_80(0xC0, k);
     let factor = if scaled {
         rc2k_core::math::extended::to_f64(scale)
@@ -55,11 +52,10 @@ pub(super) fn draw_map_cars(
     );
     let reach = size - width.max(height) as f32 / 2.0;
     let network = panel.network_cars.get() > 0;
-    let kept = hud.block.quad.colour.get();
+    let kept = hud.block.quad.colour;
     for n in (0..offsets.len()).filter(|&n| shown >> n & 1 != 0) {
         let offset = [offsets[n][0].get(), offsets[n][1].get()];
-        let [dx, dy] =
-            rc2k_core::hud::disc::map_marker(offset, turn, hud.block.disc_texture_scale.get());
+        let [dx, dy] = rc2k_core::hud::disc::map_marker(offset, turn, hud.block.disc_texture_scale);
         if dx * dx + dy * dy > reach * reach {
             continue;
         }
@@ -70,10 +66,7 @@ pub(super) fn draw_map_cars(
         } else {
             n % hud.block.marker_colours.len()
         };
-        hud.block
-            .quad
-            .colour
-            .set(hud.block.marker_colours[colour].get());
+        hud.block.quad.colour = hud.block.marker_colours[colour];
         let left = (centre[0] + dx - width as f32 / 2.0).round() as u32;
         let top = (centre[1] + dy - height as f32 / 2.0).round() as u32;
         if scaled {
@@ -90,6 +83,6 @@ pub(super) fn draw_map_cars(
             crate::hud::add_sprite::add_sprite(frame, hud, pen, left, top, RectAt::number(RECT))?;
         }
     }
-    hud.block.quad.colour.set(kept);
+    hud.block.quad.colour = kept;
     Ok(())
 }

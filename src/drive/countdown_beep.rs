@@ -39,7 +39,6 @@ pub fn countdown_beep(
         // The cue is only for 0 .. SECONDS.
         let sound =
             race.frame.panel_and_overlay.get().overlay.countdown_sounds[second as usize].get();
-        race.shared.physics_tables.get().countdown_sound.set(sound);
         crate::drive::countdown_cue::countdown_cue(race, sound, audio)?;
     }
     Ok(())

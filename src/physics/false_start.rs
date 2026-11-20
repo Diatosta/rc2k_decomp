@@ -31,11 +31,11 @@ pub fn false_start(
     };
     let notice_was = Notice {
         id: c.notice_id.get(),
-        w6f8: c.notice_counter.get(),
+        counter: c.notice_counter.get(),
         last: c.notice_last.get(),
         shown: c.notice_shown.get(),
         time: c.notice_time.get(),
-        w708: c.notice_time_b.get(),
+        second_time: c.notice_time_b.get(),
     };
     let (mut car, mut notice) = (was, notice_was);
     let done = car.false_start(c.gear.get(), &mut notice);
@@ -45,11 +45,11 @@ pub fn false_start(
         (&c.stage_time, was.time, car.time),
         (&c.run_ticks, was.timer, car.timer),
         (&c.notice_id, notice_was.id, notice.id),
-        (&c.notice_counter, notice_was.w6f8, notice.w6f8),
+        (&c.notice_counter, notice_was.counter, notice.counter),
         (&c.notice_last, notice_was.last, notice.last),
         (&c.notice_shown, notice_was.shown, notice.shown),
         (&c.notice_time, notice_was.time, notice.time),
-        (&c.notice_time_b, notice_was.w708, notice.w708),
+        (&c.notice_time_b, notice_was.second_time, notice.second_time),
     ];
     for (at, before, now) in changes {
         if now != before {

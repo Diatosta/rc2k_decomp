@@ -18,7 +18,7 @@ pub fn record<'a>(
     view_records: &'a ViewAndRecords,
     car: &Car,
 ) -> Result<&'a ViewRecord, crate::errors::BadInput> {
-    let mode = (car.camera_view.get() as i32).clamp(0, 0x33);
+    let mode = rc2k_core::physics::camera_view::mode_index(car.camera_view.get());
     ViewVars::record_of(view_records, mode as usize)
 }
 

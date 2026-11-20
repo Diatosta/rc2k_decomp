@@ -9,15 +9,6 @@ fn figures() {
 }
 
 #[test]
-fn slots() {
-    assert_eq!(kept_split_slot(0, 5), Ok(0));
-    assert_eq!(kept_split_slot(3, 5), Ok(2));
-    assert_eq!(kept_split_slot(9, 5), Ok(5));
-    assert_eq!(kept_split_slot(0x8000_0001, 0x7FFF_FFFF), Ok(0));
-    assert!(kept_split_slot(0x50, 0x45).is_err());
-}
-
-#[test]
 fn ranked() {
     assert_eq!(default_rival(3), (15000, 3, 0x5A8));
     assert_eq!(split_scale(5, 2), Ok((2500, 0)));

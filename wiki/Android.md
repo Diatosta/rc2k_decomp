@@ -19,7 +19,7 @@ it. The package has no pictures of the game: its icon is our own placeholder.
 
 The app does not install the game. The game's folder (`files`, and `var` and `savedata` if you
 have them) goes into the app's own storage, `files/game`. For testing, from a computer with
-`adb`, with a build that is debuggable (the default of `tools/android/build.sh`):
+`adb`, with a build made debuggable (`tools/android/build.sh --debuggable`; the default build is not, so that no other app with `adb` rights can read its storage):
 
 ```
 tools/android/push_game.sh <the game's folder>
@@ -75,15 +75,16 @@ tools/android/build.sh x86_64 arm64      # dist/android/rc2k-x86_64.apk, rc2k-ar
 It builds SDL3 (the same source the Rust build uses) with the NDK's CMake toolchain, the program
 with cargo for each ABI, SDL's Java glue and our activity with `javac` and `d8`, and packages and
 signs the `.apk` with the SDK's `aapt2`, `zipalign` and `apksigner` (a debug key; no Gradle). A
-build with `--final` is not debuggable.
+build is not debuggable unless asked for with `--debuggable` (for `push_game.sh`).
 
 ### The release key
 
 An app can only be installed over an earlier one signed with the same key; one signed with
 another key has to be uninstalled first, and uninstalling deletes the game's files and saves in
 the app's storage. So the released packages are all signed with one release key, kept as three
-secrets of the GitHub repository; the `android` job of the automatic builds signs with it (and
-with a debug key, with a warning, when the secrets are missing). Locally, `RC2K_ANDROID_KEYSTORE`
+secrets of the GitHub repository; the `android` job of the automatic builds signs with it on a
+push (and with a debug key, with a warning, on a pull request or when the secrets are missing: a
+pull request never sees the secrets). Locally, `RC2K_ANDROID_KEYSTORE`
 (the keystore file), `RC2K_ANDROID_KEY_PASSWORD` and `RC2K_ANDROID_KEY_ALIAS` (default `rc2k`)
 make `tools/android/build.sh` sign with it too.
 

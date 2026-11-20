@@ -5,7 +5,6 @@
 //! league tables those pages dumped in hex), "Rivals" (the rivals' table the display page ended
 //! with, as it is), and the race's freeze as a check box.
 
-use crate::debug::row_cells::Raw;
 use crate::debug::timing::STAGES;
 use crate::debug::wear_page::SURFACES;
 use crate::owners::Owners;
@@ -30,7 +29,7 @@ pub struct Row {
     name: &'static str,
     label: &'static str,
     shown: Shown,
-    cell: for<'a> fn(&Owners<'a>) -> &'a dyn Raw,
+    cell: for<'a> fn(&Owners<'a>) -> u32,
     bar: bool,
     place: (u32, u32),
 }
@@ -40,7 +39,7 @@ impl Row {
         name: &'static str,
         label: &'static str,
         shown: Shown,
-        cell: for<'a> fn(&Owners<'a>) -> &'a dyn Raw,
+        cell: for<'a> fn(&Owners<'a>) -> u32,
         bar: bool,
         place: (u32, u32),
     ) -> Self {
@@ -55,7 +54,7 @@ impl Row {
     }
 
     fn value(&self, o: &Owners<'static>) -> u32 {
-        (self.cell)(o).raw()
+        (self.cell)(o)
     }
 }
 

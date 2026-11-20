@@ -141,7 +141,7 @@ fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
 // next_turn_step}`.
 pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    crate::physics::ease_view_turn::ease_view_turn(c.camera, c.replay_frames, c.car);
+    crate::physics::ease_view_turn::ease_view_turn(c.camera, c.step_first, c.car);
     c.race_tables.camera_ground_flag.set(0);
     c.race_tables.camera_turn_step.set(u32::MAX);
     drawing

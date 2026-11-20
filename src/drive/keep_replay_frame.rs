@@ -9,14 +9,14 @@ use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{PLAYING, RECORDING, frame_and_tenth};
 
 pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
-    race.replay.replay_frames().frame.set(0);
-    race.replay.replay_frames().tenth.set(0);
+    race.replay.replay_frames_mut().frame = 0;
+    race.replay.replay_frames_mut().tenth = 0;
     if race.course.numbers.get().replay_mode.get() != PLAYING {
         let (frame, tenth) = frame_and_tenth(race.car_blocks().cars[0].step_clock.get());
-        race.replay.replay_frames().frame.set(frame);
-        race.replay.replay_frames().tenth.set(tenth);
+        race.replay.replay_frames_mut().frame = frame;
+        race.replay.replay_frames_mut().tenth = tenth;
     }
-    if race.replay.replay_frames().tenth.get() == 0
+    if race.replay.replay_frames().tenth == 0
         && race.course.numbers.get().replay_mode.get() == RECORDING
     {
         crate::drive::save_replay_cars::save_replay_cars(race);

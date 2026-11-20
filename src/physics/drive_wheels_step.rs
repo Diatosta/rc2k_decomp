@@ -133,12 +133,10 @@ fn steps(
             physics_tables.drive_torque.set(0.0);
         }
         crate::physics::cap_drive_speed::cap_drive_speed(car, physics_tables);
-        physics_tables.wheels_driven.set(0);
         // the grips of `wheel_grips`, or, braking, `wheel_grips_b`
         let mut grips = &physics_tables.wheel_grips;
         if car.brake.get() != 0 {
             grips = &physics_tables.wheel_grips_b;
-            physics_tables.wheels_driven.set(1);
         }
         drive_forces_from_grips(car, physics_tables, grips);
         scratch.set(car.throttle.get().wrapping_add(0x100));

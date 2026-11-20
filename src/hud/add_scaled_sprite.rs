@@ -15,7 +15,7 @@ use rc2k_core::math::extended::to_f64;
 /// with its corner at `x`, `y`.
 pub(super) fn add_scaled_sprite_plain(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     x: u32,
     y: u32,
@@ -25,7 +25,7 @@ pub(super) fn add_scaled_sprite_plain(
     let [_, _, w, h] = put_places(hud, rect)?;
     let w = quads::scaled_size(w, scales[0]);
     let h = quads::scaled_size(h, scales[1]);
-    hud.block.fistp_scratch.set(h);
+    hud.block.fistp_scratch = h;
     put_corners(hud, x, y, w, h);
     crate::hud::add_quad::add_quad(frame, hud, pen)
 }
@@ -33,7 +33,7 @@ pub(super) fn add_scaled_sprite_plain(
 /// `add_scaled_sprite_plain` with the scales as the x87 holds them.
 pub(super) fn add_scaled_sprite(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     x: u32,
     y: u32,

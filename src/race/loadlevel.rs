@@ -397,7 +397,7 @@ fn finish_level(
     s.log(Word::StoreNorms);
     s.indent(3);
     crate::race::norms::store_norms(race, scene)?;
-    if race.replay.finish.get().no_place.get() == 0 {
+    if race.replay.no_place() == 0 {
         s.indent(-3);
         s.step(
             Word::InitCheckpoints,

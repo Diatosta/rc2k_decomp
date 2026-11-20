@@ -130,9 +130,6 @@ pub fn quad_corners(x0: i32, x1: i32, y0: i32, y1: i32) -> [(f32, f32); 4] {
     [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 }
 
-/// The scene state mark while the bar is on.
-pub const FRAME_MARK: u32 = 8;
-
 /// A frame is tried with the window active and the surfaces not lost (`lost` not 1).
 pub fn frame_tried(active: u32, lost: u32) -> bool {
     active != 0 && lost != 1

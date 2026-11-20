@@ -13,5 +13,5 @@ pub fn race_over(net: &Net, time: u32) -> Result<(), Refused> {
         .set(net.vars.own.total.get().wrapping_add(time));
     net.vars.own.set_state(net.vars.own.state().raced());
     net.lobby().after_race.set(1);
-    crate::net::list_players::list_players_regs(net)
+    crate::net::list_players::refresh_players(net)
 }

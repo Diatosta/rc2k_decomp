@@ -4,6 +4,7 @@
 //! (`vectors::block_vectors`) reach the places through the stores by name, a field through `paths`
 //! and not by its byte in the record.
 
+use crate::drive::finish_store::Finish;
 use std::sync::OnceLock;
 
 /// `(offset, store, field path)`, sorted by offset.
@@ -473,13 +474,72 @@ fn place(off: usize) -> (&'static str, &'static str) {
     }
 }
 
+/// The finish state (plain fields, not cells): its registry name.
+const FINISH: &str = "owners.race.replay.finish";
+
+/// How a field of the finish state is read and written as bits.
+type FinishBits = (fn(&Finish) -> u32, fn(&mut Finish, u32));
+
+/// The finish state's field at `path`.
+fn finish_field(path: &str) -> Option<FinishBits> {
+    macro_rules! float {
+        ($f:ident) => {
+            Some((|f| f.$f.to_bits(), |f, v| f.$f = f32::from_bits(v)))
+        };
+    }
+    match path {
+        ".car_lift" => float!(car_lift),
+        ".limit_a" => float!(limit_a),
+        ".limit_b" => float!(limit_b),
+        ".camera_yaw_rate" => float!(camera_yaw_rate),
+        ".camera_distance_start" => float!(camera_distance_start),
+        ".camera_height_start" => float!(camera_height_start),
+        ".camera_distance_rate" => float!(camera_distance_rate),
+        ".camera_height_rate" => float!(camera_height_rate),
+        ".time" => float!(time),
+        ".eased" => float!(eased),
+        ".share" => float!(share),
+        ".limit_c" => float!(limit_c),
+        ".limit_d" => float!(limit_d),
+        ".camera_pitch_per_share" => float!(camera_pitch_per_share),
+        ".camera_height_per_share" => float!(camera_height_per_share),
+        _ => None,
+    }
+}
+
+/// The bytes of the field at `path` in the store `name` (the registry's, or the finish state).
+fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
+    if name == FINISH {
+        let (get, _) = finish_field(path)?;
+        return Some(
+            get(&super::own::race().replay.finish())
+                .to_le_bytes()
+                .to_vec(),
+        );
+    }
+    super::state::walk(name).path_bytes(path)
+}
+
+/// `bytes` put into the field at `path` in the store `name`; false when it is not there.
+fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
+    if name == FINISH {
+        let (Some((_, set)), Ok(word)) = (finish_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::race().replay.finish_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    super::state::walk(name).set_path_bytes(path, bytes)
+}
+
 /// `len` bytes of the race block from `off`: the place's own cells, and where the read is
 /// wider than they are, the places that follow it.
 pub fn read(off: usize, len: usize) -> Vec<u8> {
     let (name, path) = place(off);
-    let mut bytes = super::state::walk(name)
-        .path_bytes(path)
-        .unwrap_or_else(|| panic!("no field {path} in {name}"));
+    let mut bytes = store_bytes(name, path).unwrap_or_else(|| panic!("no field {path} in {name}"));
     if bytes.len() < len {
         let rest = read(off + bytes.len(), len - bytes.len());
         bytes.extend(rest);
@@ -491,20 +551,17 @@ pub fn read(off: usize, len: usize) -> Vec<u8> {
 /// `bytes` put at the race block's `off`, as `read` finds the places.
 pub fn write(off: usize, bytes: &[u8]) {
     let (name, path) = place(off);
-    let store = super::state::walk(name);
     // A write that covers the place's cells exactly needs no read of them first: one walk of
     // the store instead of two (the vectors write places in every case).
     if known_len(off) == Some(bytes.len()) {
-        assert!(store.set_path_bytes(path, bytes), "{path} in {name}");
+        assert!(set_store_bytes(name, path, bytes), "{path} in {name}");
         return;
     }
-    let mut cells = store
-        .path_bytes(path)
-        .unwrap_or_else(|| panic!("no field {path} in {name}"));
+    let mut cells = store_bytes(name, path).unwrap_or_else(|| panic!("no field {path} in {name}"));
     note_len(off, cells.len());
     let here = cells.len().min(bytes.len());
     cells[..here].copy_from_slice(&bytes[..here]);
-    assert!(store.set_path_bytes(path, &cells), "{path} in {name}");
+    assert!(set_store_bytes(name, path, &cells), "{path} in {name}");
     if bytes.len() > here {
         write(off + here, &bytes[here..]);
     }
@@ -548,7 +605,7 @@ mod tests {
             );
         }
         for &(block, name, path) in table {
-            let cells = crate::test_support::state::walk(name).path_bytes(path);
+            let cells = super::store_bytes(name, path);
             assert!(
                 cells.is_some_and(|c| !c.is_empty()),
                 "place {block:#X}: no field {path} in {name}"

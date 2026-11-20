@@ -5,7 +5,7 @@ use crate::hud::owner::Hud;
 use crate::race::owner_frame::Frame;
 
 /// The panel's six times in tenths.
-pub fn tenths(frame: &Frame, hud: &Hud) {
+pub fn tenths(frame: &Frame, hud: &mut Hud) {
     let (a, b) = (
         &frame.panel_and_overlay.get().panel.view_a,
         &frame.panel_and_overlay.get().panel.view_b,
@@ -15,7 +15,7 @@ pub fn tenths(frame: &Frame, hud: &Hud) {
     ]
     .map(|cell| cell.get() as i32);
     let (tenths, _) = rc2k_core::hud::tenths::tenths(times);
-    for (cell, v) in hud.block.times.iter().zip(tenths) {
-        cell.set(v as u32);
+    for (to, v) in hud.block.times.iter_mut().zip(tenths) {
+        *to = v as u32;
     }
 }

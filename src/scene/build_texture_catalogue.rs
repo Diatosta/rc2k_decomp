@@ -1,7 +1,7 @@
 //! `scene::build_texture_catalogue`: gets memory for every texture that is needed, making the
 //! textures smaller group by group until it is had.
 //!
-//! The listing is one list of 432 steps of a few kinds, which `scene/texture_steps.rs` holds
+//! The listing is one list of 352 steps of a few kinds, which `scene/texture_steps.rs` holds
 //! as a table: log a text or a number; count a reduction in
 //! the counters (0x100 of them); raise the level a tag's textures are needed at
 //! (`scene::raise_texture_needs`: a higher level is a smaller texture); try

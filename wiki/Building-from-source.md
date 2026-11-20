@@ -247,7 +247,8 @@ times and settings; its `savedata/videos` (the desktop program's rendered replay
 `instances` are left out, as the browser's storage is small. The game runs on a
 worker and shows the menus and races on the page's canvases; keys reach the game. Films play. The
 switches of `rc2k --help` go in the address as `?args=--mode%20time-trial%20--stage%20Langton`
-(`--renderer software` forces the software rasteriser).
+(`--renderer software` forces the software rasteriser); like `?env=`, the address switches work only
+on `localhost` / `127.0.0.1` (the page `serve.py` serves) or in a browser where `localStorage.rc2kDev = "1"` was typed into the console (a link cannot set it).
 
 - **Picture.** The GL renderer runs on WebGL 2 by default (the shaders are the handheld's GLES 3
   ones). Its context is made from the GL thread on a second canvas (`#glcanvas`, over the game's
@@ -282,7 +283,7 @@ switches of `rc2k --help` go in the address as `?args=--mode%20time-trial%20--st
   case) while the game asks in lower case, so a file is found by listing its folder; the listing
   of each folder is kept (`files::folder_names`) instead of being read for every file, which
   took a menu's start from about 10 seconds to under 3.
-- **Trials.** `?env=NAME=VALUE` in the page's address sets an environment variable of the program
+- **Trials.** On `localhost`, `127.0.0.1` or with that console switch (`localStorage.rc2kDev = "1"`), `?env=NAME=VALUE` in the page's address sets an environment variable of the program
   (`?env=RC2K_LOAD_TIMES=1` with a `--features remote` build logs the load steps).
 
 The web build has no network play: the main menu has no network item (the moves up and down pass

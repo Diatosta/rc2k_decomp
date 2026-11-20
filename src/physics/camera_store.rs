@@ -66,8 +66,6 @@ pub struct CameraWork {
     pub view_a_point: [PlainFloat; 3],
     /// The second view's point (`physics::take_second_view`).
     pub view_b_point: [PlainFloat; 3],
-    /// A copy of the first view's figure kept beside it (a reading; `physics::update_camera`).
-    pub view_blend_aux: PlainDword,
     /// The pitch's ease share, 1.0 when `ReplayFrames.step_first` is set
     /// (`physics::ease_view_turn`).
     pub view_share_pitch: PlainFloat,
@@ -105,8 +103,6 @@ pub struct CameraWork {
     pub ground_found: PlainDword,
     /// Probes that found the last face again (`physics::count_ground_probe`).
     pub ground_same: PlainDword,
-    /// The car parts' axle figure block (`race::car_parts`).
-    pub car_axles: PlainDword,
     /// The front axle's x, negated (`race::car_parts`).
     pub axle_front_neg: PlainDword,
     /// The front axle's x (`race::car_parts`).

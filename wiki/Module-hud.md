@@ -9,9 +9,10 @@ texture after the 3D views.
 
 ## State
 
-`Hud` (`src/hud/owner.rs`), a field of the race's owner (`Race::hud`). It is one block,
+`Hud` (`src/hud/owner.rs`), a field of the race's owner (`Race::hud`, behind one `RefCell` that
+the race's frame borrows once, where it draws the HUD). It is one block of plain fields,
 `HudBlock` in `src/hud/block_store.rs`: the batch's vertices and indices, the virtual screen's size,
-the layouts' values. The numbers the HUD shows (speed, times, gear) are filled in by the race
+the layouts' values. Every drawing function takes it as `&mut Hud` (`&Hud` where it only reads). The numbers the HUD shows (speed, times, gear) are filled in by the race
 each frame (`src/race/panel_store.rs`).
 
 ## Main entry points

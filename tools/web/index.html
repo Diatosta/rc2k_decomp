@@ -110,6 +110,18 @@ function status(text, error) {
   $("status").className = error ? "error" : "";
 }
 
+// The trial switches in the address (`?env=`, `?args=`) are honoured on a developer's own machine
+// (localhost) and on a hosted page whose browser has `localStorage.rc2kDev = "1"` (typed in its
+// console: a link cannot set it), so a link cannot start a visitor's game with them.
+const DEV_SWITCHES = (() => {
+  if (["localhost", "127.0.0.1", "[::1]"].includes(location.hostname)) return true;
+  try {
+    return localStorage.getItem("rc2kDev") === "1";
+  } catch {
+    return false;
+  }
+})();
+
 function start(dir, installer) {
   document.body.classList.add("playing");
   window.Module = {
@@ -118,13 +130,13 @@ function start(dir, installer) {
       Module.ENV.HOME = "/opfs/home";
       Module.ENV.RC2K_DIR = dir;
       // Environment variables of the program (`?env=RC2K_LOAD_TIMES=1`, repeatable), for trials.
-      for (const pair of new URLSearchParams(location.search).getAll("env")) {
+      for (const pair of DEV_SWITCHES ? new URLSearchParams(location.search).getAll("env") : []) {
         const at = pair.indexOf("=");
         if (at > 0) Module.ENV[pair.slice(0, at)] = pair.slice(at + 1);
       }
     }],
     // The game's switches (`rc2k --help`), as `?args=--stage%20Langton%20--mode%20time-trial`.
-    arguments: (new URLSearchParams(location.search).get("args") || "").split(/\s+/).filter(Boolean),
+    arguments: (DEV_SWITCHES ? new URLSearchParams(location.search).get("args") || "" : "").split(/\s+/).filter(Boolean),
     print: (t) => console.log(t),
     printErr: (t) => console.warn(t),
     // The program ended (the installer when it is done, the game when left). The installer

@@ -52,7 +52,7 @@ fn queue_and_take() {
     let mut n = Notice::default();
     assert_eq!(n.take(&mut q), Some(0xD0));
     assert_eq!(
-        (n.id, n.time, n.w708, q.count, q.ids[0]),
+        (n.id, n.time, n.second_time, q.count, q.ids[0]),
         (0xD0, 0x12C, 0x32, 1, 0xD2)
     );
     assert_eq!(n.take(&mut q), None);

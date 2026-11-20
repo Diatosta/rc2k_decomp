@@ -5,6 +5,7 @@
 use super::x87::{below, loaded};
 
 #[cfg(test)]
+/// Test oracle (not called by the game): the game's step runs on the x87 emulation (`X`, rounding by the thread's control word) in `src/physics/ease_low_speed_forces.rs`, whose reference vectors compare it with the original's code; this plain `f64` version would round differently at extended precision, so the game does not call it.
 /// The low-speed factor: None when |`speed`| is not below `limit` (so the forces are left),
 /// else (|speed| / limit + `add`) x `times`.
 pub(crate) fn low_speed_factor(speed: f32, limit: f32, add: f32, times: f32) -> Option<f32> {

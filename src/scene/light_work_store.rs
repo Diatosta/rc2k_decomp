@@ -50,8 +50,6 @@ pub struct LightWork {
     /// Set along with the light kind, 0 for a car (`race::car_draw`); no reader shows what it
     /// selects. Unused: each view has its own in `scene::object_light`.
     pub light_kind_extra: PlainDword,
-    /// The car's light colour (`physics::car_lighting`).
-    pub car_light_colour: PlainDword,
     /// First lamp table's colour (`physics::car_lighting`).
     pub lamp_a_colour: PlainDword,
     /// Second lamp table's colour (`physics::car_lighting`).

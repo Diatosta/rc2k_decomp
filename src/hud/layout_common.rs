@@ -12,10 +12,10 @@ use rc2k_core::hud::panels;
 
 /// A time made digits (`digits`: `rc2k_core::hud::panels::time_digits`), each
 /// plus `base`.
-pub fn time_digits(hud: &Hud, value: u32, base: u32) -> [u32; 6] {
+pub fn time_digits(hud: &mut Hud, value: u32, base: u32) -> [u32; 6] {
     let d = panels::time_digits(value, base);
     for (n, v) in d.into_iter().enumerate() {
-        hud.block.digits[n].set(v);
+        hud.block.digits[n] = v;
     }
     d
 }
@@ -23,25 +23,25 @@ pub fn time_digits(hud: &Hud, value: u32, base: u32) -> [u32; 6] {
 pub use rc2k_core::hud::anchor::Keep;
 
 /// The layout's own rule set at the start of a HUD.
-pub(super) fn start_keep(hud: &Hud, keep: Keep) {
-    hud.block.base_rule.set(keep as u32);
-    hud.block.anchor_rule.set(keep as u32);
+pub(super) fn start_keep(hud: &mut Hud, keep: Keep) {
+    hud.block.base_rule = keep as u32;
+    hud.block.anchor_rule = keep as u32;
 }
 
 /// The pieces drawn next keep as `keep`.
-pub fn keep(hud: &Hud, keep: Keep) {
-    hud.block.anchor_rule.set(keep as u32);
+pub fn keep(hud: &mut Hud, keep: Keep) {
+    hud.block.anchor_rule = keep as u32;
 }
 
 /// The pieces drawn next keep as the layout's own rule again.
-pub(super) fn keep_layout(hud: &Hud) {
-    hud.block.anchor_rule.set(hud.block.base_rule.get());
+pub(super) fn keep_layout(hud: &mut Hud) {
+    hud.block.anchor_rule = hud.block.base_rule;
 }
 
 /// A sprite: rectangle `rect` of the sprite sheet at (x, y).
 pub fn sprite(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     rect: u32,
     x: u32,
@@ -51,28 +51,26 @@ pub fn sprite(
 }
 
 /// The sign of a time into `sign`: `plus` or `minus`.
-pub fn sign(hud: &Hud, value: u32, plus: u32, minus: u32) -> u32 {
+pub fn sign(hud: &mut Hud, value: u32, plus: u32, minus: u32) -> u32 {
     let s = panels::sign(value, plus, minus);
-    hud.block.sign.set(s);
+    hud.block.sign = s;
     s
 }
-
-/// A sprite drawer for the shared panels: (rectangle, x, y).
-pub type Draw<'a> = &'a mut dyn FnMut(u32, u32, u32) -> Result<(), Refused>;
 
 /// A clock panel: the time `t` (digits from 0x18), its sign 0x22 / 0x23, then its
 /// rectangles (`panels::clock_rects`) at `xs`, row `y`.
 pub(super) fn clock_panel(
-    hud: &Hud,
+    frame: &Frame,
+    hud: &mut Hud,
+    pen: Pen,
     t: u32,
     xs: [u32; 8],
     y: u32,
-    draw: Draw,
 ) -> Result<(), Refused> {
     time_digits(hud, t, panels::CLOCK_BASE);
     sign(hud, t, 0x22, 0x23);
     for (rect, x) in panels::clock_rects(t).into_iter().zip(xs) {
-        draw(rect, x, y)?;
+        sprite(frame, hud, pen, rect, x, y)?;
     }
     Ok(())
 }
@@ -80,16 +78,17 @@ pub(super) fn clock_panel(
 /// A split-time panel: the time `t` (digits from 0xC, sign 0 / 1), then its rectangles
 /// (`panels::lap_rects`) at `xs`, row `y`.
 pub(super) fn lap_panel(
-    hud: &Hud,
+    frame: &Frame,
+    hud: &mut Hud,
+    pen: Pen,
     t: u32,
     xs: [u32; 8],
     y: u32,
-    draw: Draw,
 ) -> Result<(), Refused> {
     time_digits(hud, t, panels::LAP_BASE);
     sign(hud, t, 0, 1);
     for (rect, x) in panels::lap_rects(t).into_iter().zip(xs) {
-        draw(rect, x, y)?;
+        sprite(frame, hud, pen, rect, x, y)?;
     }
     Ok(())
 }
@@ -98,22 +97,23 @@ pub(super) fn lap_panel(
 /// the leading ones left out while they are 0 (`leading`;
 /// `panels::leading_digits`).
 pub(super) fn leading_time(
-    hud: &Hud,
+    frame: &Frame,
+    hud: &mut Hud,
+    pen: Pen,
     v: u32,
     xs: [u32; 3],
     y: u32,
-    draw: Draw,
 ) -> Result<(), Refused> {
     time_digits(hud, v, panels::LAP_BASE);
     sign(hud, v, 0, 1);
-    hud.block.leading.set(1);
+    hud.block.leading = 1;
     for (digit, slot, drawn) in panels::leading_digits(v) {
         if !drawn {
             continue;
         }
-        draw(digit, xs[slot], y)?;
+        sprite(frame, hud, pen, digit, xs[slot], y)?;
         if slot < 2 {
-            hud.block.leading.set(0);
+            hud.block.leading = 0;
         }
     }
     Ok(())
@@ -121,14 +121,14 @@ pub(super) fn leading_time(
 
 /// The needle's sign by a start value (`pick`, `needle_kind` and the texture set): its
 /// rectangle.
-pub fn needle_sign(hud: &Hud, field: u32) -> u32 {
-    hud.block.pick.set(0x5E);
-    hud.block.texture.set(0xC0);
-    hud.block.needle_kind.set(field);
+pub fn needle_sign(hud: &mut Hud, field: u32) -> u32 {
+    hud.block.pick = 0x5E;
+    hud.block.texture = 0xC0;
+    hud.block.needle_kind = field;
     let (pick, texture) = panels::needle_sign(field);
     if field != 0 {
-        hud.block.pick.set(pick);
-        hud.block.texture.set(texture);
+        hud.block.pick = pick;
+        hud.block.texture = texture;
     }
     pick
 }
@@ -137,44 +137,44 @@ pub fn needle_sign(hud: &Hud, field: u32) -> u32 {
 /// `fistp_scratch`.
 pub fn scaled(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     rect: u32,
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
     let at = RectAt::number(rect);
-    let k = hud.block.uv_scale_x.get();
-    hud.block.fistp_scratch.set(0xC0);
+    let k = hud.block.uv_scale_x;
+    hud.block.fistp_scratch = 0xC0;
     let v = int_over_80(0xC0, k);
     crate::hud::add_scaled_sprite::add_scaled_sprite(frame, hud, pen, x, y, at, [v, v])?;
-    hud.block.fistp_scratch.set(taken_off(v));
+    hud.block.fistp_scratch = taken_off(v);
     Ok(())
 }
 
 /// The state of the dials: alpha 0xE0 and the first dial's texture.
-pub(super) fn begin_dials(hud: &Hud) {
-    hud.block.quad.alpha.set(0xE0);
-    hud.block.texture.set(texture::DIAL_FIRST);
+pub(super) fn begin_dials(hud: &mut Hud) {
+    hud.block.quad.alpha = 0xE0;
+    hud.block.texture = texture::DIAL_FIRST;
 }
 
 /// The state of a white, opaque draw on `texture`.
-pub(super) fn white_opaque(hud: &Hud, texture: u32) {
-    hud.block.quad.colour.set(0xFFFF_FFFF);
-    hud.block.quad.alpha.set(0xFF);
-    hud.block.texture.set(texture);
+pub(super) fn white_opaque(hud: &mut Hud, texture: u32) {
+    hud.block.quad.colour = 0xFFFF_FFFF;
+    hud.block.quad.alpha = 0xFF;
+    hud.block.texture = texture;
 }
 
 /// A black, opaque solid quad over `rect` (left, top, right, bottom): the divider of two players.
 pub(super) fn black_divider(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     rect: [u32; 4],
 ) -> Result<(), Refused> {
-    hud.block.texture.set(texture::SPRITES);
-    hud.block.quad.alpha.set(0xFF);
-    hud.block.quad.colour.set(0);
+    hud.block.texture = texture::SPRITES;
+    hud.block.quad.alpha = 0xFF;
+    hud.block.quad.colour = 0;
     hud.block.quad.set_rect(rect);
     crate::hud::add_solid_quad::add_solid_quad(frame, hud, pen)
 }
@@ -182,12 +182,9 @@ pub(super) fn black_divider(
 /// The gears physics allows (reverse to seventh): only a damaged replay file brings one outside.
 const GEARS: std::ops::RangeInclusive<i32> = -1..=7;
 
-/// Whether the clamp of the gear has been logged in this race (`start_gear_log` clears it).
-static GEAR_CLAMP_LOGGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
 /// A new race: the next out-of-range gear is logged again.
-pub fn start_gear_log() {
-    GEAR_CLAMP_LOGGED.store(false, std::sync::atomic::Ordering::Relaxed);
+pub fn start_gear_log(hud: &mut Hud) {
+    hud.gear_clamp_logged = false;
 }
 
 /// The gear to show for the gear value `gear` (a signed dword), and the log line when it had to
@@ -207,10 +204,10 @@ fn clamped_gear(gear: u32) -> (i32, Option<String>) {
 
 /// The rectangle of the gear sprite for the gear value `gear`: 0x41 over the gear, which is
 /// clamped to what physics allows (the first clamp of a race is logged).
-pub(super) fn gear_rect(gear: u32) -> u32 {
+pub(super) fn gear_rect(hud: &mut Hud, gear: u32) -> u32 {
     let (shown, line) = clamped_gear(gear);
     if let Some(line) = line
-        && !GEAR_CLAMP_LOGGED.swap(true, std::sync::atomic::Ordering::Relaxed)
+        && !std::mem::replace(&mut hud.gear_clamp_logged, true)
     {
         crate::program_log::log(&line);
     }
@@ -225,7 +222,7 @@ mod tests {
     fn gears_in_range_are_untouched() {
         for g in -1..=7i32 {
             assert_eq!(clamped_gear(g as u32), (g, None));
-            assert_eq!(gear_rect(g as u32), (g + 0x41) as u32);
+            assert_eq!(gear_rect(&mut Hud::new(), g as u32), (g + 0x41) as u32);
         }
     }
 
@@ -240,15 +237,17 @@ mod tests {
         let (shown, line) = clamped_gear(-9i32 as u32);
         assert_eq!(shown, -1);
         assert!(line.unwrap().contains("gear -9 outside"));
-        assert_eq!(gear_rect(0x8000_0000), 0x40);
-        assert_eq!(gear_rect(1000), 0x48);
+        let mut hud = Hud::new();
+        assert_eq!(gear_rect(&mut hud, 0x8000_0000), 0x40);
+        assert_eq!(gear_rect(&mut hud, 1000), 0x48);
     }
 
     #[test]
     fn the_log_flag_is_set_by_a_clamp_and_cleared_by_a_new_race() {
-        gear_rect(99);
-        assert!(GEAR_CLAMP_LOGGED.load(std::sync::atomic::Ordering::Relaxed));
-        start_gear_log();
-        assert!(!GEAR_CLAMP_LOGGED.load(std::sync::atomic::Ordering::Relaxed));
+        let mut hud = Hud::new();
+        gear_rect(&mut hud, 99);
+        assert!(hud.gear_clamp_logged);
+        start_gear_log(&mut hud);
+        assert!(!hud.gear_clamp_logged);
     }
 }

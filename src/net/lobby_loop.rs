@@ -164,9 +164,9 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             >= 0
         {
             net.lobby().listed_at.set(tick);
-            // A failed listing is never reported here (`list_players_regs` drops the result;
+            // A failed listing is never reported here (`refresh_players` drops the result;
             // kept as is).
-            crate::net::list_players::list_players_regs(net)?;
+            crate::net::list_players::refresh_players(net)?;
         }
         list_state
             .frame_clock
@@ -228,7 +228,7 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                             state.made_ready()
                         });
                         if state.is_ready() {
-                            crate::net::list_players::list_players_regs(net)?;
+                            crate::net::list_players::refresh_players(net)?;
                         }
                         list_state.choice.set(3);
                         moved = true;
@@ -239,7 +239,7 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                         } else {
                             crate::net::choose_stage::choose_stage(o, &net.vars)?;
                         }
-                        crate::net::list_players::list_players_regs(net)?;
+                        crate::net::list_players::refresh_players(net)?;
                         moved = true;
                     }
                     3 => {

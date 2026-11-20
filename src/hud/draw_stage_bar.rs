@@ -12,26 +12,38 @@ use crate::race::owner_frame::Frame;
 /// The record's corners (left, top, right, bottom) and, with `Some`, its colour; a quad.
 pub fn quad(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     colour: Option<u32>,
     c: [u32; 4],
 ) -> Result<(), Refused> {
     if let Some(colour) = colour {
-        hud.block.quad.colour.set(colour);
+        hud.block.quad.colour = colour;
     }
     hud.block.quad.set_rect(c);
     crate::hud::add_solid_quad::add_solid_quad(frame, hud, pen)
 }
 
-/// The bars of `kinds`' players (each player's colour into `colour_vars`), `dy` lower
-/// (see the header and `hud::draw_stage_bars`'s).
+/// The four bytes of the four stage colours (little endian, one after the other) from byte
+/// `kind` on: a kind is a byte offset, held to 0xC by the check, so some read a whole colour
+/// and some the end of one and the start of the next.
+fn stage_colour_at(colours: &[u32; 4], kind: usize) -> Result<u32, crate::errors::BadInput> {
+    let all: [u8; 16] = std::array::from_fn(|i| colours[i / 4].to_le_bytes()[i % 4]);
+    let bytes = kind
+        .checked_add(4)
+        .and_then(|end| all.get(kind..end))
+        .ok_or(crate::errors::BadInput(
+            "a stage bar colour past the four colours",
+        ))?;
+    Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+}
+
+/// The bars of `kinds`' players, `dy` lower (see the header and `hud::draw_stage_bars`'s).
 pub fn bars(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     kinds: &[&[PlainDword]],
-    colour_vars: &[&PlainDword],
     dy: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;
@@ -39,16 +51,16 @@ pub fn bars(
     sb::check(count, kinds.len() as u32, |p, n| {
         kinds[p as usize][n as usize].get()
     })?;
-    hud.block.quad.alpha.set(sb::SOLID);
+    hud.block.quad.alpha = sb::SOLID;
     for (colour, c) in sb::frame(dy, kinds.len() == 2) {
         quad(frame, hud, pen, Some(colour), c)?;
     }
     if count == 0 {
         return Ok(());
     }
-    hud.block.bar_width.set(sb::WIDTH);
-    hud.block.ends[0].set(0.0);
-    hud.block.ends[1].set(0.0);
+    hud.block.bar_width = sb::WIDTH;
+    hud.block.ends[0] = 0.0;
+    hud.block.ends[1] = 0.0;
     let total = f32::from_bits(frame.panel_and_overlay.get().panel.overlay_miles.get());
     for n in 0..count {
         let left = count - n;
@@ -56,75 +68,53 @@ pub fn bars(
         // four colours, though not always a whole one).
         let colours: Vec<u32> = kinds
             .iter()
-            .map(|&k| {
-                let kind: u32 = k[n as usize].get();
-                let mut bytes = [0; 4];
-                crate::memory::session::read_run_bytes(
-                    &[&hud.block.stage_colours],
-                    kind as usize,
-                    &mut bytes,
-                    "a stage bar colour",
-                )?;
-                Ok(u32::from_le_bytes(bytes))
-            })
+            .map(|&k| stage_colour_at(&hud.block.stage_colours, k[n as usize].get() as usize))
             .collect::<Result<_, crate::errors::BadInput>>()?;
-        for (to, &c) in colour_vars.iter().zip(&colours) {
-            to.set(c);
-        }
         let end = sb::part_end(
             frame.panel_and_overlay.get().overlay.overlay_part_miles[n as usize].get(),
-            hud.block.ends[1].get(),
+            hud.block.ends[1],
             left == 1,
             total,
         );
-        hud.block.ends[1].set(end);
-        let a = sb::place(sb::WIDTH, hud.block.ends[0].get(), total);
-        hud.block.point[0].set(a);
+        hud.block.ends[1] = end;
+        let a = sb::place(sb::WIDTH, hud.block.ends[0], total);
+        hud.block.point[0] = a;
         let b = sb::place(sb::WIDTH, end, total);
-        hud.block.point[1].set(b);
+        hud.block.point[1] = b;
         for q in sb::part_quads(a, b, &colours, left == 1, dy) {
             if let Some(alpha) = q.alpha {
-                hud.block.quad.alpha.set(alpha);
+                hud.block.quad.alpha = alpha;
             }
             quad(frame, hud, pen, q.colour, q.corners)?;
         }
-        hud.block.ends[0].set(end);
+        hud.block.ends[0] = end;
     }
     Ok(())
 }
 
-pub fn draw_stage_bar(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+pub fn draw_stage_bar(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
     bars(
         frame,
         hud,
         pen,
         &[&frame.panel_and_overlay.get().overlay.overlay_part_kinds_a],
-        &[&hud.block.bar_colour],
         0,
     )
 }
 
 #[cfg(test)]
 mod tests {
-    /// Every colour offset the check lets through reads the four bytes the byte-offset read did.
+    use super::*;
+
+    /// Every colour offset the check lets through reads the four bytes from that offset on.
     #[test]
-    fn colour_bytes_as_the_old_read() {
-        let hud = Box::new(crate::hud::block_store::HudBlock::new());
-        for (k, cell) in hud.stage_colours.iter().enumerate() {
-            cell.set((0x0101_0101 * (k as u32 + 1)) ^ 0x00A0_0C00);
-        }
+    fn colour_bytes_from_the_offset() {
+        let colours = [0x0403_0201, 0x0807_0605, 0x0C0B_0A09, 0x100F_0E0D];
         for kind in 0..=rc2k_core::hud::stage_bars::LAST_KIND {
-            let old: Result<u32, _> =
-                crate::memory::cells::load_value(&hud.stage_colours, kind as usize);
-            let mut bytes = [0; 4];
-            crate::memory::session::read_run_bytes(
-                &[&hud.stage_colours],
-                kind as usize,
-                &mut bytes,
-                "t",
-            )
-            .unwrap();
-            assert_eq!(Ok(u32::from_le_bytes(bytes)), old, "{kind}");
+            let k = kind as usize;
+            let wanted = u32::from_le_bytes([k as u8 + 1, k as u8 + 2, k as u8 + 3, k as u8 + 4]);
+            assert_eq!(stage_colour_at(&colours, k), Ok(wanted), "{kind}");
         }
+        assert!(stage_colour_at(&colours, 13).is_err());
     }
 }

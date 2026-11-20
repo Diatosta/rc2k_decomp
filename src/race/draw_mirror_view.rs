@@ -38,7 +38,7 @@ pub fn draw_mirror_view(
     reads: crate::scene::workers::DrawReads<'_>,
 ) -> Result<Option<crate::race::draw_view_scene::ViewOutput>, Refused> {
     view.take_vars(reads);
-    if reads.finish.no_place.get() != 0
+    if reads.no_place != 0
         || reads.work.in_credits.is_set()
         || (reads.switches.scene_set_up.get() == 0 && !always())
     {

@@ -16,7 +16,7 @@ pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
         return Ok(());
     }
     let (ebx, second) = if tail {
-        let step = replay.replay_frames().step_frame.get() as usize;
+        let step = replay.replay_frames().step_frame as usize;
         let v2 = replay.v2().lock();
         let [keys, packed] = v2
             .tail
@@ -25,10 +25,9 @@ pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
             .ok_or(BadInput("a tape entry past the frame's tenths"))?[car as usize - 4];
         (keys, packed)
     } else {
-        let entry =
-            replay
-                .staging()
-                .entry(replay.replay_frames().step_frame.get(), car, extended)?;
+        let entry = replay
+            .staging()
+            .entry(replay.replay_frames().step_frame, car, extended)?;
         (entry.input.get(), entry.packed.get())
     };
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
@@ -50,10 +49,7 @@ mod tests {
         let _g = crate::test_support::test_lock();
         let race = race();
         let words = &race.shared.physics_tables.get().input_words;
-        let (tenth, car_cell) = (
-            &race.replay.replay_frames().tenth,
-            &race.shared.work.get().current_car,
-        );
+        let car_cell = &race.shared.work.get().current_car;
         let kept_block = race.viewer_buffers().block_bytes();
         let kept_flag = race.viewer_buffers().extra_tape.is_set();
         let kept: Vec<u32> = words
@@ -61,10 +57,10 @@ mod tests {
             .map(crate::memory::session::PlainDword::get)
             .collect();
         let kept_car = car_cell.get();
-        let kept_tenth = tenth.get();
+        let kept_tenth = race.replay.replay_frames().tenth;
         race.viewer_buffers().extra_tape.set(true);
         race.replay.staging().clear_extra_tape();
-        tenth.set(37);
+        race.replay.replay_frames_mut().tenth = 37;
         let value = |car: u32, k: u32| (car + 1) * 0x101 + k * 0x20;
         for car in 0..4u32 {
             car_cell.set(car);
@@ -87,7 +83,7 @@ mod tests {
         crate::race::replay_staging_store::load_from_block(race);
         for car in 0..4u32 {
             car_cell.set(car);
-            race.replay.replay_frames().step_frame.set(37);
+            race.replay.replay_frames_mut().step_frame = 37;
             for w in words.iter() {
                 w.set(0);
             }
@@ -103,7 +99,7 @@ mod tests {
         race.viewer_buffers().extra_tape.set(kept_flag);
         race.replay.staging().clear_extra_tape();
         car_cell.set(kept_car);
-        tenth.set(kept_tenth);
+        race.replay.replay_frames_mut().tenth = kept_tenth;
         for (w, v) in words.iter().zip(kept) {
             w.set(v);
         }

@@ -90,7 +90,6 @@ fn cut(
     edge: Edge,
     a: &PolygonEntry,
     b: &PolygonEntry,
-    mask: u32,
 ) -> Result<u32, BadInput> {
     let polygon_work = &part.polygon;
     let number: u32 = poly.polygon_next_entry.get();
@@ -125,12 +124,10 @@ fn cut(
     };
     match edge {
         Edge::X(at) => {
-            poly.clip_kept_mask.set(mask);
             cut.made.screen_x = at;
             cut.cut_at_x();
         }
         Edge::Y(at) => {
-            poly.clip_kept_mask.set(mask);
             cut.made.screen_y = at;
             cut.cut_at_y();
         }
@@ -194,7 +191,6 @@ pub fn clip_pass<'p>(
     listed: Option<crate::scene::polygon::Listed<'p>>,
     edge: Edge,
     inside_past: bool,
-    mask: u32,
 ) -> Result<Option<crate::scene::polygon::Listed<'p>>, BadInput> {
     let polygon_work = &part.polygon;
     let entries = match listed {
@@ -236,7 +232,7 @@ pub fn clip_pass<'p>(
             out += 1;
         }
         if a_inside != b_inside {
-            let number = cut(part, poly, course, edge, a, b, mask)?;
+            let number = cut(part, poly, course, edge, a, b)?;
             crate::scene::polygon::list_cell(polygon_work, out).set(number);
             poly.polygon_next_entry.set(number + 1);
             out += 1;

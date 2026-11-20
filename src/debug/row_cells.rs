@@ -39,6 +39,18 @@ impl Raw for PlainFloat {
     }
 }
 
+impl Raw for u32 {
+    fn raw(&self) -> u32 {
+        *self
+    }
+}
+
+impl Raw for f32 {
+    fn raw(&self) -> u32 {
+        self.to_bits()
+    }
+}
+
 /// A figure worked out for the pages (`debug::frame_figures`).
 impl Raw for std::sync::atomic::AtomicU32 {
     fn raw(&self) -> u32 {
@@ -49,14 +61,14 @@ impl Raw for std::sync::atomic::AtomicU32 {
 /// The cell of field `$field` of car block `$block` (or of its element `$i`).
 macro_rules! car_cell {
     ($block:literal, $field:ident) => {{
-        fn cell<'a>(o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
-            &o.race.car_blocks().cars[$block].$field
+        fn cell<'a>(o: &$crate::owners::Owners<'a>) -> u32 {
+            $crate::debug::row_cells::Raw::raw(&o.race.car_blocks().cars[$block].$field)
         }
         cell
     }};
     ($block:literal, $field:ident[$i:literal]) => {{
-        fn cell<'a>(o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
-            &o.race.car_blocks().cars[$block].$field[$i]
+        fn cell<'a>(o: &$crate::owners::Owners<'a>) -> u32 {
+            $crate::debug::row_cells::Raw::raw(&o.race.car_blocks().cars[$block].$field[$i])
         }
         cell
     }};
@@ -66,14 +78,14 @@ pub(super) use car_cell;
 /// The cell `$home` (a store of one cell), or its field at path `$field`.
 macro_rules! store_cell {
     (|$o:ident| $home:expr) => {{
-        fn cell<'a>($o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
-            &$home
+        fn cell<'a>($o: &$crate::owners::Owners<'a>) -> u32 {
+            $crate::debug::row_cells::Raw::raw(&$home)
         }
         cell
     }};
     (|$o:ident| $home:expr, $($field:tt)+) => {{
-        fn cell<'a>($o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
-            &$home.$($field)+
+        fn cell<'a>($o: &$crate::owners::Owners<'a>) -> u32 {
+            $crate::debug::row_cells::Raw::raw(&$home.$($field)+)
         }
         cell
     }};
@@ -83,8 +95,8 @@ pub(super) use store_cell;
 /// The cell at path `$field` (with indices) of the store `$home`.
 macro_rules! indexed_cell {
     (|$o:ident| $home:expr, $($field:tt)+) => {{
-        fn cell<'a>($o: &$crate::owners::Owners<'a>) -> &'a dyn $crate::debug::row_cells::Raw {
-            &$home.$($field)+
+        fn cell<'a>($o: &$crate::owners::Owners<'a>) -> u32 {
+            $crate::debug::row_cells::Raw::raw(&$home.$($field)+)
         }
         cell
     }};

@@ -1,6 +1,6 @@
 //! The loading bar: the `Progress` sink the loaders report to, and the frame it draws. Outside a
-//! stage's loading and the credits a frame does nothing; otherwise it sets `scene_state` to the
-//! frame mark and, unless the game is quitting, draws `race::loading_bar_quad` in an unframed view
+//! stage's loading and the credits a frame does nothing; otherwise, unless the game is
+//! quitting, it draws `race::loading_bar_quad` in an unframed view
 //! window and presents the frame. A frame that cannot be drawn (the window inactive, its surfaces
 //! lost, or the lock refused) is skipped: nothing is shown and the load goes on; the next frame
 //! tries again.
@@ -134,15 +134,14 @@ fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
     let (race, system, scene, gfx, d3d) = (o.race, o.system, o.scene, o.gfx, &o.gfx.d3d);
     let session = &system.session;
     let shared = &race.shared;
-    // Logic in `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
+    // Logic in `rc2k_core::race::loading::{frame_tried}`.
     use crate::scene::*;
-    use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
+    use rc2k_core::race::loading::frame_tried;
     if !shared.work.get().in_credits.is_set()
         && !STAGE_LOADING.load(std::sync::atomic::Ordering::Relaxed)
     {
         return Ok(());
     }
-    scene.lights.state.get().scene_state.set(FRAME_MARK);
     if session.flags.quitting.is_set() {
         return Ok(());
     }

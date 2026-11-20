@@ -13,20 +13,20 @@ use crate::hud::owner::Hud;
 use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
-pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+pub fn add_polygon(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
     let system = pen.system;
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::place::{Place, Placement};
     {
         let count: u32 = pen.polygons.polygon_vertex_count.get();
-        let texture = hud.block.texture.get();
-        let vertices = hud.block.vertex_count.get();
+        let texture = hud.block.texture;
+        let vertices = hud.block.vertex_count;
         let flushes = if count == 0 || count > MOST_VERTICES {
             false
         } else {
-            batch::flushes(vertices, texture, hud.block.batch_texture.get())
+            batch::flushes(vertices, texture, hud.block.batch_texture)
         };
-        batch::check_polygon(count, vertices, hud.block.index_count.get(), flushes)?;
+        batch::check_polygon(count, vertices, hud.block.index_count, flushes)?;
         // A part of the screen is drawn into as a screen of its own (`PartScope`).
         let part = pen.scope.part;
         let [w, h]: [u32; 2] = match part {
@@ -36,7 +36,7 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
                 system.session.screen.get().height.get(),
             ],
         };
-        let rule = hud.block.anchor_rule.get();
+        let rule = hud.block.anchor_rule;
         // Where a phone's notch and home indicator leave the HUD room (the whole screen or part
         // elsewhere): the layout is made for that, and put where it is.
         let inset = if rule >= 3 {
@@ -64,11 +64,8 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             width: w,
             inset,
             hud_box: crate::hud::box_ratio::get(),
-            virtual_screen: (
-                hud.block.virtual_screen[0].get(),
-                hud.block.virtual_screen[1].get(),
-            ),
-            marker_k: [hud.block.marker_k[0].get(), hud.block.marker_k[1].get()],
+            virtual_screen: (hud.block.virtual_screen[0], hud.block.virtual_screen[1]),
+            marker_k: [hud.block.marker_k[0], hud.block.marker_k[1]],
             x_span: span(|v| v.x.get()),
             y_span: span(|v| v.y.get()),
             in_part: part.is_some(),
@@ -94,34 +91,34 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
                 .panel
                 .shown_texture
                 .set(texture);
-            hud.block.batch_texture.set(texture);
+            hud.block.batch_texture = texture;
             crate::hud::set_batch_texture::set_batch_texture(pen.part, frame, pen.scene)?;
         }
-        let vc = hud.block.vertex_count.get();
+        let vc = hud.block.vertex_count;
         // Room for them was checked above (the batch holds 0x400 vertices).
         for (from, to) in pen
             .vertices
             .vertices
             .iter()
-            .zip(&hud.block.vertices[vc as usize..])
+            .zip(&mut hud.block.vertices[vc as usize..])
             .take(count as usize)
         {
-            to.x.set(from.x.get());
-            to.y.set(from.y.get());
-            to.z.set(from.z.get());
-            to.rhw.set(from.rhw.get());
-            to.colour.set(from.colour.get());
-            to.specular.set(from.specular.get());
-            to.u.set(from.u.get());
-            to.v.set(from.v.get());
+            to.x = from.x.get();
+            to.y = from.y.get();
+            to.z = from.z.get();
+            to.rhw = from.rhw.get();
+            to.colour = from.colour.get();
+            to.specular = from.specular.get();
+            to.u = from.u.get();
+            to.v = from.v.get();
         }
-        let ic = hud.block.index_count.get();
+        let ic = hud.block.index_count;
         let indices = batch::polygon_indices(vc, count);
         for (k, &i) in indices.iter().enumerate() {
-            hud.block.indices[ic as usize + k].set(i);
+            hud.block.indices[ic as usize + k] = i;
         }
-        hud.block.index_count.set(ic + indices.len() as u32);
-        hud.block.vertex_count.set(vc + count);
+        hud.block.index_count = ic + indices.len() as u32;
+        hud.block.vertex_count = vc + count;
     }
     Ok(())
 }

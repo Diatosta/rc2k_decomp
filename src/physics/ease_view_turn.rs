@@ -5,7 +5,6 @@
 //!
 //! Returns the last step.
 
-use crate::drive::replay_frames_store::ReplayFrames;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
@@ -14,9 +13,9 @@ use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
 
 /// The exact version, for `physics::camera_avoid_ground`.
-pub fn ease_view_turn(camera: &CameraWork, replay_frames: &ReplayFrames, car: &Car) {
+pub fn ease_view_turn(camera: &CameraWork, step_first: u32, car: &Car) {
     let scratch = crate::memory::session::PlainDword::new(0);
-    if replay_frames.step_first.get() != 0 {
+    if step_first != 0 {
         for share in [
             &camera.view_share_pitch,
             &camera.view_share_heading,

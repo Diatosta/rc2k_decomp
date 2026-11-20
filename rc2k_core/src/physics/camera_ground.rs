@@ -28,14 +28,16 @@ pub fn low_switch_looks(below_zero: bool, switching: u32, mode: u32) -> bool {
 }
 
 /// The state a low-camera switch sets: `before` the mode to return to, mode 4, under way,
-/// `w674` the share 0, `w670` the length 10, and the clock at its start.
+/// `switch_share` the share 0, `switch_length` the length 10, and the clock at its start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LowSwitch {
     pub before: u32,
     pub mode: u32,
     pub switching: u32,
-    pub w674: u32,
-    pub w670: u32,
+    /// The switch's share (0).
+    pub switch_share: u32,
+    /// The switch's length in steps (10).
+    pub switch_length: u32,
     pub clock: u32,
 }
 
@@ -45,8 +47,8 @@ pub fn low_switch(mode: u32, clock: u32) -> LowSwitch {
         before: mode.wrapping_add(1),
         mode: 4,
         switching: 1,
-        w674: 0,
-        w670: 10,
+        switch_share: 0,
+        switch_length: 10,
         clock,
     }
 }

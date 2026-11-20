@@ -28,7 +28,6 @@ pub fn draw_flat_quad(
     screen: &crate::memory::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    poly.polygon_drawn.set(0);
     for n in 0..4 {
         let rec = &part.polygon.entries[n];
         rec.record
@@ -84,7 +83,6 @@ pub fn draw_flat_quad(
         poly.polygon_sides[1].set(0);
         crate::scene::depth_buffer_on::depth_buffer(part, false);
         crate::scene::draw_polygon::draw_polygon_in_game(view, part, reads, screen)?;
-        poly.polygon_drawn.set(1);
         crate::scene::depth_buffer_on::depth_buffer(part, true);
     }
     poly.polygon_colour.set(0xFF_FFFF);

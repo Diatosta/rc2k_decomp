@@ -72,7 +72,6 @@ pub fn draw_object_face(
     let view_kind: u32 = light.view_kind.get();
     let shine: u32 = ctx.view.course.shine.get();
 
-    ctx.view.polygon.face_word.set(fw(0xC));
     light.face_bits.set(words[7] as u32 & 0x1F);
     let face_shine = words[9] as u32;
     ctx.view.polygon.face_shine.set(face_shine);

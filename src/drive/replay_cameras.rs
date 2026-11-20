@@ -33,14 +33,8 @@ fn wish_of(replay_work: &ReplayWork, byte: usize) -> Result<u32, BadInput> {
 fn steps(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
-    replay
-        .replay_frames()
-        .camera_word_0
-        .set(race.car_blocks().cars[0].frame_head[0].get());
-    replay
-        .replay_frames()
-        .camera_word_1
-        .set(race.car_blocks().cars[0].frame_head[1].get());
+    replay.replay_frames_mut().camera_word_0 = race.car_blocks().cars[0].frame_head[0].get();
+    replay.replay_frames_mut().camera_word_1 = race.car_blocks().cars[0].frame_head[1].get();
     // A replay with the extra tape also names the cameras of cars 2 and 3, in the head's bytes
     // 6 and 7 (zero in every other replay: no wish).
     let cars = if race.viewer_buffers().extra_tape.is_set() {

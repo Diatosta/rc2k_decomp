@@ -92,7 +92,6 @@ fn car_part_matrices(
     race.physics.camera().axle_rear_lift.set(rear_lift);
     race.physics.camera().axle_height.set(height);
     race.physics.camera().axle_front_z.set(front_z);
-    race.physics.camera().car_axles.set(ax[4]);
     scene.object_work().part_values[2].set(c.shown_steering.get());
     scene.object_work().part_values[0].set(p.driven_wheel_turns[0].get());
     scene.object_work().part_values[1].set(p.driven_wheel_turns[1].get());

@@ -112,15 +112,18 @@ pub const HELD: u32 = 500;
 /// The gearbox's input state (seven dwords: an automatic box's held inputs).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct GearInputs {
-    pub w90: u32,
+    /// The steering input.
+    pub steer: u32,
     /// The first input (the joined one).
     pub first: u32,
     /// The second input.
     pub second: u32,
     /// The hold.
     pub hold: u32,
-    pub wa0: u32,
-    pub wa4: u32,
+    /// The gear-up key input.
+    pub gear_up: u32,
+    /// The gear-down key input.
+    pub gear_down: u32,
     /// Which of the two was the larger when joined (1, or -1 for the second).
     pub joined: u32,
 }
@@ -142,8 +145,8 @@ pub struct GearCar {
 
 impl GearInputs {
     fn clear(&mut self, gear: &mut i32) {
-        self.wa4 = 0;
-        self.wa0 = 0;
+        self.gear_down = 0;
+        self.gear_up = 0;
         self.first = 0;
         self.second = 0;
         self.hold = HELD;
@@ -177,9 +180,9 @@ impl GearInputs {
             self.hold = HELD;
             if car.race_mode != 1 {
                 self.second = 0;
-                self.w90 = 0;
-                self.wa0 = 0;
-                self.wa4 = 0;
+                self.steer = 0;
+                self.gear_up = 0;
+                self.gear_down = 0;
             }
         }
         if car.switches[0] != 0 {

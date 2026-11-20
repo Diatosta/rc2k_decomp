@@ -629,8 +629,7 @@ const PLAYER_RESETS: [(Field, u32); 6] = [
 ];
 
 /// Race init's "cars": logs "gamemode" and `run_kind`; sets both players' `top_speed` to 0 and
-/// `split_gaps` to -1; then by the mode: 2 the numbers, the times, the arcade set-up and
-/// `kept_times` (0x40 dwords) 0; 1, 3, 0 (with the numbers first), 4 their set-ups; others
+/// `split_gaps` to -1; then by the mode: 2 the numbers, the times, the arcade set-up; 1, 3, 0 (with the numbers first), 4 their set-ups; others
 /// nothing.
 pub fn set_up_cars(
     race: &Race,
@@ -655,11 +654,6 @@ pub fn set_up_cars(
             CarsStep::SetUp(2) => set_up_mode_2_cars(race)?,
             CarsStep::SetUp(3) => set_up_race_cars(race)?,
             CarsStep::SetUp(_) => set_up_mode_4_cars(race)?,
-            CarsStep::ClearArcadeTable => {
-                for k in 0..0x40 {
-                    race.physics.split_tables().kept_times[k].set(0);
-                }
-            }
         }
     }
     Ok(())

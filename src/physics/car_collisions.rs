@@ -34,7 +34,6 @@ pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
         return Err(BadInput("a null car block").into());
     }
     {
-        physics.corner_inside.set(0);
         for car in 0..n {
             if car == work.current_car.get() {
                 continue;

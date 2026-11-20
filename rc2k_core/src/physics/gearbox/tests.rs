@@ -99,11 +99,11 @@ fn input_rules() {
     assert_eq!((j.first, j.second), (7, 3));
     let mut gear = 4;
     let mut k = GearInputs {
-        w90: 1,
+        steer: 1,
         first: 2,
         second: 3,
-        wa0: 4,
-        wa4: 5,
+        gear_up: 4,
+        gear_down: 5,
         ..Default::default()
     };
     k.apply_rules(&mut gear, &car);

@@ -5,8 +5,8 @@ See the wiki page `wiki/Android.md` for what the port does. Here: the tools.
 - `env.sh` the places of everything (`RC2K_ANDROID_HOME`, default `/mnt/discoIII/android`) and
   `android_cargo_env <x86_64|arm64>` (cargo's linker and compilers from the NDK).
 - `sdl.sh <abi>` SDL3's shared library for an ABI (build.sh calls it when missing).
-- `build.sh [x86_64] [arm64] [--debug] [--final]` the `.apk` into `dist/android/`.
-- `push_game.sh <game folder>` the game's files into the debuggable app's private storage.
+- `build.sh [x86_64] [arm64] [--debug] [--debuggable]` the `.apk` into `dist/android/` (not debuggable unless `--debuggable`).
+- `push_game.sh <game folder>` the game's files into the app's private storage (needs a build made with `--debuggable`).
 - `make_icon.py` writes the placeholder launcher icons.
 - `app/` the manifest, resources and the activity class.
 

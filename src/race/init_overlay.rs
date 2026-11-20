@@ -20,7 +20,7 @@ const ONE: u32 = 0x3F80_0000;
 
 /// Sets up the overlay's stage parts (see the module header).
 pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    crate::hud::layout_common::start_gear_log();
+    crate::hud::layout_common::start_gear_log(&mut race.hud.get().borrow_mut());
     race.frame
         .panel_and_overlay
         .get()

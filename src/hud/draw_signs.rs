@@ -69,7 +69,7 @@ pub(super) static LAYOUT_2B: SignStyle = SignStyle {
 /// Draws the four signs of `style`.
 pub(super) fn draw_signs(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     style: &SignStyle,
 ) -> Result<(), Refused> {
@@ -78,8 +78,7 @@ pub(super) fn draw_signs(
     let places = marks.base.get().wrapping_add(style.shift);
     for (n, mark) in (0..signs::SIGNS as u32).zip(&marks.marks) {
         let v = mark.get();
-        let Some(sign) = signs::sign(places, n, v, |k| hud.block.sign_widths[k as usize].get())
-        else {
+        let Some(sign) = signs::sign(places, n, v, |k| hud.block.sign_widths[k as usize]) else {
             continue;
         };
         let rect = crate::hud::block_store::RectAt::number(sign.rectangle / 0x10);

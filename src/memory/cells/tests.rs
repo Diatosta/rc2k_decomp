@@ -252,8 +252,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         audio.sample_records,
         menus.play.slots,
         menus.cars.table,
-        *race.replay.finish.get(),
-        *race.replay.replay_frames(),
         effects.frame.view_vars,
         effects.paths.spline_head,
         effects.setup.work,

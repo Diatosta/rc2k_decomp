@@ -3,7 +3,7 @@
 
 use crate::drive::finish_store::Finish;
 use crate::drive::replay_frames_store::ReplayFrames;
-use crate::memory::session::{DrawShared, GameThread, PlainBytes, PlainDword, with_runs};
+use crate::memory::session::{GameThread, PlainBytes, PlainDword, with_runs};
 use crate::race::groups_store::ViewerAndKinds;
 use crate::race::replay_path::LAST_RACE_LEN;
 use crate::race::replay_staging_store::ReplayStaging;
@@ -11,12 +11,13 @@ use crate::race::replay_v2_store::ReplayV2;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::seal_store::SealWork;
 use crate::race::viewer_state_store::ReplayViewBlock;
+use std::cell::{Ref, RefCell, RefMut};
 
 /// The race's replay state.
 pub struct Replay {
-    /// The finish state (`drive::finish_store`); lent to the drawing parts
-    /// (`scene::workers::DrawReads`): no part writes it.
-    pub finish: DrawShared<Finish>,
+    /// The finish state (`drive::finish_store`). Borrowed for one statement at a time; the
+    /// drawing parts are handed `no_place` by value (`scene::workers`).
+    finish: GameThread<RefCell<Finish>>,
     /// The last race's replay file's name (`race::replay_path`).
     pub last_race: [u8; LAST_RACE_LEN],
     /// A replay file named when the program was started (`menu::launch`): its path, once known.
@@ -32,7 +33,7 @@ pub struct Replay {
 
 /// What only the game's thread reaches (no drawing part and no other thread touches it).
 struct ReplayMain {
-    replay_frames: ReplayFrames,
+    replay_frames: RefCell<ReplayFrames>,
     replay_work: ReplayWork,
     staging: ReplayStaging,
     replay_view: ReplayViewBlock,
@@ -45,14 +46,14 @@ struct ReplayMain {
 impl Replay {
     pub const fn new() -> Self {
         Replay {
-            finish: DrawShared::new(Finish::new()),
+            finish: GameThread::new(RefCell::new(Finish::new())),
             last_race: with_runs(&[(0, b"var\\tmprpl\0")]),
             given_file: std::sync::OnceLock::new(),
             viewer_and_kinds: ViewerAndKinds::new(),
             render_row: crate::race::render_row::RenderRow::new(),
             viewer_tip: crate::race::viewer_tip::ViewerTip::new(),
             main: GameThread::new(ReplayMain {
-                replay_frames: ReplayFrames::new(),
+                replay_frames: RefCell::new(ReplayFrames::new()),
                 replay_work: ReplayWork::new(),
                 staging: ReplayStaging::new(),
                 replay_view: ReplayViewBlock::new(),
@@ -64,8 +65,29 @@ impl Replay {
         }
     }
 
-    pub fn replay_frames(&self) -> &ReplayFrames {
-        &self.main.get().replay_frames
+    /// The finish state, read.
+    pub fn finish(&self) -> Ref<'_, Finish> {
+        self.finish.get().borrow()
+    }
+
+    /// The finish state, to write: no other borrow may be held.
+    pub fn finish_mut(&self) -> RefMut<'_, Finish> {
+        self.finish.get().borrow_mut()
+    }
+
+    /// The finish state's "no place" switch: set while the race has no place or panel to draw.
+    pub fn no_place(&self) -> u32 {
+        self.finish().no_place
+    }
+
+    /// The replay's frame variables, read.
+    pub fn replay_frames(&self) -> Ref<'_, ReplayFrames> {
+        self.main.get().replay_frames.borrow()
+    }
+
+    /// The replay's frame variables, to write: no other borrow may be held.
+    pub fn replay_frames_mut(&self) -> RefMut<'_, ReplayFrames> {
+        self.main.get().replay_frames.borrow_mut()
     }
 
     /// The replay's work (`race::replay_work_store`).

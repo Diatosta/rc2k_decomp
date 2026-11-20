@@ -38,9 +38,6 @@ pub struct ContactWork {
     /// Each probe point's y less the ground (`physics::probe_ground`); the first four are the
     /// wheels' heights (`wheel_springs`, `lowest_body_point`, `race::car_starts`).
     pub probe_height: [PlainDword; 64],
-    /// The first four: the height before it is scaled (`physics::probe_ground`); the rest unused
-    /// (a reading).
-    pub wheel_height_raw: [PlainDword; 64],
     /// Whether the ground was found under each probe point (`physics::probe_ground`).
     pub probe_found: [PlainDword; 64],
     /// The probe points' faces saved (`physics::save_car_state`, `restore_saved_car`,
@@ -73,8 +70,6 @@ pub struct ContactWork {
     pub lit_face_saved_30: PlainDword,
     /// `drive::animate_lit_faces`: the face's z offset saved the same way.
     pub lit_face_saved_38: PlainDword,
-    /// `physics::wall_contacts`: the faces' word +2 bits (& 0xC00) or-ed.
-    pub wall_bits: PlainDword,
     /// `drive::animate_lit_faces`: the distance to a lit face, rounded to a whole number.
     pub lit_face_distance: PlainDword,
     /// `drive::animate_lit_faces`: the pace 1 .. 17 from the distance.
@@ -83,8 +78,6 @@ pub struct ContactWork {
     pub ground_noise_corners: [PlainDword; 4],
     /// `physics::probe_ground`: the mixed steps.
     pub ground_noise_mix: [PlainDword; 3],
-    /// `physics::probe_ground`: the cell's row and row offset.
-    pub ground_cell_row: [PlainDword; 2],
     /// The deepest point's depth (`physics::lowest_body_point`, `crash_contact`,
     /// `ground_contact`, `find_clear_place`).
     pub lowest_depth: PlainDword,
@@ -133,16 +126,10 @@ pub struct ContactWork {
     pub wall_face_before: PlainDword,
     /// `physics::wall_contacts`: the probe's face now.
     pub wall_face_now: PlainDword,
-    /// `physics::wall_edge_contact`: the shared edge's first end.
-    pub wall_edge_from: PlainDword,
-    /// `physics::wall_edge_contact`: its second end.
-    pub wall_edge_to: PlainDword,
     /// The face's four corners' x, z (`physics::crossed_edge_contact`).
     pub crossed_corners: [PlainDword; 8],
     /// The probe's before/now figures and face (`physics::crossed_edge_contact`).
     pub crossed_figures: [PlainDword; 5],
-    /// The crossed edge's heading (`physics::crossed_edge_contact`).
-    pub crossed_heading: PlainDword,
     /// `race::set_up_car_points`' count of the car's points.
     pub car_point_count: PlainDword,
     /// The car's up turned by the crash matrix (`physics::crash_contact`).
@@ -206,8 +193,6 @@ pub struct ContactWork {
     pub bump_share_a: PlainFloat,
     /// The other share of the two cars' speeds (`physics::bump_cars`).
     pub bump_share_b: PlainFloat,
-    /// 1 when a corner is inside (`physics::car_collisions`, `corner_hits_car`).
-    pub corner_inside: PlainDword,
     /// The other car's block (`car_collisions`, `bump_cars`).
     pub other_car_block: PlainDword,
     /// The box's size (`physics::corner_hits_car`).
@@ -224,8 +209,6 @@ pub struct ContactWork {
     pub corner_z: [PlainFloat; 8],
     /// The matrix between the cars (96 bytes; `car_collisions`, `corner_hits_car`).
     pub corner_matrix: [PlainFloat; 24],
-    /// The note of the meeting (`physics::bump_cars`).
-    pub bump_note: [PlainDword; 8],
     /// The length of the speed between the cars (`physics::bump_cars`, sound bands).
     pub bump_speed_length: PlainFloat,
     /// The number of the other car (`car_collisions`, `bump_cars`, `place_sound_e1_other`).

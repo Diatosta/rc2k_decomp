@@ -75,11 +75,10 @@ pub fn engine_torque(
     }
 }
 
-#[cfg(test)]
 /// The cut: at or past the top (unordered counts as below: no cut) the cut is set to 5;
 /// below it, while the cut counts down, it goes down by one. Either way the torque is 0 then
 /// (Some(the cut)); else None.
-pub(crate) fn torque_cut(speed: f32, top: f32, cut: u32) -> Option<u32> {
+pub fn torque_cut(speed: f32, top: f32, cut: u32) -> Option<u32> {
     if !below(speed as f64, top as f64) {
         Some(5)
     } else if cut != 0 {

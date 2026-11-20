@@ -191,6 +191,13 @@ struct Places {
 }
 
 thread_local! {
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static PLACES: std::cell::RefCell<Places> = const {
         std::cell::RefCell::new(Places { changes: u64::MAX, point_count: 0, places: Vec::new() })
     };

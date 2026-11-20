@@ -36,12 +36,12 @@ pub(super) fn taken_off(v: [u8; 10]) -> u32 {
 /// The two players' markers at `rows` (see the header).
 pub(super) fn draw_markers(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     rows: [u32; 2],
 ) -> Result<(), Refused> {
     {
-        let k = hud.block.uv_scale_x.get();
+        let k = hud.block.uv_scale_x;
         for (n, distance) in frame
             .panel_and_overlay
             .get()
@@ -50,19 +50,19 @@ pub(super) fn draw_markers(
             .iter()
             .enumerate()
         {
-            hud.block.quad.colour.set(hud.block.marker_colours[n].get());
+            hud.block.quad.colour = hud.block.marker_colours[n];
             let f = f32::from_bits;
             let x = quads::marker_x(
                 f(distance.get()),
                 f(frame.panel_and_overlay.get().panel.overlay_miles.get()),
-                hud.block.marker_k[0].get(),
-                hud.block.marker_k[1].get(),
+                hud.block.marker_k[0],
+                hud.block.marker_k[1],
             );
-            hud.block.fistp_scratch.set(x);
+            hud.block.fistp_scratch = x;
             let rect = RectAt::number(RECT);
-            hud.block.fistp_scratch.set(0x78u32);
+            hud.block.fistp_scratch = 0x78u32;
             let st1 = int_over_80(0x78, k);
-            hud.block.fistp_scratch.set(0x100u32);
+            hud.block.fistp_scratch = 0x100u32;
             let st0 = int_over_80(0x100, k);
             crate::hud::add_scaled_sprite::add_scaled_sprite(
                 frame,
@@ -74,7 +74,7 @@ pub(super) fn draw_markers(
                 [st0, st1],
             )?;
             // the second scale is what stays in the scratch cell
-            hud.block.fistp_scratch.set(taken_off(st1));
+            hud.block.fistp_scratch = taken_off(st1);
         }
     }
     Ok(())

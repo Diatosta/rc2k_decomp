@@ -35,6 +35,13 @@ pub enum Way {
 
 thread_local! {
     /// The owners, on the game's thread.
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static OWNERS: Cell<Option<Owners<'static>>> = const { Cell::new(None) };
 }
 

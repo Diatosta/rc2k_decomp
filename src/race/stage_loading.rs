@@ -54,7 +54,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
         crate::race::loading_bar_frame::picture_shown();
     }
     race.shared.view.get().lights_follow_view.set(0u32);
-    race.replay.replay_frames().last_kept.set(u32::MAX);
+    race.replay.replay_frames_mut().last_kept = u32::MAX;
     crate::logfile::load_times::mark("wake car sounds");
     crate::race::sounds::wake_car_sounds(race, o.sound, o.audio, &o.system.session.picture_clock)?;
     indent(-3);
@@ -83,7 +83,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     log();
     indent(3);
     crate::logfile::load_times::phase("load_stage: music");
-    if race.replay.finish.get().no_place.get() != 0 {
+    if race.replay.no_place() != 0 {
         crate::race::music::game_music(&race.shared, o);
     } else {
         crate::race::music::game_music_8(o);
@@ -128,7 +128,6 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     }
     race.shared.switches.get().scene_set_up.set(1);
     race.shared.switches.get().view_marks_on.set(1);
-    race.physics.ground().stage_loading.set(0);
     race.shared.view.get().view_on[0].set(1);
     race.shared.view.get().view_on[1].set(1);
     indent(-3);

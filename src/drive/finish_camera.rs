@@ -16,24 +16,20 @@ fn record(view_records: &ViewAndRecords) -> &ViewRecord {
 /// The finish camera's lines (`ViewAndRecords.records[6]` angles and two more values) from the
 /// eased time, the share and the lines' constants.
 fn lines(view_records: &ViewAndRecords, replay: &Replay) {
-    let finish = replay.finish.get();
-    record(view_records).angles[1]
-        .set(st(ld(finish.eased.get()) * ld(finish.camera_yaw_rate.get())));
-    let a = ld(finish.eased.get()) * ld(finish.camera_height_rate.get())
-        + ld(finish.camera_height_start.get());
-    let b = ld(finish.share.get()) * ld(finish.camera_height_per_share.get());
+    let finish = replay.finish();
+    record(view_records).angles[1].set(st(ld(finish.eased) * ld(finish.camera_yaw_rate)));
+    let a = ld(finish.eased) * ld(finish.camera_height_rate) + ld(finish.camera_height_start);
+    let b = ld(finish.share) * ld(finish.camera_height_per_share);
     record(view_records).offset[1].set(st(a + b));
-    record(view_records).offset[2].set(st(ld(finish.eased.get())
-        * ld(finish.camera_distance_rate.get())
-        + ld(finish.camera_distance_start.get())));
+    record(view_records).offset[2].set(st(
+        ld(finish.eased) * ld(finish.camera_distance_rate) + ld(finish.camera_distance_start)
+    ));
 }
 
 /// `ViewAndRecords.records[6].angles[0]` from the share and its constant.
 fn last_line(view_records: &ViewAndRecords, replay: &Replay) {
-    let finish = replay.finish.get();
-    record(view_records).angles[0].set(st(
-        ld(finish.share.get()) * ld(finish.camera_pitch_per_share.get())
-    ));
+    let finish = replay.finish();
+    record(view_records).angles[0].set(st(ld(finish.share) * ld(finish.camera_pitch_per_share)));
 }
 
 /// (the exact one, for `drive::finish_run`).

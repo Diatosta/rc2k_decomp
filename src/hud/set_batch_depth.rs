@@ -8,8 +8,8 @@ use crate::math::x87;
 
 pub(super) fn set_batch_depth(hud: &Hud, buffer: &PolygonVertices) {
     {
-        let rhw = x87::loaded(&hud.block.rhw);
-        let depth = x87::loaded(&hud.block.depth);
+        let rhw = x87::loaded(hud.block.rhw);
+        let depth = x87::loaded(hud.block.depth);
         for item in buffer.vertices.iter().take(4) {
             let v = &item;
             v.rhw.set(rhw);

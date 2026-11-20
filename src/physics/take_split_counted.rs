@@ -1,5 +1,5 @@
 //! Race mode 2, car 0 only: when a checkpoint is past the splits taken (`splits_recorded` below
-//! `splits_passed`, unsigned): `physics::keep_split_time`, `physics::flag_current_car_listed`,
+//! `splits_passed`, unsigned): `physics::flag_current_car_listed`,
 //! `physics::split_by_mode`, the figure kept per split; before the last split the notice 0xC9
 //! (`notice_time_b` 0x32, `notice_time` 300) and the count-down up by
 //! `SplitTables.stage_numbers[1][split]` x 100; `go_stand_timer` = 0; `splits_recorded` made
@@ -9,7 +9,6 @@
 //! Refuses (before anything) a split past 0x3F, and what the calls refuse.
 use crate::errors::Refused;
 use crate::physics::flag_current_car_listed::flag_current_car_listed;
-use crate::physics::keep_split_time::keep_split_time;
 use crate::physics::split_by_mode::split_by_mode;
 use crate::physics::splits::put_split_time;
 use crate::race::frame_store::FrameWork;
@@ -42,7 +41,6 @@ pub(super) fn take_split_counted(
     )? {
         return Ok(());
     }
-    { keep_split_time(shared.car(), physics.split_tables()) }?;
     { flag_current_car_listed(frame_work, shared.work.get(), sound) }?;
     split_by_mode(
         o,

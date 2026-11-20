@@ -80,7 +80,17 @@ function crc32(bytes) {
 }
 
 // A zip of `files` ([{path, data}]), entries stored (the saves are small and mostly packed).
+// The plain ZIP format's limits (no ZIP64): a size or offset in 32 bits, an entry count in 16.
+const ZIP_LIMIT = 0xffffffff;
+const ZIP_ENTRIES = 0xfffe;
+
 function makeZip(files) {
+  if (files.length > ZIP_ENTRIES) throw new Error("Too many files to save in one zip (" + files.length + ").");
+  let planned = 0;
+  for (const f of files) {
+    planned += 30 + 46 + 2 * utf8.encode(f.path).length + f.data.length;
+    if (f.data.length > ZIP_LIMIT || planned > ZIP_LIMIT) throw new Error("The saves are too big for one zip (over 4 GB).");
+  }
   const d = new Date();
   const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
   const day = (Math.max(d.getFullYear() - 1980, 0) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
@@ -133,9 +143,24 @@ function makeZip(files) {
 const u16 = (v, at) => v.getUint16(at, true);
 const u32 = (v, at) => v.getUint32(at, true);
 
-async function inflate(bytes) {
+// `bytes` inflated, stopped as soon as it gives more than `limit` bytes (the entry's size from
+// the zip's index): a packed entry that claims to be small must not fill the memory.
+async function inflate(bytes, limit) {
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const reader = stream.getReader();
+  const out = new Uint8Array(limit);
+  let at = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (at + value.length > limit) {
+      await reader.cancel();
+      throw new Error("An entry is larger than the zip's index says.");
+    }
+    out.set(value, at);
+    at += value.length;
+  }
+  return out.subarray(0, at);
 }
 
 // The entries of a zip as [{name, data}], every one decoded and checked against its CRC.
@@ -171,7 +196,7 @@ async function readZip(bytes) {
     const raw = bytes.subarray(start, start + packed);
     let data;
     if (method === 0) data = raw;
-    else if (method === 8) data = await inflate(raw);
+    else if (method === 8) data = await inflate(raw, unpacked);
     else throw new Error(name + ": packed in a way not read (" + method + ").");
     if (data.length !== unpacked || crc32(data) !== crc) throw new Error(name + ": damaged.");
     list.push({ name, data });
@@ -214,6 +239,53 @@ async function writeFile(root, parts, data) {
   }
 }
 
+// `name` of `from` put into `to` as `newName`: moved where the browser can, else copied (folders
+// included) and removed.
+async function moveEntry(from, name, to, newName) {
+  const f = await find(from, name);
+  if (!f) return false;
+  if (typeof f.handle.move === "function") {
+    try {
+      await f.handle.move(to, newName);
+      return true;
+    } catch (e) {
+      if (!(e instanceof TypeError) && !(e && e.name === "NotSupportedError")) throw e;
+    }
+  }
+  await copyEntry(f.handle, to, newName);
+  await from.removeEntry(f.name, { recursive: true });
+  return true;
+}
+
+async function copyEntry(handle, to, newName) {
+  if (handle.kind === "directory") {
+    const dir = await to.getDirectoryHandle(newName, { create: true });
+    for await (const [n, h] of handle.entries()) await copyEntry(h, dir, n);
+  } else {
+    await writeFile(to, [newName], new Uint8Array(await (await handle.getFile()).arrayBuffer()));
+  }
+}
+
+// The kept places of the installed folder: `savedata` and the `var` files.
+async function stagedPlaces(staging) {
+  const places = [];
+  if (await find(staging, "savedata")) places.push({ dir: [], name: "savedata" });
+  const vars = await find(staging, "var");
+  if (vars) for (const name of VAR_FILES) if (await find(vars.handle, name)) places.push({ dir: ["var"], name });
+  return places;
+}
+
+async function folderAt(root, dir, create) {
+  let d = root;
+  for (const p of dir) {
+    const f = await find(d, p);
+    if (f) d = f.handle;
+    else if (create) d = await d.getDirectoryHandle(p, { create: true });
+    else return null;
+  }
+  return d;
+}
+
 async function doImport(bytes) {
   const entries = await readZip(bytes);
   const keep = [];
@@ -224,18 +296,56 @@ async function doImport(bytes) {
     else skipped++;
   }
   if (keep.length === 0) throw new Error("The zip holds no saves or settings of the game.");
-  // Everything is read and checked above; only now is what is there replaced.
+  // Everything is read and checked above. The new files are written beside the old ones first
+  // (a full storage or a closed tab stops here with the old saves whole), then swapped in by
+  // moving: the old ones go aside, the new ones in, and the old ones come back if that fails.
   const root = await installedDir(true);
-  await removeIn(root, "savedata");
-  const vars = await find(root, "var");
-  if (vars) for (const name of VAR_FILES) await removeIn(vars.handle, name);
-  for (const k of keep) await writeFile(root, k.parts, k.data);
+  await removeIn(root, "import.new");
+  await removeIn(root, "import.old");
+  const staging = await root.getDirectoryHandle("import.new", { create: true });
+  try {
+    for (const k of keep) await writeFile(staging, k.parts, k.data);
+  } catch (e) {
+    await removeIn(root, "import.new");
+    throw e;
+  }
+  const aside = await root.getDirectoryHandle("import.old", { create: true });
+  const places = [{ dir: [], name: "savedata" }, ...VAR_FILES.map((name) => ({ dir: ["var"], name }))];
+  const moved = [];
+  const placed = [];
+  try {
+    for (const p of places) {
+      const from = await folderAt(root, p.dir, false);
+      if (!from) continue;
+      const to = await folderAt(aside, p.dir, true);
+      const found = await find(from, p.name);
+      if (found && (await moveEntry(from, p.name, to, found.name))) moved.push({ ...p, name: found.name });
+    }
+    for (const p of await stagedPlaces(staging)) {
+      const from = await folderAt(staging, p.dir, false);
+      const to = await folderAt(root, p.dir, true);
+      const found = await find(from, p.name);
+      if (await moveEntry(from, p.name, to, found.name)) placed.push({ ...p, name: found.name });
+    }
+  } catch (e) {
+    for (const p of placed) await removeIn(await folderAt(root, p.dir, true), p.name).catch(() => {});
+    for (const p of moved) {
+      const from = await folderAt(aside, p.dir, false);
+      const to = await folderAt(root, p.dir, true);
+      await moveEntry(from, p.name, to, p.name).catch(() => {});
+    }
+    throw e;
+  }
+  await removeIn(root, "import.new");
+  await removeIn(root, "import.old");
   return { imported: keep.length, skipped };
 }
 
 async function doExport() {
   const files = [];
   for (const f of await gather()) {
+    // The desktop program's rendered videos (gigabytes) are not saves.
+    if (f.path.startsWith("savedata/videos/")) continue;
     const file = await f.handle.getFile();
     files.push({ path: f.path, data: new Uint8Array(await file.arrayBuffer()) });
   }
@@ -318,6 +428,7 @@ onmessage = async (m) => {
     else if (m.data.op === "scan") postMessage({ scanned: (await gather()).length });
     else if (m.data.op === "codeFiles") postMessage(await codeFiles());
     else if (m.data.op === "writeFiles") postMessage(await writeFiles(m.data.files));
+    else postMessage({ error: "Unknown request: " + m.data.op });
   } catch (e) {
     const gone = e && (e.name === "NotFoundError");
     postMessage({ error: gone ? "No saves found in this browser yet." : String(e && e.message ? e.message : e) });

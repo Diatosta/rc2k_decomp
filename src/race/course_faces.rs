@@ -210,7 +210,6 @@ fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         ctx.reads,
         ctx.reads.screen,
     )?;
-    ctx.view.polygon.polygon_drawn.set(1u32);
     Ok(())
 }
 
@@ -310,7 +309,6 @@ fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         ctx.reads,
         ctx.reads.screen,
     )?;
-    ctx.view.polygon.polygon_drawn.set(1u32);
     Ok(())
 }
 
@@ -833,7 +831,6 @@ fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     }
     crate::race::frame_draw::points_there(ctx)?;
     crate::race::frame_draw::check_light_colour(ctx.reads.work, ctx.reads.view, &ctx.view.lamps)?;
-    ctx.view.polygon.polygon_drawn.set(0u32);
     ctx.view
         .polygon
         .polygon_next_record

@@ -19,7 +19,7 @@ use crate::race::owner::Race;
 /// The car's lift: `CarBlocks.cars[0].position[1]` += `car_lift` x `k65536`.
 fn lift_car(race: &Race) {
     race.car_blocks().cars[0].position[1].set(to_int(
-        ld(race.replay.finish.get().car_lift.get()) * ld(race.course.numbers.get().k65536.get())
+        ld(race.replay.finish().car_lift) * ld(race.course.numbers.get().k65536.get())
             + int(race.car_blocks().cars[0].position[1].get() as i32),
     ) as u32);
 }
@@ -41,11 +41,7 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     }
     race.replay.replay_view().play_end.set(u32::MAX);
     restart_clock(race, &o.system.session.picture_clock);
-    race.replay
-        .finish
-        .get()
-        .start_clock
-        .set(race.shared.physics_tables.get().scene_clock.get());
+    race.replay.finish_mut().start_clock = race.shared.physics_tables.get().scene_clock.get();
     let pad_at_start = input.pad_marker();
     loop {
         sound.race.sounds.get().objects[0].revs.set(0);
@@ -56,8 +52,8 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
             return Err(BadInput("a finish length past the table's two").into());
         }
         if !c0(
-            race.replay.finish.get().time.get(),
-            race.replay.finish.get().finish_lengths[n as usize].get(),
+            race.replay.finish().time,
+            race.replay.finish().finish_lengths[n as usize],
         ) {
             break;
         }

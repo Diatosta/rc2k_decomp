@@ -6,7 +6,7 @@
 //! both set: by the look of it four-wheel drive (a reading, not seen in a race). The exact x87
 //! versions (`*_at`) serve the Rust callers in the gearbox.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87_float as bh;
@@ -44,13 +44,10 @@ impl<'a> GearPlaces<'a> {
 /// The gear (None for neutral) and its ratio; refused outside the ratio table (-1 ..= 7).
 fn gear_ratio(p: &GearPlaces<'_>) -> Result<Option<(i32, f32)>, Refused> {
     let gear = p.gear.get();
-    if gear == 0 {
+    let Some(index) = rc2k_core::physics::gearing::ratio_index(gear)? else {
         return Ok(None);
-    }
-    if !(-1..=7).contains(&gear) {
-        return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
-    }
-    Ok(Some((gear, p.ratios[(gear + 1) as usize].get())))
+    };
+    Ok(Some((gear, p.ratios[index].get())))
 }
 
 /// `physics::revs_from_wheels`: in gear, engine speed = the driven speed (with

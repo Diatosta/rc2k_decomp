@@ -95,6 +95,7 @@ pub fn hold_spin(limit: &mut f32, x: &mut f32, z: &mut f32) -> u32 {
 }
 
 #[cfg(test)]
+/// Test oracle (not called by the game): the game's step runs on the x87 emulation (`X`, rounding by the thread's control word) in `src/physics/blend_wheel_load.rs`, whose reference vectors compare it with the original's code; this plain `f64` version would round differently at extended precision, so the game does not call it.
 /// The figures of the wheel-load blend.
 pub(crate) struct LoadBlend {
     /// The contact depth.
@@ -112,6 +113,7 @@ pub(crate) struct LoadBlend {
 }
 
 #[cfg(test)]
+/// Test oracle (not called by the game): the game's step runs on the x87 emulation (`X`, rounding by the thread's control word) in `src/physics/blend_wheel_load.rs`, whose reference vectors compare it with the original's code; this plain `f64` version would round differently at extended precision, so the game does not call it.
 /// Unless the figure is below the threshold, the slot (4 + 2 + 1 for each sign below zero)
 /// moves towards 1 by the figure over the divisor held to 0 .. 1: (the slot, the share).
 pub(crate) fn blend_load(b: &LoadBlend, slots: &mut [f32; 8]) -> Option<(u32, f32)> {
@@ -165,6 +167,7 @@ pub fn lowest_point(
 }
 
 #[cfg(test)]
+/// Test oracle (not called by the game): the game's step runs on the x87 emulation (`X`, rounding by the thread's control word) in `src/physics/lowest_body_point.rs`, whose reference vectors compare it with the original's code; this plain `f64` version would round differently at extended precision, so the game does not call it.
 /// The lowest body point (a whole number) over `scale`.
 pub(crate) fn lowest_share(lowest: u32, scale: f32) -> f32 {
     ((lowest as i32) as f64 / scale as f64) as f32

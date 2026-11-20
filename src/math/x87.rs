@@ -426,6 +426,13 @@ pub fn share_left_to_int(a: i32, b: i32, c: impl Flt) -> i32 {
 // are not modelled: plain `f64` steps are the x87's at double precision (0x027F, a 32-bit
 // Windows thread's start), within the last bit at extended (0x037F, after `finit`).
 thread_local! {
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static CONTROL: std::cell::Cell<u16> = const { std::cell::Cell::new(0x027F) };
 }
 

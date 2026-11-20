@@ -44,7 +44,6 @@ pub fn draw_clipped_polygon(
         }
         poly.screen_clipped.set(0u32);
         poly.depth_clipped.set(0u32);
-        poly.polygon_drawn.set(0u32);
         poly.polygon_next_record
             .set(crate::scene::polygon::pool_start());
         for n in 0..count {
@@ -70,7 +69,6 @@ pub fn draw_clipped_polygon(
             return Ok(());
         }
         step(Step::Draw)?;
-        poly.polygon_drawn.set(1u32);
         Ok(())
     }
 }

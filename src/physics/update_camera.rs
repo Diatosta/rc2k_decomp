@@ -263,7 +263,6 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     c.camera
         .view_share_roll
         .set(c.camera.view_a_shares[2].get());
-    c.camera.view_blend_aux.set(c.camera.view_a_aux.get());
     c.camera.view_blend_aux_2.set(c.camera.view_a_aux_2.get());
     x87_8(c.camera, c.car);
     hold_low(

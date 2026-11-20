@@ -30,24 +30,24 @@ pub fn gear_input_rules(car: &Car, tables: &PhysicsTables, vars: &RaceVars) {
         ],
     };
     let before = GearInputs {
-        w90: tables.input_steer.get(),
+        steer: tables.input_steer.get(),
         first: tables.input_throttle.get(),
         second: tables.input_brake.get(),
         hold: tables.input_handbrake.get(),
-        wa0: tables.input_gear_up.get(),
-        wa4: tables.input_gear_down.get(),
+        gear_up: tables.input_gear_up.get(),
+        gear_down: tables.input_gear_down.get(),
         joined: tables.input_gear_wanted.get(),
     };
     let gear_before = car.gear.get();
     let (mut inputs, mut gear) = (before, gear_before);
     inputs.apply_rules(&mut gear, &state);
     let changes: [(&dyn DwordLike, u32, u32); 7] = [
-        (&tables.input_steer, inputs.w90, before.w90),
+        (&tables.input_steer, inputs.steer, before.steer),
         (&tables.input_throttle, inputs.first, before.first),
         (&tables.input_brake, inputs.second, before.second),
         (&tables.input_handbrake, inputs.hold, before.hold),
-        (&tables.input_gear_up, inputs.wa0, before.wa0),
-        (&tables.input_gear_down, inputs.wa4, before.wa4),
+        (&tables.input_gear_up, inputs.gear_up, before.gear_up),
+        (&tables.input_gear_down, inputs.gear_down, before.gear_down),
         (&tables.input_gear_wanted, inputs.joined, before.joined),
     ];
     for (cell, now, was) in changes {

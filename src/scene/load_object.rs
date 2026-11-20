@@ -71,7 +71,6 @@ fn find_object_kind(race: &crate::race::owner::Race, kind: u32) -> u32 {
 /// A shape worked out from the file, ready to be stored as `slot`.
 struct Planned {
     slot: u32,
-    group_mask: u32,
     parsed: Parsed,
     /// The middle and half extents of a measured part, when the shape has points to measure.
     measures: Option<Measures>,
@@ -125,11 +124,9 @@ pub fn load_object(
     };
     if slot < FIRST_CAR_SLOT {
         let planned = plan(&file, slot, request(u32::MAX, true), false)?;
-        scene.draw_switches.get().loading_group_mask.set(u32::MAX);
         store(race, scene, &planned)?;
         return check(race, scene);
     }
-    scene.draw_switches.get().loading_group_mask.set(u32::MAX);
     let known = find_object_kind(race, kind);
     race.frame.matrices.get().known_object.set(known);
     // The kind's light record, from its groups; a kind none of the known ones takes the place
@@ -189,7 +186,6 @@ fn plan(file: &[u8], slot: u32, request: ShapeRequest, measured: bool) -> Result
     }
     Ok(Planned {
         slot,
-        group_mask: request.group_mask,
         parsed,
         measures,
         measured,
@@ -202,13 +198,7 @@ fn store(
     scene: &crate::scene::owner::Scene,
     planned: &Planned,
 ) -> Result<(), Refused> {
-    add_object_shape(
-        race,
-        scene,
-        planned.slot,
-        planned.group_mask,
-        &planned.parsed,
-    )?;
+    add_object_shape(race, scene, planned.slot, &planned.parsed)?;
     if !planned.measured {
         return Ok(());
     }

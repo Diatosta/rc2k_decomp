@@ -30,9 +30,6 @@ pub struct SceneDraw {
     pub camera_saved: [PlainDword; 5],
     /// The fog colour (`race::frame_draw`). Unused: each view has its own in `scene::fog::Fog`.
     pub fog_colour: PlainDword,
-    /// The clip's kept mask (`scene::clip`). Unused: each view has its own in
-    /// `scene::polygon_work_store`.
-    pub clip_kept_mask: PlainDword,
     /// The x87 code's shared work dword: every converted helper that stored to it still does.
     pub scratch: PlainDword,
     /// A work float (`physics::drive_torque_share`, `physics::drive_grip_forces`,
@@ -80,9 +77,6 @@ pub struct SceneDraw {
     /// The face's shine (`scene::draw_object_face`). Unused: each view has its own in
     /// `scene::polygon_work_store`.
     pub face_shine: PlainDword,
-    /// A face's word (`scene::draw_object_face`). Unused: each view has its own in
-    /// `scene::polygon_work_store`.
-    pub face_word: PlainDword,
     /// The polygon's two side switches (`scene::draw_polygon`, the quads). Unused: each view
     /// has its own in `scene::polygon_work_store`.
     pub polygon_sides: [PlainDword; 2],
@@ -109,8 +103,6 @@ pub struct SceneDraw {
     /// A list entry's third word (`scene::list_object_face`). Unused: each view has its own in
     /// `scene::polygon_work_store`.
     pub entry_third: PlainDword,
-    /// Whether the polygon was drawn. Unused: each view has its own in `scene::polygon_work_store`.
-    pub polygon_drawn: PlainDword,
     /// The rectangle to clear: left, top, right, bottom (`race::frame_views`). Unused: each
     /// view has its own in `scene::polygon_work_store::PolygonWork`.
     pub cleared_rectangle: [PlainDword; 4],
@@ -143,8 +135,6 @@ pub struct SceneDraw {
     pub clip_screen: [PlainFloat; 4],
     /// `view_offset` as floats. Unused: each view has its own in `scene::view_window`.
     pub view_offset_float: [PlainFloat; 2],
-    /// (`scene::draw_object_faces`). Unused: each view has its own in `scene::view_window`.
-    pub faces_done: PlainDword,
     /// (`scene::set_view_window`).
     pub fade_b: PlainFloat,
     /// The depth divisor: 100 less a held setting, times a constant. Unused: each

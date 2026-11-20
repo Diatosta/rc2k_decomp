@@ -27,8 +27,10 @@ pub static GROUPS: &[Group] = &[
                 true,
                 (68, 10),
             ),
+            // The developers' page labelled the two damper wear gauges "ttmpf" / "ttmpr" (tyre
+            // temperature); the figures are the dampers' wear.
             Row::typed(
-                "Tyre temperature, front",
+                "Damper wear, front (labelled tyre temperature)",
                 "ttmpf",
                 Shown::Float,
                 car_cell!(0, damper_wear[0]),
@@ -36,7 +38,7 @@ pub static GROUPS: &[Group] = &[
                 (68, 16),
             ),
             Row::typed(
-                "Tyre temperature, rear",
+                "Damper wear, rear (labelled tyre temperature)",
                 "ttmpr",
                 Shown::Float,
                 car_cell!(0, damper_wear[1]),

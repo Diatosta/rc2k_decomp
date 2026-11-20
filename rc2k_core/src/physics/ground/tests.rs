@@ -54,8 +54,8 @@ fn skid() {
             pending: 0,
             step: 77,
             on: 1,
-            w670: 10,
-            w674: 0
+            switch_length: 10,
+            switch_share: 0
         }
     );
     assert_eq!(s.start([1, 0, 0, 0], || unreachable!()), Some(0));

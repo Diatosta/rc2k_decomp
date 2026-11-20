@@ -4,25 +4,6 @@
 
 use crate::Invalid;
 
-/// The kept split times' room.
-pub(crate) const KEPT_ROOM: u32 = 0x40;
-
-/// The entry for a split time: the checkpoints passed less one, held to 0 ..= the split count
-/// (signed). Past the room is refused.
-pub fn kept_split_slot(checks: u32, count: u32) -> Result<u32, Invalid> {
-    let mut k = checks.wrapping_sub(1);
-    if (k as i32) < 0 {
-        k = 0;
-    }
-    if (k.wrapping_sub(count) as i32) >= 0 {
-        k = count;
-    }
-    if k >= KEPT_ROOM {
-        return Err(Invalid("a split index past 0x40"));
-    }
-    Ok(k)
-}
-
 /// The highest split compared (each kept table is 28 dwords).
 pub const LAST_COMPARED_SPLIT: u32 = 27;
 

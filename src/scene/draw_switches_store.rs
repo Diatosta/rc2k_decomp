@@ -1,5 +1,5 @@
-//! The draw switches, second part: the far clip switch, the group table word, the loading group
-//! mask and a marks source word.
+//! The draw switches, second part: the far clip switch, the group table word and a marks source
+//! word.
 
 use crate::memory::cells::ZeroCells;
 use crate::memory::session::PlainDword;
@@ -17,8 +17,6 @@ pub struct DrawSwitches {
     /// `scene::list_object_face` reads on into from `group_table`; nothing else reads or writes
     /// them (the developer front end's rally and stage live in `debug::dev_front_end`).
     pub reserved_38: [PlainDword; 71],
-    /// The loading group mask (`scene::add_object_shape`).
-    pub loading_group_mask: PlainDword,
     /// The marks source word (`effects::draw_frame`).
     pub marks_source: PlainDword,
 }
@@ -41,7 +39,6 @@ impl DrawSwitches {
                 a[69] = PlainDword::new(0x22);
                 a
             },
-            loading_group_mask: PlainDword::new(0xFFFFFFFF),
             ..ZeroCells::ZERO
         }
     }

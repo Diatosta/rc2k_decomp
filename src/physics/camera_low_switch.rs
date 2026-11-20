@@ -40,8 +40,8 @@ pub(super) fn camera_low_switch(c: &CameraGroundInputs<'_>) -> Result<(), Refuse
     c.car.camera_view_return.set(s.before);
     c.car.camera_blend_view.set(s.mode);
     c.car.camera_switch_active.set(s.switching);
-    c.car.camera_switch_share.set_bits(s.w674);
-    c.car.camera_switch_length.set(s.w670);
+    c.car.camera_switch_share.set_bits(s.switch_share);
+    c.car.camera_switch_length.set(s.switch_length);
     c.car.camera_switch_clock.set(s.clock);
     Ok(())
 }

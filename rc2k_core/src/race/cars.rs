@@ -324,15 +324,13 @@ pub enum CarsStep {
     Times,
     /// The mode's set-up: 2 the arcade's, 0, 1 and 4 their own, 3 the race cars'.
     SetUp(u32),
-    /// The arcade's kept times cleared.
-    ClearArcadeTable,
 }
 
 /// The steps for a mode; none for others.
 pub fn cars_steps(mode: u32) -> &'static [CarsStep] {
     use CarsStep::*;
     match mode {
-        2 => &[Numbers, Times, SetUp(2), ClearArcadeTable],
+        2 => &[Numbers, Times, SetUp(2)],
         1 => &[SetUp(1)],
         3 => &[SetUp(3)],
         0 => &[Numbers, SetUp(0)],
@@ -508,7 +506,7 @@ mod tests {
     #[test]
     fn modes_and_draws() {
         assert_eq!(cars_steps(0), [CarsStep::Numbers, CarsStep::SetUp(0)]);
-        assert_eq!(cars_steps(2).len(), 4);
+        assert_eq!(cars_steps(2).len(), 3);
         assert!(cars_steps(5).is_empty());
         assert_eq!(held_brake(-1, |_| unreachable!()), 0);
         assert_eq!(held_brake(100, |_| unreachable!()), 0x100);

@@ -28,13 +28,12 @@ pub fn take_second_view(
         [&camera.view_b_aux, &camera.view_b_aux_2],
     );
     camera.view_b_heading.set(car.car_heading.get());
-    let (mut eax, mut ebx) = (car.car_pitch.get(), car.car_roll.get());
-    if !matches!(car.camera_blend_view.get(), 1..=3) {
-        eax = ((eax as i32) >> 1) as u32;
-        ebx = ((ebx as i32) >> 1) as u32;
-    }
-    camera.view_b_pitch.set(eax as i32);
-    camera.view_b_roll.set(ebx as i32);
+    let [pitch, roll] = rc2k_core::physics::camera_view::view_turns(
+        [car.car_pitch.get(), car.car_roll.get()],
+        !matches!(car.camera_blend_view.get(), 1..=3),
+    );
+    camera.view_b_pitch.set(pitch as i32);
+    camera.view_b_roll.set(roll as i32);
 }
 
 // ---- the x87 arithmetic ----

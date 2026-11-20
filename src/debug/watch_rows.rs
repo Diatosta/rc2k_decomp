@@ -1,4 +1,4 @@
-//! The watch list's variables (483 entries, shown on the watch pages of `debug::ui`), one row
+//! The watch list's variables (403 entries, shown on the watch pages of `debug::ui`), one row
 //! per place, named and grouped for the debug UI; kept by hand. "Car n" is the block n - 1
 //! (0xFE0 apart). Names outside the
 //! cars' blocks are read from the developers' labels, not from what the code does: a reading.
@@ -111,7 +111,7 @@ pub static GROUPS: &[Group] = &[
                 "Finish time",
                 "f timer",
                 Shown::Float,
-                indexed_cell!(|o| o.race.replay.finish.get(), time),
+                indexed_cell!(|o| o.race.replay.finish(), time),
                 false,
                 (0, 0),
             ),
@@ -119,7 +119,7 @@ pub static GROUPS: &[Group] = &[
                 "Finish time, unrounded",
                 "f timeru",
                 Shown::Float,
-                indexed_cell!(|o| o.race.replay.finish.get(), eased),
+                indexed_cell!(|o| o.race.replay.finish(), eased),
                 false,
                 (0, 0),
             ),

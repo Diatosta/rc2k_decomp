@@ -23,8 +23,6 @@ pub struct PolygonWork {
     pub polygon_texture: PlainDword,
     /// The face's shine (`scene::draw_object_face`).
     pub face_shine: PlainDword,
-    /// A face's word (`scene::draw_object_face`).
-    pub face_word: PlainDword,
     /// The polygon's two side switches (`scene::draw_polygon`, the quads).
     pub polygon_sides: [PlainDword; 2],
     /// Kept by `scene::draw_polygon`.
@@ -45,12 +43,8 @@ pub struct PolygonWork {
     pub depth_clipped: PlainDword,
     /// A list entry's third word (`scene::list_object_face`).
     pub entry_third: PlainDword,
-    /// Whether the polygon was drawn.
-    pub polygon_drawn: PlainDword,
     /// The face's sort key (`scene::face_sort_key`).
     pub face_sort_key: PlainDword,
-    /// The clip's kept mask (`scene::clip`).
-    pub clip_kept_mask: PlainDword,
     /// `scene::clip`'s work; `race::car_shadow` keeps a vertex's pieces in [2], [4], [10],
     /// [11].
     pub clip_work: [PlainFloat; 12],
@@ -122,7 +116,6 @@ impl PolygonWork {
             polygon_colour: PlainDword::new(0),
             polygon_texture: PlainDword::new(0),
             face_shine: PlainDword::new(0),
-            face_word: PlainDword::new(0),
             polygon_sides: [const { PlainDword::new(0) }; 2],
             polygon_kept: [const { PlainDword::new(0) }; 3],
             polygon_outside_count: PlainDword::new(0),
@@ -133,9 +126,7 @@ impl PolygonWork {
             screen_clipped: PlainDword::new(0),
             depth_clipped: PlainDword::new(0),
             entry_third: PlainDword::new(0),
-            polygon_drawn: PlainDword::new(0),
             face_sort_key: PlainDword::new(0),
-            clip_kept_mask: PlainDword::new(0),
             clip_work: [const { PlainFloat::new(0.0) }; 12],
             clip_out_words: [const { PlainDword::new(0) }; 5],
             quad_vertices: [const { PlainDword::new(0) }; 32],

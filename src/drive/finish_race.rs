@@ -24,6 +24,8 @@ fn log_number(v: u32) {
 enum Place<'a> {
     Shared(&'a dyn crate::memory::session::DwordLike),
     Plain(&'a crate::memory::session::PlainDword),
+    /// The finish state's "no place" switch.
+    Finish(&'a crate::race::owner_replay::Replay),
 }
 
 impl Place<'_> {
@@ -31,6 +33,7 @@ impl Place<'_> {
         match self {
             Place::Shared(cell) => cell.set(value),
             Place::Plain(cell) => cell.set(value),
+            Place::Finish(replay) => replay.finish_mut().no_place = value,
         }
     }
 }
@@ -53,7 +56,7 @@ fn var(race: &Race, v: Var) -> Place<'_> {
         Var::D621890 => return Place::Plain(&race.shared.switches.get().view_marks_on),
         Var::D6238CC => &race.shared.vars.get().race_level,
         Var::D6238D0 => &race.shared.vars.get().race_stage,
-        Var::D64BB18 => return Place::Plain(&race.replay.finish.get().no_place),
+        Var::D64BB18 => return Place::Finish(&race.replay),
         Var::D5C2F88 => &race.effects_settings().race_done,
         // View record 6's first two angles (the finish camera's).
         Var::D606744 => {
@@ -95,8 +98,7 @@ pub fn finish_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Re
     // after the table).
     race_owner.shared.vars.get().stage_number.set(
         replay
-            .finish
-            .get()
+            .finish()
             .finish_stage(race_owner.shared.state.results.stage_index.get() as usize)?,
     );
     race_owner.shared.vars.get().race_car_kinds[0]

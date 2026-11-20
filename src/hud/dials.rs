@@ -8,12 +8,11 @@ use crate::hud::block_store::HudBlock;
 use crate::hud::owner::Hud;
 use crate::hud::pen::Pen;
 use crate::memory::session::PlainDword;
-use crate::memory::session::PlainFloat;
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::Panel;
 
 /// A layout's own variables of a dial, in the order its set-up copies them.
-type Vars = fn(&HudBlock) -> &[PlainFloat];
+type Vars = fn(&HudBlock) -> &[f32];
 
 pub struct DiscStyle {
     /// The texture shift (two dwords) and turn: a view's `motion`.
@@ -87,50 +86,52 @@ pub(super) static NEEDLE_2B: NeedleStyle = NeedleStyle {
     lifted_centre: false,
 };
 
-fn copy(from: &PlainFloat, to: &PlainFloat) {
-    to.set(from.get());
+/// The layout's own variables, the first `N` of them (the style's list is at least that long).
+fn own_vars<const N: usize>(style_vars: Vars, hud: &Hud) -> [f32; N] {
+    let list = style_vars(&hud.block);
+    std::array::from_fn(|k| list.get(k).copied().unwrap_or_default())
 }
 
 /// The disc's set-up: the shape's variables filled from the panel and the style.
-fn set_up_disc(frame: &Frame, hud: &Hud, style: &DiscStyle) {
-    let own = (style.vars)(&hud.block);
+fn set_up_disc(frame: &Frame, hud: &mut Hud, style: &DiscStyle) {
+    let own: [f32; 5] = own_vars(style.vars, hud);
     let [u, v, turn] = (style.shift)(&frame.panel_and_overlay.get().panel);
-    hud.block.disc_texture_shift[0].set(f32::from_bits(u.get()));
-    hud.block.disc_texture_shift[1].set(f32::from_bits(v.get()));
-    hud.block.disc_turn.set(f32::from_bits(turn.get()));
-    copy(&own[0], &hud.block.disc_size);
-    copy(&own[1], &hud.block.disc_texture_scale);
-    copy(&own[2], &hud.block.disc_centre[0]);
-    copy(&own[3], &hud.block.disc_centre[1]);
+    hud.block.disc_texture_shift[0] = f32::from_bits(u.get());
+    hud.block.disc_texture_shift[1] = f32::from_bits(v.get());
+    hud.block.disc_turn = f32::from_bits(turn.get());
+    hud.block.disc_size = own[0];
+    hud.block.disc_texture_scale = own[1];
+    hud.block.disc_centre[0] = own[2];
+    hud.block.disc_centre[1] = own[3];
     if style.lifted_centre && frame.panel_and_overlay.get().panel.flat.get() == 0 {
-        copy(&own[4], &hud.block.disc_centre[1]);
+        hud.block.disc_centre[1] = own[4];
     }
 }
 
 /// The needle's set-up: the shape's variables filled from the panel and the style.
-fn set_up_needle(frame: &Frame, hud: &Hud, style: &NeedleStyle) {
-    let own = (style.vars)(&hud.block);
+fn set_up_needle(frame: &Frame, hud: &mut Hud, style: &NeedleStyle) {
+    let own: [f32; 4] = own_vars(style.vars, hud);
     let value = (style.value)(&frame.panel_and_overlay.get().panel);
-    hud.block.needle_value.set(value.get());
-    copy(&own[0], &hud.block.needle_centre[0]);
-    copy(&own[1], &hud.block.needle_centre[1]);
+    hud.block.needle_value = value.get();
+    hud.block.needle_centre[0] = own[0];
+    hud.block.needle_centre[1] = own[1];
     let size = if style.lifted_centre {
         if frame.panel_and_overlay.get().panel.flat.get() == 0 {
-            copy(&own[2], &hud.block.needle_centre[1]);
+            hud.block.needle_centre[1] = own[2];
         }
         3
     } else {
         2
     };
-    copy(&own[size], &hud.block.needle_size);
+    hud.block.needle_size = own[size];
 }
 
-pub fn disc(frame: &Frame, hud: &Hud, pen: Pen, style: &DiscStyle) -> Result<(), Refused> {
+pub fn disc(frame: &Frame, hud: &mut Hud, pen: Pen, style: &DiscStyle) -> Result<(), Refused> {
     set_up_disc(frame, hud, style);
     crate::hud::draw_disc::draw_disc(frame, hud, pen)
 }
 
-pub fn needle(frame: &Frame, hud: &Hud, pen: Pen, style: &NeedleStyle) -> Result<(), Refused> {
+pub fn needle(frame: &Frame, hud: &mut Hud, pen: Pen, style: &NeedleStyle) -> Result<(), Refused> {
     set_up_needle(frame, hud, style);
     crate::hud::draw_needle::draw_needle(frame, hud, pen)
 }
@@ -139,7 +140,7 @@ pub fn needle(frame: &Frame, hud: &Hud, pen: Pen, style: &NeedleStyle) -> Result
 /// later disc's set-up left its variables) and its view's markers drawn at the sprites' scale.
 pub(super) fn map_cars(
     frame: &Frame,
-    hud: &Hud,
+    hud: &mut Hud,
     pen: Pen,
     style: &DiscStyle,
     slot: usize,

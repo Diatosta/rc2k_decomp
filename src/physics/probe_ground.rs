@@ -149,8 +149,6 @@ fn probe_points(
         work.probe_found[i].set(1);
         work.probe_ground_height[i].set(q.height.get());
         let cell = ground::noise_cell(q.x.get(), q.z.get());
-        contact.ground_cell_row[0].set(cell.row);
-        contact.ground_cell_row[1].set(cell.row_offset);
         let trap = crate::physics::cells::Trap::new();
         let noise = |i: u32| {
             trap.keep(
@@ -189,7 +187,6 @@ fn probe_points(
             if x87::compare_status(scratch.get(), ZERO) & 0x100 != 0 {
                 scratch.set(x87::loaded(ZERO).to_bits());
             }
-            work.wheel_height_raw[i].set(d);
             work.probe_height[i].set(x87::int_times_to_int(d as i32, scratch.get()) as u32);
         }
         car.probe_point_face[b as usize].set(q.slot.get());

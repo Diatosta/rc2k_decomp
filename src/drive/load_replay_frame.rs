@@ -10,7 +10,7 @@ use crate::system::owner::System;
 
 pub fn load_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
     let replay = &race.replay;
-    let frame = replay.replay_frames().step_block.get();
+    let frame = replay.replay_frames().step_block;
     { crate::drive::read_replay_frame_0::read_replay_frame_0(race, system, frame) }?;
     crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     crate::race::replay_staging_store::load_from_block(race);

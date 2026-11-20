@@ -51,8 +51,8 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
     crate::input::menu_pad::take_answer(input);
     shared.vars.get().scene_switch.set(1);
     let (best_frame, _) = race_ticks::best_frame(race.car_blocks().cars[0].step_clock.get());
-    if race_ticks::keeps_frame(best_frame, replay.replay_frames().last_kept.get()) {
-        replay.replay_frames().last_kept.set(best_frame);
+    if race_ticks::keeps_frame(best_frame, replay.replay_frames().last_kept) {
+        replay.replay_frames_mut().last_kept = best_frame;
     }
     let kind = race_ticks::quit_notice(shared.vars.get().no_replay.get() != 0);
     // With pictures for the answers the question is drawn here, over the frame, with them in the

@@ -7,14 +7,14 @@ use crate::hud::owner::Hud;
 use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
-pub fn draw_hud(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+pub fn draw_hud(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
     use crate::hud::*;
     use rc2k_core::hud::batch;
     {
         set_batch_depth::set_batch_depth(hud, pen.vertices);
-        hud.block.batch_texture.set(batch::NO_TEXTURE);
-        hud.block.vertex_count.set(0);
-        hud.block.index_count.set(0);
+        hud.block.batch_texture = batch::NO_TEXTURE;
+        hud.block.vertex_count = 0;
+        hud.block.index_count = 0;
         tenths::tenths(frame, hud);
         use crate::hud::layout_common::{Keep, start_keep};
         match batch::Layout::of(frame.panel_and_overlay.get().panel.players.get()) {

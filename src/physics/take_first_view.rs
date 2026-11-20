@@ -32,13 +32,12 @@ pub fn take_first_view(
         [&camera.view_a_aux, &camera.view_a_aux_2],
     );
     camera.view_a_heading.set(car.car_heading.get());
-    let (mut eax, mut ebx) = (car.car_pitch.get(), car.car_roll.get());
-    if record(view_records, car)?.halve_tilt.get() != 0 {
-        eax = ((eax as i32) >> 1) as u32;
-        ebx = ((ebx as i32) >> 1) as u32;
-    }
-    camera.view_a_pitch.set(eax as i32);
-    camera.view_a_roll.set(ebx as i32);
+    let [pitch, roll] = rc2k_core::physics::camera_view::view_turns(
+        [car.car_pitch.get(), car.car_roll.get()],
+        record(view_records, car)?.halve_tilt.get() != 0,
+    );
+    camera.view_a_pitch.set(pitch as i32);
+    camera.view_a_roll.set(roll as i32);
     Ok(())
 }
 

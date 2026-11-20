@@ -17,10 +17,10 @@ pub struct SkidStart {
     pub step: u32,
     /// 1 once started.
     pub on: u32,
-    /// 10 once started.
-    pub w670: u32,
-    /// 0 once started.
-    pub w674: u32,
+    /// 10 once started (the car block's camera switch length, which this start shares).
+    pub switch_length: u32,
+    /// 0 once started (the camera switch share).
+    pub switch_share: u32,
 }
 
 impl SkidStart {
@@ -35,8 +35,8 @@ impl SkidStart {
         if count != 0 {
             self.from = count - 1;
             self.on = 1;
-            self.w674 = 0;
-            self.w670 = 10;
+            self.switch_share = 0;
+            self.switch_length = 10;
             count = step();
             self.step = count;
         }

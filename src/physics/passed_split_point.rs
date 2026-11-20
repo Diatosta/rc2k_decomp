@@ -84,7 +84,7 @@ fn point(
 // Core: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}` (the distance
 // and the angle stay x87).
 pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
-    if c.finish.no_place.get() != 0 {
+    if c.no_place != 0 {
         return Ok(false);
     }
     let (cp, pt) = point(c.physics.split_tables(), c.course, c.checkpoints, c.car)?;
@@ -108,9 +108,7 @@ pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
         return Ok(false);
     }
     let car_angle = angle(c.numbers, c.physics.ground(), pt) << 16;
-    c.tables.split_word.set(car_angle);
     let heading = crate::race::checkpoints_store::angle_run_on(c.checkpoints, cp as usize).get();
-    c.tables.split_heading.set(heading);
     let (carry, _) = progress::passed_point(car_angle, heading);
     Ok(carry)
 }

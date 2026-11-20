@@ -22,42 +22,42 @@ fn negated_times_times_to_int(a: f32, b: f32, c: f32) -> u32 {
 /// The disc's texture turn the next draw uses, as `draw_disc` works it out (4096 to a turn).
 pub fn texture_turn(hud: &Hud) -> u32 {
     negated_times_times_to_int(
-        hud.block.disc_turn.get(),
-        hud.block.disc_turn_a.get(),
-        hud.block.disc_turn_b.get(),
+        hud.block.disc_turn,
+        hud.block.disc_turn_a,
+        hud.block.disc_turn_b,
     )
 }
 
-pub fn draw_disc(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+pub fn draw_disc(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
     {
         use rc2k_core::hud::disc::{disc_triangle, ring_angles};
         // The texture's turn follows the x87's control word: the x87's.
         let t = negated_times_times_to_int(
-            hud.block.disc_turn.get(),
-            hud.block.disc_turn_a.get(),
-            hud.block.disc_turn_b.get(),
+            hud.block.disc_turn,
+            hud.block.disc_turn_a,
+            hud.block.disc_turn_b,
         );
         let table = |cell: &crate::memory::session::PlainFloat| x87::loaded(cell);
         for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
             let n = k + 1;
-            hud.block.ring_sines[n].set(table(crate::math::engine_tables::sine(
+            hud.block.ring_sines[n] = table(crate::math::engine_tables::sine(
                 pen.engine_tables,
                 a as usize,
-            )));
-            hud.block.ring_cosines[n].set(table(crate::math::engine_tables::cosine(
+            ));
+            hud.block.ring_cosines[n] = table(crate::math::engine_tables::cosine(
                 pen.engine_tables,
                 a as usize,
-            )));
-            hud.block.texture_ring_sines[n].set(table(crate::math::engine_tables::sine(
+            ));
+            hud.block.texture_ring_sines[n] = table(crate::math::engine_tables::sine(
                 pen.engine_tables,
                 b as usize,
-            )));
-            hud.block.texture_ring_cosines[n].set(table(crate::math::engine_tables::cosine(
+            ));
+            hud.block.texture_ring_cosines[n] = table(crate::math::engine_tables::cosine(
                 pen.engine_tables,
                 b as usize,
-            )));
+            ));
         }
-        hud.block.fistp_scratch.set(t);
+        hud.block.fistp_scratch = t;
         for k in 0..SEGMENTS {
             for (n, e) in disc_triangle(k).into_iter().enumerate() {
                 disc_vertex(hud, e, &pen.vertices.vertices[n])?;

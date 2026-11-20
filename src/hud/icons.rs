@@ -62,17 +62,13 @@ pub(super) static LAYOUT_2: IconStyle = IconStyle {
 };
 
 /// Draws `style`'s icons.
-pub fn icons(frame: &Frame, hud: &Hud, pen: Pen, style: &IconStyle) -> Result<(), Refused> {
-    hud.block
-        .icon_scale
-        .set(hud.block.icon_scales[style.scale].get());
+pub fn icons(frame: &Frame, hud: &mut Hud, pen: Pen, style: &IconStyle) -> Result<(), Refused> {
+    hud.block.icon_scale = hud.block.icon_scales[style.scale];
     for (n, d) in style.draws.iter().enumerate() {
         if n > 0 {
-            hud.block
-                .texture
-                .set(hud.block.texture.get().wrapping_add(1));
+            hud.block.texture = hud.block.texture.wrapping_add(1);
         }
-        hud.block.icon_shift.set(d.shift);
+        hud.block.icon_shift = d.shift;
         let lights = &frame.panel_and_overlay.get().panel.lights[d.view];
         draw_icon(frame, hud, pen, lights, d.row)?;
     }

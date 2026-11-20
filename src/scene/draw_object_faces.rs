@@ -54,6 +54,5 @@ pub fn draw_object_faces(
         draw(face)?;
         poly.polygon_colour.set(0x00FF_FFFFu32);
     }
-    poly.window.faces_done.set(0u32);
     Ok(())
 }

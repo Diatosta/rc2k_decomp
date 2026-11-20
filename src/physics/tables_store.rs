@@ -4,7 +4,7 @@
 //! places no ported code names.
 
 use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainDword, PlainFlag, PlainFloat, PlainInt};
+use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 
 /// A kind of ground (0x30 bytes, `PhysicsTables.surfaces[0].table`): what `physics::wheel_surfaces`
 /// blends between for each point, and `physics::apply_patches` patches (readings).
@@ -309,16 +309,12 @@ pub struct PhysicsTables {
     pub object_hits: PlainDword,
     /// Hits of points on the car this step.
     pub point_hits: PlainDword,
-    /// The count-down's last beep (`drive::countdown_beep`).
-    pub countdown_sound: PlainDword,
     /// The face `physics::find_clear_place` logs.
     pub clear_place_face: PlainDword,
     /// The two surfaces' scales by tyre kind (`physics::wheel_surfaces`).
     pub surface_scales: [PlainFloat; 2],
     /// The wheels' spring damping (`physics::wheel_springs`).
     pub spring_damping: [PlainFloat; 4],
-    /// 0 / 1 (`physics::drive_wheels_step`).
-    pub wheels_driven: PlainDword,
     /// The car's vertical speed kept (`physics::car_physics_step`).
     pub vertical_speed: PlainFloat,
     /// `physics::pick_start_gear`'s: 100, 0, the engine speed it began with.
@@ -345,8 +341,6 @@ pub struct PhysicsTables {
     pub reserved_960: [PlainDword; 9],
     /// The wall edge's two points' x and z (`physics::wall_edge_contact`).
     pub edge_points: [PlainDword; 4],
-    /// The edge crossed from / to (`physics::crossed_edge_contact`).
-    pub crossed_edge: [PlainDword; 2],
     /// Unused.
     pub reserved_99c: PlainDword,
     /// The wall's heading, -1 none.
@@ -477,8 +471,6 @@ pub struct PhysicsTables {
     pub ride_height_handling_scale: PlainDword,
     /// (`physics::drive_wheels_step`).
     pub axle_slip_limits: [PlainFloat; 2],
-    /// (`physics::hold_spin_on_ground`).
-    pub ground_spin: PlainFlag,
     /// (`physics::find_clear_place`).
     pub clear_place_mark: PlainDword,
     /// `physics::sum_forces`' five sums.
@@ -511,10 +503,6 @@ pub struct PhysicsTables {
     pub pace_scale: PlainFloat,
     /// The events listed (`physics::queue_listed_event`).
     pub listed_events: [PlainDword; 32],
-    /// (`physics::passed_split_point`).
-    pub split_word: PlainDword,
-    /// (`physics::passed_split_point`).
-    pub split_heading: PlainDword,
     /// The distance to the split point.
     pub split_point_distance: PlainFloat,
     /// Unused: the checkpoint's near and far colours and the distance were kept here
@@ -864,8 +852,8 @@ mod tests {
         for byte in &bytes {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
         }
-        assert_eq!(bytes.len(), 5392);
-        assert_eq!(hash, 0xb216_3789_ffce_2c43);
+        assert_eq!(bytes.len(), 5364);
+        assert_eq!(hash, 0x02f0_a9d0_d850_1bf3);
     }
 
     #[test]

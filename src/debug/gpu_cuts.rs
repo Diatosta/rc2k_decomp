@@ -22,7 +22,7 @@ fn flushes_a_second() -> Option<f32> {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let rate = last.and_then(|(was, at)| {
         let seconds = now.duration_since(at).as_secs_f32();
-        (seconds > 0.0).then(|| (flushes - was) as f32 / seconds)
+        (seconds > 0.0).then(|| flushes.saturating_sub(was) as f32 / seconds)
     });
     *last = Some((flushes, now));
     rate

@@ -90,8 +90,6 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     let corner_point =
         |at| crate::race::course_places::face_field::<u32>(c.course.reads(), face, at);
     let (from, to) = (corner_point(first)?, corner_point(second)?);
-    c.tables.crossed_edge[0].set(from);
-    c.tables.crossed_edge[1].set(to);
     edge_normal(
         &c.shared.buffers.reads.get().engine_tables,
         c.contact,
@@ -100,7 +98,6 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
         from,
         to,
     )?;
-    c.contact.crossed_heading.set(c.tables.wall_heading.get());
     copy3(&c.contact.contact_car_speed, &c.car.velocity);
     copy3(&c.contact.contact_turn_speed, &c.car.spin);
     c.contact.contact_point[0].set(c.contact.probe_turned_x[k].get());

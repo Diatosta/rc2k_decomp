@@ -2,6 +2,20 @@
 
 use dear_imgui_rs::Ui;
 
+/// The most grid lines drawn along one axis.
+const MOST_GRID_LINES: f32 = 64.0;
+
+/// The step a grid along `from ..= to` is drawn at: `step`, or a wider one when `step` would
+/// make more than `MOST_GRID_LINES` lines; none for a step or a range that is not a finite
+/// positive number (the loop over such a range would not end, or would draw millions of lines).
+fn grid_step(from: f32, to: f32, step: f32) -> Option<f32> {
+    let span = to - from;
+    if !(step.is_finite() && step > 0.0 && span.is_finite() && span > 0.0) {
+        return None;
+    }
+    Some(step.max(span / MOST_GRID_LINES))
+}
+
 /// A rectangle of the window taking values to places.
 pub(super) struct Plot {
     at: [f32; 2],
@@ -37,6 +51,12 @@ impl Plot {
     pub fn grid(&self, ui: &Ui, step_x: f32, step_y: f32) {
         let list = ui.get_window_draw_list();
         let dim = [0.25, 0.25, 0.3, 1.0];
+        let (Some(step_x), Some(step_y)) = (
+            grid_step(self.x[0], self.x[1], step_x),
+            grid_step(self.y[0], self.y[1], step_y),
+        ) else {
+            return;
+        };
         let mut x = self.x[0];
         while x <= self.x[1] {
             let top = self.place((x, self.y[1]));
@@ -101,5 +121,38 @@ impl Plot {
         list.add_circle(self.place(at), 4.0, [1.0, 1.0, 1.0, 1.0])
             .filled(true)
             .build();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_grid_step_is_kept_when_it_makes_few_lines() {
+        assert_eq!(grid_step(0.0, 71.0, 10.0), Some(10.0));
+    }
+
+    #[test]
+    fn a_grid_step_is_widened_when_it_would_make_too_many_lines() {
+        // A range of a million with a step of 0.001 would be a billion lines.
+        let step = grid_step(-1.0e6, 10.0, 0.001).unwrap();
+        assert!((1.0e6 / step) <= MOST_GRID_LINES + 1.0);
+    }
+
+    #[test]
+    fn a_grid_over_no_range_or_a_bad_step_is_not_drawn() {
+        for (from, to, step) in [
+            (0.0, 0.0, 1.0),
+            (0.0, f32::INFINITY, 1.0),
+            (f32::NEG_INFINITY, 1.0, 1.0),
+            (0.0, f32::NAN, 1.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 1.0, -1.0),
+            (0.0, 1.0, f32::INFINITY),
+            (0.0, 1.0, f32::NAN),
+        ] {
+            assert_eq!(grid_step(from, to, step), None, "{from} {to} {step}");
+        }
     }
 }

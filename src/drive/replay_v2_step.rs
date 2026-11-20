@@ -29,7 +29,7 @@ pub fn after_step(race: &Race) -> Result<(), BadInput> {
         return Ok(());
     };
     if mode == RECORDING {
-        let step = race.replay.replay_frames().tenth.get() as usize;
+        let step = race.replay.replay_frames().tenth as usize;
         if step >= STEPS {
             return Err(BadInput("a replay step past the second's hundred"));
         }
@@ -39,7 +39,7 @@ pub fn after_step(race: &Race) -> Result<(), BadInput> {
         }
         v2.tail.states[step][car] = Some(state);
     } else {
-        let step = race.replay.replay_frames().step_frame.get() as usize;
+        let step = race.replay.replay_frames().step_frame as usize;
         if let Some(state) = v2.tail.states.get(step).and_then(|tick| tick[car]) {
             scatter_state(&state, block);
         }

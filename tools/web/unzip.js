@@ -56,6 +56,8 @@ async function entries(file) {
   const size = u32(end, eocd + 12);
   const at = u32(end, eocd + 16);
   if (at === 0xffffffff || count === 0xffff) throw new Error(file.name + ": ZIP64 is not read");
+  // A central directory of 64 bytes or more per entry and name is not worth reading whole.
+  if (size > 64 * 1024 * 1024 || at + size > file.size) throw new Error(file.name + ": a broken index");
   const dir = new DataView(await file.slice(at, at + size).arrayBuffer());
   const list = [];
   let p = 0;
