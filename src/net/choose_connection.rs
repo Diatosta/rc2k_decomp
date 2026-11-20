@@ -14,36 +14,34 @@ pub(super) fn list_move(
 ) -> bool {
     // The logic is in `rc2k_core::net::screens` (`ListKey`, `up`, `down`).
     let (choice, top) = match ListKey::of(key) {
-        ListKey::Up => screens::up(list_state.choice.get(), list_state.choice_before.get()),
+        ListKey::Up => screens::up(list_state.read().choice, list_state.read().choice_before),
         ListKey::Down => screens::down(
-            list_state.choice.get(),
-            list_state.choice_before.get(),
+            list_state.read().choice,
+            list_state.read().choice_before,
             count,
         ),
         _ => return false,
     };
-    list_state.choice.set(choice);
-    list_state.choice_before.set(top);
+    list_state.write().choice = choice;
+    list_state.write().choice_before = top;
     true
 }
 pub(super) fn choose_connection(o: crate::owners::Owners<'static>) -> Result<u32, Refused> {
     let (net, system) = (o.net, o.system);
     let list_state = &o.menus.list;
     let now = system.session.key_clock.ticks.get();
-    list_state.move_clock.set(now);
-    list_state.key_clock.set(now);
-    list_state.choice_before.set(0);
-    list_state.choice.set(0);
+    list_state.write().move_clock = now;
+    list_state.write().key_clock = now;
+    list_state.write().choice_before = 0;
+    list_state.write().choice = 0;
     loop {
         run_frame(o, || crate::net::connections_frame::connections_frame(o))?;
-        list_state
-            .frame_clock
-            .set(system.session.key_clock.ticks.get());
+        list_state.write().frame_clock = system.session.key_clock.ticks.get();
         let key = list_key(list_state, o.input)?;
         if list_move(list_state, key, net.link.connections().get()) {
-            list_state.move_clock.set(list_state.frame_clock.get());
+            list_state.write().move_clock = list_state.read().frame_clock;
         } else if ListKey::of(key) == ListKey::Enter {
-            return Ok(list_state.choice.get());
+            return Ok(list_state.read().choice);
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
@@ -53,6 +51,6 @@ pub(super) fn choose_connection(o: crate::owners::Owners<'static>) -> Result<u32
             break;
         }
     }
-    list_state.choice.set(u32::MAX);
-    Ok(list_state.choice.get())
+    list_state.write().choice = u32::MAX;
+    Ok(list_state.read().choice)
 }

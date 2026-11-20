@@ -95,12 +95,12 @@ pub fn rules(
 ) -> rc2k_core::effects::pong::Rules {
     let r = &pong.rules;
     rc2k_core::effects::pong::Rules {
-        centre: r.centre.each_ref().map(PlainFloat::get),
-        nudge: r.nudge.get(),
-        way_scale: pair(&r.way_scale),
+        centre: r.centre,
+        nudge: r.nudge,
+        way_scale: r.way_scale,
         length: effects.setup.floats.one.get(),
-        walls: r.walls.each_ref().map(PlainFloat::get),
-        start: r.start.each_ref().map(PlainFloat::bits),
+        walls: r.walls,
+        start: r.start.map(f32::to_bits),
     }
 }
 

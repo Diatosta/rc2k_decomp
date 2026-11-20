@@ -11,13 +11,5 @@ pub(super) fn pong_setup(
     fl: &WindscreenFlakes,
     scene: &crate::scene::owner::Scene,
 ) {
-    setup_with(
-        buffer,
-        fl,
-        pong.rules
-            .setup_places
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get),
-        scene,
-    );
+    setup_with(buffer, fl, pong.rules.setup_places, scene);
 }

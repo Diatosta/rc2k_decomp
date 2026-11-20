@@ -19,7 +19,7 @@ fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, 
     let list_state = &o.menus.list;
     let listed = net.link.sessions().get();
     if listed != 0 {
-        let instance = with_session(&net.link, list_state.choice.get(), |s| s.instance)?;
+        let instance = with_session(&net.link, list_state.read().choice, |s| s.instance)?;
         net.joined()
             .joined
             .write_at(0, &instance, "the joined session")?;
@@ -41,7 +41,7 @@ fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, 
                 // The logic is in `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
                 choice = n;
                 top = if screens::keeps_top(net.link.sessions().get()) {
-                    screens::moved_top(n, list_state.choice_before.get(), list_state.choice.get())
+                    screens::moved_top(n, list_state.read().choice_before, list_state.read().choice)
                 } else {
                     0
                 };
@@ -53,8 +53,8 @@ fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, 
             }
         }
     }
-    list_state.choice.set(choice);
-    list_state.choice_before.set(top);
+    list_state.write().choice = choice;
+    list_state.write().choice_before = top;
     Ok(true)
 }
 /// How the session is chosen.
@@ -76,10 +76,10 @@ pub(super) fn choose_session(
     let (net, system) = (o.net, o.system);
     let list_state = &o.menus.list;
     let now = system.session.key_clock.ticks.get();
-    list_state.move_clock.set(now);
-    list_state.key_clock.set(now);
-    list_state.choice.set(0);
-    list_state.choice_before.set(0);
+    list_state.write().move_clock = now;
+    list_state.write().key_clock = now;
+    list_state.write().choice = 0;
+    list_state.write().choice_before = 0;
     net.sessions()
         .listed_at
         .set(crate::clock::tick_count::tick_count(
@@ -95,30 +95,28 @@ pub(super) fn choose_session(
         {
             net.sessions().listed_at.set(tick);
             if !refresh(o, lines)? {
-                list_state.choice.set(0xFFFF_FFFE);
-                return Ok(list_state.choice.get());
+                list_state.write().choice = 0xFFFF_FFFE;
+                return Ok(list_state.read().choice);
             }
         }
-        list_state
-            .frame_clock
-            .set(system.session.key_clock.ticks.get());
+        list_state.write().frame_clock = system.session.key_clock.ticks.get();
         let key = list_key(list_state, o.input)?;
         let any = net.link.sessions().get() != 0;
         if any && pick == Pick::First {
-            return Ok(list_state.choice.get());
+            return Ok(list_state.read().choice);
         }
         if let Pick::Instance(wanted) = pick {
             for n in 0..net.link.sessions().get() {
                 if with_session(&net.link, n, |s| s.instance)? == wanted {
-                    list_state.choice.set(n);
+                    list_state.write().choice = n;
                     return Ok(n);
                 }
             }
         }
         if any && list_move(list_state, key, net.link.sessions().get()) {
-            list_state.move_clock.set(list_state.frame_clock.get());
+            list_state.write().move_clock = list_state.read().frame_clock;
         } else if any && ListKey::of(key) == ListKey::Enter {
-            return Ok(list_state.choice.get());
+            return Ok(list_state.read().choice);
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
@@ -128,6 +126,6 @@ pub(super) fn choose_session(
             break;
         }
     }
-    list_state.choice.set(u32::MAX);
-    Ok(list_state.choice.get())
+    list_state.write().choice = u32::MAX;
+    Ok(list_state.read().choice)
 }

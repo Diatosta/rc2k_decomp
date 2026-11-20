@@ -30,7 +30,11 @@ fn turn(weather: &Weather, v: &[u32; 3]) {
 
 /// The light's dot and its fade index.
 fn fade(weather: &Weather, effects: &crate::effects::owner::Effects) {
-    fade_x87(&weather.snow, &weather.snow_light, &effects.setup.floats);
+    fade_x87(
+        &weather.snow,
+        &mut weather.snow_light.borrow_mut(),
+        &effects.setup.floats,
+    );
 }
 
 /// The projected square, its depth and u.
@@ -47,7 +51,7 @@ fn square(
         i as usize,
         &weather.snow_tables,
         &weather.snow,
-        &weather.snow_light,
+        &weather.snow_light.borrow(),
     );
     // The scratch holds four vertices' records, eight dwords each.
     for (vertex, w) in buffer.vertices.iter().zip(w.as_chunks::<8>().0) {
@@ -111,16 +115,15 @@ pub(super) fn draw_snow(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let (snow, snow_light) = (&weather.snow, &weather.snow_light);
-    let snow_vars = &weather.snow_vars;
     if let Some(why) = refusal(weather, effects) {
         return Err(BadInput(why).into());
     }
     {
         let n = snow.flakes.get() as i32;
         snow.count_copy.set(n as u32);
-        snow_vars.first.set(0);
+        weather.snow_vars.borrow_mut().first = 0;
         snow.drawn.set(0);
-        snow_vars.first.set(n as u32);
+        weather.snow_vars.borrow_mut().first = n as u32;
         for k in 0..n.max(0) as u32 {
             let ([eax, ebx, ecx], curve_at, _) = place(weather, k);
             if curve_at.iter().any(|&i| i >= CURVE) {
@@ -130,23 +133,20 @@ pub(super) fn draw_snow(
             if snow.depth.get() as i32 > 0x1_0000 {
                 if effects.setup.kind_floats.fading.get() != 0 {
                     fade(weather, effects);
-                    let mut index = snow_light.fade_index.get();
-                    if snow_light.dot.get().is_sign_negative() {
+                    let mut index = snow_light.borrow().fade_index;
+                    if snow_light.borrow().dot.is_sign_negative() {
                         index = 0;
                     }
                     if index >= FADES {
                         return Err(BadInput("a snow fade index past the table").into());
                     }
-                    let colour = snow_light.fade_colours[index as usize].get();
+                    let colour = snow_light.borrow().fade_colours[index as usize];
                     for item in buffer.vertices.iter().take(4) {
                         item.colour.set(colour);
                     }
                 }
                 square(scene.scratch.front_end_polygon(), buffer, weather, 4 * k);
-                let [top, bottom] = snow_light
-                    .v
-                    .each_ref()
-                    .map(crate::memory::session::PlainFloat::get);
+                let [top, bottom] = snow_light.borrow().v;
                 for (n, vertex) in buffer.vertices.iter().enumerate().take(4) {
                     vertex.v.set(if n < 2 { top } else { bottom });
                 }
@@ -198,39 +198,39 @@ fn turn_x87(v: impl Base, s: &SnowState) {
 }
 
 /// `fade`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
+fn fade_x87(s: &SnowState, l: &mut SnowLight, f: &MarksFloats) {
     {
         let t0 = s.turned[0].ld();
-        let t1 = t0 - l.light_place[0].ld();
-        l.fade_delta[0].st(t1);
+        let t1 = t0 - bh::ld(l.light_place[0]);
+        l.fade_delta[0] = f32::from_bits(bh::st(t1));
         let t2 = t1 * t1;
         let t3 = s.turned[1].ld();
-        let t4 = t3 - l.light_place[1].ld();
-        l.fade_delta[1].st(t4);
+        let t4 = t3 - bh::ld(l.light_place[1]);
+        l.fade_delta[1] = f32::from_bits(bh::st(t4));
         let t5 = t4 * t4;
         let t6 = s.turned[2].ld();
-        let t7 = t6 - l.light_place[2].ld();
-        l.fade_delta[2].st(t7);
+        let t7 = t6 - bh::ld(l.light_place[2]);
+        l.fade_delta[2] = f32::from_bits(bh::st(t7));
         let t8 = t7 * t7;
         let t9 = t5 + t8;
         let t10 = t2 + t9;
         let t11 = t10.sqrt();
         let t12 = f.one.ld() / t11;
-        let t13 = t12 * l.fade_delta[0].ld();
-        l.fade_unit[0].st(t13);
-        let t14 = t13 * l.light_way[0].ld();
-        let t15 = t12 * l.fade_delta[1].ld();
-        l.fade_unit[1].st(t15);
-        let t16 = t15 * l.light_way[1].ld();
-        let t17 = t12 * l.fade_delta[2].ld();
-        l.fade_unit[2].st(t17);
-        let t18 = t17 * l.light_way[2].ld();
+        let t13 = t12 * bh::ld(l.fade_delta[0]);
+        l.fade_unit[0] = f32::from_bits(bh::st(t13));
+        let t14 = t13 * bh::ld(l.light_way[0]);
+        let t15 = t12 * bh::ld(l.fade_delta[1]);
+        l.fade_unit[1] = f32::from_bits(bh::st(t15));
+        let t16 = t15 * bh::ld(l.light_way[1]);
+        let t17 = t12 * bh::ld(l.fade_delta[2]);
+        l.fade_unit[2] = f32::from_bits(bh::st(t17));
+        let t18 = t17 * bh::ld(l.light_way[2]);
         let t19 = t14 + t18;
         let t20 = t16 + t19;
-        l.dot.st(t20);
+        l.dot = f32::from_bits(bh::st(t20));
         let t21 = t20 * t20;
         let t22 = t21 * f.sixteen.ld();
-        l.fade_index.set(bh::to_int(t22) as u32);
+        l.fade_index = bh::to_int(t22) as u32;
     }
 }
 
@@ -254,7 +254,7 @@ fn square_x87(
     st(vt, 0x4, t6);
     let t7 = t4 + crate::math::x87_float::ld(front.window.view_centre[0].get());
     st(vt, 0x0, t7);
-    let t8 = l.side.ld();
+    let t8 = bh::ld(l.side);
     let t9 = t8 * bh::ld(s.depth.get());
     let t10 = ld(vt, 0x0);
     let t11 = t10 + t9;
@@ -276,7 +276,7 @@ fn square_x87(
     let t17 = t.spreads[i / 4].ld();
     st(vt, 0x18, t17);
     st(vt, 0x78, t17);
-    let t18 = t17 + l.u_offset.ld();
+    let t18 = t17 + bh::ld(l.u_offset);
     st(vt, 0x38, t18);
     st(vt, 0x58, t18);
 }

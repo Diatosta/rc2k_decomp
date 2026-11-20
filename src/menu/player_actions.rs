@@ -36,7 +36,7 @@ fn with_player(menus: &Menus, f: impl FnOnce(&mut Player)) -> Result<(), Refused
 
 /// `menu::keep_player_keys`: the keys' table's bindings into the player's.
 pub fn keep_player_keys(menus: &Menus) -> Result<(), Refused> {
-    let controls = menus.keys.tables.controls.read();
+    let controls = menus.keys.tables().controls;
     with_player(menus, |p| {
         p.bindings = rc2k_core::menu::player::ControlsBlock::from_bytes(controls);
     })

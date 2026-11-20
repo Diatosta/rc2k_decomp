@@ -258,12 +258,12 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
     viewer_load_stage::viewer_load_stage(race, o)?;
     let list = &o.race.replay.replay_view().viewer_list;
     race.shared.replay_file().viewer_sound.set(0);
-    list_state.list_answer.set(1);
-    list_state.list_leave.set(0);
+    list_state.write().list_answer = 1;
+    list_state.write().list_leave = 0;
     let now = session.key_clock.ticks.get();
-    list_state.move_clock.set(now);
-    list_state.key_clock.set(now);
-    list_state.choice.set(6);
+    list_state.write().move_clock = now;
+    list_state.write().key_clock = now;
+    list_state.write().choice = 6;
     // The pending key dropped.
     crate::input::take_key::take_key(o.input);
     mark_items::mark_viewer_items(race, list)?;
@@ -276,7 +276,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
             let (from, to) = crate::video::range().unwrap_or((0, None));
             crate::race::render_row::play_range(race, from, to, o)?;
         } else {
-            action_next(race, o, list.action(list_state.choice.get()))?;
+            action_next(race, o, list.action(list_state.read().choice))?;
         }
         // The play runs to its stop inside the action.
         if leave_when_played {
@@ -288,8 +288,8 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
         if let Some(lost) = crate::shell::frame::run_frame_now(o, || frame::viewer_frame(o)) {
             lost?;
         }
-        list_state.frame_clock.set(session.key_clock.ticks.get());
-        list_state.choice_before.set(list_state.choice.get());
+        list_state.write().frame_clock = session.key_clock.ticks.get();
+        list_state.write().choice_before = list_state.read().choice;
         let mut key = crate::menu::list_take_key::list_take_key(list_state, o.input);
         if session.flags.quitting.is_set() {
             return Ok(Viewed::Left);
@@ -343,7 +343,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
             &o.system.session.picture_clock,
             sound,
         );
-        if list_state.list_leave.get() == 1 {
+        if list_state.read().list_leave == 1 {
             return Ok(Viewed::Left);
         }
     }
@@ -405,8 +405,8 @@ fn stopped_key(
     if key == KEY_DOWN
         && crate::menu::replay_viewer::render_row::OFFERED
         && race.shared.replay_file().index.block_count.get() != 0
-        && (LOWER_ROW.contains(&list_state.choice.get())
-            || way_down_closed(list, list_state.choice.get())?)
+        && (LOWER_ROW.contains(&list_state.read().choice)
+            || way_down_closed(list, list_state.read().choice)?)
     {
         crate::race::render_row::select(race, true);
         return Ok(Next::Mark);
@@ -420,7 +420,7 @@ fn stopped_key(
         return Ok(Next::Mark);
     }
     if key == 0x1C
-        && let Next::Mark = action_next(race, o, list.action(list_state.choice.get()))?
+        && let Next::Mark = action_next(race, o, list.action(list_state.read().choice))?
     {
         return Ok(Next::Mark);
     }
@@ -491,19 +491,19 @@ fn mark(
                 }
             }
             // Else back where it was.
-            list_state.choice.set(list_state.choice_before.get());
+            list_state.write().choice = list_state.read().choice_before;
             if !list_item_unusable(list_state, list) {
                 return Ok(());
             }
         }
         // Else item 6, or 0x13 when item 6 is marked.
-        list_state.choice.set(6);
+        list_state.write().choice = 6;
         if list.item(6).first.get() & 0xC0 != 0 {
-            list_state.choice.set(0x13);
+            list_state.write().choice = 0x13;
         }
     }
     if (key as i8) > 0 {
-        list_state.move_clock.set(list_state.frame_clock.get());
+        list_state.write().move_clock = list_state.read().frame_clock;
     }
     Ok(())
 }

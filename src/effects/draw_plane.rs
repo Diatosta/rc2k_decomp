@@ -59,7 +59,7 @@ static PLANE_TUNING: PlaneTuning = PlaneTuning {
 /// The rate, the place and the first axis from the settings, and the first axis's length over
 /// its divisor into the first of the flakes' `lengths`.
 fn plane_axes(fl: &WindscreenFlakes, m: &EffectsSettings) {
-    plane_axes_x87(m, &fl.timing, &fl.tables, &PLANE_TUNING);
+    plane_axes_x87(m, &mut fl.timing.borrow_mut(), &fl.tables, &PLANE_TUNING);
 }
 
 /// The second axis, its length over its divisor into the second of the flakes' `lengths`.
@@ -187,13 +187,13 @@ use crate::math::x87_float as bh;
 /// `plane_axes`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn plane_axes_x87(
     m: &EffectsSettings,
-    sti: &WindscreenFlakeTiming,
+    sti: &mut WindscreenFlakeTiming,
     sq: &WindscreenFlakeTables,
     pt: &PlaneTuning,
 ) {
     let t0 = ldi_cell(&m.windscreen_flakes_rate_factor);
     let t1 = t0 * bh::ld(pt.rate_k);
-    sti.rate.st(t1);
+    sti.rate = f32::from_bits(bh::st(t1));
     let t2 = ldi_cell(&m.light_point_b_negated[0]);
     let t3 = ldi_cell(&m.light_point_b_negated[1]);
     let t4 = ldi_cell(&m.light_point_b_negated[2]);

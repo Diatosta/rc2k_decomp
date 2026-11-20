@@ -16,7 +16,7 @@ pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
         .get()
         .picked();
     menus.screens.event.current_player.set(n);
-    menus.keys.tables.controls.write(&copy);
+    menus.keys.tables_mut().controls = copy;
     Ok(())
 }
 

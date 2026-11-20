@@ -58,13 +58,13 @@ pub(super) fn draw_viewer_item(
     panel.item_place[3].set(place[3]);
     let colour = item_colour(
         item.first.get(),
-        index == list_state.choice.get() && !crate::race::render_row::selected(race),
+        index == list_state.read().choice && !crate::race::render_row::selected(race),
         || race.viewer_buffers().camera_edit.get() != 0,
         || {
             list_state
+                .read()
                 .frame_clock
-                .get()
-                .wrapping_sub(list_state.move_clock.get())
+                .wrapping_sub(list_state.read().move_clock)
         },
     );
     crate::drive::tyre_quad::tyre_quad(

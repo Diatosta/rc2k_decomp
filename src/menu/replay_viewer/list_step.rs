@@ -21,7 +21,7 @@ pub fn list_step(
     if !MOVES.contains(&key) {
         return Ok(false);
     }
-    let choice = list_state.choice.get();
+    let choice = list_state.read().choice;
     let fault = crate::errors::Fault::default();
     // Asked only with a table (`step` is told whether there is one).
     let entry_of = |k: usize| match table {
@@ -38,6 +38,6 @@ pub fn list_step(
         return Ok(false);
     };
     // Only the low byte is the item; the rest is kept.
-    list_state.choice.set(choice & !0xFF | item as u32);
+    list_state.write().choice = choice & !0xFF | item as u32;
     Ok(true)
 }

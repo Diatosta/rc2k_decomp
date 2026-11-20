@@ -115,43 +115,39 @@ pub(super) fn make_noise_curve(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     use rc2k_core::effects::noise as core;
-    let divisors = weather
-        .snow_light
-        .divisors
-        .each_ref()
-        .map(|d| d.get() as i32);
+    let light = weather.snow_light.borrow();
+    let divisors = light.divisors.map(|d| d as i32);
     if !divisors.into_iter().all(core::divisor_fits) {
         return Err(BadInput("a remainder's divisor is 0, 1 or -1: idiv traps").into());
     }
-    for (cell, v) in weather.snow_vars.curve_vars.iter().zip([
-        0u32,
-        core::LEAST_STEP as u32,
-        core::MOST_STEP as u32,
-        core::CHANGE as u32,
-        0,
-    ]) {
-        cell.set(v);
+    {
+        let mut vars = weather.snow_vars.borrow_mut();
+        for (cell, v) in vars.curve_vars.iter_mut().zip([
+            0u32,
+            core::LEAST_STEP as u32,
+            core::MOST_STEP as u32,
+            core::CHANGE as u32,
+            0,
+        ]) {
+            *cell = v;
+        }
     }
     // The roundings follow the x87's control word: the x87's.
-    let (scale, damp) = (
-        weather.snow_light.curve_scale.get(),
-        weather.snow_light.curve_damp.get(),
-    );
+    let (scale, damp) = (light.curve_scale, light.curve_damp);
     let w = core::walk(
-        weather.snow_vars.curve_vars[5].get(),
+        weather.snow_vars.borrow().curve_vars[5],
         |v| x87::int_times_to_int(v, scale),
         |v| x87::int_times_to_int(v, damp),
     );
-    weather.snow_vars.curve_vars[5].set(w.sum as u32);
-    weather.snow_vars.curve_vars[0].set(w.value as u32);
-    weather.snow_vars.curve_vars[4].set(w.step as u32);
+    {
+        let mut vars = weather.snow_vars.borrow_mut();
+        vars.curve_vars[5] = w.sum as u32;
+        vars.curve_vars[0] = w.value as u32;
+        vars.curve_vars[4] = w.step as u32;
+    }
     let mut curve = w.curve;
     let mut copy = vec![0; CURVE_LEN as usize];
-    let weights = weather
-        .snow_light
-        .smooth_weights
-        .each_ref()
-        .map(crate::memory::session::PlainFloat::get);
+    let weights = light.smooth_weights;
     for _ in 0..core::SMOOTHINGS {
         core::smooth(&mut curve, &mut copy, |a, b, c| {
             x87::weighted3_to_int(a, b, c, weights[0], weights[1], weights[2])
@@ -170,19 +166,11 @@ pub(super) fn make_noise_curve(
         .map(|c| c.get() as i32)
         .collect();
     let (last, first) = (copy[0xFFF], copy[0]);
-    x87::ramp_down(
-        &mut copy[..0xFFE],
-        last,
-        first,
-        weather.snow_light.ramp_by.get(),
-    );
+    x87::ramp_down(&mut copy[..0xFFE], last, first, light.ramp_by);
     for (cell, &v) in weather.snow_curve.copy.iter().zip(&copy) {
         cell.set(v as u32);
     }
-    let (spread_scale, spread_base): (f32, f32) = (
-        weather.snow_light.spread_scale.get(),
-        weather.snow_light.spread_base.get(),
-    );
+    let (spread_scale, spread_base): (f32, f32) = (light.spread_scale, light.spread_base);
     let t = core::random_tables(w.seed, divisors);
     for (cells, table) in weather.snow_tables.randoms.iter().zip(&t.randoms) {
         for (cell, v) in cells.iter().zip(table) {
@@ -202,23 +190,20 @@ pub(super) fn make_noise_curve(
     }
     effects.setup.work.seed.set(t.seed);
     weather.snow.flag.set(0);
-    let values = weather
-        .snow_light
-        .record_values
-        .each_ref()
-        .map(crate::memory::session::PlainFloat::bits);
+    let values = light.record_values.map(f32::to_bits);
     let layout = core::record_values(values);
     for record in weather
         .snow_vars
+        .borrow_mut()
         .records
-        .iter()
+        .iter_mut()
         .take(CURVE_RECORDS as usize)
     {
         for &(o, v) in &layout {
-            record[o as usize / 4].set(v);
+            record[o as usize / 4] = v;
         }
     }
-    let first = x87::loaded(&weather.snow_light.quad_first);
+    let first = x87::loaded(light.quad_first);
     for cell in &weather.snow.quad_a {
         cell.set(first);
     }

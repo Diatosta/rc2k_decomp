@@ -27,7 +27,7 @@ use crate::scene::vector3::normalise;
 /// The rate (`WindscreenFlakeTiming.rate`), the place and the first axis from the settings, its
 /// length over `WindscreenFlakeState.length_divisors[0]` into `WindscreenFlakeTables.lengths[0]`.
 fn frame_axes(fl: &WindscreenFlakes, m: &EffectsSettings) {
-    frame_axes_x87(m, &fl.timing, &fl.tables, &fl.state);
+    frame_axes_x87(m, &mut fl.timing.borrow_mut(), &fl.tables, &fl.state);
 }
 
 /// The second axis, its length over `WindscreenFlakeState.length_divisors[1]` into
@@ -75,7 +75,7 @@ pub fn windscreen_flakes_frame(
         return Ok(());
     }
     crate::effects::run_pong::run_pong(buffer, ctx.race, pong, fl, scene, cheats, effects)?;
-    if x87::mul_to_int(&fl.timing.rate, &fl.state.share) == 0 {
+    if x87::mul_to_int(fl.timing.borrow().rate, &fl.state.share) == 0 {
         return Ok(());
     }
     crate::effects::run_windscreen_flakes::run_windscreen_flakes(
@@ -103,17 +103,18 @@ use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{
     WindscreenFlakeState, WindscreenFlakeTables, WindscreenFlakeTiming,
 };
+use crate::math::x87_float as bh;
 
 /// `frame_axes`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_axes_x87(
     m: &EffectsSettings,
-    sti: &WindscreenFlakeTiming,
+    sti: &mut WindscreenFlakeTiming,
     sq: &WindscreenFlakeTables,
     ss: &WindscreenFlakeState,
 ) {
     let t0 = ldi_cell(&m.windscreen_flakes_rate_factor);
     let t1 = t0 * ss.rate_share.ld();
-    sti.rate.st(t1);
+    sti.rate = f32::from_bits(bh::st(t1));
     let t2 = ldi_cell(&m.light_point_b_negated[0]);
     let t3 = ldi_cell(&m.light_point_b_negated[1]);
     let t4 = ldi_cell(&m.light_point_b_negated[2]);

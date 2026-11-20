@@ -1,5 +1,6 @@
 use crate::effects::asm_layout::with_laid;
 use crate::effects::asm_test::Kind::*;
+use std::cell::RefCell;
 
 use crate::effects::asm_test::with_settings;
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
@@ -55,10 +56,12 @@ fn frame_axes_x87_matches() {
         "effects.windscreen_flakes_frame.frame_axes_x87",
         &SPEC,
         |b| {
-            with_laid::<WindscreenFlakeTiming, _>(b[0], |sti| {
+            with_laid::<RefCell<WindscreenFlakeTiming>, _>(b[0], |sti| {
                 with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
                     with_laid::<WindscreenFlakeState, _>(b[0], |ss| {
-                        with_settings(b[1], |m| super::frame_axes_x87(m, sti, sq, ss));
+                        with_settings(b[1], |m| {
+                            super::frame_axes_x87(m, &mut sti.borrow_mut(), sq, ss);
+                        });
                     });
                 });
             });

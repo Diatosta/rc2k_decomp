@@ -34,11 +34,11 @@ pub(super) fn list_frame(
     let mut y: u32 = 0x6F + 0x2C;
     // The logic is in `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
     for row in 0..screens::LIST_ROWS {
-        let Some(item) = screens::listed(row, list_state.choice_before.get(), count.get()) else {
+        let Some(item) = screens::listed(row, list_state.read().choice_before, count.get()) else {
             continue;
         };
-        let font = if item == list_state.choice.get()
-            && screens::blink_lit(list_state.frame_clock.get(), list_state.move_clock.get())
+        let font = if item == list_state.read().choice
+            && screens::blink_lit(list_state.read().frame_clock, list_state.read().move_clock)
         {
             LIT
         } else {

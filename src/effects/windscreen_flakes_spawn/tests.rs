@@ -1,4 +1,5 @@
 use crate::effects::asm_layout::with_laid;
+use std::cell::RefCell;
 
 use crate::effects::asm_test::Kind::*;
 
@@ -35,7 +36,7 @@ fn rate_x87_matches() {
     };
     recorded_writes("effects.windscreen_flakes_spawn.rate_x87", &SPEC, |b| {
         with_laid::<KeptView, _>(b[1], |kv| {
-            with_laid::<WindscreenFlakeTiming, _>(b[1], |sti| {
+            with_laid::<RefCell<WindscreenFlakeTiming>, _>(b[1], |sti| {
                 with_laid::<WindscreenFlakeState, _>(b[1], |ss| {
                     with_overlays(
                         b[1],
@@ -46,7 +47,7 @@ fn rate_x87_matches() {
                             super::rate_x87(
                                 &crate::test_support::own::effects().windscreen_drops,
                                 kv,
-                                sti,
+                                &mut sti.borrow_mut(),
                                 ss,
                                 &crate::test_support::own::effects().setup.work,
                             );

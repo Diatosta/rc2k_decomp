@@ -283,79 +283,45 @@ impl PongState {
 }
 
 /// The pong game's constants.
-#[derive(rc2k_derive::Cells)]
 pub struct PongRules {
     /// The court at the start of a game (`Court::reset`), as bits: four (x, y) pairs, the ball, its
     /// size, the bat, its size.
-    pub start: [PlainFloat; 8],
+    pub start: [f32; 8],
     /// The court's walls the ball turns at and the places it is put back at (a reading,
     /// `effects::move_pong_ball`).
-    pub walls: [PlainFloat; 8],
+    pub walls: [f32; 8],
     /// A half, four times: a place plus its size times it is the centre (`Court` centres).
-    pub centre: [PlainFloat; 4],
+    pub centre: [f32; 4],
     /// 1, what a hit changes the way by.
-    pub nudge: PlainFloat,
+    pub nudge: f32,
     /// 4, 4: the way after a hit is the difference over them (`effects::pong_ball_hits`).
-    pub way_scale: [PlainFloat; 2],
+    pub way_scale: [f32; 2],
     /// 16 and -16: a score cell's step across and down (`effects::pong_cell`).
-    pub cell_step: [PlainFloat; 2],
+    pub cell_step: [f32; 2],
     /// 16, 16: a score cell's size.
-    pub cell_size: [PlainFloat; 2],
+    pub cell_size: [f32; 2],
     /// The texture places of a pong box (`effects::draw_pong_box`; 0.99 four times, as bits).
-    pub box_places: [PlainFloat; 4],
+    pub box_places: [f32; 4],
     /// 16384: `effects::draw_pong_box` draws nothing when the first corner's third value (its
     /// depth) compares below it.
-    pub near: PlainFloat,
+    pub near: f32,
     /// The texture places the pong frame's set-up uses (`effects::pong_setup`).
-    pub setup_places: [PlainFloat; 4],
+    pub setup_places: [f32; 4],
 }
 
 impl PongRules {
     pub const fn new() -> Self {
         PongRules {
-            start: [
-                PlainFloat::new(1024.0),
-                PlainFloat::new(512.0),
-                PlainFloat::new(64.0),
-                PlainFloat::new(64.0),
-                PlainFloat::new(1792.0),
-                PlainFloat::new(256.0),
-                PlainFloat::new(64.0),
-                PlainFloat::new(256.0),
-            ],
-            walls: [
-                PlainFloat::new(128.0),
-                PlainFloat::new(128.0),
-                PlainFloat::new(2048.0),
-                PlainFloat::new(128.0),
-                PlainFloat::new(128.0),
-                PlainFloat::new(128.0),
-                PlainFloat::new(1024.0),
-                PlainFloat::new(1024.0),
-            ],
-            centre: [
-                PlainFloat::new(0.5),
-                PlainFloat::new(0.5),
-                PlainFloat::new(0.5),
-                PlainFloat::new(0.5),
-            ],
-            nudge: PlainFloat::new(1.0),
-            way_scale: [PlainFloat::new(4.0), PlainFloat::new(4.0)],
-            cell_step: [PlainFloat::new(16.0), PlainFloat::new(-16.0)],
-            cell_size: [PlainFloat::new(16.0), PlainFloat::new(16.0)],
-            box_places: [
-                PlainFloat::new(0.99),
-                PlainFloat::new(0.99),
-                PlainFloat::new(0.99),
-                PlainFloat::new(0.99),
-            ],
-            near: PlainFloat::new(16384.0),
-            setup_places: [
-                PlainFloat::new(0.11328125),
-                PlainFloat::new(0.03125),
-                PlainFloat::new(0.24609375),
-                PlainFloat::new(0.1640625),
-            ],
+            start: [1024.0, 512.0, 64.0, 64.0, 1792.0, 256.0, 64.0, 256.0],
+            walls: [128.0, 128.0, 2048.0, 128.0, 128.0, 128.0, 1024.0, 1024.0],
+            centre: [0.5, 0.5, 0.5, 0.5],
+            nudge: 1.0,
+            way_scale: [4.0, 4.0],
+            cell_step: [16.0, -16.0],
+            cell_size: [16.0, 16.0],
+            box_places: [0.99, 0.99, 0.99, 0.99],
+            near: 16384.0,
+            setup_places: [0.11328125, 0.03125, 0.24609375, 0.1640625],
         }
     }
 }

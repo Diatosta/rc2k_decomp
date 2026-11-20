@@ -46,11 +46,7 @@ pub(super) fn draw_pong_box(
     effects: &crate::effects::owner::Effects,
 ) {
     sides(pong, fl, &v, effects);
-    let [pa, pb, pc, pd] = pong
-        .rules
-        .box_places
-        .each_ref()
-        .map(crate::memory::session::PlainFloat::get);
+    let [pa, pb, pc, pd] = pong.rules.box_places;
     for (n, (u, w)) in [(pa, pb), (pc, pb), (pc, pd), (pa, pd)]
         .into_iter()
         .enumerate()
@@ -59,7 +55,7 @@ pub(super) fn draw_pong_box(
         buffer.vertices[n].v.set(w);
     }
     corners(pong, fl, &v);
-    if x87::compare_status(&fl.tables.corners[0][2], &pong.rules.near) == 0x100 {
+    if x87::compare_status(&fl.tables.corners[0][2], pong.rules.near) == 0x100 {
         return;
     }
     projected(scene.scratch.front_end_polygon(), buffer, fl);

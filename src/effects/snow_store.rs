@@ -3,7 +3,7 @@
 //! `SnowCurveVars` (the walk's variables and the curve records) and `SnowLight` (the light, the
 //! fade colours and the constants).
 
-use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The snow's random tables (0x800 flakes).
 #[derive(rc2k_derive::Cells)]
@@ -205,170 +205,121 @@ impl SnowState {
 }
 
 /// The snow curve's walk variables and records.
-#[derive(rc2k_derive::Cells)]
 pub struct SnowCurveVars {
     /// The curve walk's value, least step, most step, change, step and the running sum of the seeds
     /// (`effects::make_noise_curve`).
-    pub curve_vars: [PlainDword; 6],
+    pub curve_vars: [u32; 6],
     /// 0, then the flake count (`effects::draw_snow`; nothing reads it).
-    pub first: PlainDword,
+    pub first: u32,
     /// 0x20 records of 0x80 bytes (four quarters filled by `effects::make_noise_curve`; nothing
     /// reads them).
-    pub records: [[PlainDword; 32]; 32],
+    pub records: [[u32; 32]; 32],
 }
 
 impl SnowCurveVars {
     pub const fn new() -> Self {
         SnowCurveVars {
-            curve_vars: [const { PlainDword::new(0x0) }; 6],
-            first: PlainDword::new(0x0),
-            records: [const { [const { PlainDword::new(0x0) }; 32] }; 32],
+            curve_vars: [0; 6],
+            first: 0,
+            records: [[0; 32]; 32],
         }
     }
 }
 
 /// The snow's light, fade colours and constants.
-#[derive(rc2k_derive::Cells)]
 pub struct SnowLight {
     /// The light's place turned by the view (`effects::run_snow`).
-    pub light_place: [PlainFloat; 3],
+    pub light_place: [f32; 3],
     /// Its way turned.
-    pub light_way: [PlainFloat; 3],
+    pub light_way: [f32; 3],
     /// The flake's place less the light's (`effects::draw_snow`).
-    pub fade_delta: [PlainFloat; 3],
+    pub fade_delta: [f32; 3],
     /// That made of length 1, times the way.
-    pub fade_unit: [PlainFloat; 3],
+    pub fade_unit: [f32; 3],
     /// The fade colour chosen.
-    pub fade_index: PlainDword,
+    pub fade_index: u32,
     /// 17 colours from the view's light toward white (`effects::make_fade_colours`).
-    pub fade_colours: [PlainDword; 17],
+    pub fade_colours: [u32; 17],
     /// The fade's step, growing from 0 (a float).
-    pub fade_step: PlainFloat,
+    pub fade_step: f32,
     /// The light colour's components' inverses.
-    pub fade_inverses: [PlainDword; 3],
+    pub fade_inverses: [u32; 3],
     /// The inverses times the step.
-    pub fade_scaled: [PlainDword; 3],
+    pub fade_scaled: [u32; 3],
     /// The settings' `snow_light_words[1]`.
-    pub kept: PlainDword,
+    pub kept: u32,
     /// The light's dot with the flake's way, squared (`effects::draw_snow`).
-    pub dot: PlainFloat,
+    pub dot: f32,
     /// 8.5, what the curve's walk value (shifted left 4) is multiplied by.
-    pub curve_scale: PlainFloat,
+    pub curve_scale: f32,
     /// 0.9, the walk's damping.
-    pub curve_damp: PlainFloat,
+    pub curve_damp: f32,
     /// 0.3, 0.4, 0.3, the smoothing's weights.
-    pub smooth_weights: [PlainFloat; 3],
+    pub smooth_weights: [f32; 3],
     /// 0x1000, the ramp's length.
-    pub ramp_by: PlainInt,
+    pub ramp_by: i32,
     /// 0.0625.
-    pub spread_scale: PlainFloat,
+    pub spread_scale: f32,
     /// Added to a spread.
-    pub spread_base: PlainFloat,
+    pub spread_base: f32,
     /// 0xC00 each, what the remainders are taken by.
-    pub divisors: [PlainDword; 2],
+    pub divisors: [u32; 2],
     /// The values the curve records' quarters are filled with.
-    pub record_values: [PlainFloat; 5],
+    pub record_values: [f32; 5],
     /// Loaded into the first quad.
-    pub quad_first: PlainFloat,
+    pub quad_first: f32,
     /// The light's place before it is turned.
-    pub light_source: [PlainFloat; 3],
+    pub light_source: [f32; 3],
     /// Its way before it is turned.
-    pub light_source_way: [PlainFloat; 3],
+    pub light_source_way: [f32; 3],
     /// The vertices' rhw.
-    pub rhw: PlainFloat,
+    pub rhw: f32,
     /// The quad's texture places (u0, v0, u1, v1).
-    pub uv: [PlainFloat; 4],
+    pub uv: [f32; 4],
     /// What the clock's step is multiplied by for the fall.
-    pub fall_k: PlainFloat,
+    pub fall_k: f32,
     /// The view's height (`effects::place_snow_view`).
-    pub height: PlainFloat,
+    pub height: f32,
     /// A flake's side over its depth.
-    pub side: PlainFloat,
+    pub side: f32,
     /// Added to a flake's u.
-    pub u_offset: PlainFloat,
+    pub u_offset: f32,
     /// The top and bottom v of a flake.
-    pub v: [PlainFloat; 2],
+    pub v: [f32; 2],
 }
 
 impl SnowLight {
     pub const fn new() -> Self {
         SnowLight {
-            light_place: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            light_way: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            fade_delta: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            fade_unit: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            fade_index: PlainDword::new(0x0),
-            fade_colours: [const { PlainDword::new(0x0) }; 17],
-            fade_step: PlainFloat::new(0.0),
-            fade_inverses: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-            fade_scaled: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-            kept: PlainDword::new(0x0),
-            dot: PlainFloat::new(0.0),
-            curve_scale: PlainFloat::new(8.5),
-            curve_damp: PlainFloat::new(0.9),
-            smooth_weights: [
-                PlainFloat::new(0.3),
-                PlainFloat::new(0.4),
-                PlainFloat::new(0.3),
-            ],
-            ramp_by: PlainInt::new(0x1000),
-            spread_scale: PlainFloat::new(0.0625),
-            spread_base: PlainFloat::new(0.001953125),
-            divisors: [PlainDword::new(0xC00), PlainDword::new(0xC00)],
-            record_values: [
-                PlainFloat::new(256.0),
-                PlainFloat::new(0.001953125),
-                PlainFloat::new(0.001953125),
-                PlainFloat::new(0.064453125),
-                PlainFloat::new(0.064453125),
-            ],
-            quad_first: PlainFloat::new(6200.0),
-            light_source: [
-                PlainFloat::new(131072.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            light_source_way: [
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            rhw: PlainFloat::new(256.0),
-            uv: [
-                PlainFloat::new(0.001953125),
-                PlainFloat::new(0.001953125),
-                PlainFloat::new(0.064453125),
-                PlainFloat::new(0.064453125),
-            ],
-            fall_k: PlainFloat::new(-160.0),
-            height: PlainFloat::new(524288.0),
-            side: PlainFloat::new(6200.0),
-            u_offset: PlainFloat::new(0.0625),
-            v: [PlainFloat::new(0.001953125), PlainFloat::new(0.064453125)],
+            light_place: [0.0, 0.0, 0.0],
+            light_way: [0.0, 0.0, 0.0],
+            fade_delta: [0.0, 0.0, 0.0],
+            fade_unit: [0.0, 0.0, 0.0],
+            fade_index: 0x0,
+            fade_colours: [0; 17],
+            fade_step: 0.0,
+            fade_inverses: [0x0, 0x0, 0x0],
+            fade_scaled: [0x0, 0x0, 0x0],
+            kept: 0x0,
+            dot: 0.0,
+            curve_scale: 8.5,
+            curve_damp: 0.9,
+            smooth_weights: [0.3, 0.4, 0.3],
+            ramp_by: 0x1000,
+            spread_scale: 0.0625,
+            spread_base: 0.001953125,
+            divisors: [0xC00, 0xC00],
+            record_values: [256.0, 0.001953125, 0.001953125, 0.064453125, 0.064453125],
+            quad_first: 6200.0,
+            light_source: [131072.0, 0.0, 0.0],
+            light_source_way: [1.0, 0.0, 0.0],
+            rhw: 256.0,
+            uv: [0.001953125, 0.001953125, 0.064453125, 0.064453125],
+            fall_k: -160.0,
+            height: 524288.0,
+            side: 6200.0,
+            u_offset: 0.0625,
+            v: [0.001953125, 0.064453125],
         }
     }
 }

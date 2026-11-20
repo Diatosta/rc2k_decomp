@@ -15,6 +15,7 @@ use crate::effects::snow_store::SnowLight;
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 
@@ -28,7 +29,7 @@ fn turn_light(
     view_matrix: &[crate::memory::session::PlainFloat; 16],
     weather: &Weather,
 ) {
-    turn_light_x87(frame, view_matrix, &weather.snow_light);
+    turn_light_x87(frame, view_matrix, &mut weather.snow_light.borrow_mut());
 }
 
 pub fn run_snow(
@@ -45,7 +46,7 @@ pub fn run_snow(
     let (s, l) = (&weather.snow, &weather.snow_light);
     {
         let marks = effects.settings()?;
-        l.kept.set(marks.snow_light_words[1].get());
+        l.borrow_mut().kept = marks.snow_light_words[1].get();
         turn_light(frame, view.view_matrix, weather);
         crate::effects::make_fade_colours::make_fade_colours(view.light, weather, effects);
         let mut flakes = marks.snow_flakes.get() as i32;
@@ -75,9 +76,9 @@ pub fn run_snow(
         for (value, state) in STATES {
             set_render_state(part, value, state);
         }
-        let rhw = l.rhw.get();
+        let rhw = l.borrow().rhw;
         let light = view.light | 0xFF00_0000;
-        let [u0, v0, u1, v1] = l.uv.each_ref().map(crate::memory::session::PlainFloat::get);
+        let [u0, v0, u1, v1] = l.borrow().uv;
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {
             let at = &buffer.vertices[n];
@@ -106,7 +107,11 @@ pub fn run_snow(
                 .scene_clock
                 .get()
                 .wrapping_sub(s.last_clock.get());
-            let fall = x87::int_times_plus_int_to_int(ticks as i32, &l.fall_k, s.fall.get() as i32);
+            let fall = x87::int_times_plus_int_to_int(
+                ticks as i32,
+                l.borrow().fall_k,
+                s.fall.get() as i32,
+            );
             s.fall.set(fall as u32);
         }
         s.fall.set(s.fall.get() & 0x0FFF_FFFF);
@@ -131,11 +136,11 @@ pub fn run_snow(
 fn turn_light_x87(
     frame: &Frame,
     view_matrix: &[crate::memory::session::PlainFloat; 16],
-    l: &SnowLight,
+    l: &mut SnowLight,
 ) {
-    let t0 = l.light_source[0].ld();
-    let t1 = l.light_source[1].ld();
-    let t2 = l.light_source[2].ld();
+    let t0 = bh::ld(l.light_source[0]);
+    let t1 = bh::ld(l.light_source[1]);
+    let t2 = bh::ld(l.light_source[2]);
     let t3 = frame.matrices.get().view_place[0].ld();
     let t4 = t3 * t2;
     let t5 = frame.matrices.get().view_place[4].ld();
@@ -190,12 +195,12 @@ fn turn_light_x87(
     let t54 = t53 + t51;
     let t55 = t49 + t54;
     let t56 = t55 + view_matrix[14].ld();
-    l.light_place[0].st(t38);
-    l.light_place[1].st(t47);
-    l.light_place[2].st(t56);
-    let t57 = l.light_source_way[0].ld();
-    let t58 = l.light_source_way[1].ld();
-    let t59 = l.light_source_way[2].ld();
+    l.light_place[0] = f32::from_bits(bh::st(t38));
+    l.light_place[1] = f32::from_bits(bh::st(t47));
+    l.light_place[2] = f32::from_bits(bh::st(t56));
+    let t57 = bh::ld(l.light_source_way[0]);
+    let t58 = bh::ld(l.light_source_way[1]);
+    let t59 = bh::ld(l.light_source_way[2]);
     let t60 = frame.matrices.get().view_place[0].ld();
     let t61 = t60 * t59;
     let t62 = frame.matrices.get().view_place[4].ld();
@@ -244,9 +249,9 @@ fn turn_light_x87(
     let t105 = t83 * t104;
     let t106 = t105 + t103;
     let t107 = t101 + t106;
-    l.light_way[0].st(t91);
-    l.light_way[1].st(t99);
-    l.light_way[2].st(t107);
+    l.light_way[0] = f32::from_bits(bh::st(t91));
+    l.light_way[1] = f32::from_bits(bh::st(t99));
+    l.light_way[2] = f32::from_bits(bh::st(t107));
 }
 
 #[cfg(test)]

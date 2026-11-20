@@ -5,27 +5,26 @@
 use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The windscreen flakes' frame count and rates.
-#[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeTiming {
     /// The frames the windscreen flakes have run (`effects::windscreen_flakes_spawn` adds one each
     /// call).
-    pub frames: PlainDword,
+    pub frames: u32,
     /// The windscreen flakes' rate this frame, the settings' `windscreen_flakes_rate_factor` times
     /// `WindscreenFlakeState::rate_share` (`effects::windscreen_flakes_frame`, `draw_plane`); 10.0
     /// at first.
-    pub rate: PlainFloat,
+    pub rate: f32,
     /// The windscreen flakes spawned a frame, worked out from the rate by
     /// `effects::windscreen_flakes_spawn`.
-    pub spawn_rate: PlainFloat,
+    pub spawn_rate: f32,
 }
 
 impl WindscreenFlakeTiming {
     /// The values the game starts with.
     pub const fn new() -> Self {
         WindscreenFlakeTiming {
-            frames: PlainDword::new(0x0),
-            rate: PlainFloat::new(10.0),
-            spawn_rate: PlainFloat::new(0.0),
+            frames: 0,
+            rate: 10.0,
+            spawn_rate: 0.0,
         }
     }
 }
@@ -346,7 +345,7 @@ impl WindscreenFlakeState {
 /// The windscreen flakes' state, one part of the effects' owner (`effects::owner::Effects`).
 /// The pong box and the plane draw with its frame and corners too.
 pub struct WindscreenFlakes {
-    pub timing: WindscreenFlakeTiming,
+    pub timing: std::cell::RefCell<WindscreenFlakeTiming>,
     pub tables: WindscreenFlakeTables,
     pub items: WindscreenFlakeItems,
     pub state: WindscreenFlakeState,
@@ -355,7 +354,7 @@ pub struct WindscreenFlakes {
 impl WindscreenFlakes {
     pub const fn new() -> Self {
         WindscreenFlakes {
-            timing: WindscreenFlakeTiming::new(),
+            timing: std::cell::RefCell::new(WindscreenFlakeTiming::new()),
             tables: WindscreenFlakeTables::new(),
             items: WindscreenFlakeItems::new(),
             state: WindscreenFlakeState::new(),

@@ -36,7 +36,7 @@ pub fn pong_ball_hits(pong: &Pong, effects: &crate::effects::owner::Effects) {
     centres(pong);
     let across = p.difference[0].get();
     if across == 0.0 && across.is_sign_positive() {
-        p.difference[0].set(x87::sub(&p.difference[0], &pong.rules.nudge));
+        p.difference[0].set(x87::sub(&p.difference[0], pong.rules.nudge));
     }
     new_way(pong, effects);
     p.ball_way[0].set(p.difference[0].get());
@@ -48,19 +48,19 @@ use crate::math::x87_float::ld;
 /// `centres`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn centres_x87(p: &PongState, r: &PongRules) {
     let t0 = p.ball_size[0].ld();
-    let t1 = t0 * r.centre[0].ld();
+    let t1 = t0 * ld(r.centre[0]);
     let t2 = t1 + p.ball[0].ld();
     p.ball_centre[0].st(t2);
     let t3 = p.ball_size[1].ld();
-    let t4 = t3 * r.centre[1].ld();
+    let t4 = t3 * ld(r.centre[1]);
     let t5 = t4 + p.ball[1].ld();
     p.ball_centre[1].st(t5);
     let t6 = p.bat_size[0].ld();
-    let t7 = t6 * r.centre[2].ld();
+    let t7 = t6 * ld(r.centre[2]);
     let t8 = t7 + p.bat[0].ld();
     p.bat_centre[0].st(t8);
     let t9 = p.bat_size[1].ld();
-    let t10 = t9 * r.centre[3].ld();
+    let t10 = t9 * ld(r.centre[3]);
     let t11 = t10 + p.bat[1].ld();
     p.bat_centre[1].st(t11);
     let t12 = p.ball_centre[0].ld();
@@ -88,10 +88,10 @@ fn new_way_x87(p: &PongState, r: &PongRules, length: f32) {
     let t10 = t6 * t9;
     p.difference[1].st(t10);
     let t11 = p.difference[0].ld();
-    let t12 = t11 * r.way_scale[0].ld();
+    let t12 = t11 * ld(r.way_scale[0]);
     p.difference[0].st(t12);
     let t13 = p.difference[1].ld();
-    let t14 = t13 * r.way_scale[1].ld();
+    let t14 = t13 * ld(r.way_scale[1]);
     p.difference[1].st(t14);
 }
 

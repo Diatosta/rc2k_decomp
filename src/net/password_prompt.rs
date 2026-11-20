@@ -75,13 +75,11 @@ pub fn ask(o: crate::owners::Owners<'static>, wrong: bool) -> Result<Option<Vec<
         PALETTE,
     )?;
     let now = system.session.key_clock.ticks.get();
-    list_state.move_clock.set(now);
-    list_state.key_clock.set(now);
+    list_state.write().move_clock = now;
+    list_state.write().key_clock = now;
     let answer = loop {
         run_frame(o, || frame(o, question))?;
-        list_state
-            .frame_clock
-            .set(system.session.key_clock.ticks.get());
+        list_state.write().frame_clock = system.session.key_clock.ticks.get();
         let key = list_key(list_state, o.input)?;
         let went_back = editing::EditKey::of(key) == editing::EditKey::Escape
             || system.session.flags.quitting.is_set();

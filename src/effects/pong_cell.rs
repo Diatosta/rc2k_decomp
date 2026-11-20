@@ -31,16 +31,12 @@ pub fn pong_cell(
 ) -> Result<(), Refused> {
     {
         if pattern != 0 {
-            let step = pong
-                .rules
-                .cell_step
-                .each_ref()
-                .map(crate::memory::session::PlainFloat::get);
+            let step = pong.rules.cell_step;
             let at = pong.state.digit_at.each_ref().map(|d| d.get() as i32);
             let [x, y] = rc2k_core::effects::pong::cell_place(column as i32, row as i32, step, at);
             let values = [
-                extended(pong.rules.cell_size[1].get()),
-                extended(pong.rules.cell_size[0].get()),
+                extended(pong.rules.cell_size[1]),
+                extended(pong.rules.cell_size[0]),
                 from_f64(y),
                 from_f64(x),
             ];

@@ -1,5 +1,6 @@
 use crate::effects::asm_layout::with_laid;
 use crate::effects::asm_test::Kind::*;
+use std::cell::RefCell;
 
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
 use crate::effects::snow_store::{SnowLight, SnowState, SnowTables};
@@ -84,8 +85,8 @@ fn fade_x87_matches() {
     };
     recorded_writes("effects.draw_snow.fade_x87", &SPEC, |b| {
         with_laid::<SnowState, _>(b[0], |s| {
-            with_laid::<SnowLight, _>(b[0], |l| {
-                with_laid::<MarksFloats, _>(b[0], |f| super::fade_x87(s, l, f));
+            with_laid::<RefCell<SnowLight>, _>(b[0], |l| {
+                with_laid::<MarksFloats, _>(b[0], |f| super::fade_x87(s, &mut l.borrow_mut(), f));
             });
         });
     });
@@ -148,7 +149,7 @@ fn square_x87_matches() {
     recorded_writes("effects.draw_snow.square_x87", &SPEC, |b| {
         with_laid::<SnowTables, _>(b[2], |t| {
             with_laid::<SnowState, _>(b[2], |s| {
-                with_laid::<SnowLight, _>(b[2], |l| {
+                with_laid::<RefCell<SnowLight>, _>(b[2], |l| {
                     super::square_x87(
                         crate::owners::Owners::the()
                             .scene
@@ -158,7 +159,7 @@ fn square_x87_matches() {
                         b[3].number(),
                         t,
                         s,
-                        l,
+                        &l.borrow(),
                     );
                 });
             });

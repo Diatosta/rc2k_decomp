@@ -13,7 +13,7 @@ use crate::memory::session::PlainFloat;
 
 /// The court's limits (`PongRules::walls`).
 fn limit(pong: &Pong, n: usize) -> f32 {
-    pong.rules.walls[n].get()
+    pong.rules.walls[n]
 }
 
 pub fn move_pong_ball(pong: &Pong, effects: &crate::effects::owner::Effects) {

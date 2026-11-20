@@ -19,7 +19,7 @@ pub(super) fn setting_key(
         return Ok(());
     }
     // The logic is in `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
-    match list_state.choice.get() {
+    match list_state.read().choice {
         chat::NAME => {
             if net.setup().machine_name.get(0) == 0 {
                 movsb(

@@ -26,8 +26,8 @@ pub(super) fn item_font(
     lit: crate::gfx::typefaces::FontId,
 ) -> crate::gfx::typefaces::FontId {
     // The logic is in `rc2k_core::net::screens::{item_lit, blink_lit}`.
-    let blink = || screens::blink_lit(list_state.frame_clock.get(), list_state.move_clock.get());
-    if screens::item_lit(item, list_state.choice.get(), || edit.edited.get(), blink) {
+    let blink = || screens::blink_lit(list_state.read().frame_clock, list_state.read().move_clock);
+    if screens::item_lit(item, list_state.read().choice, || edit.edited.get(), blink) {
         lit
     } else {
         plain
@@ -96,9 +96,9 @@ pub fn draw_button(
     )?;
     let lit = screens::item_lit(
         item,
-        list_state.choice.get(),
+        list_state.read().choice,
         || edit.edited.get(),
-        || screens::blink_lit(list_state.frame_clock.get(), list_state.move_clock.get()),
+        || screens::blink_lit(list_state.read().frame_clock, list_state.read().move_clock),
     );
     let font = match screens::button_font(flags, lit) {
         ButtonFont::Plain => FONT_PLAIN,

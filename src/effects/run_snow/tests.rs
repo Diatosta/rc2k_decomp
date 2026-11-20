@@ -1,5 +1,6 @@
 use crate::effects::asm_layout::with_laid;
 use crate::effects::asm_test::Kind::*;
+use std::cell::RefCell;
 
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
 use crate::effects::snow_store::SnowLight;
@@ -62,8 +63,12 @@ fn turn_light_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.run_snow.turn_light_x87", &SPEC, |b| {
-        with_laid::<SnowLight, _>(b[1], |l| {
-            super::turn_light_x87(&race().frame, &race().frame.matrices.get().view_matrix, l);
+        with_laid::<RefCell<SnowLight>, _>(b[1], |l| {
+            super::turn_light_x87(
+                &race().frame,
+                &race().frame.matrices.get().view_matrix,
+                &mut l.borrow_mut(),
+            );
         });
     });
 }

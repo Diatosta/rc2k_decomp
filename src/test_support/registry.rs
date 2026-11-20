@@ -495,7 +495,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.menus.screens.loop_flags",
             on_game(&o.menus.screens.loop_flags),
         ),
-        listed!("owners.menus.keys.tables", on_game(&o.menus.keys.tables),),
         listed!("owners.menus.options", on_game(&o.menus.options),),
         listed!(
             "owners.menus.screens.entry",
@@ -839,10 +838,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().clipping.clip),
         ),
         listed!(
-            "owners.effects.pong.rules",
-            on_game(&o.race.effects.get().pong.rules),
-        ),
-        listed!(
             "owners.effects.frame.kept_view",
             on_game(&o.race.effects.get().frame.kept_view),
         ),
@@ -911,10 +906,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().setup.mask_constants),
         ),
         listed!(
-            "owners.effects.windscreen_flakes.timing",
-            on_game(&o.race.effects.get().windscreen_flakes.timing,),
-        ),
-        listed!(
             "owners.effects.windscreen_flakes.tables",
             on_game(&o.race.effects.get().windscreen_flakes.tables,),
         ),
@@ -945,14 +936,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.weather.snow_curve",
             on_game(&o.race.effects.get().weather.snow_curve),
-        ),
-        listed!(
-            "owners.effects.weather.snow_vars",
-            on_game(&o.race.effects.get().weather.snow_vars),
-        ),
-        listed!(
-            "owners.effects.weather.snow_light",
-            on_game(&o.race.effects.get().weather.snow_light),
         ),
         listed!(
             "owners.effects.blocks.places",

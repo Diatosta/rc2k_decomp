@@ -93,10 +93,8 @@ fn step_item(
     step: u32,
 ) {
     loop {
-        list_state
-            .choice
-            .set(list_state.choice.get().wrapping_add(step));
-        let c = list_state.choice.get();
+        list_state.write().choice = list_state.read().choice.wrapping_add(step);
+        let c = list_state.read().choice;
         if c == 1 && net.lobby().car_item.get() != 1 {
             continue;
         }
@@ -130,13 +128,13 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     crate::net::progress::clear();
     crate::net::show_background::show_background(o)?;
     let now = system.session.key_clock.ticks.get();
-    list_state.move_clock.set(now);
-    list_state.key_clock.set(now);
+    list_state.write().move_clock = now;
+    list_state.write().key_clock = now;
     net.lobby().edit.edited.set(u32::MAX);
     // A key still held from the race's last screen (Enter) is not an Enter on the chat item,
     // which would open the chat before anyone asked for it.
     settle_keys(o.input);
-    list_state.choice.set(3);
+    list_state.write().choice = 3;
     let tick = crate::clock::tick_count::tick_count(&system.session.picture_clock);
     net.lobby().listed_at.set(tick);
     net.lobby().sync_clock.set(tick);
@@ -168,9 +166,7 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             // kept as is).
             crate::net::list_players::refresh_players(net)?;
         }
-        list_state
-            .frame_clock
-            .set(system.session.key_clock.ticks.get());
+        list_state.write().frame_clock = system.session.key_clock.ticks.get();
         let key = list_key(list_state, o.input)?;
         let mut moved = false;
         if net.lobby().edit.edited.get() != u32::MAX {
@@ -178,12 +174,12 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         } else {
             let ready = net.vars.own.state().is_ready();
             let replay_kept = net.lobby().replay_kept.get() == 1;
-            let choice = list_state.choice.get();
+            let choice = list_state.read().choice;
             if !ready && (key == 0x66 || key == 0x6B) {
                 // Up and down change between the bottom row and the one above it.
                 let to = screens::other_row_item(choice, key == 0x66);
                 if to != choice {
-                    list_state.choice.set(to);
+                    list_state.write().choice = to;
                     moved = true;
                 }
             } else if !ready && (key == 0x69 || key == 0x68) && choice >= screens::UPPER_ROW_FIRST {
@@ -194,30 +190,30 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                     replay_kept,
                     net.vars.own.state().is_host(),
                 );
-                list_state.choice.set(to);
+                list_state.write().choice = to;
                 moved = true;
             } else if !ready && key == 0x69 {
                 step_item(list_state, net, &net.vars, u32::MAX);
-                if net.lobby().after_race.get() == 1 && (list_state.choice.get() as i32) < 1 {
-                    list_state.choice.set(1);
+                if net.lobby().after_race.get() == 1 && (list_state.read().choice as i32) < 1 {
+                    list_state.write().choice = 1;
                 }
-                if (list_state.choice.get() as i32) < 0 {
-                    list_state.choice.set(0);
+                if (list_state.read().choice as i32) < 0 {
+                    list_state.write().choice = 0;
                 }
                 moved = true;
             } else if !ready && key == 0x68 {
                 step_item(list_state, net, &net.vars, 1);
-                if list_state.choice.get() > 3 {
-                    list_state.choice.set(3);
+                if list_state.read().choice > 3 {
+                    list_state.write().choice = 3;
                 }
                 moved = true;
             } else if ready && (key == 0x69 || key == 0x68) {
                 // While ready the highlight moves only between the chat and the ready button,
                 // which takes the ready back.
-                list_state.choice.set(if key == 0x69 { 0 } else { 3 });
+                list_state.write().choice = if key == 0x69 { 0 } else { 3 };
                 moved = true;
             } else if key == 0x1C {
-                match list_state.choice.get() {
+                match list_state.read().choice {
                     0 => {
                         let state = net.vars.own.state();
                         // Pressed again, "ready" is taken back, and the others hear of it at
@@ -230,11 +226,11 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                         if state.is_ready() {
                             crate::net::list_players::refresh_players(net)?;
                         }
-                        list_state.choice.set(3);
+                        list_state.write().choice = 3;
                         moved = true;
                     }
                     1 | 2 => {
-                        if list_state.choice.get() == 1 {
+                        if list_state.read().choice == 1 {
                             crate::net::choose_car::choose_car(o, &net.vars)?;
                         } else {
                             crate::net::choose_stage::choose_stage(o, &net.vars)?;
@@ -288,14 +284,14 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                 net.lobby().show_gaps.set(net.lobby().show_gaps.get() ^ 1);
                 moved = true;
             } else if key == 1 {
-                list_state.choice.set(u32::MAX);
-                return Ok(list_state.choice.get());
+                list_state.write().choice = u32::MAX;
+                return Ok(list_state.read().choice);
             } else {
                 other_key(o, key)?;
             }
         }
         if moved {
-            list_state.move_clock.set(list_state.frame_clock.get());
+            list_state.write().move_clock = list_state.read().frame_clock;
         }
         let everyone_ready = net.vars.own.state().is_host()
             && net.race_slot.players() >= 2
@@ -316,8 +312,8 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                 .set(net.vars.receiver.sync.get().wrapping_add(1));
         }
         if net.vars.all_raced.get() == 1 {
-            list_state.choice.set(1);
-            return Ok(list_state.choice.get());
+            list_state.write().choice = 1;
+            return Ok(list_state.read().choice);
         }
         // Waits for no player to be still racing: a player who joined since the race never has
         // the raced bit.
@@ -333,6 +329,6 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             break;
         }
     }
-    list_state.choice.set(u32::MAX);
-    Ok(list_state.choice.get())
+    list_state.write().choice = u32::MAX;
+    Ok(list_state.read().choice)
 }

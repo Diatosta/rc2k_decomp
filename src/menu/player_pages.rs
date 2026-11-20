@@ -442,9 +442,7 @@ fn details_each_frame<const N: usize>(entry: &Entry) -> Result<Flow, Refused> {
 /// Copies player `N`'s twelve keys to the table the page edits and makes the player current.
 fn redefine_keys_before<const N: usize>(menus: &Menus) -> Result<(), Refused> {
     let keys = menus.play.slots.records[N].get().keys;
-    for (n, key) in keys.into_iter().enumerate() {
-        menus.keys.tables.redefined_keys.set(n, key);
-    }
+    menus.keys.tables_mut().redefined_keys[..keys.len()].copy_from_slice(&keys);
     menus.screens.event.current_player.set(N as u32);
     Ok(())
 }

@@ -12,7 +12,7 @@ pub(super) fn begin_setting_edit(
     list_state: &crate::menu::list_state::ListState,
 ) -> Result<(), crate::errors::Refused> {
     // The logic is in `rc2k_core::net::editing` (`Setting`, `WIDTH`).
-    let item = list_state.choice.get();
+    let item = list_state.read().choice;
     let text = match Setting::of(item) {
         Setting::Name => EditedText::MachineName,
         Setting::HostAddress => EditedText::HostAddress,

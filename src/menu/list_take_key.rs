@@ -12,18 +12,14 @@ pub fn list_take_key(
     if key == 0 {
         crate::clock::sleep::sleep(1);
     } else {
-        let repeated = key == list_state.last_key.get();
+        let repeated = key == list_state.read().last_key;
         let (mut frame, mut moved) = (0, 0);
         if repeated {
-            (frame, moved) = (list_state.frame_clock.get(), list_state.move_clock.get());
+            (frame, moved) = (list_state.read().frame_clock, list_state.read().move_clock);
         }
-        list_state.repeats.set(rc2k_core::menu::list_menu::repeats(
-            list_state.repeats.get(),
-            repeated,
-            frame,
-            moved,
-        ));
-        list_state.last_key.set(key);
+        list_state.write().repeats =
+            rc2k_core::menu::list_menu::repeats(list_state.read().repeats, repeated, frame, moved);
+        list_state.write().last_key = key;
     }
     key
 }

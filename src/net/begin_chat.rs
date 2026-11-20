@@ -14,7 +14,7 @@ pub(super) fn begin_chat(
     crate::net::begin_edit::begin_edit(
         net,
         &net.lobby().edit,
-        list_state.choice.get(),
+        list_state.read().choice,
         crate::net::begin_edit::EditedText::ChatInput,
         0x30C,
         CHAT_FONT,

@@ -44,18 +44,18 @@ pub(super) fn start(
                 def.items.len() as u8,
             );
             if let Some(highlight) = highlight {
-                list_state.choice.set(highlight);
+                list_state.write().choice = highlight;
             }
         }
         Page::Folder => {
             // The highlight moves on to the first edit item, which begins to be edited; none
             // before the list's end: the highlight back to 0.
-            let (n, found) = def.next_edit(list_state.choice.get());
+            let (n, found) = def.next_edit(list_state.read().choice);
             if found {
-                list_state.choice.set(n);
+                list_state.write().choice = n;
                 def.start_edit(n);
             } else {
-                list_state.choice.set(0);
+                list_state.write().choice = 0;
             }
         }
         Page::NoRoom => install.flags.ignore_room.set(false),
@@ -72,23 +72,23 @@ pub(super) fn end(
     let list_state = &o.menus.list;
     match page {
         Page::Language => {
-            let answer = list_state.list_answer.get();
+            let answer = list_state.read().list_answer;
             if answer != 0 {
                 crate::install::choose_language::choose_language(install, u32::from(answer))?;
                 load_language(o)?;
             }
         }
         Page::Drive => {
-            if let Some(offset) = pages::chosen_drive(list_state.choice.get()) {
+            if let Some(offset) = pages::chosen_drive(list_state.read().choice) {
                 install.paths.typed.set_drive(drive_letter(install, offset));
                 install.run.path_problem.set(PathProblem::None);
             }
         }
         Page::Folder => install.run.path_problem.set(PathProblem::None),
         Page::Removal => {
-            if pages::keeps_saves(list_state.list_answer.get()) {
+            if pages::keeps_saves(list_state.read().list_answer) {
                 install.names.script_mark.set(fixed::MARK_KEEP_SAVES);
-                list_state.list_answer.set(1);
+                list_state.write().list_answer = 1;
             }
         }
         Page::Main | Page::NoRoom => {}

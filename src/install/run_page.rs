@@ -22,7 +22,7 @@ fn unusable(
     def: &PageDef,
 ) -> Result<bool, BadInput> {
     def.items
-        .get(list_state.choice.get() as usize)
+        .get(list_state.read().choice as usize)
         .map(model::Item::unusable)
         .ok_or(PAST_ITEMS)
 }
@@ -42,10 +42,10 @@ fn mark(
 /// The highlighted item lit (by the blink clock) unless it has marks.
 fn mark_highlight(list_state: &crate::menu::list_state::ListState, def: &mut PageDef) {
     let clock = list_state
+        .read()
         .frame_clock
-        .get()
-        .wrapping_sub(list_state.move_clock.get());
-    def.mark_highlight(list_state.choice.get(), clock);
+        .wrapping_sub(list_state.read().move_clock);
+    def.mark_highlight(list_state.read().choice, clock);
 }
 
 /// `key` moving the highlight of a page of `count` items (a neighbours table the pages have
@@ -56,12 +56,12 @@ fn step_highlight(list_state: &crate::menu::list_state::ListState, key: u32, cou
     if !MOVES.contains(&key) {
         return false;
     }
-    let choice = list_state.choice.get();
+    let choice = list_state.read().choice;
     let Step::Moved(item) = step(key, choice as u8, count, false, |_| 0) else {
         return false;
     };
     // Only the low byte is the item; the rest is kept.
-    list_state.choice.set(choice & !0xFF | item as u32);
+    list_state.write().choice = choice & !0xFF | item as u32;
     true
 }
 
@@ -116,15 +116,11 @@ pub fn run_page(
             edit.text = i::page_state::typed_text(install);
         }
     }
-    list_state.list_answer.set(1);
-    list_state.list_leave.set(0);
-    list_state
-        .move_clock
-        .set(system.session.key_clock.ticks.get());
-    list_state
-        .key_clock
-        .set(system.session.key_clock.ticks.get());
-    list_state.choice.set(install.highlights.get(list));
+    list_state.write().list_answer = 1;
+    list_state.write().list_leave = 0;
+    list_state.write().move_clock = system.session.key_clock.ticks.get();
+    list_state.write().key_clock = system.session.key_clock.ticks.get();
+    list_state.write().choice = install.highlights.get(list);
     let count = def.items.len() as u32;
     let round = 2 * count as usize + 2;
     i::page_actions::start(install, list_state, page, &mut def);
@@ -139,11 +135,9 @@ pub fn run_page(
             if steps > round {
                 return Err(NO_CHOICE.into());
             }
-            list_state
-                .choice
-                .set(list_state.choice.get().wrapping_add(1));
-            if count == list_state.choice.get() {
-                list_state.choice.set(0);
+            list_state.write().choice = list_state.read().choice.wrapping_add(1);
+            if count == list_state.read().choice {
+                list_state.write().choice = 0;
             }
         }
         i::show_backdrop::show_backdrop(o)?;
@@ -172,10 +166,8 @@ pub fn run_page(
                 unlock(o.gfx);
                 show(o);
             }
-            list_state
-                .frame_clock
-                .set(system.session.key_clock.ticks.get());
-            list_state.choice_before.set(list_state.choice.get());
+            list_state.write().frame_clock = system.session.key_clock.ticks.get();
+            list_state.write().choice_before = list_state.read().choice;
             // The key, as the callees leave it (an edit changes it).
             let mut key = list_take_key(list_state, o.input)? as u32;
             if system.session.flags.quitting.is_set() {
@@ -184,7 +176,7 @@ pub fn run_page(
             // A tap on an item highlights it and chooses it, as Enter does.
             #[cfg(touch_screen)]
             if let Some(chosen) = tapped_item(&def, &laid) {
-                list_state.choice.set(chosen);
+                list_state.write().choice = chosen;
                 key = ENTER;
             }
             i::page_key::type_into_edit(o, install, &mut def)?;
@@ -195,14 +187,14 @@ pub fn run_page(
                     key = left;
                     let moved = took || step_highlight(list_state, key, count as u8);
                     if moved {
-                        list_state.move_clock.set(list_state.frame_clock.get());
+                        list_state.write().move_clock = list_state.read().frame_clock;
                     }
                     mark(list_state, &facts, &mut def)?;
                     if !unusable(list_state, &def)? {
                         break;
                     }
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
-                    if arrow && list_state.choice.get() != list_state.choice_before.get() {
+                    if arrow && list_state.read().choice != list_state.read().choice_before {
                         again += 1;
                         if again > round {
                             return Err(NO_CHOICE.into());
@@ -213,16 +205,16 @@ pub fn run_page(
                     loop {
                         let k = key as u8;
                         if k == 0x66 || k == 0x68 {
-                            let c = list_state.choice.get().wrapping_sub(1);
-                            list_state.choice.set(c);
+                            let c = list_state.read().choice.wrapping_sub(1);
+                            list_state.write().choice = c;
                             if (c as i32) < 0 {
-                                list_state.choice.set(count.wrapping_sub(1));
+                                list_state.write().choice = count.wrapping_sub(1);
                             }
                         } else {
-                            let c = list_state.choice.get().wrapping_add(1);
-                            list_state.choice.set(c);
+                            let c = list_state.read().choice.wrapping_add(1);
+                            list_state.write().choice = c;
                             if count == c {
-                                list_state.choice.set(0);
+                                list_state.write().choice = 0;
                             }
                         }
                         if !unusable(list_state, &def)? {
@@ -239,15 +231,15 @@ pub fn run_page(
                 mark(list_state, &facts, &mut def)?;
                 if unusable(list_state, &def)? {
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
-                    if arrow && list_state.choice.get() != list_state.choice_before.get() {
+                    if arrow && list_state.read().choice != list_state.read().choice_before {
                         return Err(BadInput("an arrow that is no key").into());
                     }
                     let mut steps = 0;
                     loop {
-                        let c = list_state.choice.get().wrapping_add(1);
-                        list_state.choice.set(c);
+                        let c = list_state.read().choice.wrapping_add(1);
+                        list_state.write().choice = c;
                         if count == c {
-                            list_state.choice.set(0);
+                            list_state.write().choice = 0;
                         }
                         if !unusable(list_state, &def)? {
                             break;
@@ -259,7 +251,7 @@ pub fn run_page(
                     }
                 }
             }
-            if list_state.list_leave.get() == 1 {
+            if list_state.read().list_leave == 1 {
                 break;
             }
         }
@@ -271,6 +263,6 @@ pub fn run_page(
     {
         i::page_state::store_typed_text(install, &edit.text);
     }
-    install.highlights.set(list, list_state.choice.get());
-    Ok(u32::from(list_state.list_answer.get()))
+    install.highlights.set(list, list_state.read().choice);
+    Ok(u32::from(list_state.read().list_answer))
 }

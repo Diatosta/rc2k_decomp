@@ -4,6 +4,7 @@ use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
 use crate::effects::asm_test::{Operand, floats_at, with_settings};
 use crate::effects::typed_sync::{overlay_laid, with_overlays};
+use std::cell::RefCell;
 
 /// Where the plane tuning sat in the recorded layout.
 const PLANE_TUNING_START: usize = 0x934F30;
@@ -65,10 +66,12 @@ fn plane_axes_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_plane.plane_axes_x87", &SPEC, |b| {
-        with_laid::<WindscreenFlakeTiming, _>(b[0], |sti| {
+        with_laid::<RefCell<WindscreenFlakeTiming>, _>(b[0], |sti| {
             with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
                 with_plane_tuning(b[0], |pt| {
-                    with_settings(b[1], |m| super::plane_axes_x87(m, sti, sq, pt));
+                    with_settings(b[1], |m| {
+                        super::plane_axes_x87(m, &mut sti.borrow_mut(), sq, pt);
+                    });
                 });
             });
         });

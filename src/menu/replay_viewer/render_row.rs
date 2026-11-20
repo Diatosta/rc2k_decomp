@@ -88,9 +88,9 @@ pub fn draw_button(
         || false,
         || {
             list_state
+                .read()
                 .frame_clock
-                .get()
-                .wrapping_sub(list_state.move_clock.get())
+                .wrapping_sub(list_state.read().move_clock)
         },
     );
     crate::drive::tyre_quad::tyre_quad(

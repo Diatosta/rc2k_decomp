@@ -13,7 +13,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
-use crate::memory::cells::Store;
 use crate::menu::owner::Keys;
 use crate::menu::owner::Menus;
 
@@ -23,14 +22,12 @@ const NO_PLACE: u32 = 999;
 const RESERVED_ROOM: usize = 0x100;
 
 /// The reserved keys, up to their NUL; `None` if there is none in `RESERVED_ROOM`.
-fn reserved(keys: &Keys) -> Result<Option<Vec<u8>>, BadInput> {
-    let store = &keys.tables.reserved_keys;
-    let mut list = vec![0; store.size().min(RESERVED_ROOM)];
-    store.load(0, &mut list)?;
-    Ok(list
-        .iter()
+fn reserved(keys: &Keys) -> Option<Vec<u8>> {
+    let tables = keys.tables();
+    let list = &tables.reserved_keys[..tables.reserved_keys.len().min(RESERVED_ROOM)];
+    list.iter()
         .position(|&b| b == 0)
-        .map(|end| list[..end].to_vec()))
+        .map(|end| list[..end].to_vec())
 }
 
 /// One frame of redefining a key of `player` (0: refused).
@@ -50,18 +47,16 @@ pub(super) fn redefine_key(
     if place as usize >= KEYS {
         return Err(BadInput("a key's place of 12 or more").into());
     }
-    let Some(reserved) = reserved(&menus.keys)? else {
+    let Some(reserved) = reserved(&menus.keys) else {
         return Err(BadInput("a reserved list without its end").into());
     };
-    let work: [u8; KEYS] = std::array::from_fn(|i| menus.keys.tables.redefined_keys.get(i));
+    let work: [u8; KEYS] = std::array::from_fn(|i| menus.keys.tables().redefined_keys[i]);
     let Redefined::Done { keys, .. } =
         rc2k_core::menu::player::redefine(work, place as usize, take_key(input), &reserved)
     else {
         return Ok(());
     };
-    for (i, &key) in keys.iter().enumerate() {
-        menus.keys.tables.redefined_keys.set(i, key);
-    }
+    menus.keys.tables_mut().redefined_keys[..KEYS].copy_from_slice(&keys);
     // Escape ends the redefining too: the place is cleared either way, so no key goes on
     // blinking on the page.
     menus.screens.entry.redefined_key_place.set(NO_PLACE);

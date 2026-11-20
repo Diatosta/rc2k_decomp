@@ -20,7 +20,7 @@ fn second(weather: &Weather) -> ViewPlace<'_> {
         place: &s.view_place,
         matrix: &s.view_matrix,
         out: &s.view,
-        height: l.height.get(),
+        height: l.borrow().height,
         matrix_copy: &s.matrix_copy,
     }
 }

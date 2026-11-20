@@ -58,7 +58,7 @@ fn text_of(o: Owners<'static>, highlight: Highlight) -> String {
 
 /// The box and the name drawn over the frame, if the name is still to show.
 pub fn draw(o: Owners<'static>) -> Result<(), Refused> {
-    let highlight = highlight(o.race, o.menus.list.choice.get());
+    let highlight = highlight(o.race, o.menus.list.read().choice);
     let elapsed = o.race.replay.viewer_tip.elapsed_millis(highlight);
     let Some(strength) = strength(elapsed) else {
         return Ok(());

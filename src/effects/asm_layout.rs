@@ -289,7 +289,7 @@ impl Laid for PongState {
     ];
 }
 
-impl Laid for PongRules {
+impl Laid for std::cell::RefCell<PongRules> {
     const START: usize = 0x769182;
     const RUNS: &'static [Run] = &[
         Run {
@@ -476,7 +476,7 @@ impl Laid for SnowState {
     ];
 }
 
-impl Laid for SnowCurveVars {
+impl Laid for std::cell::RefCell<SnowCurveVars> {
     const START: usize = 0x8DA410;
     const RUNS: &'static [Run] = &[
         Run {
@@ -492,7 +492,7 @@ impl Laid for SnowCurveVars {
     ];
 }
 
-impl Laid for SnowLight {
+impl Laid for std::cell::RefCell<SnowLight> {
     const START: usize = 0x8DB430;
     const RUNS: &'static [Run] = &[
         Run {
@@ -716,7 +716,7 @@ impl Laid for WindscreenDropVars {
     ];
 }
 
-impl Laid for WindscreenFlakeTiming {
+impl Laid for std::cell::RefCell<WindscreenFlakeTiming> {
     const START: usize = 0x89CA30;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
@@ -840,7 +840,7 @@ fields!(PongState {
     hits,
     digit_at
 });
-fields!(PongRules {
+plain_fields!(PongRules {
     start,
     walls,
     centre,
@@ -941,12 +941,12 @@ fields!(SnowState {
     matrix_copy,
     turned
 });
-fields!(SnowCurveVars {
+plain_fields!(SnowCurveVars {
     curve_vars,
     first,
     records
 });
-fields!(SnowLight {
+plain_fields!(SnowLight {
     light_place,
     light_way,
     fade_delta,
@@ -1105,7 +1105,7 @@ fields!(WindscreenDropVars {
     angle,
     result_k
 });
-fields!(WindscreenFlakeTiming {
+plain_fields!(WindscreenFlakeTiming {
     frames,
     rate,
     spawn_rate
@@ -1182,14 +1182,14 @@ mod tests {
         covered::<MaskBlocks>();
         covered::<PictureCopy>();
         covered::<PongState>();
-        covered::<PongRules>();
+        covered::<std::cell::RefCell<PongRules>>();
         covered::<RainState>();
         covered::<RingWork>();
         covered::<std::cell::RefCell<MarksClock>>();
         covered::<SnowTables>();
         covered::<SnowState>();
-        covered::<SnowCurveVars>();
-        covered::<SnowLight>();
+        covered::<std::cell::RefCell<SnowCurveVars>>();
+        covered::<std::cell::RefCell<SnowLight>>();
         covered::<std::cell::RefCell<ShapeTilt>>();
         covered::<MarksFloats>();
         covered::<MarksKindFloats>();
@@ -1197,7 +1197,7 @@ mod tests {
         covered::<WindscreenDropState>();
         covered::<WindscreenDropWork>();
         covered::<WindscreenDropVars>();
-        covered::<WindscreenFlakeTiming>();
+        covered::<std::cell::RefCell<WindscreenFlakeTiming>>();
         covered::<WindscreenFlakeTables>();
         covered::<WindscreenFlakeState>();
     }

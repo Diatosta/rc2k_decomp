@@ -310,7 +310,7 @@ fn another_replay(race: &'static Race, o: Owners<'static>) -> Result<(), Refused
             if shared.replay_file().replay_open.is_set() {
                 return crate::race::viewer_load_stage::viewer_load_stage(race, o);
             }
-            o.menus.list.list_leave.set(1);
+            o.menus.list.write().list_leave = 1;
             return Ok(());
         }
         shared.replay_file().viewer_slot.set(slot);

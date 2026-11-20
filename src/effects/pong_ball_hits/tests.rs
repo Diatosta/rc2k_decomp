@@ -2,6 +2,7 @@ use crate::effects::asm_layout::with_laid;
 use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::{Op, Spec, recorded};
 use crate::effects::pong_store::{PongRules, PongState};
+use std::cell::RefCell;
 
 #[test]
 fn centres_x87_matches() {
@@ -40,7 +41,9 @@ fn centres_x87_matches() {
     };
     recorded("effects.pong_ball_hits.centres_x87", &SPEC, |b| {
         with_laid::<PongState, _>(b[0], |state| {
-            with_laid::<PongRules, _>(b[0], |rules| super::centres_x87(state, rules));
+            with_laid::<RefCell<PongRules>, _>(b[0], |rules| {
+                super::centres_x87(state, &rules.borrow());
+            });
         });
     });
 }
@@ -69,7 +72,9 @@ fn new_way_x87_matches() {
             // bits a `u32`.
             f32::from_bits(unsafe { ((b[0] + 0x22C).at(0, 4) as *const u32).read_unaligned() });
         with_laid::<PongState, _>(b[0], |state| {
-            with_laid::<PongRules, _>(b[0], |rules| super::new_way_x87(state, rules, length));
+            with_laid::<RefCell<PongRules>, _>(b[0], |rules| {
+                super::new_way_x87(state, &rules.borrow(), length);
+            });
         });
     });
 }

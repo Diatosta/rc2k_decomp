@@ -34,8 +34,8 @@ fn host(
 
 /// The page left with `answer`.
 fn leave(list_state: &crate::menu::list_state::ListState, answer: u8) {
-    list_state.list_answer.set(answer);
-    list_state.list_leave.set(1);
+    list_state.write().list_answer = answer;
+    list_state.write().list_leave = 1;
 }
 
 /// `key` (the key in its low byte, its bits in the next) on the highlighted item. Returns the key
@@ -48,13 +48,13 @@ pub(super) fn page_key(
     key: u32,
 ) -> Result<(u32, bool), Refused> {
     let list_state = &o.menus.list;
-    let highlight = list_state.choice.get();
+    let highlight = list_state.read().choice;
     if highlight as usize >= def.items.len() {
         return Err(BadInput("an item past the items of a list").into());
     }
     let keyed = def.key(highlight, key, &mut host(o, install, def))?;
     if keyed.noted {
-        list_state.key_taken.set(1);
+        list_state.write().key_taken = 1;
     }
     if let Some(answer) = keyed.leave {
         leave(list_state, answer);
@@ -88,7 +88,7 @@ pub(super) fn type_into_edit(
     install: &'static crate::install::owner::Install,
     def: &mut PageDef,
 ) -> Result<(), Refused> {
-    let highlight = o.menus.list.choice.get();
+    let highlight = o.menus.list.read().choice;
     let Some(item) = def.items.get(highlight as usize) else {
         return Err(BadInput("an item past the items of a list").into());
     };
@@ -99,7 +99,7 @@ pub(super) fn type_into_edit(
     for &c in &queued.chars {
         let mut host = host(o, install, def);
         def.key(highlight, 0x100 | u32::from(c), &mut host)?;
-        o.menus.list.key_taken.set(1);
+        o.menus.list.write().key_taken = 1;
     }
     Ok(())
 }

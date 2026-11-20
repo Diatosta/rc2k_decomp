@@ -7,5 +7,5 @@ pub fn list_item_unusable(
     list_state: &crate::menu::list_state::ListState,
     list: &ViewerList,
 ) -> bool {
-    rc2k_core::menu::list_menu::unusable(list.item(list_state.choice.get()).first.get())
+    rc2k_core::menu::list_menu::unusable(list.item(list_state.read().choice).first.get())
 }
