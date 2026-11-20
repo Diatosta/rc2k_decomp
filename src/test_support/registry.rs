@@ -721,10 +721,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.frame.view_and_records.get()),
         ),
         listed!(
-            "owners.race.physics.camera",
-            on_game(o.race.physics.camera()),
-        ),
-        listed!(
             "owners.race.course.stage_prefs",
             on_game(o.race.course.stage_prefs.get()),
         ),

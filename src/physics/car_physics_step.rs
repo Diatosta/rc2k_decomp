@@ -88,12 +88,11 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         cell.set(0);
     }
     race.physics.contact.get().contact_normal_speed[0].set(0.0);
-    for cell in [
-        &race.physics.camera().ground_probes,
-        &race.physics.camera().ground_found,
-        &race.physics.camera().ground_same,
-    ] {
-        cell.set(0);
+    {
+        let mut camera = race.physics.camera_mut();
+        camera.ground_probes = 0;
+        camera.ground_found = 0;
+        camera.ground_same = 0;
     }
     race.shared
         .physics_tables

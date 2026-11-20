@@ -257,7 +257,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         effects.setup.work,
         menus.tables.captions,
         menus.screens.state,
-        *race.physics.camera(),
         *race.physics.contact.get(),
         *race.physics.ground_probe.get(),
         *race.physics.ground(),

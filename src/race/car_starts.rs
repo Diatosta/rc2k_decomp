@@ -139,13 +139,13 @@ pub fn reset_car_motion(
         v.set(0.0);
     }
     let heading = shared.car().car_heading.get();
-    physics.camera().start_heading.set(heading);
+    physics.camera_mut().start_heading = heading;
     shared.car().camera_heading.set(heading);
     let pitch = shared.car().car_pitch.get();
-    physics.camera().start_pitch.set(pitch);
+    physics.camera_mut().start_pitch = pitch;
     shared.car().camera_pitch.set(pitch);
     let roll = shared.car().car_roll.get();
-    physics.camera().start_roll.set(roll);
+    physics.camera_mut().start_roll = roll;
     shared.car().camera_roll_turn.set(roll);
     shared.car().stuck_count.set(0);
     shared.car().drive_speed_a.set(0.0);

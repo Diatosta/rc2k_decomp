@@ -81,8 +81,15 @@ pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
 /// `race::load_lights_data`: reads `files\s\data\ldata` (0x1320 bytes at most) into the lights'
 /// data, then runs `copy_lights_data`.
 pub(super) fn load_lights_data(race: &Race) -> Result<(), Refused> {
+    let lights_path: Vec<u8> = race
+        .physics
+        .camera()
+        .lights_path
+        .iter()
+        .flat_map(|word| word.to_le_bytes())
+        .collect();
     crate::files::read_whole_file::read_whole_file_plain_bytes(
-        &crate::files::cstring(&race.physics.camera().lights_path, "the lights data path")?,
+        &crate::files::cstring_in(&lights_path)?,
         &race.course.lights_data().lights,
     )?;
     copy_lights_data(race)?;

@@ -24,6 +24,7 @@ use crate::race::tables_store::RaceTables;
 use crate::race::vars_store::RaceVars;
 use crate::race::view_store::RaceView;
 use crate::race::work_store::RaceWork;
+use std::cell::RefCell;
 
 /// What a contact's sound cue reads: the car, the numbers, the sound spots and bands, the
 /// matrices that turn the place, the contact's speed, the current car.
@@ -63,7 +64,7 @@ pub struct GroundInputs<'a> {
 pub struct CameraGroundInputs<'a> {
     pub car: &'a Car,
     pub course: &'a Course,
-    pub camera: &'a CameraWork,
+    pub camera: &'a RefCell<CameraWork>,
     pub ground: &'a GroundWork,
     pub probe: &'a GroundProbe,
 }
@@ -76,7 +77,7 @@ pub struct CameraInputs<'a> {
     pub course: &'a Course,
     pub numbers: &'a Numbers,
     pub tables: &'a PhysicsTables,
-    pub camera: &'a CameraWork,
+    pub camera: &'a RefCell<CameraWork>,
     /// The replay still flag (`SplitTables.still`), as it is when the inputs are built.
     pub still: u32,
     pub race_tables: &'a RaceTables,
@@ -210,7 +211,7 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             numbers: self.numbers,
             tables: self.tables,
-            camera: self.physics.camera(),
+            camera: self.physics.camera_cell(),
             still: self.physics.split_tables().still,
             race_tables: self.race_tables,
             shared: self.shared,
@@ -229,7 +230,7 @@ impl<'a> StepInputs<'a> {
         CameraGroundInputs {
             car: self.car,
             course: self.course,
-            camera: self.physics.camera(),
+            camera: self.physics.camera_cell(),
             ground: self.physics.ground(),
             probe: self.physics.ground_probe.get(),
         }

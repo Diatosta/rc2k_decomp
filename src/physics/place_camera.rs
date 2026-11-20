@@ -63,9 +63,9 @@ fn place_with(
     // The offset (x, y, z) turned about each axis in turn: the `rotate_point_about_y*` functions
     // take the three coordinates in the order x, y, z.
     let (mut x, mut y, mut z) = (
-        camera.camera_offset_x.get(),
-        camera.camera_offset_y.get(),
-        camera.camera_offset_z.get(),
+        camera.camera_offset_x,
+        camera.camera_offset_y,
+        camera.camera_offset_z,
     );
     for (y_turn, z_turn, x_turn) in [
         (
@@ -146,12 +146,8 @@ pub fn place_camera(
 ) {
     use crate::math::{rotate_point_about_y, rotate_point_about_y_ebx, rotate_point_about_y_ecx};
     let second = || {
-        let turns = [
-            &camera.view_turn_x,
-            &camera.view_turn_y,
-            &camera.view_turn_z,
-        ];
-        let parts = turns.map(|turn| view_turn_part(turn.get() as i32, numbers));
+        let turns = [camera.view_turn_x, camera.view_turn_y, camera.view_turn_z];
+        let parts = turns.map(|turn| view_turn_part(turn as i32, numbers));
         let turned =
             { crate::scene::rotate_point::rotate_point(&shared.car().crash_matrix, parts) };
         let k = numbers.k65536.get();

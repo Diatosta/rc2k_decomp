@@ -4,8 +4,8 @@
 //! `k65536`, negated and rounded, into `camera_offset_z`.
 
 use crate::math::cell_x87::CellX87;
-use crate::math::x87_float::X;
 use crate::math::x87_float::to_int;
+use crate::math::x87_float::{X, ld};
 use crate::physics::camera_view::{record, share_done};
 use crate::physics::step_families::CameraInputs;
 use crate::race::owner_shared::RaceShared;
@@ -42,25 +42,27 @@ fn x87_1(shared: &RaceShared) {
 /// `int [camera_offset_z] = -(((([view_shift_d] - [view_shift_c]) * [view_share]) + [view_shift_c])
 ///  * [k65536])`
 fn x87_2(c: &CameraInputs<'_>) {
-    let t0 = c.camera.view_shift_b.ld();
-    let t1 = c.camera.view_shift_a.ld();
+    let camera = c.camera.borrow();
+    let t0 = ld(camera.view_shift_b);
+    let t1 = ld(camera.view_shift_a);
     let t2 = t0 - t1;
     let t3 = c.race_tables.view_share.ld();
     let t4 = t2 * t3;
-    let t5 = c.camera.view_shift_a.ld();
+    let t5 = ld(camera.view_shift_a);
     let t6 = t4 + t5;
     c.car.camera_zoom.st(t6);
-    let t7 = c.camera.view_shift_d.ld();
-    let t8 = c.camera.view_shift_c.ld();
+    let t7 = ld(camera.view_shift_d);
+    let t8 = ld(camera.view_shift_c);
     let t9 = t7 - t8;
     let t10 = c.race_tables.view_share.ld();
     let t11 = t9 * t10;
-    let t12 = c.camera.view_shift_c.ld();
+    let t12 = ld(camera.view_shift_c);
     let t13 = t11 + t12;
     let t14 = c.numbers.k65536.ld();
     let t15 = t13 * t14;
     let t16 = -t15;
-    c.camera.camera_offset_z.set(to_int(t16) as u32);
+    drop(camera);
+    c.camera.borrow_mut().camera_offset_z = to_int(t16) as u32;
 }
 
 #[cfg(test)]

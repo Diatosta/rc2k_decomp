@@ -17,7 +17,7 @@ use std::cell::{Ref, RefCell, RefMut};
 /// tables, the damage model and the car specs (no drawing part, audio, key or network thread
 /// touches them; the drawing's searches have their own copies).
 struct PhysicsMain {
-    pub camera: CameraWork,
+    pub camera: RefCell<CameraWork>,
     pub ground: GroundWork,
     pub pace: RefCell<PaceNotes>,
     pub split_tables: RefCell<SplitTables>,
@@ -28,7 +28,7 @@ struct PhysicsMain {
 impl PhysicsMain {
     pub const fn new() -> Self {
         PhysicsMain {
-            camera: CameraWork::new(),
+            camera: RefCell::new(CameraWork::new()),
             ground: GroundWork::new(),
             pace: RefCell::new(PaceNotes::new()),
             split_tables: RefCell::new(SplitTables::new()),
@@ -58,7 +58,18 @@ impl Physics {
         }
     }
 
-    pub fn camera(&self) -> &CameraWork {
+    /// The camera work, read: no write borrow may be held.
+    pub fn camera(&self) -> Ref<'_, CameraWork> {
+        self.main.get().camera.borrow()
+    }
+
+    /// The camera work, to write: no other borrow may be held.
+    pub fn camera_mut(&self) -> RefMut<'_, CameraWork> {
+        self.main.get().camera.borrow_mut()
+    }
+
+    /// The camera work's cell, for the step inputs that hold it across a step.
+    pub fn camera_cell(&self) -> &RefCell<CameraWork> {
         &self.main.get().camera
     }
 

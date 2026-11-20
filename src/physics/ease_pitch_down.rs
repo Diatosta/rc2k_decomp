@@ -9,9 +9,9 @@ use rc2k_core::physics::easing::ease_down;
 
 /// On the variables' cells.
 // Core: `rc2k_core::physics::easing::ease_down`.
-pub(super) fn ease_pitch_down(car: &Car, camera: &CameraWork) {
+pub(super) fn ease_pitch_down(car: &Car, camera: &mut CameraWork) {
     let mut value = car.camera_pitch.get();
-    let step = ease_down(&mut value, camera.pitch_floor.get());
-    camera.pitch_step.set(step);
+    let step = ease_down(&mut value, camera.pitch_floor);
+    camera.pitch_step = step;
     car.camera_pitch.set(value);
 }

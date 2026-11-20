@@ -28,9 +28,10 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::camera_ground;
+use std::cell::RefCell;
 
 fn place(
-    camera: &CameraWork,
+    camera: &RefCell<CameraWork>,
     lights_data: &LightsData,
     view_records: &ViewAndRecords,
     numbers: &Numbers,
@@ -38,7 +39,7 @@ fn place(
     shared: &RaceShared,
 ) {
     crate::physics::place_camera::place_camera(
-        camera,
+        &camera.borrow(),
         lights_data,
         view_records,
         numbers,
@@ -141,7 +142,7 @@ fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
 // next_turn_step}`.
 pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    crate::physics::ease_view_turn::ease_view_turn(c.camera, c.step_first, c.car);
+    crate::physics::ease_view_turn::ease_view_turn(&mut c.camera.borrow_mut(), c.step_first, c.car);
     c.race_tables.camera_ground_flag.set(0);
     c.race_tables.camera_turn_step.set(u32::MAX);
     drawing
@@ -200,17 +201,17 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     if camera_clear_of_ground(&c.ground)? {
         return Ok(());
     }
-    c.camera.pitch_ceiling.set(camera_ground::PITCH_START);
+    c.camera.borrow_mut().pitch_ceiling = camera_ground::PITCH_START;
     let mut up = true;
     loop {
         if up {
-            c.camera.pitch_floor.set(c.car.camera_pitch.get());
-            crate::physics::ease_pitch_up::ease_pitch_up(c.car, c.camera);
+            c.camera.borrow_mut().pitch_floor = c.car.camera_pitch.get();
+            crate::physics::ease_pitch_up::ease_pitch_up(c.car, &mut c.camera.borrow_mut());
         } else {
-            c.camera.pitch_ceiling.set(c.car.camera_pitch.get());
-            crate::physics::ease_pitch_down::ease_pitch_down(c.car, c.camera);
+            c.camera.borrow_mut().pitch_ceiling = c.car.camera_pitch.get();
+            crate::physics::ease_pitch_down::ease_pitch_down(c.car, &mut c.camera.borrow_mut());
         }
-        if c.camera.pitch_step.get() == 0 {
+        if c.camera.borrow().pitch_step == 0 {
             return Ok(());
         }
         place(

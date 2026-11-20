@@ -5,8 +5,7 @@
 //! set, into `view_a_pitch` and `view_a_roll`.
 
 use crate::math::cell_x87::CellX87;
-use crate::math::x87_float::ld;
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::math::x87_float::{ld, stf};
 use crate::physics::camera_store::CameraWork;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
@@ -15,45 +14,41 @@ use crate::race::view_vars_store::ViewRecord;
 
 /// The exact version, for `physics::update_camera`: `s` the view's record.
 pub fn take_first_view(
-    camera: &CameraWork,
+    camera: &mut CameraWork,
     car: &Car,
     view_records: &ViewAndRecords,
     s: &ViewRecord,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
-    x87_1(camera, s.offset_bits(), scene);
+    camera.view_a_offset = x87_1(s.offset_bits(), scene);
     take_figures(
         s,
         [
-            &camera.view_a_turn,
-            &camera.view_a_point,
-            &camera.view_a_shares,
+            &mut camera.view_a_turn,
+            &mut camera.view_a_point,
+            &mut camera.view_a_shares,
         ],
-        [&camera.view_a_aux, &camera.view_a_aux_2],
+        [&mut camera.view_a_aux, &mut camera.view_a_aux_2],
     );
-    camera.view_a_heading.set(car.car_heading.get());
+    camera.view_a_heading = car.car_heading.get();
     let [pitch, roll] = rc2k_core::physics::camera_view::view_turns(
         [car.car_pitch.get(), car.car_roll.get()],
         record(view_records, car)?.halve_tilt.get() != 0,
     );
-    camera.view_a_pitch.set(pitch as i32);
-    camera.view_a_roll.set(roll as i32);
+    camera.view_a_pitch = pitch as i32;
+    camera.view_a_roll = roll as i32;
     Ok(())
 }
 
 /// The record's turn, point and share figures into a view: three vectors of floats (held in the
 /// record's dwords), then two dwords.
-pub(super) fn take_figures(
-    s: &ViewRecord,
-    floats: [&[PlainFloat; 3]; 3],
-    dwords: [&PlainDword; 2],
-) {
+pub(super) fn take_figures(s: &ViewRecord, floats: [&mut [f32; 3]; 3], dwords: [&mut u32; 2]) {
     let v = s.taken();
     for (n, cell) in floats.into_iter().flatten().enumerate() {
-        cell.set(f32::from_bits(v[n]));
+        *cell = f32::from_bits(v[n]);
     }
     for (n, cell) in dwords.into_iter().enumerate() {
-        cell.set(v[9 + n]);
+        *cell = v[9 + n];
     }
 }
 
@@ -61,20 +56,21 @@ pub(super) fn take_figures(
 
 /// (`[s + 4]` .. `[s + 0xC]` the record's offset, passed by value) `[view_a_offset] = [s + 4] +
 /// [camera_shake_x]`
-fn x87_1(camera: &CameraWork, offset: [u32; 3], scene: &crate::scene::owner::Scene) {
+fn x87_1(offset: [u32; 3], scene: &crate::scene::owner::Scene) -> [f32; 3] {
     let lights = &scene.lights;
     let t0 = ld(offset[0]);
     let t1 = lights.state.get().camera_shake_x.ld();
     let t2 = t0 + t1;
-    camera.view_a_offset[0].st(t2);
+    let o0 = stf(t2);
     let t3 = ld(offset[1]);
     let t4 = lights.state.get().camera_shake_y.ld();
     let t5 = t3 + t4;
-    camera.view_a_offset[1].st(t5);
+    let o1 = stf(t5);
     let t6 = ld(offset[2]);
     let t7 = lights.state.get().camera_shake_z.ld();
     let t8 = t6 + t7;
-    camera.view_a_offset[2].st(t8);
+    let o2 = stf(t8);
+    [o0, o1, o2]
 }
 
 #[cfg(test)]
@@ -97,8 +93,10 @@ mod reference_vectors {
             ],
             ulps: 0,
             plain: |a| {
-                x87_1(
-                    crate::test_support::own::race().physics.camera(),
+                crate::test_support::own::race()
+                    .physics
+                    .camera_mut()
+                    .view_a_offset = x87_1(
                     [4, 8, 0xC].map(|o| crate::math::x87_mem::Base::dword(a[0], o)),
                     crate::test_support::own::scene(),
                 );

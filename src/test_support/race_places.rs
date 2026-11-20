@@ -5,6 +5,7 @@
 //! and not by its byte in the record.
 
 use crate::drive::finish_store::Finish;
+use crate::physics::camera_store::CameraWork;
 use std::sync::OnceLock;
 
 /// `(offset, store, field path)`, sorted by offset.
@@ -507,12 +508,66 @@ fn finish_field(path: &str) -> Option<FinishBits> {
     }
 }
 
-/// The bytes of the field at `path` in the store `name` (the registry's, or the finish state).
+/// The camera work (plain fields, not cells): its registry name.
+const CAMERA: &str = "owners.race.physics.camera";
+
+/// How a field of the camera work is read and written as bits.
+type CameraBits = (fn(&CameraWork) -> u32, fn(&mut CameraWork, u32));
+
+/// The camera work's field at `path`.
+fn camera_field(path: &str) -> Option<CameraBits> {
+    macro_rules! float {
+        ($($f:ident)+ $([$i:literal])?) => {
+            Some((|c| c.$($f)+$([$i])?.to_bits(), |c, v| c.$($f)+$([$i])? = f32::from_bits(v)))
+        };
+    }
+    macro_rules! whole {
+        ($($f:ident)+ $([$i:literal])?) => {
+            Some((|c| c.$($f)+$([$i])? as u32, |c, v| c.$($f)+$([$i])? = v as _))
+        };
+    }
+    match path {
+        ".view_shift_a" => float!(view_shift_a),
+        ".view_shift_b" => float!(view_shift_b),
+        ".view_shift_c" => float!(view_shift_c),
+        ".view_shift_d" => float!(view_shift_d),
+        ".camera_offset_x" => whole!(camera_offset_x),
+        ".camera_offset_y" => whole!(camera_offset_y),
+        ".camera_offset_z" => whole!(camera_offset_z),
+        ".start_heading" => whole!(start_heading),
+        ".start_roll" => whole!(start_roll),
+        ".start_pitch" => whole!(start_pitch),
+        ".view_a_heading" => whole!(view_a_heading),
+        ".view_a_roll" => whole!(view_a_roll),
+        ".view_a_pitch" => whole!(view_a_pitch),
+        ".view_b_heading" => whole!(view_b_heading),
+        ".view_b_roll" => whole!(view_b_roll),
+        ".view_b_pitch" => whole!(view_b_pitch),
+        ".view_a_offset[0]" => float!(view_a_offset[0]),
+        ".view_a_offset[1]" => float!(view_a_offset[1]),
+        ".view_a_offset[2]" => float!(view_a_offset[2]),
+        ".view_b_offset[0]" => float!(view_b_offset[0]),
+        ".view_b_offset[1]" => float!(view_b_offset[1]),
+        ".view_b_offset[2]" => float!(view_b_offset[2]),
+        ".view_blend_aux_2" => whole!(view_blend_aux_2),
+        _ => None,
+    }
+}
+
+/// The bytes of the field at `path` in the store `name` (the registry's, or a plain one).
 fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
     if name == FINISH {
         let (get, _) = finish_field(path)?;
         return Some(
             get(&super::own::race().replay.finish())
+                .to_le_bytes()
+                .to_vec(),
+        );
+    }
+    if name == CAMERA {
+        let (get, _) = camera_field(path)?;
+        return Some(
+            get(&super::own::race().physics.camera())
                 .to_le_bytes()
                 .to_vec(),
         );
@@ -528,6 +583,16 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
         };
         set(
             &mut super::own::race().replay.finish_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    if name == CAMERA {
+        let (Some((_, set)), Ok(word)) = (camera_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::race().physics.camera_mut(),
             u32::from_le_bytes(word),
         );
         return true;

@@ -123,7 +123,7 @@ pub fn set_listener(
     race.effects_settings().listener_figures[2].set(view.sun.place[1].get());
     let f = listener::listener_points(f, race.shared.physics_tables.get().ground_drop.get());
     for (k, &v) in f.iter().enumerate() {
-        physics.camera().listener_points[k].set(v as u32);
+        physics.camera_mut().listener_points[k] = v as u32;
     }
     // The car block 0's body matrix.
     for (cell, body) in race
