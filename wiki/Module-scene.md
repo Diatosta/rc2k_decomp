@@ -33,6 +33,7 @@ light tables, the drawing's working memory. Each drawing thread has its own scra
 | `draw_carousel` | `src/scene/draw_carousel.rs` | The turning cars of the car choice screen. |
 | `set_up_engine_in` | `src/scene/set_up_engine.rs` | Prepares the 3D code's tables. |
 | `workers.rs` | `src/scene/workers.rs` | Draws the players' views and mirrors on several threads at once; `threads` is how many parts may draw at once (the advanced page's row), read at each frame. |
+| `workers/list_runs.rs` | `src/scene/workers/list_runs.rs` | Draws a list inside a part (the course's sorted faces, `race::face_runs`) in runs on the idle drawing threads and puts the runs' work together in the list's order. |
 
 ## How it is laid out
 

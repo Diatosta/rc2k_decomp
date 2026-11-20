@@ -127,9 +127,10 @@ fn filter_switches(view: &ViewScratch) -> [&crate::memory::session::PlainDword; 
     ]
 }
 
-/// The counts the car adds to (cars drawn, polygons drawn whole and split): its own added to
-/// what the view counted meanwhile, where the other cells take the car's value.
-fn counts(view: &ViewScratch) -> [&crate::memory::session::PlainDword; 3] {
+/// The counts a piece of the view's drawing adds to (cars drawn, polygons drawn whole and
+/// split): its own added to what the view counted meanwhile, where the other cells take the
+/// piece's value.
+pub(crate) fn counts(view: &ViewScratch) -> [&crate::memory::session::PlainDword; 3] {
     [
         &view.cars.cars_drawn,
         &view.object.whole_polygon_count,

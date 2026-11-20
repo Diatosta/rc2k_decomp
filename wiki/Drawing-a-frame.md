@@ -196,9 +196,19 @@ Inside a view, the player's own car is the most expensive single thing, so it is
 piece "aside" on another thread while the view's thread draws the course, and its commands are
 put in at the car's place in the order (`src/race/car_part.rs`).
 
-Two environment variables exist for checking this: `RC2K_MIRROR_BESIDE=0` draws the mirror
-after its view again, and `RC2K_DRAW_SERIAL` runs the parts one after another on the game's
-thread while keeping their separate states. The type-level rules that keep the threads apart
+The course's sorted faces, the next largest piece, are cut into runs of faces next to each other
+in the list when drawing threads stand idle (`src/race/face_runs.rs`,
+`src/scene/workers/list_runs.rs`): the view's thread draws the first run, each other run is drawn
+on a drawing thread with a scratch and a copy of the view of its own, and the runs' commands,
+render states, point records and changes to the view are put together in the list's order. A
+face draws from the view's set-up and from what it makes itself, never from what the face before
+it left, so the commands are the ones one thread notes.
+
+Environment variables exist for checking this: `RC2K_MIRROR_BESIDE=0` draws the mirror
+after its view again, `RC2K_DRAW_SERIAL` runs the parts one after another on the game's
+thread while keeping their separate states, and `RC2K_FACE_RUNS=0` draws the course's faces on
+the view's thread alone (a number cuts every list into that many runs; with `RC2K_DRAW_SERIAL`,
+4096 makes every face a run of its own, the check that no face depends on the one before). The type-level rules that keep the threads apart
 are described in [Threads and shared state](Threads-and-shared-state).
 
 ## Where to look
@@ -217,7 +227,7 @@ are described in [Threads and shared state](Threads-and-shared-state).
 | What a render state means to a GPU | `src/render/batches.rs` (`batches/keys.rs`, `batches/build.rs`) |
 | The software rasteriser | `src/render/rasteriser.rs` |
 | Which renderer starts | `src/render/choice.rs` |
-| Drawing on several threads | `src/scene/workers.rs`, `src/memory/part_cell.rs` |
+| Drawing on several threads | `src/scene/workers.rs`, `src/scene/workers/list_runs.rs`, `src/memory/part_cell.rs` |
 | The screen's memory and the window | `src/platform/mod.rs` |
 
 Next: [Sound and music](Sound-and-music). See also [Module-scene](Module-scene),

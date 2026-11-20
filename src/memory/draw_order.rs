@@ -101,6 +101,11 @@ pub fn wait_for_earlier_runs() {
         wait_for_aside_turn();
         return;
     }
+    if n > ASIDE_INDEX {
+        // A run of a list cut into runs (`draw_list_in_runs`): after the list's earlier runs.
+        wait_for_list_runs_before(n - ASIDE_INDEX);
+        return;
+    }
     let mut e = ENDED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -134,6 +139,51 @@ fn wait_for_aside_turn() {
     while !*reached {
         reached = ASIDE_TURN_CHANGED
             .wait(reached)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+    }
+}
+
+/// The most runs a list inside a part is cut into besides the part's own first run
+/// (`scene::workers::draw_list_in_runs`): one scratch each.
+pub const LIST_RUNS: usize = 3;
+
+/// The run number (`index`) of the thread drawing run `run` (1 ..= `LIST_RUNS`) of a list cut
+/// into runs: past the aside piece's. The list's first run is its part's own, on the part's
+/// thread with the part's number.
+pub const fn list_run_index(run: usize) -> usize {
+    ASIDE_INDEX + run
+}
+
+/// The runs of the list cut into runs that have ended (the part's own first run is 0).
+static LIST_RUNS_ENDED: Mutex<[bool; LIST_RUNS + 1]> = Mutex::new([false; LIST_RUNS + 1]);
+static LIST_RUNS_CHANGED: Condvar = Condvar::new();
+
+/// A list is about to be drawn in runs: none has ended.
+pub fn begin_list_runs() {
+    *LIST_RUNS_ENDED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = [false; LIST_RUNS + 1];
+}
+
+/// Run `run` of the list cut into runs has ended (or will draw nothing more).
+pub fn list_run_ended(run: usize) {
+    let mut ended = LIST_RUNS_ENDED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(flag) = ended.get_mut(run) {
+        *flag = true;
+    }
+    LIST_RUNS_CHANGED.notify_all();
+}
+
+/// Waits until every run before `run` of the list cut into runs has ended.
+fn wait_for_list_runs_before(run: usize) {
+    let mut ended = LIST_RUNS_ENDED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    while ended.iter().take(run).any(|&done| !done) {
+        ended = LIST_RUNS_CHANGED
+            .wait(ended)
             .unwrap_or_else(std::sync::PoisonError::into_inner);
     }
 }

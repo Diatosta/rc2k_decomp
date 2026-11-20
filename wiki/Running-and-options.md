@@ -387,6 +387,7 @@ The rest are diagnostics for people working on the code. They change nothing unl
 | `RC2K_PROFILE` | Starts a sampling profiler. Windows: samples go to `rc2k_profile.txt` beside the log. Handheld: `profile.txt` every 5 seconds. |
 | `RC2K_MIRROR_BESIDE`, `RC2K_PLAYERS_BESIDE` | `0` turns off drawing the mirror (or the two players' views) on separate threads; any other value turns it on. By default it is on with two or more processor cores. |
 | `RC2K_CAR_PART` | `0` turns off drawing the player's car as a separate piece of its view. |
+| `RC2K_FACE_RUNS` | `0` draws the course's sorted faces on the view's thread alone; a number cuts every such list into that many runs (with `RC2K_DRAW_SERIAL` any number, one after another). Unset: runs as the idle drawing threads allow. |
 | `RC2K_DRAW_SERIAL` | Draws the threaded parts one after another on the game's thread, to tell threading problems from merging problems. |
 | `RC2K_MIRROR_ALWAYS` | Draws the rear-view mirror in every view, replays included, whatever the options say. |
 | `RC2K_2D_QUADS` | `0`: the menus' 2D is uploaded as pixels instead of being drawn by the GPU as rectangles. |

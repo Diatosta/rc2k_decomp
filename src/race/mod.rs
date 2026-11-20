@@ -35,6 +35,7 @@ pub mod draw_view_overlays;
 pub mod draw_view_scene;
 pub mod effects_settings_store;
 pub mod error_list_store;
+pub mod face_runs;
 pub mod face_work;
 pub mod find_present_courses;
 pub mod first_cells;

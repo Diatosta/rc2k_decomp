@@ -17,6 +17,11 @@
 //! (`draw_aside`, the view's own car: `race::car_part`), on a scratch of its own behind a
 //! mutex, from the part's render states as the piece was handed aside; its drawing is put in
 //! at its place in the part's order, as `draw_parts` puts a part's after the earlier ones.
+//!
+//! A list inside a part whose entries do not depend on each other (the course's sorted faces)
+//! can be drawn in runs over the drawing threads the parts and the piece aside leave idle
+//! (`list_runs`), each run on a scratch and a copy of the view of its own, put together in
+//! the list's order.
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::draw_order::{
@@ -29,6 +34,9 @@ use crate::race::view_scratch::{PART_SLOTS, ViewScratch};
 use std::cell::Cell;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
+
+mod list_runs;
+pub use list_runs::{draw_list_in_runs, list_runs_wanted};
 
 /// What a drawing part makes for itself before reading (see the module's header): neither
 /// copied in nor merged, each part's work on its own (the replays' every flush the same as on
@@ -125,6 +133,13 @@ pub struct DrawingScratch {
     car_view: Mutex<ViewScratch>,
     /// The view as it was when the car's copy was made: what the copy changed since is merged.
     taken: GameThread<ViewScratch>,
+    /// What the runs of a list cut into runs draw on (`draw_list_in_runs`): each run but the
+    /// part's own first one a part's scratch and a copy of the view, held by the thread drawing
+    /// the run for its length.
+    list_runs: [list_runs::RunScratch; crate::memory::draw_order::LIST_RUNS],
+    /// The view as it was when the list's runs began: what each run's copy starts from and what
+    /// its changes are told by (the game's thread's).
+    list_start: GameThread<ViewScratch>,
     /// The slot of the view that last drew a course face (`race::face_work`), `usize::MAX` for
     /// none yet. Written by every drawing thread.
     last_face_view: AtomicUsize,
@@ -150,6 +165,9 @@ impl DrawingScratch {
             front_end: GameThread::new(ViewScratch::new(4)),
             car_view: Mutex::new(ViewScratch::new(0)),
             taken: GameThread::new(ViewScratch::new(0)),
+            list_runs: [const { list_runs::RunScratch::new() };
+                crate::memory::draw_order::LIST_RUNS],
+            list_start: GameThread::new(ViewScratch::new(0)),
             last_face_view: AtomicUsize::new(usize::MAX),
         }
     }
@@ -1025,6 +1043,9 @@ pub fn car_part_wanted() -> bool {
 pub struct Helper<'a> {
     pool: Option<&'a rayon::ThreadPool>,
     lent: &'a Lent<'a>,
+    /// How many drawing threads the part may use at once besides its own: the pool's without
+    /// the other parts' (with `RC2K_DRAW_SERIAL`, as many as a list has runs' scratches).
+    spare: usize,
 }
 
 impl<'a> Helper<'a> {
@@ -1043,8 +1064,13 @@ impl<'a> Helper<'a> {
             Some(p) if p.current_num_threads() >= parts && threads() > parts => Some(Self {
                 pool: Some(p),
                 lent,
+                spare: p.current_num_threads().min(threads() - 1) + 1 - parts,
             }),
-            None if serial() => Some(Self { pool: None, lent }),
+            None if serial() => Some(Self {
+                pool: None,
+                lent,
+                spare: crate::memory::draw_order::LIST_RUNS,
+            }),
             _ => None,
         }
     }
@@ -1068,6 +1094,8 @@ pub struct AsideRun {
     pub result: Result<(), Refused>,
     pub noted: crate::render::CommandList,
     states: crate::d3d::run_states::RunStates,
+    /// The held matrix columns it left, if it held any.
+    columns: Option<crate::scene::view_matrices::Columns>,
 }
 
 /// The piece drawn on `scratch` (on the thread that holds it) from `start`.
@@ -1088,13 +1116,14 @@ fn run_aside(
     crate::scene::view_matrices::set_part_columns(scratch, start.columns);
     let result = piece(scratch, reads);
     let states = crate::d3d::run_states::end_run(scratch);
-    crate::scene::view_matrices::end_part(scratch);
+    let columns = crate::scene::view_matrices::end_part(scratch);
     scratch.points.end_run();
     let noted = crate::d3d::device::take_noted(scratch);
     AsideRun {
         result,
         noted,
         states,
+        columns,
     }
 }
 

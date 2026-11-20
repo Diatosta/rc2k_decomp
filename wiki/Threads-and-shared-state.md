@@ -19,7 +19,7 @@ It is the page to read before changing anything that more than one thread touche
 | Network receive | `threading::thread_slot::start_workers` | `net::receive_thread` | Waits for a signal that messages have arrived, takes them, and files race messages in each player's inbox. |
 | Network connections | a session, when one is hosted or joined | `src/net/dp_session/` | The sockets: accepting machines, reading and writing frames. |
 | Shutdown | `threading::request_quit_in` and its siblings (`src/threading/request_quit.rs`) | `threading::shutdown_thread` | Waits up to three seconds for the input, audio and network threads to end. |
-| Drawing helpers | `src/scene/workers.rs` (a thread pool) | parts of a frame | Draw a view, a mirror or the player's car at the same time as the game thread draws another part. |
+| Drawing helpers | `src/scene/workers.rs` (a thread pool) | parts of a frame | Draw a view, a mirror, the player's car or a run of the course's faces at the same time as the game thread draws another part. |
 | Rasteriser | `src/render/software.rs` (a thread pool) | tiles of the picture | The software renderer's triangle filling, split over the cores. |
 | GL and GL batches | `src/render/gles.rs` | the handheld's renderer | One holds the OpenGL ES context and talks to the driver; one prepares batches a part ahead (`src/render/gl_batching.rs`). |
 | Sound mixer | SDL | `src/platform/sound.rs` | SDL calls in when the output needs more sound. |

@@ -85,6 +85,15 @@ pub fn clear_written(part: &crate::scene::workers::PartScratch) {
     }
 }
 
+/// The scene points' records of `part` (the first 0x1000) marked as holding no point, as a
+/// view's start leaves them (`race::clear_point_records`): a scratch whose records were set
+/// back to 0 would otherwise pass for holding scene point 0. Not counted as written.
+pub fn mark_scene_records_unmade(part: &crate::scene::workers::PartScratch) {
+    for record in &part.records[..0x1000] {
+        record[0].set(u32::MAX);
+    }
+}
+
 /// The records made, zeroed, counted on `list`.
 pub fn take(
     scratch: &crate::scene::workers::DrawingScratch,

@@ -102,7 +102,7 @@ pub fn draw_view_scene(
     let rest = |car: Option<&crate::race::car_part::CarAside<'_, '_>>| -> Result<(), Refused> {
         sort_entries(&lists.sort_entry_count, lists.sort_entries())?;
         let begun = crate::debug::timing::start();
-        draw_entries(&ctx, &lists.sort_entry_count, |n| lists.sort_from(n))?;
+        crate::race::face_runs::draw_sort_list(&ctx, helper, car.is_some())?;
         crate::debug::timing::stop(crate::debug::timing::Stage::CourseEntries, begun);
         draw_race_slots(&ctx)?;
         crate::race::car_shadow::cast_car_shadows(&ctx)?;

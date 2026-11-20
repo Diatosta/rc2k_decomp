@@ -742,6 +742,42 @@ pub fn draw_lamp_flare(
     )
 }
 
+/// A list entry that is a course face (`face`, below 0x1000000) drawn: kind 0xFF the described
+/// way, below 0x10 tinted, each with the texture filter's switches 1 around it and 0 after;
+/// any other kind draws nothing.
+fn draw_face_entry(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Result<(), Refused> {
+    ctx.view.face.course_face.set(face);
+    let kind = crate::race::course_places::face_field::<u8>(ctx.reads.course(), face, 0)?;
+    if kind == 0xFF || kind < 0x10 {
+        ctx.view.polygon.smooth.set(1);
+        ctx.view.polygon.plain_first.set(1);
+        ctx.view.polygon.plain_second.set(1);
+        if kind == 0xFF {
+            // The description is the face.
+            crate::scene::draw_described_object::draw_described_face(ctx, face)?;
+        } else {
+            crate::race::course_faces::draw_tinted_face(ctx, face)?;
+        }
+        ctx.view.polygon.smooth.set(0);
+        ctx.view.polygon.plain_first.set(0);
+        ctx.view.polygon.plain_second.set(0);
+    }
+    Ok(())
+}
+
+/// The course faces `faces` (list entries' second words, each below 0x1000000 without its top
+/// bit) drawn as `draw_list_entry` draws each.
+pub fn draw_face_entries(
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
+    faces: &[u32],
+) -> Result<(), Refused> {
+    for &word in faces {
+        draw_face_entry(ctx, word & 0x7FFF_FFFF)?;
+        ctx.view.light.view_kind.set(0u32);
+    }
+    Ok(())
+}
+
 /// `race::draw_list_entry`: the entry whose cells from it on are `at`, whose second word is
 /// `flags_word`: below 0x1000000 a course face (`current_course_face`): kind 0xFF part 1, below
 /// 0x10 part 2, each with `smooth` .. `plain_second` 1 around it; 0x1000000
@@ -758,25 +794,7 @@ pub fn draw_list_entry(
     }
     let low = word & 0xFF_FFFF;
     match word >> 24 {
-        0 => {
-            ctx.view.face.course_face.set(word);
-            let face = word;
-            let kind = crate::race::course_places::face_field::<u8>(ctx.reads.course(), face, 0)?;
-            if kind == 0xFF || kind < 0x10 {
-                ctx.view.polygon.smooth.set(1);
-                ctx.view.polygon.plain_first.set(1);
-                ctx.view.polygon.plain_second.set(1);
-                if kind == 0xFF {
-                    // The description is the face.
-                    crate::scene::draw_described_object::draw_described_face(ctx, face)?;
-                } else {
-                    crate::race::course_faces::draw_tinted_face(ctx, face)?;
-                }
-                ctx.view.polygon.smooth.set(0);
-                ctx.view.polygon.plain_first.set(0);
-                ctx.view.polygon.plain_second.set(0);
-            }
-        }
+        0 => draw_face_entry(ctx, word)?,
         1 => draw_flare(ctx, low, at)?,
         2 => crate::race::car_draw::draw_car_entry(ctx, low)?,
         _ => draw_lamp_flare(ctx, low)?,
