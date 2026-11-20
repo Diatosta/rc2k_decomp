@@ -124,7 +124,7 @@ pub(super) fn chosen_frame(
     cells: u32,
 ) -> Result<(), Refused> {
     let screens = &o.menus.screens;
-    let blinking = screens.draw_work.blink.is_set();
+    let blinking = screens.draw_work.read().blink;
     let wanted =
         if screens.state.service_ui.box_shown.is_set() && screens.loop_flags.item.get() == item {
             blinking

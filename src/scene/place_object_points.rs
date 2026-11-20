@@ -84,7 +84,7 @@ struct Object {
 
 fn object(
     lists: &crate::race::course_lists_store::CourseLists,
-    object_slots: &crate::scene::object_slots_store::ObjectTables,
+    object_slots: &crate::scene::object_slots_store::SlotShapes,
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<Object, BadInput> {
     let number: u32 = cars.object_number.get();

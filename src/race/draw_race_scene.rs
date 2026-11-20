@@ -494,7 +494,7 @@ fn assign_light_textures(race: &Race, scene: &Scene) -> Result<(), Refused> {
                 .slot_wanted
                 .get_mut(slot as usize)
                 .ok_or(BadInput("a slot past the texture places' slots"))? =
-                texture.wrapping_add(scene.textures.kinds.get().kind_first_textures[220].get());
+                texture.wrapping_add(scene.textures.first_textures()[220]);
         }
     }
     Ok(())

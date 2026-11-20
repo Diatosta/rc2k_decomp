@@ -19,10 +19,13 @@ pub fn load_front_end_objects(
 ) -> Result<(), Refused> {
     let course = &race.course;
     reset_objects(course, scene)?;
-    scene.objects.slots.get().texture_count.set(0);
-    scene.objects.slots.get().no_normals.set(0);
+    {
+        let mut slots = scene.loaded_slots_mut();
+        slots.texture_count = 0;
+        slots.no_normals = 0;
+    }
     for slot in 0..SLOTS {
-        let kind: u32 = scene.objects.tables.get().slot_kinds[slot as usize].get();
+        let kind: u32 = scene.texture_levels().slot_kinds[slot as usize];
         scene.object_work_mut().loading_kind = kind;
         scene.object_work_mut().loading_slot = slot;
         load_object(scene, race)?;

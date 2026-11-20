@@ -200,18 +200,17 @@ fn store(
         return Ok(());
     }
     match &planned.measures {
-        Some(m) => crate::memory::session::write_first(
-            &scene.objects.slots.get().measures,
-            &[m.middle, m.half, m.lowest, m.highest].concat(),
-        ),
+        Some(m) => scene
+            .loaded_slots_mut()
+            .measures
+            .copy_from_slice(&[m.middle, m.half, m.lowest, m.highest].concat()),
         // A file of no points, or none taken: the object's own points are measured, which
         // leaves the half extents as they were.
         None => measure_object(&race.course, scene)?,
     }
-    let measures: [u32; 6] =
-        crate::memory::session::read_first(&scene.objects.slots.get().measures);
-    for (table, &value) in measures.iter().enumerate() {
-        scene.objects.slots.get().part_extents[table][planned.slot as usize].set(value);
+    let mut slots = scene.loaded_slots_mut();
+    for table in 0..6 {
+        slots.part_extents[table][planned.slot as usize] = slots.measures[table];
     }
     Ok(())
 }
@@ -236,7 +235,7 @@ fn check(
     {
         return Err(NO_POINT_MEMORY.into());
     }
-    if scene.objects.tables.get().face_count.get() >= FACES {
+    if scene.texture_levels().face_count >= FACES {
         return Err(NO_FACE_ROOM.into());
     }
     Ok(())

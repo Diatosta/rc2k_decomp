@@ -29,7 +29,7 @@ pub fn arcade_finale(o: Owners<'static>) -> Result<(), Refused> {
         .car_kind_current
         .set(first.car_number);
     race.shared.state.settings.kept.set(0);
-    let level = play.arcade.level.get();
+    let level = play.arcade.read().level;
     race.shared
         .state
         .results

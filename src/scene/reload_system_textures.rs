@@ -43,7 +43,7 @@ pub fn reload_system_textures(
     if textures == 0 || textures > TEXTURES {
         return Err(BadInput("no system textures, or more than the table has").into());
     }
-    let first = |kind: u32| scene.textures.kinds.get().kind_first_textures[kind as usize].get();
+    let first = |kind: u32| scene.textures.first_textures()[kind as usize];
     if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
         return Err(BadInput("a kind's first texture past the pictures' table").into());
     }

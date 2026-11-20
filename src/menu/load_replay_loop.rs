@@ -12,7 +12,7 @@ use crate::menu::screen_loop::{Callee, Frames, Keys, List, Screen, Step};
 
 fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[slot::LOAD_REPLAY].set(screens.items.first[slot::LOAD_REPLAY].get());
-    screens.draw_work.escape_pressed.set(false);
+    screens.draw_work.write().escape_pressed = false;
     Ok(())
 }
 

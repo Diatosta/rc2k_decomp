@@ -31,11 +31,11 @@ pub(super) fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
     let mode: u32 = menus.play.champ_view.stage_mode.get();
     let record = match mode {
         2 => {
-            let table: u32 = menus.play.arcade.level.get();
+            let table: u32 = menus.play.arcade.read().level;
             crate::records::stages_store::row(
                 stages,
                 stages.level_table(table)?,
-                menus.play.arcade.stage.get(),
+                menus.play.arcade.read().stage,
             )?
         }
         3 => crate::records::find_record::find_record_in(

@@ -42,6 +42,6 @@ pub fn draw_redefined_keys(
         &mut crate::screens::game_screen::ControlsScreen::new(canvas, o),
         &names,
         row,
-        screens.draw_work.cursor_on.is_set(),
+        screens.draw_work.read().cursor_on,
     )
 }

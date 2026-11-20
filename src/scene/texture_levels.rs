@@ -60,7 +60,7 @@ const BLOCKS: [Block; 26] = [
 ];
 
 fn other(scene: &crate::scene::owner::Scene) -> bool {
-    scene.objects.tables.get().other_levels.get() != 0
+    scene.texture_levels().other_levels != 0
 }
 
 const COUNT_TEXT: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS ";
@@ -77,14 +77,13 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
     let shared = &race.shared;
     // Logic: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
     use crate::logfile::log_int::log_int;
-    use crate::scene::textures::with_cells;
     use rc2k_core::scene::texture_levels::{ExtraRuns, KindSlots, held_cars, set_levels};
     let cars = held_cars(shared.view.get().race_cars.get());
     shared.view.get().race_cars.set(cars);
     crate::scene::reset_texture_tables::reset_texture_tables(scene);
     crate::logfile::log_write::log_nul(&COUNT_TEXT, false, 1);
     log_int(cars as i32, true, 1);
-    scene.objects.tables.get().other_levels.set(0);
+    scene.texture_levels_mut().other_levels = 0;
     crate::input::keys::update_input(o);
     let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
         .iter()
@@ -105,18 +104,15 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
             },
         )
         .collect();
-    let set = with_cells(
-        [
-            &scene.objects.tables.get().texture_tags,
-            &scene.objects.tables.get().system_levels,
-            &scene.objects.tables.get().video_levels,
-        ],
-        |[tags, system, video]| {
+    let other_levels = other(scene);
+    let set = {
+        let levels = &mut *scene.texture_levels_mut();
+        {
             set_levels(
                 &mut rc2k_core::scene::textures::LevelTables {
-                    tags,
-                    system,
-                    video,
+                    tags: &mut levels.texture_tags,
+                    system: &mut levels.system_levels,
+                    video: &mut levels.video_levels,
                 },
                 cars,
                 shared.view.get().players.get() == 1,
@@ -125,15 +121,15 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
                     framed: shared.switches.get().editor_mode.get() != 0,
                     further_maps: shared.view.get().players.get() > 2,
                 },
-                other(scene),
+                other_levels,
                 |car| {
                     let kinds = &shared.vars.get().race_car_kinds;
                     let own = shared.own_car_number(o.net.race_slot.get());
                     car as usize == own || kinds[car as usize].get() == kinds[own].get()
                 },
             )
-        },
-    )?;
+        }
+    }?;
     // `kind_slot_bytes`: + 4 (or 1) a kind's slot.
     let mut places = scene.texture_places_mut();
     places.kind_slot_bytes = places.kind_slot_bytes.wrapping_add(set.kind_slots_added);

@@ -70,7 +70,7 @@ fn with_level_scores<R>(
     tables: &BestTables,
     f: impl FnOnce(&mut rc2k_core::saves::entries::List) -> R,
 ) -> Result<R, Refused> {
-    let level = play.arcade.level.get();
+    let level = play.arcade.read().level;
     if level > 5 {
         return Err(BadInput("an arcade level past 5").into());
     }
@@ -209,7 +209,7 @@ pub(super) fn score_arcade_stage(menus: &Menus) -> Result<(), Refused> {
     let mut figures = player.get();
     figures.before = figures.total;
     figures.extra = first.get().figure;
-    figures.points = standings::arcade_points(play.arcade.places.get(), figures.position);
+    figures.points = standings::arcade_points(play.arcade.read().places, figures.position);
     figures.sum = figures
         .points
         .wrapping_add(figures.time_bonus)

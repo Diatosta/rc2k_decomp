@@ -62,7 +62,7 @@ fn clear_screen_state(menus: &crate::menu::owner::Menus) {
     }
     screens.event.event_over.set(false);
     screens.flow.asking.set(false);
-    screens.draw_work.escape_pressed.set(false);
+    screens.draw_work.write().escape_pressed = false;
 }
 
 pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {

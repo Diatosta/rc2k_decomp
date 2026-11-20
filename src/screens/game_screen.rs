@@ -40,9 +40,25 @@ impl GameFont for MenuFont {
 }
 
 /// A family's work variable: the game state it reports to, if any.
+/// Where a screen keeps a value for the next screen to read.
+enum Slot {
+    /// A cell of a store.
+    Cell(&'static dyn DwordLike),
+    /// The drawing work's `button_x`.
+    ButtonX,
+    /// The drawing work's `button_y`.
+    ButtonY,
+}
+
+impl<T: DwordLike> From<&'static T> for Slot {
+    fn from(cell: &'static T) -> Slot {
+        Slot::Cell(cell)
+    }
+}
+
 trait GameWork: Copy {
     /// Where the value is kept, `None` for a variable nothing reads.
-    fn cell(self, menus: &'static Menus, race: &'static Race) -> Option<&'static dyn DwordLike>;
+    fn cell(self, menus: &'static Menus, race: &'static Race) -> Option<Slot>;
 }
 
 /// A text a screen draws (`HeldText`: a place in a typed store, bounded by it, or a name
@@ -579,8 +595,11 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn keep(&mut self, work: W, value: u32) {
-        if let Some(cell) = work.cell(self.menus, self.owners.race) {
-            cell.set(value);
+        match work.cell(self.menus, self.owners.race) {
+            Some(Slot::Cell(cell)) => cell.set(value),
+            Some(Slot::ButtonX) => self.menus.screens.draw_work.write().button_x = value,
+            Some(Slot::ButtonY) => self.menus.screens.draw_work.write().button_y = value,
+            None => {}
         }
     }
 }
@@ -602,12 +621,11 @@ impl GameFont for rc2k_core::screens::best_scores::Font {
 }
 
 impl GameWork for rc2k_core::screens::best_scores::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::best_scores::Work as W;
-        let screens = &menus.screens;
         match self {
-            W::RowY => Some(&screens.draw_work.button_x),
-            W::CarGlyph => Some(&screens.draw_work.button_y),
+            W::RowY => Some(Slot::ButtonX),
+            W::CarGlyph => Some(Slot::ButtonY),
         }
     }
 }
@@ -629,10 +647,10 @@ impl GameFont for rc2k_core::screens::stage_panel::Font {
 }
 
 impl GameWork for rc2k_core::screens::stage_panel::Work {
-    fn cell(self, _menus: &'static Menus, race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::stage_panel::Work as W;
         match self {
-            W::Entry34 => Some(&race.shared.state.settings.stage),
+            W::Entry34 => Some((&race.shared.state.settings.stage).into()),
         }
     }
 }
@@ -651,12 +669,11 @@ impl GameFont for rc2k_core::screens::itinerary::Font {
 }
 
 impl GameWork for rc2k_core::screens::itinerary::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::itinerary::Work as W;
-        let screens = &menus.screens;
         match self {
-            W::Row => Some(&screens.draw_work.button_x),
-            W::Stage => Some(&screens.draw_work.button_y),
+            W::Row => Some(Slot::ButtonX),
+            W::Stage => Some(Slot::ButtonY),
         }
     }
 }
@@ -675,7 +692,7 @@ impl GameFont for rc2k_core::screens::settings_pages::Font {
 }
 
 impl GameWork for rc2k_core::screens::settings_pages::Work {
-    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {}
     }
 }
@@ -701,7 +718,7 @@ impl GameFont for rc2k_core::screens::car_pages::Font {
 }
 
 impl GameWork for rc2k_core::screens::car_pages::Work {
-    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {}
     }
 }
@@ -720,7 +737,7 @@ impl GameFont for rc2k_core::screens::slot_lists::Font {
 }
 
 impl GameWork for rc2k_core::screens::slot_lists::Work {
-    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {}
     }
 }
@@ -741,7 +758,7 @@ impl GameFont for rc2k_core::screens::savegame_preview::Font {
 }
 
 impl GameWork for rc2k_core::screens::savegame_preview::Work {
-    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {}
     }
 }
@@ -765,7 +782,7 @@ impl GameFont for rc2k_core::screens::players_results::Font {
 }
 
 impl GameWork for rc2k_core::screens::players_results::Work {
-    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {}
     }
 }
@@ -783,12 +800,12 @@ impl GameFont for rc2k_core::screens::stage_results::Font {
 }
 
 impl GameWork for rc2k_core::screens::stage_results::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::stage_results::Work as W;
         let screens = &menus.screens;
         match self {
-            W::FirstTime => Some(&screens.state.menus.first_row_time),
-            W::RowY => Some(&screens.draw_work.button_x),
+            W::FirstTime => Some((&screens.state.menus.first_row_time).into()),
+            W::RowY => Some(Slot::ButtonX),
         }
     }
 }
@@ -810,21 +827,20 @@ impl GameFont for rc2k_core::screens::results_pages::Font {
 }
 
 impl GameWork for rc2k_core::screens::results_pages::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::results_pages::Work as W;
         match self {
-            W::Row => Some(&menus.screens.loop_flags.champ_row),
-            W::RowEnd => Some(&menus.play.champ_view.rows.row_end),
+            W::Row => Some((&menus.screens.loop_flags.champ_row).into()),
+            W::RowEnd => Some((&menus.play.champ_view.rows.row_end).into()),
         }
     }
 }
 
 impl GameWork for rc2k_core::screens::results_pages::RankingWork {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::results_pages::RankingWork as W;
-        let screens = &menus.screens;
         match self {
-            W::SpriteY => Some(&screens.draw_work.button_x),
+            W::SpriteY => Some(Slot::ButtonX),
         }
     }
 }
@@ -842,7 +858,7 @@ impl GameFont for rc2k_core::screens::player_result::Font {
 }
 
 impl GameWork for rc2k_core::screens::player_result::Work {
-    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {}
     }
 }
@@ -867,11 +883,11 @@ impl GameFont for rc2k_core::screens::duel_result::Font {
 }
 
 impl GameWork for rc2k_core::screens::duel_result::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         let play = &menus.play;
         match self {
-            rc2k_core::screens::duel_result::Work::First => Some(&play.results.order[0]),
-            rc2k_core::screens::duel_result::Work::Second => Some(&play.results.order[1]),
+            rc2k_core::screens::duel_result::Work::First => Some((&play.results.order[0]).into()),
+            rc2k_core::screens::duel_result::Work::Second => Some((&play.results.order[1]).into()),
         }
     }
 }
@@ -886,7 +902,7 @@ impl GameFont for rc2k_core::screens::notes::Font {
 }
 
 impl GameWork for rc2k_core::screens::notes::Work {
-    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {}
     }
 }
@@ -919,7 +935,7 @@ impl GameFont for rc2k_core::screens::player_details::Font {
 }
 
 impl GameWork for rc2k_core::screens::player_details::Work {
-    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {}
     }
 }
@@ -932,7 +948,7 @@ pub(super) type DetailsScreen<'a> = GameScreen<
 >;
 
 impl GameWork for rc2k_core::screens::menus::Work {
-    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {}
     }
 }
@@ -1008,11 +1024,11 @@ impl GameFont for rc2k_core::screens::service::Font {
 }
 
 impl GameWork for rc2k_core::screens::service::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::service::Work;
         let screens = &menus.screens;
         match self {
-            Work::Penalty => Some(&screens.state.driver_stats.money),
+            Work::Penalty => Some((&screens.state.driver_stats.money).into()),
         }
     }
 }
@@ -1035,12 +1051,11 @@ impl GameFont for rc2k_core::screens::highlighted_caption::Font {
 }
 
 impl GameWork for rc2k_core::screens::highlighted_caption::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::highlighted_caption::Work;
-        let screens = &menus.screens;
         match self {
-            Work::X => Some(&screens.draw_work.button_x),
-            Work::Y => Some(&screens.draw_work.button_y),
+            Work::X => Some(Slot::ButtonX),
+            Work::Y => Some(Slot::ButtonY),
         }
     }
 }
@@ -1052,10 +1067,12 @@ impl GameFont for rc2k_core::screens::inspection::Font {
 }
 
 impl GameWork for rc2k_core::screens::inspection::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         let screens = &menus.screens;
         match self {
-            rc2k_core::screens::inspection::Work::Status => Some(&screens.state.driver_stats.score),
+            rc2k_core::screens::inspection::Work::Status => {
+                Some((&screens.state.driver_stats.score).into())
+            }
         }
     }
 }
@@ -1067,7 +1084,7 @@ impl GameFont for rc2k_core::screens::controls::Font {
 }
 
 impl GameWork for rc2k_core::screens::controls::Work {
-    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {}
     }
 }
@@ -1089,13 +1106,13 @@ impl GameFont for rc2k_core::screens::championship_table::Font {
 }
 
 impl GameWork for rc2k_core::screens::championship_table::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {
             rc2k_core::screens::championship_table::Work::Position => {
-                Some(&menus.screens.loop_flags.champ_row)
+                Some((&menus.screens.loop_flags.champ_row).into())
             }
             rc2k_core::screens::championship_table::Work::End => {
-                Some(&menus.play.champ_view.rows.row_end)
+                Some((&menus.play.champ_view.rows.row_end).into())
             }
         }
     }
@@ -1108,7 +1125,7 @@ impl GameFont for rc2k_core::screens::controller_page::Font {
 }
 
 impl GameWork for rc2k_core::screens::controller_page::Work {
-    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<&'static dyn DwordLike> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {}
     }
 }

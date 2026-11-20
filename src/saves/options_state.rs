@@ -126,6 +126,11 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     Ok(())
 }
 
+/// Reads a plain store's bytes.
+type BytesGet<'a> = dyn Fn() -> Vec<u8> + 'a;
+/// Writes a plain store's bytes.
+type BytesSet<'a> = dyn Fn(&[u8]) + 'a;
+
 /// One entry of the options file: named fields of the game's state, in the file's order.
 pub(crate) enum Field<'a> {
     /// One dword.
@@ -137,6 +142,12 @@ pub(crate) enum Field<'a> {
         cells: &'a dyn Store,
         from: usize,
         len: usize,
+    },
+    /// `len` bytes of a plain store, read and written through functions.
+    Bytes {
+        len: usize,
+        get: Box<BytesGet<'a>>,
+        set: Box<BytesSet<'a>>,
     },
     /// A player's record.
     Player(&'a Shared<Player>),
@@ -152,6 +163,12 @@ trait Move {
     /// The dwords of a run (a record), each in turn.
     fn words(&mut self, run: &dyn Run) -> Result<(), BadInput>;
     fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput>;
+    fn bytes(
+        &mut self,
+        len: usize,
+        get: &dyn Fn() -> Vec<u8>,
+        set: &dyn Fn(&[u8]),
+    ) -> Result<(), BadInput>;
     fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput>;
 }
 
@@ -175,6 +192,18 @@ impl Move for Put {
         let at = self.0.len();
         self.0.resize(at + len, 0);
         cells.load(from, &mut self.0[at..])
+    }
+
+    fn bytes(
+        &mut self,
+        len: usize,
+        get: &dyn Fn() -> Vec<u8>,
+        _: &dyn Fn(&[u8]),
+    ) -> Result<(), BadInput> {
+        let mut bytes = get();
+        bytes.resize(len, 0);
+        self.0.extend_from_slice(&bytes);
+        Ok(())
     }
 
     fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput> {
@@ -217,6 +246,16 @@ impl Move for Take<'_> {
 
     fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput> {
         cells.store(from, self.next(len)?)
+    }
+
+    fn bytes(
+        &mut self,
+        len: usize,
+        _: &dyn Fn() -> Vec<u8>,
+        set: &dyn Fn(&[u8]),
+    ) -> Result<(), BadInput> {
+        set(self.next(len)?);
+        Ok(())
     }
 
     fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput> {
@@ -264,7 +303,7 @@ impl Field<'_> {
         match self {
             Self::Dword(_) => 4,
             Self::Dwords(fields) => 4 * fields.len(),
-            Self::Text { len, .. } => *len,
+            Self::Text { len, .. } | Self::Bytes { len, .. } => *len,
             Self::Player(_) => size_of::<Player>(),
             Self::Records(records) => records.len() * RECORD_LEN as usize,
             Self::TimeEntries(entries) => size_of_val(*entries),
@@ -276,6 +315,7 @@ impl Field<'_> {
             Self::Dword(field) => m.dword(*field),
             Self::Dwords(fields) => fields.iter().try_for_each(|field| m.dword(*field)),
             Self::Text { cells, from, len } => m.text(*cells, *from, *len),
+            Self::Bytes { len, get, set } => m.bytes(*len, get, set),
             Self::Player(player) => m.player(player),
             Self::Records(records) => records.iter().try_for_each(|record| m.words(record)),
             Self::TimeEntries(entries) => entries.iter().try_for_each(|entry| time_entry(entry, m)),
@@ -365,7 +405,11 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         Field::Dword(&menus.play.champ_view.services),                       // the services counted
         Field::Dword(&menus.screens.flow.kept),                          // kept by the event races
         Field::Dword(&race.shared.state.settings.a8_game),               // the race settings' first word
-        Field::Text { cells: &menus.play.arcade.levels_won, from: 0, len: 6 },                    // the arcade levels won, a byte each
+        Field::Bytes {                                          // the arcade levels won, a byte each
+            len: 6,
+            get: Box::new(|| menus.play.arcade.read().levels_won[..6].to_vec()),
+            set: Box::new(|bytes| menus.play.arcade.write().levels_won[..6].copy_from_slice(bytes)),
+        },
         Field::Dwords(numbers.first_numbers.iter().map(|n| n as &dyn DwordLike).collect()),                // the first list of car numbers
         Field::Dwords(numbers.second_numbers[..20].iter().map(|n| n as &dyn DwordLike).collect()),         // the second list of car numbers, 20 entries
         Field::Records(&tables.championship),              // the championship's records

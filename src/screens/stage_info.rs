@@ -17,11 +17,11 @@ fn stage_record_in(
     let base = system
         .records()
         .stage_tables
-        .level_table(play.arcade.level.get())?;
+        .level_table(play.arcade.read().level)?;
     crate::records::stages_store::row(
         &system.records().stage_tables,
         base,
-        play.arcade.stage.get(),
+        play.arcade.read().stage,
     )
 }
 

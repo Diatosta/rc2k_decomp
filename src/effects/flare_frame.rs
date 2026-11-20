@@ -1,4 +1,4 @@
-//! `effects::flare_frame`: `scene::set_texture` with `KindTextureTables.kind_first_slots[202]`,
+//! `effects::flare_frame`: `scene::set_texture` with `KindSlots.kind_first_slots[202]`,
 //! `scene::depth_test_off`, and when the settings' `listener_figures[0]` (the flare's strength) is
 //! set `effects::draw_lens_flare`.
 //!

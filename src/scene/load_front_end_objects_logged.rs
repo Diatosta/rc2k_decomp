@@ -20,9 +20,7 @@ const TOTALS: [Total; 4] = [
     (c"total pointmem", |scene| {
         scene.object_work().point_memory_total
     }),
-    (c"total faces", |scene| {
-        scene.objects.tables.get().face_count.get()
-    }),
+    (c"total faces", |scene| scene.texture_levels().face_count),
     (c"total facemem", |scene| {
         scene.object_work().face_memory_total
     }),

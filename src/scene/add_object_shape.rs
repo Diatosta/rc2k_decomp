@@ -33,7 +33,7 @@ fn room(
         point_count: scene.objects.tables.get().point_count.get(),
         face_memory: course.lists.get().face_memory.get(),
         face_cursor: scene.object_work().face_cursor,
-        face_count: scene.objects.tables.get().face_count.get(),
+        face_count: scene.texture_levels().face_count,
     };
     if slot >= SLOTS || room.points == 0 || room.face_memory == 0 {
         return Err(BadInput(
@@ -100,7 +100,7 @@ pub fn add_object_shape(
         scene.drawing.scene.get().scratch.set(reach);
     }
     course.course.get().shape_radius.set(shape.radius);
-    scene.objects.slots.get().radii[slot].set(shape.radius);
+    scene.loaded_slots_mut().radii[slot] = shape.radius;
     scene.objects.slots.get().point_counts[slot].set(count - first_point);
     let first_normal = count;
     scene.object_work_mut().shape_firsts[2] = first_normal;
@@ -117,14 +117,11 @@ pub fn add_object_shape(
     }
     scene.object_work_mut().shape_counts[5..7]
         .copy_from_slice(&[shape.lowest_texture, shape.highest_texture]);
-    let without: u32 = scene.objects.slots.get().no_normals.get();
-    scene
-        .objects
-        .slots
-        .get()
-        .no_normals
-        .set(without.wrapping_add(shape.missing_normals));
-    scene.objects.tables.get().face_count.set(face_number);
+    {
+        let mut slots = scene.loaded_slots_mut();
+        slots.no_normals = slots.no_normals.wrapping_add(shape.missing_normals);
+    }
+    scene.texture_levels_mut().face_count = face_number;
     scene.object_work_mut().face_cursor = out as u32 - room.face_memory;
 
     // The normals.

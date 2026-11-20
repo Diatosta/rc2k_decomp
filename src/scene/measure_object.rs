@@ -52,14 +52,9 @@ pub fn measure_object(
         };
         let Some(m) = measure(&mut points) else {
             // The half extents are not touched for an object of no points.
-            crate::memory::session::write_first(
-                &scene.objects.slots.get().measures[..3],
-                &[0u32; 3],
-            );
-            crate::memory::session::write_first(
-                &scene.objects.slots.get().measures[6..],
-                &[[LOWEST_START; 3], [HIGHEST_START; 3]].concat(),
-            );
+            let mut slots = scene.loaded_slots_mut();
+            slots.measures[..3].copy_from_slice(&[0u32; 3]);
+            slots.measures[6..].copy_from_slice(&[[LOWEST_START; 3], [HIGHEST_START; 3]].concat());
             return Ok(());
         };
         for (n, p) in points.iter().enumerate() {
@@ -68,10 +63,10 @@ pub fn measure_object(
                 .object_points
                 .set_point(at as u32 + 12 * n as u32, *p)?;
         }
-        crate::memory::session::write_first(
-            &scene.objects.slots.get().measures,
-            &[m.middle, m.half, m.lowest, m.highest].concat(),
-        );
+        scene
+            .loaded_slots_mut()
+            .measures
+            .copy_from_slice(&[m.middle, m.half, m.lowest, m.highest].concat());
         Ok(())
     }
 }

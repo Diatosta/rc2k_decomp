@@ -24,7 +24,7 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::input::take_key::take_key;
-use crate::memory::session::{DwordLike, FlagLike, PlainFloat};
+use crate::memory::session::{DwordLike, PlainFloat};
 use crate::menu::handle_keys::handle_keys;
 use crate::menu::lists_store::{CarList, CarListParts};
 use crate::menu::menus_store::MenuId;
@@ -93,28 +93,53 @@ pub enum ScreenVar {
 }
 
 impl ScreenVar {
-    /// The variable in `menus`.
-    pub fn cell(self, menus: &Menus) -> &dyn DwordLike {
+    /// The variable's value in `menus`.
+    pub fn get(self, menus: &Menus) -> u32 {
         let screens = &menus.screens;
         match self {
-            ScreenVar::ArcadeLevel => &menus.play.arcade.level,
-            ScreenVar::ArcadeStage => &menus.play.arcade.stage,
-            ScreenVar::StageMode => &menus.play.champ_view.stage_mode,
-            ScreenVar::NoticeDue => &menus.play.cheats.notice_due,
-            ScreenVar::ActionMode => &screens.draw_work.action_mode,
-            ScreenVar::ClearsEscapeFlag => &screens.event.clears_escape_flag,
-            ScreenVar::CurrentPlayer => &screens.event.current_player,
-            ScreenVar::EventIndex => &screens.event.stage_in_section,
-            ScreenVar::EventSection => &screens.event.section,
-            ScreenVar::ServiceNext => &screens.event.service.next,
-            ScreenVar::StageGroup => &screens.event.stage.group,
-            ScreenVar::StageNumber => &screens.event.stage.number,
-            ScreenVar::StageSub => &screens.event.stage.sub,
-            ScreenVar::LeftService => &screens.flow.left_service,
-            ScreenVar::Quiet => &screens.flow.quiet,
-            ScreenVar::Highlight => &screens.loop_flags.item,
-            ScreenVar::SavedItem(slot) => &screens.items.current[slot],
-            ScreenVar::YesNoAnswer => &menus.tables.pages.yes_no_answer,
+            ScreenVar::ArcadeLevel => menus.play.arcade.read().level,
+            ScreenVar::ArcadeStage => menus.play.arcade.read().stage,
+            ScreenVar::StageMode => menus.play.champ_view.stage_mode.get(),
+            ScreenVar::NoticeDue => menus.play.cheats.notice_due.get(),
+            ScreenVar::ActionMode => screens.draw_work.read().action_mode,
+            ScreenVar::ClearsEscapeFlag => screens.event.clears_escape_flag.get(),
+            ScreenVar::CurrentPlayer => screens.event.current_player.get(),
+            ScreenVar::EventIndex => screens.event.stage_in_section.get(),
+            ScreenVar::EventSection => screens.event.section.get(),
+            ScreenVar::ServiceNext => screens.event.service.next.get(),
+            ScreenVar::StageGroup => screens.event.stage.group.get(),
+            ScreenVar::StageNumber => screens.event.stage.number.get(),
+            ScreenVar::StageSub => screens.event.stage.sub.get(),
+            ScreenVar::LeftService => screens.flow.left_service.get(),
+            ScreenVar::Quiet => screens.flow.quiet.get(),
+            ScreenVar::Highlight => screens.loop_flags.item.get(),
+            ScreenVar::SavedItem(slot) => screens.items.current[slot].get(),
+            ScreenVar::YesNoAnswer => menus.tables.pages.yes_no_answer.get(),
+        }
+    }
+
+    /// Sets the variable in `menus`.
+    pub fn set(self, menus: &Menus, value: u32) {
+        let screens = &menus.screens;
+        match self {
+            ScreenVar::ArcadeLevel => menus.play.arcade.write().level = value,
+            ScreenVar::ArcadeStage => menus.play.arcade.write().stage = value,
+            ScreenVar::StageMode => menus.play.champ_view.stage_mode.set(value),
+            ScreenVar::NoticeDue => menus.play.cheats.notice_due.set(value),
+            ScreenVar::ActionMode => screens.draw_work.write().action_mode = value,
+            ScreenVar::ClearsEscapeFlag => screens.event.clears_escape_flag.set(value),
+            ScreenVar::CurrentPlayer => screens.event.current_player.set(value),
+            ScreenVar::EventIndex => screens.event.stage_in_section.set(value),
+            ScreenVar::EventSection => screens.event.section.set(value),
+            ScreenVar::ServiceNext => screens.event.service.next.set(value),
+            ScreenVar::StageGroup => screens.event.stage.group.set(value),
+            ScreenVar::StageNumber => screens.event.stage.number.set(value),
+            ScreenVar::StageSub => screens.event.stage.sub.set(value),
+            ScreenVar::LeftService => screens.flow.left_service.set(value),
+            ScreenVar::Quiet => screens.flow.quiet.set(value),
+            ScreenVar::Highlight => screens.loop_flags.item.set(value),
+            ScreenVar::SavedItem(slot) => screens.items.current[slot].set(value),
+            ScreenVar::YesNoAnswer => menus.tables.pages.yes_no_answer.set(value),
         }
     }
 }
@@ -145,20 +170,37 @@ pub enum ScreenFlag {
 }
 
 impl ScreenFlag {
-    /// The flag in `menus`.
-    pub fn cell(self, menus: &Menus) -> &dyn FlagLike {
+    /// Whether the flag is set in `menus`.
+    pub fn is_set(self, menus: &Menus) -> bool {
         let screens = &menus.screens;
         match self {
-            ScreenFlag::EscapePressed => &screens.draw_work.escape_pressed,
-            ScreenFlag::EventOver => &screens.event.event_over,
-            ScreenFlag::Asking => &screens.flow.asking,
-            ScreenFlag::AskLeave => &screens.loop_flags.ask_leave,
-            ScreenFlag::EventLeft => &screens.loop_flags.event_left,
-            ScreenFlag::LeaveScreen => &screens.loop_flags.leave_screen,
-            ScreenFlag::LeftWithCarry => &screens.loop_flags.left_with_carry,
-            ScreenFlag::SkipEditValues => &screens.state.menus.skip_edit_values,
-            ScreenFlag::StandingsShown => &screens.state.menus.standings_shown,
-            ScreenFlag::LeftByKey => &menus.tables.captions.left_by_key,
+            ScreenFlag::EscapePressed => screens.draw_work.read().escape_pressed,
+            ScreenFlag::EventOver => screens.event.event_over.is_set(),
+            ScreenFlag::Asking => screens.flow.asking.is_set(),
+            ScreenFlag::AskLeave => screens.loop_flags.ask_leave.is_set(),
+            ScreenFlag::EventLeft => screens.loop_flags.event_left.is_set(),
+            ScreenFlag::LeaveScreen => screens.loop_flags.leave_screen.is_set(),
+            ScreenFlag::LeftWithCarry => screens.loop_flags.left_with_carry.is_set(),
+            ScreenFlag::SkipEditValues => screens.state.menus.skip_edit_values.is_set(),
+            ScreenFlag::StandingsShown => screens.state.menus.standings_shown.is_set(),
+            ScreenFlag::LeftByKey => menus.tables.captions.left_by_key.is_set(),
+        }
+    }
+
+    /// Sets or clears the flag in `menus`.
+    pub fn set(self, menus: &Menus, on: bool) {
+        let screens = &menus.screens;
+        match self {
+            ScreenFlag::EscapePressed => screens.draw_work.write().escape_pressed = on,
+            ScreenFlag::EventOver => screens.event.event_over.set(on),
+            ScreenFlag::Asking => screens.flow.asking.set(on),
+            ScreenFlag::AskLeave => screens.loop_flags.ask_leave.set(on),
+            ScreenFlag::EventLeft => screens.loop_flags.event_left.set(on),
+            ScreenFlag::LeaveScreen => screens.loop_flags.leave_screen.set(on),
+            ScreenFlag::LeftWithCarry => screens.loop_flags.left_with_carry.set(on),
+            ScreenFlag::SkipEditValues => screens.state.menus.skip_edit_values.set(on),
+            ScreenFlag::StandingsShown => screens.state.menus.standings_shown.set(on),
+            ScreenFlag::LeftByKey => menus.tables.captions.left_by_key.set(on),
         }
     }
 }
@@ -287,8 +329,8 @@ impl Step {
         scratch: &crate::scene::scratch_store::DrawingScratch,
     ) -> bool {
         match *self {
-            Step::Write(variable, value) => variable.cell(menus).set(value),
-            Step::WriteFlag(flag, on) => flag.cell(menus).set(on),
+            Step::Write(variable, value) => variable.set(menus, value),
+            Step::WriteFlag(flag, on) => flag.set(menus, on),
             Step::Sound(sound) => menus.screens.entry.set_sound(sound),
             Step::WriteScene(variable, value) => variable.cell(scratch).set(value),
             Step::WriteSceneF32(variable, value) => variable.cell(scratch).set(value),
@@ -904,9 +946,9 @@ impl Callee {
 /// anyway): before, a "no" given with Escape left the screen below at its next frame.
 /// Returns whether it was set (and so `leave_screen` was cleared with it).
 fn clear_escape(screens: &Screens) -> bool {
-    let pressed = screens.draw_work.escape_pressed.is_set();
+    let pressed = screens.draw_work.read().escape_pressed;
     if pressed {
-        screens.draw_work.escape_pressed.set(false);
+        screens.draw_work.write().escape_pressed = false;
         screens.loop_flags.leave_screen.set(false);
     }
     pressed
@@ -1028,14 +1070,13 @@ impl MenuHost<'_> {
     }
 
     /// The variable the highlight is kept in around an item's action.
-    fn action_item(&self) -> &dyn DwordLike {
+    fn action_item(&self) -> ScreenVar {
         ScreenVar::SavedItem(
             self.screen
                 .keys
                 .action_saved_item
                 .unwrap_or(self.screen.saved_item),
         )
-        .cell(self.entry.menus)
     }
 }
 
@@ -1049,11 +1090,10 @@ impl ScreenHost for MenuHost<'_> {
     fn restore_highlight(&mut self) {
         let menus = self.entry.menus;
         menus.tables.captions.left_by_key.set(false);
-        self.screens().loop_flags.item.set(
-            ScreenVar::SavedItem(self.screen.saved_item)
-                .cell(menus)
-                .get(),
-        );
+        self.screens()
+            .loop_flags
+            .item
+            .set(ScreenVar::SavedItem(self.screen.saved_item).get(menus));
         clear_escape(self.screens());
     }
 
@@ -1123,7 +1163,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn escape_flag(&self) -> bool {
-        self.screens().draw_work.escape_pressed.is_set()
+        self.screens().draw_work.read().escape_pressed
     }
 
     fn quitting(&self) -> bool {
@@ -1186,7 +1226,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn keep_action_item(&mut self, item: u32) {
-        self.action_item().set(item);
+        self.action_item().set(self.entry.menus, item);
     }
 
     fn clear_escape(&mut self) -> bool {
@@ -1207,7 +1247,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn restore_action_item(&mut self) {
-        let kept = self.action_item().get();
+        let kept = self.action_item().get(self.entry.menus);
         self.screens().loop_flags.item.set(kept);
     }
 
@@ -1224,7 +1264,7 @@ impl ScreenHost for MenuHost<'_> {
         let menus = self.entry.menus;
         self.screen
             .leave_at_once
-            .is_some_and(|flag| flag.cell(menus).is_set())
+            .is_some_and(|flag| flag.is_set(menus))
     }
 
     fn left_by_key(&self) -> bool {
@@ -1246,7 +1286,7 @@ impl ScreenHost for MenuHost<'_> {
             .asking
             .as_ref()
             .and_then(|asking| asking.also_if)
-            .is_some_and(|flag| flag.cell(menus).is_set())
+            .is_some_and(|flag| flag.is_set(menus))
     }
 
     fn confirm_leaving(&mut self) -> Result<(), Refused> {
@@ -1264,9 +1304,7 @@ impl ScreenHost for MenuHost<'_> {
             .screen
             .leave_saved_item
             .unwrap_or(self.screen.saved_item);
-        ScreenVar::SavedItem(kept)
-            .cell(menus)
-            .set(self.screens().loop_flags.item.get());
+        ScreenVar::SavedItem(kept).set(menus, self.screens().loop_flags.item.get());
     }
 }
 

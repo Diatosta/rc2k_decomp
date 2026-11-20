@@ -37,7 +37,7 @@ pub fn menu_item(menus: &Menus) -> u32 {
 }
 
 pub fn blink_on(menus: &Menus) -> bool {
-    menus.screens.draw_work.blink.is_set()
+    menus.screens.draw_work.read().blink
 }
 
 /// Menu items of the service area that have a flag: 0 .. 19. Entry 20 of both flag tables is

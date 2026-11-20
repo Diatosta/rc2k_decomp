@@ -26,14 +26,13 @@
 //! A refusal by one of its parts comes with the work half done.
 
 use crate::errors::Refused;
-use crate::memory::session::PlainDword;
 use crate::scene::allocate_point_records::allocate_point_records_in_game;
 use crate::scene::clear_slot_kinds::clear_slot_kinds;
 use crate::scene::fill_light_tables::fill_light_tables;
 use crate::scene::fill_scene_light_tables::fill_scene_light_tables;
 use crate::scene::known_kind::known_kind;
 use crate::scene::known_kind_picture::known_kind_picture;
-use crate::scene::owner::Scene;
+use crate::scene::object_tables_store::TextureLevels;
 use crate::scene::reload_slot_textures::reload_slot_textures;
 use crate::scene::reset_texture_places::reset_texture_places;
 use crate::scene::reset_texture_tables::reset_texture_tables;
@@ -41,13 +40,13 @@ use crate::scene::set_up_object_memory::set_up_object_memory;
 use crate::scene::view_matrix::set_view_matrices;
 
 // ---- game data ----
-fn system_levels(scene: &Scene) -> &[PlainDword; 1024] {
-    &scene.objects.tables.get().system_levels
+fn system_levels(levels: &mut TextureLevels) -> &mut [u32; 1024] {
+    &mut levels.system_levels
 }
-fn video_levels(scene: &Scene) -> &[PlainDword; 1024] {
-    &scene.objects.tables.get().video_levels
+fn video_levels(levels: &mut TextureLevels) -> &mut [u32; 1024] {
+    &mut levels.video_levels
 }
-type Levels = for<'a> fn(&'a Scene) -> &'a [PlainDword; 1024];
+type Levels = for<'a> fn(&'a mut TextureLevels) -> &'a mut [u32; 1024];
 /// The textures needed: how many, the first, the levels' table, the tag.
 const NEEDS: [(usize, usize, Levels, u32); 6] = [
     (0x2A, 0x258, system_levels, 0x63),
@@ -93,9 +92,10 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     crate::logfile::load_times::phase("front end scene: textures made");
     reset_texture_tables(scene);
     for (count, first, levels, tag) in NEEDS {
+        let mut tables = scene.texture_levels_mut();
         for texture in first..first + count {
-            levels(scene)[texture].set(0);
-            scene.objects.tables.get().texture_tags[texture].set(tag);
+            levels(&mut tables)[texture] = 0;
+            tables.texture_tags[texture] = tag;
         }
     }
     crate::scene::set_up_textures::set_up_textures(shared, scene, o.gfx, &o.gfx.d3d)?;
@@ -118,16 +118,16 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     shared.switches.get().scene_set_up.set(1u32);
     fill_light_tables(scene, race)?;
 
-    scene.objects.tables.get().slot_kinds[0].set(1);
+    scene.texture_levels_mut().slot_kinds[0] = 1;
     for slot in 1..0x29 {
-        scene.objects.tables.get().slot_kinds[slot].set(0x258 + slot as u32);
+        scene.texture_levels_mut().slot_kinds[slot] = 0x258 + slot as u32;
     }
     for slot in 0x29..0x2D {
-        scene.objects.tables.get().slot_kinds[slot].set(0x262 + slot as u32);
+        scene.texture_levels_mut().slot_kinds[slot] = 0x262 + slot as u32;
     }
     for place in 0..0x22usize {
-        scene.objects.tables.get().slot_kinds[0x2D + place]
-            .set(known_kind(race.kind_tables(), place as u32));
+        scene.texture_levels_mut().slot_kinds[0x2D + place] =
+            known_kind(race.kind_tables(), place as u32);
     }
     crate::logfile::load_times::phase("front end scene: objects");
     crate::scene::load_front_end_objects_logged::load_front_end_objects_logged(race, scene)?;

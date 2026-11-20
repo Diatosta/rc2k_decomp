@@ -58,7 +58,7 @@ pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
     for (k, &(o, _)) in pairs.iter().enumerate() {
         menus.play.results.order[k].set(o);
     }
-    menus.screens.draw_work.button_y.set(3);
+    menus.screens.draw_work.write().button_y = 3;
     for (k, to) in targets.iter().enumerate() {
         to.position.set(k as u32 + 1);
     }

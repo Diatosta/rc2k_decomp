@@ -138,7 +138,7 @@ pub fn steps(
         .wrapping_sub(c.car.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         let (reach, _) = contacts::reach(
-            scene.objects.slots.get().radii[c.contact.face_object.get() as usize].get(),
+            scene.loaded_slots().radii[c.contact.face_object.get() as usize],
             scene.object_work().size,
         );
         if contacts::out_of_reach(reach, distance) {

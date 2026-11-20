@@ -189,10 +189,10 @@ fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
             Some(cell) => cell.get(),
             None => course.stage_prefs.get().fixed_kinds[n as usize - n_defaults].get(),
         };
-        scene.objects.tables.get().slot_kinds[n as usize].set(default);
+        scene.texture_levels_mut().slot_kinds[n as usize] = default;
     }
 
-    scene.objects.tables.get().slot_kinds[64].set(race.shared.switches.get().kept_kind.get());
+    scene.texture_levels_mut().slot_kinds[64] = race.shared.switches.get().kept_kind.get();
     let cars: u32 = race.shared.view.get().race_cars.get();
     if cars == 0 {
         return Ok(());
@@ -207,7 +207,7 @@ fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                 CarKind::Table11 => car_table(&race.kind_tables().kind_11_table, car),
                 CarKind::Table10 => car_table(&race.kind_tables().kind_10_table, car),
             };
-            scene.objects.tables.get().slot_kinds[(slots + slot) as usize].set(k);
+            scene.texture_levels_mut().slot_kinds[(slots + slot) as usize] = k;
         }
         slots += CAR_SLOT_STEP;
     }
@@ -233,7 +233,7 @@ pub(super) fn reload_objects(
     log(c"total points", false);
     log_number(scene.objects.tables.get().point_count.get(), false);
     log(c"total polys", false);
-    log_number(scene.objects.tables.get().face_count.get(), false);
+    log_number(scene.texture_levels().face_count, false);
     log(c"facemem used", false);
     log_number(scene.object_work().face_cursor, true);
     log(c"LOAD OBJECTS - FINIS", true);

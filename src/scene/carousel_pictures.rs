@@ -48,7 +48,7 @@ pub fn update(
     if first_slot.checked_add(32).is_none_or(|end| end > SLOTS) {
         return Err(BadInput("the pictures' slots lie past the table"));
     }
-    let first_texture: u32 = scene_textures.kinds.get().kind_first_textures[KIND].get();
+    let first_texture: u32 = scene_textures.first_textures()[KIND];
     write_all(&carousel.pictures.shown, wanted);
 
     // Logic: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.

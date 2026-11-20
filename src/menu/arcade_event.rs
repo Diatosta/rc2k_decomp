@@ -1,7 +1,7 @@
 use crate::errors::Refused;
 use crate::memory::session::DwordLike;
 use crate::memory::session::PlainDword;
-use crate::menu::event_flow::switch_cell;
+use crate::menu::event_flow::{set_switch, switch_is_set};
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_id::ScreenId;
@@ -36,7 +36,6 @@ fn cell(race: &Race, v: Var) -> Option<&dyn DwordLike> {
 
 fn address(menus: &Menus, v: Var) -> &'_ PlainDword {
     match v {
-        Var::Failed => &menus.play.arcade.retry,
         Var::TotalA8 => &menus.play.results.players[0].before,
         Var::Total798 => &menus.play.results.players[0].sum,
         Var::TotalB8 => &menus.play.results.players[0].total,
@@ -44,14 +43,15 @@ fn address(menus: &Menus, v: Var) -> &'_ PlainDword {
         Var::Figure758 => &menus.play.results.players[0].time_bonus,
         Var::PlayerCount => &menus.screens.event.player_count,
         Var::EventMode => &menus.screens.event.event_kind,
-        Var::Stage => &menus.play.arcade.stage,
-        Var::Level => &menus.play.arcade.level,
         Var::Current => &menus.screens.event.current_player,
         Var::Answer => &menus.tables.pages.yes_no_answer,
         Var::Cheats => &menus.play.cheats.cheats,
         Var::Qualifies => &menus.screens.event.trial.qualifies,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
-        Var::RaceStage
+        Var::Failed
+        | Var::Stage
+        | Var::Level
+        | Var::RaceStage
         | Var::RaceLevel
         | Var::CheatSwitch
         | Var::RaceResult
@@ -65,6 +65,13 @@ impl arcade::Arcade for Game<'_> {
 
     fn get(&mut self, v: Var) -> u32 {
         let menus = self.menus;
+        let arcade = menus.play.arcade.read();
+        match v {
+            Var::Failed => return arcade.retry,
+            Var::Stage => return arcade.stage,
+            Var::Level => return arcade.level,
+            _ => {}
+        }
         match cell(self.owners.race, v) {
             Some(cell) => cell.get(),
             None => address(menus, v).get(),
@@ -75,6 +82,9 @@ impl arcade::Arcade for Game<'_> {
         let menus = self.menus;
         match v {
             Var::Player0Entry => self.player0.update(|p| p.entry = value),
+            Var::Failed => menus.play.arcade.write().retry = value,
+            Var::Stage => menus.play.arcade.write().stage = value,
+            Var::Level => menus.play.arcade.write().level = value,
             _ => match cell(self.owners.race, v) {
                 Some(cell) => cell.set(value),
                 None => address(menus, v).set(value),
@@ -83,11 +93,11 @@ impl arcade::Arcade for Game<'_> {
     }
 
     fn flag(&mut self, s: Switch) -> bool {
-        switch_cell(self.owners.menus, self.owners.system, s).is_set()
+        switch_is_set(self.owners.menus, self.owners.system, s)
     }
 
     fn set_flag(&mut self, s: Switch, on: bool) {
-        switch_cell(self.owners.menus, self.owners.system, s).set(on);
+        set_switch(self.owners.menus, self.owners.system, s, on);
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
@@ -134,11 +144,11 @@ impl arcade::Arcade for Game<'_> {
             Step::KeepStageBest => {
                 // The stage's record in the level's table.
                 let stages = &self.owners.system.records().stage_tables;
-                let level = stages.level_table(play.arcade.level.get())?;
+                let level = stages.level_table(play.arcade.read().level)?;
                 a::keep_arcade_stage_best(
                     menus,
                     stages,
-                    level.row(stages, play.arcade.stage.get())?,
+                    level.row(stages, play.arcade.read().stage)?,
                 )?;
             }
             Step::CheckStageTime => a::check_arcade_stage_time(menus, self.owners.system, tables)?,

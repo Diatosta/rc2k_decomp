@@ -1057,25 +1057,18 @@ impl IntLike for PlainInt {
     }
 }
 
-/// A flag cell, shared (`Flag`) or the game thread's (`PlainFlag`).
+/// A flag cell, shared (`Flag`) or the game thread's (`PlainFlag`), written as a bool.
 pub trait FlagLike {
-    fn is_set(&self) -> bool;
     fn set(&self, value: bool);
 }
 
 impl FlagLike for Flag {
-    fn is_set(&self) -> bool {
-        Flag::is_set(self)
-    }
     fn set(&self, value: bool) {
         Flag::set(self, value);
     }
 }
 
 impl FlagLike for PlainFlag {
-    fn is_set(&self) -> bool {
-        PlainFlag::is_set(self)
-    }
     fn set(&self, value: bool) {
         PlainFlag::set(self, value);
     }

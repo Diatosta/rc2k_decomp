@@ -19,16 +19,14 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
             }
             if menus.tables.captions.left_by_key.is_set() {
                 menus.tables.captions.left_by_key.set(false);
-                menus.screens.draw_work.leave_result.set(0xFFFFFFFFu32);
+                menus.screens.draw_work.write().leave_result = 0xFFFFFFFFu32;
                 return Ok(Flow::Leave);
             }
             // 0x14 replays a page; the items count from 1.
             let replay = menus.tables.pages.replay_page.get().wrapping_mul(0x14);
-            menus.screens.draw_work.leave_result.set(
-                replay
-                    .wrapping_add(menus.screens.loop_flags.item.get())
-                    .wrapping_sub(1),
-            );
+            menus.screens.draw_work.write().leave_result = replay
+                .wrapping_add(menus.screens.loop_flags.item.get())
+                .wrapping_sub(1);
             return Ok(Flow::Leave);
         }
     }
@@ -38,7 +36,7 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
 /// What the loop returns: `DrawWork.leave_result`, which the step above leaves at -1 or at the
 /// replay's number.
 fn result(menus: &Menus) -> u32 {
-    menus.screens.draw_work.leave_result.get()
+    menus.screens.draw_work.read().leave_result
 }
 
 pub const SCREEN: Screen = Screen {

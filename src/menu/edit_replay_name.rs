@@ -92,7 +92,7 @@ pub(super) fn edit_replay_name(
         // Printable keys come as typed text, not as keys.
         Key::Other(_) => {}
     }
-    let cursor_on = menus.screens.draw_work.cursor_on.is_set();
+    let cursor_on = menus.screens.draw_work.read().cursor_on;
     let mut tail = Vec::new();
     if cursor_on {
         push_string(so, &mut tail, CURSOR_STRING)?;

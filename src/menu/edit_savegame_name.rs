@@ -140,7 +140,7 @@ pub fn edit_savegame_name(
         Key::Other(_) => {}
     }
     let mut tail = Vec::new();
-    if screens.draw_work.cursor_on.is_set() {
+    if screens.draw_work.read().cursor_on {
         push_string(so, &mut tail, CURSOR_STRING)?;
     }
     tail.push(0);

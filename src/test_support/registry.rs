@@ -470,7 +470,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.menus.cars.table", on_game(&o.menus.cars.table),),
         listed!("owners.menus.play.cheats", on_game(&o.menus.play.cheats),),
         listed!("owners.menus.play.results", on_game(&o.menus.play.results),),
-        listed!("owners.menus.play.arcade", on_game(&o.menus.play.arcade),),
         listed!(
             "owners.menus.tables.captions",
             on_game(&o.menus.tables.captions),
@@ -494,10 +493,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.menus.screens.event",
             on_game(&o.menus.screens.event),
-        ),
-        listed!(
-            "owners.menus.screens.draw_work",
-            on_game(&o.menus.screens.draw_work),
         ),
         listed!(
             "owners.system.records.stage_tables",

@@ -36,7 +36,7 @@ pub fn learn_axis(
         controls.learning.set(0);
         return Ok(());
     }
-    if screens.draw_work.blink.is_set() {
+    if screens.draw_work.read().blink {
         let item = screens
             .loop_flags
             .menu

@@ -46,11 +46,7 @@ fn unlock_refusing(
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    lock(
-        gfx,
-        scene.textures.kinds.get().kind_first_textures[211].get(),
-        false,
-    )?;
+    lock(gfx, scene.textures.first_textures()[211], false)?;
     Err(BadInput(why).into())
 }
 
@@ -67,11 +63,7 @@ pub(super) fn set_up_surface(
     let setup = &effects.setup;
     // The mask's copy is Rust's memory, counted on the list.
     let mut mask = crate::memory::owned::counted(&masks.list.list, MASK_BYTES)?;
-    lock(
-        gfx,
-        scene.textures.kinds.get().kind_first_textures[211].get(),
-        true,
-    )?;
+    lock(gfx, scene.textures.first_textures()[211], true)?;
     if gfx.drawing.draw_surface.width.get() < SIDE || gfx.drawing.draw_surface.height.get() < SIDE {
         return unlock_refusing("a surface under 256 x 256", scene, gfx);
     }
@@ -100,11 +92,7 @@ pub(super) fn set_up_surface(
         let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
         put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8, gfx, system)?;
     }
-    lock(
-        gfx,
-        scene.textures.kinds.get().kind_first_textures[211].get(),
-        false,
-    )?;
+    lock(gfx, scene.textures.first_textures()[211], false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
         scene.textures.kinds.get().kind_first_slots[211].get(),
         scene,

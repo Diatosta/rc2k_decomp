@@ -12,10 +12,10 @@ use rc2k_core::net::record;
 /// here.
 pub fn choose_stage(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused> {
     let race = o.race;
-    let escape_pressed = &o.menus.screens.draw_work.escape_pressed;
-    escape_pressed.set(false);
+    let draw_work = &o.menus.screens.draw_work;
+    draw_work.write().escape_pressed = false;
     { run_screen(ScreenId::SelectStage, &Entry::new(o)) }?;
-    if !escape_pressed.is_set() {
+    if !draw_work.read().escape_pressed {
         vars.own
             .head
             .set(record::STAGE, race.shared.state.settings.stage.get() as u8);

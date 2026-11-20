@@ -95,7 +95,7 @@ fn draw_time_plate(frame: &Frame, slot: u32, gfx: &'static Gfx) -> Result<(), Re
 
 /// When the two time texts (8 bytes each at `label_behind` / `label_ahead`) differ from their last
 /// copies (`kept_behind` / `kept_ahead`), draws the time plate (`race::draw_time_plate`, slot
-/// `KindTextureTables.kind_first_textures[196]`), makes the copies and sets both views' cars'
+/// `Textures::first_textures[196]`), makes the copies and sets both views' cars'
 /// `notice_counter` to 1. Then for each view (slots `kind_first_textures[196]` / `[197]`) with a
 /// name asked for in its car's `notice_id`, draws it by string id below 0x10000
 /// (`race::draw_plate_by_id`) and sets `notice_last` to it, `notice_id` 0, `notice_counter` and
@@ -132,11 +132,7 @@ pub(super) fn update_name_plates(
         frame.panel_and_overlay.get().overlay.kept_ahead[1].get(),
     ];
     if times_changed(now, kept) {
-        draw_time_plate(
-            frame,
-            textures.kinds.get().kind_first_textures[196].get(),
-            gfx,
-        )?;
+        draw_time_plate(frame, textures.first_textures()[196], gfx)?;
         for (from, to) in [
             (
                 &frame.panel_and_overlay.get().overlay.label_behind[0],
@@ -166,13 +162,7 @@ pub(super) fn update_name_plates(
         match NameAsk::of(asked) {
             NameAsk::Nothing => continue,
             NameAsk::Id(_) => {
-                draw_plate_by_id(
-                    so,
-                    textures.kinds.get().kind_first_textures[slot].get(),
-                    asked,
-                    gfx,
-                    strings,
-                )?;
+                draw_plate_by_id(so, textures.first_textures()[slot], asked, gfx, strings)?;
             }
             NameAsk::Text(_) => {
                 // Every writer of `notice_id` gives a string id: the notices' constants, the view

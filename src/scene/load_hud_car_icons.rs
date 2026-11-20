@@ -39,7 +39,7 @@ pub fn load_hud_car_icons(
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     use rc2k_core::scene::car_icons;
-    let texture: u32 = scene.textures.kinds.get().kind_first_textures[193].get();
+    let texture: u32 = scene.textures.first_textures()[193];
     if texture == u32::MAX {
         return Ok(());
     }

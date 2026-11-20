@@ -14,7 +14,7 @@ pub fn leaving(menus: &Menus) -> Leaving {
         leave_screen: flags.leave_screen.is_set(),
         left_with_carry: flags.left_with_carry.is_set(),
         ask_leave: flags.ask_leave.is_set(),
-        result: screens.draw_work.leave_result.get(),
+        result: screens.draw_work.read().leave_result,
     }
 }
 
@@ -25,7 +25,7 @@ fn put_leaving(menus: &Menus, l: &Leaving) {
     flags.leave_screen.set(l.leave_screen);
     flags.left_with_carry.set(l.left_with_carry);
     flags.ask_leave.set(l.ask_leave);
-    screens.draw_work.leave_result.set(l.result);
+    screens.draw_work.write().leave_result = l.result;
 }
 
 pub fn question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables) -> Question {

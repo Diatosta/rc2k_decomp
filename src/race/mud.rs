@@ -1,7 +1,7 @@
 //! `race::loadlevel_init`'s "render3d initmud": 64 KB on `CourseLists.mud_list[0]` for the mud
 //! (`mud`), the car's mud file (`files\b\mudfile.0xx`, xx the car's file number) read into it, the
 //! mud's state cleared, and 256 colours sampled from a picture surface
-//! (`KindTextureTables.kind_first_textures[193]`, locked and unlocked by `d3d::lock_texture` /
+//! (`Textures::first_textures[193]`, locked and unlocked by `d3d::lock_texture` /
 //! `d3d::unlock_texture`).
 
 use crate::errors::BadInput;
@@ -120,20 +120,14 @@ fn sample_mud_colours(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let textures = &scene.textures;
-    // `KindTextureTables.kind_first_textures[193]`: the surface sampled.
-    crate::d3d::lock_texture::lock_texture_in(
-        gfx,
-        textures.kinds.get().kind_first_textures[193].get(),
-    )?;
+    // `Textures::first_textures[193]`: the surface sampled.
+    crate::d3d::lock_texture::lock_texture_in(gfx, textures.first_textures()[193])?;
     // Logic in `rc2k_core::race::mud::sample_place`.
     for n in 0..rc2k_core::race::mud::SAMPLES {
         let (x, y) = rc2k_core::race::mud::sample_place(n);
         shared.vars.get().mud_colours[n as usize].set(mud_pixel(x, y, gfx, system)?);
     }
-    crate::d3d::unlock_texture::unlock_texture(
-        gfx,
-        textures.kinds.get().kind_first_textures[193].get(),
-    )?;
+    crate::d3d::unlock_texture::unlock_texture(gfx, textures.first_textures()[193])?;
     Ok(())
 }
 

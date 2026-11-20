@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 
 pub(super) fn reload_front_end(o: Owners<'static>) -> Result<(), Refused> {
-    if { o.menus.play.arcade.scene_let_go.get() } == 1 {
+    if { o.menus.play.arcade.read().scene_let_go } == 1 {
         crate::scene::set_up_engine::set_up_engine_in(o.race, o.scene)?;
         crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
         crate::scene::set_up_engine::set_up_engine_in(o.race, o.scene)?;

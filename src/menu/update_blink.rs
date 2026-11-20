@@ -34,8 +34,8 @@ pub fn update_blink(menus: &Menus, system: &System) {
     crate::error_dialog::show_pending();
     {
         let (blink, cursor_on, idle) = states_now(&menus.play.champ_view, &screens.entry, system);
-        screens.draw_work.blink.set(blink);
-        screens.draw_work.cursor_on.set(cursor_on);
+        screens.draw_work.write().blink = blink;
+        screens.draw_work.write().cursor_on = cursor_on;
         screens.loop_flags.idle.set(idle);
     }
 }

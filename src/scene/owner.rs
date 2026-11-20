@@ -6,13 +6,13 @@ use crate::memory::session::{DrawShared, GameThread};
 use crate::scene::draw_store::SceneDraw;
 use crate::scene::draw_switches_store::DrawSwitches;
 use crate::scene::file_numbers_store::{ObjectFileNumbers, PathText};
-use crate::scene::kind_texture_store::KindTextureTables;
+use crate::scene::kind_texture_store::{KindSlots, KindTextures};
 use crate::scene::light_store::LightState;
 use crate::scene::light_tables_store::LightTables;
 use crate::scene::light_work_store::LightWork;
-use crate::scene::object_slots_store::ObjectTables as ObjectSlots;
+use crate::scene::object_slots_store::{LoadedSlots, SlotShapes};
 use crate::scene::object_store::ObjectWork;
-use crate::scene::object_tables_store::ObjectTables;
+use crate::scene::object_tables_store::{ObjectKinds, TextureLevels};
 use crate::scene::texture_places_store::{PlaceSlots, TexturePlaces};
 use std::cell::{Ref, RefCell, RefMut};
 
@@ -47,6 +47,12 @@ struct SceneMain {
     /// The texture places the drawing parts do not read: borrowed for one statement at a time
     /// (`Scene::texture_places`).
     texture_places: RefCell<TexturePlaces>,
+    /// The slots' tables the drawing parts do not read: borrowed for one statement at a time
+    /// (`Scene::loaded_slots`).
+    loaded_slots: RefCell<LoadedSlots>,
+    /// The slots' kinds and the texture level tables: borrowed for one statement at a time
+    /// (`Scene::texture_levels`).
+    texture_levels: RefCell<TextureLevels>,
 }
 
 impl Scene {
@@ -97,6 +103,27 @@ impl Scene {
         self.main.get().texture_places.borrow_mut()
     }
 
+    /// The slots' tables the drawing does not read (but `Objects::slots`), read: no write borrow
+    /// may be held.
+    pub fn loaded_slots(&self) -> Ref<'_, LoadedSlots> {
+        self.main.get().loaded_slots.borrow()
+    }
+
+    /// The slots' tables, to write: no other borrow may be held.
+    pub fn loaded_slots_mut(&self) -> RefMut<'_, LoadedSlots> {
+        self.main.get().loaded_slots.borrow_mut()
+    }
+
+    /// The slots' kinds and the texture level tables, read: no write borrow may be held.
+    pub fn texture_levels(&self) -> Ref<'_, TextureLevels> {
+        self.main.get().texture_levels.borrow()
+    }
+
+    /// The slots' kinds and the texture level tables, to write: no other borrow may be held.
+    pub fn texture_levels_mut(&self) -> RefMut<'_, TextureLevels> {
+        self.main.get().texture_levels.borrow_mut()
+    }
+
     /// The scene objects' work variables, read: no write borrow may be held.
     pub fn object_work(&self) -> Ref<'_, ObjectWork> {
         self.main.get().object_work.borrow()
@@ -127,10 +154,10 @@ pub struct Lights {
 pub struct Objects {
     /// The object slots (`OBJECT_SLOTS`): written between frames, read by the drawing parts
     /// through their reads (`scene::workers::DrawReads`).
-    pub slots: DrawShared<ObjectSlots>,
+    pub slots: DrawShared<SlotShapes>,
     /// The object tables (`OBJECT_TABLES`): written between frames, read by the drawing parts
     /// through their reads (`scene::workers::DrawReads`).
-    pub tables: DrawShared<ObjectTables>,
+    pub tables: DrawShared<ObjectKinds>,
 }
 
 /// The texture places the drawing reads and the kinds' texture tables.
@@ -140,7 +167,21 @@ pub struct Textures {
     pub place_slots: DrawShared<PlaceSlots>,
     /// The kinds' texture tables: written between frames, read by the drawing
     /// parts through their reads (`scene::workers::DrawReads`).
-    pub kinds: DrawShared<KindTextureTables>,
+    pub kinds: DrawShared<KindSlots>,
+    /// Each kind's first texture: borrowed for one statement at a time (`Textures::first_textures`).
+    first_textures: GameThread<RefCell<KindTextures>>,
+}
+
+impl Textures {
+    /// The kinds' first textures, read: no write borrow may be held.
+    pub fn first_textures(&self) -> Ref<'_, KindTextures> {
+        self.first_textures.get().borrow()
+    }
+
+    /// The kinds' first textures, to write: no other borrow may be held.
+    pub fn first_textures_mut(&self) -> RefMut<'_, KindTextures> {
+        self.first_textures.get().borrow_mut()
+    }
 }
 
 impl Scene {
@@ -156,12 +197,13 @@ impl Scene {
                 state: DrawShared::new(LightState::new()),
             },
             objects: Objects {
-                slots: DrawShared::new(ObjectSlots::new()),
-                tables: DrawShared::new(ObjectTables::new()),
+                slots: DrawShared::new(SlotShapes::new()),
+                tables: DrawShared::new(ObjectKinds::new()),
             },
             textures: Textures {
                 place_slots: DrawShared::new(PlaceSlots::new()),
-                kinds: DrawShared::new(KindTextureTables::new()),
+                kinds: DrawShared::new(KindSlots::new()),
+                first_textures: GameThread::new(RefCell::new([0; 1024])),
             },
             main: GameThread::new(SceneMain {
                 file_numbers: RefCell::new(ObjectFileNumbers::new()),
@@ -169,6 +211,8 @@ impl Scene {
                 draw_switches: RefCell::new(DrawSwitches::new()),
                 light_work: RefCell::new(LightWork::new()),
                 texture_places: RefCell::new(TexturePlaces::new()),
+                loaded_slots: RefCell::new(LoadedSlots::new()),
+                texture_levels: RefCell::new(TextureLevels::new()),
             }),
         }
     }

@@ -78,9 +78,7 @@ pub fn update_mud_texture(
             .get()
             .wrapping_add(0x1_0000),
     );
-    let texture = textures.kinds.get().kind_first_textures[256]
-        .get()
-        .wrapping_add(n);
+    let texture = textures.first_textures()[256].wrapping_add(n);
     race.shared.vars.get().mud_locked.set(texture);
     if texture == 0 {
         return Ok(());

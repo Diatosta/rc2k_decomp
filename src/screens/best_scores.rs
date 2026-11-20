@@ -6,7 +6,6 @@
 
 use crate::errors::Fault;
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::DwordLike;
 use crate::memory::session::PlainDword;
 use crate::menu::event_flow::StageTable;
 use crate::menu::owner::Menus;
@@ -28,20 +27,20 @@ fn page_title(titles: &[PlainDword], pages: &MenuPages) -> Result<u32, BadInput>
         .ok_or(BadInput("a best scores page past its title"))
 }
 
-fn arcade_level(menus: &Menus) -> &dyn DwordLike {
-    &menus.play.arcade.level
+fn arcade_level(menus: &Menus) -> u32 {
+    menus.play.arcade.read().level
 }
 
-fn event_class(menus: &Menus) -> &dyn DwordLike {
-    &menus.screens.event.shown.class
+fn event_class(menus: &Menus) -> u32 {
+    menus.screens.event.shown.class.get()
 }
 
-fn event_stage_number(menus: &Menus) -> &dyn DwordLike {
-    &menus.screens.event.stage.number
+fn event_stage_number(menus: &Menus) -> u32 {
+    menus.screens.event.stage.number.get()
 }
 
-fn arcade_stage(menus: &Menus) -> &dyn DwordLike {
-    &menus.play.arcade.stage
+fn arcade_stage(menus: &Menus) -> u32 {
+    menus.play.arcade.read().stage
 }
 
 /// Which typed table a page shows.
@@ -74,7 +73,7 @@ pub struct Table {
     /// The best scores leave the last row's y in `DrawWork.button_x`.
     pub keeps_y: bool,
     /// Where the group's number is: a dword, or (None) the page's entry of the group list.
-    pub group_at: Option<fn(&Menus) -> &dyn DwordLike>,
+    pub group_at: Option<fn(&Menus) -> u32>,
     /// A fixed group instead.
     pub group_fixed: Option<u32>,
     /// An entry whose highlight field is 1 is drawn in the highlight fonts.
@@ -134,7 +133,7 @@ pub(super) fn draw_scores(
         t.at.need(&o.saves.best_tables, "no best scores table")?;
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
-            (None, Some(a)) => a(menus).get(),
+            (None, Some(a)) => a(menus),
             (None, None) => page_title(&menus.lists.page_titles_b, &menus.tables.pages)?,
         };
         let ten = match t.at {
@@ -265,7 +264,7 @@ pub struct StageTimes {
     /// The stage record's table (the records 0xA4 bytes, each with the stage's name string and
     /// its times' number) and the record's number.
     pub records: fn(&Menus, &System) -> Result<RecordTable, BadInput>,
-    pub record: fn(&Menus) -> &dyn DwordLike,
+    pub record: fn(&Menus) -> u32,
     /// The times' table (ten for each stage; the record names the stage's tables).
     pub table: for<'t> fn(&Menus, &'t crate::saves::best_times::BestTables) -> &'t StageTable,
     /// The rally page leaves the sprites' y in `DrawWork.button_x` and the flag's glyph in
@@ -296,7 +295,7 @@ fn rally_records(menus: &Menus, system: &System) -> Result<RecordTable, BadInput
     system
         .records()
         .stage_tables
-        .level_table(menus.play.arcade.level.get())
+        .level_table(menus.play.arcade.read().level)
 }
 
 fn rally_table<'t>(_: &Menus, tables: &'t crate::saves::best_times::BestTables) -> &'t StageTable {
@@ -332,7 +331,7 @@ pub(super) fn draw_times_heading(
     {
         let base = (p.records)(menus, system)?;
         let id = base.title(&system.records().stage_tables)?;
-        let record = base.row(&system.records().stage_tables, (p.record)(menus).get())?;
+        let record = base.row(&system.records().stage_tables, (p.record)(menus))?;
         let line = || -> Result<Vec<u8>, Refused> {
             stage_line_without_nul(
                 crate::strings::append_string_by_id::StringOwners::of(o),
@@ -378,7 +377,7 @@ pub fn draw_stage_times(
     }
     draw_times_heading(o, system, p, canvas)?;
     let group = base
-        .row(&system.records().stage_tables, (p.record)(menus).get())?
+        .row(&system.records().stage_tables, (p.record)(menus))?
         .record(&system.records().stage_tables)?
         .event_slot();
     let keep = if p.rally { Keep::Below4 } else { Keep::Nothing };

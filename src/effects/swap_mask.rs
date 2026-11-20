@@ -36,21 +36,13 @@ pub fn swap_mask(
     masks.blocks.seen.set(switch);
     let chosen = if second { Mask::Bordered } else { Mask::Plain };
     masks.blocks.chosen.set(chosen as u32);
-    lock(
-        gfx,
-        scene.textures.kinds.get().kind_first_textures[202].get(),
-        true,
-    )?;
+    lock(gfx, scene.textures.first_textures()[202], true)?;
     // The width is the locked texture's, not the screen's: checked here (before the lock it
     // refused every frame). A row wider than the mask's would read past its block: unlocked,
     // put back and refused.
     let width: u32 = gfx.drawing.draw_surface.width.get();
     if let Err(e) = masks::check_width(width) {
-        lock(
-            gfx,
-            scene.textures.kinds.get().kind_first_textures[202].get(),
-            false,
-        )?;
+        lock(gfx, scene.textures.first_textures()[202], false)?;
         masks.blocks.seen.set(kept[0]);
         masks.blocks.chosen.set(kept[1]);
         return Err(e.into());
@@ -61,11 +53,7 @@ pub fn swap_mask(
             .collect::<Option<Vec<_>>>()
     })?;
     let Some(pixels) = pixels else {
-        lock(
-            gfx,
-            scene.textures.kinds.get().kind_first_textures[202].get(),
-            false,
-        )?;
+        lock(gfx, scene.textures.first_textures()[202], false)?;
         masks.blocks.seen.set(kept[0]);
         masks.blocks.chosen.set(kept[1]);
         return Err(BadInput("a mask pixel past its block").into());
@@ -73,11 +61,7 @@ pub fn swap_mask(
     for (row, col, pixel) in pixels {
         put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT, gfx, system)?;
     }
-    lock(
-        gfx,
-        scene.textures.kinds.get().kind_first_textures[202].get(),
-        false,
-    )?;
+    lock(gfx, scene.textures.first_textures()[202], false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
         scene.textures.kinds.get().kind_first_slots[202].get(),
         scene,

@@ -8,14 +8,13 @@
 pub fn reset_texture_tables(scene: &crate::scene::owner::Scene) {
     scene.texture_places_mut().kind_slot_bytes = 0; // TexturePlaces.kind_slot_bytes, cleared first
     // The two tables of textures needed, the first slots and the first textures: 0x1000 bytes each.
-    for table in [
-        &scene.objects.tables.get().video_levels,
-        &scene.objects.tables.get().system_levels,
-        &scene.textures.kinds.get().kind_first_slots,
-        &scene.textures.kinds.get().kind_first_textures,
-    ] {
-        for cell in table {
-            cell.set(u32::MAX);
-        }
+    {
+        let mut levels = scene.texture_levels_mut();
+        levels.video_levels.fill(u32::MAX);
+        levels.system_levels.fill(u32::MAX);
     }
+    for cell in &scene.textures.kinds.get().kind_first_slots {
+        cell.set(u32::MAX);
+    }
+    scene.textures.first_textures_mut().fill(u32::MAX);
 }

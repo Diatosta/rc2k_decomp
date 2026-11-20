@@ -23,7 +23,7 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
         if screens.entry.typing.is_set() {
             return Ok(Flow::NextFrame);
         }
-        screens.draw_work.action_mode.set(0x2u32);
+        screens.draw_work.write().action_mode = 0x2u32;
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)

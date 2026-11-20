@@ -304,7 +304,7 @@ pub(super) fn sort_table_a(
         });
     })?;
 
-    screens.draw_work.button_y.set(SORTED - 1);
+    screens.draw_work.write().button_y = SORTED - 1;
 
     Ok(())
 }
@@ -370,7 +370,7 @@ pub(super) fn sort_table_b(
         });
     })?;
 
-    screens.draw_work.button_y.set(SORTED - 1);
+    screens.draw_work.write().button_y = SORTED - 1;
 
     Ok(())
 }

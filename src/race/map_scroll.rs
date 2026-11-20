@@ -7,7 +7,7 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 
-/// Draws the map picture's slot `KindTextureTables.kind_first_textures[198]` (+ `current_car`
+/// Draws the map picture's slot `Textures::first_textures[198]` (+ `current_car`
 /// unless `session`) from tile (corner x >> 4, corner y >> 4).
 pub(super) fn map_tiles(
     race: &Race,
@@ -23,7 +23,7 @@ pub(super) fn map_tiles(
     let one_view = net_race.is_on();
     // The car is read only for both views.
     let slot = picture_slot(
-        scene.textures.kinds.get().kind_first_textures[198].get(),
+        scene.textures.first_textures()[198],
         one_view,
         if one_view { 0 } else { car_number },
     );
@@ -114,8 +114,7 @@ fn further_map_tiles(
 ) -> Result<(), Refused> {
     use rc2k_core::race::map::first_tile;
     let kind = rc2k_core::scene::texture_levels::FURTHER_MAP_TEXTURES[n - 2] as usize;
-    let kinds = scene.textures.kinds.get();
-    let texture = kinds.kind_first_textures[kind].get();
+    let texture = scene.textures.first_textures()[kind];
     if texture == u32::MAX {
         return Err(BadInput("a further player's map texture was not made").into());
     }
@@ -128,7 +127,7 @@ fn further_map_tiles(
         gfx,
     )?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        kinds.kind_first_slots[kind].get(),
+        scene.textures.kinds.get().kind_first_slots[kind].get(),
         scene,
     )
 }

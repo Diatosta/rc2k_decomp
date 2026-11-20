@@ -214,7 +214,7 @@ pub fn load_first_car(shared: &RaceShared) -> Result<(), Refused> {
 }
 
 /// Copies the mirror's surface (slot `mirror_picture`) onto the slot
-/// `KindTextureTables.kind_first_textures[200]`: each pixel goes through `gfx::pixel_to_components`
+/// `Textures::first_textures[200]`: each pixel goes through `gfx::pixel_to_components`
 /// (the screen's format) and back through
 /// `gfx::components_to_pixel` (the destination's) with alpha 0xFF, over the destination's width and
 /// height. Both surfaces are locked and unlocked (`d3d::lock_texture` / `d3d::unlock_texture`).
@@ -232,7 +232,7 @@ fn copy_mirror_picture(
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
     let (from, to) = (
         scene.drawing.scene.get().mirror_picture.get(),
-        scene.textures.kinds.get().kind_first_textures[200].get(),
+        scene.textures.first_textures()[200],
     );
     if !lock_texture_in(gfx, from)? {
         return Ok(());
@@ -304,7 +304,7 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
 
 /// Makes the view textures load again this frame: each adds 0x4000 to `texture_changes` and sets
 /// a bit in `view_textures_forgotten`: the two views' cars' first texture (slots
-/// `KindTextureTables.kind_first_slots[198]` / `[199]`, bits 1, 2) and their counted-down one
+/// `KindSlots.kind_first_slots[198]` / `[199]`, bits 1, 2) and their counted-down one
 /// (slots `[196]` / `[197]`, bits 4, 8), `forget_flag_0` / `forget_flag_1` (slots `[220]` /
 /// `[221]`, bits 0x10, 0x1000). With the mirror on (`mirror_wanted`, not the next flag) bits 0x20
 /// and 0x400 are set too, and the mirror's picture is copied (`race::copy_mirror_picture`, then its
@@ -365,7 +365,7 @@ pub(super) fn forget_view_textures(
         .map(|(_, slot)| slot.get())
         .collect();
     if mirror {
-        slots.push(textures.kinds.get().kind_first_textures[200].get());
+        slots.push(textures.first_textures()[200]);
     }
     trap.finish()?;
     check_slots(&slots)?;
@@ -404,7 +404,7 @@ pub(super) fn forget_view_textures(
         .view_textures_forgotten
         .set(frame.frame_work.get().view_textures_forgotten.get() | MIRROR_BIT);
     copy_mirror_picture(frame, scene, system, gfx)?;
-    forget_slot_texture(textures.kinds.get().kind_first_textures[200].get(), scene)?;
+    forget_slot_texture(textures.first_textures()[200], scene)?;
     frame.panel_and_overlay.get().panel.texture_changes.set(
         frame
             .panel_and_overlay
@@ -485,7 +485,7 @@ fn clear_view_depth(
 /// In a race, when the drawn view's car (`drawn_car`) is seen from inside: sets `view_light_base`
 /// from the car's block, clears the depth (`race::clear_view_depth`) when the car's block asks for
 /// it or `view_cleared` is set, and draws the car (`race::draw_car_shined`) with all parts shown
-/// (`group_mask` -1), texture `KindTextureTables.kind_first_slots[202]`, render state 0x14 = 2,
+/// (`group_mask` -1), texture `KindSlots.kind_first_slots[202]`, render state 0x14 = 2,
 /// `polygon_vertex_count` 4, then the marks' overlays (`race::draw_marks_overlays`). Refuses
 /// (before anything) the car without its block.
 pub fn draw_own_car(

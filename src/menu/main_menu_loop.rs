@@ -34,7 +34,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     prepare_scene(&entry.owners); // scene::prepare_menu_scene
     menus.screens.loop_flags.ask_leave.set(false);
     Callee::TakeKey.run(entry)?; // input::take_key
-    menus.screens.draw_work.escape_pressed.set(false);
+    menus.screens.draw_work.write().escape_pressed = false;
     menus
         .screens
         .entry

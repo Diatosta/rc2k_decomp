@@ -100,11 +100,11 @@ pub struct Lent<'s> {
     /// The draw switches as the scope opened.
     draw_switches: crate::scene::draw_switches_store::DrawSwitches,
     object_tables:
-        crate::memory::session::PhaseRead<'s, crate::scene::object_tables_store::ObjectTables>,
+        crate::memory::session::PhaseRead<'s, crate::scene::object_tables_store::ObjectKinds>,
     object_slots:
-        crate::memory::session::PhaseRead<'s, crate::scene::object_slots_store::ObjectTables>,
+        crate::memory::session::PhaseRead<'s, crate::scene::object_slots_store::SlotShapes>,
     kind_textures:
-        crate::memory::session::PhaseRead<'s, crate::scene::kind_texture_store::KindTextureTables>,
+        crate::memory::session::PhaseRead<'s, crate::scene::kind_texture_store::KindSlots>,
     place_slots:
         crate::memory::session::PhaseRead<'s, crate::scene::texture_places_store::PlaceSlots>,
     light_state: crate::memory::session::PhaseRead<'s, crate::scene::light_store::LightState>,
@@ -276,11 +276,11 @@ pub struct DrawReads<'a> {
     /// The draw switches (`scene::owner::Scene::draw_switches`), as they were when the reads were made.
     pub draw_switches: crate::scene::draw_switches_store::DrawSwitches,
     /// The object tables (`scene::owner::Objects::tables`).
-    pub object_tables: &'a crate::scene::object_tables_store::ObjectTables,
+    pub object_tables: &'a crate::scene::object_tables_store::ObjectKinds,
     /// The object slots (`scene::owner::Objects::slots`).
-    pub object_slots: &'a crate::scene::object_slots_store::ObjectTables,
+    pub object_slots: &'a crate::scene::object_slots_store::SlotShapes,
     /// The kinds' texture tables (`scene::owner::Textures::kinds`).
-    pub kind_textures: &'a crate::scene::kind_texture_store::KindTextureTables,
+    pub kind_textures: &'a crate::scene::kind_texture_store::KindSlots,
     /// Each place's slot and the video textures' count (`scene::owner::Textures::place_slots`).
     pub place_slots: &'a crate::scene::texture_places_store::PlaceSlots,
     /// The light state (`scene::owner::Lights::state`).

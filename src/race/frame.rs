@@ -183,7 +183,7 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
 }
 
 /// Copies the textures (`TyreChange::texture` / `device_texture` from
-/// `KindTextureTables.kind_first_textures[599]` / `KindTextureTables.kind_first_slots[599]`); for
+/// `Textures::first_textures[599]` / `KindSlots.kind_first_slots[599]`); for
 /// car 0 (block: the count `CarBlocks.cars[0].stopped_steps`, the change's state
 /// `tyre_change_state`, the tyre bits `parts_present`, the time `stage_time`, and
 /// `tyre_wears[0]` .. `tyre_wears[3]`, one per bit 1 .. 4) starts `tyre_change_gauge`,
@@ -198,7 +198,7 @@ pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     shared
         .tyre_change()
         .texture
-        .set(textures.kinds.get().kind_first_textures[599].get());
+        .set(textures.first_textures()[599]);
     shared
         .tyre_change()
         .device_texture
@@ -206,7 +206,7 @@ pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     shared
         .tyre_change()
         .title_texture
-        .set(textures.kinds.get().kind_first_textures[TYRE_TITLE_TEXTURE as usize].get());
+        .set(textures.first_textures()[TYRE_TITLE_TEXTURE as usize]);
     shared
         .tyre_change()
         .title_device_texture

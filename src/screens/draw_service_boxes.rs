@@ -100,14 +100,14 @@ fn set_item_colour(menus: &Menus, item: u32) {
 fn blinking(screens: &Screens, item: u32) -> bool {
     screens.loop_flags.item.get() == item
         && !screens.state.menus.service_flag.is_set()
-        && screens.draw_work.blink.is_set()
+        && screens.draw_work.read().blink
 }
 
 /// Like [`blinking`], and also whenever the item's service box is turned over.
 fn blinking_or_turned_over(screens: &Screens, item: u32) -> bool {
     screens.loop_flags.item.get() == item
         && (screens.state.service_ui.box_shown.is_set()
-            || (!screens.state.menus.service_flag.is_set() && screens.draw_work.blink.is_set()))
+            || (!screens.state.menus.service_flag.is_set() && screens.draw_work.read().blink))
 }
 
 /// A bar or panel: its filled box and the black outline round it, highlighted when the cursor

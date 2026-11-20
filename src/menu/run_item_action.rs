@@ -39,7 +39,7 @@ pub fn run_item_action(
     if let Some(n) = found {
         let item = &items[n as usize];
         let value = item.fixed().action_value;
-        screens.draw_work.action_mode.set(value);
+        screens.draw_work.write().action_mode = value;
         let action = item.fixed().action;
         if menu == menus.tables.menus.main_menu.id() {
             // The main menu's items run the whole game (an event, a race, a viewer): a trouble
@@ -61,6 +61,6 @@ pub fn run_item_action(
         event_over: screens.event.event_over.is_set(),
         leave_screen: screens.loop_flags.leave_screen.is_set(),
         event_left: screens.loop_flags.event_left.is_set(),
-        action_mode: screens.draw_work.action_mode.get(),
+        action_mode: screens.draw_work.read().action_mode,
     })
 }

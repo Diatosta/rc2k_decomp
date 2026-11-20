@@ -36,14 +36,12 @@ pub fn list_object_textures(
         texture_list(|offset| file_dword(race, offset).map_err(|e| rc2k_core::Invalid(e.0)))?;
     let slot: u32 = scene.object_work().loading_slot;
     let record = texture_record(slot, textures.len())?;
-    scene
-        .objects
-        .slots
-        .get()
-        .texture_count
-        .set(textures.len() as u32);
-    for (n, &texture) in textures.iter().enumerate() {
-        scene.objects.slots.get().texture_list[n].set(texture);
+    {
+        let mut slots = scene.loaded_slots_mut();
+        slots.texture_count = textures.len() as u32;
+        for (n, &texture) in textures.iter().enumerate() {
+            slots.texture_list[n] = texture;
+        }
     }
     if let Some(record) = record {
         // `TexturePlaces.object_texture_records[0]`: the records (`record` a byte offset in

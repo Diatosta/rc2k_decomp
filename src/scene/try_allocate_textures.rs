@@ -33,11 +33,11 @@ pub use rc2k_core::scene::textures::Call;
 
 /// What a texture of `level` takes. The sizes' table goes on into the levels' mip figures and
 /// the switch after them; the callers hold `level` below `LEVELS` (13).
-pub fn level_size(tables: &crate::scene::object_tables_store::ObjectTables, level: usize) -> u32 {
+pub fn level_size(tables: &crate::scene::object_tables_store::TextureLevels, level: usize) -> u32 {
     match level {
-        0..4 => tables.level_sizes[level].get(),
-        4..12 => tables.level_mips[level - 4].get(),
-        _ => tables.other_levels.get(),
+        0..4 => tables.level_sizes[level],
+        4..12 => tables.level_mips[level - 4],
+        _ => tables.other_levels,
     }
 }
 
@@ -49,33 +49,29 @@ struct GameMemory<'a> {
 
 impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     fn level(&self, video: bool, texture: u32) -> u32 {
-        let objects = &self.scene.objects;
+        let levels = self.scene.texture_levels();
         let table = if video {
-            &objects.tables.get().video_levels
+            &levels.video_levels
         } else {
-            &objects.tables.get().system_levels
+            &levels.system_levels
         };
-        table[texture as usize].get()
+        table[texture as usize]
     }
     fn size(&self, level: u32) -> u32 {
-        level_size(self.scene.objects.tables.get(), level as usize)
+        level_size(&self.scene.texture_levels(), level as usize)
     }
     fn mips(&self) -> u32 {
         self.shared.vars.get().mip_setting.get()
     }
     fn level_mips(&self, level: u32) -> u32 {
-        self.scene.objects.tables.get().level_mips[level as usize].get()
+        self.scene.texture_levels().level_mips[level as usize]
     }
     fn forget_kinds(&mut self) {
         let textures = &self.scene.textures;
-        for table in [
-            &textures.kinds.get().kind_first_slots,
-            &textures.kinds.get().kind_first_textures,
-        ] {
-            for cell in &table[..TEXTURES] {
-                cell.set(u32::MAX);
-            }
+        for cell in &textures.kinds.get().kind_first_slots[..TEXTURES] {
+            cell.set(u32::MAX);
         }
+        textures.first_textures_mut()[..TEXTURES].fill(u32::MAX);
     }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
         self.scene.textures.kinds.get().kind_first_slots[texture as usize].set(slot);
@@ -90,7 +86,7 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
             .ok_or(Invalid(
                 "a texture's first slot past the texture places' table",
             ))? = texture;
-        textures.kinds.get().kind_first_textures[texture as usize].set(first);
+        textures.first_textures_mut()[texture as usize] = first;
         Ok(())
     }
 }

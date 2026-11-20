@@ -5,7 +5,6 @@
 //! (the callees, the screens through `menu::screen_loop`).
 
 use crate::errors::BadInput;
-use crate::memory::session::FlagLike;
 use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::menu::pages_store::MenuPages;
@@ -36,20 +35,37 @@ pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {
     }
 }
 
-/// The variable of a leaving switch.
-pub(super) fn switch_cell<'a>(menus: &'a Menus, system: &'a System, s: Switch) -> &'a dyn FlagLike {
+/// Whether a leaving switch is set.
+pub(super) fn switch_is_set(menus: &Menus, system: &System, s: Switch) -> bool {
     let screens = &menus.screens;
     match s {
-        Switch::EventLeft => &screens.loop_flags.event_left,
-        Switch::LeaveScreen => &screens.loop_flags.leave_screen,
-        Switch::LeftWithCarry => &screens.loop_flags.left_with_carry,
-        Switch::AskLeave => &screens.loop_flags.ask_leave,
-        Switch::EventOver => &screens.event.event_over,
-        Switch::LeftByKey => &menus.tables.captions.left_by_key,
-        Switch::EscapePressed => &screens.draw_work.escape_pressed,
-        Switch::Entered => &screens.event.trial.any_qualified,
-        Switch::Quitting => &system.session.flags.quitting,
-        Switch::RallyDone => &screens.state.menus.rally_done,
+        Switch::EventLeft => screens.loop_flags.event_left.is_set(),
+        Switch::LeaveScreen => screens.loop_flags.leave_screen.is_set(),
+        Switch::LeftWithCarry => screens.loop_flags.left_with_carry.is_set(),
+        Switch::AskLeave => screens.loop_flags.ask_leave.is_set(),
+        Switch::EventOver => screens.event.event_over.is_set(),
+        Switch::LeftByKey => menus.tables.captions.left_by_key.is_set(),
+        Switch::EscapePressed => screens.draw_work.read().escape_pressed,
+        Switch::Entered => screens.event.trial.any_qualified.is_set(),
+        Switch::Quitting => system.session.flags.quitting.is_set(),
+        Switch::RallyDone => screens.state.menus.rally_done.is_set(),
+    }
+}
+
+/// Sets or clears a leaving switch.
+pub(super) fn set_switch(menus: &Menus, system: &System, s: Switch, on: bool) {
+    let screens = &menus.screens;
+    match s {
+        Switch::EventLeft => screens.loop_flags.event_left.set(on),
+        Switch::LeaveScreen => screens.loop_flags.leave_screen.set(on),
+        Switch::LeftWithCarry => screens.loop_flags.left_with_carry.set(on),
+        Switch::AskLeave => screens.loop_flags.ask_leave.set(on),
+        Switch::EventOver => screens.event.event_over.set(on),
+        Switch::LeftByKey => menus.tables.captions.left_by_key.set(on),
+        Switch::EscapePressed => screens.draw_work.write().escape_pressed = on,
+        Switch::Entered => screens.event.trial.any_qualified.set(on),
+        Switch::Quitting => system.session.flags.quitting.set(on),
+        Switch::RallyDone => screens.state.menus.rally_done.set(on),
     }
 }
 

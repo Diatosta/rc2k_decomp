@@ -75,6 +75,70 @@ fn texture_places_hash(scene: &crate::scene::owner::Scene) -> u64 {
     })
 }
 
+/// The hash of the object slots' tables: the lent store's runs and the plain fields' as the one cell
+/// store they were (the two unused tables of zeros included).
+#[cfg(feature = "remote")]
+fn object_slots_hash(scene: &crate::scene::owner::Scene) -> u64 {
+    let slots = scene.loaded_slots();
+    let mut runs: Vec<(String, &[u32])> = vec![
+        (".listed_faces[0]".into(), &[0; 4096]),
+        (".phase_work[0]".into(), &[0; 3]),
+        (
+            ".texture_count".into(),
+            std::slice::from_ref(&slots.texture_count),
+        ),
+        (".texture_list[0]".into(), &slots.texture_list),
+        (
+            ".no_normals".into(),
+            std::slice::from_ref(&slots.no_normals),
+        ),
+        (".measures[0]".into(), &slots.measures),
+        (".radii[0]".into(), &slots.radii),
+    ];
+    for (n, table) in slots.part_extents.iter().enumerate() {
+        runs.push((format!(".part_extents[{n}][0]"), table));
+    }
+    runs.iter().fold(
+        record_hash(scene.objects.slots.get()),
+        |sum, (path, run)| sum.wrapping_add(dword_run_hash(path, run)),
+    )
+}
+
+/// The hash of the object tables: the lent store's runs and the plain fields' as the one cell store they
+/// were (the unused fields included, as they stood).
+#[cfg(feature = "remote")]
+fn object_tables_hash(scene: &crate::scene::owner::Scene) -> u64 {
+    let levels = scene.texture_levels();
+    let runs: [(&str, &[u32]); 12] = [
+        (".face_count", std::slice::from_ref(&levels.face_count)),
+        (".normals_at", &[0]),
+        (".car_mark_textures[0]", &[0; 256]),
+        (".car_letter_b", &[0]),
+        (".reserved_c14[0]", &[0, 0, 0, 0x100, 0x80, 0x40, 0x20]),
+        (".level_sizes[0]", &levels.level_sizes),
+        (".level_mips[0]", &levels.level_mips),
+        (".other_levels", std::slice::from_ref(&levels.other_levels)),
+        (".texture_tags[0]", &levels.texture_tags),
+        (".system_levels[0]", &levels.system_levels),
+        (".video_levels[0]", &levels.video_levels),
+        (".slot_kinds[0]", &levels.slot_kinds),
+    ];
+    runs.iter().fold(
+        record_hash(scene.objects.tables.get()),
+        |sum, (path, run)| sum.wrapping_add(dword_run_hash(path, run)),
+    )
+}
+
+/// The hash of the kinds' texture tables: the lent store's slots and the first textures, as the one
+/// cell store they were.
+#[cfg(feature = "remote")]
+fn texture_kinds_hash(scene: &crate::scene::owner::Scene) -> u64 {
+    record_hash(scene.textures.kinds.get()).wrapping_add(dword_run_hash(
+        ".kind_first_textures[0]",
+        &*scene.textures.first_textures(),
+    ))
+}
+
 /// The hash of the stage's stores after loading (`after` "load") or freeing it ("free"), logged.
 #[cfg(feature = "remote")]
 pub fn log_hashes(
@@ -117,13 +181,10 @@ pub fn log_hashes(
         "level_grid",
         format!("{:016x}", record_hash(race.course.level_grid.get())),
     );
-    say(
-        "object_slots",
-        format!("{:016x}", record_hash(scene.objects.slots.get())),
-    );
+    say("object_slots", format!("{:016x}", object_slots_hash(scene)));
     say(
         "object_tables",
-        format!("{:016x}", record_hash(scene.objects.tables.get())),
+        format!("{:016x}", object_tables_hash(scene)),
     );
     say(
         "texture_places",
@@ -131,7 +192,7 @@ pub fn log_hashes(
     );
     say(
         "texture_kinds",
-        format!("{:016x}", record_hash(scene.textures.kinds.get())),
+        format!("{:016x}", texture_kinds_hash(scene)),
     );
     say(
         "mud",

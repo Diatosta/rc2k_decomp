@@ -176,10 +176,10 @@ struct Snapshot {
 
 fn snapshot(menus: &Menus) -> Snapshot {
     Snapshot {
-        vars: VARS.iter().map(|v| v.cell(menus).get()).collect(),
-        flags: FLAGS.iter().map(|f| f.cell(menus).is_set()).collect(),
+        vars: VARS.iter().map(|v| v.get(menus)).collect(),
+        flags: FLAGS.iter().map(|f| f.is_set(menus)).collect(),
         slots: (0..SLOTS)
-            .map(|slot| ScreenVar::SavedItem(slot).cell(menus).get())
+            .map(|slot| ScreenVar::SavedItem(slot).get(menus))
             .collect(),
         sound: menus.screens.entry.sound(),
         scene: SCENE_VARS
@@ -200,12 +200,10 @@ fn snapshot(menus: &Menus) -> Snapshot {
 /// Puts a different value in every variable, so that a write shows.
 fn fill(menus: &Menus) {
     for (at, var) in VARS.iter().enumerate() {
-        var.cell(menus).set(0x5000 + at as u32);
+        var.set(menus, 0x5000 + at as u32);
     }
     for slot in 0..SLOTS {
-        ScreenVar::SavedItem(slot)
-            .cell(menus)
-            .set(0x6000 + slot as u32);
+        ScreenVar::SavedItem(slot).set(menus, 0x6000 + slot as u32);
     }
     for (at, var) in SCENE_VARS.iter().enumerate() {
         var.cell(&crate::owners::Owners::the().scene.scratch)
@@ -216,7 +214,7 @@ fn fill(menus: &Menus) {
             .set(0.5 + at as f32);
     }
     for flag in FLAGS {
-        flag.cell(menus).set(false);
+        flag.set(menus, false);
     }
     menus.screens.entry.set_sound(MenuSound::Enter);
 }
@@ -224,22 +222,24 @@ fn fill(menus: &Menus) {
 #[test]
 fn variables_name_distinct_places() {
     let menus = mock_menus();
-    let mut places: Vec<*const ()> = VARS
-        .iter()
-        .map(|v| std::ptr::from_ref(v.cell(menus)).cast())
-        .collect();
-    places.extend((0..SLOTS).map(|slot| -> *const () {
-        std::ptr::from_ref(ScreenVar::SavedItem(slot).cell(menus)).cast()
-    }));
-    places.extend(
-        FLAGS
+    fill(menus);
+    let snap = snapshot(menus);
+    let mut values: Vec<u32> = snap.vars.iter().chain(&snap.slots).copied().collect();
+    let count = values.len();
+    values.sort();
+    values.dedup();
+    assert_eq!(values.len(), count, "two variables share a place");
+    for (at, flag) in FLAGS.iter().enumerate() {
+        flag.set(menus, true);
+        let now = snapshot(menus).flags;
+        let others = now
             .iter()
-            .map(|f| -> *const () { std::ptr::from_ref(f.cell(menus)).cast() }),
-    );
-    let count = places.len();
-    places.sort();
-    places.dedup();
-    assert_eq!(places.len(), count);
+            .enumerate()
+            .filter(|&(i, &on)| on && i != at)
+            .count();
+        assert!(now[at] && others == 0, "flag {at} shares a place");
+        flag.set(menus, false);
+    }
 }
 
 /// Every data step of every screen changes the variable it names and no other.
@@ -469,7 +469,7 @@ fn run_scripted(id: ScreenId, keys: Vec<Pressed>) -> (Vec<Place>, Exit, &'static
         places: Vec::new(),
     };
     // The saved highlight comes back at set-up and is saved again on leaving.
-    ScreenVar::SavedItem(screen.saved_item).cell(menus).set(5);
+    ScreenVar::SavedItem(screen.saved_item).set(menus, 5);
     let exit = core_loop(&screen.shape(), &mut host)
         .unwrap_or_else(|_| panic!("{id:?}: the loop refused"));
     (host.places, exit, menus)
@@ -519,7 +519,7 @@ fn every_screen_runs_to_its_leaving_by_escape() {
             assert_eq!(places.last(), Some(&Place::AfterRestored), "{id:?}");
             let kept = screen.leave_saved_item.unwrap_or(screen.saved_item);
             assert_eq!(
-                ScreenVar::SavedItem(kept).cell(menus).get(),
+                ScreenVar::SavedItem(kept).get(menus),
                 5,
                 "{id:?}: highlight"
             );

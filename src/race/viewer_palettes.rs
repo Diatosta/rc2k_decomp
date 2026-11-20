@@ -25,22 +25,22 @@ pub fn viewer_palettes(
     for (to, from) in [
         (
             &shared.replay_file().viewer_first_texture_a,
-            &textures.kinds.get().kind_first_textures[212],
+            textures.first_textures()[212],
         ),
         (
             &shared.replay_file().viewer_list_texture,
-            &textures.kinds.get().kind_first_slots[212],
+            textures.kinds.get().kind_first_slots[212].get(),
         ),
         (
             &shared.replay_file().viewer_panel_texture,
-            &textures.kinds.get().kind_first_textures[201],
+            textures.first_textures()[201],
         ),
         (
             &shared.replay_file().viewer_device_texture,
-            &textures.kinds.get().kind_first_slots[201],
+            textures.kinds.get().kind_first_slots[201].get(),
         ),
     ] {
-        to.set(from.get());
+        to.set(from);
     }
     for font in PALETTES {
         font.object(&gfx.fonts.typefaces)

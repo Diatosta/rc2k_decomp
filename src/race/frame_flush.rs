@@ -64,7 +64,7 @@ pub fn textured(frame: &Frame) -> Batch<'_> {
 }
 
 /// Flushes a batch: a plain one sets texture
-/// `KindTextureTables.kind_first_slots[135]` (`scene::set_texture`); the render states; with
+/// `KindSlots.kind_first_slots[135]` (`scene::set_texture`); the render states; with
 /// triangles in the batch (its count also into its kept count) a textured one looks up its texture
 /// (`scene::look_up_texture`) and sets it; the draw, a failure logged as "drawtri" and its code
 /// (level 1); the count and word 0. In drawing part `part`'s render states.
@@ -132,7 +132,7 @@ fn int_over_two(
 /// Draws a quad over the view window (`view_offset` .., one pixel wider each way; its corners kept
 /// in `quad_corners` .. `RaceVars.quad_corners[5]`) with texture place / `k256` / `k65536` at every
 /// corner (kept in `quad_uv` / `RaceVars.quad_uv[4]`), colour 0xFF000000, `polygon_vertex_count` 4;
-/// drawn with the glow's render states, texture `KindTextureTables.kind_first_slots[192]`
+/// drawn with the glow's render states, texture `KindSlots.kind_first_slots[192]`
 /// (`scene::set_texture`), the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth
 /// buffer on.
 pub(super) fn draw_view_backdrop(

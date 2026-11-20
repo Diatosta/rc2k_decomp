@@ -17,18 +17,12 @@ use crate::logfile::log_int::log_int;
 
 /// The four totals. Reads only.
 fn totals(scene: &crate::scene::owner::Scene) -> Result<[u32; 4], BadInput> {
-    let objects = &scene.objects;
     // Logic: `rc2k_core::scene::textures::count_needs`.
-    let (totals, _) = crate::scene::textures::with_cells(
-        [
-            &objects.tables.get().system_levels,
-            &objects.tables.get().video_levels,
-        ],
-        |[system, video]| {
-            rc2k_core::scene::textures::count_needs(system, video, |level| {
-                crate::scene::try_allocate_textures::level_size(objects.tables.get(), level)
-            })
-        },
+    let levels = scene.texture_levels();
+    let (totals, _) = rc2k_core::scene::textures::count_needs(
+        &levels.system_levels,
+        &levels.video_levels,
+        |level| crate::scene::try_allocate_textures::level_size(&levels, level),
     )?;
     Ok(totals.to_array())
 }

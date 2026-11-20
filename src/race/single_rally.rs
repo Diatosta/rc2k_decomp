@@ -63,8 +63,8 @@ fn current(o: Owners<'static>) -> &'static PlainDword {
     &o.menus.screens.event.current_player
 }
 #[cfg(test)]
-fn switch(o: Owners<'static>) -> &'static PlainDword {
-    &o.menus.play.arcade.scene_let_go
+fn set_switch(o: Owners<'static>, value: u32) {
+    o.menus.play.arcade.write().scene_let_go = value;
 }
 #[cfg(test)]
 fn stage(o: Owners<'static>) -> &'static PlainDword {
@@ -374,7 +374,7 @@ fn single_rally(
         &race.shared.state.results.results,
     );
     let (event, current) = (&menus.screens.event, &menus.screens.event.current_player);
-    let switch = &menus.play.arcade.scene_let_go;
+    let arcade = &menus.play.arcade;
     let (first_side, current_side) = (first_side(race), current_side(race));
     // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is left
     // as if chosen, with no stage yet.
@@ -385,7 +385,7 @@ fn single_rally(
         step(Call::CopyRallyTimes)?;
     }
     settings.rivals.set(menus.play.champ_view.summary.get());
-    switch.set(start);
+    arcade.write().scene_let_go = start;
     settings.run_kind.set(kind);
     for result in results {
         result.result.set(0);
@@ -498,7 +498,7 @@ fn single_rally(
     step(Call::RaceFromMenu)?;
     step(Call::StopMusic)?;
     step(Call::SetMenuScreenMode)?;
-    if switch.get() != 1 {
+    if arcade.read().scene_let_go != 1 {
         step(Call::ShowLoadingPicture)?;
     }
     step(Call::ClearRaceSoundObjects)?;
@@ -524,7 +524,7 @@ fn single_rally(
         give_outcome(p, current_side.result);
     });
 
-    if switch.get() != 1 {
+    if arcade.read().scene_let_go != 1 {
         step(Call::SetUpEngine)?;
         step(Call::SetUpFrontEndScene)?;
         step(Call::SetUpEngine)?;
@@ -614,6 +614,9 @@ mod vector_tests {
     use crate::test_support::state::{Snapshot, walk};
 
     const STATE: &str = "owners.race.shared.state";
+    /// The arcade store is plain fields: its one range here, `scene_let_go`, is read and
+    /// written by hand.
+    const ARCADE: &str = "owners.menus.play.arcade";
 
     /// The memory the function and its calls' stand-ins read and write: (store, field, byte of the
     /// field's cells to start at, bytes).
@@ -869,8 +872,7 @@ mod vector_tests {
     ];
 
     /// The stores the test writes.
-    const STORES: [&str; 9] = [
-        "owners.menus.play.arcade",
+    const STORES: [&str; 8] = [
         "owners.menus.play.champ_view",
         "owners.menus.play.slots",
         "owners.menus.screens.event",
@@ -949,6 +951,16 @@ mod vector_tests {
 
     /// `len` bytes of the cells from byte `skip` of the field `path` of the store `name`.
     fn read_range(name: &str, path: &str, skip: usize, len: usize) -> Vec<u8> {
+        if name == ARCADE {
+            let bytes = Owners::the()
+                .menus
+                .play
+                .arcade
+                .read()
+                .scene_let_go
+                .to_le_bytes();
+            return bytes[skip..skip + len].to_vec();
+        }
         let mut cells = walk(name).range_bytes(path, skip + len);
         assert_eq!(cells.len(), skip + len, "{name}{path}");
         cells.drain(..skip);
@@ -957,6 +969,13 @@ mod vector_tests {
 
     /// The cells `read_range` names set from `bytes`.
     fn write_range(name: &str, path: &str, skip: usize, bytes: &[u8]) {
+        if name == ARCADE {
+            let arcade = &Owners::the().menus.play.arcade;
+            let mut word = arcade.read().scene_let_go.to_le_bytes();
+            word[skip..skip + bytes.len()].copy_from_slice(bytes);
+            arcade.write().scene_let_go = u32::from_le_bytes(word);
+            return;
+        }
         let store = walk(name);
         let mut cells = store.range_bytes(path, skip + bytes.len());
         assert_eq!(cells.len(), skip + bytes.len(), "{name}{path}");
@@ -1006,7 +1025,7 @@ mod vector_tests {
                 }
                 9 => {
                     if let Some(s) = c.switch_after {
-                        switch(o).set(s);
+                        set_switch(o, s);
                     }
                 }
                 13 => race_kept(o).set(self.rng.next()),
@@ -1181,6 +1200,7 @@ mod vector_tests {
     #[test]
     fn single_rally_is_the_originals() {
         let kept = Snapshot::of(&STORES);
+        let kept_arcade = Owners::the().menus.play.arcade.read();
         let mut vectors = Vectors::open("race.single_rally.cases", Kind::Bits, 8);
         let (mut done, mut fatal, mut failed, mut engine, mut early, mut results) =
             (0, 0, 0, 0, 0, 0);
@@ -1201,6 +1221,7 @@ mod vector_tests {
             results += (places.contains(&7) && c.result == Some(u32::MAX)) as u32;
         }
         kept.restore();
+        *Owners::the().menus.play.arcade.write() = kept_arcade;
         vectors.finish();
         assert!(
             done > 100 && fatal > 10 && failed > 20 && engine > 20 && early > 5 && results > 10,

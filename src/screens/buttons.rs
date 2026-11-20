@@ -93,15 +93,16 @@ pub fn draw_button(
     let sprites = [list[kind.left_at], list[kind.right_at], list[4]];
     let place = &menus.screens.draw_work;
     if kind.keeps_place {
-        place.button_x.set(x as u32);
-        place.button_y.set(y as u32);
+        let mut work = place.write();
+        work.button_x = x as u32;
+        work.button_y = y as u32;
     }
     // The logic is in `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite
     // table.
     use rc2k_core::screens::buttons::{Borrowed, Error};
     let borrowed = Borrowed {
-        y: place.button_y.get() as i32,
-        x: place.button_x.get() as i32,
+        y: place.read().button_y as i32,
+        x: place.read().button_x as i32,
     };
     let core = rc2k_core::screens::buttons::Kind {
         borrows: kind.borrows,
@@ -120,7 +121,7 @@ pub fn draw_button(
         },
     );
     if kind.keeps_place {
-        place.button_x.set(end as u32);
+        place.write().button_x = end as u32;
     }
     match drawn {
         Ok(()) => Ok(()),

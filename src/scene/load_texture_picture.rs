@@ -74,7 +74,7 @@ pub fn load_texture_picture(
     let car = picture_car(
         number,
         texture,
-        || scene.textures.kinds.get().kind_first_textures[0x100].get(), // KindTextureTables.kind_first_textures[256],
+        || scene.textures.first_textures()[0x100], // Textures::first_textures[256],
         || shared.view.get().race_cars.get(),
     );
     if let Some(car) = car {

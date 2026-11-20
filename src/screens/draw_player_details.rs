@@ -96,7 +96,7 @@ pub fn draw_player_page(
             &player,
         )?),
         typing: screens.entry.typing.is_set(),
-        blink: screens.draw_work.cursor_on.is_set(),
+        blink: screens.draw_work.read().cursor_on,
         nationality: player.nationality,
         nationality_id,
         view_id,

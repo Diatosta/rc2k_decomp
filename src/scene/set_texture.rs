@@ -13,7 +13,7 @@ pub fn set_texture(part: &crate::scene::scratch_store::PartScratch, scene: &Scen
 /// `scene::workers::DrawReads`).
 pub fn set_texture_with(
     part: &crate::scene::scratch_store::PartScratch,
-    tables: &crate::scene::object_tables_store::ObjectTables,
+    tables: &crate::scene::object_tables_store::ObjectKinds,
     texture: u32,
 ) {
     if tables.d3d_drawing_on.get() != 0 {

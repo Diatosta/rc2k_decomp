@@ -151,7 +151,7 @@ pub fn apply(
             }
         }
         if let Some(sum) = filled.sum {
-            screens.draw_work.button_x.set(sum);
+            screens.draw_work.write().button_x = sum;
         }
         if let Some(c) = filled.checkpoints {
             for (cell, v) in race.shared.work.get().guessed_checkpoints.iter().zip(c) {

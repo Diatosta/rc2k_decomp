@@ -6,21 +6,12 @@
 
 /// Whether any entry changed.
 pub fn raise_texture_needs(level: u32, tag: u32, scene: &crate::scene::owner::Scene) -> bool {
-    let objects = &scene.objects;
     // Logic: `rc2k_core::scene::textures::Needs::raise`.
-    crate::scene::textures::with_cells(
-        [
-            &objects.tables.get().texture_tags,
-            &objects.tables.get().system_levels,
-            &objects.tables.get().video_levels,
-        ],
-        |[tags, system, video]| {
-            rc2k_core::scene::textures::Needs {
-                tags,
-                system,
-                video,
-            }
-            .raise(level, tag)
-        },
-    )
+    let levels = &mut *scene.texture_levels_mut();
+    rc2k_core::scene::textures::Needs {
+        tags: &levels.texture_tags,
+        system: &mut levels.system_levels,
+        video: &mut levels.video_levels,
+    }
+    .raise(level, tag)
 }

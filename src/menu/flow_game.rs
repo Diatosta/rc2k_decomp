@@ -174,11 +174,11 @@ impl flow::Game for Game<'_> {
     }
 
     fn flag(&mut self, s: Switch) -> bool {
-        switch_cell(self.owners.menus, self.owners.system, s).is_set()
+        switch_is_set(self.owners.menus, self.owners.system, s)
     }
 
     fn set_flag(&mut self, s: Switch, on: bool) {
-        switch_cell(self.owners.menus, self.owners.system, s).set(on);
+        set_switch(self.owners.menus, self.owners.system, s, on);
     }
 
     fn run(&mut self, c: flow::Call) -> Result<(), Refused> {

@@ -12,7 +12,7 @@ use crate::menu::screen_loop::{
 };
 
 fn before(screens: &Screens) -> Result<(), Refused> {
-    screens.draw_work.escape_pressed.set(false);
+    screens.draw_work.write().escape_pressed = false;
     screens.items.current[slot::LOAD_CHAMPIONSHIP]
         .set(screens.items.first[slot::LOAD_CHAMPIONSHIP].get());
     Ok(())
