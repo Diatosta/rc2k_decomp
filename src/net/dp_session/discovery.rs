@@ -152,13 +152,7 @@ fn list_tailnet() -> Option<Vec<std::net::Ipv4Addr>> {
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        // No console window for the command.
-        command.creation_flags(0x0800_0000);
-    }
-    let mut child = command.spawn().ok()?;
+    let mut child = crate::platform::os::spawn_hidden(&mut command).ok()?;
     let mut out = child.stdout.take()?;
     let (send, receive) = std::sync::mpsc::channel();
     std::thread::spawn(move || {

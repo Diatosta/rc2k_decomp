@@ -40,6 +40,7 @@ mod scene;
 mod screens;
 mod service;
 mod settings;
+mod shell;
 mod single_copy;
 mod sound;
 pub mod standalone;

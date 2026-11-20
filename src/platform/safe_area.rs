@@ -55,6 +55,23 @@ pub fn window_to_frame(
     screen_fit::window_to_frame(&frame_fit(frame, window, menu), frame, point)
 }
 
+#[cfg(touch_screen)]
+/// The window's size and safe area as the screen the touch gestures are sized by.
+pub fn screen_of(
+    window: crate::platform::ffi::sdl::Window,
+) -> Option<rc2k_core::input::menu_touch::Screen> {
+    let (width, height) = window.pixel_size()?;
+    let (width, height) = (width as f32, height as f32);
+    let mut screen = rc2k_core::input::menu_touch::Screen::new(width, height);
+    if let Some([x, y, w, h]) = window.safe_area() {
+        screen.left = x.max(0.0);
+        screen.top = y.max(0.0);
+        screen.right = (width - x - w).max(0.0);
+        screen.bottom = (height - y - h).max(0.0);
+    }
+    Some(screen)
+}
+
 #[cfg(all(test, touch_screen))]
 mod tests {
     use super::*;

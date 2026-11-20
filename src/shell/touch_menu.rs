@@ -9,7 +9,7 @@
 use crate::input::menu_pad::MenuAction;
 use crate::owners::Owners;
 use crate::platform::ffi::sdl;
-use rc2k_core::input::menu_touch::{Gesture, Gestures, Phase, Screen};
+use rc2k_core::input::menu_touch::{Gesture, Gestures, Phase};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
@@ -67,20 +67,6 @@ fn note(reason: &str, now: u64) {
     ));
 }
 
-/// The window's size and safe area as the screen the gestures are sized by.
-pub fn screen_of(window: sdl::Window) -> Option<Screen> {
-    let (width, height) = window.pixel_size()?;
-    let (width, height) = (width as f32, height as f32);
-    let mut screen = Screen::new(width, height);
-    if let Some([x, y, w, h]) = window.safe_area() {
-        screen.left = x.max(0.0);
-        screen.top = y.max(0.0);
-        screen.right = (width - x - w).max(0.0);
-        screen.bottom = (height - y - h).max(0.0);
-    }
-    Some(screen)
-}
-
 /// A finger's change (`x`, `y`: parts of the window) in the menus: what it means is done.
 pub fn finger(
     o: &Owners<'static>,
@@ -91,7 +77,7 @@ pub fn finger(
     y: f32,
     now: u64,
 ) {
-    let Some(screen) = screen_of(window) else {
+    let Some(screen) = crate::platform::safe_area::screen_of(window) else {
         if phase == Phase::Up {
             forget(id);
         }

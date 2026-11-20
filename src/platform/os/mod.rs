@@ -27,6 +27,31 @@ fn clock_start() -> &'static (Instant, u32) {
     })
 }
 
+/// Opens files so that other processes may open them as `share` allows (the Windows share
+/// flags, 0 for none) and with the normal attributes; where files carry no share mode, nothing.
+pub fn share_mode(options: &mut std::fs::OpenOptions, share: u32) -> &mut std::fs::OpenOptions {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
+        options.share_mode(share).attributes(FILE_ATTRIBUTE_NORMAL);
+    }
+    #[cfg(not(windows))]
+    let _ = share;
+    options
+}
+
+/// Starts `command` without a console window where a window would otherwise open (Windows).
+pub fn spawn_hidden(command: &mut std::process::Command) -> std::io::Result<std::process::Child> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command.spawn()
+}
+
 /// Milliseconds on a steady clock, wrapping as `GetTickCount` did.
 pub fn ticks() -> u32 {
     let (start, base) = *clock_start();

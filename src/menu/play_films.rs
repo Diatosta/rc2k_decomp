@@ -57,7 +57,7 @@ fn film(panels: &Panels, f: Film) -> &dyn crate::memory::session::TextPlace {
 /// The film player (the platform's) for the file at `path`: whether the film ran to its end
 /// (false: a key ended it).
 fn play(o: Owners<'static>, path: &dyn crate::memory::session::TextPlace) -> bool {
-    crate::platform::film::play_film_now(o, path)
+    crate::shell::film::play_film_now(o, path)
 }
 
 impl Game {

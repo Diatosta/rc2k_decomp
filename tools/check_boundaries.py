@@ -36,7 +36,7 @@ LAYERS = {
     "menu": 4, "screens": 4, "save_code": 4, "install": 4, "first_run": 4,
     "error_dialog": 4, "single_copy": 4,
     # 5: the root: builds the owners, starts the threads, runs the program, ends it.
-    "owners": 5, "system": 5, "fatal": 5, "standalone": 5, "bin": 5, "lib": 5,
+    "owners": 5, "system": 5, "fatal": 5, "standalone": 5, "shell": 5, "bin": 5, "lib": 5,
     # 6: tools beside the game: may read anything; the game reaches them through doors only.
     "debug": 6, "remote": 6,
 }
@@ -48,7 +48,7 @@ DOORS = {
     "system": {"pause"},   # the pause pumps events and takes keys, a root service used from below
 }
 TOOL_DOORS = {
-    "debug": {"timing", "check_hash", "imgui_sdl", "switches"},
+    "debug": {"timing", "imgui_sdl", "switches"},
     # the test driver: every function of src/remote/off.rs has the same signature in driver.rs
     "remote": {
         "BUILT", "audio_turn_done", "autodrive", "autodrive_keys", "count_sound",
@@ -65,7 +65,9 @@ TOOL_DOORS = {
 }
 TOOLS = {"debug", "remote"}
 EXTERN = ["sdl3_sys", "libc", "windows_sys", "dear_imgui_rs", "dear_imgui_sys", "mdns_sd"]
-EXTERN_HOMES = ("src/platform/",)
+# shell/events.rs decodes SDL's event structs into the game's events: the one file outside the platform
+# that names SDL's constants.
+EXTERN_HOMES = ("src/platform/", "src/shell/events.rs")
 CORE_BANNED = ["std::fs", "std::net", "std::thread", "std::time", "std::env", "std::process",
                "std::io::stdin", "std::io::stdout", "Instant::", "SystemTime::"]
 # Value types under those paths that do no I/O: a duration, an address.

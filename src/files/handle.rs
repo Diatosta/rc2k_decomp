@@ -68,14 +68,7 @@ pub fn open_by_mode(path: &[u8], mode: u32) -> Result<Option<u32>, BadInput> {
     options
         .read(access & GENERIC_READ != 0)
         .write(access & GENERIC_WRITE != 0);
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::OpenOptionsExt;
-        const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
-        options.share_mode(share).attributes(FILE_ATTRIBUTE_NORMAL);
-    }
-    #[cfg(not(windows))]
-    let _ = share;
+    crate::platform::os::share_mode(&mut options, share);
     match disposition {
         CREATE_NEW => options.create_new(true),
         CREATE_ALWAYS => options.create(true).truncate(true),

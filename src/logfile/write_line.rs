@@ -83,11 +83,10 @@ fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
     };
     #[cfg(windows)]
     let result = {
-        use std::os::windows::fs::OpenOptionsExt;
         let name = crate::files::host_path(&path[..path.len() - 1]);
         let mut options = std::fs::OpenOptions::new();
         options.write(true).create(true);
-        options.share_mode(MODE_SHARE).attributes(0x80);
+        crate::platform::os::share_mode(&mut options, MODE_SHARE);
         let mut file = options.open(name).ok()?; // not closed here: the path stays set
         match std::io::Seek::seek(&mut file, std::io::SeekFrom::End(0)) {
             // The bytes written; a failed write counts what it wrote, nothing.

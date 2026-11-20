@@ -61,7 +61,7 @@ fn tapped_item(
     list: ListMenu,
 ) -> Option<u32> {
     use crate::install::page_records::{Piece, piece_count};
-    let (x, y) = crate::platform::touch_menu::take_installer_tap()?;
+    let (x, y) = crate::shell::touch_menu::take_installer_tap()?;
     let inside = |n: u32| {
         let piece = Piece::nth(install, n);
         let (px, py) = (piece.x() as i32 as f32, piece.y() as i32 as f32);
@@ -78,7 +78,7 @@ fn tapped_item(
     let usable = !list_item_unusable(list_state, list);
     list_state.choice.set(before);
     if usable {
-        crate::platform::touch_menu::tap_used();
+        crate::shell::touch_menu::tap_used();
     }
     usable.then_some(found)
 }
@@ -108,9 +108,9 @@ pub fn run_page(
         list_clear_marks(install, list);
     }
     tell(install, o, page, list, 0)?;
-    // A tap on the page is for its items (`platform::touch_menu`).
+    // A tap on the page is for its items (`shell::touch_menu`).
     #[cfg(touch_screen)]
-    let _taps = crate::platform::touch_menu::InstallerPage::begin();
+    let _taps = crate::shell::touch_menu::InstallerPage::begin();
     'page: {
         i::mark_page::mark_page(install, list_state, list);
         let mut steps = 0;

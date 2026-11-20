@@ -29,7 +29,7 @@ makes a test depend on the machine.
 | 2 | engine | `render`, `gfx`, `text`, `d3d`, `video`, `audio`, `sound`, `input`, `net` | Services over the platform that a game needs: drawing back ends, pictures and fonts, the mixer and its command queue, devices, the wire protocol. | They serve any screen or race; they must not know which one is running. |
 | 3 | simulation | `physics`, `scene`, `effects`, `hud`, `drive`, `race`, `records`, `saves`, `settings`, `service` | The race: the car, the course, the 3D scene, weather and marks, the replay, saved state. | Held races and replays are decided here; it must run the same whatever front end started it. |
 | 4 | front end | `menu`, `screens`, `save_code`, `install`, `first_run`, `error_dialog`, `single_copy` | What the player navigates: menus, pages, the installer, dialogs. | Uses the simulation (starts races, shows results); the simulation never asks the menus anything. |
-| 5 | root | `owners`, `system`, `fatal`, `standalone`, `bin`, `lib` | Builds the owners, starts the threads, runs the main loop, ends the program. | The one place that knows every module. |
+| 5 | root | `owners`, `system`, `fatal`, `standalone`, `shell`, `bin`, `lib` | Builds the owners, starts the threads, runs the main loop, ends the program. | The one place that knows every module. |
 | 6 | tools | `debug`, `remote` | The debug window and the test driver. | May read anything; the game reaches them only through named doors, so a build without them is the same game. |
 
 ## Doors (the allowed exceptions, kept short)
@@ -38,7 +38,7 @@ makes a test depend on the machine.
 - `crate::fatal::raise` from any layer: ending the program with a reason.
 - `crate::system::pause` from any layer: a pause pumps the window's events and ends on a key, so
   it needs the owners; it stays in `system` and is reached from below by name.
-- `crate::debug::{timing, check_hash, imgui_sdl, switches}` and `crate::remote::*`: the tools' doors.
+- `crate::debug::{timing, imgui_sdl, switches}` and `crate::remote::*`: the tools' doors.
   `remote` is always compiled and is one door: `src/remote/mod.rs` picks `driver.rs` (the test
   driver, with the `remote` feature) or `off.rs` (constants and no-ops with the same signatures),
   so game code calls `crate::remote::*` with no `cfg`. `TOOL_DOORS` in `tools/check_boundaries.py`
@@ -47,7 +47,7 @@ makes a test depend on the machine.
 ## Further rules the script checks
 
 1. **System crates** (`sdl3_sys`, `libc`, `windows_sys`, `dear_imgui_*`, `mdns_sd`) are named only
-   under `src/platform/`. At the start (2026-11-19): 29 lines in 23 files outside it (`render/gpu*` for the SDL GPU API,
+   under `src/platform/` (and `src/shell/events.rs`, which decodes SDL's event structs into the game's events). At the start (2026-11-19): 29 lines in 23 files outside it (`render/gpu*` for the SDL GPU API,
    `debug/*` for Dear ImGui, `net/bonjour.rs`, `net/steam/flat.rs`, `first_run.rs`, `remote/driver.rs`,
    `bin/rc2k.rs`). A `use sdl3_sys::..` line counts once, so `render/gpu.rs` (84 `SDL_` mentions)
    shows as one line.Open: either `render/gpu*` and `debug/imgui_sdl.rs` become allowed

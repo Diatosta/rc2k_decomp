@@ -132,7 +132,7 @@ pub fn tyre_change_gauge(o: Owners<'static>, start: bool, player: u32) -> Result
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::asm_test::{Rng, at_each_control_word, lock};
+    use crate::race::asm_test::{Rng, at_each_control_word};
     use crate::race::viewer_screen_store::VIEWER_PANEL;
     use crate::test_support::own::race;
     use crate::test_support::vectors::{Recorder, word};
@@ -173,7 +173,6 @@ mod reference_vectors {
     /// disagree at the last bit and the sum falls on a whole number; counted.
     #[test]
     fn press_time_matches() {
-        let _l = lock();
         let _kept = Kept(constants());
         let mut r = Rng(31);
         let mut file = Recorder::replay("race.tyre_change_gauge.press_time");

@@ -20,7 +20,7 @@ pub fn run_installer(
 ) -> Result<(), Refused> {
     let (gfx, system) = (o.gfx, o.system);
     use crate::install as i;
-    crate::platform::events::keep_running_after_close();
+    crate::shell::events::keep_running_after_close();
     // The folder page's edit item shows the folder from its third byte, past the drive's `c:`;
     // a Unix path has no drive, so the item shows it whole.
     #[cfg(unix)]

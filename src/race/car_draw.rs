@@ -527,7 +527,7 @@ pub fn draw_car_entry(
 #[cfg(test)]
 mod vector_tests {
     use super::*;
-    use crate::race::asm_test::{Rng, at_each_control_word, lock};
+    use crate::race::asm_test::{Rng, at_each_control_word};
     use crate::test_support::own::race;
     use crate::test_support::own::scene;
     use crate::test_support::race_vectors::{Kind, Vectors};
@@ -606,7 +606,6 @@ mod vector_tests {
 
     #[test]
     fn nearness_and_size_are_the_originals() {
-        let _l = lock();
         let kept = Snapshot::of(&STORES);
         let mut vectors = Vectors::open("race.car_draw.nearness_and_size", Kind::Exact, 6);
         let mut r = Rng(6);

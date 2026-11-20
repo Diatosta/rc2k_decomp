@@ -63,6 +63,22 @@ Reads the settings files: lines of `key=value`. `read_settings` (`src/settings/r
 reads the file and `apply_settings` stores each known key; `read_driver_names` reads the optional file of
 computer drivers' names. See [Settings files](Settings-files).
 
+## `shell`: the platform joined to the game
+
+`src/shell/` (layer 5, beside `standalone`) is the code that knows both the platform and the game's
+owners, so that `platform/` itself names no game type.
+
+| Item | File | What it does |
+| --- | --- | --- |
+| `pump` | `src/shell/events.rs` | SDL's events: the window's closing (the quit switch), focus, keys and pad buttons as the pending key, fingers, typed text. |
+| `play_film` | `src/shell/film.rs` | Plays a film (the AVI and MPEG readers, the picture, the sound). |
+| `finger`, `tick`, `take_installer_tap` | `src/shell/touch_menu.rs` | A touch screen's gestures as the keys the menus take (touch builds). |
+| `follow`, `note_resize` | `src/shell/window_follow.rs` | A window the player resized is taken as the next race's size. |
+| `report_timing` | `src/shell/timing_report.rs` | The log's line every five seconds on where the time went. |
+
+Still reaching the game from `platform/` (the later half of the split): `show_frame` and `run_frame_now`
+in `mod.rs`, `direct3d.rs`, the pacing and sound values and the foreign-call callbacks into `standalone`.
+
 ## `threading`: the game's threads
 
 Starts and ends the worker threads the original design has (input, audio, network).

@@ -22,6 +22,11 @@ impl Session {
         let udp = UdpSocket::bind(("0.0.0.0", port))?;
         udp.set_read_timeout(Some(Duration::from_millis(300)))?;
         let session = Session::host_over(desc, port, signal, password);
+        *session
+            .listener_at
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some((std::net::Ipv4Addr::LOCALHOST, listener.local_addr()?.port()).into());
         let s = session.clone();
         std::thread::spawn(move || s.accept(listener));
         let s = session.clone();
@@ -55,7 +60,8 @@ impl Session {
             lock,
         );
         let weak = Arc::downgrade(&session);
-        std::thread::spawn(move || ping_machines(&weak));
+        let stop = session.stop.clone();
+        std::thread::spawn(move || ping_machines(&weak, &stop));
         session
     }
 
@@ -74,11 +80,13 @@ impl Session {
     }
 
     pub(super) fn accept(self: Arc<Self>, listener: TcpListener) {
-        let _ = listener.set_nonblocking(true);
-        while !self.stop.load(Ordering::SeqCst) {
+        // Blocks in `accept`; `close` connects once to wake it.
+        while !self.stop.is_set() {
             match listener.accept() {
                 Ok((stream, _)) => {
-                    let _ = stream.set_nonblocking(false);
+                    if self.stop.is_set() {
+                        break;
+                    }
                     let _ = stream.set_nodelay(true);
                     self.serve_wire(Box::new(stream));
                 }
@@ -92,7 +100,7 @@ impl Session {
         #[cfg(not(test))]
         let _announced = crate::net::bonjour::announce(self.port);
         let mut buffer = [0u8; 64];
-        while !self.stop.load(Ordering::SeqCst) {
+        while !self.stop.is_set() {
             let Ok((n, from)) = udp.recv_from(&mut buffer) else {
                 continue;
             };
@@ -496,17 +504,9 @@ impl Session {
 const PING_EVERY: Duration = Duration::from_secs(1);
 
 /// The host's thread that pings every machine once a second until the session closes or goes.
-fn ping_machines(session: &std::sync::Weak<Session>) {
-    loop {
-        let mut waited = Duration::ZERO;
-        while waited < PING_EVERY {
-            std::thread::sleep(Duration::from_millis(100));
-            waited += Duration::from_millis(100);
-            match session.upgrade() {
-                Some(s) if !s.stop.load(Ordering::SeqCst) => {}
-                _ => return,
-            }
-        }
+fn ping_machines(session: &std::sync::Weak<Session>, stop: &Closing) {
+    // A closing ends the wait at once; a session dropped unclosed is noticed at the next ping.
+    while !stop.wait(PING_EVERY) {
         let Some(s) = session.upgrade() else { return };
         let ping = W::default().u8(PING).u32(s.clock_ms()).0;
         let machines: Vec<u32> = s

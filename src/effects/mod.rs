@@ -24,6 +24,7 @@ pub mod clip;
 pub mod clip_quad;
 pub mod copy_first_point;
 pub mod corners;
+pub mod cycles;
 pub mod draw_cell_sprite;
 pub mod draw_flare_part;
 pub mod draw_frame;

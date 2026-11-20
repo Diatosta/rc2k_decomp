@@ -138,9 +138,9 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
     let mut was_down = true;
-    // A tap on a row or a button is a click there (`platform::touch_menu`).
+    // A tap on a row or a button is a click there (`shell::touch_menu`).
     #[cfg(touch_screen)]
-    let _taps = crate::platform::touch_menu::InstallerPage::begin();
+    let _taps = crate::shell::touch_menu::InstallerPage::begin();
     loop {
         crate::platform::pump_messages_now(o);
         if o.system.session.flags.quitting.is_set() {
@@ -177,10 +177,10 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
         }
         was_down = down;
         #[cfg(touch_screen)]
-        if let Some((tx, ty)) = crate::platform::touch_menu::take_installer_tap()
+        if let Some((tx, ty)) = crate::shell::touch_menu::take_installer_tap()
             && let Some(row) = Dialog::row_at(&places, tx as i32, ty as i32)
         {
-            crate::platform::touch_menu::tap_used();
+            crate::shell::touch_menu::tap_used();
             dialog.select(row);
             outcome = tapped_outcome(&mut dialog, &places, row, tx);
         }

@@ -83,6 +83,6 @@ and put an `ALLOGO.MPG` made the same way in its place.
 ## Code
 
 `src/menu/play_films.rs`, `rc2k_core/src/menu/films.rs` (which film when),
-`src/platform/film.rs` (the AVI reader, the MPEG reader, timing, drawing),
+`src/shell/film.rs` (the AVI reader, the MPEG reader, timing, drawing),
 `rc2k_core/src/film/` (the decoders: `indeo4.rs`, `mpeg1_video.rs`, `mp2.rs`, and
 `mpeg_film.rs`, which splits an MPEG film into its streams).

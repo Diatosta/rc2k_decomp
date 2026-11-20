@@ -10,7 +10,7 @@ same things (what is supported, how to bind), see [Controllers](Controllers).
 | Folder | What is there | Owner |
 | --- | --- | --- |
 | `src/input/` | The game's side: the key table, the device records, bindings, force-feedback requests, the input thread. | `Input` |
-| `src/platform/input.rs`, `src/platform/events.rs` | SDL's side: joysticks, haptics, window and key events. | |
+| `src/platform/input.rs`, `src/shell/events.rs` | SDL's side: joysticks, haptics, window and key events. | |
 | `src/drive/` | The last stretch: a device's readings into a car's controls. | `Race` |
 | `rc2k_core/src/input/` | Rules as plain functions: layouts, bindings, dead zones. | |
 
@@ -21,8 +21,8 @@ device files.
 
 Input arrives in two different shapes, and it helps to keep them apart.
 
-**Keys** come as events on the main thread. `platform::events::pump`
-(`src/platform/events.rs`) reads SDL's events whenever the game handles its window. A key
+**Keys** come as events on the main thread. `shell::events::pump`
+(`src/shell/events.rs`) reads SDL's events whenever the game handles its window. A key
 going down or up updates the **key table** (one entry per scan code, down or not) and, on the
 way down, becomes the **pending key**: the one most recent key press, waiting to be taken.
 
@@ -90,7 +90,7 @@ a race the left stick counts as the D-pad: leaning it past about half its travel
 direction, bringing it back within a third lets go (the gap keeps it from chattering near the
 line). In a race the sticks and triggers belong to driving only (below). A joystick that is not
 a gamepad (a wheel) sends SDL's joystick events instead: outside a race its hat is the cross (its
-axes move nothing in the menus), its buttons 2 and 3 are Enter and Back (`joystick_in_menus` in `src/platform/events.rs`). In a race only those two
+axes move nothing in the menus), its buttons 2 and 3 are Enter and Back (`joystick_in_menus` in `src/shell/events.rs`). In a race only those two
 buttons go on to the menus' side, so they answer the "leave?" question as a pad's buttons do.
 
 The pictures of a controller's buttons (`rc2k_core::input::icons`: the style and family, the
@@ -101,7 +101,7 @@ lines of the on-screen keyboard and the race's leave question) are described in
 
 Each controller's profile can bind the menu controls (enter, back, up, down, left, right, third
 answer, Tab) to buttons or hat directions of its own, on the last page of the buttons page
-([Controllers](Controllers)). `bound_menu_controls` in `src/platform/events.rs` looks the
+([Controllers](Controllers)). `bound_menu_controls` in `src/shell/events.rs` looks the
 controller up by name among the players' profiles (`input::profiles::menu_map_of`, the
 bindings as `rc2k_core::input::profile::MenuMap`); a bound control is pressed from its button
 or hat direction (for a gamepad, its gamepad buttons in the profiles' numbering, `PAD_BUTTONS`,
@@ -115,7 +115,7 @@ the credits race of the attract mode, skip the drive after the finish line, stop
 from the film loop, and end the pause that follows a window losing the focus. In the network
 race's wait for the other players, East (Back) leaves as Escape does and so does Start.
 In the replay viewer a race is loaded but its list is a menu, so the stick, the wheel and the
-shoulders work it as they work the menus (`driving` in `src/platform/events.rs`).
+shoulders work it as they work the menus (`driving` in `src/shell/events.rs`).
 
 Race keys that have no pad binding: F1 next view, F2 split screen layout (with three or four
 players it steps through their layouts),  F3 and F4 volume down
@@ -298,7 +298,7 @@ project's automated races are driven this way; see [Testing](Testing).
 
 | To change or understand | Start in |
 | --- | --- |
-| SDL events to keys | `src/platform/events.rs` |
+| SDL events to keys | `src/shell/events.rs` |
 | The pending key | `src/input/take_key.rs` |
 | Pressed-this-frame keys | `src/input/keys.rs` |
 | Keyboard layouts and typing | `src/input/layouts.rs`, `key_to_char.rs` |

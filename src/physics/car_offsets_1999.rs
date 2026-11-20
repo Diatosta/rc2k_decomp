@@ -275,10 +275,24 @@ const FIELDS: [(&str, usize, usize); 263] = [
     ("kept_brake_word", 0xfdc, 4),
 ];
 
+/// Where each field of `FIELDS` starts inside a `Car` (its address less the car's own), found by
+/// path once: every car keeps its fields in the same places.
+fn field_places() -> &'static [usize; FIELDS.len()] {
+    static PLACES: std::sync::OnceLock<[usize; FIELDS.len()]> = std::sync::OnceLock::new();
+    PLACES.get_or_init(|| {
+        let car = Car::new();
+        let base = std::ptr::from_ref(&car).addr();
+        FIELDS.map(|(name, _, _)| {
+            first_addr(&car, &format!(".{name}")).expect("a field of the car") - base
+        })
+    })
+}
+
 /// The 1999 offset of the byte at address `addr` of `car`, which lies in one of its fields.
 pub fn offset_1999(car: &Car, addr: usize) -> usize {
-    for (name, start, len) in FIELDS {
-        let first = first_addr(car, &format!(".{name}")).expect("a field of the car");
+    let base = std::ptr::from_ref(car).addr();
+    for ((_, start, len), place) in FIELDS.iter().zip(field_places()) {
+        let first = base + place;
         if (first..first + len).contains(&addr) {
             return start + addr - first;
         }
@@ -314,15 +328,25 @@ pub fn store_1999(car: &Car, offset: usize, value: u32) {
     assert!(set_u32(car, &cell_path(offset), value));
 }
 
+/// Whether each dword of the 1999 record (by its offset / 4) lies in a field of `FIELDS`.
+fn covered_offsets() -> &'static [bool; SIZE_1999 / 4] {
+    static COVERED: std::sync::OnceLock<[bool; SIZE_1999 / 4]> = std::sync::OnceLock::new();
+    COVERED.get_or_init(|| {
+        let mut covered = [false; SIZE_1999 / 4];
+        for (_, start, len) in FIELDS {
+            for offset in (start..start + len).step_by(4) {
+                covered[offset / 4] = true;
+            }
+        }
+        covered
+    })
+}
+
 /// The 1999 offset of cell `n` of the table `cells` of `car`, running on past the table's end
 /// into what followed it, as the record's fields do now: the places no code read (not in
 /// `FIELDS`) are stepped over, as the closed-up record has no bytes there.
 fn run_on(car: &Car, cells: &[impl crate::memory::session::Cell32], n: usize) -> usize {
-    let covered = |offset: usize| {
-        FIELDS
-            .iter()
-            .any(|&(_, start, len)| (start..start + len).contains(&offset))
-    };
+    let covered = |offset: usize| covered_offsets()[offset / 4];
     let mut offset = offset_1999(car, cells.as_ptr().addr());
     for _ in 0..n {
         offset += 4;

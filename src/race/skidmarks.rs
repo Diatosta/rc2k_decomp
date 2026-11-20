@@ -258,7 +258,7 @@ pub fn draw_skidmarks_if_on(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Res
 mod reference_vectors {
     use super::*;
     use crate::math::x87_float::{X, f80};
-    use crate::race::asm_test::{Rng, at_each_control_word, lock};
+    use crate::race::asm_test::{Rng, at_each_control_word};
     use crate::test_support::vectors::{Recorder, bytes, word};
 
     fn same_bits(a: u32, b: u32) -> bool {
@@ -267,7 +267,6 @@ mod reference_vectors {
 
     #[test]
     fn conversions_match() {
-        let _l = lock();
         let mut r = Rng(3);
         let mut file = Recorder::replay("race.skidmarks.conversions");
         at_each_control_word(|| {
@@ -295,7 +294,7 @@ mod reference_vectors {
 #[cfg(test)]
 mod vector_tests {
     use super::*;
-    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
+    use crate::race::asm_test::{Rng, at_each_control_word, same};
     use crate::test_support::own::race;
     use crate::test_support::own::scene;
     use crate::test_support::race_vectors::{Kind, Vectors};
@@ -312,7 +311,6 @@ mod vector_tests {
     fn project_vertex_is_the_originals() {
         let drawing = &scene().drawing;
         let course = &race().course;
-        let _l = lock();
         let kept = Snapshot::of(&STORES);
         let mut vectors = Vectors::open("race.skidmarks.project_vertex", Kind::Exact, 8);
         let mut r = Rng(4);

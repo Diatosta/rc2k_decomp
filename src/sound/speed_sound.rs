@@ -59,7 +59,7 @@ mod reference_vectors {
     use crate::sound::store::{SoundObject, SurfaceSounds};
 
     use crate::math::x87_mem::view;
-    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_locked};
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     // The blocks: the pitch, the volume (on the road: times the surface's gain).
     fn blocks() -> Vec<Block> {
@@ -150,6 +150,6 @@ mod reference_vectors {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse_locked("sound.speed_sound", &blocks(), 1200, 100);
+        sparse("sound.speed_sound", &blocks(), 1200, 100);
     }
 }

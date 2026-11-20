@@ -1180,7 +1180,6 @@ mod vector_tests {
     /// left, case by case.
     #[test]
     fn single_rally_is_the_originals() {
-        let _g = crate::test_support::test_lock();
         let kept = Snapshot::of(&STORES);
         let mut vectors = Vectors::open("race.single_rally.cases", Kind::Bits, 8);
         let (mut done, mut fatal, mut failed, mut engine, mut early, mut results) =

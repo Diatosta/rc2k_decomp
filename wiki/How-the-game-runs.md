@@ -83,7 +83,7 @@ asked to uninstall, it runs the installer (`install::run_installer`, see
 ## The front end
 
 `menu::run_front_end` builds the fonts, plays the opening films (`menu::play_films`, decoded in
-`src/platform/film.rs`) and enters the main menu. It returns when the player has confirmed
+`src/shell/film.rs`) and enters the main menu. It returns when the player has confirmed
 leaving the game.
 
 Every menu screen is the same loop, in `src/menu/screen_loop.rs`. A screen is a value of type
@@ -189,11 +189,12 @@ starts. More in [Drawing a frame](Drawing-a-frame).
 ## The platform layer
 
 `src/platform/` is everything between the game and the computer: the window and its events
-(`mod.rs`, `events.rs`), the 3D layer's hand-over to the backends (`direct3d.rs`), sound output
-(`sound.rs`), controllers (`input.rs`), films (`film.rs`), threads and locks (`sync.rs`),
+(`mod.rs`), the 3D layer's hand-over to the backends (`direct3d.rs`), sound output
+(`sound.rs`), controllers (`input.rs`), threads and locks (`sync.rs`),
 operating-system facts (`os/`), and bindings to C libraries (`ffi/`). It is built on SDL3. The
 game's own code does not call SDL or the operating system directly; if you are porting to a new
 system, this is the folder to read (see [Porting to a new platform](Porting-to-a-new-platform)).
+The part that knows the game's owners (the window's events, the films, the touch menu) is `src/shell/`.
 
 ## The threads
 

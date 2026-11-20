@@ -87,7 +87,8 @@ pub fn ground_searches() -> (u32, u32) {
     )
 }
 
-/// A stage begins: the clock, only while the UI is open.
+/// A stage begins: the clock, only while the UI is open; on the handheld and the phones always,
+/// as their periodic log lines (`platform::timing`) report the stages.
 #[inline]
 pub fn start() -> Option<Instant> {
     #[cfg(any(handheld, target_os = "android", target_os = "ios"))]

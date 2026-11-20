@@ -184,7 +184,7 @@ impl Session {
             s.events.values().copied().collect::<Vec<_>>()
         };
         self.answered.notify_all();
-        if !self.stop.load(Ordering::SeqCst) {
+        if !self.stop.is_set() {
             for e in events {
                 (self.signal)(e);
             }

@@ -286,9 +286,9 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
     let mut pace = Pace::default();
     let began = std::time::Instant::now();
     let mut was_down = true;
-    // A tap on the cancel button stops the render (`platform::touch_menu`).
+    // A tap on the cancel button stops the render (`shell::touch_menu`).
     #[cfg(touch_screen)]
-    let _taps = crate::platform::touch_menu::InstallerPage::begin();
+    let _taps = crate::shell::touch_menu::InstallerPage::begin();
     let stop = |child: &mut Child| {
         let _ = child.kill();
         let _ = child.wait();
@@ -348,12 +348,12 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
         )]
         let mut clicked = down && !was_down && x >= l && x < l + w && y >= t && y < t + h;
         #[cfg(touch_screen)]
-        if let Some((tx, ty)) = crate::platform::touch_menu::take_installer_tap() {
+        if let Some((tx, ty)) = crate::shell::touch_menu::take_installer_tap() {
             // The tap, like the mouse, where the panel was laid out.
             let (tx, ty) = panel.point(tx as i32, ty as i32);
             let hit = tx >= l && tx < l + w && ty >= t && ty < t + h;
             if hit {
-                crate::platform::touch_menu::tap_used();
+                crate::shell::touch_menu::tap_used();
             }
             clicked |= hit;
         }

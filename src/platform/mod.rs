@@ -18,7 +18,7 @@
 //!   `gfx::set_menu_screen_mode` is it with the menus' mode.
 //! - `gfx::lock_surface`, `gfx::unlock_surface`, `gfx::show_frame`.
 //! - `screens::run_frame` (given the frame's function) and `system::pump_messages`: SDL's events
-//!   (`platform::events`).
+//!   (`shell::events`).
 //!
 //! Where the time goes: `platform::timing`.
 
@@ -29,9 +29,7 @@
 pub mod android;
 pub mod arch;
 pub mod direct3d;
-pub mod events;
 pub mod ffi;
-pub mod film;
 #[cfg(handheld)]
 pub mod handheld;
 pub mod icon;
@@ -45,16 +43,12 @@ pub mod sync;
 pub mod timing;
 #[cfg(phone)]
 pub mod touch;
-#[cfg(touch_screen)]
-pub mod touch_menu;
 #[cfg(phone)]
 pub mod vibrate;
 #[cfg(web)]
 pub mod web;
 #[cfg(web)]
 pub mod web_pads;
-#[cfg(not(handheld))]
-pub mod window_follow;
 pub mod window_mode;
 
 use crate::gfx::describe_format::describe_format;
@@ -78,15 +72,15 @@ pub(crate) struct Screen {
     // the handheld shows frames on its framebuffer
     texture: sdl::Texture,
     /// The frame's size: what the game draws on (800 x 600 in the menus, the race's mode in a race).
-    width: usize,
-    height: usize,
+    pub(crate) width: usize,
+    pub(crate) height: usize,
     /// The window's size: the race's mode, from the start to the end; a frame of another size is
     /// shown scaled in it (`rc2k_core::gfx::screen_fit`).
-    window_size: (usize, usize),
+    pub(crate) window_size: (usize, usize),
     /// The frame is a menu's: the window's side space beside it continues its edge colours.
     #[cfg_attr(handheld, allow(dead_code))]
     // the handheld's panel is the frame's own size
-    menu: bool,
+    pub(crate) menu: bool,
     bits: u32,
     /// The pixels the game draws on, named by `locked_pixels::SCREEN` while the screen lives.
     pixels: std::sync::Arc<crate::platform::pool::PoolBytes>,
@@ -901,6 +895,7 @@ fn with_frame<R>(screen: &Screen, show: impl FnOnce(&[u8]) -> R) -> R {
 
 fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(), &'static str> {
     let race = o.race;
+    let racing = race.course.numbers.get().in_race.is_set();
     // The frame's length (`with_frame`), checked before anything is shown.
     if screen.pixels.len() < screen.width * screen.height * 4 {
         return Err("the frame is smaller than the screen");
@@ -911,7 +906,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         crate::platform::handheld::open_screen()?;
         if let Some(target) = crate::platform::direct3d::screen(o.system.session.screen.get())
             && crate::render::show_on_panel(
-                &race.course,
+                racing,
                 &target,
                 |show| with_frame(screen, show),
                 screen.width,
@@ -930,7 +925,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         // SDL's renderer, is not over them).
         if let Some(target) = crate::platform::direct3d::screen(o.system.session.screen.get())
             && crate::render::show_on_gl_window(
-                &race.course,
+                racing,
                 &target,
                 |show| with_frame(screen, show),
                 screen.width,
@@ -944,7 +939,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         // A race on the GPU: its picture, the canvas's written pixels over it.
         let finishing = std::time::Instant::now();
         let gpu_view = crate::platform::direct3d::screen(o.system.session.screen.get())
-            .and_then(|target| crate::render::finish_frame(&race.course, &target))
+            .and_then(|target| crate::render::finish_frame(racing, &target))
             .map(|colour| make_view(renderer, colour))
             .is_some();
         crate::platform::timing::note_span(
@@ -975,7 +970,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         drop(view);
         // The race's touch controls.
         #[cfg(touch_screen)]
-        if events::touch_controls_live(o.race) {
+        if crate::shell::events::touch_controls_live(o.race) {
             #[cfg(phone)]
             crate::platform::touch::draw(
                 renderer,
@@ -985,7 +980,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         }
         // The pause's and the question's answer buttons.
         #[cfg(phone)]
-        if let Some(asked) = events::touch_asked(o.race) {
+        if let Some(asked) = crate::shell::events::touch_asked(o.race) {
             crate::platform::touch::draw_answers(
                 renderer,
                 input_window(screen.window),
@@ -1216,7 +1211,7 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             }
         }
         crate::platform::timing::start_sampler();
-        crate::platform::timing::report_timing(o.system);
+        crate::shell::timing_report::report_timing(o.system);
         // The next frame waits for its turn on the display.
         crate::platform::pacing::frame_shown();
     }
@@ -1227,13 +1222,13 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
 
 /// `system::pump_messages`: the window's events (SDL's).
 pub fn pump_messages_now(o: crate::owners::Owners<'static>) {
-    crate::platform::events::pump(o);
+    crate::shell::events::pump(o);
 }
 
 /// `screens::run_frame` for Rust callers with a frame of their own (the screen loops): the
 /// messages, then the frame unless quitting (None then).
 pub fn run_frame_now<T>(o: crate::owners::Owners<'static>, frame: impl FnOnce() -> T) -> Option<T> {
-    crate::platform::events::pump(o);
+    crate::shell::events::pump(o);
     if o.system.session.flags.quitting.is_set() {
         None
     } else {

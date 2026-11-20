@@ -23,7 +23,6 @@ pub mod rasteriser_neon;
 pub mod small_frame;
 pub mod software;
 
-use crate::race::owner_course::Course;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
@@ -607,12 +606,12 @@ pub fn video_read_last(_spare: Vec<u8>) -> Option<Vec<u8>> {
     None
 }
 
-/// Whether the frame ending now stays on the GPU: a race's always, a menu's when it drew 3D or
+/// Whether the frame ending now stays on the GPU: a race's always (`racing`), a menu's when it drew 3D or
 /// kept its background on the GPU (`background`). Starts the next frame's count.
-fn frame_stays_on_gpu(course: &Course) -> bool {
+fn frame_stays_on_gpu(racing: bool) -> bool {
     let drew = GPU_DREW_THIS_FRAME.swap(false, Relaxed);
     let kept_background = background::recorded_this_frame();
-    drew || kept_background || course.numbers.get().in_race.is_set()
+    drew || kept_background || racing
 }
 
 /// The frame back for good: the rasteriser draws from here.
@@ -626,7 +625,7 @@ fn give_frame_back(target: &Target) {
 /// (`Gpu::colour_texture`).
 #[cfg(not(handheld))]
 pub fn finish_frame(
-    course: &Course,
+    racing: bool,
     target: &Target,
 ) -> Option<(*mut sdl3_sys::everything::SDL_GPUTexture, u64, (u32, u32))> {
     if !GPU_HOLDS_FRAME.load(Relaxed) {
@@ -634,7 +633,7 @@ pub fn finish_frame(
     }
     // The OpenGL backend's window shows its own frames (`show_on_gl_window`); a frame that
     // comes here is read back into the canvas.
-    let stays = frame_stays_on_gpu(course);
+    let stays = frame_stays_on_gpu(racing);
     if !stays || gles::GPU.lock().unwrap().is_some() {
         give_frame_back(target);
         if stays {
@@ -665,14 +664,14 @@ pub fn finish_frame(
 /// canvas here, so that no slice of it is held across them). False: it is not running.
 #[cfg(handheld)]
 pub fn show_on_panel(
-    course: &Course,
+    racing: bool,
     target: &Target,
     with_frame: impl FnOnce(&mut dyn FnMut(&[u8])),
     width: usize,
     height: usize,
 ) -> bool {
     gpu::start_if_wanted();
-    if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(course) {
+    if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(racing) {
         give_frame_back(target);
     }
     let mut gpu = gpu::GPU.lock().unwrap();
@@ -697,7 +696,7 @@ pub fn show_on_panel(
 /// not show a window (it is not running), and the caller shows the frame.
 #[cfg(not(handheld))]
 pub fn show_on_gl_window(
-    course: &Course,
+    racing: bool,
     target: &Target,
     with_frame: impl FnOnce(&mut dyn FnMut(&[u8])),
     width: usize,
@@ -707,7 +706,7 @@ pub fn show_on_gl_window(
     if gles::window().is_none() || gles::GPU.lock().unwrap().is_none() {
         return false;
     }
-    if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(course) {
+    if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(racing) {
         give_frame_back(target);
     }
     let mut gl = gles::GPU.lock().unwrap();

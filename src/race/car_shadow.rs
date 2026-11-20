@@ -907,12 +907,11 @@ pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
 mod reference_vectors {
     use super::*;
 
-    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
+    use crate::race::asm_test::{Rng, at_each_control_word, same};
     use crate::test_support::vectors::{Recorder, word, words};
 
     #[test]
     fn two_pi_plus_matches() {
-        let _l = lock();
         let mut r = Rng(21);
         let mut file = Recorder::replay("race.car_shadow.two_pi_plus");
         at_each_control_word(|| {
@@ -933,7 +932,6 @@ mod reference_vectors {
 
     #[test]
     fn float_blocks_match() {
-        let _l = lock();
         let mut r = Rng(22);
         let mut file = Recorder::replay("race.car_shadow.float_blocks");
         at_each_control_word(|| {
@@ -963,7 +961,6 @@ mod reference_vectors {
 
     #[test]
     fn circle_place_matches() {
-        let _l = lock();
         let mut r = Rng(23);
         let mut file = Recorder::replay("race.car_shadow.circle_place");
         let mut worst = 0;
@@ -1006,7 +1003,7 @@ mod reference_vectors {
 #[cfg(test)]
 mod vector_tests {
     use super::*;
-    use crate::race::asm_test::{Rng, at_each_control_word, lock, same, within_ulps};
+    use crate::race::asm_test::{Rng, at_each_control_word, same, within_ulps};
     use crate::test_support::own::race;
     use crate::test_support::race_vectors::{Kind, Vectors};
     use crate::test_support::state::Snapshot;
@@ -1022,7 +1019,6 @@ mod vector_tests {
 
     #[test]
     fn inside_edge_is_the_originals() {
-        let _l = lock();
         let kept = Snapshot::of(&[
             "owners.race.physics.ground",
             "owners.race.frame.frame_work",
@@ -1072,7 +1068,6 @@ mod vector_tests {
 
     #[test]
     fn crossing_block_is_the_originals() {
-        let _l = lock();
         let kept = Snapshot::of(&[
             "owners.scene.drawing.scene",
             "owners.race.frame.frame_work",
@@ -1148,7 +1143,6 @@ mod vector_tests {
 
     #[test]
     fn sun_slant_and_angle_are_the_originals() {
-        let _l = lock();
         let kept = Snapshot::of(&[
             "owners.scene.drawing.scene",
             "owners.race.frame.shadow_skids",

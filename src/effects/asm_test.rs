@@ -407,7 +407,7 @@ fn run_recorded<R: std::fmt::Debug>(
     // (`effects::{adjugate3, pong_ball_hits, run_windscreen_flakes, turns}`): x87 arithmetic
     // over the buffers' bytes and over records laid over them (`asm_layout::with_laid`, a
     // fresh copy filled from the buffer). A new caller whose `plain` reaches a static takes
-    // the lock around its call.
+    // that static's lock around its call (`test_support::locks`).
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     let mut failures = 0;
     for cw in [0x027F, 0x0E7F] {
@@ -577,13 +577,10 @@ pub fn recorded_writes<R: std::fmt::Debug>(
     plain: impl Fn(&[Operand]) -> R,
 ) {
     use crate::test_support::vectors::Recorder;
-    run_writes(Recorder::replay(name), spec, &plain, true);
+    run_writes(Recorder::replay(name), spec, &plain);
 }
 
-/// `recorded_writes` for a block over test buffers only whose `plain` reaches no static: run
-/// without `test_support::test_lock`, as `recorded` (whose reasons hold here). Checked for
-/// each caller (`effects::{pong, scale_axes}`): x87 arithmetic over the buffers' bytes and
-/// over records laid over them (`asm_layout::with_laid`).
+/// `recorded_writes` for a block over test buffers only: its operands are never the race block's.
 pub fn recorded_buffer_writes<R: std::fmt::Debug>(
     name: &str,
     spec: &Spec,
@@ -597,18 +594,15 @@ pub fn recorded_buffer_writes<R: std::fmt::Debug>(
             .any(|op| matches!(op, Op::RaceBlock { .. })),
         "a block of buffer writes reads only its test buffers"
     );
-    run_writes(Recorder::replay(name), spec, &plain, false);
+    run_writes(Recorder::replay(name), spec, &plain);
 }
 
-/// The lock is taken unless the caller says `plain` reaches no static and no operand is in
-/// the race block (`recorded_buffer_writes`).
+/// No lock: the race block's places are the cells of this thread's own owners.
 fn run_writes<R: std::fmt::Debug>(
     mut file: crate::test_support::vectors::Recorder,
     spec: &Spec,
     plain: &dyn Fn(&[Operand]) -> R,
-    reaches_statics: bool,
 ) {
-    let _guard = reaches_statics.then(crate::test_support::test_lock);
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     let mut failures = 0;
     // The race block places any operand lists: put back when the test ends.

@@ -362,7 +362,7 @@ struct DirectSideways;
 impl DirectSideways {
     fn begin() -> Self {
         #[cfg(touch_screen)]
-        crate::platform::touch_menu::set_direct_sideways(true);
+        crate::shell::touch_menu::set_direct_sideways(true);
         DirectSideways
     }
 }
@@ -370,15 +370,15 @@ impl DirectSideways {
 impl Drop for DirectSideways {
     fn drop(&mut self) {
         #[cfg(touch_screen)]
-        crate::platform::touch_menu::set_direct_sideways(false);
+        crate::shell::touch_menu::set_direct_sideways(false);
     }
 }
 
 pub fn run(o: Owners<'static>) -> Result<(), Refused> {
     let _direct = DirectSideways::begin();
-    // A tap on one of the page's buttons presses it (`platform::touch_menu`).
+    // A tap on one of the page's buttons presses it (`shell::touch_menu`).
     #[cfg(touch_screen)]
-    let _taps = crate::platform::touch_menu::InstallerPage::begin();
+    let _taps = crate::shell::touch_menu::InstallerPage::begin();
     let mut page = Page::new(o)?;
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
@@ -400,10 +400,10 @@ pub fn run(o: Owners<'static>) -> Result<(), Refused> {
         // A tap on a usable button chooses it and presses it; one on a button that cannot be
         // used, or anywhere else, does nothing.
         #[cfg(touch_screen)]
-        if let Some((x, y)) = crate::platform::touch_menu::take_installer_tap() {
+        if let Some((x, y)) = crate::shell::touch_menu::take_installer_tap() {
             let usable: [bool; BUTTONS] = std::array::from_fn(|n| page.usable(n));
             if let Some(n) = tapped(&l.buttons, &usable, x, y) {
-                crate::platform::touch_menu::tap_used();
+                crate::shell::touch_menu::tap_used();
                 page.chosen = n;
                 key = KEY_ENTER;
             }
@@ -630,17 +630,17 @@ fn ask(o: Owners<'static>, plan: &Plan) -> bool {
     crate::input::menu_pad::take_answer(o.input);
     let mut chosen = 1;
     #[cfg(touch_screen)]
-    let _taps = crate::platform::touch_menu::InstallerPage::begin();
+    let _taps = crate::shell::touch_menu::InstallerPage::begin();
     loop {
         if !frame(o, || draw_question(o, &rows, chosen)) {
             return false;
         }
         // A tap on a button answers with it.
         #[cfg(touch_screen)]
-        if let Some((x, y)) = crate::platform::touch_menu::take_installer_tap() {
+        if let Some((x, y)) = crate::shell::touch_menu::take_installer_tap() {
             let (w, h) = draw::screen_size(o);
             if let Some(n) = tapped(&question_ways(w, h), &[true; 2], x, y) {
-                crate::platform::touch_menu::tap_used();
+                crate::shell::touch_menu::tap_used();
                 return n == 0;
             }
         }

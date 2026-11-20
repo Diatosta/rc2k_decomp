@@ -163,12 +163,11 @@ pub fn find_sound_spots(
 mod reference_vectors {
     use super::*;
     use crate::math::x87_float::{X, f80};
-    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
+    use crate::race::asm_test::{Rng, at_each_control_word, same};
     use crate::test_support::vectors::{Recorder, word};
 
     #[test]
     fn scaled_matches() {
-        let _l = lock();
         let mut r = Rng(2);
         let mut file = Recorder::replay("race.sound_spots.scaled");
         at_each_control_word(|| {

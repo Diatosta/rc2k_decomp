@@ -61,8 +61,7 @@ fn hash_if_asked(audio: &Audio, command: u32, registers: [u32; 7]) {
     use std::sync::OnceLock;
     static ON: OnceLock<bool> = OnceLock::new();
     /// The turn's hash so far, its commands and the turns logged.
-    static TURN: Mutex<Option<(crate::debug::check_hash::CheckHasher, u32, u32)>> =
-        Mutex::new(None);
+    static TURN: Mutex<Option<(crate::math::check_hash::CheckHasher, u32, u32)>> = Mutex::new(None);
     if !*ON.get_or_init(|| std::env::var_os("RC2K_SOUND_HASH").is_some()) || !audio.racing.is_set()
     {
         return;

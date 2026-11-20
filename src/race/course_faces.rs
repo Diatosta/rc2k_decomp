@@ -1108,14 +1108,13 @@ pub fn draw_tinted_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::asm_test::{Rng, at_each_control_word, lock};
+    use crate::race::asm_test::{Rng, at_each_control_word};
     use crate::test_support::vectors::{Recorder, word};
 
     // The recorded block.
 
     #[test]
     fn frame_of_matches() {
-        let _l = lock();
         let mut r = Rng(12);
         let mut file = Recorder::replay("race.course_faces.frame_of");
         at_each_control_word(|| {
@@ -1140,7 +1139,7 @@ mod reference_vectors {
 #[cfg(test)]
 mod vector_tests {
     use super::*;
-    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
+    use crate::race::asm_test::{Rng, at_each_control_word, same};
     use crate::test_support::own::race;
     use crate::test_support::race_vectors::{Kind, Vectors};
     use crate::test_support::state::Snapshot;
@@ -1148,7 +1147,6 @@ mod vector_tests {
     #[test]
     fn face_turned_to_view_is_the_originals() {
         let race = race();
-        let _l = lock();
         let kept = Snapshot::of(&[
             "owners.race.shared.switches",
             "owners.race.course.course",
@@ -1197,7 +1195,6 @@ mod vector_tests {
     fn halfway_vertex_is_the_originals() {
         let drawing = &crate::test_support::own::scene().drawing;
         let course = &race().course;
-        let _l = lock();
         let kept = Snapshot::of(&[
             "owners.scene.drawing.scene",
             "owners.race.course.course",
@@ -1247,7 +1244,6 @@ mod vector_tests {
     #[test]
     fn halfway_entry_is_the_originals() {
         let course = &race().course;
-        let _l = lock();
         let kept = Snapshot::of(&["owners.race.course.numbers"]);
         let mut vectors = Vectors::open("race.course_faces.halfway_entry", Kind::Exact, 10);
         let mut r = Rng(14);

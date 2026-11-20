@@ -3,7 +3,6 @@
 //! pages; `display_rows`: the display page's figures named and grouped; `imgui_sdl`: ImGui on
 //! SDL; `wear_page`: the display page's surface names and reads.
 
-pub mod check_hash;
 #[cfg(debug_ui)]
 pub mod imgui_sdl;
 /// No debug UI in the 32-bit build (Dear ImGui's crate has no such Windows target).

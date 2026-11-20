@@ -109,7 +109,7 @@ pub fn hash_if_asked(list: &CommandList, in_race: bool) {
     if !super::switches().fan_hash || !in_race {
         return;
     }
-    let mut h = crate::debug::check_hash::CheckHasher::default();
+    let mut h = crate::math::check_hash::CheckHasher::default();
     // A texture by its pixels, not by where they are: that differs from run to run.
     let mut seen: Vec<(crate::render::TextureId, u64)> = Vec::new();
     let mut texture_hash = |t: &crate::render::TextureNote| {
@@ -117,7 +117,7 @@ pub fn hash_if_asked(list: &CommandList, in_race: bool) {
         if let Some(&(_, v)) = seen.iter().find(|s| s.0 == at) {
             return v;
         }
-        let mut th = crate::debug::check_hash::CheckHasher::default();
+        let mut th = crate::math::check_hash::CheckHasher::default();
         // SAFETY: as `noted_bytes`': the dump is made inside the noted drawing, before any write
         // to or letting go of a level it reads (each flushes it first).
         unsafe { crate::platform::direct3d::level_bytes(t.pixels) }

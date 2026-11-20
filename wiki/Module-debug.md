@@ -22,7 +22,6 @@ in statics (the freeze flag in `src/debug/overlay.rs`, timings in `src/debug/tim
 | `imgui_sdl` | `src/debug/imgui_sdl.rs` | Dear ImGui on SDL: the window, its input and drawing. |
 | `Stage`, `start`, `stop` | `src/debug/timing.rs` | The profiler's named stages, timed by the code they wrap. |
 | `tab` | `src/debug/switches.rs`, `kstar.rs`, `dyno.rs`, `gpu_cuts.rs`, `dev_front_end.rs` | One function per tab: switches, the developers' modes, the dyno, GPU diagnostics, the developers' front-end shortcuts. |
-| `CheckHasher` | `src/debug/check_hash.rs` | A hash used by checks that compare two runs. |
 
 ## How it is laid out
 

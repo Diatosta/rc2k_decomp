@@ -4,6 +4,7 @@
 
 pub mod cell_x87;
 pub mod cells;
+pub mod check_hash;
 pub mod engine_tables;
 pub mod matrix3;
 pub mod nearest_on_segment;

@@ -71,7 +71,7 @@ fn message(
     y: u32,
 ) -> Result<Copied, Refused> {
     let (system, gfx, input) = (o.system, o.gfx, o.input);
-    crate::platform::events::hold_quit(system, false);
+    crate::shell::events::hold_quit(system, false);
     run_frame(o, None)?;
     if lock(gfx, system) {
         crate::install::draw_string_list::draw_string_list(
@@ -147,7 +147,7 @@ pub fn install_files(
         return bad_path();
     }
     // A close during the copy waits for its end (the progress still shown).
-    crate::platform::events::hold_quit(o.system, true);
+    crate::shell::events::hold_quit(o.system, true);
     run_frame(
         o,
         Some(&|| crate::install::install_frames::copying_frame(o)),
@@ -244,7 +244,7 @@ pub fn install_files(
             i::copy_counted::copy_counted(install, &install.paths.path_a, base)?;
         }
     }
-    crate::platform::events::hold_quit(o.system, false);
+    crate::shell::events::hold_quit(o.system, false);
     pause(o, 1000);
     install.names.status.set(1);
     // The installed folder's path copied to the install source, with its length (NUL included)

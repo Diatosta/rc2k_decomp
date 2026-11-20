@@ -23,7 +23,7 @@ It is the page to read before changing anything that more than one thread touche
 | Rasteriser | `src/render/software.rs` (a thread pool) | tiles of the picture | The software renderer's triangle filling, split over the cores. |
 | GL and GL batches | `src/render/gles.rs` | the handheld's renderer | One holds the OpenGL ES context and talks to the driver; one prepares batches a part ahead (`src/render/gl_batching.rs`). |
 | Sound mixer | SDL | `src/platform/sound.rs` | SDL calls in when the output needs more sound. |
-| Helpers | various | | A watchdog for the fault reporter (Windows), a safety net after the window is closed (`src/platform/events.rs`), the handheld's profiler when asked for. |
+| Helpers | various | | A watchdog for the fault reporter (Windows), a safety net after the window is closed (`src/shell/events.rs`), the handheld's profiler when asked for. |
 
 ### Thread slots
 
@@ -48,7 +48,7 @@ One flag ends everything: `flags.quitting` in the session state (`System` owner)
 - the menus' screen loop, the race loop and the film player leave and unwind back to
   `system::main_loop`, which saves the options and best times.
 
-Closing the window sets the same flag (`src/platform/events.rs`). If some loop fails to notice
+Closing the window sets the same flag (`src/shell/events.rs`). If some loop fails to notice
 within a grace period, the program ends anyway, without saving, rather than hang.
 
 A fatal error also goes this way: the report is noted, quitting is requested, and the report
@@ -171,7 +171,7 @@ If you add or change shared state:
 | The drawing scope and helper threads | `src/scene/workers.rs` |
 | The sound command queue | `src/sound/queue.rs` |
 | Network inboxes | `src/net/store_received.rs`, `copy_received.rs` |
-| Quitting | `src/threading/request_quit.rs`, `src/platform/events.rs` |
+| Quitting | `src/threading/request_quit.rs`, `src/shell/events.rs` |
 
 Next: [State and memory](State-and-memory). See also [the small modules](Module-small-modules),
 [Module-memory](Module-memory), [Module-platform](Module-platform).

@@ -355,11 +355,11 @@ fn run(
     crate::input::take_key::take_key(o.input);
     crate::input::menu_pad::take_answer(o.input);
     crate::input::typed_text::osk_close();
-    // A tap on the dialog is for its ways (`platform::touch_menu`).
+    // A tap on the dialog is for its ways (`shell::touch_menu`).
     #[cfg(touch_screen)]
-    let _taps = crate::platform::touch_menu::InstallerPage::begin();
+    let _taps = crate::shell::touch_menu::InstallerPage::begin();
     #[cfg(touch_screen)]
-    let _ = crate::platform::touch_menu::take_installer_tap();
+    let _ = crate::shell::touch_menu::take_installer_tap();
     let mut chosen = first;
     let mut drawn = false;
     // What the player is given when the window closes or the screen goes: the last way.
@@ -406,12 +406,12 @@ fn run(
         crate::input::menu_pad::take_answer(o.input);
         let key = crate::input::take_key::take_key(o.input);
         #[cfg(touch_screen)]
-        if let Some((x, y)) = crate::platform::touch_menu::take_installer_tap()
+        if let Some((x, y)) = crate::shell::touch_menu::take_installer_tap()
             // The tap, like the mouse, where the panel was laid out.
             && let (x, y) = panel.point(x as i32, y as i32)
             && let Some(way) = tapped_way(&drawn_rects, &held, ways, x as f32, y as f32)
         {
-            crate::platform::touch_menu::tap_used();
+            crate::shell::touch_menu::tap_used();
             return Some(way);
         }
         #[cfg(not(touch_screen))]

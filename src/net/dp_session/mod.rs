@@ -126,7 +126,11 @@ pub struct Session {
     shared: Mutex<Shared>,
     answered: Condvar,
     signal: Signal,
-    stop: AtomicBool,
+    /// Set when the session closes; the host's ping thread waits on it.
+    stop: Arc<Closing>,
+    /// The host's listening socket, as a connection from here reaches it: `close` connects to
+    /// wake the thread blocked accepting.
+    listener_at: Mutex<Option<std::net::SocketAddr>>,
     /// The host: each joined machine's connection. A joined machine: the host's (as 1).
     links: Mutex<HashMap<u32, Link>>,
     port: u16,
@@ -139,6 +143,43 @@ pub struct Session {
     /// What the connection's kind keeps while the session is open (the Steam lobby and its
     /// listening socket); dropped when the session closes.
     held: Mutex<Option<Box<dyn std::any::Any + Send>>>,
+}
+
+/// Whether a session has closed, and a wait that a closing cuts short.
+#[derive(Default)]
+struct Closing {
+    closed: Mutex<bool>,
+    changed: Condvar,
+}
+
+impl Closing {
+    fn is_set(&self) -> bool {
+        *self
+            .closed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn set(&self) {
+        *self
+            .closed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
+        self.changed.notify_all();
+    }
+
+    /// Waits up to `time` for the closing; whether it has happened.
+    fn wait(&self, time: Duration) -> bool {
+        let closed = self
+            .closed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *self
+            .changed
+            .wait_timeout_while(closed, time, |closed| !*closed)
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .0
+    }
 }
 
 /// What a locked session's host keeps of its password.
@@ -165,7 +206,8 @@ impl Session {
             }),
             answered: Condvar::new(),
             signal,
-            stop: AtomicBool::new(false),
+            stop: Arc::new(Closing::default()),
+            listener_at: Mutex::new(None),
             links: Mutex::new(HashMap::new()),
             connections: AtomicUsize::new(0),
             lock,
@@ -317,7 +359,16 @@ impl Session {
     }
 
     pub fn close(&self) {
-        self.stop.store(true, Ordering::SeqCst);
+        self.stop.set();
+        let listener_at = self
+            .listener_at
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        if let Some(at) = listener_at {
+            // The accepting thread sees the session closed and ends.
+            let _ = std::net::TcpStream::connect_timeout(&at, Duration::from_millis(200));
+        }
         let links = std::mem::take(
             &mut *self
                 .links

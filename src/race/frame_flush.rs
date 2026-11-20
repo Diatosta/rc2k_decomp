@@ -194,7 +194,7 @@ pub fn draw_view_backdrop(
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
+    use crate::race::asm_test::{Rng, at_each_control_word, same};
     use crate::test_support::own::race;
     use crate::test_support::vectors::{Recorder, word};
 
@@ -212,7 +212,6 @@ mod reference_vectors {
     #[test]
     fn int_blocks_match() {
         let course = &race().course;
-        let _l = lock();
         let _kept = KeptOne(race().course.numbers.get().one.get());
         let mut r = Rng(5);
         let mut file = Recorder::replay("race.frame_flush.int_blocks");

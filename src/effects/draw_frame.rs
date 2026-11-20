@@ -33,10 +33,6 @@ fn times(effects: &Effects) -> [(&PlainFloat, &PlainFloat); 2] {
     ]
 }
 
-fn rdtsc() -> u32 {
-    crate::platform::arch::rdtsc() as u32
-}
-
 /// Draws the frame: `cars_particles`, `view_heading`, `view_motion`, `begin_quads`,
 /// `scene::depth_test_on`.
 pub fn draw_frame(
@@ -86,18 +82,21 @@ pub fn draw_frame(
     view_heading::view_heading(&race.frame, effects);
     view_motion::view_motion(&race.frame, effects)?;
     let times = times(effects);
-    let start = rdtsc();
+    let start = crate::effects::cycles::start();
     begin_quads::begin_quads(buffer, effects, scene);
     let frame = effects.setup.frame.frame_cycles.get();
-    let took = rdtsc().wrapping_sub(start) as i32;
-    times[0]
-        .1
-        .set(x87::int_over_int_times(took, frame, times[0].0));
-    let start = rdtsc();
-    let took = rdtsc().wrapping_sub(start) as i32;
-    times[1]
-        .1
-        .set(x87::int_over_int_times(took, frame, times[1].0));
+    if let Some(took) = crate::effects::cycles::since(start) {
+        times[0]
+            .1
+            .set(x87::int_over_int_times(took, frame, times[0].0));
+    }
+    // Nothing runs between these two readings: the page's "empty" time is the counter's own cost.
+    let start = crate::effects::cycles::start();
+    if let Some(took) = crate::effects::cycles::since(start) {
+        times[1]
+            .1
+            .set(x87::int_over_int_times(took, frame, times[1].0));
+    }
     crate::scene::depth_test_on::depth_test_on(scene.scratch.game_scratch());
     Ok(())
 }

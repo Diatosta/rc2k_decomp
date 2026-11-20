@@ -180,7 +180,7 @@ pub fn pad_removed(id: SDL_JoystickID) {
 
 /// A finger's change in a race (`x`, `y`: parts of the window): it drives the controls.
 pub fn finger(window: sdl::Window, id: u64, phase: Phase, x: f32, y: f32, now: u64) {
-    let Some(screen) = crate::platform::touch_menu::screen_of(window) else {
+    let Some(screen) = crate::platform::safe_area::screen_of(window) else {
         return;
     };
     let (x, y) = (x * screen.width, y * screen.height);
@@ -263,7 +263,7 @@ pub fn draw(renderer: sdl::Renderer, window: sdl::Window, now: u64) {
     if st.source == Source::Pad || st.pad.is_none() {
         return;
     }
-    let Some(screen) = crate::platform::touch_menu::screen_of(window) else {
+    let Some(screen) = crate::platform::safe_area::screen_of(window) else {
         return;
     };
     let layout = Layout::new(&screen);
@@ -330,7 +330,7 @@ pub fn answer_finger(
     x: f32,
     y: f32,
 ) -> Option<Answer> {
-    let screen = crate::platform::touch_menu::screen_of(window)?;
+    let screen = crate::platform::safe_area::screen_of(window)?;
     state().answers.finger(
         &screen,
         asked,
@@ -351,7 +351,7 @@ pub struct Label {
 /// The answer buttons over the frame, in the controls' style (white, see-through), the words
 /// given by the caller; the one under a finger lit.
 pub fn draw_answers(renderer: sdl::Renderer, window: sdl::Window, asked: Asked, labels: &[Label]) {
-    let Some(screen) = crate::platform::touch_menu::screen_of(window) else {
+    let Some(screen) = crate::platform::safe_area::screen_of(window) else {
         return;
     };
     let pressed = state().answers.pressed();

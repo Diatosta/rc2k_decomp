@@ -246,16 +246,14 @@ pub fn pump(o: crate::owners::Owners<'static>) {
             // (and does not sleep a second a tick) while it is 1.
             Event::Resized => {
                 #[cfg(not(handheld))]
-                crate::platform::window_follow::note_resize(
-                    u64::from(crate::platform::os::ticks()),
-                );
+                crate::shell::window_follow::note_resize(u64::from(crate::platform::os::ticks()));
             }
             Event::Focus(focused) => {
                 system.session.flags.window_focused.set(focused as u32);
                 // Fingers on the screen when the app is sent away or comes back may never
                 // be lifted for it (a system gesture took them).
                 #[cfg(touch_screen)]
-                crate::platform::touch_menu::release_all();
+                crate::shell::touch_menu::release_all();
             }
             Event::Text(text) => crate::input::typed_text::typed_by_keyboard(&text),
             Event::Key { scancode, down } => {
@@ -331,7 +329,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     #[cfg(touch_screen)]
     touch_tick(&o, now);
     #[cfg(not(handheld))]
-    crate::platform::window_follow::follow(o, now);
+    crate::shell::window_follow::follow(o, now);
     if let Some(action) = lock_menu_pad().tick(now) {
         menu_action(input, action);
     }
@@ -347,7 +345,8 @@ fn sync_text_input() {
         .ok()
         .and_then(|screen| screen.as_ref())
         .map(|screen| crate::platform::input_window(screen.window));
-    let has_keyboard = || window.is_some_and(super::ffi::sdl::Window::has_screen_keyboard);
+    let has_keyboard =
+        || window.is_some_and(crate::platform::ffi::sdl::Window::has_screen_keyboard);
     if let Some(on) = crate::input::typed_text::sync(has_keyboard)
         && let Some(window) = window
     {
@@ -840,11 +839,11 @@ fn touch_tick(o: &crate::owners::Owners<'static>, now: u64) {
     if let Some(window) = window
         && !touch_controls_live(o.race)
     {
-        crate::platform::touch_menu::tick(o, window, now);
+        crate::shell::touch_menu::tick(o, window, now);
     }
 }
 
-/// A finger on the touch screen: in the menus a gesture or a tap (`platform::touch_menu`).
+/// A finger on the touch screen: in the menus a gesture or a tap (`shell::touch_menu`).
 #[cfg(touch_screen)]
 fn touch_finger(
     o: &crate::owners::Owners<'static>,
@@ -865,19 +864,19 @@ fn touch_finger(
     let Some(window) = window else {
         // No window to size the gestures by: a lifting still takes its finger off the list.
         if phase == rc2k_core::input::menu_touch::Phase::Up {
-            crate::platform::touch_menu::forget(id);
+            crate::shell::touch_menu::forget(id);
         }
         return;
     };
     if touch_controls_live(o.race) {
-        crate::platform::touch_menu::release_all();
+        crate::shell::touch_menu::release_all();
         #[cfg(phone)]
         crate::platform::touch::finger(window, id, phase, x, y, now);
         return;
     }
     #[cfg(phone)]
     if let Some(asked) = touch_asked(o.race) {
-        crate::platform::touch_menu::release_all();
+        crate::shell::touch_menu::release_all();
         let answer = crate::platform::touch::answer_finger(window, asked, id, phase, x, y);
         match answer {
             Some(rc2k_core::input::touch::Answer::Yes) => {
@@ -891,7 +890,7 @@ fn touch_finger(
         return;
     }
     set_viewer_sideways(o.race);
-    crate::platform::touch_menu::finger(o, window, id, phase, x, y, now);
+    crate::shell::touch_menu::finger(o, window, id, phase, x, y, now);
 }
 
 /// In the replay viewer (a replay is shown, `driving` is false) a sideways drag gives the key on
@@ -905,6 +904,6 @@ fn set_viewer_sideways(race: &crate::race::owner::Race) {
     let viewing = race.course.numbers.get().in_race.is_set()
         && race.shared.replay_file().hold_car_revs.get() != 0;
     if IN_VIEWER.swap(viewing, Relaxed) != viewing {
-        crate::platform::touch_menu::set_direct_sideways(viewing);
+        crate::shell::touch_menu::set_direct_sideways(viewing);
     }
 }

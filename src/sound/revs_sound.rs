@@ -139,7 +139,7 @@ mod reference_vectors {
     use crate::math::x87_mem::view;
     use crate::sound::asm_layout::{Laid, with_laid};
     use crate::sound::store::{SoundObject, SurfaceSounds};
-    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_locked};
+    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     // The blocks: the pitch, the volume (on the road: times the surface's gain), the place.
     fn blocks() -> Vec<Block> {
@@ -247,6 +247,6 @@ mod reference_vectors {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        sparse_locked("sound.revs_sound", &blocks(), 1200, 100);
+        sparse("sound.revs_sound", &blocks(), 1200, 100);
     }
 }

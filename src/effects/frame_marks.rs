@@ -29,11 +29,6 @@ fn copies<'a>(
     ]
 }
 
-fn rdtsc() -> (u32, u32) {
-    let t = crate::platform::arch::rdtsc();
-    (t as u32, (t >> 32) as u32)
-}
-
 pub fn frame_marks(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -43,15 +38,16 @@ pub fn frame_marks(
     let course = &race.course;
     let marks = effects.settings()?;
     {
-        let (start, _) = rdtsc();
-        let (now, _) = rdtsc();
-        let last: u32 = effects.setup.frame.last_count.get();
-        effects.setup.frame.last_count.set(now);
-        effects
-            .setup
-            .frame
-            .frame_cycles
-            .set(now.wrapping_sub(last) as i32);
+        let start = crate::effects::cycles::start();
+        if let Some(now) = start {
+            let last: u32 = effects.setup.frame.last_count.get();
+            effects.setup.frame.last_count.set(now);
+            effects
+                .setup
+                .frame
+                .frame_cycles
+                .set(now.wrapping_sub(last) as i32);
+        }
         for (from, to) in copies(effects, marks) {
             to.set(from.get());
         }
@@ -71,13 +67,14 @@ pub fn frame_marks(
             .frame
             .steps
             .set(effects.setup.frame.steps.get().wrapping_add(1));
-        let (end, _) = rdtsc();
-        let share = x87::int_over_int_times(
-            end.wrapping_sub(start) as i32,
-            effects.setup.frame.frame_cycles.get(),
-            FRAME_K.share_k,
-        );
-        effects.setup.frame.step_share.set(share);
+        if let Some(took) = crate::effects::cycles::since(start) {
+            let share = x87::int_over_int_times(
+                took,
+                effects.setup.frame.frame_cycles.get(),
+                FRAME_K.share_k,
+            );
+            effects.setup.frame.step_share.set(share);
+        }
     }
     Ok(())
 }

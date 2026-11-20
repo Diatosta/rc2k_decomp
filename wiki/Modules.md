@@ -44,6 +44,7 @@ For how the modules work together, start at [How the game runs](How-the-game-run
 | [`text`](Module-text) | Drawing and measuring text with the game's fonts. |
 | [`d3d`](Module-d3d) | The thin 3D drawing layer the scene hands finished triangles to. |
 | [`render`](Module-render) | The renderers: the command list and the three backends (GPU, OpenGL ES, software). |
+| [`shell`](Module-small-modules) | The game-facing half of the platform: SDL's events into the game's input, the films, the touch menu, the log's timing line. |
 | [`platform`](Module-platform) | Everything between the game and the computer: window, events, sound output, controllers, films, threads, the operating system. |
 | [`debug`](Module-debug) | The developers' debug window. |
 | [`video`](Module-small-modules) | A replay rendered to a video file (`--render-replay`), and its encoder. |

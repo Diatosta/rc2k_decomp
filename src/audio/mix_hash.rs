@@ -12,7 +12,7 @@
 //! to a 16-bit stereo 44100 Hz WAV file, a new one for each race, to listen to what the mixer
 //! makes on a machine without an audio device.
 
-use crate::debug::check_hash::CheckHasher;
+use crate::math::check_hash::CheckHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::{Mutex, OnceLock};

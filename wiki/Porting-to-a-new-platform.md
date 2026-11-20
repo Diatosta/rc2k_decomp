@@ -31,13 +31,13 @@ audio driver for it, and is there a GPU API SDL's GPU device supports (Vulkan, M
 | File in `src/platform/` | Its job | For a port |
 | --- | --- | --- |
 | `mod.rs` | The screen: the game draws 2D into a block of memory in the screen mode's pixel layout; `show_frame` puts it on the window. Also setting a screen mode and making the window. | Works wherever SDL has a video driver. Otherwise add your own way of showing a frame. |
-| `events.rs` | Turns SDL's events into what the game expects: the quit switch, window focus, the pending key for the menus, gamepad buttons as menu keys. | Add a way to quit if the device has no window to close. |
+| `shell/events.rs` (beside the platform folder, it knows the game's owners) | Turns SDL's events into what the game expects: the quit switch, window focus, the pending key for the menus, gamepad buttons as menu keys. | Add a way to quit if the device has no window to close. |
 | `input.rs` | Joysticks, gamepads and wheels as the game's controllers; force feedback through SDL's haptics. | Add a controller mapping if SDL does not know the built-in pad. |
 | `sound.rs` | Sound output: a small mixer that plays the game's sound buffers, with volume, pan and 3D placing, into one SDL audio stream. | Nothing, where SDL has audio. |
-| `film.rs` | The films, decoded with `rc2k_core::film` and shown as frames. | Nothing. |
+| `shell/film.rs` | The films, decoded with `rc2k_core::film` and shown as frames. | Nothing. |
 | `direct3d.rs` | The 3D layer the game's drawing code stands on: textures, the start and end of a scene, and collecting the drawing commands for a renderer. | Nothing. |
 | `sync.rs` | Threads, events and locks, on Rust's standard library. | Nothing. |
-| `timing.rs` | Clocks and the optional profiler. | Nothing, unless you want the profiler. |
+| `timing.rs` | Counters, the clocks and the optional profiler (the log line that reads them is `shell/timing_report.rs`). | Nothing, unless you want the profiler. |
 | `pacing.rs` | The frames' pace: one frame for each refresh of the display SDL reports (60 a second when it reports none), by sleeping until the next frame is due. | Nothing. If your way of showing a frame already waits for the display, say so in `set_display` and the pace does not wait as well. |
 | `os/` | Facts about the system the game asks for: the clock, the command line, folders, free space, message boxes. `windows.rs` and `unix.rs` answer the per-system ones. | A Unix-like system uses `unix.rs`; add the calls that differ. |
 | `ffi/` | Thin safe wrappers around the C libraries (SDL, SDL's GPU API, OpenGL ES, libc, Win32, Dear ImGui). The only place in the platform that may use unsafe code. | A new library gets a new file here. |
@@ -99,7 +99,7 @@ What the port needed:
 - **A fallback that is fast enough.** With the software rasteriser, races are drawn at half
   size and enlarged.
 - **The pad.** A controller mapping for the built-in pad (`handheld.rs`), and MENU + START as
-  the way out (`events.rs`), since there is no window to close.
+  the way out (`shell/events.rs`), since there is no window to close.
 - **Processor-specific code.** A NEON version of the rasteriser's inner loops
   (`rasteriser_neon.rs`).
 - **No debug window**, since there is no window to draw it over (`build.rs`).

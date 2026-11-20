@@ -38,30 +38,41 @@ pub enum Description<'a> {
     Floats(&'a [crate::memory::session::PlainFloat]),
 }
 
+/// The bytes of a description that the drawing reads: nothing lies past them.
+const HEAD_LEN: usize = 0x3C;
+
 impl Description<'_> {
-    /// The first `len` bytes of the words, or the refusal `past` when they are fewer.
+    /// The first `len` bytes of the words (the rest zero), or the refusal `past` when they are fewer.
     fn from_words(
         words: impl Iterator<Item = u32>,
         len: usize,
         past: &'static str,
-    ) -> Result<Vec<u8>, BadInput> {
-        let bytes: Vec<u8> = words
-            .take(len.div_ceil(4))
-            .flat_map(u32::to_le_bytes)
-            .collect();
-        bytes.get(..len).map(<[u8]>::to_vec).ok_or(BadInput(past))
+    ) -> Result<[u8; HEAD_LEN], BadInput> {
+        let mut bytes = [0u8; HEAD_LEN];
+        let (slots, _) = bytes.as_chunks_mut::<4>();
+        let mut taken = 0;
+        for (slot, word) in slots[..len.div_ceil(4)].iter_mut().zip(words) {
+            *slot = word.to_le_bytes();
+            taken += 4;
+        }
+        if taken < len {
+            return Err(BadInput(past));
+        }
+        bytes[len..].fill(0);
+        Ok(bytes)
     }
 
-    /// The description's first `len` bytes (a material's from the polygon tables `tables`).
+    /// The description's first `len` bytes (at most `HEAD_LEN`; a material's from the polygon
+    /// tables `tables`), the rest of the array zero.
     pub fn read_bytes(
         &self,
         tables: &crate::scene::polygon_store::PolygonTables,
         len: usize,
-    ) -> Result<Vec<u8>, BadInput> {
+    ) -> Result<[u8; HEAD_LEN], BadInput> {
         match self {
             Description::Material(kind) => {
-                let mut bytes = vec![0; len];
-                crate::scene::polygon::material_run(tables, *kind, 0, &mut bytes)?;
+                let mut bytes = [0u8; HEAD_LEN];
+                crate::scene::polygon::material_run(tables, *kind, 0, &mut bytes[..len])?;
                 Ok(bytes)
             }
             Description::PlainCells(cells) => Self::from_words(
@@ -98,14 +109,16 @@ pub fn draw_described_face(
     draw_description(ctx, &|len| {
         let bytes: [u8; 0x40] =
             crate::race::course_places::face_field(ctx.reads.course(), face, 0)?;
-        Ok(bytes[..len].to_vec())
+        let mut head = [0u8; HEAD_LEN];
+        head[..len].copy_from_slice(&bytes[..len]);
+        Ok(head)
     })
 }
 
 /// The drawing from a description's first `len` bytes as `read` gives them.
 fn draw_description(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
-    read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>,
+    read: &dyn Fn(usize) -> Result<[u8; HEAD_LEN], BadInput>,
 ) -> Result<(), Refused> {
     let head = read(8)?;
     let object = head[1] as u32;
@@ -135,7 +148,7 @@ fn draw_description(
         return Ok(());
     }
     // Everything the description gives from here on lies in its first 0x3C bytes.
-    let desc = read(0x3C)?;
+    let desc = read(HEAD_LEN)?;
     let byte = |o: u32| desc[o as usize] as u32;
     let get = |o: usize| u32::from_le_bytes(desc[o..o + 4].try_into().unwrap());
     let at: [u32; 3] =
@@ -212,4 +225,23 @@ fn draw_description(
     )?;
     end();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::memory::session::PlainDword;
+
+    #[test]
+    fn a_description_is_read_to_its_length_and_refused_past_its_cells() {
+        let cells: Vec<PlainDword> = (1..=3).map(PlainDword::new).collect();
+        let description = Description::PlainCells(&cells);
+        let tables: crate::scene::polygon_store::PolygonTables =
+            crate::memory::cells::zeroed_cells();
+        let head = description.read_bytes(&tables, 8).unwrap();
+        assert_eq!(head[..8], [1, 0, 0, 0, 2, 0, 0, 0]);
+        assert!(head[8..].iter().all(|&b| b == 0));
+        assert!(description.read_bytes(&tables, 16).is_err());
+        assert!(description.read_bytes(&tables, 12).is_ok());
+    }
 }
