@@ -24,7 +24,7 @@ const SUMMARY_EVERY: u32 = 20;
 /// A car's fields the viewer or the sound sets, not the physics, left out (file offsets): +0x0
 /// and +0x4 (every car's; the first car's are the frame's head: the camera bytes
 /// `drive::replay_cameras` reads; a camera edited in the viewer rewrites them), +0x9C the last
-/// pace checkpoint called (`race::replay_viewer` holds the revs, which keeps
+/// pace checkpoint called (`menu::replay_viewer` holds the revs, which keeps
 /// `physics::pace_notes_step` off; the recording's are the live race's), +0x220 the option
 /// bits (`drive::replay_cameras` writes the viewer's) and +0x23C the gear-change flag the
 /// sound listener clears (`drive::set_listener`, run by the frame, not the step: seen

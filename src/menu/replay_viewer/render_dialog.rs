@@ -14,25 +14,6 @@ use crate::platform::pointer;
 use crate::text::draw_text::{GameCanvas, draw_text_at};
 use rc2k_core::race::render_dialog::{Dialog, Key, Outcome, Part, Row, Settings};
 use rc2k_core::strings::own::id;
-use std::sync::Mutex;
-
-/// The choices as last made (and read from the options file).
-static KEPT: Mutex<Option<rc2k_core::options::model::VideoChoices>> = Mutex::new(None);
-
-/// What the options file keeps of the dialog.
-pub fn kept() -> rc2k_core::options::model::VideoChoices {
-    KEPT.lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .clone()
-        .unwrap_or_default()
-}
-
-/// The choices the options file held.
-pub fn set_kept(choices: rc2k_core::options::model::VideoChoices) {
-    *KEPT
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(choices);
-}
 
 /// The sizes the graphics page lists: its own list when the page has made it, else the one the
 /// page would make (the game's sizes, the monitor's modes, the usual sizes that fit the desktop
@@ -129,7 +110,7 @@ pub struct Target<'a> {
 /// cancelled (or the window closed, or there was no screen to draw on).
 pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings> {
     let mut dialog = Dialog::new(
-        Settings::from_kept(&kept()),
+        Settings::from_kept(&crate::race::render_row::kept()),
         marks,
         page_sizes(o),
         page_rates(),
@@ -187,7 +168,7 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
             Outcome::Stay => {}
             Outcome::Render => {
                 let chosen = dialog.settings;
-                set_kept(chosen.to_kept());
+                crate::race::render_row::set_kept(chosen.to_kept());
                 return Some(chosen);
             }
             Outcome::Cancel => return None,

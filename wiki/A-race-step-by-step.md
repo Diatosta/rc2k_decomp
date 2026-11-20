@@ -184,7 +184,7 @@ with one car and a camera flies round it.
 
 ## The replay viewer
 
-`race::replay_viewer` (`src/race/replay_viewer.rs`) plays the last race's replay or a saved
+`menu::replay_viewer` (`src/menu/replay_viewer/mod.rs`) plays the last race's replay or a saved
 one. It opens the file (`src/race/open_viewed_replay.rs`), copies the header's settings into
 the race's variables, and loads the stage exactly as a race does. Then it runs the same
 `replay_step`. The differences are few:

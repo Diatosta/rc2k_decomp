@@ -347,7 +347,7 @@ fn run_championship(o: Owners<'static>, launch: &Launch) -> Result<(), Refused> 
 /// The replay viewer on the launch's replay, run from the main menu's set-up; after it the main
 /// menu goes on, or the program ends.
 fn run_replay(o: Owners<'static>, launch: &ReplayLaunch) -> Result<(), Refused> {
-    use crate::race::replay_viewer::{Viewed, launched_replay};
+    use crate::menu::replay_viewer::{Viewed, launched_replay};
     let slot = find_replay(o, &launch.replay)?;
     crate::program_log::log(&format!("menu::launch: {launch:?}"));
     let quit = launch.then == Then::Quit;

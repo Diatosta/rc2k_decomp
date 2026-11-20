@@ -218,10 +218,10 @@ fn last_replay(o: Owners<'static>) -> Result<(), Refused> {
         course.numbers.get().replay_mode.set(2);
         shared.view.get().player_options[0].set(u32::MAX);
         shared.view.get().player_options[1].set(u32::MAX);
-        let result = crate::race::replay_mode::replay_mode(
+        let result = crate::menu::replay_viewer::replay_mode::replay_mode(
             race,
             o,
-            crate::race::replay_viewer::Mode::LastRace,
+            crate::menu::replay_viewer::Mode::LastRace,
         )
         .map(|_| ());
         course.numbers.get().replay_mode.set(0);

@@ -839,7 +839,7 @@ has the same fixed addresses, but its network mode could not be run here to see 
 
 ## A network replay's car could not be changed
 
-*Original*: `race::mark_viewer_items`, `race::viewer_action`, `drive::choose_shown_cars`.
+*Original*: `menu::replay_viewer::mark_items`, `menu::replay_viewer::action`, `drive::choose_shown_cars`.
 *Fixed*: 2026-11-17.
 
 - **What**: the replay viewer's view item (which car is shown) was greyed for every one-player replay, and a network race's replay is one (the header's players is 1, with a car for each machine). The replay always opened on the first car. A network game still open (the lobby) also made the viewer show the lobby machine's own car whatever the view said.

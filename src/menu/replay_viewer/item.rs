@@ -6,9 +6,9 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::memory::list_handle::Item;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
+use crate::race::viewer_list::ViewerItem;
 use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};
 
 fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInput> {
@@ -22,7 +22,7 @@ fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInpu
 pub(super) fn draw_viewer_item(
     race: &Race,
     list_state: &crate::menu::list_state::ListState,
-    item: &Item,
+    item: &ViewerItem,
     index: u32,
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,
@@ -33,7 +33,7 @@ pub(super) fn draw_viewer_item(
     let uv = match ReplayViewBlock::item_picture(replay, index)? {
         ViewerPicture::Rectangle(ida) => panel.rectangle(ida)?,
         ViewerPicture::Switch(0) => {
-            let n = camera_byte(race, replay, switch_byte(item.count.get()) as usize)?;
+            let n = camera_byte(race, replay, switch_byte(index as u8) as usize)?;
             panel.switch_picture(0, n)?
         }
         ViewerPicture::Switch(1) => {

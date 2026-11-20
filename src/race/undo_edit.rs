@@ -9,7 +9,7 @@ use crate::race::owner::Race;
 use crate::system::owner::System;
 
 /// Undoes the last edit; see the module header.
-pub(super) fn undo_edit(race: &Race, system: &System) -> Result<(), Refused> {
+pub fn undo_edit(race: &Race, system: &System) -> Result<(), Refused> {
     let shared = &race.shared;
     use rc2k_core::race::viewer_flow::undo_count;
     let Some(count) = undo_count(race.viewer_buffers().undo_blocks.get()) else {

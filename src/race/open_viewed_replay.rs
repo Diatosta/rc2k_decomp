@@ -38,7 +38,7 @@ impl Opened {
 }
 
 /// How `slot`'s replay opened.
-pub(super) fn open_viewed_replay(
+pub fn open_viewed_replay(
     race: &Race,
     system: &crate::system::owner::System,
     slot: u32,

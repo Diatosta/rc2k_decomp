@@ -5,28 +5,13 @@
 //! the ends of `i32`. Inputs go in as bits and as `f32`, results compare bit for bit (any two NaNs count as equal), at
 //! each of the four rounding modes.
 
-use super::x87;
-use super::x87_merged_tests::{Rng, assert_same};
-use super::x87_old as old;
-
-const CASES: usize = 20_000;
-
-/// Runs `check` at every rounding mode, `CASES` times each, on a fixed seed.
-fn each(seed: u64, mut check: impl FnMut(&mut Rng)) {
-    let word = x87::control_word();
-    for mode in 0..4u16 {
-        x87::set_control_word(word & 0xF3FF | mode << 10);
-        let mut rng = Rng::new(seed);
-        for _ in 0..CASES {
-            check(&mut rng);
-        }
-    }
-    x87::set_control_word(word);
-}
+use super::old;
+use crate::math::x87_checks::inputs::{assert_same, each_rounding};
+use crate::math::x87_checks::plain as x87;
 
 #[test]
 fn add() {
-    each(1, |rng| {
+    each_rounding(1, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::add(a, b);
@@ -42,7 +27,7 @@ fn add() {
 
 #[test]
 fn sub() {
-    each(2, |rng| {
+    each_rounding(2, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::sub(a, b);
@@ -58,7 +43,7 @@ fn sub() {
 
 #[test]
 fn from_int() {
-    each(3, |rng| {
+    each_rounding(3, |rng| {
         let a = rng.whole();
         let old = old::from_int(a);
         assert_same!(x87::from_int(a).to_bits(), old, "from_int {:x?}", (a,));
@@ -67,7 +52,7 @@ fn from_int() {
 
 #[test]
 fn mul() {
-    each(4, |rng| {
+    each_rounding(4, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::mul(a, b);
@@ -83,7 +68,7 @@ fn mul() {
 
 #[test]
 fn reciprocal_times() {
-    each(5, |rng| {
+    each_rounding(5, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::reciprocal_times(a, b);
@@ -106,7 +91,7 @@ fn reciprocal_times() {
 
 #[test]
 fn mirrored() {
-    each(6, |rng| {
+    each_rounding(6, |rng| {
         let x = rng.float();
         let a = rng.float();
         let b = rng.float();
@@ -128,7 +113,7 @@ fn mirrored() {
 
 #[test]
 fn loaded() {
-    each(7, |rng| {
+    each_rounding(7, |rng| {
         let a = rng.float();
         let old = old::loaded(a);
         assert_same!(x87::loaded(a).to_bits(), old, "loaded {:x?}", (a,));
@@ -143,7 +128,7 @@ fn loaded() {
 
 #[test]
 fn int_ratio() {
-    each(8, |rng| {
+    each_rounding(8, |rng| {
         let a = rng.whole();
         let b = rng.whole();
         let old = old::int_ratio(a, b);
@@ -158,7 +143,7 @@ fn int_ratio() {
 
 #[test]
 fn int_over_16() {
-    each(9, |rng| {
+    each_rounding(9, |rng| {
         let a = rng.whole();
         let old = old::int_over_16(a);
         assert_same!(
@@ -172,7 +157,7 @@ fn int_over_16() {
 
 #[test]
 fn div() {
-    each(10, |rng| {
+    each_rounding(10, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::div(a, b);
@@ -188,7 +173,7 @@ fn div() {
 
 #[test]
 fn product_difference() {
-    each(11, |rng| {
+    each_rounding(11, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -217,7 +202,7 @@ fn product_difference() {
 
 #[test]
 fn equal_or_unordered() {
-    each(12, |rng| {
+    each_rounding(12, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::equal_or_unordered(a, b);
@@ -238,7 +223,7 @@ fn equal_or_unordered() {
 
 #[test]
 fn sqrt() {
-    each(13, |rng| {
+    each_rounding(13, |rng| {
         let a = rng.float();
         let old = old::sqrt(a);
         assert_same!(x87::sqrt(a).to_bits(), old, "sqrt {:x?}", (a,));
@@ -253,7 +238,7 @@ fn sqrt() {
 
 #[test]
 fn angle_scaled_to_int() {
-    each(14, |rng| {
+    each_rounding(14, |rng| {
         let y = rng.whole();
         let x = rng.whole();
         let a = rng.float();
@@ -276,7 +261,7 @@ fn angle_scaled_to_int() {
 
 #[test]
 fn int_times() {
-    each(15, |rng| {
+    each_rounding(15, |rng| {
         let a = rng.whole();
         let b = rng.float();
         let old = old::int_times(a, b);
@@ -297,7 +282,7 @@ fn int_times() {
 
 #[test]
 fn int_over() {
-    each(16, |rng| {
+    each_rounding(16, |rng| {
         let a = rng.whole();
         let b = rng.float();
         let old = old::int_over(a, b);
@@ -313,7 +298,7 @@ fn int_over() {
 
 #[test]
 fn int_less() {
-    each(17, |rng| {
+    each_rounding(17, |rng| {
         let a = rng.whole();
         let b = rng.float();
         let old = old::int_less(a, b);
@@ -329,7 +314,7 @@ fn int_less() {
 
 #[test]
 fn reciprocal() {
-    each(18, |rng| {
+    each_rounding(18, |rng| {
         let a = rng.float();
         let old = old::reciprocal(a);
         assert_same!(x87::reciprocal(a).to_bits(), old, "reciprocal {:x?}", (a,));
@@ -344,7 +329,7 @@ fn reciprocal() {
 
 #[test]
 fn mul_div_div_to_int() {
-    each(19, |rng| {
+    each_rounding(19, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -372,7 +357,7 @@ fn mul_div_div_to_int() {
 
 #[test]
 fn int_product_difference() {
-    each(20, |rng| {
+    each_rounding(20, |rng| {
         let a = rng.whole();
         let b = rng.whole();
         let c = rng.whole();
@@ -389,7 +374,7 @@ fn int_product_difference() {
 
 #[test]
 fn int_div_div_doubled() {
-    each(21, |rng| {
+    each_rounding(21, |rng| {
         let a = rng.whole();
         let b = rng.float();
         let c = rng.float();
@@ -411,7 +396,7 @@ fn int_div_div_doubled() {
 
 #[test]
 fn angle_scaled3_to_int() {
-    each(22, |rng| {
+    each_rounding(22, |rng| {
         let y = rng.whole();
         let x = rng.whole();
         let a = rng.float();
@@ -441,7 +426,7 @@ fn angle_scaled3_to_int() {
 
 #[test]
 fn angle_scaled5_to_int() {
-    each(23, |rng| {
+    each_rounding(23, |rng| {
         let y = rng.whole();
         let x = rng.whole();
         let a = rng.float();
@@ -464,7 +449,7 @@ fn angle_scaled5_to_int() {
 
 #[test]
 fn hypot_ratio() {
-    each(24, |rng| {
+    each_rounding(24, |rng| {
         let a = rng.whole();
         let b = rng.whole();
         let c = rng.whole();
@@ -481,7 +466,7 @@ fn hypot_ratio() {
 
 #[test]
 fn weighted3_to_int() {
-    each(25, |rng| {
+    each_rounding(25, |rng| {
         let a = rng.whole();
         let b = rng.whole();
         let c = rng.whole();
@@ -513,7 +498,7 @@ fn weighted3_to_int() {
 
 #[test]
 fn int_times_plus() {
-    each(26, |rng| {
+    each_rounding(26, |rng| {
         let a = rng.whole();
         let b = rng.float();
         let c = rng.float();
@@ -535,7 +520,7 @@ fn int_times_plus() {
 
 #[test]
 fn sub_div() {
-    each(27, |rng| {
+    each_rounding(27, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -557,7 +542,7 @@ fn sub_div() {
 
 #[test]
 fn negated_square_times_plus_to_int() {
-    each(28, |rng| {
+    each_rounding(28, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -583,7 +568,7 @@ fn negated_square_times_plus_to_int() {
 
 #[test]
 fn share_left_to_int() {
-    each(29, |rng| {
+    each_rounding(29, |rng| {
         let a = rng.whole();
         let b = rng.whole();
         let c = rng.float();
@@ -605,7 +590,7 @@ fn share_left_to_int() {
 
 #[test]
 fn mul2() {
-    each(30, |rng| {
+    each_rounding(30, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -622,7 +607,7 @@ fn mul2() {
 
 #[test]
 fn circle_curve() {
-    each(31, |rng| {
+    each_rounding(31, |rng| {
         let i = rng.whole();
         let a = rng.float();
         let b = rng.float();
@@ -645,7 +630,7 @@ fn circle_curve() {
 
 #[test]
 fn negated() {
-    each(32, |rng| {
+    each_rounding(32, |rng| {
         let a = rng.float();
         let old = old::negated(a);
         assert_same!(x87::negated(a).to_bits(), old, "negated {:x?}", (a,));
@@ -660,7 +645,7 @@ fn negated() {
 
 #[test]
 fn sub_mul() {
-    each(33, |rng| {
+    each_rounding(33, |rng| {
         let b = rng.float();
         let a = rng.float();
         let k = rng.float();
@@ -682,7 +667,7 @@ fn sub_mul() {
 
 #[test]
 fn cosine_step() {
-    each(34, |rng| {
+    each_rounding(34, |rng| {
         let c = rng.whole();
         let m = rng.whole();
         let t = rng.float();
@@ -705,7 +690,7 @@ fn cosine_step() {
 
 #[test]
 fn round_float() {
-    each(35, |rng| {
+    each_rounding(35, |rng| {
         let a = rng.float();
         let old = old::round_float(a);
         assert_same!(
@@ -725,7 +710,7 @@ fn round_float() {
 
 #[test]
 fn compare_status() {
-    each(36, |rng| {
+    each_rounding(36, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::compare_status(a, b);
@@ -746,7 +731,7 @@ fn compare_status() {
 
 #[test]
 fn split_x() {
-    each(37, |rng| {
+    each_rounding(37, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -777,7 +762,7 @@ fn split_x() {
 
 #[test]
 fn sine() {
-    each(38, |rng| {
+    each_rounding(38, |rng| {
         let a = rng.float();
         let old = old::sine(a);
         assert_same!(x87::sine(a).to_bits(), old, "sine {:x?}", (a,));
@@ -792,7 +777,7 @@ fn sine() {
 
 #[test]
 fn cosine() {
-    each(39, |rng| {
+    each_rounding(39, |rng| {
         let a = rng.float();
         let negate = rng.flag();
         let old = old::cosine(a, negate);
@@ -813,7 +798,7 @@ fn cosine() {
 
 #[test]
 fn mul_add() {
-    each(40, |rng| {
+    each_rounding(40, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -835,7 +820,7 @@ fn mul_add() {
 
 #[test]
 fn add_to_int() {
-    each(41, |rng| {
+    each_rounding(41, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::add_to_int(a, b);
@@ -851,7 +836,7 @@ fn add_to_int() {
 
 #[test]
 fn sub_compare() {
-    each(42, |rng| {
+    each_rounding(42, |rng| {
         let a = rng.float();
         let b = rng.float();
         let negate = rng.flag();
@@ -879,7 +864,7 @@ fn sub_compare() {
 
 #[test]
 fn int_plus_less_squared() {
-    each(43, |rng| {
+    each_rounding(43, |rng| {
         let y = rng.whole();
         let a = rng.float();
         let b = rng.float();
@@ -901,7 +886,7 @@ fn int_plus_less_squared() {
 
 #[test]
 fn sub_thrice() {
-    each(44, |rng| {
+    each_rounding(44, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::sub_thrice(a, b);
@@ -922,7 +907,7 @@ fn sub_thrice() {
 
 #[test]
 fn ease() {
-    each(45, |rng| {
+    each_rounding(45, |rng| {
         let t = rng.float();
         let c = rng.float();
         let k = rng.float();
@@ -939,7 +924,7 @@ fn ease() {
 
 #[test]
 fn two_pi_less() {
-    each(46, |rng| {
+    each_rounding(46, |rng| {
         let a = rng.float();
         let old = old::two_pi_less(a);
         assert_same!(
@@ -953,7 +938,7 @@ fn two_pi_less() {
 
 #[test]
 fn over_int() {
-    each(47, |rng| {
+    each_rounding(47, |rng| {
         let a = rng.float();
         let n = rng.whole();
         let old = old::over_int(a, n);
@@ -969,7 +954,7 @@ fn over_int() {
 
 #[test]
 fn zero_times_plus_times() {
-    each(48, |rng| {
+    each_rounding(48, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -1000,7 +985,7 @@ fn zero_times_plus_times() {
 
 #[test]
 fn prem_plus() {
-    each(49, |rng| {
+    each_rounding(49, |rng| {
         let r = rng.whole();
         let m = rng.float();
         let v = rng.float();
@@ -1022,7 +1007,7 @@ fn prem_plus() {
 
 #[test]
 fn rate_to_int() {
-    each(50, |rng| {
+    each_rounding(50, |rng| {
         let a = rng.float();
         let b = rng.float();
         let k1 = rng.float();
@@ -1056,7 +1041,7 @@ fn rate_to_int() {
 
 #[test]
 fn less_plus_int_times() {
-    each(51, |rng| {
+    each_rounding(51, |rng| {
         let d = rng.float();
         let m = rng.float();
         let f = rng.float();
@@ -1080,7 +1065,7 @@ fn less_plus_int_times() {
 
 #[test]
 fn pair_sum_less() {
-    each(52, |rng| {
+    each_rounding(52, |rng| {
         let a = rng.whole();
         let m1 = rng.float();
         let b = rng.whole();
@@ -1113,7 +1098,7 @@ fn pair_sum_less() {
 
 #[test]
 fn product_plus() {
-    each(53, |rng| {
+    each_rounding(53, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -1142,7 +1127,7 @@ fn product_plus() {
 
 #[test]
 fn float_times_int_to_int() {
-    each(54, |rng| {
+    each_rounding(54, |rng| {
         let f = rng.float();
         let i = rng.whole();
         let old = old::float_times_int_to_int(f, i);
@@ -1163,7 +1148,7 @@ fn float_times_int_to_int() {
 
 #[test]
 fn speed_rate_to_int() {
-    each(55, |rng| {
+    each_rounding(55, |rng| {
         let a = rng.float();
         let k1 = rng.float();
         let k2 = rng.float();
@@ -1195,7 +1180,7 @@ fn speed_rate_to_int() {
 
 #[test]
 fn times_plus_to_int() {
-    each(56, |rng| {
+    each_rounding(56, |rng| {
         let v = rng.float();
         let a = rng.float();
         let b = rng.float();
@@ -1217,7 +1202,7 @@ fn times_plus_to_int() {
 
 #[test]
 fn times_compare() {
-    each(57, |rng| {
+    each_rounding(57, |rng| {
         let a = rng.float();
         let k = rng.float();
         let c = rng.float();
@@ -1239,7 +1224,7 @@ fn times_compare() {
 
 #[test]
 fn one_less_inverse() {
-    each(58, |rng| {
+    each_rounding(58, |rng| {
         let a = rng.float();
         let k = rng.float();
         let one = rng.float();
@@ -1262,7 +1247,7 @@ fn one_less_inverse() {
 
 #[test]
 fn sum4_times() {
-    each(59, |rng| {
+    each_rounding(59, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -1293,7 +1278,7 @@ fn sum4_times() {
 
 #[test]
 fn int_times_plus_int_to_int() {
-    each(60, |rng| {
+    each_rounding(60, |rng| {
         let a = rng.whole();
         let k = rng.float();
         let b = rng.whole();
@@ -1315,7 +1300,7 @@ fn int_times_plus_int_to_int() {
 
 #[test]
 fn int_lerp_to_int() {
-    each(61, |rng| {
+    each_rounding(61, |rng| {
         let a = rng.whole();
         let b = rng.whole();
         let f = rng.float();
@@ -1337,7 +1322,7 @@ fn int_lerp_to_int() {
 
 #[test]
 fn int_over_int_times() {
-    each(62, |rng| {
+    each_rounding(62, |rng| {
         let a = rng.whole();
         let b = rng.whole();
         let k = rng.float();
@@ -1359,7 +1344,7 @@ fn int_over_int_times() {
 
 #[test]
 fn toward() {
-    each(63, |rng| {
+    each_rounding(63, |rng| {
         let a = rng.float();
         let b = rng.float();
         let r = rng.float();
@@ -1381,7 +1366,7 @@ fn toward() {
 
 #[test]
 fn plus_times_int() {
-    each(64, |rng| {
+    each_rounding(64, |rng| {
         let a = rng.float();
         let v = rng.float();
         let t = rng.whole();
@@ -1403,7 +1388,7 @@ fn plus_times_int() {
 
 #[test]
 fn less_own_times() {
-    each(65, |rng| {
+    each_rounding(65, |rng| {
         let a = rng.float();
         let k = rng.float();
         let old = old::less_own_times(a, k);
@@ -1424,7 +1409,7 @@ fn less_own_times() {
 
 #[test]
 fn fraction_times_to_int() {
-    each(66, |rng| {
+    each_rounding(66, |rng| {
         let v = rng.float();
         let k = rng.float();
         let old = old::fraction_times_to_int(v, k);
@@ -1445,7 +1430,7 @@ fn fraction_times_to_int() {
 
 #[test]
 fn float_hypot() {
-    each(67, |rng| {
+    each_rounding(67, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::float_hypot(a, b);
@@ -1468,7 +1453,7 @@ fn float_hypot() {
 
 #[test]
 fn below_or_unordered() {
-    each(68, |rng| {
+    each_rounding(68, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::below_or_unordered(a, b);
@@ -1489,7 +1474,7 @@ fn below_or_unordered() {
 
 #[test]
 fn scaled_abs_less_below() {
-    each(69, |rng| {
+    each_rounding(69, |rng| {
         let a = rng.float();
         let h = rng.float();
         let k = rng.float();
@@ -1517,7 +1502,7 @@ fn scaled_abs_less_below() {
 
 #[test]
 fn int_square_sum() {
-    each(70, |rng| {
+    each_rounding(70, |rng| {
         let a = rng.whole();
         let b = rng.whole();
         let old = old::int_square_sum(a, b);
@@ -1532,7 +1517,7 @@ fn int_square_sum() {
 
 #[test]
 fn float_square_sum() {
-    each(71, |rng| {
+    each_rounding(71, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::float_square_sum(a, b);
@@ -1553,7 +1538,7 @@ fn float_square_sum() {
 
 #[test]
 fn int_plus_times() {
-    each(72, |rng| {
+    each_rounding(72, |rng| {
         let a = rng.whole();
         let b = rng.float();
         let c = rng.float();
@@ -1575,7 +1560,7 @@ fn int_plus_times() {
 
 #[test]
 fn abs_below_or_unordered() {
-    each(73, |rng| {
+    each_rounding(73, |rng| {
         let a = rng.float();
         let k = rng.float();
         let old = old::abs_below_or_unordered(a, k);
@@ -1596,7 +1581,7 @@ fn abs_below_or_unordered() {
 
 #[test]
 fn int_square_sum_scaled_to_int() {
-    each(74, |rng| {
+    each_rounding(74, |rng| {
         let a = rng.whole();
         let b = rng.whole();
         let k = rng.float();
@@ -1619,7 +1604,7 @@ fn int_square_sum_scaled_to_int() {
 
 #[test]
 fn eased_roll() {
-    each(75, |rng| {
+    each_rounding(75, |rng| {
         let i = rng.whole();
         let a = rng.float();
         let b = rng.float();
@@ -1654,7 +1639,7 @@ fn eased_roll() {
 
 #[test]
 fn sun_size() {
-    each(76, |rng| {
+    each_rounding(76, |rng| {
         let x = rng.float();
         let cx = rng.float();
         let y = rng.float();
@@ -1686,7 +1671,7 @@ fn sun_size() {
 
 #[test]
 fn plane_height() {
-    each(77, |rng| {
+    each_rounding(77, |rng| {
         let a = rng.whole();
         let b = rng.whole();
         let c = rng.whole();
@@ -1710,7 +1695,7 @@ fn plane_height() {
 
 #[test]
 fn compare_full() {
-    each(78, |rng| {
+    each_rounding(78, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::compare_full(a, b);
@@ -1726,7 +1711,7 @@ fn compare_full() {
 
 #[test]
 fn int_lerp() {
-    each(79, |rng| {
+    each_rounding(79, |rng| {
         let i = rng.whole();
         let d = rng.float();
         let hi = rng.float();
@@ -1749,7 +1734,7 @@ fn int_lerp() {
 
 #[test]
 fn one_less() {
-    each(80, |rng| {
+    each_rounding(80, |rng| {
         let a = rng.float();
         let old = old::one_less(a);
         assert_same!(x87::one_less(a).to_bits(), old, "one_less {:x?}", (a,));
@@ -1764,7 +1749,7 @@ fn one_less() {
 
 #[test]
 fn abs_sqrt_times_plus() {
-    each(81, |rng| {
+    each_rounding(81, |rng| {
         let x = rng.float();
         let t = rng.float();
         let c = rng.float();
@@ -1787,7 +1772,7 @@ fn abs_sqrt_times_plus() {
 
 #[test]
 fn mul2_to_int() {
-    each(82, |rng| {
+    each_rounding(82, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -1809,7 +1794,7 @@ fn mul2_to_int() {
 
 #[test]
 fn abs_compare() {
-    each(83, |rng| {
+    each_rounding(83, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::abs_compare(a, b);
@@ -1825,7 +1810,7 @@ fn abs_compare() {
 
 #[test]
 fn abs_of() {
-    each(84, |rng| {
+    each_rounding(84, |rng| {
         let a = rng.float();
         let old = old::abs_of(a);
         assert_same!(x87::abs_of(a).to_bits(), old, "abs_of {:x?}", (a,));
@@ -1840,7 +1825,7 @@ fn abs_of() {
 
 #[test]
 fn float_hypot_to_int() {
-    each(85, |rng| {
+    each_rounding(85, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::float_hypot_to_int(a, b);
@@ -1861,7 +1846,7 @@ fn float_hypot_to_int() {
 
 #[test]
 fn int_toward_to_int() {
-    each(86, |rng| {
+    each_rounding(86, |rng| {
         let i = rng.whole();
         let a = rng.float();
         let k = rng.float();
@@ -1883,7 +1868,7 @@ fn int_toward_to_int() {
 
 #[test]
 fn div_mul3_to_int() {
-    each(87, |rng| {
+    each_rounding(87, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -1913,7 +1898,7 @@ fn div_mul3_to_int() {
 
 #[test]
 fn square_times_over() {
-    each(88, |rng| {
+    each_rounding(88, |rng| {
         let x = rng.float();
         let k = rng.float();
         let d = rng.float();
@@ -1936,7 +1921,7 @@ fn square_times_over() {
 
 #[test]
 fn toward_one() {
-    each(89, |rng| {
+    each_rounding(89, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::toward_one(a, b);
@@ -1957,7 +1942,7 @@ fn toward_one() {
 
 #[test]
 fn lerp_int_over2() {
-    each(90, |rng| {
+    each_rounding(90, |rng| {
         let a = rng.float();
         let b = rng.float();
         let k = rng.float();
@@ -1990,7 +1975,7 @@ fn lerp_int_over2() {
 
 #[test]
 fn weight_force() {
-    each(91, |rng| {
+    each_rounding(91, |rng| {
         let v = rng.float();
         let one = rng.float();
         let a = rng.float();
@@ -2021,7 +2006,7 @@ fn weight_force() {
 
 #[test]
 fn neg_product2_plus() {
-    each(92, |rng| {
+    each_rounding(92, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -2050,7 +2035,7 @@ fn neg_product2_plus() {
 
 #[test]
 fn patan() {
-    each(93, |rng| {
+    each_rounding(93, |rng| {
         let y = rng.float();
         let x = rng.float();
         let old = old::patan(y, x);
@@ -2066,7 +2051,7 @@ fn patan() {
 
 #[test]
 fn mul3_to_int() {
-    each(94, |rng| {
+    each_rounding(94, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -2094,7 +2079,7 @@ fn mul3_to_int() {
 
 #[test]
 fn mul2_plus() {
-    each(95, |rng| {
+    each_rounding(95, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -2123,7 +2108,7 @@ fn mul2_plus() {
 
 #[test]
 fn over_abs_plus_minus() {
-    each(96, |rng| {
+    each_rounding(96, |rng| {
         let a = rng.float();
         let s = rng.float();
         let b = rng.float();
@@ -2152,7 +2137,7 @@ fn over_abs_plus_minus() {
 
 #[test]
 fn sub_mul_add() {
-    each(97, |rng| {
+    each_rounding(97, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -2181,7 +2166,7 @@ fn sub_mul_add() {
 
 #[test]
 fn mul_div_status() {
-    each(98, |rng| {
+    each_rounding(98, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -2209,7 +2194,7 @@ fn mul_div_status() {
 
 #[test]
 fn mul_status() {
-    each(99, |rng| {
+    each_rounding(99, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();
@@ -2226,7 +2211,7 @@ fn mul_status() {
 
 #[test]
 fn trunc_mul_to_int() {
-    each(100, |rng| {
+    each_rounding(100, |rng| {
         let a = rng.float();
         let b = rng.float();
         let old = old::trunc_mul_to_int(a, b);
@@ -2247,7 +2232,7 @@ fn trunc_mul_to_int() {
 
 #[test]
 fn lerp_table() {
-    each(101, |rng| {
+    each_rounding(101, |rng| {
         let s = rng.float();
         let a0 = rng.float();
         let a1 = rng.float();
@@ -2278,7 +2263,7 @@ fn lerp_table() {
 
 #[test]
 fn sum_times_int_over_minus() {
-    each(102, |rng| {
+    each_rounding(102, |rng| {
         let a = rng.float();
         let b = rng.float();
         let n = rng.whole();
@@ -2307,7 +2292,7 @@ fn sum_times_int_over_minus() {
 
 #[test]
 fn mul_div2() {
-    each(103, |rng| {
+    each_rounding(103, |rng| {
         let a = rng.float();
         let b = rng.float();
         let c = rng.float();

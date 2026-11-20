@@ -6,7 +6,7 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub(super) fn close_viewed_replay(race: &Race) -> Result<(), Refused> {
+pub fn close_viewed_replay(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     if rc2k_core::race::viewer_flow::closes(shared.replay_file().replay_open.is_set()) {
         crate::race::replay_patches::restore_replay_patches(race)?;

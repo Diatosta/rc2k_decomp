@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 /// Edits camera `camera` (1 or 2).
-pub(super) fn edit_camera(race: &Race, camera: u32) {
+pub fn edit_camera(race: &Race, camera: u32) {
     let replay = &race.replay;
     crate::race::keep_undo::keep_undo(race);
     if rc2k_core::race::viewer_flow::edits_camera(

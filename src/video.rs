@@ -390,7 +390,7 @@ pub(super) fn frame_taken(width: u32, height: u32) {
 
 /// A thing that went wrong that the player should be told when the render is over: a line of
 /// `kind`, a tab and `detail` appended to the file beside the progress file, which the program
-/// that started this one reads (`race::render_progress`). Kinds: `no_ffmpeg` (detail: the
+/// that started this one reads (`menu::replay_viewer::render_progress`). Kinds: `no_ffmpeg` (detail: the
 /// folder the numbered pictures go to), `encoder` (its first error line), `sound`.
 fn note_problem(kind: &str, detail: &str) {
     log(&format!("problem for the player: {kind}: {detail}"));

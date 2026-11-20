@@ -1,14 +1,14 @@
 //! The replay writer's and the viewer's state: the padding frame, the file offset and frames in the
 //! block, the replay block and frame, the play end and the viewer's switches, then the viewer's
-//! list (header and 26 items of 16 bytes). `#[repr(C)]`, laid over the race block's bytes. The
+//! list (`race::viewer_list`). `#[repr(C)]`, laid over the race block's bytes. The
 //! list's names are image addresses into the untyped rectangles and key table.
 
 use crate::memory::cells::ZeroCells;
 
-use crate::memory::list_handle::{Item, ListData26, ListHeader};
 use crate::memory::place::BytePlace;
 use crate::memory::session::{PlainDword, PlainFlag};
 use crate::race::owner_replay::Replay;
+use crate::race::viewer_list::{ITEMS, ViewerItem, ViewerList};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
@@ -31,7 +31,7 @@ pub struct ReplayViewBlock {
     pub play_end: PlainDword,
     /// Play from here (`race::viewer`).
     pub play_from_here: PlainDword,
-    /// A picture of the next frame asked (`race::viewer_frame`).
+    /// A picture of the next frame asked (`menu::replay_viewer::frame`).
     pub snapshot_asked: PlainDword,
     /// The slot is 222 (`race::viewer`).
     pub last_race_viewed: PlainFlag,
@@ -45,19 +45,19 @@ pub struct ReplayViewBlock {
     pub wait_key_release: PlainDword,
     /// Escape twice leaves (`race::viewer`).
     pub escape_count: PlainDword,
-    /// The viewer's list: 26 items. The header's `neighbours` names the key table; an
-    /// item's `box_link` names its screen rectangle, its `data` its picture (image addresses into
-    /// `RECTANGLES` and the viewer panel); its `count` is the action Enter does.
-    pub viewer_list: ListData26,
+    /// The viewer's list: 26 items. The list's `key_table_name` names the key table; an
+    /// item's `place_name` names its screen rectangle, its `picture_name` its picture (image
+    /// addresses into `RECTANGLES` and the viewer panel).
+    pub viewer_list: ViewerList,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
 impl ReplayViewBlock {
-    /// The viewer's items: kind 1 (a picture), action `n` for item `n`, and the names of its
-    /// screen rectangle and picture.
-    const fn items() -> [Item; 26] {
+    /// The viewer's items: kind 1 (a picture), and the names of each one's screen rectangle and
+    /// picture.
+    const fn items() -> [ViewerItem; 26] {
         const NAMES: [(u32, u32); 26] = [
             (0x5C277C, 0x5C2A2C),
             (0x5C278C, 0x5C2A4C),
@@ -86,10 +86,10 @@ impl ReplayViewBlock {
             (0x5C28FC, 0x5C2C70),
             (0x5C290C, 0x5C2C1C),
         ];
-        let mut items = [const { Item::new(0, 0, 0, 0, 0, 0) }; 26];
+        let mut items = [const { ViewerItem::new(0, 0, 0) }; ITEMS as usize];
         let mut n = 0;
         while n < 26 {
-            items[n] = Item::new(1, n as u8, 0, NAMES[n].0, 0, NAMES[n].1);
+            items[n] = ViewerItem::new(1, NAMES[n].0, NAMES[n].1);
             n += 1;
         }
         items
@@ -98,10 +98,7 @@ impl ReplayViewBlock {
     pub const fn new() -> Self {
         Self {
             replay_block: PlainDword::new(0xFFFFFFFF),
-            viewer_list: ListData26::new(
-                ListHeader::new(0, 26, 0, 0, 0, 0, 0x5C2714, 0),
-                Self::items(),
-            ),
+            viewer_list: ViewerList::new(0x5C2714, Self::items()),
             ..ZeroCells::ZERO
         }
     }
@@ -139,7 +136,7 @@ pub static RECTANGLES: crate::memory::session::Bytes<0x208> = crate::memory::ses
 /// the three switch tables (0 `switch_pictures_a`, 1 `switch_pictures_b`, 2 `switch_pictures_c`
 /// of the viewer panel; the list names a table by its image address).
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) enum ViewerPicture {
+pub enum ViewerPicture {
     /// The rectangle's image address in the viewer panel.
     Rectangle(usize),
     Switch(usize),
@@ -169,29 +166,26 @@ impl ReplayViewBlock {
     /// Where the list's key table (from the header) is.
     pub fn key_table(replay: &Replay) -> Result<BytePlace, crate::errors::BadInput> {
         Self::named(
-            replay.replay_view().viewer_list.header.neighbours.get(),
+            replay.replay_view().viewer_list.key_table_name.get(),
             "the viewer list's key table off its place",
         )
     }
 
     /// Where item `index`'s screen rectangle (its +4) is.
-    pub(super) fn item_place(
-        replay: &Replay,
-        index: u32,
-    ) -> Result<BytePlace, crate::errors::BadInput> {
+    pub fn item_place(replay: &Replay, index: u32) -> Result<BytePlace, crate::errors::BadInput> {
         Self::named(
-            Self::item(replay, index)?.box_link.get(),
+            Self::item(replay, index)?.place_name.get(),
             "a viewer item's place off the rectangles",
         )
     }
 
     /// What item `index`'s picture (a rectangle, or one of the switch tables) is: the
     /// picture's name is compared with the three tables' addresses.
-    pub(super) fn item_picture(
+    pub fn item_picture(
         replay: &Replay,
         index: u32,
     ) -> Result<ViewerPicture, crate::errors::BadInput> {
-        let ida = Self::item(replay, index)?.data.get();
+        let ida = Self::item(replay, index)?.picture_name.get();
         let table = |offset: usize| (Self::PANEL.start + offset) as u32;
         use crate::race::viewer_screen_store::ViewerPanelBlock;
         use core::mem::offset_of;
@@ -216,7 +210,7 @@ impl ReplayViewBlock {
     }
 
     /// Item `index` of the viewer's list.
-    fn item(replay: &Replay, index: u32) -> Result<&Item, crate::errors::BadInput> {
+    fn item(replay: &Replay, index: u32) -> Result<&ViewerItem, crate::errors::BadInput> {
         replay
             .replay_view()
             .viewer_list
@@ -244,13 +238,13 @@ mod tests {
         assert!(ReplayViewBlock::item_place(replay, 26).is_err());
     }
 
-    /// M4 for the viewer's list: the list holds 26 items and its count says so; the key table
+    /// M4 for the viewer's list: the list holds 26 items; the key table
     /// only ever names items of the list (or 255 for none), so no key reaches past it.
     #[test]
     fn the_viewer_never_reaches_past_its_items() {
         let replay = &crate::test_support::own::race().replay;
         let list = &replay.replay_view().viewer_list;
-        assert_eq!(usize::from(list.header.count.get()), list.items.len());
+        assert_eq!(list.items.len(), ITEMS as usize);
         let table = ReplayViewBlock::key_table(replay).unwrap();
         let bytes = table.read(4 * list.items.len(), "the key table").unwrap();
         assert!(

@@ -53,7 +53,7 @@ pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
     options.display.hud_box = (hud_box != Default::default()).then(|| hud_box.name().to_owned());
     options.display.smooth_frames = crate::race::blend::smooth_on();
     options.display.split_layout = crate::race::split_layout::index();
-    options.display.video = crate::race::render_dialog::kept();
+    options.display.video = crate::race::render_row::kept();
     Ok(options)
 }
 
@@ -116,7 +116,7 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     // A video's frames between the ticks need the blend, whatever the options say.
     crate::race::blend::set_smooth(options.display.smooth_frames || crate::video::active());
     crate::race::split_layout::set_index(options.display.split_layout);
-    crate::race::render_dialog::set_kept(options.display.video.clone());
+    crate::race::render_row::set_kept(options.display.video.clone());
     Ok(())
 }
 

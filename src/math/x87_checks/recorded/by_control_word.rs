@@ -12,8 +12,8 @@ mod diff {
     fn cells_of(words: &[u32]) -> Vec<Cell<u32>> {
         words.iter().map(|&w| Cell::new(w)).collect()
     }
-    use crate::math::x87 as plain;
     use crate::math::x87::{control_word, set_control_word};
+    use crate::math::x87_checks::recorded::plain;
 
     /// Cases per function and control word.
     const CASES: u32 = 20_000;
@@ -276,7 +276,7 @@ mod diff {
         ($t:expr, $name:ident ( $($g:ident),* )) => { diff!($t, $name($($g),*) tol 0) };
         ($t:expr, $name:ident ( $($g:ident),* ) tol $ulps:expr) => {{
             for _ in 0..CASES {
-                let got = crate::math::x87_frozen_a::AsBits::into_bits(plain::$name($($t.rng.$g()),*));
+                let got = crate::math::x87_checks::recorded::AsBits::into_bits(plain::$name($($t.rng.$g()),*));
                 $t.sets.feed(stringify!($name), &got);
             }
         }};
@@ -320,20 +320,20 @@ mod diff {
             let got = plain::turned_place_less(p, k, d, lift, &mc[..]);
             t.sets.feed(
                 "turned_place_less",
-                &crate::math::x87_frozen_a::AsBits::into_bits(got),
+                &crate::math::x87_checks::recorded::AsBits::into_bits(got),
             );
 
             let got = plain::turned_place(p, lift, &mc[..]);
             t.sets.feed(
                 "turned_place",
-                &crate::math::x87_frozen_a::AsBits::into_bits(got),
+                &crate::math::x87_checks::recorded::AsBits::into_bits(got),
             );
 
             let w = t.rng.a3();
             let got = plain::crossed_turned(p, &cells_of(&w)[..], &mc[..]);
             t.sets.feed(
                 "crossed_turned",
-                &crate::math::x87_frozen_a::AsBits::into_bits(got),
+                &crate::math::x87_checks::recorded::AsBits::into_bits(got),
             );
 
             let p80 = t.rng.p80();

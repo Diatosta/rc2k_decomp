@@ -26,7 +26,6 @@ memory use.
 | `PartCell<T>` | `src/memory/part_cell.rs` | State owned by one drawing thread at a time. |
 | `SharedTable` | `src/memory/shared_table.rs` | A table several threads read. |
 | `BytePlace` | `src/memory/place.rs` | A position inside a text or data buffer, passed in place of a pointer. |
-| `ListMenu`, `ListItem` | `src/memory/list_handle.rs` | The replay viewer's list menu, by handle. |
 | `shared_memory.rs` | `src/memory/shared_memory.rs` | The few raw reads and writes, each with its safety rule. |
 
 ## How it is laid out

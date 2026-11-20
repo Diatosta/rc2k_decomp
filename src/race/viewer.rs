@@ -19,10 +19,10 @@ pub const TABLE_LEN: usize = 8 * rc2k_core::race::viewer::MOST_BLOCKS as usize;
 /// byte before it, the last byte of the replay block read (`block`, which ends where the cameras
 /// begin). Any other offset past the table is refused.
 #[derive(Clone, Copy)]
-pub(super) struct CameraByte(u32);
+pub struct CameraByte(u32);
 
 /// The byte `offset` on from the first block's cameras.
-pub(super) fn camera_byte(offset: u32) -> CameraByte {
+pub fn camera_byte(offset: u32) -> CameraByte {
     CameraByte(offset)
 }
 
@@ -64,7 +64,7 @@ const BLOCK_LAST: usize = 0xA03;
 
 /// The byte `offset` on from the first block's cameras (8 bytes a block); the offset is not
 /// checked against the table, see `CameraByte`.
-pub(super) fn camera_byte_at(race: &Race, offset: usize) -> Result<u8, BadInput> {
+pub fn camera_byte_at(race: &Race, offset: usize) -> Result<u8, BadInput> {
     camera_byte(offset as u32).read(race, "a replay camera byte")
 }
 
@@ -78,7 +78,7 @@ fn inside(table: &dyn Cells, at: usize, n: usize) -> Result<(), BadInput> {
 
 /// Copies `dwords` cells from `from`'s cell `from_at` on to `to`'s cell `to_at` on, forwards;
 /// past either table is refused before anything is written.
-pub(super) fn move_cells(
+pub fn move_cells(
     to: &dyn Cells,
     to_at: usize,
     from: &dyn Cells,
@@ -94,7 +94,7 @@ pub(super) fn move_cells(
 }
 
 /// The same move within one table from the last dword down (for an overlapping move up).
-pub(super) fn move_cells_back(
+pub fn move_cells_back(
     table: &dyn Cells,
     to_at: usize,
     from_at: usize,
@@ -109,7 +109,7 @@ pub(super) fn move_cells_back(
 }
 
 /// Sets `dwords` cells of `table` from `at` on to 0.
-pub(super) fn clear_cells(table: &dyn Cells, at: usize, dwords: usize) -> Result<(), BadInput> {
+pub fn clear_cells(table: &dyn Cells, at: usize, dwords: usize) -> Result<(), BadInput> {
     inside(table, at, dwords)?;
     for n in 0..dwords {
         table.set_bits(at + n, 0);

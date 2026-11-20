@@ -2,7 +2,7 @@
 //! (state 0), the items are marked, the highlight moved past items that cannot be chosen, the
 //! backdrop shown; then each frame: the pieces laid out, measured, placed, the page drawn, a key
 //! taken. A key goes to the item (`install::page_key`); if it did nothing, to the page's own
-//! keys; if that did nothing either, it moves the highlight (`menu::list_step`). Leaving tells
+//! keys; if that did nothing either, it moves the highlight (`menu::replay_viewer::list_step`). Leaving tells
 //! the page the end (state -1). The game quitting ends it.
 //!
 //! Returns the answer (`list_answer`). Refused: a page whose every item cannot be chosen.

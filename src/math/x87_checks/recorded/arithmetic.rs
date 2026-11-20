@@ -4,7 +4,8 @@
 //! from versions that matched the x87's instructions bit for bit (any NaN equal to any
 //! NaN; the sines and cosines within an ulp or the error of `fsin` / `fcos`'s 66-bit pi).
 
-use crate::math::x87 as plain;
+use super::plain;
+use super::{AsBits, ROUNDING_MODES};
 use crate::math::x87::set_control_word;
 use crate::math::x87_float::{X, f80, from_f80};
 use crate::test_support::frozen::{Canon, Digests};
@@ -136,53 +137,6 @@ impl G {
     }
 }
 
-/// A plain helper's result as the reference's: the bits of a float result, a whole number or
-/// a status word as it is.
-pub(super) trait AsBits {
-    type Out;
-    fn into_bits(self) -> Self::Out;
-}
-
-impl AsBits for f32 {
-    type Out = u32;
-    fn into_bits(self) -> u32 {
-        self.to_bits()
-    }
-}
-
-macro_rules! as_they_are {
-    ($($t:ty),*) => {$(
-        impl AsBits for $t {
-            type Out = $t;
-            fn into_bits(self) -> $t {
-                self
-            }
-        }
-    )*};
-}
-as_they_are!(u8, u16, u32, i32, bool, f64);
-
-impl<A: AsBits, B: AsBits> AsBits for (A, B) {
-    type Out = (A::Out, B::Out);
-    fn into_bits(self) -> Self::Out {
-        (self.0.into_bits(), self.1.into_bits())
-    }
-}
-
-impl<A: AsBits, B: AsBits, C: AsBits> AsBits for (A, B, C) {
-    type Out = (A::Out, B::Out, C::Out);
-    fn into_bits(self) -> Self::Out {
-        (self.0.into_bits(), self.1.into_bits(), self.2.into_bits())
-    }
-}
-
-impl<A: AsBits, const N: usize> AsBits for [A; N] {
-    type Out = [A::Out; N];
-    fn into_bits(self) -> Self::Out {
-        self.map(AsBits::into_bits)
-    }
-}
-
 /// Restores the control word at the end of a test, panicking or not.
 struct Restore;
 
@@ -193,10 +147,6 @@ impl Drop for Restore {
 }
 
 const CASES: usize = 30_000;
-
-/// The control words the game's floats run under: nearest (double precision), chop, down
-/// and up.
-const MODES: [u16; 4] = [0x027F, 0x0E7F, 0x067F, 0x0A7F];
 
 thread_local! {
     /// The running test's case sets.
@@ -234,7 +184,7 @@ macro_rules! diff {
 
 #[test]
 fn float_arithmetic() {
-    each_mode("float_arithmetic", 1, &MODES, |g| {
+    each_mode("float_arithmetic", 1, &ROUNDING_MODES, |g| {
         diff!(g, "add", a = f, b = f; plain::add(a, b));
         diff!(g, "sub", a = f, b = f; plain::sub(a, b));
         diff!(g, "from_int", a = i; plain::from_int(a));
@@ -278,7 +228,7 @@ fn float_arithmetic() {
 
 #[test]
 fn float_arithmetic_b() {
-    each_mode("float_arithmetic_b", 2, &MODES, |g| {
+    each_mode("float_arithmetic_b", 2, &ROUNDING_MODES, |g| {
         diff!(g, "mul2", a = f, b = f, c = f; plain::mul2(a, b, c));
         diff!(g, "circle_curve", i = i, a = f, b = f; plain::circle_curve(i, a, b, false));
         diff!(g, "circle_curve (negate)", i = i, a = f, b = f; plain::circle_curve(i, a, b, true));
@@ -301,7 +251,7 @@ fn whole_numbers_after_division_or_transcendental() {
     each_mode(
         "whole_numbers_after_division_or_transcendental",
         9,
-        &MODES,
+        &ROUNDING_MODES,
         |g| {
             diff!(g, "ratio_scaled_to_int", a = f, b = f, m = i, n = i; plain::ratio_scaled_to_int(a, b, m, n));
             diff!(g, "mul_div_div_to_int", a = f, b = f, c = f, d = f; plain::mul_div_div_to_int(a, b, c, d));
@@ -316,7 +266,7 @@ fn whole_numbers_after_division_or_transcendental() {
 
 #[test]
 fn results_as_whole_numbers() {
-    each_mode("results_as_whole_numbers", 7, &MODES, |g| {
+    each_mode("results_as_whole_numbers", 7, &ROUNDING_MODES, |g| {
         diff!(g, "to_int", a = f; plain::to_int(a));
         diff!(g, "mul_to_int", a = f, b = f; plain::mul_to_int(a, b));
         diff!(g, "int_hypot", a = i, b = i; plain::int_hypot(a, b));
@@ -343,7 +293,7 @@ fn comparisons_with_nan() {
         0x7F80_0000,
         0xFF80_0000,
     ];
-    each_mode("comparisons_with_nan", 3, &MODES, |g| {
+    each_mode("comparisons_with_nan", 3, &ROUNDING_MODES, |g| {
         let n = nans[g.below(5) as usize];
         let a = g.f();
         for (x, y) in [(n, a), (a, n), (n, n)] {
@@ -360,7 +310,7 @@ fn comparisons_with_nan() {
 
 #[test]
 fn trigonometry() {
-    each_mode("trigonometry", 4, &MODES, |g| {
+    each_mode("trigonometry", 4, &ROUNDING_MODES, |g| {
         // the sines and cosines: within one ulp of a float (2 ulps for the two-step ones)
         diff!(g, "sine_cosine", angle = i, a = fs, b = fs; plain::sine_cosine(angle % 100_000, a, b));
         diff!(g, "sine_of_pi_fraction", n = c1000, d = c1000; plain::sine_of_pi_fraction(n, d));
@@ -386,7 +336,7 @@ fn trigonometry() {
 
 #[test]
 fn pointer_functions() {
-    each_mode("pointer_functions", 5, &MODES, |g| {
+    each_mode("pointer_functions", 5, &ROUNDING_MODES, |g| {
         let a = [g.f(), g.f(), g.f()];
         // a matrix's worth of floats (9) for the strided ones
         let m: Vec<u32> = (0..9).map(|_| g.f()).collect();
@@ -448,7 +398,7 @@ fn pointer_functions() {
 
 #[test]
 fn pointer_functions_to_int() {
-    each_mode("pointer_functions_to_int", 8, &MODES, |g| {
+    each_mode("pointer_functions_to_int", 8, &ROUNDING_MODES, |g| {
         let pt = [g.i(), g.i(), g.i()];
         let mat: Vec<u32> = (0..9).map(|_| g.f()).collect();
         let mut p = vec![0x5555_5555i32; 3];

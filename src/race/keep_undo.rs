@@ -4,7 +4,7 @@
 
 use crate::race::owner::Race;
 
-pub(super) fn keep_undo(race: &Race) {
+pub fn keep_undo(race: &Race) {
     let shared = &race.shared;
     let buffers = race.viewer_buffers();
     // Cell by cell, as `rc2k_core::race::viewer_flow::copy_tables`.

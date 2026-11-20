@@ -1,4 +1,4 @@
-//! `race::viewer_frame`: one frame of the replay viewer (`screens::run_frame`'s function). At the
+//! `menu::replay_viewer::frame`: one frame of the replay viewer (`screens::run_frame`'s function). At the
 //! replay's end (`replay_at_end`) the screen is cleared (`gfx::clear_back_surface`); the scene
 //! begins; unless at the end, the block's cameras are put into it (`drive::replay_frame_marks`)
 //! and the frame is drawn (`race::show_replay_still`). When a picture is asked
@@ -6,7 +6,7 @@
 //! saved (`race::viewer_snapshot`) and shown. Else, when stopped (`viewer_stopped` 1), the list's
 //! texture (`viewer_list_texture`, `d3d::set_texture`), eight render states, each item, the bar's
 //! quads (`drive::tyre_quad`: the frame, with blocks the bar, the two marks and the place shown
-//! along it, the four buttons) and the panel (`race::draw_viewer_panel`) are drawn; the scene
+//! along it, the four buttons) and the panel (`menu::replay_viewer::panel`) are drawn; the scene
 //! ends and the frame is shown (`gfx::show_frame`).
 //!
 //! The marks' and the place's positions are `mark * w / blocks`: a quotient past 32 bits is
@@ -43,7 +43,7 @@ pub(super) fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         crate::d3d::device::end_layer(&o.gfx.d3d);
         // The highlighted button's name goes over the finished frame; a render has none.
         if stopped_now && !crate::video::active() {
-            crate::race::viewer_tip::draw(o)?;
+            crate::menu::replay_viewer::tip::draw(o)?;
         }
     }
     // Not shown: the frame is lost.
@@ -62,19 +62,12 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
         crate::d3d::set_render_state::set_render_state(part, value, state);
     }
     let list = &replay.replay_view().viewer_list;
-    // The items are counted from 0 up to the header's count; a count of 0 goes round 256 times
-    // and an item past the list is refused.
-    let items = list.header.count.get();
-    for index in 0..if items == 0 { 256 } else { u32::from(items) } {
-        let item = list
-            .items
-            .get(index as usize)
-            .ok_or(BadInput("a viewer item past the 26"))?;
-        crate::race::draw_viewer_item::draw_viewer_item(
+    for (index, item) in (0..).zip(&list.items) {
+        crate::menu::replay_viewer::item::draw_viewer_item(
             race, list_state, item, index, system, o.scene,
         )?;
     }
-    crate::race::render_row::draw_button(race, list_state, system, o.scene)?;
+    crate::menu::replay_viewer::render_row::draw_button(race, list_state, system, o.scene)?;
     // The dark strip and the view-name row span the screen; the time bar's middle stretches
     // between its two ends, which keep the 4:3 spacing from the time pieces at the screen's
     // edges; the marks and the place on it move with it but keep their shape.
@@ -169,7 +162,7 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
         quad(&v.button_picture_rect, &v.button_rect_c, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_b, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_d, 0xFF_FFFF)?;
-        crate::race::draw_viewer_panel::draw_viewer_panel(
+        crate::menu::replay_viewer::panel::draw_viewer_panel(
             crate::strings::append_string_by_id::StringOwners::of(o),
             race,
             o.gfx,

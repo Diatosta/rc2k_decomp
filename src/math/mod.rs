@@ -18,23 +18,7 @@ mod rotate_scratch_about_y;
 pub(crate) mod seed_random;
 pub(crate) mod stir_random;
 pub(crate) mod x87;
+#[cfg(test)]
+mod x87_checks;
 pub(crate) mod x87_float;
-#[cfg(test)]
-mod x87_frozen_a;
-#[cfg(test)]
-mod x87_frozen_b;
-#[cfg(test)]
-mod x87_frozen_c;
 pub(crate) mod x87_mem;
-#[cfg(test)]
-mod x87_merged_tests;
-#[cfg(test)]
-#[allow(
-    dead_code,
-    reason = "the comparison test calls only the helpers that changed"
-)]
-mod x87_old;
-#[cfg(test)]
-mod x87_results_tests;
-#[cfg(test)]
-mod x87_typed_tests;

@@ -6,15 +6,12 @@
 //! float, two of a double).
 
 mod tests {
+    use crate::math::normalise_vector;
     use crate::math::x87::set_control_word;
+    use crate::math::x87_checks::recorded::plain as x87;
+    use crate::math::x87_checks::recorded::{AsBits, ROUNDING_MODES};
     use crate::math::x87_float::{X, f80, from_f80};
-    use crate::math::x87_frozen_a::AsBits;
-    use crate::math::{normalise_vector, x87};
     use crate::test_support::frozen::{Canon, Digest, check_one};
-
-    /// The control words tried: double precision with nearest (the game's), chop, down and
-    /// up.
-    const ROUNDING: [u16; 4] = [0x027F, 0x0E7F, 0x067F, 0x0A7F];
 
     /// A double as the 80-bit format.
     fn f64_to_f80(x: f64) -> [u8; 10] {
@@ -208,7 +205,7 @@ mod tests {
     ) where
         P::Out: Canon,
     {
-        check(name, &ROUNDING, gen_input, plain);
+        check(name, &ROUNDING_MODES, gen_input, plain);
     }
 
     // ---- the boundary: 80 bits and doubles ----
@@ -265,7 +262,9 @@ mod tests {
             |g| (g.i(), g.i(), g.f()),
             |&(a, b, c)| x87::int_times_int_over_to_int(a, b, c),
         );
-        check("abs_to_int", &ROUNDING, Rng::f, |&a| x87::abs_to_int(a));
+        check("abs_to_int", &ROUNDING_MODES, Rng::f, |&a| {
+            x87::abs_to_int(a)
+        });
         check_all(
             "add_to_int",
             |g| (g.f(), g.f()),
@@ -278,11 +277,11 @@ mod tests {
         );
         check(
             "product4_to_int",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| x87::mul3_to_int(a, b, c, d) as u32,
         );
-        check("tbyte_to_int", &ROUNDING, Rng::e80, |&a| {
+        check("tbyte_to_int", &ROUNDING_MODES, Rng::e80, |&a| {
             x87::tbyte_to_int(a)
         });
         check_all(
@@ -296,47 +295,47 @@ mod tests {
     fn load_float_results() {
         check(
             "float_hypot",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f()),
             |&(a, b)| x87::float_hypot(a, b),
         );
         check(
             "int_square_sum",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.i(), g.i()),
             |&(a, b)| x87::int_square_sum(a, b),
         );
         check(
             "float_square_sum",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f()),
             |&(a, b)| x87::float_square_sum(a, b),
         );
         check(
             "product3",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| x87::mul2(a, b, c),
         );
         check(
             "int_over_float",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.i(), g.f()),
             |&(a, b)| x87::int_over(a, b),
         );
         check(
             "int_plus_times",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.i(), g.f(), g.f()),
             |&(a, b, c)| x87::int_plus_times(a, b, c),
         );
         check(
             "eased_roll",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.i(), g.f(), g.f(), g.f(), g.f(), g.f(), g.f()),
             |&(i, a, b, v, c, m, h)| x87::eased_roll(i, a, b, v, c, m, h),
         );
-        check("to_tbyte", &ROUNDING, Rng::f, |&a| x87::to_tbyte(a));
+        check("to_tbyte", &ROUNDING_MODES, Rng::f, |&a| x87::to_tbyte(a));
     }
 
     /// `fsincos`: the sine and cosine of the angles within an ulp of a float.
@@ -344,7 +343,7 @@ mod tests {
     fn load_sun_direction() {
         check(
             "sun_direction",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| {
                 (
                     g.i() % 4096,
@@ -362,19 +361,19 @@ mod tests {
     fn load_comparisons() {
         check(
             "below_or_unordered",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.fw(), g.fw()),
             |&(a, b)| x87::below_or_unordered(a, b),
         );
         check(
             "scaled_abs_less_below",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.fw(), g.f(), g.f(), g.fw()),
             |&(a, h, k, b)| x87::scaled_abs_less_below(a, h, k, b),
         );
         check(
             "abs_below_or_unordered",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.fw(), g.fw()),
             |&(a, k)| x87::abs_below_or_unordered(a, k),
         );
@@ -442,7 +441,7 @@ mod tests {
         );
         check(
             "int_times_times_over_to_int",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.i(), g.f(), g.f(), g.f()),
             |&(i, a, b, c)| x87::int_times_times_over_to_int(i, a, b, c),
         );
@@ -451,10 +450,12 @@ mod tests {
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| x87::sub_div_to_int(a, b, c),
         );
-        check("ext_to_int", &ROUNDING, Rng::e80, |&e| x87::ext_to_int(e));
+        check("ext_to_int", &ROUNDING_MODES, Rng::e80, |&e| {
+            x87::ext_to_int(e)
+        });
         check(
             "mul2_to_int",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| x87::mul2_to_int(a, b, c),
         );
@@ -470,7 +471,7 @@ mod tests {
         );
         check(
             "times_fist_compare",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.fw(), g.f(), g.fw()),
             |&(a, k, z)| x87::times_fist_compare(a, k, z),
         );
@@ -481,7 +482,7 @@ mod tests {
         );
         check(
             "mul3_to_int",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| x87::mul3_to_int(a, b, c, d),
         );
@@ -492,7 +493,7 @@ mod tests {
         );
         check(
             "trunc_mul_to_int",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f()),
             |&(a, b)| x87::trunc_mul_to_int(a, b),
         );
@@ -502,173 +503,178 @@ mod tests {
     fn run_float_results() {
         check(
             "sum_times_over",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, h, d)| x87::sum_times_over(a, b, h, d),
         );
         check(
             "square_times_plus_times",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, k, c, h)| x87::square_times_plus_times(a, k, c, h),
         );
-        check("minus_one", &ROUNDING, |_| (), |_| (-1.0f32).to_bits());
+        check(
+            "minus_one",
+            &ROUNDING_MODES,
+            |_| (),
+            |_| (-1.0f32).to_bits(),
+        );
         check(
             "mul3",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| x87::mul3(a, b, c, d),
         );
-        check("square", &ROUNDING, Rng::f, |&a| x87::mul(a, a));
+        check("square", &ROUNDING_MODES, Rng::f, |&a| x87::mul(a, a));
         check(
             "int_lerp",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.i(), g.f(), g.f(), g.f()),
             |&(i, d, hi, lo)| x87::int_lerp(i, d, hi, lo),
         );
         check(
             "int_over_int_plus",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.i(), g.i(), g.f()),
             |&(a, b, c)| x87::int_over_int_plus(a, b, c),
         );
-        check("one_less", &ROUNDING, Rng::f, |&a| x87::one_less(a));
+        check("one_less", &ROUNDING_MODES, Rng::f, |&a| x87::one_less(a));
         check(
             "abs_sqrt_times_plus",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f()),
             |&(x, t, c)| x87::abs_sqrt_times_plus(x, t, c),
         );
         check(
             "add3",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| x87::add3(a, b, c),
         );
         check(
             "neg_product_plus",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| x87::neg_product_plus(a, b, c),
         );
         check(
             "neg_mul",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f()),
             |&(a, b)| x87::neg_mul(a, b),
         );
-        check("abs_of", &ROUNDING, Rng::f, |&a| x87::abs_of(a));
+        check("abs_of", &ROUNDING_MODES, Rng::f, |&a| x87::abs_of(a));
         check(
             "square_times_over",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f()),
             |&(x, k, d)| x87::square_times_over(x, k, d),
         );
         check(
             "toward_one",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f()),
             |&(a, b)| x87::toward_one(a, b),
         );
         check(
             "lerp_int_over2",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.i(), g.f(), g.f()),
             |&(a, b, k, i, d, w)| x87::lerp_int_over2(a, b, k, i, d, w),
         );
         check(
             "weight_force",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f(), g.f()),
             |&(v, one, a, h, m)| x87::weight_force(v, one, a, h, m),
         );
         check(
             "neg_product2_plus",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| x87::neg_product2_plus(a, b, c, d),
         );
         check(
             "neg_mul2",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| x87::neg_mul2(a, b, c),
         );
         check(
             "sub_mul",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| x87::sub_mul(a, b, c),
         );
         check(
             "abs_div_add_mul",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(x, a, b, c)| x87::abs_div_add_mul(x, a, b, c),
         );
         check(
             "mul2_plus",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| x87::mul2_plus(a, b, c, d),
         );
         check(
             "over_abs_plus_minus",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, s, b, c)| x87::over_abs_plus_minus(a, s, b, c),
         );
         check(
             "abs_fidiv",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.i()),
             |&(x, n)| x87::abs_fidiv(x, n),
         );
         check(
             "int_fidiv",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.i(), g.i()),
             |&(a, b)| x87::int_ratio(a, b),
         );
         check(
             "one_less_times_plus",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f()),
             |&(d, s)| x87::toward_one(d, s),
         );
         check(
             "sub_mul_add",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| x87::sub_mul_add(a, b, c, d),
         );
         check(
             "lerp_table",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f(), g.f()),
             |&(s, a0, a1, c0, c1)| x87::lerp_table(s, a0, a1, c0, c1),
         );
         check(
             "div_then_mul",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f()),
             |&(a, b, c)| x87::div_then_mul(a, b, c),
         );
         check(
             "sum_times_int_over_minus",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.i(), g.f()),
             |&(a, b, n, k)| x87::sum_times_int_over_minus(a, b, n, k),
         );
         check(
             "mul_div2",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f()),
             |&(a, b, c, d)| x87::mul_div2(a, b, c, d),
         );
         check(
             "int_mul_add",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| {
                 (
                     g.i(),
@@ -681,14 +687,16 @@ mod tests {
         );
         check(
             "ext_div2",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.e80(), g.f(), g.f()),
             |&(e, a, b)| x87::ext_div2(e, a, b),
         );
-        check("neg_rounded", &ROUNDING, Rng::e80, |&x| x87::neg_rounded(x));
+        check("neg_rounded", &ROUNDING_MODES, Rng::e80, |&x| {
+            x87::neg_rounded(x)
+        });
         check(
             "lever_share",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.f(), g.fw()),
             |&(a, d, b, c, z)| {
                 let (share, zero) = x87::lever_share(a, d, b, c, z);
@@ -698,7 +706,7 @@ mod tests {
         // Zero sums: the equal-to-zero branch needs them.
         check(
             "lever_share (zeros)",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| {
                 (
                     g.f() & 0x8000_0000,
@@ -716,7 +724,7 @@ mod tests {
         // The sums over the divisors: a list each.
         check(
             "sum_over",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| {
                 let t: Vec<u32> = (0..1 + g.below(5)).map(|_| g.f()).collect();
                 let d: Vec<u32> = (0..g.below(4)).map(|_| g.f()).collect();
@@ -726,7 +734,7 @@ mod tests {
         );
         check(
             "ramp",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| {
                 let mut t = [g.fw(), g.f(), g.f(), g.f()];
                 // Now and then the ends equal or in order, so that every branch is seen.
@@ -750,13 +758,13 @@ mod tests {
     fn run_comparisons() {
         check(
             "compare_full",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.fw(), g.fw()),
             |&(a, b)| x87::compare_full(a, b),
         );
         check(
             "compare_full (equal)",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| {
                 let a = g.f();
                 (a, a)
@@ -765,25 +773,25 @@ mod tests {
         );
         check(
             "abs_compare",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.fw(), g.fw()),
             |&(a, b)| x87::abs_compare(a, b),
         );
         check(
             "mul_div_status",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.f(), g.fw()),
             |&(a, b, c, k)| x87::mul_div_status(a, b, c, k),
         );
         check(
             "mul_status",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.fw()),
             |&(a, b, c)| x87::mul_status(a, b, c),
         );
         check(
             "compare_80",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.e80(), g.fw()),
             |&(e, b)| x87::compare_80(e, b),
         );
@@ -793,19 +801,19 @@ mod tests {
     fn run_extended_results() {
         check(
             "length_80",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| [g.f(), g.f(), g.f()],
             |v| x87::length_80(*v),
         );
         check(
             "scale_by_80",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| ([g.f(), g.f(), g.f()], g.e80()),
             |&(v, s)| x87::scale_by_80(v, s),
         );
         check(
             "less_plus_less_product_80",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| {
                 (
                     g.f(),
@@ -819,7 +827,7 @@ mod tests {
         );
         check(
             "one_less_products",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| {
                 (0..g.below(4))
                     .map(|_| [g.f(), g.f(), g.f()])
@@ -829,37 +837,37 @@ mod tests {
         );
         check(
             "ext_times",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.e80(), g.f()),
             |&(e, k)| x87::ext_times(e, k),
         );
         check(
             "int_80",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.i(), g.below(2) == 0),
             |&(a, n)| x87::int_80(a, n),
         );
         check(
             "gear_step_80",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f(), g.i(), g.f()),
             |&(t, l, n, o)| x87::gear_step_80(t, l, n, o),
         );
         check(
             "ext_add",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.e80(), g.e80()),
             |&(a, b)| x87::ext_add(a, b),
         );
         check(
             "ints_diff_80",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.i(), g.i()),
             |&(a, b)| x87::ints_diff_80(a, b),
         );
         check(
             "div_80",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f()),
             |&(a, b)| x87::div_80(a, b),
         );
@@ -895,7 +903,7 @@ mod tests {
 
     #[test]
     fn run_sine_cosine_of() {
-        check("sine_cosine_of", &ROUNDING, Rng::angle, |&a| {
+        check("sine_cosine_of", &ROUNDING_MODES, Rng::angle, |&a| {
             x87::sine_cosine_of(a)
         });
     }
@@ -904,7 +912,7 @@ mod tests {
     fn run_patan() {
         check(
             "patan",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| (g.f(), g.f()),
             |&(y, x)| x87::patan(y, x),
         );
@@ -917,7 +925,7 @@ mod tests {
     fn run_over_cos_80() {
         check(
             "over_cos_80",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| {
                 (
                     g.f(),
@@ -936,7 +944,7 @@ mod tests {
     fn run_clamped_asin_80() {
         check(
             "clamped_asin_80",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| {
                 let x = match g.below(3) {
                     0 => f64_to_f80((g.u32() as f64 / u32::MAX as f64 - 0.5) * 2.4),
@@ -963,13 +971,13 @@ mod tests {
     fn norm_squares_and_scaling() {
         check(
             "normalise squares_sum",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| [g.f(), g.f(), g.f()],
             |&v| normalise_vector::squares_sum(v),
         );
         check(
             "normalise scaled_by_inverse",
-            &ROUNDING,
+            &ROUNDING_MODES,
             |g| ([g.f(), g.f(), g.f()], g.pos(), g.pos()),
             |&(v, r, e)| normalise_vector::scaled_by_inverse(v, r, e),
         );

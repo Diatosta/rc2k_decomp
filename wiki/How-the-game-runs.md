@@ -165,7 +165,7 @@ Running the race means:
    `src/effects/`), then the HUD (`src/hud/`), and `race::show_frame` puts it on the screen
    and waits until the next picture is due on the display (`src/platform/pacing.rs`).
 
-The replay viewer (`race::replay_viewer`) loads a stage the same way and runs the same
+The replay viewer (`menu::replay_viewer`) loads a stage the same way and runs the same
 simulation steps, with the inputs coming from the replay file. More in
 [A race, step by step](A-race-step-by-step) and [Car physics](Car-physics).
 

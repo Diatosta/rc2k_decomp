@@ -267,13 +267,13 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                     }
                     screens::SAVE_REPLAY_ITEM if net.lobby().replay_kept.get() == 1 => {
                         // The last race's replay into a slot chosen (the viewer's screens).
-                        let viewed = crate::race::replay_mode::replay_mode(
+                        let viewed = crate::menu::replay_viewer::replay_mode::replay_mode(
                             o.race,
                             o,
-                            crate::race::replay_viewer::Mode::SaveLast,
+                            crate::menu::replay_viewer::Mode::SaveLast,
                         )?;
                         restore_background(o)?;
-                        if viewed == crate::race::replay_viewer::Viewed::NotSaved {
+                        if viewed == crate::menu::replay_viewer::Viewed::NotSaved {
                             crate::net::show_message::show_own_text(
                                 o,
                                 rc2k_core::strings::own::id::REPLAY_NOT_SAVED,

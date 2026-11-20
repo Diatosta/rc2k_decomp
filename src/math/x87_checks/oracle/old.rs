@@ -3,7 +3,7 @@
 //! operations. No x87 instruction runs outside the tests.
 //! The helpers as they were before their results became floats, for the comparison test.
 
-use super::x87_float as bh;
+use crate::math::x87_float as bh;
 
 mod load;
 mod run;
@@ -322,7 +322,7 @@ pub fn share_left_to_int(a: i32, b: i32, c: u32) -> i32 {
     bh::to_int(c - bh::int(a) / bh::int(b) * c)
 }
 
-pub use super::x87::{Rounding, control_word, rounding, set_control_word};
+pub use crate::math::x87::{Rounding, control_word, rounding, set_control_word};
 
 /// `a * b * c`.
 pub fn mul2(a: impl Flt, b: impl Flt, c: impl Flt) -> u32 {

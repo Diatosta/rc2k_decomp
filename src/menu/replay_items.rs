@@ -3,7 +3,7 @@
 //! not to be had); see `race/replay_mode.rs`.
 
 use crate::errors::Refused;
-use crate::race::replay_viewer::Mode;
+use crate::menu::replay_viewer::Mode;
 
 /// `menu::replay_item_a`: unless `RaceState.settings.no_replay` is 1, with a replay there
 /// (`ReplayFileBlock.replay_closed` 1) `race::replay_mode_1`; else half a second's pause (a key ends it) and the
@@ -15,7 +15,8 @@ pub(super) fn replay_item_a(
     if race.shared.state.settings.no_replay.get() != 1
         && race.shared.replay_file().replay_closed.get() == 1
     {
-        return crate::race::replay_mode::replay_mode(race, o, Mode::LastRace).map(|_| ());
+        return crate::menu::replay_viewer::replay_mode::replay_mode(race, o, Mode::LastRace)
+            .map(|_| ());
     }
     crate::system::pause::pause_keeping_key(o, 500);
     crate::sound::play_menu_sound::play_menu_sound(
@@ -34,7 +35,7 @@ pub(super) fn replay_item_b(
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
     if race.shared.state.settings.no_replay.get() != 1 {
-        crate::race::replay_mode::replay_mode(race, o, Mode::SaveLast)?;
+        crate::menu::replay_viewer::replay_mode::replay_mode(race, o, Mode::SaveLast)?;
     }
     Ok(())
 }
@@ -45,7 +46,7 @@ pub(super) fn replay_item_c(
     race: &'static crate::race::owner::Race,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
-    crate::race::replay_mode_2::replay_mode_2(race, o)?;
+    crate::menu::replay_viewer::replay_mode_2::replay_mode_2(race, o)?;
     crate::sound::play_tune_4::play_tune_4(o);
     Ok(())
 }

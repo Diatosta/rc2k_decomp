@@ -8,7 +8,7 @@ use crate::errors::Refused;
 use crate::race::find_snapshot_number::DIGITS_AT;
 use crate::race::owner_replay::Replay;
 
-pub(super) fn viewer_snapshot(
+pub fn viewer_snapshot(
     replay: &Replay,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,

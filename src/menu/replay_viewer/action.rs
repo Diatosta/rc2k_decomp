@@ -1,4 +1,4 @@
-//! `race::viewer_action`: one of the replay viewer's actions, by number:
+//! `menu::replay_viewer::action`: one of the replay viewer's actions, by number:
 //!
 //! - 0, 1, 0xB, 0xC: to the start, the first mark, the second mark, the end
 //!   (`drive::read_replay_frame_0`).
@@ -320,7 +320,7 @@ fn another_replay(race: &'static Race, o: Owners<'static>) -> Result<(), Refused
             Opened::Yes => return crate::race::viewer_load_stage::viewer_load_stage(race, o),
             // An empty slot: the slot list is shown again.
             Opened::Missing => {}
-            Opened::Damaged => crate::race::replay_viewer::tell_damaged(slot),
+            Opened::Damaged => crate::menu::replay_viewer::tell_damaged(slot),
         }
     }
 }

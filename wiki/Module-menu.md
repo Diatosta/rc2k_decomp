@@ -33,6 +33,7 @@ for the menus' item tables, `texts_store.rs` ...). The service area's state is a
 | `run_event_races` | `src/menu/run_event_races.rs` | One round of races, each player in turn. |
 | `Game` | `src/menu/flow_game.rs` | The game's side of the event flows whose logic is in `rc2k_core::menu::flow`. |
 | `asked`, `run_once` | `src/menu/launch.rs` | The launch switches (`--stage` and the rest, `--replay`): starting straight into a race or a replay. |
+| `replay_viewer` | `src/menu/replay_viewer/` | The replay viewer: its key loop (`mod.rs`), the actions its buttons do, the frame (list, bar, panel), the name shown under the highlighted button, and the render-to-video row with its dialog and progress panel. The state it works on is `race::viewer_list`, `race::render_row`, `race::viewer_tip` and the viewer stores. |
 | `confirm_leaving` | `src/menu/confirm_leaving.rs` | The "leave?" question. |
 | `MenuId` | `src/menu/menus_store.rs` | A menu's item table, by name. |
 

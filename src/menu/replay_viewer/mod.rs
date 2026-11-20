@@ -1,4 +1,4 @@
-//! `race::replay_viewer`: the replay viewer, by mode: 1 the last race's replay (222); 2
+//! `menu::replay_viewer`: the replay viewer, by mode: 1 the last race's replay (222); 2
 //! a saved one chosen (`menu::replay_slot_loop` 0; none: nothing); 3 the last race's saved into a
 //! slot chosen (`replay_slot_loop` 1, `race::save_last_replay`) and nothing else. `viewer_mode`
 //! the mode, `viewer_slot` the replay, `hold_car_revs` 1 while it runs.
@@ -7,18 +7,18 @@
 //! `last_race_viewed` whether it is the last race's, the snapshots' number found
 //! (`race::find_snapshot_number`), the stage loaded (`race::viewer_load_stage`), the list set up
 //! (`viewer_list`: no sound, shown, not leaving, the clocks, item 6), the pending key dropped and
-//! the items marked (`race::mark_viewer_items`). Each frame after (shown by `screens::run_frame`
-//! with `race::viewer_frame`): the clocks, a key (`menu::list_take_key`); the game quitting ends
+//! the items marked (`menu::replay_viewer::mark_items`). Each frame after (shown by `screens::run_frame`
+//! with `menu::replay_viewer::frame`): the clocks, a key (`menu::list_take_key`); the game quitting ends
 //! it; keys held after a play (`wait_key_release`, until `Devices.keys_down` and
 //! `Devices.keys_down` are up) do nothing; Escape twice in a row ends it. Playing (`viewer_stopped`
 //! 0): a frame on (`race::step_viewed_replay`); its end or any key stops. Stopped: key 0x52 (Numpad
 //! 0) a screenshot (`gfx::take_screenshot`, with screenshots on); while a camera is edited 0x68,
 //! 0x69, Escape, Enter are actions 0x1E, 0x1F, 0x20, 0x21; else the arrows move the highlight
-//! (`menu::list_step`), Enter does the item's action (its byte 1), 0x3B and 0x3C actions 6 and
+//! (`menu::replay_viewer::list_step`), Enter does the item's action (its byte 1), 0x3B and 0x3C actions 6 and
 //! 0x22, the developer's keys (`ViewerAndKinds.viewer_panel.untyped_tail[0]`) '?', '@', 'A', 'B'
 //! 0x26, 0x27, 0x28, 0x25, and with editing (`viewer_editing`) the keys of `KEYS`. After an action
 //! or a move the items are marked again and a highlight that cannot be chosen
-//! (`menu::list_item_unusable`) moved on the way it went, else back, else to item 6 (or 0x13 when
+//! (`menu::replay_viewer::list_item_unusable`) moved on the way it went, else back, else to item 6 (or 0x13 when
 //! item 6 is marked); the menu sound asked (`viewer_sound`) played (`sound::play_menu_sound`);
 //! `list_leave` 1 ends it. At the end the replay closed (`race::close_viewed_replay`), the front
 //! end back (`race::viewer_tidy_stage`), `viewer_stopped` and `hold_car_revs` 0.
@@ -31,11 +31,26 @@
 //!
 //! Key 0x26 is in `KEYS` twice (0x1D, then 0x14 never reached; a slip kept as is).
 
+pub(crate) mod action;
+mod frame;
+mod item;
+mod list_clear_marks;
+mod list_item_unusable;
+mod list_step;
+mod mark_items;
+mod panel;
+pub(crate) mod render_dialog;
+mod render_progress;
+pub(crate) mod render_row;
+pub(crate) mod replay_mode;
+pub(crate) mod replay_mode_2;
+mod tip;
+
 use crate::errors::Refused;
-use crate::memory::list_handle::ListMenu;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::race::viewer::LAST_RACE;
+use crate::race::viewer_list::ViewerList;
 use crate::race::viewer_state_store::ReplayViewBlock;
 
 /// (key, action) with editing on, in order (0x26 twice: the first wins).
@@ -187,7 +202,10 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
     let devices = &o.input.devices;
     let session = &system.session;
     let replay = &race.replay;
-    use crate::race::*;
+    use crate::race::{
+        find_snapshot_number, open_viewed_replay, save_last_replay, step_viewed_replay,
+        viewer_load_stage,
+    };
     let (mode, launched) = match start {
         Start::Menu(mode) => (mode, None),
         Start::Launched { slot, .. } => (Mode::Saved, Some(slot)),
@@ -238,7 +256,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
     replay.replay_view().last_race_viewed.set(slot == LAST_RACE);
     find_snapshot_number::find_snapshot_number(&race.replay)?;
     viewer_load_stage::viewer_load_stage(race, o)?;
-    let list = ListMenu::viewer(&o.race.replay.replay_view().viewer_list);
+    let list = &o.race.replay.replay_view().viewer_list;
     race.shared.replay_file().viewer_sound.set(0);
     list_state.list_answer.set(1);
     list_state.list_leave.set(0);
@@ -248,7 +266,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
     list_state.choice.set(6);
     // The pending key dropped.
     crate::input::take_key::take_key(o.input);
-    mark_viewer_items::mark_viewer_items(race, list)?;
+    mark_items::mark_viewer_items(race, list)?;
     // A launched replay, and a test run's picture check: the item chosen (play) at once, as
     // Return would.
     let play_at_once = launched.is_some() || crate::remote::shots_on();
@@ -258,8 +276,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
             let (from, to) = crate::video::range().unwrap_or((0, None));
             crate::race::render_row::play_range(race, from, to, o)?;
         } else {
-            let chosen = list.item(list_state.choice.get());
-            action_next(race, o, u32::from(chosen.viewer_action()))?;
+            action_next(race, o, list.action(list_state.choice.get()))?;
         }
         // The play runs to its stop inside the action.
         if leave_when_played {
@@ -267,9 +284,8 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
         }
     }
     loop {
-        // `screens::run_frame` with `race::viewer_frame`.
-        if let Some(lost) = crate::shell::frame::run_frame_now(o, || viewer_frame::viewer_frame(o))
-        {
+        // `screens::run_frame` with `menu::replay_viewer::frame`.
+        if let Some(lost) = crate::shell::frame::run_frame_now(o, || frame::viewer_frame(o)) {
             lost?;
         }
         list_state.frame_clock.set(session.key_clock.ticks.get());
@@ -336,7 +352,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
 /// An action done: the items are marked again after one that is an action.
 fn action_next(race: &'static Race, o: Owners<'static>, action: u32) -> Result<Next, Refused> {
     Ok(
-        if crate::race::viewer_action::viewer_action(race, o, action)? {
+        if crate::menu::replay_viewer::action::viewer_action(race, o, action)? {
             Next::Mark
         } else {
             Next::Sound
@@ -348,7 +364,7 @@ fn action_next(race: &'static Race, o: Owners<'static>, action: u32) -> Result<N
 fn stopped_key(
     race: &'static Race,
     o: Owners<'static>,
-    list: ListMenu,
+    list: &ViewerList,
     key: u8,
 ) -> Result<Next, Refused> {
     let list_state = &o.menus.list;
@@ -366,7 +382,9 @@ fn stopped_key(
     }
     // The "render to video" row under the buttons: the down arrow from the lower row reaches
     // it, up or left leaves it, Enter renders.
-    use crate::race::render_row::{KEY_DOWN, KEY_ENTER, KEY_LEFT, KEY_UP, LOWER_ROW};
+    use crate::menu::replay_viewer::render_row::{
+        KEY_DOWN, KEY_ENTER, KEY_LEFT, KEY_UP, LOWER_ROW,
+    };
     if crate::race::render_row::selected(race) {
         return Ok(match key {
             KEY_UP | KEY_LEFT => {
@@ -375,7 +393,7 @@ fn stopped_key(
             }
             KEY_ENTER => {
                 crate::race::render_row::select(race, false);
-                crate::race::render_row::render(race, o)?;
+                crate::menu::replay_viewer::render_row::render(race, o)?;
                 Next::Mark
             }
             _ => Next::Sound,
@@ -385,7 +403,7 @@ fn stopped_key(
     // has none, or the button under it is greyed): the render button, before the list moves the
     // highlight sideways to some other button.
     if key == KEY_DOWN
-        && crate::race::render_row::OFFERED
+        && crate::menu::replay_viewer::render_row::OFFERED
         && race.shared.replay_file().index.block_count.get() != 0
         && (LOWER_ROW.contains(&list_state.choice.get())
             || way_down_closed(race, list, list_state.choice.get())?)
@@ -393,20 +411,18 @@ fn stopped_key(
         crate::race::render_row::select(race, true);
         return Ok(Next::Mark);
     }
-    let stepped = crate::menu::list_step::list_step(
+    let stepped = crate::menu::replay_viewer::list_step::list_step(
         list_state,
         key,
         Some(ReplayViewBlock::key_table(&race.replay)?),
-        list,
     )?;
     if stepped {
         return Ok(Next::Mark);
     }
-    if key == 0x1C {
-        let chosen = list.item(list_state.choice.get());
-        if let Next::Mark = action_next(race, o, u32::from(chosen.viewer_action()))? {
-            return Ok(Next::Mark);
-        }
+    if key == 0x1C
+        && let Next::Mark = action_next(race, o, list.action(list_state.choice.get()))?
+    {
+        return Ok(Next::Mark);
     }
     if key == 0x3B {
         return Ok(Next::Action(6));
@@ -430,8 +446,8 @@ fn stopped_key(
 
 /// Whether the down arrow from the upper-row item `from` leads nowhere: the key table has no
 /// way down from it, or the item it leads to is greyed.
-fn way_down_closed(race: &Race, list: ListMenu, from: u32) -> Result<bool, Refused> {
-    use crate::race::render_row::LOWER_ROW;
+fn way_down_closed(race: &Race, list: &ViewerList, from: u32) -> Result<bool, Refused> {
+    use crate::menu::replay_viewer::render_row::LOWER_ROW;
     if from >= *LOWER_ROW.start() {
         return Ok(false);
     }
@@ -439,8 +455,8 @@ fn way_down_closed(race: &Race, list: ListMenu, from: u32) -> Result<bool, Refus
         .add(from.wrapping_mul(4) + 1)
         .read(1, "the viewer's key table")?[0];
     Ok((entry as i8) < 0
-        || u32::from(entry) >= u32::from(list.count())
-        || rc2k_core::menu::list_menu::unusable(list.item(u32::from(entry)).first()))
+        || u32::from(entry) >= crate::race::viewer_list::ITEMS
+        || rc2k_core::menu::list_menu::unusable(list.item(u32::from(entry)).first.get()))
 }
 
 /// After a move or an action: the items marked again, the highlight put where
@@ -448,11 +464,11 @@ fn way_down_closed(race: &Race, list: ListMenu, from: u32) -> Result<bool, Refus
 fn mark(
     race: &Race,
     list_state: &crate::menu::list_state::ListState,
-    list: ListMenu,
+    list: &ViewerList,
     key: u8,
 ) -> Result<(), Refused> {
-    use crate::menu::list_item_unusable::list_item_unusable;
-    crate::race::mark_viewer_items::mark_viewer_items(race, list)?;
+    use crate::menu::replay_viewer::list_item_unusable::list_item_unusable;
+    crate::menu::replay_viewer::mark_items::mark_viewer_items(race, list)?;
     'tail: {
         if !list_item_unusable(list_state, list) {
             break 'tail;
@@ -463,11 +479,10 @@ fn mark(
             }
             // On the way it went while it cannot be chosen.
             loop {
-                if !crate::menu::list_step::list_step(
+                if !crate::menu::replay_viewer::list_step::list_step(
                     list_state,
                     key,
                     Some(ReplayViewBlock::key_table(&race.replay)?),
-                    list,
                 )? {
                     break;
                 }
@@ -483,7 +498,7 @@ fn mark(
         }
         // Else item 6, or 0x13 when item 6 is marked.
         list_state.choice.set(6);
-        if list.item(6).first() & 0xC0 != 0 {
+        if list.item(6).first.get() & 0xC0 != 0 {
             list_state.choice.set(0x13);
         }
     }

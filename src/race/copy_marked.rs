@@ -8,7 +8,7 @@ use crate::race::owner::Race;
 use crate::race::viewer::move_cells;
 
 /// The count copied, none when the marks are not in order.
-pub(super) fn copy_marked(race: &Race) -> Result<Option<u32>, Refused> {
+pub fn copy_marked(race: &Race) -> Result<Option<u32>, Refused> {
     let shared = &race.shared;
     let v = race.viewer_buffers();
     let first = v.mark_in.get();

@@ -12,63 +12,63 @@ use crate::test_support::own::race;
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct ViewerPanelBlock {
-    /// 16-bit text ids of the camera names, read and written by `race::draw_viewer_panel`
+    /// 16-bit text ids of the camera names, read and written by `menu::replay_viewer::panel`
     /// and the camera actions; reached through `camera_name`, not by this field.
     pub camera_name_ids: [PlainDword; 24],
     /// Rectangle (0,0,800,32) of the viewer
-    /// bar's frame (`race::viewer_frame`).
+    /// bar's frame (`menu::replay_viewer::frame`).
     pub bar_frame_rect: [PlainDword; 4],
     /// First button rectangle
-    /// (`race::viewer_frame`).
+    /// (`menu::replay_viewer::frame`).
     pub button_rect_a: [PlainDword; 4],
     /// Second button rectangle
-    /// (`race::viewer_frame`).
+    /// (`menu::replay_viewer::frame`).
     pub button_rect_b: [PlainDword; 4],
     /// Third button rectangle
-    /// (`race::viewer_frame`).
+    /// (`menu::replay_viewer::frame`).
     pub button_rect_c: [PlainDword; 4],
     /// Fourth button rectangle
-    /// (`race::viewer_frame`).
+    /// (`menu::replay_viewer::frame`).
     pub button_rect_d: [PlainDword; 4],
     /// The bar's rectangle (x, y, w at +8, h)
-    /// (`race::viewer_frame`).
+    /// (`menu::replay_viewer::frame`).
     pub bar_rect: [PlainDword; 4],
     /// A mark's rectangle, x written each frame
-    /// (`race::viewer_frame`).
+    /// (`menu::replay_viewer::frame`).
     pub mark_rect: [PlainDword; 4],
     /// The place marker's rectangle, x written
-    /// each frame (`race::viewer_frame`).
+    /// each frame (`menu::replay_viewer::frame`).
     pub place_rect: [PlainDword; 4],
     /// The item quad's place, zero at the start
-    /// (`race::draw_viewer_item`).
+    /// (`menu::replay_viewer::item`).
     pub item_place: [PlainDword; 4],
     /// The quad's screen rectangle, scratch,
-    /// zero at the start (`race::draw_viewer_panel`, `drive::tyre_screen_parts`).
+    /// zero at the start (`menu::replay_viewer::panel`, `drive::tyre_screen_parts`).
     pub screen_rect: [PlainDword; 4],
     /// The quad's texture rectangle,
-    /// scratch, zero at the start (`race::draw_viewer_panel`, `drive::tyre_screen_parts`,
+    /// scratch, zero at the start (`menu::replay_viewer::panel`, `drive::tyre_screen_parts`,
     /// `race::draw_tyre_change`).
     pub texture_rect: [PlainDword; 4],
     /// Texture rectangles the viewer list's items point to; never read by name.
     pub viewer_item_rects_a: [PlainDword; 40],
     /// Texture rectangle (249,0,7,29)
-    /// of a mark (`race::viewer_frame`).
+    /// of a mark (`menu::replay_viewer::frame`).
     pub mark_picture_rect: [PlainDword; 4],
     /// A rectangle the viewer list points to; never read by name.
     pub viewer_item_rect_b: [PlainDword; 4],
     /// Texture rectangle (48,48,48,48)
-    /// of the place marker (`race::viewer_frame`).
+    /// of the place marker (`menu::replay_viewer::frame`).
     pub place_picture_rect: [PlainDword; 4],
     /// Texture rectangles the viewer list's items point to; never read by name.
     pub viewer_item_rects_c: [PlainDword; 76],
     /// Texture rectangle
-    /// (0,240,16,16) of a button end (`race::viewer_frame`).
+    /// (0,240,16,16) of a button end (`menu::replay_viewer::frame`).
     pub button_picture_rect: [PlainDword; 4],
     /// Texture rectangle (15,240,241,16)
-    /// of a button body (`race::viewer_frame`).
+    /// of a button body (`menu::replay_viewer::frame`).
     pub button_body_rect: [PlainDword; 4],
     /// The bar frame's texture rectangle (1,241,14,14), 20 bytes: plus 0.5f as its fifth
-    /// dword (`race::viewer_frame`).
+    /// dword (`menu::replay_viewer::frame`).
     pub frame_picture_rect: [PlainDword; 5],
     /// The constant 1.0 (`race::tyre_change_gauge`).
     pub one: PlainFloat,
@@ -81,11 +81,11 @@ pub struct ViewerPanelBlock {
     /// quad's y (`drive::tyre_quad`, `drive::tyre_turned_quad`).
     pub reciprocal_height_600: PlainFloat,
     /// Two names of texture rectangles; a camera byte 2 or 3 picks one
-    /// (`race::draw_viewer_item`).
+    /// (`menu::replay_viewer::item`).
     pub switch_pictures_a: [PlainDword; 2],
-    /// Four names of texture rectangles, by camera byte 5 (`race::draw_viewer_item`).
+    /// Four names of texture rectangles, by camera byte 5 (`menu::replay_viewer::item`).
     pub switch_pictures_b: [PlainDword; 4],
-    /// Three names of texture rectangles, by camera byte 4 (`race::draw_viewer_item`).
+    /// Three names of texture rectangles, by camera byte 4 (`menu::replay_viewer::item`).
     pub switch_pictures_c: [PlainDword; 3],
     /// Whether the replay's physics patches are in force (`race::replay_patches`).
     pub patches_in_force: PlainDword,
@@ -290,7 +290,7 @@ impl ViewerPanelBlock {
     /// `switch_pictures_b`, 2 `switch_pictures_c`; the tables name their rectangles by image
     /// address). The three tables are one run of nine names, which an `n` past a table's end reads
     /// on into; past the run, or a name off the panel, is refused.
-    pub(super) fn switch_picture(
+    pub fn switch_picture(
         &self,
         table: usize,
         n: u32,

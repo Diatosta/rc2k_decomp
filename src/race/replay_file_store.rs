@@ -49,12 +49,12 @@ pub struct ReplayFileBlock {
     /// Kind 0x35's first texture kept (`race::viewer_palettes`).
     pub viewer_first_texture_a: PlainDword,
     /// Kind 0x35's first slot kept; the list's texture (`race::viewer_palettes`,
-    /// `race::viewer_frame`).
+    /// `menu::replay_viewer::frame`).
     pub viewer_list_texture: PlainDword,
     /// Kind 0x2A's first texture kept; the panel's texture (`race::viewer_palettes`,
-    /// `race::draw_viewer_panel`).
+    /// `menu::replay_viewer::panel`).
     pub viewer_panel_texture: PlainDword,
-    /// Kind 0x2A's first slot kept (`race::viewer_palettes`, `race::draw_viewer_panel`).
+    /// Kind 0x2A's first slot kept (`race::viewer_palettes`, `menu::replay_viewer::panel`).
     pub viewer_device_texture: PlainDword,
     /// The viewer's stage is loaded (`race::viewer_load_stage`, `race::viewer_tidy_stage`).
     pub viewer_stage_loaded: PlainDword,

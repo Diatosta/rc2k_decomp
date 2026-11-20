@@ -1,13 +1,12 @@
 //! The game's memory: the allocator's blocks on lists and the figures it keeps about them, and the
 //! typed cells the game's data lives in (`cells`, `session`, `place`, `part_cell`,
-//! `list_handle`, `shared_memory`).
+//! `shared_memory`).
 
 pub(crate) mod cells;
 pub(crate) mod draw_order;
 pub(crate) mod first_cells;
 pub(crate) mod free_list;
 pub(crate) mod host_hooks;
-pub(crate) mod list_handle;
 pub(crate) mod owned;
 pub(crate) mod part_cell;
 pub(crate) mod place;

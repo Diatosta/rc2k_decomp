@@ -29,7 +29,7 @@ pub(super) fn play_tail(
 }
 
 /// `play_marked`.
-pub(super) fn play_marked(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub fn play_marked(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::viewer_flow::marked_play`.
     play_tail(
         race,
