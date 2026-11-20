@@ -425,7 +425,10 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         Field::Dwords(vec![                                        // the audio quality, the 3D switches and the channels
             &work.audio_quality, &work.ds3d, &work.eax, &work.retired_a3d, &work.dolby, &work.channels,
         ]),
-        Field::Dword(&menus.play.champ_view.services),                       // the services counted
+        Field::Value {                                          // the services counted
+            get: Box::new(|| menus.play.champ_view.read().services),
+            set: Box::new(|services| menus.play.champ_view.write().services = services),
+        },
         Field::Value {                                          // kept by the event races
             get: Box::new(|| menus.screens.flow.read().kept),
             set: Box::new(|kept| menus.screens.flow.write().kept = kept),

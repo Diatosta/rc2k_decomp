@@ -111,12 +111,7 @@ fn key_and_step(
     if action == PageKey::None {
         return Ok(0);
     }
-    menus
-        .play
-        .champ_view
-        .key_clock
-        .last_key_time
-        .set(system.clocks().frame.get());
+    menus.play.champ_view.write().key_clock.last_key_time = system.clocks().frame.get();
     match action {
         PageKey::Down => {
             step(menus, down)?;
@@ -184,7 +179,7 @@ pub(super) fn change_page(
         &mut f,
         &mut m,
         item as usize,
-        screens.event.service.minutes.get() as i32,
+        screens.event.read().service.minutes as i32,
         v,
         |item| time_of(&menus.service, item),
     )
@@ -193,7 +188,7 @@ pub(super) fn change_page(
     store_marks(&menus.service, &m);
     page.change.chosen(&menus.service).set(c.chosen);
     if let Some(status) = c.status {
-        screens.state.service_ui.status.set(status);
+        screens.state.write().service_ui.status = status;
     }
     menus.service.repair_time.set(c.total as u32);
     leave_edit_mode(screens);

@@ -18,7 +18,7 @@ use rc2k_core::menu::class_pages;
 
 /// The first class.
 fn first_class(screens: &Screens) -> u32 {
-    class_pages::first_stage_class(screens.state.menus.class_mode.get())
+    class_pages::first_stage_class(screens.state.read().menus.class_mode)
 }
 
 pub(super) fn class_stage_results_pass(
@@ -43,7 +43,7 @@ pub(super) fn class_stage_results_pass(
         }
         screens.loop_flags.write().left_with_carry = true;
         let numbered = number_standings(play, Which::A, class, tables)?;
-        screens.event.standings_count.set(numbered.last_number);
+        screens.event.write().standings_count = numbered.last_number;
         crate::menu::show_class_stage_results::show_class_stage_results(
             &play.champ_view,
             &screens.event,

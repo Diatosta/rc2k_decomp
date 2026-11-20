@@ -53,16 +53,17 @@ impl<'a> Game<'a> {
 }
 
 /// The variables that are in the physics block.
-fn cell<'a>(screens: &'a Screens, race: &'a Race, v: Var) -> &'a dyn DwordLike {
+fn cell(race: &Race, v: Var) -> &dyn DwordLike {
     match v {
         Var::CheatSwitch => &race.shared.state.settings.direction,
         Var::RaceKept => &race.shared.state.settings.kept,
         Var::Result => &race.shared.state.results.results[0].result,
         Var::Result2 => &race.shared.state.results.results[1].result,
-        Var::GoesOn => &screens.event.event_goes_on,
         Var::Cheats => unreachable!("the cheats are plain fields, `get` and `set` handle them"),
         Var::Kept => unreachable!("the kept word is a plain field, `get` and `set` handle it"),
-        Var::Current => &screens.event.current_player,
+        Var::GoesOn | Var::Current => {
+            unreachable!("the event's words are plain fields, `get` and `set` handle them")
+        }
     }
 }
 
@@ -73,16 +74,20 @@ impl races::EventRaces for Game<'_> {
         match v {
             Var::Cheats => return self.play.cheats.read().cheats,
             Var::Kept => return self.screens.flow.read().kept,
+            Var::GoesOn => return self.screens.event.read().event_goes_on,
+            Var::Current => return self.screens.event.read().current_player,
             _ => {}
         }
-        cell(self.screens, self.owners.race, v).get()
+        cell(self.owners.race, v).get()
     }
 
     fn set(&mut self, v: Var, value: u32) {
         match v {
             Var::Cheats => self.play.cheats.write().cheats = value,
             Var::Kept => self.screens.flow.write().kept = value,
-            _ => cell(self.screens, self.owners.race, v).set(value),
+            Var::GoesOn => self.screens.event.write().event_goes_on = value,
+            Var::Current => self.screens.event.write().current_player = value,
+            _ => cell(self.owners.race, v).set(value),
         }
     }
 
@@ -122,7 +127,7 @@ impl races::EventRaces for Game<'_> {
                     .state
                     .settings
                     .rivals
-                    .set(play.champ_view.summary.get());
+                    .set(play.champ_view.read().summary);
                 race.shared.state.settings.stage.set(
                     self.pack
                         .stage(&self.owners.system.records().stage_tables)?,
@@ -189,13 +194,13 @@ pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
     if few_running {
         return Err(BadInput("fewer than 178 drivers, or fewer than four still running").into());
     }
-    let mode: u32 = screens.event.event_kind.get();
+    let mode: u32 = screens.event.read().event_kind;
     if let Some((n, _)) = races::players_of(mode)
         && n > 4
     {
         return Err(BadInput("a player of the event's mode missing").into());
     }
-    let reset_only = { play.champ_view.reset_times.get() } == 1;
+    let reset_only = { play.champ_view.read().reset_times } == 1;
     let rec = crate::menu::calc_cpu_times::record(screens, o.system, &o.saves.best_tables)?;
     crate::menu::calc_cpu_times::check(cars, screens, o.system, o.race, rec)?;
     let pack = crate::records::trakpak_entry::track_of(&o.system.records().stage_tables, rec)?;

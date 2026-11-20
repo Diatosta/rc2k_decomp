@@ -133,9 +133,17 @@ pub(super) fn hold_high_to(v: &impl FloatView, lim: f32) {
 
 /// `v` negated in place.
 pub fn negate(v: &impl FloatView) {
-    v.set_float(crate::math::x87::neg_rounded(
-        crate::math::matrix3::extended(v.float()),
-    ));
+    v.set_float(negated(v.float()));
+}
+
+/// The car's velocity negated part by part, as the bits of three floats.
+pub fn negated_velocity(car: &crate::physics::car_store::Car) -> [u32; 3] {
+    std::array::from_fn(|k| negated(car.velocity[k].float()).to_bits())
+}
+
+/// `x` negated.
+pub fn negated(x: f32) -> f32 {
+    crate::math::x87::neg_rounded(crate::math::matrix3::extended(x))
 }
 
 /// The value at `v` brought toward 0 by the step at `step`, never past it; 0 (either

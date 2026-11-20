@@ -54,9 +54,9 @@ fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
     cars(&menus.play)?;
 
     crate::menu::ready_players::ready_players(menus)?;
-    menus.screens.event.event_goes_on.set(1u32);
-    menus.play.champ_view.reset_times.set(0u32);
-    menus.screens.event.event_out.set(0u32);
+    menus.screens.event.write().event_goes_on = 1u32;
+    menus.play.champ_view.write().reset_times = 0u32;
+    menus.screens.event.write().event_out = 0u32;
     if !read_savegame_slot_in(saves, slot)? {
         crate::sound::play_menu_sound::play_menu_sound(
             o.sound,
@@ -72,18 +72,14 @@ fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
     let restored = restore(o);
     match restored {
         Ok(Resume::NextSection) => {
-            menus
-                .screens
-                .event
-                .section
-                .set(menus.screens.event.section.get().wrapping_add(1));
-            menus.screens.event.stage_in_section.set(0u32);
+            menus.screens.event.write().section =
+                menus.screens.event.read().section.wrapping_add(1);
+            menus.screens.event.write().stage_in_section = 0u32;
         }
-        Ok(Resume::NextStage) => menus
-            .screens
-            .event
-            .stage_in_section
-            .set(menus.screens.event.stage_in_section.get().wrapping_add(1)),
+        Ok(Resume::NextStage) => {
+            menus.screens.event.write().stage_in_section =
+                menus.screens.event.read().stage_in_section.wrapping_add(1);
+        }
         Ok(Resume::Over) => {
             go_back::go_back(menus);
             return Ok(());
@@ -97,9 +93,9 @@ fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
         }
         Err(other) => return Err(other),
     }
-    menus.screens.event.continuing_save.set(1u32);
+    menus.screens.event.write().continuing_save = 1u32;
     crate::menu::link_player_names::link_player_names(menus)?;
-    if menus.play.champ_view.event_mode.get() == A8_MODE {
+    if menus.play.champ_view.read().event_mode == A8_MODE {
         crate::menu::run_a8_championship::run_a8_championship_in(o)?;
     } else {
         crate::menu::run_championship::run_championship_in(o)?;

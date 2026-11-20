@@ -25,7 +25,7 @@ pub fn championship_standings(
         menus,
         tables,
     )?;
-    let a8 = class_pages_only(menus.play.champ_view.event_mode.get());
+    let a8 = class_pages_only(menus.play.champ_view.read().event_mode);
     for sort in standings_sorts(a8) {
         match sort {
             Sort::ByFigure => fig::sort_standings_b_by_figure(menus, tables)?,
@@ -38,7 +38,7 @@ pub fn championship_standings(
     if !a8 {
         number_all(&menus.screens, &menus.play, Which::B, tables)?;
     }
-    menus.screens.state.menus.standings_shown.set(true);
+    menus.screens.state.write().menus.standings_shown = true;
     if a8 {
         crate::menu::class_championship_pass::class_championship_pass(menus, entry, tables)?;
     } else {
@@ -48,6 +48,6 @@ pub fn championship_standings(
             tables,
         )?;
     }
-    menus.screens.state.menus.standings_shown.set(false);
+    menus.screens.state.write().menus.standings_shown = false;
     Ok(())
 }

@@ -18,7 +18,7 @@ pub(super) fn show_overall_stage_results(
 ) -> Result<(), Refused> {
     let found = crate::menu::first_player_a::first_player_a(ANY_GROUP, tables)?;
     let count = held_figure(Page::OverallStage, found.figure);
-    champ.rows.count.set(count);
+    champ.write().rows.count = count;
     crate::menu::first_page_stage::first_page_stage(champ);
     crate::menu::stage_range_caption::stage_range_caption(champ, &entry.menus.text_buffers)?;
     run_screen(ScreenId::OverallStageResults, entry)?;

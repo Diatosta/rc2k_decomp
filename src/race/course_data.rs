@@ -15,11 +15,7 @@ pub const MOST_RECORDS: u32 = 0x7_8000;
 /// Writes `number`'s two digits (its low byte's div 10, + '0') into both cdat paths.
 pub(super) fn set_cdat_number(course: &Course, number: u32) {
     let digits = rc2k_core::race::stage::two_digits(number as u8);
-    let p = course.level_paths();
-    p.cdat_src.set(0x14, digits[0]);
-    p.cdat_src.set(0x15, digits[1]);
-    p.cdat_files.set(0x19, digits[0]);
-    p.cdat_files.set(0x1A, digits[1]);
+    course.level_paths_mut().set_cdat_number(digits);
 }
 
 /// Stores the course file's header dwords in `course_header` and the fields after it, in their
@@ -148,12 +144,12 @@ pub(super) fn load_level(race: &Race) -> Result<(), Refused> {
     load_log(0);
     let mut data = vec![0u8; FIRST_PART];
     crate::logfile::load_times::mark("read_level_file");
-    let read = read_level_file::read_level_file(&course.level_paths().cdat_src.text(), &mut data)?;
+    let read = read_level_file::read_level_file(&course.level_paths().cdat_src_text(), &mut data)?;
     if read.is_none() {
         // The path named, for the reports.
         crate::program_log::log(&format!(
             "race::load_level: the course data \"{}\" could not be read",
-            String::from_utf8_lossy(&course.level_paths().cdat_src.text())
+            String::from_utf8_lossy(&course.level_paths().cdat_src_text())
         ));
         return Err(NOT_READ.into());
     }

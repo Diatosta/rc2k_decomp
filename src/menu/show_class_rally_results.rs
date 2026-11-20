@@ -21,11 +21,11 @@ pub(super) fn show_class_rally_results(
     entry: &Entry,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
-    event.shown.class.set(class);
+    event.write().shown.class = class;
     let found = crate::menu::first_player_a::first_player_a(class, tables)?;
-    let a8 = champ.event_mode.get() == rc2k_core::menu::results_pages::A8;
+    let a8 = champ.read().event_mode == rc2k_core::menu::results_pages::A8;
     let count = held_figure(Page::ClassRally { a8 }, found.figure);
-    champ.rows.count.set(count);
+    champ.write().rows.count = count;
     crate::menu::first_page_stage::first_page_stage(champ);
     crate::menu::stage_range_caption::stage_range_caption(champ, &entry.menus.text_buffers)?;
     run_screen(ScreenId::ClassRallyResults, entry)?;

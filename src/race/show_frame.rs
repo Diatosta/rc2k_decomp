@@ -11,7 +11,7 @@ use crate::race::owner::Race;
 pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (system, scene) = (o.system, o.scene);
     let frame = &race.frame;
-    let locked = crate::scene::lock_frame::lock_frame(race, o.gfx, o.system);
+    let locked = crate::scene::lock_frame::lock_frame(o.gfx, o.system);
     if locked < 1 || lose_this_frame() {
         return Ok(());
     }
@@ -36,7 +36,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     }?;
     crate::race::part_notices::draw(race, o)?;
     crate::net::left::draw(o)?;
-    crate::scene::unlock_frame::unlock_frame(&race.frame, o.gfx);
+    crate::scene::unlock_frame::unlock_frame(o.gfx);
     if !crate::scene::present_frame::present_frame(o) {
         return Ok(());
     }

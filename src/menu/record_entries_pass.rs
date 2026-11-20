@@ -26,17 +26,17 @@ impl rc2k_core::menu::bests::RecordEntries for Entries<'_> {
     }
 
     fn set_entered(&mut self, on: bool) {
-        self.0.screens.event.trial.any_qualified.set(on);
+        self.0.screens.event.write().trial.any_qualified = on;
     }
 
     fn set_current(&mut self, n: u32) {
-        self.0.screens.event.current_player.set(n);
+        self.0.screens.event.write().current_player = n;
     }
 
     fn beats(&mut self, n: u32) -> Result<bool, Refused> {
         let _ = n;
         crate::menu::beat_target_time::beat_target_time(self.0, self.1, self.3)?;
-        Ok({ self.0.screens.event.trial.qualifies.get() } == 1)
+        Ok({ self.0.screens.event.read().trial.qualifies } == 1)
     }
 
     fn enter(&mut self, n: u32) -> Result<(), Refused> {

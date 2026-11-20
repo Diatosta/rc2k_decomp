@@ -10,7 +10,7 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 pub fn inspection_verdict(menus: &Menus) -> Result<(), Refused> {
-    let n: u32 = menus.screens.event.current_player.get();
+    let n: u32 = menus.screens.event.read().current_player;
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
@@ -20,10 +20,10 @@ pub fn inspection_verdict(menus: &Menus) -> Result<(), Refused> {
     let v = rc2k_core::menu::inspection::verdict(
         |k| fault.ok(past_limit(&menus.screens, p, k as u32)),
         |k| menus.service.repair_flags[k + 2].get() != 0,
-        |k| menus.screens.state.driver_stats.penalties[k].get(),
+        |k| menus.screens.state.read().driver_stats.penalties[k],
     );
     fault.check()?;
-    menus.screens.state.driver_stats.score.set(v.score);
+    menus.screens.state.write().driver_stats.score = v.score;
     p.update(|q| q.entry = v.kind);
 
     Ok(())

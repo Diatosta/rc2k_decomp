@@ -15,7 +15,7 @@ pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
         .ok_or(BadInput("a player without its record"))?
         .get()
         .picked();
-    menus.screens.event.current_player.set(n);
+    menus.screens.event.write().current_player = n;
     menus.keys.tables_mut().controls = copy;
     Ok(())
 }
@@ -105,8 +105,8 @@ fn stage_refuses(
 pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let (a, b) = (
-        menus.play.champ_view.switches.records_set.get(),
-        menus.play.champ_view.shown_stage.group.get(),
+        menus.play.champ_view.read().switches.records_set,
+        menus.play.champ_view.read().shown_stage.group,
     );
     let text = &menus.text_buffers;
     let stages = &o.system.records().stage_tables;
@@ -119,11 +119,15 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
         .view_best_times
         .id()
         .items(&menus.tables.menus);
-    let (first, second) = stage_options_items(a, menus.play.champ_view.switches.records_alt.get());
+    let (first, second) = stage_options_items(a, menus.play.champ_view.read().switches.records_alt);
     set_item(items, 1, first)?;
     set_item(items, 2, second)?;
-    let (base, record) =
-        stage_record(stages, a, b, menus.play.champ_view.shown_stage.number.get())?;
+    let (base, record) = stage_record(
+        stages,
+        a,
+        b,
+        menus.play.champ_view.read().shown_stage.number,
+    )?;
     set_item(items, 3, base.title(&o.system.records().stage_tables)?)?;
     stage_line(
         crate::strings::append_string_by_id::StringOwners::of(o),
@@ -135,7 +139,7 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
     push_id(
         crate::strings::append_string_by_id::StringOwners::of(o),
         &mut caption,
-        stage_options_caption(menus.screens.state.menus.caption_choice.get()),
+        stage_options_caption(menus.screens.state.read().menus.caption_choice),
     )?;
     caption.push(0);
     text.caption.write_at(0, &caption, "the caption")?;
@@ -149,8 +153,8 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
 pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let (a, b) = (
-        menus.screens.event.stage.group.get(),
-        menus.screens.event.stage.sub.get(),
+        menus.screens.event.read().stage.group,
+        menus.screens.event.read().stage.sub,
     );
     let text = &menus.text_buffers;
     let stages = &o.system.records().stage_tables;
@@ -168,7 +172,7 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
         .id()
         .items(&menus.tables.menus);
     set_item(items, 0, crate::screens::stage_panel::group_title(a)?)?;
-    let (base, record) = stage_record(stages, a, b, menus.screens.event.stage.number.get())?;
+    let (base, record) = stage_record(stages, a, b, menus.screens.event.read().stage.number)?;
     menus
         .tables
         .menus

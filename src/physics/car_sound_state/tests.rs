@@ -1,5 +1,5 @@
 use super::*;
-use crate::sound::asm_layout::{Laid, with_laid};
+use crate::sound::asm_layout::{OBJECT_EXTENT, with_object};
 use crate::test_support::own::race;
 use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
@@ -27,7 +27,7 @@ fn blocks() -> Vec<Block> {
                     writes: &[],
                 },
                 Operand::Sized {
-                    len: crate::sound::store::SoundObject::EXTENT,
+                    len: OBJECT_EXTENT,
                     reads: &[],
                     writes: &[
                         (0x44, Out::F),
@@ -47,7 +47,7 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                with_laid::<crate::sound::store::SoundObject, _>(a[1], |so| {
+                with_object(a[1], |so| {
                     x87_2(race().course.numbers.get(), race().shared.car(), so);
                 });
             },

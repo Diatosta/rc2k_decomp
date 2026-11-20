@@ -15,7 +15,7 @@ pub(super) fn draw_column_boxes(o: Owners<'static>) -> Result<(), Refused> {
         let mut y = BOXES_Y;
         for _ in 0..ROWS {
             let chosen = screens.loop_flags.read().item == row && screens.draw_work.read().blink;
-            for a in row_box(x, y, screens.state.service_ui.box_colour_a.get(), chosen) {
+            for a in row_box(x, y, screens.state.read().service_ui.box_colour_a, chosen) {
                 quad(o, a.x, a.y, a.w, a.h, a.colour, a.see)?;
             }
             y = y.wrapping_add(ROW_STEP);

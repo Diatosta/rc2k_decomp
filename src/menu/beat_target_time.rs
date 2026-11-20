@@ -15,12 +15,12 @@ pub fn beat_target_time(
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
     let event = current_event(screens, system, tables)?;
-    let n: u32 = screens.event.current_player.get();
+    let n: u32 = screens.event.read().current_player;
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     let target = with_event(tables, event, |ten| ten[9].head.key)?;
     let beaten = rc2k_core::menu::bests::makes_time(player(menus, n).get().time, target);
-    screens.event.trial.qualifies.set(u32::from(beaten));
+    screens.event.write().trial.qualifies = u32::from(beaten);
     Ok(())
 }

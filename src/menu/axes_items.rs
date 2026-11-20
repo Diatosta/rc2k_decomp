@@ -41,7 +41,7 @@ pub fn step(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Refused> 
     let menus = o.menus;
     let screens = &menus.screens;
     let item: u32 = screens.loop_flags.read().item;
-    let current = screens.event.current_player.get();
+    let current = screens.event.read().current_player;
     let controller = crate::menu::player_settings::current(menus)?
         .get()
         .controller;
@@ -61,7 +61,7 @@ pub(super) fn page_step(o: crate::owners::Owners<'static>, up: bool) -> Result<(
     let menus = o.menus;
     let screens = &menus.screens;
     let item: u32 = screens.loop_flags.read().item;
-    let current = screens.event.current_player.get();
+    let current = screens.event.read().current_player;
     let controller = crate::menu::player_settings::current(menus)?
         .get()
         .controller;
@@ -85,7 +85,7 @@ pub(super) fn page_step(o: crate::owners::Owners<'static>, up: bool) -> Result<(
 /// Whether the H shifter is switched on in the current player's profile for the controller
 /// they have chosen (off with none chosen): the buttons page then lists the shifter's gears too.
 pub fn shifter_on(menus: &Menus, input: &crate::input::owner::Input) -> bool {
-    let current = menus.screens.event.current_player.get();
+    let current = menus.screens.event.read().current_player;
     let Ok(player) = crate::menu::player_settings::current(menus) else {
         return false;
     };
@@ -97,7 +97,7 @@ pub fn shifter_on(menus: &Menus, input: &crate::input::owner::Input) -> bool {
 /// (nothing with no controller chosen).
 pub fn toggle_shifter(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
-    let current = menus.screens.event.current_player.get();
+    let current = menus.screens.event.read().current_player;
     let controller = crate::menu::player_settings::current(menus)?
         .get()
         .controller;
@@ -111,7 +111,7 @@ pub fn toggle_shifter(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
 /// (nothing with no controller chosen).
 pub fn step_icons(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Refused> {
     let menus = o.menus;
-    let current = menus.screens.event.current_player.get();
+    let current = menus.screens.event.read().current_player;
     let controller = crate::menu::player_settings::current(menus)?
         .get()
         .controller;
@@ -125,7 +125,7 @@ pub fn step_icons(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Ref
 /// controller (nothing with no controller chosen).
 pub fn toggle_engine_vibration(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
-    let current = menus.screens.event.current_player.get();
+    let current = menus.screens.event.read().current_player;
     let controller = crate::menu::player_settings::current(menus)?
         .get()
         .controller;

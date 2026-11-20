@@ -91,7 +91,7 @@ pub fn draw_menu_items(
             .clocks()
             .frame
             .get()
-            .wrapping_sub(menus.play.champ_view.key_clock.last_key_time.get())
+            .wrapping_sub(menus.play.champ_view.read().key_clock.last_key_time)
     };
     let mut screen = MenuScreen::new(canvas, o);
     screen.menu_items = all;

@@ -26,7 +26,7 @@ pub fn step_car_stream(o: crate::owners::Owners<'static>) -> Result<(), BadInput
         let stream = sound.race.car_stream.get().borrow();
         (stream.on, stream.place)
     };
-    let step = stream_step(champ.event_mode.get(), on, playing, place_now, |place| {
+    let step = stream_step(champ.read().event_mode, on, playing, place_now, |place| {
         crate::menu::texts_store::speech_entry(texts, names, list, place).unwrap_or_else(|e| {
             failed.set(Some(e));
             0

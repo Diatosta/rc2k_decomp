@@ -29,8 +29,8 @@ pub(super) fn event_stage(
     system: &System,
 ) -> Result<(RecordRef, u32), crate::errors::BadInput> {
     let table = system.records().stage_tables.championship();
-    let section: u32 = screens.event.section.get();
-    let index: u32 = screens.event.stage_in_section.get();
+    let section: u32 = screens.event.read().section;
+    let index: u32 = screens.event.read().stage_in_section;
     Ok((
         find_record_in(&system.records().stage_tables, table, index as i32, section)?,
         section,
@@ -46,9 +46,9 @@ pub(super) fn event_title(
     system: &System,
 ) -> Result<u32, crate::errors::BadInput> {
     let table = system.records().stage_tables.championship();
-    let section: u32 = event.section.get();
+    let section: u32 = event.read().section;
     let first = find_record_in(&system.records().stage_tables, table, 0, section)?;
-    if champ.event_mode.get() == 0x13 {
+    if champ.read().event_mode == 0x13 {
         section_title(lists, section)
     } else {
         Ok(first.record(&system.records().stage_tables)?.name())

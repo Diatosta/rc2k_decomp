@@ -9,7 +9,7 @@ pub fn draw_players_standings(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let rows = rc2k_core::screens::players_results::rows(menus.screens.event.player_count.get());
+    let rows = rc2k_core::screens::players_results::rows(menus.screens.event.read().player_count);
     let mut totals = [0u32; 4];
     for (row, total) in totals.iter_mut().enumerate().take(rows) {
         if menus.play.slots.records[row].get().name_player().is_none() {

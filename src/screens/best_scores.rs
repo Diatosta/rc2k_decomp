@@ -32,11 +32,11 @@ fn arcade_level(menus: &Menus) -> u32 {
 }
 
 fn event_class(menus: &Menus) -> u32 {
-    menus.screens.event.shown.class.get()
+    menus.screens.event.read().shown.class
 }
 
 fn event_stage_number(menus: &Menus) -> u32 {
-    menus.screens.event.stage.number.get()
+    menus.screens.event.read().stage.number
 }
 
 fn arcade_stage(menus: &Menus) -> u32 {
@@ -275,8 +275,8 @@ pub struct StageTimes {
 fn champ_records(menus: &Menus, system: &System) -> Result<RecordTable, BadInput> {
     let screens = &menus.screens;
     system.records().stage_tables.group_event_table(
-        screens.event.stage.group.get(),
-        screens.event.stage.sub.get(),
+        screens.event.read().stage.group,
+        screens.event.read().stage.sub,
     )
 }
 
@@ -284,7 +284,7 @@ fn champ_table<'t>(
     menus: &Menus,
     tables: &'t crate::saves::best_times::BestTables,
 ) -> &'t StageTable {
-    if menus.screens.event.stage.group.get() == 1 {
+    if menus.screens.event.read().stage.group == 1 {
         &tables.stage_times_alt
     } else {
         &tables.time_trial_times
@@ -448,7 +448,7 @@ pub fn record_at(
         &system.records().stage_tables,
         system.records().stage_tables.championship(),
         index as i32,
-        menus.screens.event.section.get(),
+        menus.screens.event.read().section,
     )
 }
 
@@ -460,7 +460,7 @@ pub(super) fn section_there(
     crate::records::find_record::has_section(
         &system.records().stage_tables,
         system.records().stage_tables.championship(),
-        menus.screens.event.section.get(),
+        menus.screens.event.read().section,
         0x400,
     )
 }
@@ -481,15 +481,15 @@ pub fn draw_record_heading(
             return Err(BadInput("a section past the record table").into());
         }
         let first = record_at(menus, system, 0)?;
-        let id = if menus.play.champ_view.event_mode.get() == 0x13 {
+        let id = if menus.play.champ_view.read().event_mode == 0x13 {
             crate::screens::stage_panel::section_title(
                 &menus.lists,
-                menus.screens.event.section.get(),
+                menus.screens.event.read().section,
             )?
         } else {
             first.record(&system.records().stage_tables)?.name()
         };
-        let record = record_at(menus, system, menus.screens.event.stage_in_section.get())?;
+        let record = record_at(menus, system, menus.screens.event.read().stage_in_section)?;
         let line = || -> Result<Vec<u8>, Refused> {
             stage_line_without_nul(
                 crate::strings::append_string_by_id::StringOwners::of(o),
@@ -515,7 +515,7 @@ pub fn draw_record_times(
     let (true, true) = (section_there(menus, system)?, times.is_taken()) else {
         return Err(BadInput("a section past the record table, or no times table").into());
     };
-    let record = record_at(menus, system, menus.screens.event.stage_in_section.get())?;
+    let record = record_at(menus, system, menus.screens.event.read().stage_in_section)?;
     // The record's fields are read at once (nothing drawn in between writes them).
     let fastest = record
         .record(&system.records().stage_tables)?
@@ -569,18 +569,18 @@ pub(super) fn draw_scores_with_heading(
     let menus = o.menus;
     t.at.need(&o.saves.best_tables, "no best scores table")?;
     // The logic is in `rc2k_core::screens::best_scores::scores_heading`, `heading`.
-    let section = (menus.play.champ_view.event_mode.get() == 0x13)
+    let section = (menus.play.champ_view.read().event_mode == 0x13)
         .then(|| {
             crate::screens::stage_panel::section_title(
                 &menus.lists,
-                menus.screens.event.section.get(),
+                menus.screens.event.read().section,
             )
         })
         .transpose()?;
     let mut screen = ScoresScreen::new(canvas, o);
     let id = rc2k_core::screens::best_scores::scores_heading(
         section,
-        event.then(|| menus.screens.event.shown.class.get()),
+        event.then(|| menus.screens.event.read().shown.class),
     );
     rc2k_core::screens::best_scores::heading(&mut screen, id, None)?;
     draw_scores(o, t, screen.canvas)

@@ -15,7 +15,7 @@ pub struct SectionPlayer<'a> {
 
 pub fn find_section_player(menus: &Menus) -> Result<SectionPlayer<'_>, Refused> {
     let screens = &menus.screens;
-    let section: u32 = screens.event.section.get();
+    let section: u32 = screens.event.read().section;
     let done: [u32; 4] =
         std::array::from_fn(|n| player(menus, n as u32).get().overall_points[section as usize]);
     let found = rc2k_core::menu::points::section_player(done);

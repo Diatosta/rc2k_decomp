@@ -16,19 +16,19 @@ use rc2k_core::menu::player::Player;
 
 pub fn begin_event(cars: &Cars, play: &Play, screens: &Screens) -> Result<(), Refused> {
     let drivers = crate::menu::standings::drivers_of(cars)?;
-    play.champ_view.services.set(0u32);
-    screens.event.stages_done.set(0u32);
+    play.champ_view.write().services = 0u32;
+    screens.event.write().stages_done = 0u32;
     drivers
         .iter()
         .for_each(crate::menu::drivers_store::Driver::begin);
-    screens.event.event_goes_on.set(1u32);
-    screens.event.event_out.set(0u32);
+    screens.event.write().event_goes_on = 1u32;
+    screens.event.write().event_out = 0u32;
     for n in 0..PLAYERS {
-        screens.event.current_player.set(n);
+        screens.event.write().current_player = n;
         let p = crate::menu::standings::player_in(play, n);
         p.update(Player::begin);
         crate::service::repair_parts::repair_car_of(play, screens)?;
-        if play.champ_view.event_mode.get() != KEEPS_SETUP {
+        if play.champ_view.read().event_mode != KEEPS_SETUP {
             p.update(Player::default_setup);
         }
     }

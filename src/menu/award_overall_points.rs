@@ -41,7 +41,7 @@ pub fn award_overall_points(
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
     {
-        let section: u32 = screens.event.section.get();
+        let section: u32 = screens.event.read().section;
         if section > 5 {
             return Err(BadInput("a section past 5").into());
         }

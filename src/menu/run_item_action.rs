@@ -58,7 +58,7 @@ pub fn run_item_action(
     }
     Ok(ActionResult {
         ask_leave: screens.loop_flags.read().ask_leave,
-        event_over: screens.event.event_over.is_set(),
+        event_over: screens.event.read().event_over,
         leave_screen: screens.loop_flags.read().leave_screen,
         event_left: screens.loop_flags.read().event_left,
         action_mode: screens.draw_work.read().action_mode,

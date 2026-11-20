@@ -17,7 +17,7 @@ use rc2k_core::sound::surfaces;
 
 /// Object `o`'s sound of the surface's sound `set`, through `request`.
 pub fn surface_sound(
-    o: &crate::sound::store::SoundObject,
+    o: &crate::sound::store::SoundObjectCell,
     set: ListIn<'_, 392>,
     request: &mut SoundRequest,
     owner: &crate::sound::owner::Sound,
@@ -25,31 +25,44 @@ pub fn surface_sound(
 ) -> Result<(), Refused> {
     // The logic is `rc2k_core::sound::surfaces::pick`.
     let eight = set.get(0)? == 1;
-    let (n, slot) = surfaces::pick(eight, o.sound_offset.get(), || o.view_flag.get())
+    let (n, slot) = surfaces::pick(eight, o.borrow().sound_offset, || o.borrow().view_flag)
         .map_err(BadInput::from)?;
     // The core names which of the object's sounds it replaces by a slot number.
-    let playing = match slot {
-        0x144 => &o.eights_sound,
-        0x148 => &o.fours_sound,
+    let fours = match slot {
+        0x144 => false,
+        0x148 => true,
         _ => return Err(BadInput("a surface sound's slot not worked out").into()),
+    };
+    let playing = || {
+        let object = o.borrow();
+        if fours {
+            object.fours_sound
+        } else {
+            object.eights_sound
+        }
     };
     // The set is a list of dwords inside the sets' lists, read by position (no record of its own).
     let sound = set.get(1 + n as usize)?;
     record(audio, sound)?;
-    if sound != playing.get() {
-        let old = playing.get();
-        playing.set(sound);
-        request.sound = old;
+    let now = playing();
+    if sound != now {
+        let mut object = o.borrow_mut();
+        let cell = if fours {
+            &mut object.fours_sound
+        } else {
+            &mut object.eights_sound
+        };
+        *cell = sound;
+        drop(object);
+        request.sound = now;
         crate::sound::turn_parts::stop(request, audio)?;
     }
-    let sound = playing.get();
+    let sound = playing();
     request.sound = sound;
     let (_, rate) = sample_settings(audio, sound, OWN, OWN)?;
     request.pitch = from_int(rate as i32).to_bits();
     x87_1(owner.race.surface.get(), &mut request.volume);
-    for (to, from) in request.place.iter_mut().zip(&o.place) {
-        *to = from.get();
-    }
+    request.place = o.borrow().place;
     crate::sound::turn_parts::placed(request, owner, audio)
 }
 

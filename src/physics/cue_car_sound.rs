@@ -28,7 +28,7 @@ pub(super) fn cue_car_sound(
         },
         |car| car,
         |car| match SoundObject::of(sound, car) {
-            Ok(o) => o.in_use.get(),
+            Ok(o) => o.borrow().in_use,
             Err(e) => {
                 failed.set(Some(e));
                 0

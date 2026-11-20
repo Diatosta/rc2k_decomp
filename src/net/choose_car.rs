@@ -16,7 +16,7 @@ pub fn choose_car(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused> {
     let play = &menus.play;
     // The current player of the event, and whether the screen was left with Escape.
     let draw_work = &menus.screens.draw_work;
-    menus.screens.event.current_player.set(0);
+    menus.screens.event.write().current_player = 0;
     let cars = crate::net::car_list::car_list(&menus.cars.lists)?;
     draw_work.write().escape_pressed = false;
     let entry = Entry::with_cars(o, Some(cars));

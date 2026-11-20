@@ -9,8 +9,8 @@ const MOST_CARS: u32 = 0x1_0000;
 
 fn wake(sound: &crate::sound::owner::Sound, n: u32) -> Result<(), BadInput> {
     crate::sound::store::SoundObject::of(sound, n & 7)?
-        .in_use
-        .set(1);
+        .borrow_mut()
+        .in_use = 1;
     Ok(())
 }
 

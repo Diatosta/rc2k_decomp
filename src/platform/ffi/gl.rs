@@ -1187,6 +1187,6 @@ mod tests {
         assert_eq!(pixel_bytes(5, -1), 0);
         // The largest sizes asked for ask for the most `usize` can say, not a wrapped small number.
         let most = pixel_bytes(i32::MAX, i32::MAX);
-        assert!(most >= (usize::MAX / 4).min(1 << 62));
+        assert!(most >= usize::MAX / 4);
     }
 }

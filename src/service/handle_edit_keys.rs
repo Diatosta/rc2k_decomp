@@ -24,7 +24,7 @@ pub fn handle_edit_keys(
         return Ok(());
     }
     use rc2k_core::service::setups::EditPage;
-    match EditPage::from_number(menus.screens.state.service_ui.box_page.get()) {
+    match EditPage::from_number(menus.screens.state.read().service_ui.box_page) {
         Some(EditPage::GearRatio) => edit_gear_ratio(menus, system, input, false),
         Some(EditPage::Tyre) => edit_tyre(menus, system, input, false),
         Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(menus, system, input),

@@ -35,14 +35,14 @@ fn rally_times_places<'t>(
 ) -> Result<Option<(&'t StageTable, usize)>, BadInput> {
     let screens = &menus.screens;
     {
-        let kind = screens.event.stage.group.get();
+        let kind = screens.event.read().stage.group;
         let stages = system
             .records()
             .stage_tables
-            .group_event_table(kind, screens.event.stage.sub.get())?;
+            .group_event_table(kind, screens.event.read().stage.sub)?;
         let tables = &system.records().stage_tables;
         let stage =
-            crate::records::stages_store::row(tables, stages, screens.event.stage.number.get())?;
+            crate::records::stages_store::row(tables, stages, screens.event.read().stage.number)?;
         let n = stage.record(tables)?.event_slot() as usize;
         let table = if kind == 1 {
             &best.stage_times_alt

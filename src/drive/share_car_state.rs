@@ -14,7 +14,7 @@ use crate::physics::car_store::Car;
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::sound::store::SoundObject;
+use crate::sound::store::SoundObjectCell;
 use rc2k_core::drive::sharing;
 
 use crate::memory::session::{PlainDword, PlainFloat};
@@ -142,7 +142,7 @@ fn share_car_state_at(
     race: &Race,
     car: &Car,
     o: &CarEffects,
-    p: &SoundObject,
+    p: &SoundObjectCell,
     scratch: &PlainDword,
 ) -> Result<(), Refused> {
     let n = light_record(race, car)?;
@@ -150,8 +150,8 @@ fn share_car_state_at(
         o.reset_wait.set(1);
         car.reset_marker.set(count);
     }
-    o.gear_notice.set(p.gear_notice.get());
-    p.gear_notice.set(0);
+    o.gear_notice.set(p.borrow().gear_notice);
+    p.borrow_mut().gear_notice = 0;
     let from = race.shared.view.get().level_from.get();
     let step = race.course.numbers.get().four.get();
     for (level, gauge) in o.levels.iter().zip([&car.engine_heat, &car.engine_damage]) {
@@ -244,7 +244,7 @@ pub fn share_car_state(
     race: &Race,
     block: &Car,
     record: &CarEffects,
-    sound: &SoundObject,
+    sound: &SoundObjectCell,
 ) -> Result<(), Refused> {
     share_car_state_at(
         race,

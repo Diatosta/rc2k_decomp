@@ -5,6 +5,7 @@
 use crate::errors::{BadInput, FatalError, Fault, Refused};
 use crate::memory::session::DwordLike;
 use crate::menu::event_flow::*;
+use crate::menu::event_store::EventWord;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_id::ScreenId;
@@ -79,6 +80,12 @@ enum PlainField {
     CarListKind,
     StartSection,
     StartSectionA8,
+    Event(EventWord),
+    ClassMode,
+    ReviewKind,
+    ChampMode,
+    ChampResetTimes,
+    ChampServices,
 }
 
 impl PlainField {
@@ -90,6 +97,12 @@ impl PlainField {
             PlainField::CarListKind => flow.car_list_kind,
             PlainField::StartSection => flow.start_section,
             PlainField::StartSectionA8 => flow.start_section_a8,
+            PlainField::Event(word) => word.get(&menus.screens.event),
+            PlainField::ClassMode => menus.screens.state.read().menus.class_mode,
+            PlainField::ReviewKind => menus.screens.state.read().menus.review_kind,
+            PlainField::ChampMode => menus.play.champ_view.read().event_mode,
+            PlainField::ChampResetTimes => menus.play.champ_view.read().reset_times,
+            PlainField::ChampServices => menus.play.champ_view.read().services,
         }
     }
 
@@ -100,6 +113,12 @@ impl PlainField {
             PlainField::CarListKind => menus.screens.flow.write().car_list_kind = value,
             PlainField::StartSection => menus.screens.flow.write().start_section = value,
             PlainField::StartSectionA8 => menus.screens.flow.write().start_section_a8 = value,
+            PlainField::Event(word) => word.set(&menus.screens.event, value),
+            PlainField::ClassMode => menus.screens.state.write().menus.class_mode = value,
+            PlainField::ReviewKind => menus.screens.state.write().menus.review_kind = value,
+            PlainField::ChampMode => menus.play.champ_view.write().event_mode = value,
+            PlainField::ChampResetTimes => menus.play.champ_view.write().reset_times = value,
+            PlainField::ChampServices => menus.play.champ_view.write().services = value,
         }
     }
 }
@@ -122,14 +141,14 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
     use Place::Cell;
     match v {
         Var::Answer => Place::Plain(PlainField::Answer),
-        Var::PlayerCount => Cell(&menus.screens.event.player_count),
-        Var::EventMode => Cell(&menus.screens.event.event_kind),
-        Var::EventType => Cell(&menus.screens.event.event_type),
-        Var::Mode => Cell(&menus.play.champ_view.event_mode),
-        Var::Current => Cell(&menus.screens.event.current_player),
+        Var::PlayerCount => Place::Plain(PlainField::Event(EventWord::PlayerCount)),
+        Var::EventMode => Place::Plain(PlainField::Event(EventWord::EventKind)),
+        Var::EventType => Place::Plain(PlainField::Event(EventWord::EventType)),
+        Var::Mode => Place::Plain(PlainField::ChampMode),
+        Var::Current => Place::Plain(PlainField::Event(EventWord::CurrentPlayer)),
         Var::Round => Cell(&menus.play.results.round),
-        Var::Qualifies => Cell(&menus.screens.event.trial.qualifies),
-        Var::ServiceDue => Cell(&menus.screens.event.service.due),
+        Var::Qualifies => Place::Plain(PlainField::Event(EventWord::TrialQualifies)),
+        Var::ServiceDue => Place::Plain(PlainField::Event(EventWord::ServiceDue)),
         Var::RaceResult => Cell(&race.shared.state.results.results[0].result),
         Var::RaceResult2 => Cell(&race.shared.state.results.results[1].result),
         Var::RaceResultOf(k) => Cell(&race.shared.state.result(k as usize).result),
@@ -141,21 +160,21 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
         Var::Cleared(_) => Place::Refused("a cleared figure past the eight"),
         Var::PlayerTime(n) => Place::Player(n, PlayerField::Time),
         Var::PlayerEntry(n) => Place::Player(n, PlayerField::Entry),
-        Var::Continuing => Cell(&menus.screens.event.continuing_save),
-        Var::StagesDone => Cell(&menus.screens.event.stages_done),
-        Var::ResetTimes => Cell(&menus.play.champ_view.reset_times),
-        Var::Services => Cell(&menus.play.champ_view.services),
-        Var::ModeAB40 => Cell(&menus.screens.state.menus.class_mode),
+        Var::Continuing => Place::Plain(PlainField::Event(EventWord::ContinuingSave)),
+        Var::StagesDone => Place::Plain(PlainField::Event(EventWord::StagesDone)),
+        Var::ResetTimes => Place::Plain(PlainField::ChampResetTimes),
+        Var::Services => Place::Plain(PlainField::ChampServices),
+        Var::ModeAB40 => Place::Plain(PlainField::ClassMode),
         Var::StartSection { a8: false } => Place::Plain(PlainField::StartSection),
         Var::StartSection { a8: true } => Place::Plain(PlainField::StartSectionA8),
-        Var::ServiceTime => Cell(&menus.screens.event.service.minutes),
-        Var::CpuSpreadFirst => Cell(&menus.screens.event.service.spread_first),
-        Var::ServiceNext => Cell(&menus.screens.event.service.next),
-        Var::TheEnd => Cell(&menus.screens.event.championship_end),
-        Var::GoesOn => Cell(&menus.screens.event.event_goes_on),
-        Var::Section => Cell(&menus.screens.event.section),
-        Var::Index => Cell(&menus.screens.event.stage_in_section),
-        Var::ReviewKind => Cell(&menus.screens.state.menus.review_kind),
+        Var::ServiceTime => Place::Plain(PlainField::Event(EventWord::ServiceMinutes)),
+        Var::CpuSpreadFirst => Place::Plain(PlainField::Event(EventWord::SpreadFirst)),
+        Var::ServiceNext => Place::Plain(PlainField::Event(EventWord::ServiceNext)),
+        Var::TheEnd => Place::Plain(PlainField::Event(EventWord::ChampionshipEnd)),
+        Var::GoesOn => Place::Plain(PlainField::Event(EventWord::EventGoesOn)),
+        Var::Section => Place::Plain(PlainField::Event(EventWord::Section)),
+        Var::Index => Place::Plain(PlainField::Event(EventWord::StageInSection)),
+        Var::ReviewKind => Place::Plain(PlainField::ReviewKind),
         Var::Record(offset) => Place::Record(offset),
         Var::SpeechChannel => Cell(&menus.options.menu_voices_volume),
     }

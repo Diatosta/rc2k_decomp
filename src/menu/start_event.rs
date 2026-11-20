@@ -13,6 +13,7 @@
 use crate::errors::Refused;
 use crate::memory::session::PlainDword;
 use crate::menu::event_flow::*;
+use crate::menu::event_store::EventWord;
 use crate::menu::lists_store::CarList;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
@@ -38,11 +39,17 @@ impl starters::Event for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: starters::Var) -> u32 {
-        get(var(self.menus, v))
+        match var(self.menus, v) {
+            Slot::Event(word) => word.get(&self.menus.screens.event),
+            Slot::Cell(cell) => get(cell),
+        }
     }
 
     fn set(&mut self, v: starters::Var, value: u32) {
-        set(var(self.menus, v), value);
+        match var(self.menus, v) {
+            Slot::Event(word) => word.set(&self.menus.screens.event, value),
+            Slot::Cell(cell) => set(cell, value),
+        }
     }
 
     fn flag(&mut self, s: Switch) -> bool {
@@ -99,19 +106,24 @@ impl starters::Event for Game<'_> {
     }
 }
 
-fn var(menus: &crate::menu::owner::Menus, v: starters::Var) -> &PlainDword {
+/// Where a starter's variable is.
+enum Slot<'a> {
+    Event(EventWord),
+    Cell(&'a PlainDword),
+}
+
+fn var(menus: &crate::menu::owner::Menus, v: starters::Var) -> Slot<'_> {
     use starters::Var as V;
-    let event = &menus.screens.event;
     match v {
-        V::EventType => &event.event_type,
-        V::RepairSet => &menus.cars.table.last_car, // 0xF
-        V::PlayerCount => &event.player_count,
-        V::Index => &event.stage_in_section,
-        V::Section => &event.section,
-        V::StagesDone => &event.stages_done,
-        V::Continuing => &event.continuing_save,
-        V::Current => &event.current_player,
-        V::EventMode => &event.event_kind,
+        V::EventType => Slot::Event(EventWord::EventType),
+        V::RepairSet => Slot::Cell(&menus.cars.table.last_car), // 0xF
+        V::PlayerCount => Slot::Event(EventWord::PlayerCount),
+        V::Index => Slot::Event(EventWord::StageInSection),
+        V::Section => Slot::Event(EventWord::Section),
+        V::StagesDone => Slot::Event(EventWord::StagesDone),
+        V::Continuing => Slot::Event(EventWord::ContinuingSave),
+        V::Current => Slot::Event(EventWord::CurrentPlayer),
+        V::EventMode => Slot::Event(EventWord::EventKind),
     }
 }
 

@@ -18,7 +18,7 @@ use rc2k_core::menu::class_pages;
 
 /// The first class.
 fn first_class(state: &MenuState, champ: &ChampView) -> u32 {
-    class_pages::first_championship_class(state.menus.class_mode.get(), || champ.event_mode.get())
+    class_pages::first_championship_class(state.read().menus.class_mode, || champ.read().event_mode)
 }
 
 pub(super) fn class_championship_pass(
@@ -40,11 +40,7 @@ pub(super) fn class_championship_pass(
         }
         menus.screens.loop_flags.write().left_with_carry = true;
         let numbered = number_standings(&menus.play, Which::B, class, tables)?;
-        menus
-            .screens
-            .event
-            .standings_count
-            .set(numbered.last_number);
+        menus.screens.event.write().standings_count = numbered.last_number;
         crate::menu::show_class_championship_standings::show_class_championship_standings(
             &menus.play.champ_view,
             &menus.screens.event,

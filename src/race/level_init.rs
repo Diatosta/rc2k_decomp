@@ -13,20 +13,6 @@ use crate::scene::file_numbers_store::texts;
 
 const FIRST_PART: u32 = rc2k_core::race::loading::FIRST_PART as u32;
 const INFO_PART: u32 = 0x40_0000;
-/// The path strings the course's number is written into: the tens' and the units' places.
-pub(super) fn number_places(
-    p: &'static crate::race::level_paths_store::LevelPaths,
-) -> [crate::memory::place::BytePlace; 6] {
-    use crate::memory::place::BytePlace;
-    [
-        BytePlace::from(&p.edit_path).add(0xD),
-        BytePlace::from(&p.cdat_src).add(0xD),
-        BytePlace::from(&p.cdat_files).add(0x12),
-        BytePlace::from(&p.cdat_src_copy).add(0xD),
-        BytePlace::from(&p.localdat_src).add(0xD),
-        BytePlace::from(&p.localdat_files).add(0x12),
-    ]
-}
 const TEXTURES: u32 = 0x100;
 
 /// Counts the course's memory (the file's room and the course info) on `list` and takes the course
@@ -84,9 +70,9 @@ pub(super) fn set_course_number(
 ) -> Result<(), BadInput> {
     // Logic in `rc2k_core::race::stage::two_digits`.
     let [tens, units] = rc2k_core::race::stage::two_digits(eax as u8);
-    for place in number_places(race.course.level_paths()) {
-        place.write(&[tens, units], "a path's course number")?;
-    }
+    race.course
+        .level_paths_mut()
+        .set_course_number([tens, units]);
     for text in [
         texts::NUMBER_PLACE_A,
         texts::NUMBER_PLACE_B,

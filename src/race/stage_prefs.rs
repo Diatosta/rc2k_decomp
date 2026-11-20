@@ -11,9 +11,12 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
-fn prefs_paths(course: &Course) -> [&dyn Store; 2] {
+fn prefs_paths(course: &Course) -> Result<[Vec<u8>; 2], crate::errors::BadInput> {
     let p = course.level_paths();
-    [&p.localdat_files, &p.localdat_src]
+    Ok([
+        crate::files::cstring_in(&p.localdat_files)?,
+        crate::files::cstring_in(&p.localdat_src)?,
+    ])
 }
 const LIGHT_RECORD_COUNT: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
 
@@ -25,12 +28,9 @@ pub(super) fn load_prefs(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     let held = course.stage_prefs.get();
     let mut prefs = StagePrefsFile::from_held(&crate::memory::cells::flatten(held))?;
-    for path in prefs_paths(course) {
+    for path in prefs_paths(course)? {
         let mut file = vec![0u8; PREFS_SIZE];
-        let read = crate::files::read_whole_file::read_whole_file_len(
-            &crate::files::cstring(path, "a prefs path")?,
-            &mut file,
-        )?;
+        let read = crate::files::read_whole_file::read_whole_file_len(&path, &mut file)?;
         prefs.overlay(&file[..read]);
     }
     let stage = race.shared.vars.get().stage_number.get();

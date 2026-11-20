@@ -24,8 +24,8 @@ pub fn draw_options_checklist(
         let ticks: Vec<u32> = faults[..end].iter().map(PlainDword::get).collect();
         rc2k_core::screens::settings_pages::options_checklist(
             &mut crate::screens::game_screen::SettingsScreen::new(canvas, o),
-            menus.screens.event.current_player.get(),
-            menus.screens.state.driver_stats.score.get() as i32,
+            menus.screens.event.read().current_player,
+            menus.screens.state.read().driver_stats.score as i32,
             &ticks,
         )
     }

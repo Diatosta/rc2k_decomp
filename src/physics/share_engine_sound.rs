@@ -19,17 +19,17 @@ pub fn share_engine_sound(
     work: &crate::race::work_store::RaceWork,
 ) -> Result<(), Refused> {
     let so = crate::sound::store::current_object(sound, work);
-    if shares_figures(car.contact_depth.get(), so.knock_in[3].get()) {
+    if shares_figures(car.contact_depth.get(), so.borrow().knock_in[3]) {
         for (k, figure) in car
             .contact_point
             .iter()
             .chain([&car.contact_depth])
             .enumerate()
         {
-            so.knock_in[k].set(figure.get());
+            so.borrow_mut().knock_in[k] = figure.get();
         }
     }
-    so.steer_trim_copy.set(car.steer_trim.get());
-    so.new_revs.set(1);
+    so.borrow_mut().steer_trim_copy = car.steer_trim.get();
+    so.borrow_mut().new_revs = 1;
     Ok(())
 }

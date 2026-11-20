@@ -58,7 +58,7 @@ fn clear_screen_state(menus: &crate::menu::owner::Menus) {
         flags.left_with_carry = false;
         flags.ask_leave = false;
     }
-    screens.event.event_over.set(false);
+    screens.event.write().event_over = false;
     screens.flow.write().asking = false;
     screens.draw_work.write().escape_pressed = false;
 }

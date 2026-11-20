@@ -65,7 +65,7 @@ fn choose(menus: &Menus, input: &Input, p: PlayerCell, c: u32) -> Result<(), Ref
         would_apply(input, c)?
     };
     p.update(|q| q.controller = c);
-    crate::input::device_ids::note_choice(input, menus.screens.event.current_player.get(), c);
+    crate::input::device_ids::note_choice(input, menus.screens.event.read().current_player, c);
     if c == 0 {
         release_controller(input);
     } else if applies {

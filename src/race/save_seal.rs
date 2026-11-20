@@ -21,7 +21,7 @@ pub fn pack_runs(source: &[u8]) -> (Vec<u8>, u32) {
 /// subkeys (turns by, PC2) into the subkeys; the block's initial permutation, sixteen rounds
 /// (expansion, the subkey, eight S-boxes, the permutation, the halves swapped), the final
 /// permutation into the value.
-pub fn seal_block(w: &SealWork) {
+pub fn seal_block(w: &mut SealWork) {
     // Logic in `rc2k_core::race::seal::seal_block`.
     {
         use crate::race::seal_tables::*;
@@ -34,16 +34,12 @@ pub fn seal_block(w: &SealWork) {
             permutation: &PERMUTATION,
             last: &LAST,
         };
-        let sealed = rc2k_core::race::seal::seal_block(
-            [w.key[0].get(), w.key[1].get()],
-            [w.block[0].get(), w.block[1].get()],
-            &cipher,
-            |k, six| SBOXES[0x40 * k + six as usize],
-        );
-        for (cell, value) in w.subkeys.iter().zip(sealed.subkeys.iter().flatten()) {
-            cell.set(*value);
+        let sealed = rc2k_core::race::seal::seal_block(w.key, w.block, &cipher, |k, six| {
+            SBOXES[0x40 * k + six as usize]
+        });
+        for (slot, value) in w.subkeys.iter_mut().zip(sealed.subkeys.iter().flatten()) {
+            *slot = *value;
         }
-        w.sealed[0].set(sealed.block[0]);
-        w.sealed[1].set(sealed.block[1]);
+        w.sealed = sealed.block;
     }
 }

@@ -46,7 +46,7 @@ pub(super) fn load_slideshow_picture(
         menus.lists.slideshow_templates[car as usize].get(),
     )?
     .text("a path template")?;
-    let start: u32 = menus.screens.event.shown.picture.get();
+    let start: u32 = menus.screens.event.read().shown.picture;
     // Set by the first try (`search` always makes one).
     let mut path: Option<Vec<u8>> = None;
     slides::search(
@@ -67,7 +67,7 @@ pub(super) fn load_slideshow_picture(
             path = Some(text);
             Ok(exists)
         },
-        |next| menus.screens.event.shown.picture.set(next),
+        |next| menus.screens.event.write().shown.picture = next,
     )?;
     let path = path.ok_or(crate::errors::BadInput("no slideshow picture tried"))?;
     let title_bar = &menus.texts.titlebar_png;

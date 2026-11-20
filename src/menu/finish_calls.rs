@@ -1,8 +1,6 @@
 use crate::errors::Fault;
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::DwordLike;
-use crate::menu::champ_store::ChampView;
-use crate::menu::event_store::EventState;
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::race::owner::Race;
@@ -62,12 +60,7 @@ impl Game<'_> {
 }
 
 /// The variables that are in static cells.
-fn cell<'a>(
-    champ: &'a ChampView,
-    event: &'a EventState,
-    race: &'a Race,
-    v: Var,
-) -> Option<&'a dyn DwordLike> {
+fn cell(race: &Race, v: Var) -> Option<&dyn DwordLike> {
     Some(match v {
         Var::On => &race.shared.state.results.finished,
         Var::Kept => &race.shared.state.settings.kept,
@@ -76,8 +69,6 @@ fn cell<'a>(
         Var::SetUpDriver => &race.shared.state.results.finish_kind,
         Var::SetUpDriver2 => &race.shared.state.settings.car_kind_current,
         Var::SetUpSection => &race.shared.state.results.stage_index,
-        Var::EventMode => &champ.event_mode,
-        Var::Section => &event.section,
         _ => return None,
     })
 }
@@ -89,12 +80,9 @@ impl finish::Finish for Game<'_> {
         let menus = self.menus;
         match v {
             Var::RacerNumber | Var::RacerCar => self.racer_get(v),
-            _ => match cell(
-                &menus.play.champ_view,
-                &menus.screens.event,
-                self.owners.race,
-                v,
-            ) {
+            Var::Section => menus.screens.event.read().section,
+            Var::EventMode => menus.play.champ_view.read().event_mode,
+            _ => match cell(self.owners.race, v) {
                 Some(cell) => cell.get(),
                 None => unreachable!("the racer's fields are not at an address"),
             },
@@ -105,12 +93,9 @@ impl finish::Finish for Game<'_> {
         let menus = self.menus;
         match v {
             Var::RacerNumber | Var::RacerCar => self.fault.ok(Err(RACER_SET)),
-            _ => match cell(
-                &menus.play.champ_view,
-                &menus.screens.event,
-                self.owners.race,
-                v,
-            ) {
+            Var::Section => menus.screens.event.write().section = value,
+            Var::EventMode => menus.play.champ_view.write().event_mode = value,
+            _ => match cell(self.owners.race, v) {
                 Some(cell) => cell.set(value),
                 None => unreachable!("the racer's fields are not at an address"),
             },

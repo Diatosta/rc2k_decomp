@@ -22,7 +22,7 @@ pub fn draw_championship_standings(
     if !section_there(menus, system)? {
         return Err(BadInput("a section past the record table").into());
     }
-    let first_row = play.champ_view.rows.first_row.get();
+    let first_row = play.champ_view.read().rows.first_row;
     let end = first_row.wrapping_add(10);
     let mut rows = Vec::new();
     let mut row = first_row;
@@ -52,7 +52,7 @@ pub fn draw_championship_standings(
     championship_standings(
         &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas, o),
         first_row,
-        play.champ_view.event_mode.get() == 0x13,
+        play.champ_view.read().event_mode == 0x13,
         &rows,
     )?;
     Ok(())

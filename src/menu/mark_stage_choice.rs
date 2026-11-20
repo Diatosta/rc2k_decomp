@@ -4,7 +4,5 @@
 use crate::menu::champ_store::ChampView;
 
 pub fn mark_stage_choice(champ: &ChampView) {
-    champ
-        .stage_mode
-        .set(rc2k_core::menu::event::MapStage::Choice as u32);
+    champ.write().stage_mode = rc2k_core::menu::event::MapStage::Choice as u32;
 }

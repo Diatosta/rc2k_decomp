@@ -124,54 +124,49 @@ pub fn silence_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refu
 /// Where `set_up_race_sound_objects` finds the eight objects (the live ones, or a test's).
 #[derive(Clone, Copy)]
 pub struct ObjectVars<'a> {
-    pub objects: &'a [crate::sound::store::SoundObject; 8],
+    pub objects: &'a [crate::sound::store::SoundObjectCell; 8],
 }
 
 impl<'a> ObjectVars<'a> {
     pub fn of(sound: &'a crate::sound::owner::Sound) -> Self {
         Self {
-            objects: &sound.race.sounds.get().objects,
+            objects: sound.race.objects.get(),
         }
     }
 }
 
 /// An object's set-up: the place, the motion and the four wheel records cleared, and the other
 /// fields cleared (0) or set (1).
-fn set_up_object(o: &crate::sound::store::SoundObject) {
-    for f in o.place.iter().chain(&o.motion) {
-        f.set(0.0);
+fn set_up_object(o: &crate::sound::store::SoundObjectCell) {
+    let mut o = o.borrow_mut();
+    o.place = [0.0; 3];
+    o.motion = [0.0; 3];
+    for v in &mut o.voices {
+        v.share_a = 0.0;
+        v.share_b = 0.0;
+        v.share_c = 0.0;
+        v.surface = 0;
     }
-    for v in &o.voices {
-        v.share_a.set(0.0);
-        v.share_b.set(0.0);
-        v.share_c.set(0.0);
-        v.surface.set(0);
-    }
-    o.new_revs.set(0);
-    o.in_use.set(0);
-    o.view_flag.set(1);
-    o.revs.set(0);
-    o.throttle.set(0);
-    o.speed.set(0.0);
-    o.gear_event.set(0);
-    for d in o
-        .reading_times
-        .iter()
-        .chain(&o.reading_revs)
-        .chain(&o.reserved_a4)
-    {
-        d.set(0);
-    }
-    o.no_gear.set(1);
-    o.gear_notice.set(0);
-    o.countdown.set(0);
-    o.knock.set(0);
-    o.knock_count.set(0);
-    o.flag_ac.set(0);
-    o.landed.set(0);
-    o.last_forward_speed.set(0);
-    o.reserved_280.set(0);
-    o.state.set(0);
+    o.new_revs = 0;
+    o.in_use = 0;
+    o.view_flag = 1;
+    o.revs = 0;
+    o.throttle = 0;
+    o.speed = 0.0;
+    o.gear_event = 0;
+    o.reading_times = [0; 2];
+    o.reading_revs = [0; 2];
+    o.reserved_a4 = [0; 2];
+    o.no_gear = 1;
+    o.gear_notice = 0;
+    o.countdown = 0;
+    o.knock = 0;
+    o.knock_count = 0;
+    o.flag_ac = 0;
+    o.landed = 0;
+    o.last_forward_speed = 0;
+    o.reserved_280 = 0;
+    o.state = 0;
 }
 
 /// `race::set_up_race_sound_objects`: prepares the sound tables, then sets the players' count
@@ -266,44 +261,35 @@ fn set_up_objects(
                 .set(net_race.players + net_race.bots);
         }
         for (n, o) in v.objects.iter().enumerate() {
-            o.sound_offset.set(object_mark(n as u32));
+            o.borrow_mut().sound_offset = object_mark(n as u32);
         }
         let first = crate::sound::store::SoundObject::of(
             sound,
             sound.race.sounds.get().player_cars[0].get(),
         )?;
-        first.sound_offset.set(0);
-        first.kind.set(shared.state.settings.car_kind_current.get());
-        first
-            .cue_queue
-            .first
-            .set(shared.state.settings.cars[0].codriver_sex.get());
+        first.borrow_mut().sound_offset = 0;
+        first.borrow_mut().kind = shared.state.settings.car_kind_current.get();
+        first.borrow_mut().cue_queue.first = shared.state.settings.cars[0].codriver_sex.get();
         if sound.threads.shared.one_player.get() != 1 {
             let second = crate::sound::store::SoundObject::of(
                 sound,
                 sound.race.sounds.get().player_cars[1].get(),
             )?;
-            second.sound_offset.set(1);
-            second.kind.set(shared.state.settings.car_kind_first.get());
-            second
-                .cue_queue
-                .first
-                .set(shared.state.settings.cars[1].codriver_sex.get());
+            second.borrow_mut().sound_offset = 1;
+            second.borrow_mut().kind = shared.state.settings.car_kind_first.get();
+            second.borrow_mut().cue_queue.first = shared.state.settings.cars[1].codriver_sex.get();
         }
         for k in 2..heard as usize {
             let extra = crate::sound::store::SoundObject::of(sound, k as u32)?;
-            extra.sound_offset.set(k as u32);
+            extra.borrow_mut().sound_offset = k as u32;
             if let Some(kinds) = every_car {
                 // The replay's cars past the first two have no settings of their own: their
                 // models are the file's, their co-driver is not heard.
-                extra.kind.set(kinds[k]);
-                extra.cue_queue.first.set(0);
+                extra.borrow_mut().kind = kinds[k];
+                extra.borrow_mut().cue_queue.first = 0;
             } else {
-                extra.kind.set(shared.state.car_kind(k).get());
-                extra
-                    .cue_queue
-                    .first
-                    .set(shared.state.car(k).codriver_sex.get());
+                extra.borrow_mut().kind = shared.state.car_kind(k).get();
+                extra.borrow_mut().cue_queue.first = shared.state.car(k).codriver_sex.get();
             }
         }
         for o in v.objects {

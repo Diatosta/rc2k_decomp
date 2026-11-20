@@ -21,7 +21,7 @@ use rc2k_core::menu::steps;
 
 /// The current player's record.
 fn player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, Refused> {
-    crate::menu::player::player(menus, menus.screens.event.current_player.get())
+    crate::menu::player::player(menus, menus.screens.event.read().current_player)
         .ok_or_else(|| BadInput("no current player (or one past the four)").into())
 }
 
@@ -84,8 +84,8 @@ pub(super) fn toggle_caption_choice(
     screens: &Screens,
     text_buffers: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), BadInput> {
-    let choice = steps::flip(screens.state.menus.caption_choice.get());
-    screens.state.menus.caption_choice.set(choice);
+    let choice = steps::flip(screens.state.read().menus.caption_choice);
+    screens.state.write().menus.caption_choice = choice;
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let mut text = Vec::new();
     crate::strings::append_string_by_id::push_string(so, &mut text, caption)?;
@@ -101,9 +101,9 @@ pub fn leave_with_carry(menus: &Menus) {
 /// one.
 pub(super) fn player_car_specs(menus: &Menus, n: u32, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let kept = screens.event.current_player.get();
-    screens.event.current_player.set(n);
+    let kept = screens.event.read().current_player;
+    screens.event.write().current_player = n;
     let done = { crate::menu::show_car_specs::show_car_specs(menus, entry) };
-    screens.event.current_player.set(kept);
+    screens.event.write().current_player = kept;
     done
 }

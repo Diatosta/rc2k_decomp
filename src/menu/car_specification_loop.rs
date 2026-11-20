@@ -10,13 +10,8 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, List, Screen, SetUp, Step, screen_entry};
 
 fn before(menus: &Menus) -> Result<(), Refused> {
-    menus
-        .screens
-        .event
-        .shown
-        .car
-        .set(menus.play.cheats.read().kept_car);
-    menus.screens.event.shown.car_page.set(0x0u32);
+    menus.screens.event.write().shown.car = menus.play.cheats.read().kept_car;
+    menus.screens.event.write().shown.car_page = 0x0u32;
 
     Ok(())
 }
@@ -32,12 +27,12 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     screens.loop_flags.write().item = item;
     screens.carousel.front.set(item.wrapping_sub(1));
     screens.flow.write().turning = 0x0u32;
-    screens.carousel.front.set(screens.event.shown.car.get());
+    screens.carousel.front.set(screens.event.read().shown.car);
     Ok(())
 }
 
 fn after(menus: &Menus) -> Result<(), Refused> {
-    menus.play.cheats.write().kept_car = menus.screens.event.shown.car.get();
+    menus.play.cheats.write().kept_car = menus.screens.event.read().shown.car;
 
     Ok(())
 }

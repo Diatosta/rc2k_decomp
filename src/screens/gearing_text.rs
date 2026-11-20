@@ -11,7 +11,7 @@ pub const TEXT_LEN: usize = 0x100;
 const FIRST_STRING: u32 = 0x21F;
 
 pub fn current(menus: &Menus) -> Result<&'_ crate::memory::session::Shared<Player>, Refused> {
-    Ok(player(menus, menus.screens.event.current_player.get())
+    Ok(player(menus, menus.screens.event.read().current_player)
         .ok_or(BadInput("a current player past the four"))?)
 }
 

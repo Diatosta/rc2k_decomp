@@ -17,7 +17,7 @@ pub fn draw_section_best_times(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let section: u32 = menus.screens.event.section.get();
+    let section: u32 = menus.screens.event.read().section;
     if section >= SECTIONS {
         return Err(BadInput("a section past the six best-times tables").into());
     }

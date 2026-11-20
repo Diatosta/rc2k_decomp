@@ -14,16 +14,15 @@ use crate::errors::Refused;
 use crate::sound::sample_duration::sample_duration;
 
 /// The logic is `rc2k_core::sound::cars::cue_turn`; the drops through `sound::drop_cue`, the queue
-/// in the game's memory meanwhile. Object `so`'s queue of cues: the next one played when it is due.
+/// worked on as a copy. Object `so`'s queue of cues: the next one played when it is due.
 pub(super) fn play_cue_queue(
-    so: &crate::sound::store::SoundObject,
+    so: &crate::sound::store::SoundObjectCell,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    use rc2k_core::sound::cars::{CueQueue, CueTurn, OWN, cue_turn};
-    let in_use = so.in_use.get() == 1;
-    let q = &so.cue_queue;
-    let mut queue = CueQueue::from_words(&crate::sound::drop_cue::read_words(q)?);
+    use rc2k_core::sound::cars::{CueTurn, OWN, cue_turn};
+    let in_use = so.borrow().in_use == 1;
+    let mut queue = so.borrow().cue_queue;
     let clock = sound.race.clock.get().borrow().last;
     if !in_use {
         return Ok(());
@@ -33,19 +32,14 @@ pub(super) fn play_cue_queue(
         in_use,
         clock,
         |sound| Ok(sample_duration(audio, sound, OWN)?),
-        |queue, _| {
-            // The first cue taken out (`drop_cue` at place 0).
-            crate::sound::drop_cue::write_words(q, queue.to_words())?;
-            crate::sound::drop_cue::drop_cue(q, 0)?;
-            *queue = CueQueue::from_words(&crate::sound::drop_cue::read_words(q)?);
-            Ok(())
-        },
+        // The first cue taken out (`drop_cue` at place 0).
+        |queue, _| crate::sound::drop_cue::drop_cue(queue, 0),
     )?;
     match turn {
         CueTurn::NotInUse | CueTurn::Empty | CueTurn::NotDue => return Ok(()),
         _ => {}
     }
-    crate::sound::drop_cue::write_words(q, queue.to_words())?;
+    so.borrow_mut().cue_queue = queue;
     if let CueTurn::Play { sound } = turn {
         crate::sound::play_sound::play_sound_in(audio, sound, OWN, OWN, [0; 3]);
     }

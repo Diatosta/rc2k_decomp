@@ -29,7 +29,7 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
     use rc2k_core::menu::keys::{self, Action, Move};
     let menus = o.menus;
     let nothing = Pressed::Nothing;
-    if keys::keys_off(menus.screens.state.service_ui.box_shown.is_set(), || {
+    if keys::keys_off(menus.screens.state.read().service_ui.box_shown, || {
         menus.screens.controls.learning.get()
     }) {
         return Ok(nothing);
@@ -64,7 +64,7 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
     let clock: u32 = o.system.clocks().frame.get();
     if action == Action::Enter {
         menus.screens.entry.set_sound(keys::MenuSound::Enter);
-        menus.play.champ_view.key_clock.last_key_time.set(clock);
+        menus.play.champ_view.write().key_clock.last_key_time = clock;
         crate::sound::play_menu_sound::play_menu_sound(
             o.sound,
             o.audio,
@@ -74,7 +74,7 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
         );
         return Ok(Pressed::Enter);
     }
-    menus.play.champ_view.key_clock.last_key_time.set(clock);
+    menus.play.champ_view.write().key_clock.last_key_time = clock;
     let direction = match action {
         Action::Move(Move::Up) => Direction::Up,
         Action::Move(Move::Down) => Direction::Down,
@@ -90,15 +90,13 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
             return Ok(nothing);
         }
         Action::AddTime => {
-            menus.screens.event.service.minutes.set(
-                menus
-                    .screens
-                    .event
-                    .service
-                    .minutes
-                    .get()
-                    .wrapping_add(keys::ADDED_TIME),
-            );
+            menus.screens.event.write().service.minutes = menus
+                .screens
+                .event
+                .read()
+                .service
+                .minutes
+                .wrapping_add(keys::ADDED_TIME);
             return Ok(nothing);
         }
         _ => return Ok(nothing),

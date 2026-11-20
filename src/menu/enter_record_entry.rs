@@ -19,7 +19,7 @@ pub fn enter_record_entry(
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let event = current_event(&menus.screens, system, tables)?;
-    let n: u32 = menus.screens.event.current_player.get();
+    let n: u32 = menus.screens.event.read().current_player;
     if n >= 4 || player(menus, n).get().name_player().is_none() {
         return Err(BadInput("a current player past 3, missing or without a name").into());
     }

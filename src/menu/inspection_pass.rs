@@ -25,9 +25,9 @@ pub(super) fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refuse
             crate::menu::driver_stats::car_table(menus, p)?;
         }
     }
-    menus.screens.event.event_goes_on.set(1u32);
+    menus.screens.event.write().event_goes_on = 1u32;
     for (n, &p) in players.iter().enumerate() {
-        menus.screens.event.current_player.set(n as u32);
+        menus.screens.event.write().current_player = n as u32;
         if !passes::takes_part(p.get().entry) {
             continue;
         }
@@ -37,11 +37,8 @@ pub(super) fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refuse
         if !passes::is_out(p.get().entry) {
             continue;
         }
-        menus
-            .screens
-            .event
-            .event_out
-            .set(menus.screens.event.event_out.get().wrapping_add(1));
+        menus.screens.event.write().event_out =
+            menus.screens.event.read().event_out.wrapping_add(1);
         crate::menu::inspection_screen::inspection_screen(entry.owners)?;
         crate::system::pause::pause(entry.owners, passes::SCREEN_PAUSE);
         crate::menu::fade_in::fade_in(entry.owners)?;
@@ -53,10 +50,10 @@ pub(super) fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refuse
         crate::system::pause::pause(entry.owners, passes::INSPECTION_PAUSE);
     }
     if !passes::goes_on(
-        menus.screens.event.event_out.get(),
-        menus.screens.event.player_count.get(),
+        menus.screens.event.read().event_out,
+        menus.screens.event.read().player_count,
     ) {
-        menus.screens.event.event_goes_on.set(0u32);
+        menus.screens.event.write().event_goes_on = 0u32;
     }
     Ok(())
 }

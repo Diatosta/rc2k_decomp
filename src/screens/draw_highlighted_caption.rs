@@ -56,7 +56,7 @@ pub fn draw_highlighted_caption(
         .clocks()
         .frame
         .get()
-        .wrapping_sub(menus.play.champ_view.key_clock.last_key_time.get());
+        .wrapping_sub(menus.play.champ_view.read().key_clock.last_key_time);
     let too_wide = rc2k_core::screens::highlighted_caption::highlighted_caption(
         &mut crate::screens::game_screen::GameScreen::<
             rc2k_core::screens::highlighted_caption::Font,

@@ -22,23 +22,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::load_picture_to_texture::{TexturePicture, read_picture_for_texture};
 use crate::logfile::log_int::log_int;
-use crate::memory::place::BytePlace;
 
 // ---- game data ----
 
-/// The twelve names up to the end of `files\s\extr\txxxxx.pcx`. The six folders'
-/// names and second names, and where the number is in the name.
-fn folders(course: &'static crate::race::owner_course::Course) -> [(BytePlace, BytePlace, u32); 6] {
-    let p = course.level_paths();
-    [
-        ((&p.picture_a).into(), (&p.second_a).into(), 0x0A), // files\a
-        ((&p.picture_m).into(), (&p.second_m).into(), 0x0A), // files\m
-        ((&p.picture_b).into(), (&p.second_b).into(), 0x0A), // files\b
-        ((&p.picture_gravel).into(), (&p.second_gravel).into(), 0x11), // files\b\gravel
-        ((&p.picture_front).into(), (&p.second_front).into(), 0x0F), // files\g\frnt
-        ((&p.picture_extra).into(), (&p.second_extra).into(), 0x0F), // files\s\extr
-    ]
-}
 use crate::logfile::log_write::log_nul;
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
 
@@ -47,15 +33,23 @@ fn write_names(
     course: &'static crate::race::owner_course::Course,
     number: u32,
 ) -> Result<(), BadInput> {
-    for ((name, second_name, at), (first, second)) in folders(course).into_iter().zip(names(number))
+    let mut paths = course.level_paths_mut();
+    for ((name, second_name, at), (first, second)) in
+        paths.picture_names_mut().into_iter().zip(names(number))
     {
-        name.add(at).write(&first, "a picture's file number")?;
+        write_digits(name, at, &first)?;
         if let Some(second) = second {
-            second_name
-                .add(at)
-                .write(&second, "a picture's file number")?;
+            write_digits(second_name, at, &second)?;
         }
     }
+    Ok(())
+}
+
+/// `digits` written into the name from byte `at` on.
+fn write_digits(name: &mut [u8], at: usize, digits: &[u8]) -> Result<(), BadInput> {
+    name.get_mut(at..at + digits.len())
+        .ok_or(BadInput("a picture's file number past its name"))?
+        .copy_from_slice(digits);
     Ok(())
 }
 
@@ -70,6 +64,8 @@ pub fn load_texture_picture(
 ) -> Result<TexturePicture, Refused> {
     let (course, shared) = (&race.course, &race.shared);
     write_names(course, number)?;
+    // The names as the numbers just made them: copied, so no borrow is held while files are read.
+    let paths = course.level_paths().clone();
     let mut gravel_chosen = false;
     let car = picture_car(
         number,
@@ -93,17 +89,17 @@ pub fn load_texture_picture(
         log_int(gravel as i32, false, 1);
         if takes_gravel(gravel)
             && crate::files::file_exists::file_exists(
-                &folders(course)[GRAVEL].0.text("a texture folder")?,
+                &paths.picture_names()[GRAVEL].0.text("a texture folder")?,
             )?
         {
             gravel_chosen = true;
             log_nul(
-                &folders(course)[GRAVEL].1.text("a folder's name")?[..],
+                &paths.picture_names()[GRAVEL].1.text("a folder's name")?[..],
                 false,
                 1,
             );
         }
     }
-    let (name, second, _) = folders(course)[folder(number, gravel_chosen)];
-    read_picture_for_texture(Some(&name), Some(&second), texture, gfx, system)
+    let (name, second) = paths.picture_names()[folder(number, gravel_chosen)];
+    read_picture_for_texture(Some(name), Some(second), texture, gfx, system)
 }

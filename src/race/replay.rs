@@ -87,11 +87,10 @@ pub(super) fn seal_replay_header(
     let dwords: Vec<u32> = (1..0x40).map(|n| sealed_dwords[n].get()).collect();
     let sum = seal_checksum(&dwords);
     sealed_dwords[0].set(sum);
-    replay.seal_key().set(sum);
-    let w = replay.seal_work();
-    let key = [w.key[0].get(), w.key[1].get()];
-    w.key[0].set(SEAL_KEY[0]);
-    w.key[1].set(SEAL_KEY[1]);
+    replay.set_seal_key(sum);
+    let mut w = replay.seal_work_mut();
+    let key = w.key;
+    w.key = SEAL_KEY;
     let (mut a, mut b) = (0u32, 0u32);
     for n in 0..0x20u32 {
         let at = 2 * n as usize;
@@ -99,17 +98,15 @@ pub(super) fn seal_replay_header(
             [sealed_dwords[at].get(), sealed_dwords[at + 1].get()],
             [a, b],
         );
-        w.block[0].set(x);
-        w.block[1].set(y);
+        w.block = [x, y];
         // `seal_block` works on the cipher's dwords.
-        crate::race::save_seal::seal_block(w);
-        a = w.sealed[0].get();
+        crate::race::save_seal::seal_block(&mut w);
+        a = w.sealed[0];
         sealed_dwords[at].set(a);
-        b = w.sealed[1].get();
+        b = w.sealed[1];
         sealed_dwords[at + 1].set(b);
     }
-    w.key[1].set(key[1]);
-    w.key[0].set(key[0]);
+    w.key = key;
     Ok(())
 }
 
@@ -512,7 +509,7 @@ mod seal_key_tests {
 
     #[test]
     fn seal_key_starts_at_zero() {
-        assert_eq!(race().replay.seal_key().get(), 0);
+        assert_eq!(race().replay.seal_key(), 0);
     }
 }
 

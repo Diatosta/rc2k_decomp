@@ -13,7 +13,7 @@ use crate::text::draw_text::Canvas;
 pub use rc2k_core::screens::players_results::{Layout, WITH_POINTS, WITHOUT_POINTS};
 
 fn rows(menus: &Menus) -> usize {
-    rc2k_core::screens::players_results::rows(menus.screens.event.player_count.get())
+    rc2k_core::screens::players_results::rows(menus.screens.event.read().player_count)
 }
 
 fn offset(results: &Results, row: usize) -> u32 {
@@ -49,12 +49,12 @@ fn records(
     stages: &crate::records::stages_store::StageTables,
 ) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = stages.group_event_table(
-        screens.event.stage.group.get(),
-        screens.event.stage.sub.get(),
+        screens.event.read().stage.group,
+        screens.event.read().stage.sub,
     )?;
     Ok((
         base,
-        crate::records::stages_store::row(stages, base, screens.event.stage.number.get())?,
+        crate::records::stages_store::row(stages, base, screens.event.read().stage.number)?,
     ))
 }
 

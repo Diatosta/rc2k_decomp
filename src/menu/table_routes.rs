@@ -228,7 +228,7 @@ pub(super) fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
         }
         ItemFn::KeepPlayerKeys => {
             player_actions::keep_player_keys(menus)?;
-            let current = menus.screens.event.current_player.get();
+            let current = menus.screens.event.read().current_player;
             if let Some(player) = crate::menu::player::player(menus, current) {
                 crate::input::profiles::undo(o.input, current, player.get().controller);
             }

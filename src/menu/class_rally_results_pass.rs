@@ -44,7 +44,7 @@ pub(super) fn class_rally_results_pass(
         }
         screens.loop_flags.write().left_with_carry = true;
         let numbered = number_standings(play, Which::A, class, tables)?;
-        screens.event.standings_count.set(numbered.last_number);
+        screens.event.write().standings_count = numbered.last_number;
         crate::menu::show_class_rally_results::show_class_rally_results(
             &play.champ_view,
             &screens.event,

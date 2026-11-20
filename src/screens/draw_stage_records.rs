@@ -33,9 +33,9 @@ pub struct Selection {
 /// None while the tables are not there.
 pub fn selection_in(menus: &Menus, system: &System) -> Result<Option<Selection>, BadInput> {
     let screens = &menus.screens;
-    let group: u32 = screens.event.stage.group.get();
-    let index: u32 = screens.event.stage.number.get();
-    let sub: u32 = screens.event.stage.sub.get();
+    let group: u32 = screens.event.read().stage.group;
+    let index: u32 = screens.event.read().stage.number;
+    let sub: u32 = screens.event.read().stage.sub;
     let table = system
         .records()
         .stage_tables

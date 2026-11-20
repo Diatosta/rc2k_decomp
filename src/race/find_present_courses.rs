@@ -13,9 +13,12 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
-fn paths(course: &Course) -> [&dyn crate::memory::cells::Store; 2] {
+fn paths(course: &Course) -> Result<[Vec<u8>; 2], crate::errors::BadInput> {
     let p = course.level_paths();
-    [&p.cdat_src, &p.cdat_files]
+    Ok([
+        crate::files::cstring_in(&p.cdat_src)?,
+        crate::files::cstring_in(&p.cdat_files)?,
+    ])
 }
 use rc2k_core::race::stage_objects::COURSES;
 
@@ -31,16 +34,16 @@ pub fn find_present_courses(
         set_course_number(n, race, scene)?;
         set_cdat_number(course, 0);
         shared.switches.get().course_present[n as usize].set(0);
-        let present = course_present(paths(course).len() as u32, |file| {
-            let path = paths(course)[file as usize];
+        let present = course_present(2, |file| {
+            let path = paths(course)?
+                .into_iter()
+                .nth(file as usize)
+                .unwrap_or_default();
             debug_assert_eq!(PROBE_BYTES, 4);
             let probe = [crate::memory::session::PlainDword::new(
                 scene.draw_work().work_dword,
             )];
-            let read = read_whole_file_cells(
-                &crate::files::cstring(path, "a course file's path")?,
-                &probe,
-            );
+            let read = read_whole_file_cells(&path, &probe);
             scene.draw_work_mut().work_dword = probe[0].get();
             Ok::<u32, Refused>(read?)
         })?;

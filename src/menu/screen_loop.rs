@@ -99,17 +99,17 @@ impl ScreenVar {
         match self {
             ScreenVar::ArcadeLevel => menus.play.arcade.read().level,
             ScreenVar::ArcadeStage => menus.play.arcade.read().stage,
-            ScreenVar::StageMode => menus.play.champ_view.stage_mode.get(),
+            ScreenVar::StageMode => menus.play.champ_view.read().stage_mode,
             ScreenVar::NoticeDue => menus.play.cheats.read().notice_due,
             ScreenVar::ActionMode => screens.draw_work.read().action_mode,
-            ScreenVar::ClearsEscapeFlag => screens.event.clears_escape_flag.get(),
-            ScreenVar::CurrentPlayer => screens.event.current_player.get(),
-            ScreenVar::EventIndex => screens.event.stage_in_section.get(),
-            ScreenVar::EventSection => screens.event.section.get(),
-            ScreenVar::ServiceNext => screens.event.service.next.get(),
-            ScreenVar::StageGroup => screens.event.stage.group.get(),
-            ScreenVar::StageNumber => screens.event.stage.number.get(),
-            ScreenVar::StageSub => screens.event.stage.sub.get(),
+            ScreenVar::ClearsEscapeFlag => screens.event.read().clears_escape_flag,
+            ScreenVar::CurrentPlayer => screens.event.read().current_player,
+            ScreenVar::EventIndex => screens.event.read().stage_in_section,
+            ScreenVar::EventSection => screens.event.read().section,
+            ScreenVar::ServiceNext => screens.event.read().service.next,
+            ScreenVar::StageGroup => screens.event.read().stage.group,
+            ScreenVar::StageNumber => screens.event.read().stage.number,
+            ScreenVar::StageSub => screens.event.read().stage.sub,
             ScreenVar::LeftService => screens.flow.read().left_service,
             ScreenVar::Quiet => screens.flow.read().quiet,
             ScreenVar::Highlight => screens.loop_flags.read().item,
@@ -124,17 +124,17 @@ impl ScreenVar {
         match self {
             ScreenVar::ArcadeLevel => menus.play.arcade.write().level = value,
             ScreenVar::ArcadeStage => menus.play.arcade.write().stage = value,
-            ScreenVar::StageMode => menus.play.champ_view.stage_mode.set(value),
+            ScreenVar::StageMode => menus.play.champ_view.write().stage_mode = value,
             ScreenVar::NoticeDue => menus.play.cheats.write().notice_due = value,
             ScreenVar::ActionMode => screens.draw_work.write().action_mode = value,
-            ScreenVar::ClearsEscapeFlag => screens.event.clears_escape_flag.set(value),
-            ScreenVar::CurrentPlayer => screens.event.current_player.set(value),
-            ScreenVar::EventIndex => screens.event.stage_in_section.set(value),
-            ScreenVar::EventSection => screens.event.section.set(value),
-            ScreenVar::ServiceNext => screens.event.service.next.set(value),
-            ScreenVar::StageGroup => screens.event.stage.group.set(value),
-            ScreenVar::StageNumber => screens.event.stage.number.set(value),
-            ScreenVar::StageSub => screens.event.stage.sub.set(value),
+            ScreenVar::ClearsEscapeFlag => screens.event.write().clears_escape_flag = value,
+            ScreenVar::CurrentPlayer => screens.event.write().current_player = value,
+            ScreenVar::EventIndex => screens.event.write().stage_in_section = value,
+            ScreenVar::EventSection => screens.event.write().section = value,
+            ScreenVar::ServiceNext => screens.event.write().service.next = value,
+            ScreenVar::StageGroup => screens.event.write().stage.group = value,
+            ScreenVar::StageNumber => screens.event.write().stage.number = value,
+            ScreenVar::StageSub => screens.event.write().stage.sub = value,
             ScreenVar::LeftService => screens.flow.write().left_service = value,
             ScreenVar::Quiet => screens.flow.write().quiet = value,
             ScreenVar::Highlight => screens.loop_flags.write().item = value,
@@ -175,14 +175,14 @@ impl ScreenFlag {
         let screens = &menus.screens;
         match self {
             ScreenFlag::EscapePressed => screens.draw_work.read().escape_pressed,
-            ScreenFlag::EventOver => screens.event.event_over.is_set(),
+            ScreenFlag::EventOver => screens.event.read().event_over,
             ScreenFlag::Asking => screens.flow.read().asking,
             ScreenFlag::AskLeave => screens.loop_flags.read().ask_leave,
             ScreenFlag::EventLeft => screens.loop_flags.read().event_left,
             ScreenFlag::LeaveScreen => screens.loop_flags.read().leave_screen,
             ScreenFlag::LeftWithCarry => screens.loop_flags.read().left_with_carry,
-            ScreenFlag::SkipEditValues => screens.state.menus.skip_edit_values.is_set(),
-            ScreenFlag::StandingsShown => screens.state.menus.standings_shown.is_set(),
+            ScreenFlag::SkipEditValues => screens.state.read().menus.skip_edit_values,
+            ScreenFlag::StandingsShown => screens.state.read().menus.standings_shown,
             ScreenFlag::LeftByKey => menus.tables.captions.left_by_key.is_set(),
         }
     }
@@ -192,14 +192,14 @@ impl ScreenFlag {
         let screens = &menus.screens;
         match self {
             ScreenFlag::EscapePressed => screens.draw_work.write().escape_pressed = on,
-            ScreenFlag::EventOver => screens.event.event_over.set(on),
+            ScreenFlag::EventOver => screens.event.write().event_over = on,
             ScreenFlag::Asking => screens.flow.write().asking = on,
             ScreenFlag::AskLeave => screens.loop_flags.write().ask_leave = on,
             ScreenFlag::EventLeft => screens.loop_flags.write().event_left = on,
             ScreenFlag::LeaveScreen => screens.loop_flags.write().leave_screen = on,
             ScreenFlag::LeftWithCarry => screens.loop_flags.write().left_with_carry = on,
-            ScreenFlag::SkipEditValues => screens.state.menus.skip_edit_values.set(on),
-            ScreenFlag::StandingsShown => screens.state.menus.standings_shown.set(on),
+            ScreenFlag::SkipEditValues => screens.state.write().menus.skip_edit_values = on,
+            ScreenFlag::StandingsShown => screens.state.write().menus.standings_shown = on,
             ScreenFlag::LeftByKey => menus.tables.captions.left_by_key.set(on),
         }
     }
@@ -833,7 +833,7 @@ impl Callee {
                 // The bindings page is entered: the player's profile is kept for its undo, the
                 // page waits a moment before it reads the controller.
                 if axis == 0 {
-                    let current = menus.screens.event.current_player.get();
+                    let current = menus.screens.event.read().current_player;
                     if let Some(player) = crate::menu::player::player(menus, current) {
                         crate::input::profiles::remember_for_undo(
                             input,

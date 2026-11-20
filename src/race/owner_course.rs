@@ -53,7 +53,7 @@ pub struct CourseReads<'a> {
 
 /// What only the game's thread reaches (no drawing part and no other thread touches it).
 struct CourseMain {
-    level_paths: LevelPaths,
+    level_paths: RefCell<LevelPaths>,
     lights_data: LightsData,
     lights_table: RefCell<LightsTable>,
     league: RefCell<League>,
@@ -70,7 +70,7 @@ impl Course {
             kind_records: DrawShared::new(KindRecords::new()),
             stage: StageData::new(),
             main: GameThread::new(CourseMain {
-                level_paths: LevelPaths::new(),
+                level_paths: RefCell::new(LevelPaths::new()),
                 lights_data: LightsData::new(),
                 lights_table: RefCell::new(LightsTable::new()),
                 league: RefCell::new(League::new()),
@@ -90,8 +90,14 @@ impl Course {
         }
     }
 
-    pub fn level_paths(&self) -> &LevelPaths {
-        &self.main.get().level_paths
+    /// The level and picture paths, read.
+    pub fn level_paths(&self) -> Ref<'_, LevelPaths> {
+        self.main.get().level_paths.borrow()
+    }
+
+    /// The level and picture paths, to write: no other borrow may be held.
+    pub fn level_paths_mut(&self) -> RefMut<'_, LevelPaths> {
+        self.main.get().level_paths.borrow_mut()
     }
 
     /// The kinds' first and last records, on the game's thread outside a drawing scope (a

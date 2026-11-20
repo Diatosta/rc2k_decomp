@@ -25,7 +25,7 @@ fn record_at(
     index: u32,
 ) -> Result<RecordRef, crate::errors::BadInput> {
     let table = system.records().stage_tables.championship();
-    let section: u32 = menus.screens.event.section.get();
+    let section: u32 = menus.screens.event.read().section;
     crate::records::find_record::find_record_in(
         &system.records().stage_tables,
         table,
@@ -45,7 +45,7 @@ fn walk(
     current_event(screens, system, tables)?;
     counted_players(&menus.screens, &menus.play)?;
     drivers(menus)?;
-    let index: u32 = menus.screens.event.stage_in_section.get();
+    let index: u32 = menus.screens.event.read().stage_in_section;
     let fault = Fault::default();
     let walked = rc2k_core::menu::section_walk::walk(
         index,
@@ -77,7 +77,7 @@ pub(super) fn walk_section_records(
     for (_, step) in records {
         if !step.goes_on() {
             if step == Step::Ended {
-                screens.event.championship_end.set(1u32);
+                screens.event.write().championship_end = 1u32;
             }
             break;
         }
@@ -97,16 +97,11 @@ pub(super) fn walk_section_records(
             _ => {}
         }
         if let Some(first) = step.first() {
-            screens.event.service.spread_first.set(first);
+            screens.event.write().service.spread_first = first;
         }
-        screens
-            .event
-            .stage_in_section
-            .set(menus.screens.event.stage_in_section.get().wrapping_add(1));
-        screens
-            .event
-            .stages_done
-            .set(screens.event.stages_done.get().wrapping_add(1));
+        screens.event.write().stage_in_section =
+            menus.screens.event.read().stage_in_section.wrapping_add(1);
+        screens.event.write().stages_done = screens.event.read().stages_done.wrapping_add(1);
         rpt::reset_player_totals(menus)?;
     }
     rdc::reset_driver_condition(menus)?;

@@ -22,10 +22,6 @@ pub fn set(v: &PlainDword, x: u32) {
     v.set(x);
 }
 
-pub fn inc(v: &PlainDword) {
-    set(v, get(v).wrapping_add(1));
-}
-
 /// A refusal where the caller's signature cannot carry one (a trait of the core's, an
 /// installer helper): the program ends naming it, as a refusal does at the top.
 pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {
@@ -43,12 +39,12 @@ pub(super) fn switch_is_set(menus: &Menus, system: &System, s: Switch) -> bool {
         Switch::LeaveScreen => screens.loop_flags.read().leave_screen,
         Switch::LeftWithCarry => screens.loop_flags.read().left_with_carry,
         Switch::AskLeave => screens.loop_flags.read().ask_leave,
-        Switch::EventOver => screens.event.event_over.is_set(),
+        Switch::EventOver => screens.event.read().event_over,
         Switch::LeftByKey => menus.tables.captions.left_by_key.is_set(),
         Switch::EscapePressed => screens.draw_work.read().escape_pressed,
-        Switch::Entered => screens.event.trial.any_qualified.is_set(),
+        Switch::Entered => screens.event.read().trial.any_qualified,
         Switch::Quitting => system.session.flags.quitting.is_set(),
-        Switch::RallyDone => screens.state.menus.rally_done.is_set(),
+        Switch::RallyDone => screens.state.read().menus.rally_done,
     }
 }
 
@@ -60,12 +56,12 @@ pub(super) fn set_switch(menus: &Menus, system: &System, s: Switch, on: bool) {
         Switch::LeaveScreen => screens.loop_flags.write().leave_screen = on,
         Switch::LeftWithCarry => screens.loop_flags.write().left_with_carry = on,
         Switch::AskLeave => screens.loop_flags.write().ask_leave = on,
-        Switch::EventOver => screens.event.event_over.set(on),
+        Switch::EventOver => screens.event.write().event_over = on,
         Switch::LeftByKey => menus.tables.captions.left_by_key.set(on),
         Switch::EscapePressed => screens.draw_work.write().escape_pressed = on,
-        Switch::Entered => screens.event.trial.any_qualified.set(on),
+        Switch::Entered => screens.event.write().trial.any_qualified = on,
         Switch::Quitting => system.session.flags.quitting.set(on),
-        Switch::RallyDone => screens.state.menus.rally_done.set(on),
+        Switch::RallyDone => screens.state.write().menus.rally_done = on,
     }
 }
 
@@ -80,7 +76,7 @@ pub fn yes(pages: &MenuPages) -> bool {
 
 /// The current player's record, refused past the four.
 pub fn current_player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, BadInput> {
-    let n = menus.screens.event.current_player.get();
+    let n = menus.screens.event.read().current_player;
     if n >= 4 {
         return Err(BadInput("a current player past the four"));
     }
@@ -98,18 +94,18 @@ pub type StageTable = crate::memory::owned::Owned<rc2k_core::saves::entries::Sta
 /// on the way.
 pub fn stage_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInput> {
     let event = &menus.screens.event;
-    let kind = event.stage.group.get();
+    let kind = event.read().stage.group;
     if kind >= KINDS {
         return Err(BadInput("a stage kind past the event stage tables' four"));
     }
     let stages = system
         .records()
         .stage_tables
-        .group_event_table(kind, event.stage.sub.get())?;
+        .group_event_table(kind, event.read().stage.sub)?;
     crate::records::stages_store::row(
         &system.records().stage_tables,
         stages,
-        event.stage.number.get(),
+        event.read().stage.number,
     )
 }
 
@@ -121,7 +117,7 @@ pub fn stage_times<'t>(
     tables: &'t BestTables,
 ) -> Result<(&'t StageTable, usize), BadInput> {
     let record = stage_record(menus, system)?;
-    let table = if menus.screens.event.stage.group.get() == 1 {
+    let table = if menus.screens.event.read().stage.group == 1 {
         &tables.stage_times_alt
     } else {
         &tables.time_trial_times

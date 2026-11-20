@@ -24,13 +24,13 @@ fn cars<'a>(
     [(
         usize,
         &'a CarEffects,
-        &'static crate::sound::store::SoundObject,
+        &'static crate::sound::store::SoundObjectCell,
     ); 8],
     BadInput,
 > {
     let records = race.car_records()?;
     Ok(std::array::from_fn(|n| {
-        (n, records[n], &sound.race.sounds.get().objects[n])
+        (n, records[n], &sound.race.objects.get()[n])
     }))
 }
 

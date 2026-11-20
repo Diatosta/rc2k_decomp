@@ -27,11 +27,11 @@ pub fn seal_time(
     );
     let bytes = block(value, bytes);
     let [b0, b1, b2, b3, b4, b5, b6, b7] = bytes;
-    replay.seal_work().block[0].set(u32::from_le_bytes([b0, b1, b2, b3]));
-    replay.seal_work().block[1].set(u32::from_le_bytes([b4, b5, b6, b7]));
-    seal_block(replay.seal_work());
-    [
-        replay.seal_work().sealed[0].get(),
-        replay.seal_work().sealed[1].get(),
-    ]
+    let mut work = replay.seal_work_mut();
+    work.block = [
+        u32::from_le_bytes([b0, b1, b2, b3]),
+        u32::from_le_bytes([b4, b5, b6, b7]),
+    ];
+    seal_block(&mut work);
+    work.sealed
 }

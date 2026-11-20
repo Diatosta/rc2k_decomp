@@ -15,7 +15,7 @@ pub(super) fn sealed_player_time(
     byte: u32,
 ) -> Result<[u32; 2], Refused> {
     let screens = &menus.screens;
-    let n: u32 = screens.event.current_player.get();
+    let n: u32 = screens.event.read().current_player;
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }

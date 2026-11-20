@@ -9,13 +9,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
-use crate::sound::store::SoundObject;
+use crate::sound::store::{SoundObject, SoundObjectCell};
 
 /// The (object, car) pairs in use, or a refusal.
 fn pairs<'a>(
     sound: &'a crate::sound::owner::Sound,
     race: &Race,
-) -> Result<Vec<(&'a SoundObject, usize)>, BadInput> {
+) -> Result<Vec<(&'a SoundObjectCell, usize)>, BadInput> {
     let count = sound.threads.shared.count.get();
     if count == 0 || count > 8 {
         return Err(BadInput("a sound object count of 0 or over 8"));
@@ -45,9 +45,9 @@ pub fn mark_car_voices(sound: &crate::sound::owner::Sound, race: &Race) -> Resul
             .driver_kind
             .get();
         let (sounds, voice) = rc2k_core::sound::cars::voice_mark(n as u32, kind);
-        o.in_use.set(sounds);
+        o.borrow_mut().in_use = sounds;
         if let Some(voice) = voice {
-            o.sound_offset.set(voice);
+            o.borrow_mut().sound_offset = voice;
         }
     }
     Ok(())

@@ -24,10 +24,10 @@ fn sound_cue_e5_at(
     if let Some(number) = object {
         let o = SoundObject::of(sound, number)?;
         let [(_, sound), (_, volume), (_, play)] = CUE_E5;
-        o.cue_sound.set(sound);
-        o.cue_volume.set(volume);
+        o.borrow_mut().cue_sound = sound;
+        o.borrow_mut().cue_volume = volume;
         // The play switch, the cell the revs' new reading flag shares.
-        o.new_revs.set(play);
+        o.borrow_mut().new_revs = play;
     }
     Ok(())
 }

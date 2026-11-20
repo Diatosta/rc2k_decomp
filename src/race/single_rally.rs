@@ -43,24 +43,24 @@ type Record<'a> = crate::menu::standings::PlayerCell<'a>;
 // - settings.cars[0].view: the second set's word that mode 2 takes from the record's
 //   `second_view`.
 #[cfg(test)]
-fn summary(o: Owners<'static>) -> &'static PlainDword {
-    &o.menus.play.champ_view.summary
+fn set_summary(o: Owners<'static>, value: u32) {
+    o.menus.play.champ_view.write().summary = value;
 }
 #[cfg(test)]
-fn after_loading(o: Owners<'static>) -> &'static PlainDword {
-    &o.menus.screens.event.sparks_mode
+fn set_after_loading(o: Owners<'static>, value: u32) {
+    o.menus.screens.event.write().sparks_mode = value;
 }
 #[cfg(test)]
-fn player_count(o: Owners<'static>) -> &'static PlainDword {
-    &o.menus.screens.event.player_count
+fn set_player_count(o: Owners<'static>, value: u32) {
+    o.menus.screens.event.write().player_count = value;
 }
 #[cfg(test)]
-fn event_mode(o: Owners<'static>) -> &'static PlainDword {
-    &o.menus.screens.event.event_kind
+fn set_event_mode(o: Owners<'static>, value: u32) {
+    o.menus.screens.event.write().event_kind = value;
 }
 #[cfg(test)]
-fn current(o: Owners<'static>) -> &'static PlainDword {
-    &o.menus.screens.event.current_player
+fn set_current(o: Owners<'static>, value: u32) {
+    o.menus.screens.event.write().current_player = value;
 }
 #[cfg(test)]
 fn set_switch(o: Owners<'static>, value: u32) {
@@ -328,7 +328,7 @@ fn guarded(
     step: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     player(o.menus, 1)?;
-    player(o.menus, o.menus.screens.event.current_player.get())?;
+    player(o.menus, o.menus.screens.event.read().current_player)?;
     single_rally(o, start, kind, step)
 }
 
@@ -354,7 +354,7 @@ pub fn player_settings_in(menus: &Menus, race: &Race) -> Result<(), Refused> {
     let first = player(menus, 1)?.get();
     take_controls(&first, &first_side.car.controls);
     take_keys(&first, &first_side.car.controls.keys);
-    let current = player(menus, menus.screens.event.current_player.get())?.get();
+    let current = player(menus, menus.screens.event.read().current_player)?.get();
     take_player(&current, &current_side, false);
     take_keys(&current, &current_side.car.controls.keys);
     Ok(())
@@ -372,7 +372,7 @@ fn single_rally(
         &race.shared.state.settings,
         &race.shared.state.results.results,
     );
-    let (event, current) = (&menus.screens.event, &menus.screens.event.current_player);
+    let event = &menus.screens.event;
     let arcade = &menus.play.arcade;
     let (first_side, current_side) = (first_side(race), current_side(race));
     // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is left
@@ -383,7 +383,7 @@ fn single_rally(
     if kind == 3 {
         step(Call::CopyRallyTimes)?;
     }
-    settings.rivals.set(menus.play.champ_view.summary.get());
+    settings.rivals.set(menus.play.champ_view.read().summary);
     arcade.write().scene_let_go = start;
     settings.run_kind.set(kind);
     for result in results {
@@ -396,7 +396,7 @@ fn single_rally(
     step(Call::ShowLoadingPicture)?;
     race.effects_settings()
         .after_loading_copy
-        .set(event.sparks_mode.get());
+        .set(event.read().sparks_mode);
 
     // The stage's entry in the track list: the tracks, then the pack's closing -1.
     let stage = settings.stage.get();
@@ -427,11 +427,11 @@ fn single_rally(
     take_controls(&first, &first_side.car.controls);
     take_keys(&first, &first_side.car.controls.keys);
 
-    let one_car = matches!(event.event_kind.get(), 5 | 4 | 0xF | 0xA);
+    let one_car = matches!(event.read().event_kind, 5 | 4 | 0xF | 0xA);
     // The players of the one-car events' split screen: two, or three or four in the single
     // rally's larger one (mode 5 with that many players).
-    let split_players = if event.event_kind.get() == 5 {
-        event.player_count.get().clamp(2, 4)
+    let split_players = if event.read().event_kind == 5 {
+        event.read().player_count.clamp(2, 4)
     } else {
         2
     };
@@ -444,7 +444,7 @@ fn single_rally(
         take_player(&first, &first_side, true);
         take_block(&first, first_side.result);
         first_side.car.view.set(first.second_view);
-        current.set(0);
+        event.write().current_player = 0;
         // The third and fourth players of a larger split screen, as the first.
         for k in 2..split_players as usize {
             let p = player(menus, k as u32)?.get();
@@ -457,14 +457,14 @@ fn single_rally(
             extra.car.view.set(p.second_view);
             take_keys(&p, &extra.car.controls.keys);
         }
-    } else if player(menus, current.get())?.get().entry != TAKES_PART {
+    } else if player(menus, event.read().current_player)?.get().entry != TAKES_PART {
         // The current player's record is not in use: no race.
         results[0].result.set(u32::MAX);
         return finish(menus, race, step);
     }
 
     // The current player's record (player 0 after an event's one-car race).
-    let rec = player(menus, current.get())?.get();
+    let rec = player(menus, event.read().current_player)?.get();
     if rec.entry != TAKES_PART {
         results[0].result.set(u32::MAX);
     }
@@ -477,7 +477,10 @@ fn single_rally(
 
     // The profiles the devices read through are those of the players whose controls the cars
     // took.
-    o.input.race_players[0].store(current.get(), std::sync::atomic::Ordering::Relaxed);
+    o.input.race_players[0].store(
+        event.read().current_player,
+        std::sync::atomic::Ordering::Relaxed,
+    );
     o.input.race_players[1].store(1, std::sync::atomic::Ordering::Relaxed);
     for (k, player) in o.input.race_players[..split_players as usize]
         .iter()
@@ -489,7 +492,7 @@ fn single_rally(
 
     // The race.
     settings.no_replay.set(0);
-    if !one_car && event.player_count.get() != 1 {
+    if !one_car && event.read().player_count != 1 {
         settings.no_replay.set(1);
     }
     step(Call::SetUpRaceSoundObjects)?;
@@ -516,9 +519,9 @@ fn single_rally(
                 give_outcome(p, extra.result);
             });
         }
-        current.set(0);
+        event.write().current_player = 0;
     }
-    player(menus, current.get())?.update(|p| {
+    player(menus, event.read().current_player)?.update(|p| {
         give_player(p, &current_side);
         give_outcome(p, current_side.result);
     });
@@ -619,24 +622,39 @@ mod vector_tests {
     /// The screens' flow store is plain fields: its one range here, `kept`, is read and
     /// written by hand.
     const FLOW: &str = "owners.menus.screens.flow";
+    /// The event store is plain fields: its four ranges here are read and written by hand.
+    const EVENT: &str = "owners.menus.screens.event";
+    /// The championship view is plain fields: its one range here, `summary`, is read and
+    /// written by hand.
+    const CHAMP: &str = "owners.menus.play.champ_view";
 
     /// The word of a plain store's range, if `name` is one.
-    fn plain_word(name: &str) -> Option<u32> {
+    fn plain_word(name: &str, path: &str) -> Option<u32> {
         let menus = Owners::the().menus;
-        match name {
-            ARCADE => Some(menus.play.arcade.read().scene_let_go),
-            FLOW => Some(menus.screens.flow.read().kept),
+        match (name, path) {
+            (ARCADE, _) => Some(menus.play.arcade.read().scene_let_go),
+            (CHAMP, _) => Some(menus.play.champ_view.read().summary),
+            (FLOW, _) => Some(menus.screens.flow.read().kept),
+            (EVENT, ".sparks_mode") => Some(menus.screens.event.read().sparks_mode),
+            (EVENT, ".player_count") => Some(menus.screens.event.read().player_count),
+            (EVENT, ".event_kind") => Some(menus.screens.event.read().event_kind),
+            (EVENT, ".current_player") => Some(menus.screens.event.read().current_player),
             _ => None,
         }
     }
 
     /// Sets the word of a plain store's range.
-    fn set_plain_word(name: &str, word: u32) {
+    fn set_plain_word(name: &str, path: &str, word: u32) {
         let menus = Owners::the().menus;
-        match name {
-            ARCADE => menus.play.arcade.write().scene_let_go = word,
-            FLOW => menus.screens.flow.write().kept = word,
-            _ => unreachable!("{name} is not a plain store"),
+        match (name, path) {
+            (ARCADE, _) => menus.play.arcade.write().scene_let_go = word,
+            (CHAMP, _) => menus.play.champ_view.write().summary = word,
+            (FLOW, _) => menus.screens.flow.write().kept = word,
+            (EVENT, ".sparks_mode") => menus.screens.event.write().sparks_mode = word,
+            (EVENT, ".player_count") => menus.screens.event.write().player_count = word,
+            (EVENT, ".event_kind") => menus.screens.event.write().event_kind = word,
+            (EVENT, ".current_player") => menus.screens.event.write().current_player = word,
+            _ => unreachable!("{name}{path} is not a plain store"),
         }
     }
 
@@ -894,10 +912,8 @@ mod vector_tests {
     ];
 
     /// The stores the test writes.
-    const STORES: [&str; 7] = [
-        "owners.menus.play.champ_view",
+    const STORES: [&str; 5] = [
         "owners.menus.play.slots",
-        "owners.menus.screens.event",
         "owners.menus.options",
         "owners.race.replay.viewer_and_kinds",
         "owners.race.shared.state",
@@ -972,7 +988,7 @@ mod vector_tests {
 
     /// `len` bytes of the cells from byte `skip` of the field `path` of the store `name`.
     fn read_range(name: &str, path: &str, skip: usize, len: usize) -> Vec<u8> {
-        if let Some(word) = plain_word(name) {
+        if let Some(word) = plain_word(name, path) {
             return word.to_le_bytes()[skip..skip + len].to_vec();
         }
         let mut cells = walk(name).range_bytes(path, skip + len);
@@ -983,10 +999,10 @@ mod vector_tests {
 
     /// The cells `read_range` names set from `bytes`.
     fn write_range(name: &str, path: &str, skip: usize, bytes: &[u8]) {
-        if let Some(word) = plain_word(name) {
+        if let Some(word) = plain_word(name, path) {
             let mut word = word.to_le_bytes();
             word[skip..skip + bytes.len()].copy_from_slice(bytes);
-            set_plain_word(name, u32::from_le_bytes(word));
+            set_plain_word(name, path, u32::from_le_bytes(word));
             return;
         }
         let store = walk(name);
@@ -1005,9 +1021,9 @@ mod vector_tests {
                 return Err(BadInput("injected").into());
             }
             match place {
-                1 => summary(o).set(self.rng.next()),
+                1 => set_summary(o, self.rng.next()),
                 3 => stage(o).set(c.stage),
-                4 => after_loading(o).set(self.rng.next()),
+                4 => set_after_loading(o, self.rng.next()),
                 7 => {
                     // The race changes everything the results are copied from.
                     let (kept, kept_2) = (result(o).get(), result_2(o).get());
@@ -1060,9 +1076,9 @@ mod vector_tests {
             play.slots.pointers[k].set(k as u32);
             set_field(r, 0xD0, c.d0[k]).expect("the record is there");
         }
-        event_mode(o).set(c.mode);
-        player_count(o).set(c.count);
-        current(o).set(c.current);
+        set_event_mode(o, c.mode);
+        set_player_count(o, c.count);
+        set_current(o, c.current);
         // The track list: the stage's number in its entry; -1 at the start of the entry the list
         // ends at.
         let tracks = &o.system.records().stage_tables.trak_pak.tracks;
@@ -1215,6 +1231,8 @@ mod vector_tests {
         let kept = Snapshot::of(&STORES);
         let kept_arcade = Owners::the().menus.play.arcade.read();
         let kept_flow = Owners::the().menus.screens.flow.read();
+        let kept_event = Owners::the().menus.screens.event.read();
+        let kept_champ = Owners::the().menus.play.champ_view.read();
         let mut vectors = Vectors::open("race.single_rally.cases", Kind::Bits, 8);
         let (mut done, mut fatal, mut failed, mut engine, mut early, mut results) =
             (0, 0, 0, 0, 0, 0);
@@ -1237,6 +1255,8 @@ mod vector_tests {
         kept.restore();
         *Owners::the().menus.play.arcade.write() = kept_arcade;
         *Owners::the().menus.screens.flow.write() = kept_flow;
+        *Owners::the().menus.screens.event.write() = kept_event;
+        *Owners::the().menus.play.champ_view.write() = kept_champ;
         vectors.finish();
         assert!(
             done > 100 && fatal > 10 && failed > 20 && engine > 20 && early > 5 && results > 10,

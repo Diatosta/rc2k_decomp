@@ -68,13 +68,13 @@ pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
 /// The stage record's `race_stage`, the time the bonus is counted from.
 fn stage_time(screens: &Screens, system: &System) -> Result<u32, Refused> {
     let records = system.records().stage_tables.group_event_table(
-        screens.event.stage.group.get(),
-        screens.event.stage.sub.get(),
+        screens.event.read().stage.group,
+        screens.event.read().stage.sub,
     )?;
     Ok(crate::records::stages_store::row(
         &system.records().stage_tables,
         records,
-        screens.event.stage.number.get(),
+        screens.event.read().stage.number,
     )?
     .record(&system.records().stage_tables)?
     .race_stage())

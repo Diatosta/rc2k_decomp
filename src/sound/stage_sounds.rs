@@ -64,14 +64,14 @@ pub fn stage_sounds(
             delay: stage.timed_delay,
             due: stage.timed_due,
             waiting: stage.timed_waiting,
-            start: timed_slot.start.get(),
+            start: timed_slot.borrow().start,
         };
         let slot = rc2k_core::sound::stage::wait_turn(&mut wait, clock);
         stage.timed_arm = wait.arm;
         stage.timed_due = wait.due;
         stage.timed_waiting = wait.waiting;
-        if wait.start != timed_slot.start.get() {
-            timed_slot.start.set(wait.start);
+        if wait.start != timed_slot.borrow().start {
+            timed_slot.borrow_mut().start = wait.start;
         }
         (slot, stage.timed_place)
     };

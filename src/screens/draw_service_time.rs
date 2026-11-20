@@ -25,7 +25,7 @@ pub(super) fn draw_service_time(
 
     rc2k_core::screens::service::service_time(
         &mut crate::screens::game_screen::ServiceScreen::new(canvas, o),
-        screens.event.service.minutes.get() as i32,
+        screens.event.read().service.minutes as i32,
         o.menus.service.repair_time.get() as i32,
     )
 }

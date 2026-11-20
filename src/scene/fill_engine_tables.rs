@@ -33,23 +33,17 @@ const NOISE_LEN: usize = 0x1070;
 const SINES: usize = 0x1400;
 const SEED: u32 = 0x0012_D687;
 
-/// The tangent of an angle (0x2000 a turn here, its low four bits dropped), also kept in
-/// the frame's `tangent_scratch`.
+/// The tangent of an angle (0x2000 a turn here, its low four bits dropped).
 fn tangent(race: &crate::race::owner::Race, scene: &Scene, angle: u32) -> u32 {
-    {
-        let frame = &race.frame;
-        let tables = race.engine_tables();
-        let place = (angle >> 4) as usize;
-        scene.draw_work_mut().scratch = 0x8000u32;
-        let tangent = (bh::to_int(
-            bh::ld(tables.sines[place].get()) / bh::ld(tables.sines[place + 0x400].get())
-                * bh::int(0x1_0000)
-                * bh::int(0x8000),
-        ) as u32)
-            << 1;
-        frame.scratch().tangent_scratch.set(tangent);
-        tangent
-    }
+    let tables = race.engine_tables();
+    let place = (angle >> 4) as usize;
+    scene.draw_work_mut().scratch = 0x8000u32;
+    (bh::to_int(
+        bh::ld(tables.sines[place].get()) / bh::ld(tables.sines[place + 0x400].get())
+            * bh::int(0x1_0000)
+            * bh::int(0x8000),
+    ) as u32)
+        << 1
 }
 
 /// Fills the tables.

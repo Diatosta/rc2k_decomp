@@ -45,9 +45,15 @@ pub enum StepOperand {
     Owned(for<'a> fn(&'a Owners<'a>) -> &'a dyn DwordLike),
     /// A dword of the race's (`var!(@race shared.vars.direction)`).
     RaceVar(fn(&Race) -> &dyn DwordLike),
+    /// A field of a store of plain values, read and written by functions
+    /// (`var!(@plain menus.options; lens_flare)`).
+    Plain {
+        get: fn(&Owners<'static>) -> u32,
+        set: fn(&Owners<'static>, u32),
+    },
 }
 use crate::memory::session::{PlainDword, PlainFloat};
-use StepOperand::{CarBits, CarCell, Owned, RaceVar};
+use StepOperand::{CarBits, CarCell, Owned, Plain, RaceVar};
 #[cfg(test)]
 use StepOperand::{Cell, ResultMark, ResultSecs, Setting};
 
@@ -79,6 +85,7 @@ impl StepOperand {
             CarBits(n, f) => f(&o.race.car_blocks().cars[n]).bits(),
             Owned(f) => f(o).get(),
             RaceVar(f) => f(o.race).get(),
+            Plain { get, .. } => get(o),
         }
     }
 
@@ -97,6 +104,7 @@ impl StepOperand {
             CarBits(n, f) => f(&o.race.car_blocks().cars[n]).set_bits(v),
             Owned(f) => f(o).set(v),
             RaceVar(f) => f(o.race).set(v),
+            Plain { set, .. } => set(o, v),
         }
     }
 }
@@ -129,6 +137,22 @@ macro_rules! car_bits {
 /// `var!(@o field ..)`: a dword of one of the owners as a `StepOperand` (a `fn` item, as `car!`);
 /// `var!(@gfx field ..)` one of the graphics owner's, `var!(@race field ..)` one of the race's.
 macro_rules! var {
+    (@plain $($store:ident).+; $($f:tt)+) => {
+        $crate::race::settings_copy::StepOperand::Plain {
+            get: {
+                fn get(o: &$crate::owners::Owners<'static>) -> u32 {
+                    o.$($store).+.read().$($f)+
+                }
+                get
+            },
+            set: {
+                fn set(o: &$crate::owners::Owners<'static>, value: u32) {
+                    o.$($store).+.write().$($f)+ = value;
+                }
+                set
+            },
+        }
+    };
     (@o $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::Owned({
             fn f<'a>(o: &'a $crate::owners::Owners<'a>) -> &'a dyn $crate::memory::session::DwordLike {

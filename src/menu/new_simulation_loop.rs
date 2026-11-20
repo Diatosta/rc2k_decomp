@@ -11,7 +11,7 @@ use crate::menu::screen_loop::{Callee, List, SceneVar, Screen, SetUp, Step, scre
 fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[slot::NEW_SIMULATION]
         .set(screens.items.first[slot::NEW_SIMULATION].get());
-    screens.event.event_over.set(false);
+    screens.event.write().event_over = false;
     Ok(())
 }
 

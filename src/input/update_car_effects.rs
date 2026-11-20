@@ -67,12 +67,12 @@ fn knock(
 fn update_car_effects_with(
     effects: &ForceFeedback,
     view: &crate::physics::car_store::Car,
-    o: &crate::sound::store::SoundObject,
+    o: &crate::sound::store::SoundObjectCell,
     device: &InputDevice,
     engine_vibration: bool,
     scratch: &crate::memory::session::PlainDword,
 ) -> Result<(), Refused> {
-    let surface = o.surface.get();
+    let surface = o.borrow().surface;
     if surface >= KIND_COUNT {
         return Err(BadInput("a surface number past the effect kinds' 16").into());
     }
@@ -81,39 +81,42 @@ fn update_car_effects_with(
         device,
         last_strength: 0,
     };
-    o.flag_ac.set(view.front_wheels_off.get());
+    o.borrow_mut().flag_ac = view.front_wheels_off.get();
     let ten = effects.effect_ten.get();
-    o.effect_in[0].set(mul_to_int(&view.local_velocity[0], ten) as u32);
-    o.effect_in[1]
-        .set(sub_mul_to_int(view.drive_speed_a.get(), view.local_velocity[2].get(), ten) as u32);
-    o.effect_in[2].set(mul_to_int(&view.local_velocity[0], ten) as u32);
-    o.effect_in[3].set(mul_to_int(&view.local_velocity[2], ten) as u32);
+    o.borrow_mut().effect_in[0] = mul_to_int(&view.local_velocity[0], ten) as u32;
+    o.borrow_mut().effect_in[1] =
+        sub_mul_to_int(view.drive_speed_a.get(), view.local_velocity[2].get(), ten) as u32;
+    o.borrow_mut().effect_in[2] = mul_to_int(&view.local_velocity[0], ten) as u32;
+    o.borrow_mut().effect_in[3] = mul_to_int(&view.local_velocity[2], ten) as u32;
     // The knock's force from its inputs (angle from y = `knock_in[2]`, x = `knock_in[0]`).
-    if o.knock_in[3].get() != 0.0 && o.knock_in[0].get() != 0.0 {
+    if o.borrow().knock_in[3] != 0.0 && o.borrow().knock_in[0] != 0.0 {
         let (angle, force) = knock(
-            o.knock_in[2].get(),
-            o.knock_in[0].get(),
+            o.borrow().knock_in[2],
+            o.borrow().knock_in[0],
             effects.effect_angle_scale.get(),
             effects.effect_full.get(),
-            o.knock_in[3].get(),
+            o.borrow().knock_in[3],
             effects.effect_tenth.get(),
         );
         scratch.set(angle);
-        o.knock.set(force as u32);
+        o.borrow_mut().knock = force as u32;
     } else {
-        o.knock.set(0);
+        o.borrow_mut().knock = 0;
     }
-    for d in &o.knock_in {
-        d.set(0.0);
-    }
+    o.borrow_mut().knock_in = [0.0; 4];
     // The surface effect: the surface's kind and the speed; nearly still, the engine's shake
     // unless the player has switched it off.
     let table_kind = effects.surface_effect_kinds[surface as usize].get();
-    let shake = surface_effect(table_kind, o.sum_a.get(), o.revs.get(), engine_vibration);
+    let shake = surface_effect(
+        table_kind,
+        o.borrow().sum_a,
+        o.borrow().revs,
+        engine_vibration,
+    );
     let kind = shake.kind;
     crate::remote::note_shake(&shake, engine_vibration);
     out.set(Effect::Surface, shake.row, shake.speed)?;
-    let strength = || o.effect_request_b.get();
+    let strength = || o.borrow().effect_request_b;
     let mut landed_now = false;
     match kind {
         5 | 9 | 0 => {
@@ -130,22 +133,22 @@ fn update_car_effects_with(
         }
         _ => {
             out.set(Effect::Fourth, 0, strength())?;
-            if o.flag_ac.is_set() {
+            if o.borrow().flag_ac != 0 {
                 // Wheels off the ground.
-                o.landed.set(1);
+                o.borrow_mut().landed = 1;
                 out.set(Effect::Steering, 0, strength())?;
                 out.set(Effect::Surface, 0, 0x100)?;
                 out.set(Effect::Fourth, 0, strength())?;
                 landed_now = true;
-            } else if o.landed.get() == 1 {
+            } else if o.borrow().landed == 1 {
                 // Back on the ground.
-                o.landed.set(0);
+                o.borrow_mut().landed = 0;
                 out.set(Effect::Steering, 0x100, strength())?;
                 let carried = out.last_strength;
                 out.set(Effect::Landing, 0x100, carried)?;
             } else {
                 // A steering force from the sideways and forward velocities.
-                let a = (o.effect_in[0].get() << 1).wrapping_add(o.effect_in[1].get()) << 1;
+                let a = (o.borrow().effect_in[0] << 1).wrapping_add(o.borrow().effect_in[1]) << 1;
                 let a = (a as i32).wrapping_abs();
                 if a > 0x14 {
                     let a = ((a - 0x14) as u32).min(0x100);
@@ -158,10 +161,10 @@ fn update_car_effects_with(
     }
     if !landed_now {
         // The knock effect, once per knock.
-        let force = o.knock.get();
+        let force = o.borrow().knock;
         let mut counted = false;
-        if force != 0 && o.flag_ac.get() == 0 {
-            if o.knock_count.get() == 0 {
+        if force != 0 && o.borrow().flag_ac == 0 {
+            if o.borrow().knock_count == 0 {
                 let push = if (force as i32) < 0 {
                     0xFFFF_FF00
                 } else {
@@ -169,23 +172,25 @@ fn update_car_effects_with(
                 };
                 let carried = out.last_strength;
                 out.set(Effect::Knock, push, carried)?;
-                o.knock_count.set(o.knock_count.get().wrapping_add(1));
+                let count = o.borrow().knock_count.wrapping_add(1);
+                o.borrow_mut().knock_count = count;
                 counted = true;
             } else {
-                o.knock.set(0);
+                o.borrow_mut().knock = 0;
             }
         }
-        if !counted && o.knock_count.is_set() {
-            o.knock_count.set(o.knock_count.get().wrapping_add(1));
-            if o.knock_count.get() >= 4 {
-                o.knock_count.set(0);
+        if !counted && (o.borrow().knock_count != 0) {
+            let count = o.borrow().knock_count.wrapping_add(1);
+            o.borrow_mut().knock_count = count;
+            if o.borrow().knock_count >= 4 {
+                o.borrow_mut().knock_count = 0;
             }
         }
     }
     // The change of `effect_in[3]` since the last time.
-    let now = o.effect_in[3].get();
-    let before = o.last_forward_speed.get();
-    o.last_forward_speed.set(now);
+    let now = o.borrow().effect_in[3];
+    let before = o.borrow().last_forward_speed;
+    o.borrow_mut().last_forward_speed = now;
     let change = (now.wrapping_sub(before) as i32).clamp(-0x200, 0x200) >> 1;
     let carried = out.last_strength;
     out.set(Effect::SpeedChange, change as u32, carried)
@@ -197,7 +202,7 @@ fn update_car_effects_with(
 pub fn update_car_effects(
     effects: &ForceFeedback,
     view: &crate::physics::car_store::Car,
-    object: &crate::sound::store::SoundObject,
+    object: &crate::sound::store::SoundObjectCell,
     device: &InputDevice,
     engine_vibration: bool,
     system: &System,

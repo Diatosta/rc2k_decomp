@@ -25,8 +25,8 @@ const TEXTS: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FIN
 
 /// The class time `c`, the class's entry of `class_times`.
 fn class_time_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
-    match screens.state.menus.class_times.get(c as usize) {
-        Some(time) => Ok(time.get()),
+    match screens.state.read().menus.class_times.get(c as usize) {
+        Some(time) => Ok(*time),
         None => Err(BadInput("a class past the four (class_times)")),
     }
 }
@@ -57,8 +57,8 @@ pub fn record(
     current_event(screens, system, tables)?;
     let table = system.records().stage_tables.championship();
     let (section, index): (u32, u32) = (
-        screens.event.section.get(),
-        screens.event.stage_in_section.get(),
+        screens.event.read().section,
+        screens.event.read().stage_in_section,
     );
     crate::records::find_record::find_record_in(
         &system.records().stage_tables,
@@ -122,7 +122,7 @@ pub fn calc_cpu_times(
         .into_iter()
         .enumerate()
     {
-        screens.state.menus.class_times[k].set(t);
+        screens.state.write().menus.class_times[k] = t;
     }
     crate::menu::scale_stage_times::scale_stage_times(
         screens,
@@ -130,8 +130,8 @@ pub fn calc_cpu_times(
         rec,
         race,
     )?;
-    screens.state.menus.track_length[0].set(length);
-    screens.state.menus.track_length[1].set(length.wrapping_mul(100) / 0x96A);
+    screens.state.write().menus.track_length[0] = length;
+    screens.state.write().menus.track_length[1] = length.wrapping_mul(100) / 0x96A;
     use rc2k_core::menu::event::{Spread, cpu_gap, cpu_time};
     for c in 0..classes {
         let mut gaps = 0u32;
@@ -143,12 +143,12 @@ pub fn calc_cpu_times(
             let count = class_count_at(c)?;
             let gap = cpu_gap(time, count);
             let mut spread = Spread {
-                first: screens.event.service.spread_first.get(),
-                step: screens.event.service.spread_step.get(),
+                first: screens.event.read().service.spread_first,
+                step: screens.event.read().service.spread_step,
             };
             let own = spread.next(|limit| race.shared.random.random_below(limit))?;
-            screens.event.service.spread_first.set(spread.first);
-            screens.event.service.spread_step.set(spread.step);
+            screens.event.write().service.spread_first = spread.first;
+            screens.event.write().service.spread_step = spread.step;
             if d.in_event.get() == IN_EVENT {
                 let own = cpu_time(own, gaps, time);
                 d.time.set(own);

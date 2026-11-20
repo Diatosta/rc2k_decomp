@@ -897,8 +897,8 @@ mod tests {
             )
             .is_err()
         );
-        assert_eq!(box_area(None).1, true);
-        assert_eq!(box_area(Some(0)).1, false);
+        assert!(box_area(None).1);
+        assert!(!box_area(Some(0)).1);
     }
 
     #[test]

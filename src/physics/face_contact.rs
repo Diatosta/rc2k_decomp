@@ -21,15 +21,15 @@ use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87::compare_80;
 use crate::math::x87::int_hypot;
+use crate::math::x87::length_80;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
-use crate::physics::flow::{ZERO_BITS as ZERO, copy_cells, fill_cells, negate};
+use crate::physics::flow::{FloatView, ZERO_BITS as ZERO, copy_cells, negated_velocity};
 use crate::physics::step_families::ContactInputs;
 use crate::physics::touch_face::touch_face;
-use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
@@ -164,16 +164,17 @@ pub fn steps(
     { crate::physics::feel_ground::feel_ground(&c.ground) }?;
     touch(c, scene)?;
     // Pushed back against the motion, level.
-    copy_cells(&c.scratch.work_vector, &c.car.velocity);
-    negate(&c.scratch.work_vector[0]);
-    negate(&c.scratch.work_vector[1]);
-    negate(&c.scratch.work_vector[2]);
-    if compare_80(vector_length(&c.scratch.work_vector), ZERO) & 0x4000 != 0 {
-        fill_cells(&c.scratch.work_vector, 0.0);
+    let mut scratch = c.frame.scratch_mut();
+    scratch.work_vector = negated_velocity(c.car);
+    if compare_80(length_80(scratch.work_vector), ZERO) & 0x4000 != 0 {
+        scratch.work_vector = [0.0f32.to_bits(); 3];
     }
-    c.scratch.work_vector[1].set(0);
-    normalise_work_vector(c.numbers, c.scratch, scene);
-    copy_cells(&c.contact.contact_normal, &c.scratch.work_vector);
+    scratch.work_vector[1] = 0;
+    normalise_work_vector(c.numbers, &mut scratch, scene);
+    for (to, bits) in c.contact.contact_normal.iter().zip(scratch.work_vector) {
+        to.set_float(f32::from_bits(bits));
+    }
+    drop(scratch);
     copy_cells(&c.contact.contact_car_speed, &c.car.velocity);
     copy_cells(&c.contact.contact_turn_speed, &c.car.spin);
     copy_cells(&c.contact.contact_point, &c.contact.object_point_scaled);

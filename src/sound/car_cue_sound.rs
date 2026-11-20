@@ -15,16 +15,16 @@ use crate::sound::sets_store::SoundRequest;
 ///
 /// The waiting cue sound of object `so`, through `request`.
 pub(super) fn car_cue_sound(
-    so: &crate::sound::store::SoundObject,
+    so: &crate::sound::store::SoundObjectCell,
     request: &mut SoundRequest,
     owner: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{OneOff, from_int, one_off};
-    let mut waiting = so.cue_sound.get();
+    let mut waiting = so.borrow().cue_sound;
     let taken = one_off(
         &mut waiting,
-        so.cue_volume.get(),
+        so.borrow().cue_volume,
         LEAST,
         STOP_QUIET,
         |sample| record(audio, sample).map(|_| ()),
@@ -34,7 +34,7 @@ pub(super) fn car_cue_sound(
     if turn == OneOff::Nothing {
         return Ok(());
     }
-    so.cue_sound.set(waiting);
+    so.borrow_mut().cue_sound = waiting;
     request.sound = sound;
     match turn {
         OneOff::Nothing | OneOff::Quiet { .. } => Ok(()),
@@ -42,9 +42,7 @@ pub(super) fn car_cue_sound(
         OneOff::Play { volume, rate } => {
             request.volume = from_int(volume as i32);
             request.pitch = from_int(rate as i32);
-            for (to, from) in request.place.iter_mut().zip(&so.cue_place) {
-                *to = from.get();
-            }
+            request.place = so.borrow().cue_place;
             crate::sound::turn_parts::placed(request, owner, audio)
         }
     }

@@ -82,7 +82,7 @@ fn with_level_scores<R>(
 }
 
 fn current(menus: &Menus) -> Result<(u32, crate::menu::standings::PlayerCell<'_>), Refused> {
-    let n = menus.screens.event.current_player.get();
+    let n = menus.screens.event.read().current_player;
     match crate::menu::player::player(menus, n) {
         None => Err(BadInput("a current player past 3").into()),
         Some(r) => Ok((n, r)),
@@ -110,7 +110,7 @@ pub fn keep_arcade_stage_best(
 pub(super) fn check_arcade_level_score(menus: &Menus, tables: &BestTables) -> Result<(), Refused> {
     let best = with_level_scores(&menus.play, tables, |ten| ten[9].key)?;
     if bests::makes_score(menus.play.results.players[0].total.get(), best) {
-        menus.screens.event.trial.qualifies.set(1);
+        menus.screens.event.write().trial.qualifies = 1;
     }
     Ok(())
 }
@@ -128,7 +128,7 @@ pub(super) fn check_arcade_stage_time(
         time,
         with_course_times(&menus.play, system, tables, |ten| ten[9].head.key)?,
     ) {
-        screens.event.trial.qualifies.set(1);
+        screens.event.write().trial.qualifies = 1;
     }
     Ok(())
 }
@@ -254,7 +254,7 @@ fn end_of(list: &[PlainDword], len: u32) -> Result<u32, Refused> {
 pub fn add_shown_car(menus: &Menus) -> Result<(), Refused> {
     use rc2k_core::menu::car_lists::{entries, shown_car};
     let list = |cells: &[PlainDword], len: u32| entries(len as usize, |k| cells[k].get());
-    let shown = menus.screens.event.shown.car.get();
+    let shown = menus.screens.event.read().shown.car;
     let car = shown_car(&list(&menus.cars.lists.shown_cars, SHOWN_LIST_LEN)?, shown)?;
     let end = list(&menus.cars.lists.cars_second, CARS_LEN)?.len();
     menus.cars.lists.cars_second[end].set(car);
@@ -267,7 +267,7 @@ pub(super) fn remove_shown_car(
     menus: &Menus,
     then: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let shown = menus.screens.event.shown.car.get();
+    let shown = menus.screens.event.read().shown.car;
     let end = end_of(&menus.cars.lists.shown_cars, SHOWN_LIST_LEN)?;
     if shown >= end {
         return Err(BadInput("a shown car past the list").into());

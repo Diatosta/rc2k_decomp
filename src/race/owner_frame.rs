@@ -57,7 +57,7 @@ pub struct Frame {
 
 /// What only the game's thread reaches (no drawing part and no other thread touches it).
 struct FrameMain {
-    scratch: FrameScratch,
+    scratch: RefCell<FrameScratch>,
     counter: RefCell<FrameCounter>,
     draw_batches: DrawBatches,
     clock_ticks: RefCell<ClockTicks>,
@@ -82,7 +82,7 @@ impl Frame {
             lights_and_gear: DrawShared::new(LightsAndGear::new()),
             cars: crate::race::frame_view::FrameCars::new(),
             main: GameThread::new(FrameMain {
-                scratch: FrameScratch::new(),
+                scratch: RefCell::new(FrameScratch::new()),
                 counter: RefCell::new(FrameCounter::new()),
                 draw_batches: DrawBatches::new(),
                 clock_ticks: RefCell::new(ClockTicks::new()),
@@ -94,8 +94,14 @@ impl Frame {
         }
     }
 
-    pub fn scratch(&self) -> &FrameScratch {
-        &self.main.get().scratch
+    /// The work vector, read.
+    pub fn scratch(&self) -> Ref<'_, FrameScratch> {
+        self.main.get().scratch.borrow()
+    }
+
+    /// The work vector, to write: no other borrow may be held.
+    pub fn scratch_mut(&self) -> RefMut<'_, FrameScratch> {
+        self.main.get().scratch.borrow_mut()
     }
 
     /// The frame counter setting, read: no write borrow may be held.

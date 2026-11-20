@@ -86,23 +86,30 @@ pub fn record_replay_header(race: &Race) {
 /// An object's variables reset for a race: the six timed slots' start and playing flags and the
 /// other slots', the hit and cue sounds none (-2), the cue queue's place none, the object not in
 /// use, the revs, throttle, speed and the wheels' first shares 0.
-fn reset_object(o: &crate::sound::store::SoundObject) {
-    for slot in o.slots.iter().chain([&o.gear_slot, &o.slot_b, &o.slot_c]) {
-        slot.start.set(0);
-        slot.playing.set(0);
+fn reset_object(o: &crate::sound::store::SoundObjectCell) {
+    let mut guard = o.borrow_mut();
+    let o = &mut *guard;
+    for slot in &mut o.slots {
+        slot.start = 0;
+        slot.playing = 0;
     }
-    o.hit_sound.set(0xFFFF_FFFE);
-    o.cue_sound.set(0xFFFF_FFFE);
-    o.cue_queue.count.set(0);
-    o.cue_queue.place.set(0xFFFF_FFFF);
-    o.in_use.set(0);
-    o.revs.set(0);
-    o.throttle.set(0);
-    o.speed.set(0.0);
-    for voice in &o.voices {
-        voice.share_a.set(0.0);
+    for slot in [&mut o.gear_slot, &mut o.slot_b, &mut o.slot_c] {
+        slot.start = 0;
+        slot.playing = 0;
+    }
+    o.hit_sound = 0xFFFF_FFFE;
+    o.cue_sound = 0xFFFF_FFFE;
+    o.cue_queue.count = 0;
+    o.cue_queue.place = 0xFFFF_FFFF;
+    o.in_use = 0;
+    o.revs = 0;
+    o.throttle = 0;
+    o.speed = 0.0;
+    for voice in &mut o.voices {
+        voice.share_a = 0.0;
     }
 }
+
 /// The race sound stage's flags (the run of dwords in the stage block): all set to 0.
 fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
     let mut s = sound.race.stage.get().borrow_mut();
@@ -112,9 +119,9 @@ fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
     s.loop_volume_a = 0;
     s.loop_volume_b = 0;
     s.random = [0; 2];
-    let slot = sound.race.timed_slot.get();
-    slot.start.set(0);
-    slot.playing.set(0);
+    let mut slot = sound.race.timed_slot.get().borrow_mut();
+    slot.start = 0;
+    slot.playing = 0;
 }
 
 /// Waits until the sound command queue has run out.
@@ -141,7 +148,7 @@ pub fn reset_race_sounds(
         crate::clock::tick_count::tick_count(&o.system.session.picture_clock),
         sound,
     );
-    for o in &sound.race.sounds.get().objects {
+    for o in sound.race.objects.get() {
         reset_object(o);
     }
     clear_stage_flags(sound);

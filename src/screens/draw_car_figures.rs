@@ -23,7 +23,7 @@ pub fn draw_car_figures(
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let menus = o.menus;
-    let page: u32 = menus.screens.event.shown.car_page.get();
+    let page: u32 = menus.screens.event.read().shown.car_page;
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }

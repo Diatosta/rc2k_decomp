@@ -15,12 +15,12 @@ fn records(
     stages: &crate::records::stages_store::StageTables,
 ) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = stages.group_event_table(
-        champ.switches.records_set.get(),
-        champ.shown_stage.group.get(),
+        champ.read().switches.records_set,
+        champ.read().shown_stage.group,
     )?;
     Ok((
         base,
-        crate::records::stages_store::row(stages, base, champ.shown_stage.number.get())?,
+        crate::records::stages_store::row(stages, base, champ.read().shown_stage.number)?,
     ))
 }
 
@@ -33,8 +33,8 @@ fn times_table<'t>(
     stages: &crate::records::stages_store::StageTables,
     tables: &'t crate::saves::best_times::BestTables,
 ) -> Result<Option<&'t StageTable>, BadInput> {
-    let mut n = champ.switches.records_set.get();
-    if champ.switches.records_alt.get() == 1 {
+    let mut n = champ.read().switches.records_set;
+    if champ.read().switches.records_alt == 1 {
         n += 2;
     }
     use crate::menu::champ_store::TimesVariable;
@@ -86,18 +86,19 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     let (Some(table), Some(menu)) = (table, menu) else {
         return Err(BadInput("no current menu, stage records or times table").into());
     };
-    let both_off = (champ.switches.records_set.get() ^ 1) & (champ.switches.records_alt.get() ^ 1);
+    let both_off =
+        (champ.read().switches.records_set ^ 1) & (champ.read().switches.records_alt ^ 1);
     let fastest = if both_off == 1 {
         crate::records::find_stage_record::find_stage_record(
             &o.system.records().stage_tables,
             stages.championship(),
-            champ.shown_stage.group.get(),
-            champ.shown_stage.number.get(),
+            champ.read().shown_stage.group,
+            champ.read().shown_stage.number,
         )?
     } else {
         record
     };
-    let holder = if both_off != 1 && champ.switches.records_alt.get() == 1 {
+    let holder = if both_off != 1 && champ.read().switches.records_alt == 1 {
         Holder::TimeTrial
     } else {
         Holder::Fastest
@@ -142,7 +143,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     };
     set_item(
         1,
-        if champ.switches.records_set.get() == 1 {
+        if champ.read().switches.records_set == 1 {
             0x19C
         } else {
             0x19B
@@ -150,7 +151,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     )?;
     set_item(
         2,
-        if champ.switches.records_alt.get() == 1 {
+        if champ.read().switches.records_alt == 1 {
             0x19E
         } else {
             0x19D
@@ -191,9 +192,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     };
     let seal_fault = crate::errors::Fault::default();
     let mut seal_code = |a: u32, b: u32| {
-        let seal_work = o.race.replay.seal_work();
-        seal_work.sealed[0].set(a);
-        seal_work.sealed[1].set(b);
+        o.race.replay.seal_work_mut().sealed = [a, b];
         seal_fault.ok(crate::strings::format_seal_code::format_seal_code(
             o.strings, a, b,
         ));
@@ -203,7 +202,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     };
     let drawn = stage_results(
         &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas, o),
-        menus.screens.state.menus.caption_choice.get() == 1,
+        menus.screens.state.read().menus.caption_choice == 1,
         crate::strings::append_time::show_hours(o.strings),
         &rows,
         &mut seal_code,

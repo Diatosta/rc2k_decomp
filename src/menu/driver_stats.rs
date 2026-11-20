@@ -44,7 +44,7 @@ fn player_and_table<'a>(
     menus: &'a Menus,
     screens: &Screens,
 ) -> Result<(PlayerCell<'a>, crate::menu::cars_store::DescriptionTable), BadInput> {
-    let n: u32 = screens.event.current_player.get();
+    let n: u32 = screens.event.read().current_player;
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
@@ -81,16 +81,19 @@ pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
     };
     fault.check()?;
     let c = Constants {
-        steps: screens.state.driver_stats.steps.get(),
-        scale: screens.state.driver_stats.scale.get(),
-        keep_part_1: screens.state.driver_stats.switch_a.get(),
-        short_part_5: screens.state.driver_stats.switch_b.get(),
+        steps: screens.state.read().driver_stats.steps,
+        scale: screens.state.read().driver_stats.scale,
+        keep_part_1: screens.state.read().driver_stats.switch_a,
+        short_part_5: screens.state.read().driver_stats.switch_b,
     };
     let f = figures(&table, &car, &c);
     write_all(&menus.service.repair_times, f.values);
-    write_all(&screens.state.driver_stats.highs, f.highs);
-    write_all(&screens.state.driver_stats.limits, f.limits);
-    screens.state.driver_stats.total.set(f.total);
+    {
+        let mut state = screens.state.write();
+        state.driver_stats.highs = f.highs;
+        state.driver_stats.limits = f.limits;
+        state.driver_stats.total = f.total;
+    }
     let setups = &menus.service.setups;
     for (cell, value) in [
         &setups[2].chosen,
@@ -105,10 +108,10 @@ pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
     }
     for k in 0..PARTS as usize {
         if let Some(w) = f.weights[k] {
-            screens.state.driver_stats.weights[k].set(w);
+            screens.state.write().driver_stats.weights[k] = w;
         }
         if let Some(v) = f.penalties[k] {
-            screens.state.driver_stats.penalties[k].set(v);
+            screens.state.write().driver_stats.penalties[k] = v;
         }
     }
     for (slot, line) in f.logged.iter().enumerate() {

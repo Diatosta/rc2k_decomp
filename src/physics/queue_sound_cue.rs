@@ -8,34 +8,17 @@
 //! (before anything) a cue past 0x70, the end of the 113 sound lists.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
-use crate::sound::store::{CueQueue, SoundObject};
+use crate::sound::store::SoundObjectCell;
 use rc2k_core::physics::sound_queue::{CuePlacement, ENTRY_DWORDS, check_cue, place, sounds};
+use rc2k_core::sound::cars::CueQueue;
 
-/// Dword `i` of the queue: the four header dwords, then the entries' eight each (the first cue's
-/// place at -1 reads the entry's count: a run-on kept). One past the sixteen entries is refused.
-fn dword(q: &CueQueue, i: u32) -> Result<&PlainDword, BadInput> {
-    Ok(match i {
-        0 => &q.first,
-        1 => &q.place,
-        2 => &q.due,
-        3 => &q.count,
-        _ => {
-            let (e, f) = (
-                ((i - 4) / ENTRY_DWORDS) as usize,
-                ((i - 4) % ENTRY_DWORDS) as usize,
-            );
-            let c = q
-                .cues
-                .get(e)
-                .ok_or(BadInput("a dword past the cue queue"))?;
-            match f {
-                0 => &c.first,
-                1 => &c.count,
-                _ => &c.sounds[f - 2],
-            }
-        }
-    })
+/// The queue's 0x84 dwords as a slice index: the four header dwords, then the entries' eight each
+/// (the first cue's place at -1 reads the entry's count: a run-on kept). One past the sixteen
+/// entries is refused.
+fn dword(words: &mut [u32; 0x84], i: u32) -> Result<&mut u32, BadInput> {
+    words
+        .get_mut(i as usize)
+        .ok_or(BadInput("a dword past the cue queue"))
 }
 
 /// `cue` queued in `object`'s queue, first or last. The sound it stops on the way (a queue begun
@@ -44,13 +27,15 @@ fn dword(q: &CueQueue, i: u32) -> Result<&PlainDword, BadInput> {
 pub fn queue_sound_cue(
     first: bool,
     cue: u32,
-    object: &SoundObject,
+    object: &SoundObjectCell,
     audio: &crate::audio::owner::Audio,
     cue_lists: &crate::sound::sets_store::CueLists,
 ) -> Result<(), Refused> {
     check_cue(cue)?;
-    let q = &object.cue_queue;
-    let count = q.count.get();
+    // The queue is worked on as the game's dwords, so that a dword past it is refused as before.
+    let mut w = object.borrow().cue_queue.to_words();
+    let sound_offset = object.borrow().sound_offset;
+    let count = w[3];
     // The entry's first dword (after the header, n entries of 0x20 bytes each).
     let mut entry = 4u32;
     match place(count, first) {
@@ -58,19 +43,21 @@ pub fn queue_sound_cue(
         CuePlacement::At(n) => entry = entry.wrapping_add(n.wrapping_mul(ENTRY_DWORDS)),
         CuePlacement::First { count } => {
             // The playing sound: the first cue's sound at its place.
-            let playing = dword(q, q.place.get().wrapping_add(6))?.get();
+            let at = w[1].wrapping_add(6);
+            let playing = *dword(&mut w, at)?;
             crate::sound::turn_parts::play(audio, playing, 0, 0, [0; 3]);
-            q.place.set(u32::MAX);
+            w[1] = u32::MAX;
             // The entries moved up one, from the last dword down.
             let n = count.wrapping_mul(ENTRY_DWORDS);
             for k in 0..n {
-                let from = dword(q, entry + n - 1 - k)?.get();
-                dword(q, entry + n - 1 - k + ENTRY_DWORDS)?.set(from);
+                let at = entry + n - 1 - k;
+                let from = *dword(&mut w, at)?;
+                *dword(&mut w, at + ENTRY_DWORDS)? = from;
             }
         }
     }
-    q.count.set(q.count.get().wrapping_add(1));
-    dword(q, entry)?.set(cue);
+    w[3] = w[3].wrapping_add(1);
+    *dword(&mut w, entry)? = cue;
     let list = cue_lists.list(cue)?;
     let failed = std::cell::Cell::new(None);
     let (written, n) = sounds(
@@ -80,14 +67,15 @@ pub fn queue_sound_cue(
                 0
             })
         },
-        object.sound_offset.get(),
+        sound_offset,
     );
     if let Some(e) = failed.take() {
         return Err(e.into());
     }
     for (k, &v) in written.iter().enumerate() {
-        dword(q, entry + 2 + k as u32)?.set(v);
+        *dword(&mut w, entry + 2 + k as u32)? = v;
     }
-    dword(q, entry + 1)?.set(n);
+    *dword(&mut w, entry + 1)? = n;
+    object.borrow_mut().cue_queue = CueQueue::from_words(&w);
     Ok(())
 }

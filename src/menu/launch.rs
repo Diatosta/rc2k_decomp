@@ -607,7 +607,7 @@ impl GameAnswers<'_> {
     /// "Unlock Cars" cheat's list (every car), as the car screen shows with the cheat on.
     fn choose_car(&self, handed: CarList) -> Result<CarList, Refused> {
         let menus = self.o.menus;
-        let current = menus.screens.event.current_player.get();
+        let current = menus.screens.event.read().current_player;
         let record = player(menus, current).ok_or(BadInput("a current player past the four"))?;
         let cars = self.cars_of(handed)?;
         let seat = (current as usize).min(rc2k_core::menu::launch::MOST_PLAYERS as usize - 1);
@@ -648,7 +648,7 @@ impl GameAnswers<'_> {
             }
         };
         menus.screens.carousel.front.set(shown);
-        menus.screens.event.shown.car.set(shown);
+        menus.screens.event.write().shown.car = shown;
         if let Some(choice) = &self.launch.gearbox {
             let gearing = self.gearbox(choice)?;
             record.update(|p| p.gearing = gearing);
@@ -677,10 +677,12 @@ impl GameAnswers<'_> {
             .ok_or(BadInput("a stage answered with none chosen"))?;
         let (menus, system) = (self.o.menus, self.o.system);
         let stages = &system.records().stage_tables;
-        let chosen = &menus.screens.event.stage;
-        chosen.group.set(place.group);
-        chosen.sub.set(place.sub);
-        chosen.number.set(place.number);
+        {
+            let mut event = menus.screens.event.write();
+            event.stage.group = place.group;
+            event.stage.sub = place.sub;
+            event.stage.number = place.number;
+        }
         crate::menu::mark_stage_choice::mark_stage_choice(&menus.play.champ_view);
         let selection = crate::screens::draw_stage_records::selection_in(menus, system)?
             .ok_or(BadInput("no stage tables for the choice"))?;
@@ -746,7 +748,7 @@ fn apply_tune(o: Owners<'static>, tune: &rc2k_core::menu::launch::Tune) -> Resul
     let tyre = crate::files::ansi_text(&text(o, 0x4B0 + car.tyre)?).to_string();
     crate::program_log::log(&format!(
         "menu::launch: tune for player {}: tyre {} ({tyre}), gear ratio {}, ride height {}, stiffness {}, brake balance {}, steering {}",
-        menus.screens.event.current_player.get() + 1,
+        menus.screens.event.read().current_player + 1,
         car.tyre,
         car.gear_ratio,
         car.ride_height,

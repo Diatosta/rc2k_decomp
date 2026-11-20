@@ -35,7 +35,7 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     race.replay.finish_mut().start_clock = race.shared.physics_tables.get().scene_clock.get();
     let pad_at_start = input.pad_marker();
     loop {
-        sound.race.sounds.get().objects[0].revs.set(0);
+        sound.race.objects.get()[0].borrow_mut().revs = 0;
         input_update(o);
         crate::drive::finish_timing::finish_timing(race, scene, &o.system.session.picture_clock);
         let n = race.shared.state.results.finished.get();

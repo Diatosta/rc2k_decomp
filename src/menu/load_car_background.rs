@@ -22,7 +22,7 @@ pub fn load_car_background(
     gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let page = rc2k_core::menu::slides::background_page(menus.screens.event.shown.car_page.get())?;
+    let page = rc2k_core::menu::slides::background_page(menus.screens.event.read().shown.car_page)?;
     let car = shown_car(menus)?;
     let path = crate::menu::texts_store::text_at(
         &menus.texts,

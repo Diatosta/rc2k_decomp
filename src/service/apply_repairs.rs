@@ -10,7 +10,6 @@
 
 use crate::clock::tick_count::tick_count;
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::DwordLike;
 use crate::owners::Owners;
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
@@ -105,13 +104,13 @@ impl Workshop for Game<'_> {
         self.player.update(change);
     }
     fn set_working(&mut self) {
-        self.menus.screens.state.menus.service_flag.set(true);
+        self.menus.screens.state.write().menus.service_flag = true;
     }
     fn timer(&mut self, t: Timer) -> u32 {
-        timer(self.menus, t).get()
+        timer(self.menus, t)
     }
     fn set_timer(&mut self, t: Timer, value: u32) {
-        timer(self.menus, t).set(value);
+        set_timer(self.menus, t, value);
     }
     fn reset_tyre_wear(&mut self) -> Result<(), Refused> {
         Ok({ reset_tyre_wear(self.menus) }?)
@@ -141,12 +140,21 @@ impl Workshop for Game<'_> {
     }
 }
 
-fn timer(menus: &Menus, t: Timer) -> &dyn DwordLike {
+fn timer(menus: &Menus, t: Timer) -> u32 {
     let screens = &menus.screens;
     match t {
-        Timer::Start => &screens.state.menus.fade_start,
-        Timer::Elapsed => &screens.state.menus.fade_gone,
-        Timer::LastStep => &menus.service.repair_last_step,
+        Timer::Start => screens.state.read().menus.fade_start,
+        Timer::Elapsed => screens.state.read().menus.fade_gone,
+        Timer::LastStep => menus.service.repair_last_step.get(),
+    }
+}
+
+fn set_timer(menus: &Menus, t: Timer, value: u32) {
+    let screens = &menus.screens;
+    match t {
+        Timer::Start => screens.state.write().menus.fade_start = value,
+        Timer::Elapsed => screens.state.write().menus.fade_gone = value,
+        Timer::LastStep => menus.service.repair_last_step.set(value),
     }
 }
 

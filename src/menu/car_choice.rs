@@ -13,7 +13,7 @@ const MOST_ENTRIES: u32 = 0x100;
 /// entry is looked at before the end mark -1). Refuses a current player past four, no
 /// entries, or entries without their end within 0x100.
 pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
-    let current: u32 = menus.screens.event.current_player.get();
+    let current: u32 = menus.screens.event.read().current_player;
     let car = player(menus, current)
         .ok_or(BadInput("a current player past the four"))?
         .get()
@@ -44,7 +44,7 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
     }
     let found = rc2k_core::menu::cars::find_car(&cars, car);
     menus.screens.carousel.front.set(found);
-    menus.screens.event.shown.car.set(found);
+    menus.screens.event.write().shown.car = found;
 
     Ok(())
 }
@@ -67,7 +67,7 @@ fn turn(menus: &Menus, on: bool) {
                 way: menus.screens.carousel.direction.get(),
                 step: menus.screens.carousel.angle.get(),
             },
-            shown: menus.screens.event.shown.car.get(),
+            shown: menus.screens.event.read().shown.car,
             last: menus.cars.table.last_car.get(),
         },
         on,
@@ -75,7 +75,7 @@ fn turn(menus: &Menus, on: bool) {
     menus.screens.carousel.front.set(c.turn.value as u32);
     menus.screens.carousel.direction.set(c.turn.way);
     menus.screens.carousel.angle.set(c.turn.step);
-    menus.screens.event.shown.car.set(c.shown);
+    menus.screens.event.write().shown.car = c.shown;
     menus.screens.loop_flags.write().leave_screen = false;
 }
 

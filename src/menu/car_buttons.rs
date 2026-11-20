@@ -22,16 +22,16 @@ pub fn press(
     use rc2k_core::menu::cars::Shown;
 
     let mut s = Shown {
-        car: menus.screens.event.shown.car.get(),
+        car: menus.screens.event.read().shown.car,
         last_car: menus.cars.table.last_car.get(),
-        picture: menus.screens.event.shown.picture.get(),
-        page: menus.screens.event.shown.car_page.get(),
+        picture: menus.screens.event.read().shown.picture,
+        page: menus.screens.event.read().shown.car_page,
         leave: menus.screens.loop_flags.read().leave_screen,
     };
     let calls = rc2k_core::menu::cars::press(b, &mut s);
-    menus.screens.event.shown.car.set(s.car);
-    menus.screens.event.shown.picture.set(s.picture);
-    menus.screens.event.shown.car_page.set(s.page);
+    menus.screens.event.write().shown.car = s.car;
+    menus.screens.event.write().shown.picture = s.picture;
+    menus.screens.event.write().shown.car_page = s.page;
     menus.screens.loop_flags.write().leave_screen = s.leave;
     for &c in calls {
         call(c)?;

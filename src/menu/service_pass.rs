@@ -22,27 +22,21 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     // pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players(&menus.screens, &menus.play)?;
-    let due = { menus.screens.event.service.due.get() } == 1;
+    let due = { menus.screens.event.read().service.due } == 1;
     for &p in &players {
         if due && passes::takes_part(p.get().entry) {
             crate::menu::driver_stats::car_table(menus, p)?;
         }
     }
-    menus.screens.state.driver_stats.money.set(0u32);
-    menus
-        .screens
-        .event
-        .service
-        .minutes
-        .set(passes::more_minutes(
-            menus.screens.event.service.minutes.get(),
-        ));
-    menus.screens.event.event_goes_on.set(1u32);
+    menus.screens.state.write().driver_stats.money = 0u32;
+    menus.screens.event.write().service.minutes =
+        passes::more_minutes(menus.screens.event.read().service.minutes);
+    menus.screens.event.write().event_goes_on = 1u32;
     'all: {
         for (n, &p) in players.iter().enumerate() {
-            menus.screens.event.current_player.set(n as u32);
+            menus.screens.event.write().current_player = n as u32;
             let kind = p.get().entry;
-            if !passes::serviced(kind, || menus.screens.event.service.due.get()) {
+            if !passes::serviced(kind, || menus.screens.event.read().service.due) {
                 continue;
             }
             crate::menu::inspection_screen::inspection_screen(entry.owners)?;
@@ -51,7 +45,7 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             crate::system::pause::pause(entry.owners, passes::FADE_PAUSE);
             menus.service.repair_time.set(0);
             crate::menu::driver_stats::driver_stats(menus, screens)?;
-            menus.screens.state.menus.service_flag.set(false);
+            menus.screens.state.write().menus.service_flag = false;
             crate::menu::reset_driver_condition::reset_driver_condition(menus)?;
             crate::service::clear_repair_flags::clear_repair_flags(&menus.service)?;
             for _ in 0..passes::DROPPED_KEYS {
@@ -69,22 +63,19 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
                 if menus.tables.pages.read().yes_no_answer == 1 {
                     break 'all;
                 }
-                menus
-                    .screens
-                    .event
-                    .event_out
-                    .set(menus.screens.event.event_out.get().wrapping_add(1));
+                menus.screens.event.write().event_out =
+                    menus.screens.event.read().event_out.wrapping_add(1);
             }
-            let spent = passes::spent(menus.screens.state.driver_stats.money.get());
+            let spent = passes::spent(menus.screens.state.read().driver_stats.money);
             p.update(|q| q.service_spent = spent);
         }
         if !passes::goes_on(
-            menus.screens.event.event_out.get(),
-            menus.screens.event.player_count.get(),
+            menus.screens.event.read().event_out,
+            menus.screens.event.read().player_count,
         ) {
-            menus.screens.event.event_goes_on.set(0u32);
+            menus.screens.event.write().event_goes_on = 0u32;
         }
     }
-    menus.screens.event.service.due.set(0u32);
+    menus.screens.event.write().service.due = 0u32;
     Ok(())
 }

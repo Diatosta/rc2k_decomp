@@ -18,7 +18,6 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
-use crate::race::scratch_store::FrameScratch;
 use crate::race::sound_spots_store::SoundSpotBlock;
 use crate::race::tables_store::RaceTables;
 use crate::race::vars_store::RaceVars;
@@ -101,7 +100,7 @@ pub struct ContactInputs<'a> {
     pub course: &'a Course,
     pub contact: &'a ContactWork,
     pub work: &'a RaceWork,
-    pub scratch: &'a FrameScratch,
+    pub frame: &'a crate::race::owner_frame::Frame,
     pub shared: &'a RaceShared,
     pub ground: GroundInputs<'a>,
     pub sound: SoundInputs<'a>,
@@ -273,7 +272,7 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             contact: self.physics.contact.get(),
             work: self.work,
-            scratch: self.frame.scratch(),
+            frame: self.frame,
             shared: self.shared,
             ground: self.ground(),
             sound: self.sound(sound),

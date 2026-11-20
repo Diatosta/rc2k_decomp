@@ -23,7 +23,7 @@ use crate::race::owner_shared::RaceShared;
 use crate::scene::rotate_point::rotate_point;
 
 /// The shares into the voices; the integer steps between are in Rust.
-fn shares(numbers: &Numbers, shared: &RaceShared, so: &crate::sound::store::SoundObject) {
+fn shares(numbers: &Numbers, shared: &RaceShared, so: &crate::sound::store::SoundObjectCell) {
     x87_1(shared);
     if shared.car().all_wheels_off.get() != 0 {
         shared.car().sound_slip_share.set(0.0);
@@ -57,21 +57,20 @@ pub fn car_sound_state(
         return Err(BadInput("a null view block").into());
     };
     let so = crate::sound::store::current_object(sound, shared.work.get());
-    so.new_revs.set(1);
-    so.revs.set(shared.car().engine_sound_revs.get());
+    so.borrow_mut().new_revs = 1;
+    so.borrow_mut().revs = shared.car().engine_sound_revs.get();
     let w = shared.car().wheel_surface_a[4].get();
-    for voice in &so.voices {
-        voice.surface.set(w);
+    for voice in &mut so.borrow_mut().voices {
+        voice.surface = w;
     }
     shares(numbers, shared, so);
     let n = shared.car().throttle.get() as i32;
-    so.throttle.set(n.clamp(0, 0x100) as u32);
-    so.gear.set(shared.car().gear.get() as u32);
-    so.speed.set(shared.car().mean_drive_speed.get());
-    so.flag_ac
-        .set(shared.car().front_wheels_off.get() & shared.car().rear_wheels_off.get());
-    so.view_flag
-        .set(shared.car().camera_mode_is_2_or_3.get() ^ 1);
+    so.borrow_mut().throttle = n.clamp(0, 0x100) as u32;
+    so.borrow_mut().gear = shared.car().gear.get() as u32;
+    so.borrow_mut().speed = shared.car().mean_drive_speed.get();
+    so.borrow_mut().flag_ac =
+        shared.car().front_wheels_off.get() & shared.car().rear_wheels_off.get();
+    so.borrow_mut().view_flag = shared.car().camera_mode_is_2_or_3.get() ^ 1;
     let d = |c: &PlainDword, other: &PlainDword| ints_diff_80(c.get() as i32, other.get() as i32);
     let place = [
         d(&shared.car().position[0], &l.camera_position[0]),
@@ -82,7 +81,7 @@ pub fn car_sound_state(
     let out = rotate_point(m, place);
     let k = numbers.one_over_65536.get();
     for (i, e) in out.iter().enumerate() {
-        so.place[i].set(rounded_value(ext_times(*e, k)));
+        so.borrow_mut().place[i] = rounded_value(ext_times(*e, k));
     }
     let out = rotate_point(
         m,
@@ -93,7 +92,7 @@ pub fn car_sound_state(
         ],
     );
     for (i, e) in out.iter().enumerate() {
-        so.motion[i].set(rounded_value(*e));
+        so.borrow_mut().motion[i] = rounded_value(*e);
     }
     Ok(())
 }
@@ -114,24 +113,19 @@ fn x87_1(shared: &RaceShared) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_2(numbers: &Numbers, car: &Car, o: &crate::sound::store::SoundObject) {
+fn x87_2(numbers: &Numbers, car: &Car, o: &crate::sound::store::SoundObjectCell) {
+    let stored = |x: X| f32::from_bits(crate::math::x87_float::st(x));
     let t0 = car.sound_level.ld();
-    o.voices[0].share_b.st(t0);
-    o.voices[1].share_b.st(t0);
-    o.voices[2].share_b.st(t0);
-    o.voices[3].share_b.st(t0);
     let t1 = car.sound_slip_share.ld();
     let t2 = numbers.k256.ld();
     let t3 = t1 * t2;
-    o.voices[0].share_c.st(t3);
-    o.voices[1].share_c.st(t3);
-    o.voices[2].share_c.st(t3);
-    o.voices[3].share_c.st(t3);
     let t4 = car.sound_speed.ld();
-    o.voices[0].share_a.st(t4);
-    o.voices[1].share_a.st(t4);
-    o.voices[2].share_a.st(t4);
-    o.voices[3].share_a.st(t4);
+    let (share_b, share_c, share_a) = (stored(t0), stored(t3), stored(t4));
+    for voice in &mut o.borrow_mut().voices {
+        voice.share_b = share_b;
+        voice.share_c = share_c;
+        voice.share_a = share_a;
+    }
 }
 
 #[cfg(test)]

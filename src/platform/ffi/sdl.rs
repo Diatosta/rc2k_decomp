@@ -1587,7 +1587,7 @@ mod tests {
         // No rows need no bytes.
         assert!(rows_fit(0, 8, 8, 0));
         // A product that wraps round to a small number is refused.
-        assert!(!rows_fit(16, 1 << 63, 8, 2));
+        assert!(!rows_fit(16, 1 << (usize::BITS - 1), 8, 2));
         assert!(!rows_fit(16, usize::MAX, 8, usize::MAX));
     }
 }

@@ -41,7 +41,7 @@ pub fn pictures_in_use(
     rc2k_core::input::icons::Pictures,
     rc2k_core::input::profile::Bindings,
 )> {
-    let current = o.menus.screens.event.current_player.get();
+    let current = o.menus.screens.event.read().current_player;
     let controller = crate::menu::player::player(o.menus, current)
         .map_or(0, |p| p.get().controller)
         .max(1);

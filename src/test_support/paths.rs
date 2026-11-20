@@ -455,15 +455,6 @@ pub fn set_field_range<T: Cells>(record: &T, prefix: &str, bytes: &[u8]) -> bool
     fits
 }
 
-/// How many bytes of cells come before the field `prefix` names in field order (a path ending
-/// in an index names that cell of its array), or none when it has no cells.
-pub fn field_start<T: Cells>(record: &T, prefix: &str) -> Option<usize> {
-    let (base, index) = split_index(prefix).map_or((prefix, 0), |(base, i)| (base, i));
-    let mut out = None;
-    walk_under(record, base, None, Span::Before(&mut out));
-    out.map(|(seen, width)| seen + index * width)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

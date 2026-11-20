@@ -9,7 +9,7 @@ use crate::system::checked_reads::refuse;
 
 /// The current player (`Player`), or None if the index is past the four.
 pub fn current_player(menus: &Menus) -> Option<crate::menu::standings::PlayerCell<'_>> {
-    crate::menu::player::player(menus, menus.screens.event.current_player.get())
+    crate::menu::player::player(menus, menus.screens.event.read().current_player)
 }
 
 /// The flag of menu item `item` in the repair flag table. The items are the workshop's and the
@@ -29,7 +29,7 @@ pub(super) fn repair_flag_in(service: &Service, item: u32) -> u32 {
 }
 
 pub fn edit_mode(menus: &Menus) -> bool {
-    menus.screens.state.service_ui.box_shown.is_set()
+    menus.screens.state.read().service_ui.box_shown
 }
 
 pub fn menu_item(menus: &Menus) -> u32 {
@@ -113,7 +113,7 @@ pub(super) fn chosen_repairs_time(service: &Service) -> Result<i32, BadInput> {
 }
 
 pub(super) fn leave_edit_mode(screens: &Screens) {
-    screens.state.service_ui.box_shown.set(false);
+    screens.state.write().service_ui.box_shown = false;
 }
 
 /// True if menu item `item` has a repair time (a non-null pointer in the table).

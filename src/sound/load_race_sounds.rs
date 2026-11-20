@@ -79,8 +79,8 @@ pub fn load_race_sounds(
     };
     let (first, second) = (object(&r.player_cars[0])?, object(&r.player_cars[1])?);
     let kind = |object: u32| match crate::sound::store::SoundObject::of(sound, object)?
+        .borrow()
         .kind
-        .get()
     {
         kind if kind < KINDS => Ok(kind as usize),
         _ => Err(BadInput("a car's kind past the table of sound sets")),
@@ -112,13 +112,13 @@ pub fn load_race_sounds(
     };
     let (a, b) = voices(
         crate::sound::store::SoundObject::of(sound, first)?
+            .borrow()
             .cue_queue
-            .first
-            .get(),
+            .first,
         crate::sound::store::SoundObject::of(sound, second)?
+            .borrow()
             .cue_queue
-            .first
-            .get(),
+            .first,
     );
     let (mut first_name, mut second_name) = (list(a), list(b));
     let (of_first, of_second) = (
@@ -166,9 +166,9 @@ pub fn load_race_sounds(
     if kinds.is_some() && crate::sound::cue_players::count() > 2 {
         let voice_of = |car: u32| -> Result<u32, BadInput> {
             Ok(crate::sound::store::SoundObject::of(sound, car)?
+                .borrow()
                 .cue_queue
-                .first
-                .get())
+                .first)
         };
         let (third, fourth) = voices(voice_of(2)?, voice_of(3).unwrap_or(0));
         let (mut third_name, mut fourth_name) = (list(third), list(fourth));

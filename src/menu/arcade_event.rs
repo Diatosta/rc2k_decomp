@@ -2,6 +2,7 @@ use crate::errors::Refused;
 use crate::memory::session::DwordLike;
 use crate::memory::session::PlainDword;
 use crate::menu::event_flow::{set_switch, switch_is_set};
+use crate::menu::event_store::EventWord;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_id::ScreenId;
@@ -41,12 +42,12 @@ fn address(menus: &Menus, v: Var) -> &'_ PlainDword {
         Var::TotalB8 => &menus.play.results.players[0].total,
         Var::Figure768 => &menus.play.results.players[0].position,
         Var::Figure758 => &menus.play.results.players[0].time_bonus,
-        Var::PlayerCount => &menus.screens.event.player_count,
-        Var::EventMode => &menus.screens.event.event_kind,
-        Var::Current => &menus.screens.event.current_player,
-        Var::Qualifies => &menus.screens.event.trial.qualifies,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
-        Var::Failed
+        Var::PlayerCount
+        | Var::EventMode
+        | Var::Current
+        | Var::Qualifies
+        | Var::Failed
         | Var::Stage
         | Var::Level
         | Var::Cheats
@@ -72,6 +73,10 @@ impl arcade::Arcade for Game<'_> {
             Var::Level => return arcade.level,
             Var::Cheats => return menus.play.cheats.read().cheats,
             Var::Answer => return menus.tables.pages.read().yes_no_answer,
+            Var::Qualifies => return EventWord::TrialQualifies.get(&menus.screens.event),
+            Var::Current => return EventWord::CurrentPlayer.get(&menus.screens.event),
+            Var::EventMode => return EventWord::EventKind.get(&menus.screens.event),
+            Var::PlayerCount => return EventWord::PlayerCount.get(&menus.screens.event),
             _ => {}
         }
         match cell(self.owners.race, v) {
@@ -89,6 +94,10 @@ impl arcade::Arcade for Game<'_> {
             Var::Level => menus.play.arcade.write().level = value,
             Var::Cheats => menus.play.cheats.write().cheats = value,
             Var::Answer => menus.tables.pages.write().yes_no_answer = value,
+            Var::Qualifies => EventWord::TrialQualifies.set(&menus.screens.event, value),
+            Var::Current => EventWord::CurrentPlayer.set(&menus.screens.event, value),
+            Var::EventMode => EventWord::EventKind.set(&menus.screens.event, value),
+            Var::PlayerCount => EventWord::PlayerCount.set(&menus.screens.event, value),
             _ => match cell(self.owners.race, v) {
                 Some(cell) => cell.set(value),
                 None => address(menus, v).set(value),

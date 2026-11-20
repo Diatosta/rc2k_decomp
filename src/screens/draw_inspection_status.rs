@@ -30,8 +30,8 @@ pub fn inspection_status(
         let item = PARTS[n];
         Part {
             damage: player.get().damage[item as usize - 2] as i32,
-            threshold: screens.state.driver_stats.limits[item as usize - 2].get() as i32,
-            weight: screens.state.driver_stats.penalties[item as usize - 2].get() as i32,
+            threshold: screens.state.read().driver_stats.limits[item as usize - 2] as i32,
+            weight: screens.state.read().driver_stats.penalties[item as usize - 2] as i32,
             repairing: repair_flag(service, item) != 0,
         }
     });

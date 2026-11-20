@@ -2,34 +2,25 @@
 //! being enciphered, its result and the sixteen subkeys. The cipher's tables are constants in
 //! `race::seal_tables`.
 
-use crate::memory::session::{PlainBytes, PlainDword};
-
 /// The seal cipher's subkeys, key, block and result.
-#[derive(rc2k_derive::Cells)]
 pub struct SealWork {
-    /// Padding before the first field.
-    pub _lead: PlainBytes<12>,
     /// Sixteen subkeys (two dwords each), made from the key by every block.
-    pub subkeys: [PlainDword; 32],
-    /// The key (two dwords; the `key` setting of `var\ral.cfg` sets it).
-    pub key: [PlainDword; 2],
+    pub subkeys: [u32; 32],
+    /// The key (two dwords; the `key` setting of `var\ral.cfg` sets the first).
+    pub key: [u32; 2],
     /// The block to encipher (two dwords).
-    pub block: [PlainDword; 2],
+    pub block: [u32; 2],
     /// The enciphered block (two dwords).
-    pub sealed: [PlainDword; 2],
-    /// Padding after the last field.
-    pub _tail: PlainBytes<12>,
+    pub sealed: [u32; 2],
 }
 
 impl SealWork {
     pub const fn new() -> Self {
         SealWork {
-            _lead: PlainBytes::new([0; 12]),
-            subkeys: [const { PlainDword::new(0x0) }; 32],
-            key: [PlainDword::new(0x6b726164), PlainDword::new(0x72617473)],
-            block: [const { PlainDword::new(0x0) }; 2],
-            sealed: [const { PlainDword::new(0x0) }; 2],
-            _tail: PlainBytes::new([0; 12]),
+            subkeys: [0; 32],
+            key: [0x6b726164, 0x72617473],
+            block: [0; 2],
+            sealed: [0; 2],
         }
     }
 }

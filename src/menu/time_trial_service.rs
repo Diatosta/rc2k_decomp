@@ -31,17 +31,17 @@ pub(super) fn time_trial_service_unshown(
     let screens = &menus.screens;
     let event = &screens.event;
     crate::menu::standings::counted_players(&menus.screens, &menus.play)?;
-    set(&event.service.minutes, passes::TIME_TRIAL_MINUTES);
-    set(&event.event_goes_on, 1);
+    event.write().service.minutes = passes::TIME_TRIAL_MINUTES;
+    event.write().event_goes_on = 1;
     let mut current = 0;
     loop {
-        set(&event.current_player, current);
+        event.write().current_player = current;
         menus.service.repair_time.set(0);
         { crate::menu::driver_stats::driver_stats(menus, screens) }?;
-        screens.state.menus.service_flag.set(false);
+        screens.state.write().menus.service_flag = false;
         tune(menus)?;
         crate::menu::set_player_entry_kind::set_player_entry_kind(menus)?;
-        let serviced = get(&event.current_player);
+        let serviced = event.read().current_player;
         if serviced >= 4 {
             return Err(BadInput("a current player past the four").into());
         }
@@ -49,11 +49,11 @@ pub(super) fn time_trial_service_unshown(
             return Err(BadInput("a launched time trial's car is out at the inspection").into());
         }
         current += 1;
-        if current == get(&event.player_count) {
+        if current == event.read().player_count {
             break;
         }
     }
-    set(&event.service.due, 0);
+    event.write().service.due = 0;
     Ok(())
 }
 
@@ -64,19 +64,19 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     // `goes_on`).
     use rc2k_core::menu::passes;
     crate::menu::standings::counted_players(&menus.screens, &menus.play)?;
-    set(&event.service.minutes, passes::TIME_TRIAL_MINUTES);
-    set(&event.event_goes_on, 1);
+    event.write().service.minutes = passes::TIME_TRIAL_MINUTES;
+    event.write().event_goes_on = 1;
     let mut current = 0;
     'all: {
         loop {
-            set(&event.current_player, current);
+            event.write().current_player = current;
             { crate::menu::inspection_screen::inspection_screen(entry.owners) }?;
             crate::system::pause::pause(entry.owners, passes::SCREEN_PAUSE);
             crate::menu::fade_in::fade_in(entry.owners)?;
             crate::system::pause::pause(entry.owners, passes::FADE_PAUSE);
             menus.service.repair_time.set(0);
             { crate::menu::driver_stats::driver_stats(menus, screens) }?;
-            screens.state.menus.service_flag.set(false);
+            screens.state.write().menus.service_flag = false;
             { run_screen(ScreenId::ServiceArea, entry) }?;
             if yes(&menus.tables.pages) {
                 break 'all;
@@ -84,7 +84,7 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             { crate::service::apply_repairs::apply_repairs_in_game_in(entry.owners) }?;
             crate::menu::set_player_entry_kind::set_player_entry_kind(menus)?;
             // The current player as the screens leave it (it is read again).
-            let serviced = get(&event.current_player);
+            let serviced = event.read().current_player;
             if serviced >= 4 {
                 return Err(BadInput("a current player past the four").into());
             }
@@ -95,17 +95,20 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
                 if yes(&menus.tables.pages) {
                     break 'all;
                 }
-                inc(&event.event_out);
+                {
+                    let mut values = event.write();
+                    values.event_out = values.event_out.wrapping_add(1);
+                }
             }
             current += 1;
-            if current == get(&event.player_count) {
+            if current == event.read().player_count {
                 break;
             }
         }
-        if !passes::goes_on(get(&event.event_out), get(&event.player_count)) {
-            set(&event.event_goes_on, 0);
+        if !passes::goes_on(event.read().event_out, event.read().player_count) {
+            event.write().event_goes_on = 0;
         }
     }
-    set(&event.service.due, 0);
+    event.write().service.due = 0;
     Ok(())
 }

@@ -15,8 +15,8 @@ use crate::system::owner::System;
 /// The current record (the record table, `section`, `index`), refused past the table.
 fn current_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInput> {
     let table = system.records().stage_tables.championship();
-    let section: u32 = menus.screens.event.section.get();
-    let index: u32 = menus.screens.event.stage_in_section.get();
+    let section: u32 = menus.screens.event.read().section;
+    let index: u32 = menus.screens.event.read().stage_in_section;
     if section >= 64
         || index >= 64
         || !crate::records::find_record::has_section(
@@ -45,7 +45,7 @@ pub(super) fn keep_record_best(menus: &Menus, system: &System) -> Result<(), Ref
     use rc2k_core::menu::bests;
     let record = record.record(&system.records().stage_tables)?;
     for (n, &p) in players.iter().enumerate() {
-        menus.screens.event.current_player.set(n as u32);
+        menus.screens.event.write().current_player = n as u32;
         let p = p.get();
         if !bests::takes_record(p.figure, record.holder(Holder::Fastest).speed) {
             break;

@@ -9,7 +9,7 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 pub fn inspection_faults(menus: &Menus) -> Result<(), Refused> {
-    let n: u32 = menus.screens.event.current_player.get();
+    let n: u32 = menus.screens.event.read().current_player;
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }

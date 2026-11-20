@@ -20,10 +20,10 @@ pub(super) fn show_class_championship_standings(
     entry: &Entry,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
-    event.shown.class.set(class);
+    event.write().shown.class = class;
     let found = crate::menu::first_player_b::first_player_b(class, tables)?;
     let count = held_figure(Page::ClassChampionship, found.figure);
-    champ.rows.count.set(count);
+    champ.write().rows.count = count;
     crate::menu::first_page_stage::first_page_stage(champ);
     crate::menu::stage_range_caption::stage_range_caption(champ, &entry.menus.text_buffers)?;
     run_screen(ScreenId::ClassChampionshipStandings, entry)?;

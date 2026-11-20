@@ -76,10 +76,10 @@ pub fn serve(o: Owners<'static>) -> Result<bool, Refused> {
         crate::menu::screen_loop::screen_entry(o, ScreenId::Cspecs)?;
         return Ok(true);
     }
-    let section = screens.event.section.get();
-    screens.event.section.set(wanted - 1);
+    let section = screens.event.read().section;
+    screens.event.write().section = wanted - 1;
     let result = crate::menu::screen_loop::screen_entry(o, ScreenId::SectionTimes);
-    screens.event.section.set(section);
+    screens.event.write().section = section;
     result?;
     Ok(true)
 }

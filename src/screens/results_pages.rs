@@ -80,7 +80,7 @@ fn draw_results_page(
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let class = menus.screens.event.shown.class.get();
+    let class = menus.screens.event.read().shown.class;
     if !section_there(menus, system)? {
         return Err(BadInput("a section past the record table").into());
     }
@@ -90,7 +90,7 @@ fn draw_results_page(
     } else {
         first_overall_time(2, rally, tables)?
     };
-    let first_row = menus.play.champ_view.rows.first_row.get();
+    let first_row = menus.play.champ_view.read().rows.first_row;
     let end = first_row.wrapping_add(10);
     // every row found before anything is drawn
     let mut rows = Vec::new();
@@ -114,15 +114,15 @@ fn draw_results_page(
     {
         let heading = match page.heading {
             Heading::Titles(normal, alternative) => Drawn::Titles {
-                title: if menus.screens.state.menus.rally_done.is_set() {
+                title: if menus.screens.state.read().menus.rally_done {
                     alternative
                 } else {
                     normal
                 },
-                name: if menus.play.champ_view.event_mode.get() == 0x13 {
+                name: if menus.play.champ_view.read().event_mode == 0x13 {
                     crate::screens::stage_panel::section_title(
                         &menus.lists,
-                        menus.screens.event.section.get(),
+                        menus.screens.event.read().section,
                     )?
                 } else {
                     record_at(menus, system, 0)?

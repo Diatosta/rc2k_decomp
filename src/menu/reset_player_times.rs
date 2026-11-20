@@ -10,6 +10,6 @@ pub fn reset_player_times(screens: &Screens, play: &Play) -> Result<(), Refused>
     for n in 0..4 {
         player_in(play, n).update(rc2k_core::menu::player::Player::reset_times);
     }
-    screens.event.event_goes_on.set(0u32);
+    screens.event.write().event_goes_on = 0u32;
     Ok(())
 }

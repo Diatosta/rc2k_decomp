@@ -40,14 +40,14 @@ pub(super) fn number_all(
     table: Which,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<Numbered, Refused> {
-    let grouped = screens.state.menus.class_mode.get() == 2;
+    let grouped = screens.state.read().menus.class_mode == 2;
     let numbering = Numbering::All { grouped };
     let numbered = match table {
         Which::A => number_table(play, tables, table, numbering, |p| &mut p.number_all_a)?,
         Which::B => number_table(play, tables, table, numbering, |p| &mut p.number_all_b)?,
     };
     if table == Which::A {
-        screens.event.standings_count.set(numbered.last_number);
+        screens.event.write().standings_count = numbered.last_number;
     }
     Ok(numbered)
 }

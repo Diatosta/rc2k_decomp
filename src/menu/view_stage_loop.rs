@@ -25,14 +25,10 @@ fn before(screens: &Screens) -> Result<(), Refused> {
         .stage_view_kept
         .lock()
         .expect("the kept stack's lock");
-    stack.push(screens.event.section.get());
-    stack.push(screens.event.stage_in_section.get());
+    stack.push(screens.event.read().section);
+    stack.push(screens.event.read().stage_in_section);
     drop(stack);
-    screens
-        .event
-        .stage
-        .first_on_page
-        .set(screens.event.stage_in_section.get());
+    screens.event.write().stage.first_on_page = screens.event.read().stage_in_section;
 
     Ok(())
 }
@@ -40,17 +36,17 @@ fn before(screens: &Screens) -> Result<(), Refused> {
 fn after_lists(menus: &Menus, system: &System) -> Result<(), Refused> {
     crate::menu::stage_view_steps::count_stage_pages(&menus.screens, system)?;
     crate::menu::stage_view_steps::style_stage_item(menus, true)?;
-    if menus.screens.event.stage.pages.get() == 0x0 {
+    if menus.screens.event.read().stage.pages == 0x0 {
         crate::menu::stage_view_steps::style_stage_item(menus, false)?;
     }
-    menus.play.champ_view.stage_mode.set(0x3u32);
+    menus.play.champ_view.write().stage_mode = 0x3u32;
     Ok(())
 }
 
 fn after(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    screens.event.stage_in_section.set(take_kept(screens));
-    screens.event.section.set(take_kept(screens));
+    screens.event.write().stage_in_section = take_kept(screens);
+    screens.event.write().section = take_kept(screens);
     Callee::StopStream.run(entry)?;
     Ok(())
 }

@@ -3,7 +3,7 @@
 //! drawing the map again.
 
 use crate::errors::{FatalError, Refused};
-use crate::memory::session::PlainDword;
+use crate::menu::event_store::{EventState, EventWord};
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::screens::draw_stage_records::selection_in;
@@ -28,7 +28,7 @@ pub(super) fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
     use crate::gfx::load_picture_with_overlay::load_picture_with_overlay_in;
     use crate::gfx::picture_as_surface::picture_as_surface;
     let stages = &system.records().stage_tables;
-    let mode: u32 = menus.play.champ_view.stage_mode.get();
+    let mode: u32 = menus.play.champ_view.read().stage_mode;
     let record = match mode {
         2 => {
             let table: u32 = menus.play.arcade.read().level;
@@ -41,8 +41,8 @@ pub(super) fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
         3 => crate::records::find_record::find_record_in(
             stages,
             stages.championship(),
-            menus.screens.event.stage_in_section.get() as i32,
-            menus.screens.event.section.get(),
+            menus.screens.event.read().stage_in_section as i32,
+            menus.screens.event.read().section,
         )?,
         _ => {
             let s = selection_in(menus, system)?.ok_or(crate::errors::BadInput(
@@ -51,7 +51,7 @@ pub(super) fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
             crate::records::stages_store::row(
                 stages,
                 s.table,
-                menus.screens.event.stage.number.get(),
+                menus.screens.event.read().stage.number,
             )?
         }
     };
@@ -86,21 +86,27 @@ pub type Draw<'a> = &'a mut dyn FnMut() -> Result<(), Refused>;
 /// The choice's settings (the rules are `rc2k_core::menu::steps::stage_sub` and
 /// `stage_number`): the variable stepped, then the map drawn again (`draw`). When the map
 /// refuses, the variable is put back first.
-fn step(cell: &PlainDword, next: impl Fn(u32) -> u32, draw: Draw) -> Result<(), Refused> {
-    let old = cell.get();
-    cell.set(next(old));
-    draw().inspect_err(|_| cell.set(old))
+fn step(
+    event: &EventState,
+    word: EventWord,
+    next: impl Fn(u32) -> u32,
+    draw: Draw,
+) -> Result<(), Refused> {
+    let old = word.get(event);
+    word.set(event, next(old));
+    draw().inspect_err(|_| word.set(event, old))
 }
 
 /// `menu::switch_stage_group`: the group 0 <-> 1.
 pub fn switch_stage_group(menus: &Menus, draw: Draw) -> Result<(), Refused> {
-    step(&menus.screens.event.stage.group, |g| g ^ 1, draw)
+    step(&menus.screens.event, EventWord::StageGroup, |g| g ^ 1, draw)
 }
 
 /// `menu::next_stage_sub`: 5 or more (unsigned) to 0, else on.
 pub(super) fn next_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
-        &menus.screens.event.stage.sub,
+        &menus.screens.event,
+        EventWord::StageSub,
         |s| rc2k_core::menu::steps::stage_sub(s, true),
         draw,
     )
@@ -109,7 +115,8 @@ pub(super) fn next_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refused> {
 /// `menu::previous_stage_sub`: below 1 (signed) to 5, else back.
 pub(super) fn previous_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
-        &menus.screens.event.stage.sub,
+        &menus.screens.event,
+        EventWord::StageSub,
         |s| rc2k_core::menu::steps::stage_sub(s, false),
         draw,
     )
@@ -118,7 +125,8 @@ pub(super) fn previous_stage_sub(menus: &Menus, draw: Draw) -> Result<(), Refuse
 /// `menu::next_stage_number`: 6 or more (unsigned) to 1, else on.
 pub(super) fn next_stage_number(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
-        &menus.screens.event.stage.number,
+        &menus.screens.event,
+        EventWord::StageNumber,
         |n| rc2k_core::menu::steps::stage_number(n, true),
         draw,
     )
@@ -127,7 +135,8 @@ pub(super) fn next_stage_number(menus: &Menus, draw: Draw) -> Result<(), Refused
 /// `menu::previous_stage_number`: below 2 (signed) to 6, else back one.
 pub(super) fn previous_stage_number(menus: &Menus, draw: Draw) -> Result<(), Refused> {
     step(
-        &menus.screens.event.stage.number,
+        &menus.screens.event,
+        EventWord::StageNumber,
         |n| rc2k_core::menu::steps::stage_number(n, false),
         draw,
     )

@@ -48,8 +48,8 @@ pub fn draw_championship_table(
     // first (a position not in the history is a fatal error, raised before the rows rather than
     // after those before it).
     let (class, first) = (
-        menus.screens.event.shown.class.get(),
-        menus.play.champ_view.rows.first_row.get(),
+        menus.screens.event.read().shown.class,
+        menus.play.champ_view.read().rows.first_row,
     );
     let mut rows = Vec::with_capacity(10);
     for n in 0..10u32 {
@@ -72,7 +72,7 @@ pub fn draw_championship_table(
             HeldText,
         >::new(canvas, o),
         first,
-        menus.play.champ_view.event_mode.get() == 0x13,
+        menus.play.champ_view.read().event_mode == 0x13,
         &rows,
     )
 }

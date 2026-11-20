@@ -24,7 +24,7 @@ pub struct Vars<'a> {
     pub count: &'a Dword,
     pub devices: &'a [Dword; 4],
     pub views: &'a [crate::memory::session::PlainDword; 2],
-    pub objects: &'a [crate::sound::store::SoundObject; 8],
+    pub objects: &'a [crate::sound::store::SoundObjectCell; 8],
     pub two_devices: &'a Dword,
     /// The race's players: the third and fourth (a larger split screen) have their cars' blocks, sound
     /// objects and devices 2 and 3.
@@ -42,7 +42,7 @@ impl<'a> Vars<'a> {
             count: &sound.threads.shared.count,
             devices: &input.devices.input_devices,
             views: &race.shared.view.get().view_blocks,
-            objects: &sound.race.sounds.get().objects,
+            objects: sound.race.objects.get(),
             two_devices: &input.devices.two_devices_one_player,
             players: race.shared.view.get().players.get(),
             car_blocks: race.car_blocks(),

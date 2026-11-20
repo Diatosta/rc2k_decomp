@@ -25,12 +25,11 @@ pub fn normalised(numbers: &Numbers, v: [u32; 3]) -> ([u32; 3], u32) {
 /// Makes `work_vector` one long (`normalised`); the length goes into `scratch`.
 pub fn normalise_work_vector(
     numbers: &Numbers,
-    scratch: &FrameScratch,
+    scratch: &mut FrameScratch,
     scene: &crate::scene::owner::Scene,
 ) {
-    let v = crate::memory::session::read_first(&scratch.work_vector);
-    let (v, length) = normalised(numbers, v);
-    crate::memory::session::write_first(&scratch.work_vector, &v);
+    let (v, length) = normalised(numbers, scratch.work_vector);
+    scratch.work_vector = v;
     scene.draw_work_mut().scratch = length;
 }
 
@@ -163,7 +162,7 @@ fn face_normals(
 pub(super) fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let count: u32 = race.course.course.get().course_face_count.get();
     rc2k_core::race::faces::check_face_count(count)?;
-    let work_vector = crate::memory::session::read_first(&race.frame.scratch().work_vector);
+    let work_vector = race.frame.scratch().work_vector;
     let normals = face_normals(race, &scene.scratch, work_vector)?;
     for made in &normals.faces {
         crate::race::course_places::update_face_number(&race.course, made.face, |f| {
@@ -186,7 +185,7 @@ pub(super) fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     if let Some(plane_work) = normals.plane_work {
         crate::memory::session::write_bits(&race.physics.ground().normal_work, plane_work);
     }
-    crate::memory::session::write_first(&race.frame.scratch().work_vector, &normals.work_vector);
+    race.frame.scratch_mut().work_vector = normals.work_vector;
     if let Some(length) = normals.scratch {
         scene.draw_work_mut().scratch = length;
     }

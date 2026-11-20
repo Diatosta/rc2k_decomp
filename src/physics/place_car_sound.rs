@@ -22,7 +22,7 @@ pub(super) fn place_car_sound(
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     let so = crate::sound::store::current_object(sound, shared.work.get());
-    so.slot_b.start.set(1);
+    so.borrow_mut().slot_b.start = 1;
     let d = |a: &PlainDword, b: &PlainDword| ints_diff_80(a.get() as i32, b.get() as i32);
     let listener = crate::race::heard_cars::listener(shared, shared.car());
     let p = [
@@ -33,8 +33,8 @@ pub(super) fn place_car_sound(
     let out = rotate_point(shared.heard_turn.get().turn(matrices), p);
     let k = numbers.one_over_65536.get();
     for (n, e) in out.iter().enumerate() {
-        so.place_b[n].set(rounded_value(ext_times(*e, k)));
+        so.borrow_mut().place_b[n] = rounded_value(ext_times(*e, k));
     }
-    so.new_revs.set(1);
+    so.borrow_mut().new_revs = 1;
     Ok(())
 }

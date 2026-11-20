@@ -8,8 +8,8 @@ use crate::sound::sets_store::{
     CueLists, MenuSounds, SoundKinds, SoundRequest, SoundSets, SpotVoices, SurfaceSets,
 };
 use crate::sound::store::{
-    CarStream, RaceClock, RaceSounds, SoundOptions, SoundShared, SoundSlot, SpotKinds, StageSounds,
-    SurfaceSounds, stage_timed_slot,
+    CarStream, RaceClock, RaceSounds, SoundObject, SoundOptions, SoundShared, SoundSlot, SpotKinds,
+    StageSounds, SurfaceSounds, initial_objects, stage_timed_slot,
 };
 
 /// The race's sounds: the objects, the clock, the surface and stage constants, the sets and
@@ -18,11 +18,13 @@ use crate::sound::store::{
 /// All of it is the game thread's; what other threads read is in `SoundForThreads`.
 pub struct RaceSoundState {
     pub sounds: GameThread<RaceSounds>,
+    /// The eight race sound objects, each borrowed for a statement at a time.
+    pub objects: GameThread<[RefCell<SoundObject>; 8]>,
     pub clock: GameThread<RefCell<RaceClock>>,
     pub surface: GameThread<SurfaceSounds>,
     pub stage: GameThread<RefCell<StageSounds>>,
     /// The stage's timed sound's slot.
-    pub timed_slot: GameThread<SoundSlot>,
+    pub timed_slot: GameThread<RefCell<SoundSlot>>,
     pub spot_kinds: GameThread<SpotKinds>,
     /// The request each sound is sent with (a work area).
     pub request: GameThread<RefCell<SoundRequest>>,
@@ -39,10 +41,11 @@ impl RaceSoundState {
     pub const fn new() -> Self {
         RaceSoundState {
             sounds: GameThread::new(RaceSounds::new()),
+            objects: GameThread::new(initial_objects()),
             clock: GameThread::new(RefCell::new(RaceClock::new())),
             surface: GameThread::new(SurfaceSounds::new()),
             stage: GameThread::new(RefCell::new(StageSounds::new())),
-            timed_slot: GameThread::new(stage_timed_slot()),
+            timed_slot: GameThread::new(RefCell::new(stage_timed_slot())),
             spot_kinds: GameThread::new(SpotKinds::new()),
             request: GameThread::new(RefCell::new(SoundRequest::new())),
             cue_lists: GameThread::new(CueLists::new()),

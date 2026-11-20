@@ -31,7 +31,7 @@ fn shown(o: crate::owners::Owners<'static>, input: &Input) -> Result<Option<Show
     let menus = o.menus;
     let player = controller_page_refuses(menus, input)?;
     let controller = player.get().controller;
-    let current = menus.screens.event.current_player.get();
+    let current = menus.screens.event.read().current_player;
     let kind = crate::input::profiles::controller_kind(input, controller);
     let profile = crate::input::profiles::with_profile(input, current, controller, |p| p.clone());
     let reading = crate::input::profiles::first_reading(input).unwrap_or_default();

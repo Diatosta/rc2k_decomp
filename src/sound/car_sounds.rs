@@ -25,8 +25,8 @@ pub fn car_sounds(
     let so = crate::sound::store::SoundObject::of(sound, n)?;
     let mut request = crate::sound::turn_parts::request(sound);
     let kind = crate::sound::car_engine_state::car_engine_state(so, sound, race, system)?;
-    request.pitch_factor = so.pitch_factor.get();
-    request.volume_factor = so.volume_factor.get();
+    request.pitch_factor = so.borrow().pitch_factor;
+    request.volume_factor = so.borrow().volume_factor;
     use crate::sound::*;
     revs_sound::revs_sound(so, kind, &mut request, sound, audio)?;
     throttle_sound::throttle_sound(so, kind, &mut request, sound, audio)?;

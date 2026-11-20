@@ -50,6 +50,14 @@ enum Slot {
     ButtonY,
     /// The championship row highlighted (`loop_flags.champ_row`).
     ChampRow,
+    /// The first row's time (`state.menus.first_row_time`).
+    FirstRowTime,
+    /// The end of the rows shown (`champ_view.rows.row_end`).
+    RowEnd,
+    /// The service's penalty money (`state.driver_stats.money`).
+    Money,
+    /// The inspection's score (`state.driver_stats.score`).
+    Score,
 }
 
 impl<T: DwordLike> From<&'static T> for Slot {
@@ -602,6 +610,12 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
             Some(Slot::ButtonX) => self.menus.screens.draw_work.write().button_x = value,
             Some(Slot::ButtonY) => self.menus.screens.draw_work.write().button_y = value,
             Some(Slot::ChampRow) => self.menus.screens.loop_flags.write().champ_row = value,
+            Some(Slot::FirstRowTime) => {
+                self.menus.screens.state.write().menus.first_row_time = value;
+            }
+            Some(Slot::RowEnd) => self.menus.play.champ_view.write().rows.row_end = value,
+            Some(Slot::Money) => self.menus.screens.state.write().driver_stats.money = value,
+            Some(Slot::Score) => self.menus.screens.state.write().driver_stats.score = value,
             None => {}
         }
     }
@@ -803,11 +817,10 @@ impl GameFont for rc2k_core::screens::stage_results::Font {
 }
 
 impl GameWork for rc2k_core::screens::stage_results::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::stage_results::Work as W;
-        let screens = &menus.screens;
         match self {
-            W::FirstTime => Some((&screens.state.menus.first_row_time).into()),
+            W::FirstTime => Some(Slot::FirstRowTime),
             W::RowY => Some(Slot::ButtonX),
         }
     }
@@ -830,11 +843,11 @@ impl GameFont for rc2k_core::screens::results_pages::Font {
 }
 
 impl GameWork for rc2k_core::screens::results_pages::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::results_pages::Work as W;
         match self {
             W::Row => Some(Slot::ChampRow),
-            W::RowEnd => Some((&menus.play.champ_view.rows.row_end).into()),
+            W::RowEnd => Some(Slot::RowEnd),
         }
     }
 }
@@ -1027,11 +1040,10 @@ impl GameFont for rc2k_core::screens::service::Font {
 }
 
 impl GameWork for rc2k_core::screens::service::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::service::Work;
-        let screens = &menus.screens;
         match self {
-            Work::Penalty => Some((&screens.state.driver_stats.money).into()),
+            Work::Penalty => Some(Slot::Money),
         }
     }
 }
@@ -1070,12 +1082,9 @@ impl GameFont for rc2k_core::screens::inspection::Font {
 }
 
 impl GameWork for rc2k_core::screens::inspection::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
-        let screens = &menus.screens;
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {
-            rc2k_core::screens::inspection::Work::Status => {
-                Some((&screens.state.driver_stats.score).into())
-            }
+            rc2k_core::screens::inspection::Work::Status => Some(Slot::Score),
         }
     }
 }
@@ -1109,12 +1118,10 @@ impl GameFont for rc2k_core::screens::championship_table::Font {
 }
 
 impl GameWork for rc2k_core::screens::championship_table::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {
             rc2k_core::screens::championship_table::Work::Position => Some(Slot::ChampRow),
-            rc2k_core::screens::championship_table::Work::End => {
-                Some((&menus.play.champ_view.rows.row_end).into())
-            }
+            rc2k_core::screens::championship_table::Work::End => Some(Slot::RowEnd),
         }
     }
 }

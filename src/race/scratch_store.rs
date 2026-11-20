@@ -1,46 +1,17 @@
-//! The scratch point, work vector and kept frame: the tangent scratch, the scratch point's three
-//! floats, the work vector and its squares (`math::normalise_vector`), and the locked surface's
-//! kept pitch and pixels. The fields keep a fixed layout.
+//! The frame's work vector: three floats the contact steps and the faces' normals work in place
+//! (`race::normalise_work_vector`), kept between them as bits.
 
-use crate::memory::cells::ZeroCells;
-
-use crate::memory::session::{PlainDword, PlainFloat};
-
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// The work vector.
 pub struct FrameScratch {
-    /// The tangent's doubled number (`scene::fill_engine_tables`).
-    pub tangent_scratch: PlainDword,
-    /// The scratch point's z (`math::rotate_scratch_about_y`).
-    pub scratch_z: PlainFloat,
-    /// The scratch point's x (`math::rotate_scratch_about_y`).
-    pub scratch_x: PlainFloat,
-    /// The scratch point's y (`math::rotate_point_about_y`).
-    pub scratch_y: PlainFloat,
-    /// Three floats and a fourth (`math::normalise_vector`, `physics::wall_contacts`,
-    /// `race::norms`); taken in place.
-    pub work_vector: [PlainDword; 4],
-    /// The four floats squared (`math::normalise_vector`).
-    pub work_squares: [PlainDword; 4],
-    /// Where the debug font's last print ended
-    /// (`debug::draw::print`, a print at (0, 0) goes on from here).
-    pub debug_cursor_x: PlainDword,
-    /// Its row.
-    pub debug_cursor_y: PlainDword,
-    /// The locked surface's pitch (`scene::lock_frame`, `scene::unlock_frame`).
-    pub frame_pitch: PlainDword,
-    /// The locked surface's pixels (`scene::lock_frame`, `scene::unlock_frame`).
-    pub frame_pixels: PlainDword,
+    /// Three floats' bits (`physics::face_contact`, `physics::wall_push_back`, `race::norms`,
+    /// `drive::drive_computer_car`); taken in place.
+    pub work_vector: [u32; 3],
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-
-/// The piece, with its first values.
 impl FrameScratch {
     pub const fn new() -> Self {
         Self {
-            frame_pitch: PlainDword::new(0x640),
-            ..ZeroCells::ZERO
+            work_vector: [0; 3],
         }
     }
 }

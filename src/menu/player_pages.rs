@@ -443,7 +443,7 @@ fn details_each_frame<const N: usize>(entry: &Entry) -> Result<Flow, Refused> {
 fn redefine_keys_before<const N: usize>(menus: &Menus) -> Result<(), Refused> {
     let keys = menus.play.slots.records[N].get().keys;
     menus.keys.tables_mut().redefined_keys[..keys.len()].copy_from_slice(&keys);
-    menus.screens.event.current_player.set(N as u32);
+    menus.screens.event.write().current_player = N as u32;
     Ok(())
 }
 

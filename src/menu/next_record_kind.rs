@@ -10,8 +10,8 @@ use crate::system::owner::System;
 /// The kind.
 pub fn next_record_kind(menus: &Menus, system: &System) -> Result<u32, Refused> {
     let screens = &menus.screens;
-    let section: u32 = screens.event.section.get();
-    let index: u32 = screens.event.stage_in_section.get();
+    let section: u32 = screens.event.read().section;
+    let index: u32 = screens.event.read().stage_in_section;
     // The scan may run on past the 66 records (to `championship_end` and the event tables):
     // the tables from the championship on, in the image's order, to their end.
     let tables = &system.records().stage_tables;

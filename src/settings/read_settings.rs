@@ -66,17 +66,17 @@ macro_rules! dword {
 /// `plain!(o => o.owner.store, field)`: a field of a store that keeps plain values behind
 /// `read()` / `write()`, as a `Target`.
 macro_rules! plain {
-    ($o:ident => $store:expr; $field:ident) => {
+    ($o:ident => $store:expr; $($field:tt)+) => {
         Target::Plain {
             get: {
                 fn get($o: Owners<'static>) -> u32 {
-                    $store.read().$field
+                    $store.read().$($field)+
                 }
                 get
             },
             set: {
                 fn set($o: Owners<'static>, number: u32) {
-                    $store.write().$field = number;
+                    $store.write().$($field)+ = number;
                 }
                 set
             },
@@ -91,6 +91,15 @@ fn frame_counter_shown(o: Owners<'static>) -> u32 {
 
 fn set_frame_counter_shown(o: Owners<'static>, number: u32) {
     o.race.frame.counter_mut().show = number;
+}
+
+/// `key`: the first dword of the replay seal's key.
+fn seal_key_first(o: Owners<'static>) -> u32 {
+    o.race.replay.seal_work().key[0]
+}
+
+fn set_seal_key_first(o: Owners<'static>, number: u32) {
+    o.race.replay.seal_work_mut().key[0] = number;
 }
 
 /// `wrreplayenable`: `ViewerAndKinds.viewer_panel.untyped_tail[0]` (unaligned, in the viewer panel's tail).
@@ -209,7 +218,13 @@ const ENTRIES: [(&[u8], Target); 77] = [
         dword!(_o => crate::logfile::write_line::state::LEVEL),
     ),
     (b"nofmv", dword!(o => o.system.machine().no_fmv)),
-    (b"key", dword!(o => o.race.replay.seal_work().key[0])),
+    (
+        b"key",
+        Target::Plain {
+            get: seal_key_first,
+            set: set_seal_key_first,
+        },
+    ),
     (
         b"allsecretcars",
         plain!(o => o.menus.play.cheats; all_secret_cars),
@@ -224,7 +239,7 @@ const ENTRIES: [(&[u8], Target); 77] = [
     ),
     (
         b"sensiblesaving",
-        dword!(o => o.menus.screens.state.menus.review_kind),
+        plain!(o => o.menus.screens.state; menus.review_kind),
     ),
     (
         b"noprecipitation",
@@ -303,7 +318,7 @@ const ENTRIES: [(&[u8], Target); 77] = [
     ),
     (
         b"sparksmode",
-        dword!(o => o.menus.screens.event.sparks_mode),
+        plain!(o => o.menus.screens.event; sparks_mode),
     ),
 ];
 
@@ -347,7 +362,7 @@ mod tests {
 
     /// Where each setting's variable is: its store (a registry name) and the field in it, by
     /// path. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, &str); 64] = [
+    const PLACES: [(&str, &str, &str); 63] = [
         (
             "notaskswitch",
             "owners.system.window_loop",
@@ -419,7 +434,6 @@ mod tests {
         ),
         ("logfile", "logfile.write_line.state.LEVEL", ""),
         ("nofmv", "owners.system.machine", ".no_fmv"),
-        ("key", "owners.race.replay.seal_work", ".key[0]"),
         (
             "usesavegamekeys",
             "owners.saves.savegame_preview",

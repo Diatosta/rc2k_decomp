@@ -35,7 +35,7 @@ macro_rules! listed {
 }
 
 /// A part of a record of cells, from the field `first` on: a listed store that starts inside a
-/// record (`SealWork`'s fields past its alignment lead, the panel past its two lead bytes).
+/// record (the panel past its two lead bytes).
 /// Reads and writes go through the whole record's cells by field path.
 struct RecordFrom<T: Cells + Sync + 'static> {
     whole: &'static T,
@@ -430,18 +430,10 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.saves.files.options_kept",
             on_game(&o.saves.files.options_kept),
         ),
-        listed!(
-            "owners.race.replay.seal_key",
-            on_game(o.race.replay.seal_key()),
-        ),
         listed!("owners.sound.race.shared", &o.sound.threads.shared,),
         listed!(
             "owners.sound.race.sounds",
             on_game(o.sound.race.sounds.get()),
-        ),
-        listed!(
-            "owners.sound.race.timed_slot",
-            on_game(o.sound.race.timed_slot.get()),
         ),
         listed!("owners.input.force_feedback", &o.input.force_feedback,),
         listed!("owners.sound.menu.options", &o.sound.menu.options,),
@@ -474,14 +466,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.menus.cars.numbers", on_game(&o.menus.cars.numbers),),
         listed!("owners.menus.options", on_game(&o.menus.options),),
         listed!(
-            "owners.menus.play.champ_view",
-            on_game(&o.menus.play.champ_view),
-        ),
-        listed!(
-            "owners.menus.screens.event",
-            on_game(&o.menus.screens.event),
-        ),
-        listed!(
             "owners.system.records.stage_tables",
             on_game(&o.system.records().stage_tables),
         ),
@@ -499,11 +483,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.race.shared.tyre_change",
             on_game(o.race.shared.tyre_change()),
-        ),
-        listed!(
-            "owners.race.replay.seal_work",
-            on_game_from(o.race.replay.seal_work(), ".subkeys[0]"),
-            0x98,
         ),
         listed!(
             "owners.system.start.texts",
@@ -592,10 +571,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game_from(o.race.frame.panel_and_overlay.get(), ".panel.split_6",),
         ),
         listed!(
-            "owners.race.course.level_paths",
-            on_game(o.race.course.level_paths()),
-        ),
-        listed!(
             "owners.race.physics.ground_probe",
             on_game(o.race.physics.ground_probe.get()),
         ),
@@ -623,7 +598,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.course.numbers",
             on_game(o.race.course.numbers.get()),
         ),
-        listed!("owners.race.frame.scratch", on_game(o.race.frame.scratch()),),
         listed!(
             "owners.race.course.lists",
             on_game(o.race.course.lists.get()),
@@ -712,10 +686,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.setup.work",
             on_game(&o.race.effects.get().setup.work),
-        ),
-        listed!(
-            "owners.menus.screens.state",
-            on_game(&o.menus.screens.state),
         ),
         listed!(
             "owners.menus.screens.carousel",

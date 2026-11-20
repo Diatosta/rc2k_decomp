@@ -15,21 +15,67 @@
 
 use crate::errors::BadInput;
 use crate::memory::cells::Store;
-use crate::memory::session::DwordLike;
 use crate::menu::owner::{Menus, Play};
 
 /// The seven variables at the start, in the order they are saved.
-pub fn head(menus: &Menus) -> [&dyn DwordLike; 7] {
-    let event = menus.screens.event.save();
+#[derive(Clone, Copy)]
+pub enum Head {
+    PlayerCount,
+    StagesDone,
+    StageInSection,
+    Section,
+    EventKind,
+    EventMode,
+    ClassMode,
+}
+
+/// One of the head's variables in the menus' state.
+#[derive(Clone, Copy)]
+pub struct HeadWord<'a> {
+    menus: &'a Menus,
+    which: Head,
+}
+
+impl HeadWord<'_> {
+    pub fn get(&self) -> u32 {
+        let m = self.menus;
+        match self.which {
+            Head::PlayerCount => m.screens.event.read().player_count,
+            Head::StagesDone => m.screens.event.read().stages_done,
+            Head::StageInSection => m.screens.event.read().stage_in_section,
+            Head::Section => m.screens.event.read().section,
+            Head::EventKind => m.screens.event.read().event_kind,
+            Head::EventMode => m.play.champ_view.read().event_mode,
+            Head::ClassMode => m.screens.state.read().menus.class_mode,
+        }
+    }
+
+    pub fn set(&self, value: u32) {
+        let m = self.menus;
+        match self.which {
+            Head::PlayerCount => m.screens.event.write().player_count = value,
+            Head::StagesDone => m.screens.event.write().stages_done = value,
+            Head::StageInSection => m.screens.event.write().stage_in_section = value,
+            Head::Section => m.screens.event.write().section = value,
+            Head::EventKind => m.screens.event.write().event_kind = value,
+            Head::EventMode => m.play.champ_view.write().event_mode = value,
+            Head::ClassMode => m.screens.state.write().menus.class_mode = value,
+        }
+    }
+}
+
+/// The seven variables at the start, in the order they are saved.
+pub fn head(menus: &Menus) -> [HeadWord<'_>; 7] {
     [
-        event.player_count,
-        event.stages_done,
-        event.stage_in_section,
-        event.section,
-        event.event_kind,
-        &menus.play.champ_view.event_mode,
-        &menus.screens.state.menus.class_mode,
+        Head::PlayerCount,
+        Head::StagesDone,
+        Head::StageInSection,
+        Head::Section,
+        Head::EventKind,
+        Head::EventMode,
+        Head::ClassMode,
     ]
+    .map(|which| HeadWord { menus, which })
 }
 
 pub use rc2k_core::saves::savegame::{CAR_LEN, CARS, RECORDS_LEN};
@@ -153,7 +199,7 @@ mod tests {
         let menus = crate::test_support::own::menus();
         let buffer = &crate::test_support::own::saves().save_games.file;
         let file_before = buffer.read_at(0, LEN, "the file").unwrap();
-        let heads_before: Vec<u32> = head(menus).iter().map(|d| d.get()).collect();
+        let heads_before: Vec<u32> = head(menus).iter().map(super::HeadWord::get).collect();
         let players_before = menus
             .play
             .slots

@@ -225,7 +225,7 @@ pub(super) fn counted_players<'a>(
     screens: &Screens,
     play: &'a Play,
 ) -> Result<Vec<PlayerCell<'a>>, BadInput> {
-    let n: u32 = screens.event.player_count.get();
+    let n: u32 = screens.event.read().player_count;
     if n == 0 || n > 4 {
         return Err(BadInput("a player count of 0 or past 4"));
     }
@@ -241,8 +241,8 @@ pub(super) fn current_event(
     tables: &BestTables,
 ) -> Result<usize, BadInput> {
     let table = system.records().stage_tables.championship();
-    let section: u32 = screens.event.section.get();
-    let index: u32 = screens.event.stage_in_section.get();
+    let section: u32 = screens.event.read().section;
+    let index: u32 = screens.event.read().stage_in_section;
     if section >= 64
         || index >= 64
         || !crate::records::find_record::has_section(
@@ -321,7 +321,7 @@ pub fn enter_best(
     group: Option<u32>,
     score: fn(&rc2k_core::menu::player::Player) -> u32,
 ) -> Result<(), BadInput> {
-    let n: u32 = screens.event.current_player.get();
+    let n: u32 = screens.event.read().current_player;
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
@@ -377,7 +377,7 @@ pub(super) fn sort_table_b(
 
 /// Whether the player's part `k` (an `INSPECTED` index) is at or past its limit (signed).
 pub(super) fn past_limit(screens: &Screens, p: PlayerCell, k: u32) -> Result<bool, BadInput> {
-    let limit = screens.state.driver_stats.limits[k as usize].get() as i32;
+    let limit = screens.state.read().driver_stats.limits[k as usize] as i32;
     Ok(p.get().damage[k as usize] as i32 >= limit)
 }
 

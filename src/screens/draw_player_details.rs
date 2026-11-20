@@ -60,7 +60,7 @@ pub fn draw_player_page(
 ) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
-    let Some(cell) = crate::menu::player::player(menus, screens.event.current_player.get()) else {
+    let Some(cell) = crate::menu::player::player(menus, screens.event.read().current_player) else {
         return Err(BadInput("a player past the four").into());
     };
     let player: Player = cell.get();

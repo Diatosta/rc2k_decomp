@@ -28,8 +28,8 @@ fn rows(
         let found = rc2k_core::screens::results_pages::class_rows(
             |n| t.entries.get(n as usize).map_or(0, |e| e.head.group),
             |n| t.first_at(n as usize).is_none_or(|v| v == u32::MAX),
-            event.shown.class.get(),
-            champ.rows.count.get(),
+            event.read().shown.class,
+            champ.read().rows.count,
         );
         let rows = found.map_err(BadInput::from)?;
         Ok(rows
@@ -46,10 +46,10 @@ pub fn draw_class_ranking(
 ) -> Result<(), Refused> {
     let menus = o.menus;
     let rows = rows(&menus.play.champ_view, &menus.screens.event, tables)?;
-    let first_time = find_class_time(menus.screens.event.shown.class.get(), true, tables)?;
+    let first_time = find_class_time(menus.screens.event.read().shown.class, true, tables)?;
     // The logic is in `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};
-    let player = menus.play.champ_view.rows.ranked_player.get();
+    let player = menus.play.champ_view.read().rows.ranked_player;
     // A player's entry names the player's name (`name_id`), a driver's a string.
     let rows: Vec<RankedRow<crate::screens::game_screen::HeldText>> = rows
         .iter()

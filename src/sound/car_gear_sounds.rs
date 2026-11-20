@@ -11,35 +11,33 @@
 
 use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;
+use crate::sound::store::{GEAR_SLOT_AT, ObjectSlot, SLOT_FIVE_AT, SLOT_SIX_AT};
 
 /// The gear sounds of object `so`, through `request`.
 pub(super) fn car_gear_sounds(
-    so: &crate::sound::store::SoundObject,
+    so: &crate::sound::store::SoundObjectCell,
     request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    if so.state.get() == 3 {
+    if so.borrow().state == 3 {
         return Ok(());
     }
     // The logic is `rc2k_core::sound::engine::{place_behind, gear_pitch}` (exact at every
     // precision: one rounding each).
     use rc2k_core::sound::engine::{gear_pitch, place_behind};
-    let place = place_behind(
-        so.place
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get),
-        so.motion
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get),
-    );
-    request.place = place;
-    for slot in &so.slots[5..] {
-        crate::sound::play_timed_slot::play_timed_slot(slot, request, sound, audio)?;
+    request.place = {
+        let o = so.borrow();
+        place_behind(o.place, o.motion)
+    };
+    for at in [SLOT_FIVE_AT, SLOT_SIX_AT] {
+        let slot = ObjectSlot::new(so, at);
+        crate::sound::play_timed_slot::play_timed_slot(&slot, request, sound, audio)?;
     }
     let kept = request.pitch_factor;
-    request.pitch_factor = gear_pitch(kept, so.gear_pitch.get());
-    crate::sound::play_timed_slot::play_timed_slot(&so.gear_slot, request, sound, audio)?;
+    request.pitch_factor = gear_pitch(kept, so.borrow().gear_pitch);
+    let slot = ObjectSlot::new(so, GEAR_SLOT_AT);
+    crate::sound::play_timed_slot::play_timed_slot(&slot, request, sound, audio)?;
     request.pitch_factor = kept;
     Ok(())
 }

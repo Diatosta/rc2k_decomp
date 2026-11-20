@@ -14,7 +14,8 @@ pub fn load_background_in(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
+    let Some(player) =
+        crate::menu::player::player(menus, menus.screens.event.read().current_player)
     else {
         return Err(BadInput("no current player (or one past the four)").into());
     };

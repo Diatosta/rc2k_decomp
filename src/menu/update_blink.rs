@@ -21,8 +21,8 @@ pub use rc2k_core::menu::blink::blink_states;
 fn states_now(champ: &ChampView, entry: &EntryState, system: &System) -> (bool, bool, bool) {
     blink_states(
         system.clocks().frame.get(),
-        champ.key_clock.last_key_time.get(),
-        champ.key_clock.cursor_time.get(),
+        champ.read().key_clock.last_key_time,
+        champ.read().key_clock.cursor_time,
         entry.read().redefining_key,
     )
 }

@@ -24,9 +24,9 @@ pub(super) fn best_class_scores(
         return Err(BadInput("no best-score table").into());
     }
     for class in 0..classes {
-        menus.screens.event.trial.any_qualified.set(false);
+        menus.screens.event.write().trial.any_qualified = false;
         for (n, &p) in players.iter().enumerate() {
-            menus.screens.event.current_player.set(n as u32);
+            menus.screens.event.write().current_player = n as u32;
             let player_score = p.get().stage_points[6];
             if p.get().class == class {
                 let tenth = tenth_best_score(tables, class)?;
@@ -34,12 +34,12 @@ pub(super) fn best_class_scores(
                     enter_best(&menus.screens, &menus.play, tables, None, |p| {
                         p.stage_points[6]
                     })?;
-                    menus.screens.event.trial.any_qualified.set(true);
+                    menus.screens.event.write().trial.any_qualified = true;
                 }
             }
         }
-        if menus.screens.event.trial.any_qualified.is_set() {
-            menus.screens.event.shown.class.set(class);
+        if menus.screens.event.read().trial.any_qualified {
+            menus.screens.event.write().shown.class = class;
             run_screen(ScreenId::BestClassScores, entry)?;
             if menus.tables.pages.read().yes_no_answer == 1 {
                 break;

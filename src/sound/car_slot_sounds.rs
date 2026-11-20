@@ -8,28 +8,27 @@
 
 use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;
+use crate::sound::store::{ObjectSlot, SLOT_B_AT};
 use rc2k_core::sound::engine::{computers, placed_slots};
 
 /// The timed slots of object `so`, through `request`.
 pub fn car_slot_sounds(
-    so: &crate::sound::store::SoundObject,
+    so: &crate::sound::store::SoundObjectCell,
     request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     // The logic is `rc2k_core::sound::engine` (`computers`, `placed_slots`).
-    if computers(so.sound_offset.get()) {
+    if computers(so.borrow().sound_offset) {
         return Ok(());
     }
-    let place = |request: &mut SoundRequest, from: &[crate::memory::session::PlainFloat; 3]| {
-        for (to, from) in request.place.iter_mut().zip(from) {
-            *to = from.get();
-        }
-    };
-    place(request, &so.place);
-    for at in placed_slots(so.view_flag.get() == 0) {
-        crate::sound::play_timed_slot::play_timed_slot(so.slot_at(at), request, sound, audio)?;
+    request.place = so.borrow().place;
+    let view_flag = so.borrow().view_flag;
+    for at in placed_slots(view_flag == 0) {
+        let slot = ObjectSlot::new(so, at);
+        crate::sound::play_timed_slot::play_timed_slot(&slot, request, sound, audio)?;
     }
-    place(request, &so.place_b);
-    crate::sound::play_timed_slot::play_timed_slot(&so.slot_b, request, sound, audio)
+    request.place = so.borrow().place_b;
+    let slot = ObjectSlot::new(so, SLOT_B_AT);
+    crate::sound::play_timed_slot::play_timed_slot(&slot, request, sound, audio)
 }

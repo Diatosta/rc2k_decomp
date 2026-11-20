@@ -65,11 +65,7 @@ pub(super) fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), 
     )?;
     // Every table is typed now (`saves::best_times`): none is copied; the summary's
     // variable says it is there, for the race's rivals.
-    menus
-        .play
-        .champ_view
-        .summary
-        .set(u32::from(saves.best_tables.summary.is_taken()));
+    menus.play.champ_view.write().summary = u32::from(saves.best_tables.summary.is_taken());
     if best_times.loaded.get() != 1 {
         default_best_scores::default_best_scores(
             crate::strings::append_string_by_id::StringOwners::of(o),

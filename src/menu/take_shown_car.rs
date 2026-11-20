@@ -11,11 +11,11 @@ use crate::menu::player::{PLAYERS, player};
 
 pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refused> {
     let list = list.ok_or(BadInput("no list of cars"))?;
-    let current: u32 = menus.screens.event.current_player.get();
+    let current: u32 = menus.screens.event.read().current_player;
     if current >= PLAYERS {
         return Err(BadInput("a current player past the four").into());
     }
-    let shown: u32 = menus.screens.event.shown.car.get();
+    let shown: u32 = menus.screens.event.read().shown.car;
     {
         let entry = menus
             .lists

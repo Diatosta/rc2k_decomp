@@ -26,18 +26,14 @@ pub(super) fn previous_save_page(tables: &Tables) {
 
 /// The steering (page 3) or brake (page 4) box.
 pub(super) fn open_service_box(screens: &Screens, page: u32) {
-    screens
-        .state
-        .service_ui
-        .box_shown
-        .set(!screens.state.service_ui.box_shown.is_set());
-    screens.state.service_ui.box_page.set(page);
+    screens.state.write().service_ui.box_shown = !screens.state.read().service_ui.box_shown;
+    screens.state.write().service_ui.box_page = page;
 }
 
 /// `menu::view_stage_details`: the stage information screen.
 pub fn view_stage_details(screens: &Screens, entry: &Entry) -> Result<(), Refused> {
     let time_trial =
-        rc2k_core::menu::stage_screens::time_trial_details(screens.event.event_type.get());
+        rc2k_core::menu::stage_screens::time_trial_details(screens.event.read().event_type);
     if time_trial {
         run_screen(ScreenId::TimeTrialStageDetails, entry)?;
     } else {

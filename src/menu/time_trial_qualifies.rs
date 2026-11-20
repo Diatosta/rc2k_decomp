@@ -17,12 +17,12 @@ pub fn time_trial_qualifies(
     stage_times(menus, system, tables)?;
     let p = current_player(menus)?;
     let event = &menus.screens.event;
-    set(&event.trial.qualifies, 0);
+    event.write().trial.qualifies = 0;
     let time = p.get().time;
     let best = with_stage_times(menus, system, tables, |ten| ten[9].head.key)?;
     if rc2k_core::menu::bests::makes_time(time, best) {
-        set(&event.trial.qualifies, 1);
-        event.trial.any_qualified.set(true);
+        event.write().trial.qualifies = 1;
+        event.write().trial.any_qualified = true;
     }
     Ok(())
 }

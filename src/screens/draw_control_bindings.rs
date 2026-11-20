@@ -39,7 +39,7 @@ fn binding_picture(
     rc2k_core::input::icons::Icon,
 )> {
     use rc2k_core::input::profile::{Shown, shown_for};
-    let current = o.menus.screens.event.current_player.get();
+    let current = o.menus.screens.event.read().current_player;
     let controller = player.get().controller;
     let (pictures, _) = crate::input::profiles::pictures(o.input, current, controller)?;
     let shown = crate::input::profiles::with_profile(o.input, current, controller, |p| {
@@ -72,7 +72,7 @@ pub fn binding_text(
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<Vec<u8>, Refused> {
     use rc2k_core::input::profile::{HatDirection, Kind, Shown, shown_for};
-    let current = o.menus.screens.event.current_player.get();
+    let current = o.menus.screens.event.read().current_player;
     let controller = player.get().controller;
     let sdl_kind = crate::input::profiles::controller_kind(o.input, controller).map(|(k, _)| k);
     let (profile_shown, kind) = if controller == 0 {
@@ -132,7 +132,8 @@ pub fn draw_control_bindings(
 ) -> Result<bool, Refused> {
     let menus = o.menus;
     let controls = &menus.screens.controls;
-    let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
+    let Some(player) =
+        crate::menu::player::player(menus, menus.screens.event.read().current_player)
     else {
         return Err(BadInput("no current player").into());
     };

@@ -72,13 +72,13 @@ fn normalised(
     from: &[PlainFloat],
     to: &[PlainFloat],
 ) {
-    let w = &race.frame.scratch().work_vector;
+    let mut scratch = race.frame.scratch_mut();
     for k in 0..3 {
-        w[k].set(from[k].get().to_bits());
+        scratch.work_vector[k] = from[k].get().to_bits();
     }
-    normalise_work_vector(race.course.numbers.get(), race.frame.scratch(), scene);
+    normalise_work_vector(race.course.numbers.get(), &mut scratch, scene);
     for k in 0..3 {
-        to[k].set(f32::from_bits(w[k].get()));
+        to[k].set(f32::from_bits(scratch.work_vector[k]));
     }
 }
 

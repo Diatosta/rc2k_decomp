@@ -45,7 +45,7 @@ pub fn award_stage_points(
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
     let classes = crate::menu::event_store::CLASSES;
-    let section: u32 = screens.event.section.get();
+    let section: u32 = screens.event.read().section;
     if section > 5 {
         return Err(BadInput("a section past 5").into());
     }
@@ -58,7 +58,7 @@ pub fn award_stage_points(
     for class in 0..classes {
         let mut points = Points::default();
         for (e, o) in all.iter_mut().zip(&owners) {
-            screens.event.shown.class.set(class);
+            screens.event.write().shown.class = class;
             if e.group != class {
                 continue;
             }

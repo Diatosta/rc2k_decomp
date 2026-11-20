@@ -22,12 +22,12 @@ pub(super) fn step_rows(
     let count = if of_90 {
         0x5A
     } else {
-        event.standings_count.get()
+        event.read().standings_count
     };
     let _last = count.wrapping_sub(9);
-    let row: u32 = champ.rows.first_row.get();
+    let row: u32 = champ.read().rows.first_row;
     let row = rc2k_core::menu::steps::rows(row, count, on);
-    champ.rows.first_row.set(row);
+    champ.write().rows.first_row = row;
     crate::menu::stage_range_caption::stage_range_caption(champ, text_buffers)?;
     Ok(())
 }

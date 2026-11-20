@@ -64,7 +64,7 @@ pub(super) fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;
     // Logic in `rc2k_core::race::seal::seal_time`.
     {
-        let key = replay.seal_key().get();
+        let key = replay.seal_key();
         let sealed = rc2k_core::race::seal::seal_time(
             race.car_blocks().cars[0].stop_state.get(),
             || race.car_blocks().cars[0].stage_time.get(),

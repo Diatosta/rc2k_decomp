@@ -37,7 +37,7 @@ pub fn draw_service_stage_info(
         TITLE_Y,
     )?;
     let (record, _) = event_stage(screens, system)?;
-    if menus.play.champ_view.event_mode.get() == 2 && menus.screens.event.stage.pages.get() == 0 {
+    if menus.play.champ_view.read().event_mode == 2 && menus.screens.event.read().stage.pages == 0 {
         draw_stage_heading(o, record, canvas)?;
     }
     build_second_heading(o, record)?;

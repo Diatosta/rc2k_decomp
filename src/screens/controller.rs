@@ -23,7 +23,7 @@ pub fn learn_axis(
     if controls.learning.get() != 1 {
         return Ok(());
     }
-    let Some(player) = crate::menu::player::player(menus, screens.event.current_player.get())
+    let Some(player) = crate::menu::player::player(menus, screens.event.read().current_player)
     else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
@@ -75,7 +75,7 @@ pub fn learn_axis(
     let Some((kind, axes)) = crate::input::profiles::controller_kind(input, controller) else {
         return Ok(());
     };
-    let current = screens.event.current_player.get();
+    let current = screens.event.read().current_player;
     let mut now = now;
     let mut found = None;
     if kind == rc2k_core::input::profile::Kind::Pad {
@@ -166,7 +166,8 @@ pub(super) fn controller_page_refuses<'m>(
     menus: &'m Menus,
     input: &Input,
 ) -> Result<crate::menu::standings::PlayerCell<'m>, Refused> {
-    let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
+    let Some(player) =
+        crate::menu::player::player(menus, menus.screens.event.read().current_player)
     else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
@@ -210,7 +211,7 @@ pub fn draw_controller_page(
         has_strength: entry.force_feedback.get() == 1,
         mode: crate::input::profiles::with_profile(
             input,
-            menus.screens.event.current_player.get(),
+            menus.screens.event.read().current_player,
             device,
             |profile| u32::from(profile.shifter),
         )
@@ -219,14 +220,14 @@ pub fn draw_controller_page(
         icons: rc2k_core::strings::own::id::ICON_STYLES
             + crate::input::profiles::with_profile(
                 input,
-                menus.screens.event.current_player.get(),
+                menus.screens.event.read().current_player,
                 device,
                 |profile| profile.button_icons.place() as u32,
             )
             .unwrap_or(0),
         engine_vibration: crate::input::profiles::with_profile(
             input,
-            menus.screens.event.current_player.get(),
+            menus.screens.event.read().current_player,
             device,
             |profile| profile.engine_vibration,
         )

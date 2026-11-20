@@ -25,7 +25,7 @@ use crate::system::owner::System;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
-    menus.screens.event.event_over.set(false);
+    menus.screens.event.write().event_over = false;
     // menu::load_background (whether it failed is not looked at)
     Callee::LoadBackground(|m| &m.texts.main_menu_picture).run(entry)?;
     entry.front_end.window.view_offset[0].set(7u32);
@@ -55,10 +55,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 /// The loop has just set the set-up time to the frame clock.
 fn before_first_frame(menus: &Menus, system: &System) -> Result<(), Refused> {
     let play = &menus.play;
-    play.champ_view
-        .key_clock
-        .last_key_time
-        .set(system.clocks().setup_time.get());
+    play.champ_view.write().key_clock.last_key_time = system.clocks().setup_time.get();
     play.cheats.write().notice_due = 1u32;
 
     Ok(())
@@ -83,7 +80,7 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
     menus.screens.loop_flags.write().idle = false;
     update_blink(menus, system);
     let now = system.clocks().frame.get();
-    menus.play.champ_view.key_clock.last_key_time.set(now);
+    menus.play.champ_view.write().key_clock.last_key_time = now;
     system.clocks().setup_time.set(now);
     Ok(Flow::SetUp)
 }

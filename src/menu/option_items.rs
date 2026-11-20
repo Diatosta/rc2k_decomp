@@ -260,11 +260,11 @@ pub fn switch(o: Owners<'static>, which: OptionSwitch) -> Result<(), Refused> {
     let (var, kind) = match which {
         OptionSwitch::RaceMusicOn => (var!(@o sound.menu.options.race_music_on), Kind::Switch),
         OptionSwitch::StageRecordsSet => (
-            var!(@o menus.play.champ_view.switches.records_set),
+            var!(@plain menus.play.champ_view; switches.records_set),
             Kind::Switch,
         ),
         OptionSwitch::StageRecordsAlt => (
-            var!(@o menus.play.champ_view.switches.records_alt),
+            var!(@plain menus.play.champ_view; switches.records_alt),
             Kind::Switch,
         ),
         OptionSwitch::Mipmapping => (
@@ -318,8 +318,8 @@ pub(super) fn stage_counter(
     up: bool,
 ) -> Result<(), Refused> {
     let (var, low, high) = match which {
-        StageCounter::Group => (var!(@o menus.play.champ_view.shown_stage.group), 0, 5),
-        StageCounter::InGroup => (var!(@o menus.play.champ_view.shown_stage.number), 1, 6),
+        StageCounter::Group => (var!(@plain menus.play.champ_view; shown_stage.group), 0, 5),
+        StageCounter::InGroup => (var!(@plain menus.play.champ_view; shown_stage.number), 1, 6),
     };
     option_item(
         o,

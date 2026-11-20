@@ -78,7 +78,7 @@ pub fn draw_service_area(
     };
     let title = area_title(
         &string(AREA_TITLE.0),
-        screens.event.current_player.get(),
+        screens.event.read().current_player,
         &string(AREA_TITLE.1),
     );
     fault.check()?;

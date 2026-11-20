@@ -126,7 +126,7 @@ pub(super) fn chosen_frame(
     let screens = &o.menus.screens;
     let blinking = screens.draw_work.read().blink;
     let wanted =
-        if screens.state.service_ui.box_shown.is_set() && screens.loop_flags.read().item == item {
+        if screens.state.read().service_ui.box_shown && screens.loop_flags.read().item == item {
             blinking
         } else {
             setup.installed.get() != setup.chosen.get() || flag.get() == 1

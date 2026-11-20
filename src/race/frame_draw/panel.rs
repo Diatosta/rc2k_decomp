@@ -525,6 +525,7 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
     let current: u32 = shared.work.get().current_car.get();
     // The plan: (block slot to set, whether to wake the object) by car.
     let mut plan: Vec<&dyn crate::memory::session::DwordLike> = Vec::new();
+    let mut woken: Vec<&crate::sound::store::SoundObjectCell> = Vec::new();
     for car in 0..cars {
         let object = crate::sound::store::SoundObject::of(sound, car & 7)?;
         let mut wake = false;
@@ -554,12 +555,16 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
             }
         }
         if wake {
-            plan.push(&object.slot_c.start);
-            plan.push(&object.new_revs);
+            woken.push(object);
         }
     }
     for cell in plan {
         cell.set(1);
+    }
+    for object in woken {
+        let mut object = object.borrow_mut();
+        object.slot_c.start = 1;
+        object.new_revs = 1;
     }
     Ok(())
 }

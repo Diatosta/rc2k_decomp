@@ -3,7 +3,7 @@
 
 use crate::drive::finish_store::Finish;
 use crate::drive::replay_frames_store::ReplayFrames;
-use crate::memory::session::{GameThread, PlainBytes, PlainDword, with_runs};
+use crate::memory::session::{GameThread, PlainBytes, with_runs};
 use crate::race::groups_store::ViewerAndKinds;
 use crate::race::replay_path::LAST_RACE_LEN;
 use crate::race::replay_staging_store::ReplayStaging;
@@ -11,7 +11,7 @@ use crate::race::replay_v2_store::ReplayV2;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::seal_store::SealWork;
 use crate::race::viewer_state_store::ReplayViewBlock;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 
 /// The race's replay state.
 pub struct Replay {
@@ -38,8 +38,9 @@ struct ReplayMain {
     staging: ReplayStaging,
     replay_view: ReplayViewBlock,
     snapshot: PlainBytes<26>,
-    seal_key: PlainDword,
-    seal_work: SealWork,
+    /// The replay header's checksum, kept as the key the stage time is sealed with.
+    seal_key: Cell<u32>,
+    seal_work: RefCell<SealWork>,
     v2: ReplayV2,
 }
 
@@ -58,8 +59,8 @@ impl Replay {
                 staging: ReplayStaging::new(),
                 replay_view: ReplayViewBlock::new(),
                 snapshot: PlainBytes::new(*b"savedata\\snapshot\\000.png\0"),
-                seal_key: PlainDword::new(0),
-                seal_work: SealWork::new(),
+                seal_key: Cell::new(0),
+                seal_work: RefCell::new(SealWork::new()),
                 v2: ReplayV2::new(),
             }),
         }
@@ -108,12 +109,23 @@ impl Replay {
         &self.main.get().snapshot
     }
 
-    pub fn seal_key(&self) -> &PlainDword {
-        &self.main.get().seal_key
+    /// The key the stage time is sealed with.
+    pub fn seal_key(&self) -> u32 {
+        self.main.get().seal_key.get()
     }
 
-    pub fn seal_work(&self) -> &SealWork {
-        &self.main.get().seal_work
+    pub fn set_seal_key(&self, key: u32) {
+        self.main.get().seal_key.set(key);
+    }
+
+    /// The seal cipher's work, read.
+    pub fn seal_work(&self) -> Ref<'_, SealWork> {
+        self.main.get().seal_work.borrow()
+    }
+
+    /// The seal cipher's work, to write: no other borrow may be held.
+    pub fn seal_work_mut(&self) -> RefMut<'_, SealWork> {
+        self.main.get().seal_work.borrow_mut()
     }
 
     /// The own-format replay's cars and tail (`race::replay_v2_store`).

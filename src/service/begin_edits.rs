@@ -30,16 +30,12 @@ pub fn begin_edit(menus: &Menus, e: Edit) -> Result<(), Refused> {
         repair_flag_in(&menus.service, item),
         menus.service.repair_time.get() as i32,
         menus.service.repair_times[12 + e.setup].get() as i32,
-        screens.event.service.minutes.get() as i32,
+        screens.event.read().service.minutes as i32,
     ) {
         let item = &setup_item(&menus.service, e.setup);
         item.start.set(item.chosen.get());
-        screens
-            .state
-            .service_ui
-            .box_shown
-            .set(!screens.state.service_ui.box_shown.is_set());
-        screens.state.service_ui.box_page.set(e.page);
+        screens.state.write().service_ui.box_shown = !screens.state.read().service_ui.box_shown;
+        screens.state.write().service_ui.box_page = e.page;
     }
 
     Ok(())

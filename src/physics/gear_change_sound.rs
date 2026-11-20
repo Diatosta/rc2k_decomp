@@ -15,15 +15,15 @@ use rc2k_core::physics::gearbox::{GearChange, gear_change};
 /// On the current car's sound object and the word at this place.
 // Core: `rc2k_core::physics::gearbox::gear_change`.
 fn gear_change_sound_at(
-    o: &crate::sound::store::SoundObject,
+    o: &crate::sound::store::SoundObjectCell,
     word: &PlainInt,
 ) -> Result<(), Refused> {
     if let Some(change) = gear_change(word.get()) {
         match change {
-            GearChange::Up => o.slots[2].start.set(1),
-            GearChange::Down => o.slots[3].start.set(1),
+            GearChange::Up => o.borrow_mut().slots[2].start = 1,
+            GearChange::Down => o.borrow_mut().slots[3].start = 1,
         }
-        o.new_revs.set(1);
+        o.borrow_mut().new_revs = 1;
     }
     Ok(())
 }

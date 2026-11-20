@@ -8,20 +8,19 @@
 
 use crate::errors::Refused;
 use crate::math::x87_float::{X, ld, st, stf};
-use crate::memory::session::PlainFloat;
 use crate::sound::sets_store::{SoundRequest, SoundSet};
-use crate::sound::store::{SoundObject, SurfaceSounds};
+use crate::sound::store::{SoundObjectCell, SurfaceSounds};
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
 
 /// The engine's sound for object `so` of sound kind number `kind`, through `request`.
 pub fn revs_sound(
-    so: &SoundObject,
+    so: &SoundObjectCell,
     kind: u32,
     request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    let object = so.sound_offset.get();
+    let object = so.borrow().sound_offset;
     let set = if computers(object) {
         sound.race.kinds.get().computers_set()
     } else {
@@ -31,7 +30,7 @@ pub fn revs_sound(
     send_engine_sound(
         so,
         &set,
-        &so.revs_input,
+        so.borrow().revs_input,
         EnginePlace::Ahead,
         request,
         sound,
@@ -53,15 +52,15 @@ pub(super) enum EnginePlace {
 /// stops the sound when the engine is stopped; else fills the request (pitch from the revs,
 /// volume from `volume_input`) and plays it.
 pub(super) fn send_engine_sound(
-    so: &SoundObject,
+    so: &SoundObjectCell,
     set: &SoundSet,
-    volume_input: &PlainFloat,
+    volume_input: f32,
     side: EnginePlace,
     request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    if revs_stopped(so.state.get()) {
+    if revs_stopped(so.borrow().state) {
         return crate::sound::turn_parts::stop(request, audio);
     }
     fill_request(
@@ -77,9 +76,9 @@ pub(super) fn send_engine_sound(
 
 /// The request's pitch, volume and place for the engine sound.
 pub(super) fn fill_request(
-    so: &SoundObject,
+    so: &SoundObjectCell,
     set: &SoundSet,
-    volume_input: &PlainFloat,
+    volume_input: f32,
     side: EnginePlace,
     surface: &SurfaceSounds,
     request: &mut SoundRequest,
@@ -87,15 +86,15 @@ pub(super) fn fill_request(
     fill_pitch_and_volume(
         so,
         set,
-        &so.revs_input,
+        so.borrow().revs_input,
         volume_input,
         surface.constants.revs_gain,
         request,
     );
-    for n in 0..3 {
-        let place = ld(so.place[n].get());
-        let motion = ld(so.motion[n].get());
-        request.place[n] = stf(match side {
+    for (n, to) in request.place.iter_mut().enumerate() {
+        let place = ld(so.borrow().place[n]);
+        let motion = ld(so.borrow().motion[n]);
+        *to = stf(match side {
             EnginePlace::Ahead => place + motion,
             EnginePlace::Behind => place - motion,
         });
@@ -107,16 +106,16 @@ pub(super) fn fill_request(
 /// rounded to 32 bits as the x87 does. Shared by the car's engine sounds (`sound::speed_sound`
 /// too).
 pub(super) fn fill_pitch_and_volume(
-    so: &SoundObject,
+    so: &SoundObjectCell,
     set: &SoundSet,
-    pitch_input: &PlainFloat,
-    volume_input: &PlainFloat,
+    pitch_input: f32,
+    volume_input: f32,
     gain: f32,
     request: &mut SoundRequest,
 ) {
     request.pitch = st(linear(pitch_input, set.pitch_scale, set.pitch_low));
     let volume = linear(volume_input, set.volume_scale, set.volume_low);
-    if so.view_flag.get() == 0 {
+    if so.borrow().view_flag == 0 {
         // On the road the surface's gain scales the volume, before it is rounded.
         request.volume = st(volume * ld(gain));
     } else {
@@ -125,16 +124,17 @@ pub(super) fn fill_pitch_and_volume(
 }
 
 /// `input * slope + start`, left on the x87 stack unrounded.
-fn linear(input: &PlainFloat, slope: u32, start: u32) -> X {
-    ld(input.get()) * ld(slope) + ld(start)
+fn linear(input: f32, slope: u32, start: u32) -> X {
+    ld(input) * ld(slope) + ld(start)
 }
 
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
     use crate::math::x87_mem::view;
-    use crate::sound::asm_layout::{Laid, SURFACE_EXTENT, with_laid, with_request, with_surface};
-    use crate::sound::store::SoundObject;
+    use crate::sound::asm_layout::{
+        OBJECT_EXTENT, SURFACE_EXTENT, with_object, with_request, with_surface,
+    };
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     // The blocks: the pitch, the volume (on the road: times the surface's gain), the place.
@@ -144,7 +144,7 @@ mod reference_vectors {
                 name: "revs_sound, view flag 1",
                 operands: vec![
                     Operand::Sized {
-                        len: SoundObject::EXTENT,
+                        len: OBJECT_EXTENT,
                         reads: &[
                             (0xc, In::I),
                             (0x2c, In::F),
@@ -174,14 +174,14 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    with_laid::<SoundObject, _>(a[0], |bx| {
+                    with_object(a[0], |bx| {
                         let set = view::<SoundSet>(a[1], 0);
-                        bx.view_flag.set(1);
+                        bx.borrow_mut().view_flag = 1;
                         with_request(a[2], |request| {
                             fill_request(
                                 bx,
                                 set,
-                                &bx.revs_input,
+                                bx.borrow().revs_input,
                                 EnginePlace::Ahead,
                                 crate::test_support::own::sound().race.surface.get(),
                                 request,
@@ -194,7 +194,7 @@ mod reference_vectors {
                 name: "revs_sound, view flag 0",
                 operands: vec![
                     Operand::Sized {
-                        len: SoundObject::EXTENT,
+                        len: OBJECT_EXTENT,
                         reads: &[
                             (0xc, In::I),
                             (0x2c, In::F),
@@ -229,15 +229,15 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    with_laid::<SoundObject, _>(a[0], |bx| {
+                    with_object(a[0], |bx| {
                         with_surface(a[2], |sf| {
                             let set = view::<SoundSet>(a[1], 0);
-                            bx.view_flag.set(0);
+                            bx.borrow_mut().view_flag = 0;
                             with_request(a[3], |request| {
                                 fill_request(
                                     bx,
                                     set,
-                                    &bx.revs_input,
+                                    bx.borrow().revs_input,
                                     EnginePlace::Ahead,
                                     sf,
                                     request,
