@@ -1,16 +1,11 @@
 //! The installer (`install::run_installer` and its tree): the variables its parts share, the calls
 //! they make and the functions its page tables hold.
 //!
-//! The installer runs only with its script set up (`-u`, or the update disc:
-//! `install::check_at_start`). Its pages are list menus
-//! (`install::run_page`): a list of 0x18 bytes (flags, item count, title, the item
-//! chosen) and its items of 0x10 bytes after it (kind and marks, the answer the item
-//! leaves the page with or the choices, the text, then the target and data words: the kind's
-//! links and actions). `install::run_pages` goes from page to page by the answer. The actions the items
-//! hold are run by `item_action_at`, `text_action` and `draw_action`.
+//! The installer runs only with its script set up (`-u`:
+//! `install::check_at_start`). Its pages are `rc2k_core::install::model` pages
+//! (`install::run_page`); `install::run_pages` goes from page to page by the answer.
 
-use crate::errors::{BadInput, FatalError, Refused};
-use crate::memory::list_handle::ListMenu;
+use crate::errors::{FatalError, Refused};
 use crate::memory::place::BytePlace;
 
 /// The installer's constant texts.
@@ -49,11 +44,6 @@ pub(super) fn set_full_installation() {
     crate::files::state::MEDIA_MODE.set(FULL_INSTALLATION);
 }
 
-/// A link item's action (the item's target word): the no-room page's "go on anyway".
-pub(super) const GO_ON_ANYWAY: u32 = 1;
-/// A text item's action (the item's data word): the text's line is ended.
-pub(super) const END_TEXT_LINE: u32 = 1;
-
 // The installer's other variables (the update switch, the remove-items switch, the install.bun
 // flag, the room by installation, the list variables, the third page's action, the file
 // search record and its skip mask) are in `install::vars`.
@@ -87,15 +77,6 @@ pub(super) fn rw(at: impl Into<BytePlace>) -> u16 {
     u16::from_le_bytes([b[0], b[1]])
 }
 
-#[track_caller]
-pub fn rd(at: impl Into<BytePlace>) -> u32 {
-    let b = at
-        .into()
-        .read(4, "an installer dword")
-        .unwrap_or_else(|e| refuse(e));
-    u32::from_le_bytes([b[0], b[1], b[2], b[3]])
-}
-
 pub fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }
@@ -106,13 +87,6 @@ pub fn text_at(place: impl Into<BytePlace>) -> Vec<u8> {
         .into()
         .text("an installer text")
         .unwrap_or_else(|e| refuse(e))
-}
-
-/// The text at `place` with its NUL, as the text drawers and measurers read it (to its NUL).
-pub(super) fn text_with_nul(place: impl Into<BytePlace>) -> Vec<u8> {
-    let mut text = text_at(place);
-    text.push(0);
-    text
 }
 
 /// `bytes`, the whole text a builder made (its NULs too), written at `at`.
@@ -371,25 +345,6 @@ pub fn list_take_key(
     Ok(crate::menu::list_take_key::list_take_key(list_state, input))
 }
 
-/// `key` moving the highlight of `list` by the neighbours table `table`; whether it moved.
-pub fn list_step(
-    list_state: &crate::menu::list_state::ListState,
-    key: u32,
-    table: Option<crate::memory::place::BytePlace>,
-    list: ListMenu,
-) -> Result<bool, crate::errors::BadInput> {
-    crate::menu::list_step::list_step(list_state, key as u8, table, list)
-}
-
-pub fn list_clear_marks(install: &'static crate::install::owner::Install, list: ListMenu) {
-    crate::menu::list_clear_marks::list_clear_marks(Some(install), list);
-}
-
-/// Whether the highlighted item cannot be chosen.
-pub fn list_item_unusable(list_state: &crate::menu::list_state::ListState, list: ListMenu) -> bool {
-    crate::menu::list_item_unusable::list_item_unusable(list_state, list)
-}
-
 /// How the install or uninstall ended, logged.
 pub fn logged<T>(what: &str, done: Result<T, Refused>) -> Result<T, Refused> {
     crate::program_log::log(&format!(
@@ -397,37 +352,4 @@ pub fn logged<T>(what: &str, done: Result<T, Refused>) -> Result<T, Refused> {
         done.as_ref().map(|_| ())
     ));
     done
-}
-
-/// A link's or an action item's action (the target word). The items hold only the not-enough-room page's
-/// "go on anyway".
-pub(super) fn item_action_at(
-    install: &crate::install::owner::Install,
-    list_state: &crate::menu::list_state::ListState,
-    place: u32,
-) -> Result<bool, Refused> {
-    match place {
-        GO_ON_ANYWAY => {
-            crate::install::room_page::ignore_room(install, list_state);
-            Ok(true)
-        }
-        _ => Err(BadInput("an item action that is not one of the installer's").into()),
-    }
-}
-
-/// A text item's action (the data word), given the target word: more text at `cursor`; the cursor after. The
-/// game's items hold only `install::end_text_line`.
-pub(super) fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
-    match place {
-        END_TEXT_LINE => {
-            crate::install::end_text_line::end_text_line(out);
-            Ok(())
-        }
-        _ => Err(BadInput("a text action that is not one of the installer's").into()),
-    }
-}
-
-/// An action item's drawing (the data word): the lists have no action items.
-pub(super) fn draw_action(_place: u32) -> Result<(), Refused> {
-    Err(BadInput("an action item's drawing (the game's lists have none)").into())
 }

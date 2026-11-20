@@ -9,7 +9,6 @@ use crate::install::vars::{
     InstallerNames, InstallerPages, InstallerPalette, InstallerPaths, InstallerRun,
 };
 use crate::memory::owned::Owned;
-use std::cell::RefCell;
 
 /// The installation's state.
 pub struct Install {
@@ -21,8 +20,8 @@ pub struct Install {
     pub flags: RunFlags,
     pub names: InstallerNames,
     pub pages: InstallerPages,
-    /// The pieces of the page being shown (the installer runs on one thread).
-    pub pieces: RefCell<Vec<crate::install::page_records::Piece>>,
+    /// The item each page's list had highlighted when it was left.
+    pub highlights: crate::install::page_state::Highlights,
     pub paths: InstallerPaths,
     pub palette: InstallerPalette,
     /// The folders' names (0x10100 bytes) the installer's scans and script collect.
@@ -43,7 +42,7 @@ impl Install {
             flags: RunFlags::new(),
             names: InstallerNames::new(),
             pages: InstallerPages::new(),
-            pieces: RefCell::new(Vec::new()),
+            highlights: crate::install::page_state::Highlights::new(),
             paths: InstallerPaths::new(),
             palette: InstallerPalette::new(),
             folders: Owned::new("no installer folders table"),

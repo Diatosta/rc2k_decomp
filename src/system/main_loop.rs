@@ -12,9 +12,6 @@ use crate::owners::Owners;
 use crate::program_log::log;
 use crate::threading::thread_slot::SlotOwners;
 
-/// `InstallerPages.script_set_up` when the installer's script is set up.
-const INSTALLER_MARK: u16 = 0xBD;
-
 /// `logfile::log_write` of a line of the game's log.
 fn log_line(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(text, true, 1);
@@ -54,7 +51,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     // A program in the download folder installs from it (`install::record`); and with
     // `-u` (`flags.updating`) it uninstalls where it is: its record is in the installed folder, so
     // the uninstall runs from there.
-    if install.pages.main_menu.items[1].text.get() == INSTALLER_MARK
+    if install.flags.update_entry.get().is_some()
         || crate::install::record::is_source_folder()
         || install.flags.updating.get()
     {

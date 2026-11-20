@@ -16,7 +16,7 @@ pub(super) fn mark_viewer_items(
 ) -> Result<(), crate::errors::BadInput> {
     let replay = &race.replay;
     // Logic in `rc2k_core::race::viewer::item_marks`.
-    crate::menu::list_clear_marks::list_clear_marks(None, list);
+    crate::menu::list_clear_marks::list_clear_marks(list);
     let block = replay.replay_view().replay_block.get();
     let state = rc2k_core::race::viewer::ViewerState {
         last_race: replay.replay_view().last_race_viewed.is_set(),

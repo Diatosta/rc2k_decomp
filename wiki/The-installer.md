@@ -54,23 +54,24 @@ When it returns, the main loop asks the program to quit. What the pages asked to
 
 A page is a **list menu**: a title and a column of items, each of which leaves the page with an
 answer, does something, is a choice between values, or is a line of text to edit. The pages'
-lists are typed records in `src/install/vars.rs`; the record layout is described in
-`src/memory/list_handle.rs` (the layout) and `src/install/list_pages.rs` (the installer's lists and their links).
+items are typed data (`rc2k_core/src/install/model.rs`: `PageDef`, `Item`, `Facts`), built from what the
+installation is each time a page opens; the page's state between visits (the highlight of each list) is
+`Install::highlights` (`src/install/page_state.rs`).
 
 `install::run_page` (`src/install/run_page.rs`) runs one page until it is left. Each frame it
 lays the page out, draws it over the backdrop, and takes a key. The key is offered first to
-the highlighted item (`src/install/page_key.rs`), then to the page, and otherwise moves the
-highlight. Each page has a small function that runs when the page opens, after each key and
-when it closes; those are the `..._page.rs` files, called by name from `run_page.rs`.
+the highlighted item (`PageDef::key`, called from `src/install/page_key.rs`), then to the page, and otherwise
+moves the highlight. What a page does when it opens and when it closes is in `src/install/page_actions.rs`;
+which items it marks (hidden, not to be chosen) is in `model.rs`.
 
 | Page | File | What it does |
 | --- | --- | --- |
-| Main | `mark_main_page.rs` | Install, play the installed copy, uninstall. Items that do not apply cannot be chosen. |
-| Language | `language_page.rs` | Choose the game's language. Not shown if the CD has only one, or if this build is installed already. The choice is loaded at once, so the following pages are in that language. |
-| Drive | `drive_page.rs` | Windows only: choose the drive. On systems without drive letters the page is not part of the flow. |
-| Folder | `folder_page.rs` | Type or accept the folder. A bad name shows why (`check_folder_name.rs`). |
-| Not enough room | `room_page.rs` | Shown if the disk is too small; the player may go on anyway (the action is in `room_page.rs`). |
-| Removal | `removal_page.rs` | For an uninstall: remove everything, keep the saves and settings, or go back. |
+| Main | `model.rs` (`apply_marks`) | Install, play the installed copy, uninstall. Items that do not apply cannot be chosen. |
+| Language | `model.rs`, `page_actions.rs` | Choose the game's language. Not shown if the CD has only one, or if this build is installed already. The choice is loaded at once, so the following pages are in that language. |
+| Drive | `page_actions.rs` | Windows only: choose the drive. On systems without drive letters the page is not part of the flow. |
+| Folder | `page_actions.rs`, `model.rs` | Type or accept the folder. A bad name shows why (`check_folder_name.rs`). |
+| Not enough room | `model.rs` | Shown if the disk is too small; the player may go on anyway (a link's action, `Action::GoOnAnyway`). |
+| Removal | `page_actions.rs` | For an uninstall: remove everything, keep the saves and settings, or go back. |
 
 Between pages the installer does work that shows no page of its own: copying the files
 (`install_files.rs`, with the progress display of `install_frames.rs`; Escape cancels),
@@ -213,8 +214,8 @@ environment variable `RC2K_DOWNLOAD`. See [Testing](Testing).
 | --- | --- |
 | When the installer runs | `src/system/main_loop.rs`, `src/install/record.rs` |
 | The installer's outline | `src/install/run_installer.rs`, `run_pages.rs`, `rc2k_core/src/install/flow.rs` |
-| How a page works | `src/install/run_page.rs`, `page_key.rs`, `src/memory/list_handle.rs`, `src/install/list_pages.rs` |
-| The pages' lists, pieces and links | `src/install/vars.rs`, `page_records.rs`, `page_links.rs` |
+| How a page works | `src/install/run_page.rs`, `page_key.rs`, `page_actions.rs`, `rc2k_core/src/install/model.rs` |
+| The pages' items and pieces | `rc2k_core/src/install/model.rs`, `src/install/page_state.rs`, `lay_out_pieces.rs`; the draw lists' fonts `vars.rs`, `page_links.rs` |
 | What gets copied | `src/install/run_script.rs`, `install_files.rs` |
 | Per-system folder rules | `src/install/folders/` |
 | Menu entries and copying the program | `src/install/shortcuts.rs` |

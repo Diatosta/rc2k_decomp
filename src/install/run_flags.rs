@@ -24,6 +24,8 @@ pub struct RunFlags {
     pub ignore_room: Cell<bool>,
     /// The first drive letter the drive list looks at.
     pub first_drive: Cell<u8>,
+    /// The string the main page's first item shows when the installer runs for an update.
+    pub update_entry: Cell<Option<u16>>,
 }
 
 impl RunFlags {
@@ -33,6 +35,7 @@ impl RunFlags {
             installing: Cell::new(false),
             ignore_room: Cell::new(false),
             first_drive: Cell::new(b'c'),
+            update_entry: Cell::new(None),
         }
     }
 

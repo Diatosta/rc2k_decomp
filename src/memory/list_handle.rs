@@ -14,11 +14,6 @@
 
 use crate::memory::session::{PlainByte, PlainDword, PlainWord};
 
-/// The header's bytes.
-const HEADER: u32 = 0x18;
-/// An item's bytes.
-const ITEM: u32 = 0x10;
-
 /// A list's header as the installer's pages hold it (see the module: 0x18 bytes).
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView, rc2k_derive::ZeroCells)]
@@ -127,11 +122,6 @@ macro_rules! list_data {
 }
 
 list_data! {
-    ListData3: 3,
-    ListData4: 4,
-    ListData6: 6,
-    ListData10: 10,
-    ListData18: 18,
     ListData26: 26,
 }
 
@@ -166,32 +156,9 @@ impl ListMenu {
         }
     }
 
-    /// The flags (bit 4 the page stays on Escape, bits 6 and 7 the page hidden).
-    pub fn flags(self) -> u8 {
-        self.header.flags.get()
-    }
-
     /// The number of items.
     pub fn count(self) -> u8 {
         self.header.count.get()
-    }
-
-    pub fn set_count(self, count: u8) {
-        self.header.count.set(count);
-    }
-
-    /// The title's string.
-    pub fn title_text(self) -> u16 {
-        self.header.title_text.get()
-    }
-
-    /// The item highlighted.
-    pub fn highlight(self) -> u32 {
-        self.header.highlight.get()
-    }
-
-    pub fn set_highlight(self, highlight: u32) {
-        self.header.highlight.set(highlight);
     }
 
     /// Item `n`. A list holds the items its record has: an item past them is refused (the
@@ -204,19 +171,6 @@ impl ListMenu {
                 crate::errors::BadInput("an item past the items of a list"),
             ),
         }
-    }
-
-    /// The item whose first byte is `offset` from the list (the pages' tables of marks
-    /// give offsets, 0x28 the second item). An offset that is no item's start is refused.
-    pub fn item_at_offset(self, offset: u32) -> ListItem {
-        let past = offset.wrapping_sub(HEADER);
-        if !past.is_multiple_of(ITEM) {
-            crate::memory::host_hooks::end(
-                "list menu",
-                crate::errors::BadInput("an offset in a list that is no item's start"),
-            );
-        }
-        self.item(past / ITEM)
     }
 }
 
@@ -248,48 +202,13 @@ impl ListItem {
         self.0.first.set(first);
     }
 
-    /// The kind: the low nibble of +0.
-    pub fn kind(self) -> u8 {
-        self.first() & 0xF
-    }
-
     /// The next list (a link) or the number of choices.
     pub fn count(self) -> u8 {
         self.0.count.get()
     }
 
-    /// The item's text (a string id).
-    pub fn text_id(self) -> u16 {
-        self.0.text.get()
-    }
-
     /// +1 of the replay viewer's items: the viewer action Enter does there.
     pub fn viewer_action(self) -> u8 {
         self.count()
-    }
-
-    /// The count byte of a text item: the kind of its font.
-    pub fn font_kind(self) -> u8 {
-        self.count()
-    }
-
-    /// The link's or action's address, or where the item's value or text is.
-    pub fn target(self) -> u32 {
-        self.0.target.get()
-    }
-
-    /// The pointer to the choices, the edit record or the text action.
-    pub fn data(self) -> u32 {
-        self.0.data.get()
-    }
-
-    /// `data` as the byte the least value is (a value item).
-    pub fn value_least(self) -> u8 {
-        self.0.data.get().to_le_bytes()[0]
-    }
-
-    /// The most value (a value item).
-    pub fn value_most(self) -> u8 {
-        self.0.data.get().to_le_bytes()[1]
     }
 }

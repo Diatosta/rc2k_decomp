@@ -2,17 +2,10 @@
 //! installed record, scripts, the language list, and the pages' tables.
 //!
 //! Structs of cells, with the old layout's fields in its order and its gaps. The pages' tables
-//! hold handles (`install::page_links`). The pages' lists,
-//! handler records, edit record and boxes are typed records (`memory::list_handle`), each reached
-//! by the handle that names it.
+//! hold handles (`install::page_links`). The pages' items are `rc2k_core::install::model`.
 
 use crate::gfx::typefaces::{FontId, fonts};
-use crate::install::installer::{END_TEXT_LINE, GO_ON_ANYWAY};
-use crate::install::list_pages::{BoxRect, EditRecord};
 use crate::install::page_links::{LinkCell, PageLink};
-use crate::memory::list_handle::{
-    Item, ListData3, ListData4, ListData6, ListData10, ListData18, ListData26, ListHeader,
-};
 use crate::memory::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 
 /// The installer's flags, counters and lists.
@@ -255,33 +248,6 @@ pub struct InstallerPages {
     pub fonts: [PlainDword; 25],
     /// Font by mark, 8 bytes a kind (`install::lay_out_pieces`, from the fifth byte).
     pub kind_fonts: PlainBytes<108>,
-    /// `language_page`'s list: the nine languages and cancel.
-    pub language_menu: ListData10,
-    /// `mark_main_page`'s list: install, play, uninstall and back. The
-    /// first item's kind, marks and text and the second item's text are set by
-    /// `install::check_at_start::set_script_entry`.
-    pub main_menu: ListData4,
-    /// `install::drive_page`'s list when there are 8 or fewer drives (`install::list_drives` sets
-    /// the item count).
-    pub drive_menu_8: ListData10,
-    /// The drive page's list when there are 9 to 16 drives.
-    pub drive_menu_16: ListData18,
-    /// The drive page's list when there are more drives.
-    pub menu_more: ListData26,
-    /// `folder_page`'s list; its second item is the edit item (`folder_edit`), whose text link
-    /// (the target word) `run_installer` sets on Unix.
-    pub folder_menu: ListData6,
-    /// `room_page`'s list.
-    pub room_menu: ListData3,
-    /// `removal_page`'s list.
-    pub removal_menu: ListData4,
-    /// The folder item's edit record.
-    pub folder_edit: EditRecord,
-    /// The title's item.
-    pub title: Item,
-    /// The boxes items are placed in, `{x, y, width, height}` each: the title item's (0), the
-    /// title's (1), the drive texts' (2 .. 8).
-    pub boxes: [BoxRect; 9],
     /// The characters a folder name may not hold.
     pub bad_folder_chars: PlainBytes<20>,
 }
@@ -324,106 +290,6 @@ impl InstallerPages {
         PlainDword::new(PageLink::of_font(fonts::CAPTION_A).raw()),
     ],
     kind_fonts: PlainBytes::new(with_runs::<108>(&[(0, b"\x12\x00\t\x0c\x00\x02\x00\x1e\x17\x00\x08\x0b\x01\x02\x00\x1e\n\x00\x07\x10\x02\x02\x00\x1e"), (32, b"\x12\x00\t\x0c\x00\x02\x00\x1e"), (64, b"\x0c\x00\t\x12\x00\x02\x00\x1e\x15\x00\x15\x15\x00\x03\x00,\x0c\x00\x0c\x0c\x00\x02\x00\x1e\x12\x00\x12\x12\x00\x02\x00\x1e\x18\x00\x18\x18\x00\x02\x00\x1e\t")])),
-            language_menu: ListData10::new(ListHeader::new(0x00, 0x0A, 0x009B, 0x0, 0x0, 0x0, 0x0, 0x0), [
-                Item::new(0x01, 0x01, 0x102B, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x02, 0x102C, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x03, 0x102D, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x04, 0x102E, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x05, 0x102F, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x06, 0x1030, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x07, 0x1031, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x08, 0x1032, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x09, 0x1033, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x00, 0x0099, 0x0, 0x0, 0x0),
-            ]),
-            main_menu: ListData4::new(ListHeader::new(0x00, 0x04, 0x0095, 0x0, 0x0, 0x0, 0x0, 0x0), [
-                Item::new(0x01, 0x01, 0x0096, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x02, 0x0097, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x03, 0x0098, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x00, 0x0099, 0x0, 0x0, 0x0),
-            ]),
-            drive_menu_8: ListData10::new(ListHeader::new(0x00, 0x0A, 0x009A, 0x2, 0x0, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0C, 0x009D, PageLink::box_at(7).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x00, 0x00BF, PageLink::box_at(8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1011, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1012, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1013, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1014, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1015, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1016, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1017, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1018, PageLink::box_at(3).raw(), 0x0, 0x0),
-            ]),
-            drive_menu_16: ListData18::new(ListHeader::new(0x00, 0x12, 0x009A, 0x2, 0x0, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0C, 0x009D, PageLink::box_at(7).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x00, 0x00BF, PageLink::box_at(8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1011, PageLink::box_at(5).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1012, PageLink::box_at(5).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1013, PageLink::box_at(5).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1014, PageLink::box_at(5).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1015, PageLink::box_at(5).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1016, PageLink::box_at(5).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1017, PageLink::box_at(5).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1018, PageLink::box_at(5).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1019, PageLink::box_at(6).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101A, PageLink::box_at(6).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101B, PageLink::box_at(6).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101C, PageLink::box_at(6).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101D, PageLink::box_at(6).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101E, PageLink::box_at(6).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101F, PageLink::box_at(6).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1020, PageLink::box_at(6).raw(), 0x0, 0x0),
-            ]),
-            menu_more: ListData26::new(ListHeader::new(0x00, 0x1A, 0x009A, 0x2, 0x0, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0C, 0x009D, PageLink::box_at(7).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x00, 0x00BF, PageLink::box_at(8).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1011, PageLink::box_at(2).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1012, PageLink::box_at(2).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1013, PageLink::box_at(2).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1014, PageLink::box_at(2).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1015, PageLink::box_at(2).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1016, PageLink::box_at(2).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1017, PageLink::box_at(2).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1018, PageLink::box_at(2).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1019, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101A, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101B, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101C, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101D, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101E, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x101F, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1020, PageLink::box_at(3).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1021, PageLink::box_at(4).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1022, PageLink::box_at(4).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1023, PageLink::box_at(4).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1024, PageLink::box_at(4).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1025, PageLink::box_at(4).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1026, PageLink::box_at(4).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1027, PageLink::box_at(4).raw(), 0x0, 0x0),
-                Item::new(0x01, 0x01, 0x1028, PageLink::box_at(4).raw(), 0x0, 0x0),
-            ]),
-            folder_menu: ListData6::new(ListHeader::new(0x00, 0x06, 0x009A, 0x0, 0x0, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0C, 0x009E, 0x0, 0x0, 0x0),
-                Item::new(0x24, 0x01, 0x0000, 0x0, PageLink::typed(2).raw(), PageLink::folder_edit().raw()),
-                Item::new(0x05, 0x0A, 0x00AA, 0x0, 0x0, 0x0),
-                Item::new(0x05, 0x0A, 0x00AC, 0x0, 0x0, 0x0),
-                Item::new(0x05, 0x0A, 0x00AD, 0x0, 0x0, 0x0),
-                Item::new(0x05, 0x0A, 0x00AB, 0x0, 0x0, 0x0),
-            ]),
-            room_menu: ListData3::new(ListHeader::new(0x00, 0x03, 0x009A, 0x0, 0x0, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0A, 0x00AD, 0x0, 0x0, END_TEXT_LINE),
-                Item::new(0x01, 0x01, 0x00AE, 0x0, GO_ON_ANYWAY, 0x0),
-                Item::new(0x01, 0x00, 0x00BF, 0x0, 0x0, 0x0),
-            ]),
-            removal_menu: ListData4::new(ListHeader::new(0x00, 0x04, 0x00B6, 0x2, 0x0, 0x0, 0x0, 0x0), [
-                Item::new(0x05, 0x0A, 0x00B7, 0x0, 0x0, END_TEXT_LINE),
-                Item::new(0x01, 0x01, 0x00B8, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x02, 0x00B9, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x00, 0x00BF, 0x0, 0x0, 0x0),
-            ]),
-            folder_edit: EditRecord::new(0x02, 0x7C, 0x00A0, 0x0B, 0x00, 0x02E9),
-            title: Item::new(0x05, 0x09, 0x0000, PageLink::box_at(0).raw(), 0x0, 0x0),
-            boxes: [BoxRect::new(50, 150, 750, 44), BoxRect::new(50, 150, 750, 400), BoxRect::new(125, 150, 200, 400), BoxRect::new(325, 150, 200, 400), BoxRect::new(525, 150, 200, 400), BoxRect::new(225, 150, 200, 400), BoxRect::new(425, 150, 200, 400), BoxRect::new(50, 200, 750, 30), BoxRect::new(50, 495, 750, 30)],
     bad_folder_chars: PlainBytes::new(with_runs::<20>(&[(0, b"\"+*,;=/:<>?\\{}[]|\x7f")])),
         }
     }

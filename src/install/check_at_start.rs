@@ -15,14 +15,10 @@ use crate::system::owner::System;
 
 const PATH_ROOM: usize = 0x100;
 
-/// What both checks write into the script's entry, but for the string's id.
+/// What both checks write into the script's entry, but for the string's id: the main page shows
+/// the update script's entry (a string's id), and its second item's text says the installer runs.
 pub(super) fn set_script_entry(install: &crate::install::owner::Install, text_id: u16) {
-    // The entry of the installer's script: two bytes, a string's id, and
-    // 0xBD (the second item's text) = the installer runs.
-    install.pages.main_menu.items[0].first.set(5);
-    install.pages.main_menu.items[0].count.set(0x0C);
-    install.pages.main_menu.items[0].text.set(text_id);
-    install.pages.main_menu.items[1].text.set(0xBD);
+    install.flags.update_entry.set(Some(text_id));
 }
 
 /// `no_audio` is the sound's switch.

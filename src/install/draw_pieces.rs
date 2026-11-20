@@ -4,12 +4,11 @@
 //! The caller has locked the surface.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::installer::{
-    draw_action, draw_string, draw_text, push_string_by_id, store_text, text_action, text_at,
-};
-use crate::install::page_records::item_of;
+use crate::install::installer::{draw_string, draw_text, push_string_by_id, store_text};
+use crate::install::lay_out_pieces::{Piece, item_of};
 use crate::install::vars::InstallerPages;
 use crate::strings::owner::Strings;
+use rc2k_core::install::model::{Kind, PageDef};
 use rc2k_core::install::pieces::{self, Way};
 
 fn font(
@@ -26,6 +25,10 @@ fn colour(install: &crate::install::owner::Install, marks: u8, kind: u32) -> u32
 /// `path` kept whole when it and the `caret` after it fit in `widest` pixels (`width` measures a
 /// text); else its end with "..." in place of the start, as much of the end as fits, so the caret
 /// stays in view.
+/// A path is cut to its end where the folder field's text starts at its first byte (no drive
+/// letters); with drive letters the text is shown as it is typed.
+const SHOWN_BY_ITS_END: bool = crate::install::page_state::TEXT_AT == 0;
+
 fn fit_path_end(path: &[u8], caret: &[u8], widest: u32, width: impl Fn(&[u8]) -> u32) -> Vec<u8> {
     let with = |cut: usize| -> Vec<u8> {
         let mut t = if cut == 0 {
@@ -56,14 +59,15 @@ fn fit_path_end(path: &[u8], caret: &[u8], widest: u32, width: impl Fn(&[u8]) ->
 pub(super) fn draw_pieces(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
+    def: &PageDef,
+    laid: &[Piece],
     strings: &'static Strings,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let laid = install.pieces.borrow().clone();
     if laid.is_empty() {
         return Err(BadInput("a page of no pieces").into());
     }
-    for piece in &laid {
+    for piece in laid {
         let first = piece.marks;
         let (x, y) = (piece.x, piece.y);
         match Way::of(first, piece.kind) {
@@ -78,24 +82,21 @@ pub(super) fn draw_pieces(
                 )?;
             }
             Way::Edit => {
-                let item = item_of(piece);
-                let record = item.edit_field(install);
-                let edit_font = font(install, colour(install, first, record.font_kind() as u32))?;
-                let mut text = text_at(item.text(install));
-                // The folder's path is shown by its end when it is longer than the field.
-                if crate::install::folders::is_folder_field(install, item.text(install)) {
-                    let widest = crate::install::folders::field_width(
-                        install,
-                        item.text(install),
-                        record.width(),
-                    );
-                    let mut caret = Vec::new();
-                    if pieces::caret(first, record.flags()) {
-                        push_string_by_id(so, &mut caret, 4);
-                    }
-                    // Measured with the measuring font of the field's kind.
-                    let measuring = crate::install::edit_key::edit_font(install, record)?;
-                    text = fit_path_end(&text, &caret, widest as u32, |t| {
+                let Kind::Edit(edit) = &item_of(def, piece)?.kind else {
+                    return Err(BadInput("an edit piece of an item that is no edit").into());
+                };
+                let edit_font = font(install, colour(install, first, u32::from(edit.font_kind)))?;
+                let mut text = edit.text.clone();
+                let mut caret = Vec::new();
+                let with_caret = pieces::caret(first, edit.flags());
+                if with_caret {
+                    push_string_by_id(so, &mut caret, 4);
+                }
+                if SHOWN_BY_ITS_END {
+                    // The folder's path is shown by its end when it is longer than the field,
+                    // measured with the measuring font of the field's kind.
+                    let measuring = crate::install::page_state::edit_font(install, edit.font_kind)?;
+                    text = fit_path_end(&text, &caret, u32::from(edit.width), |t| {
                         let mut t = t.to_vec();
                         t.push(0);
                         crate::install::installer::measure_text(measuring, &t, 0, gfx)
@@ -104,37 +105,42 @@ pub(super) fn draw_pieces(
                     text.extend(&caret);
                     text.push(0);
                     store_text(&strings.text.buffer.text, &text);
-                } else if !pieces::caret(first, record.flags()) {
+                } else if !with_caret {
                     // The drawer reads to the NUL.
                     text.push(0);
                 } else {
                     // The text and the caret, kept in the text buffer (anything reads it
                     // afterwards only after another page text overwrote it).
-                    push_string_by_id(so, &mut text, 4);
+                    text.extend(&caret);
                     text.push(0);
                     store_text(&strings.text.buffer.text, &text);
                 }
                 draw_text(edit_font, &text, x, y, gfx)?;
             }
             Way::Text => {
-                let item = item_of(piece);
+                let Kind::Text {
+                    font_kind,
+                    ends_line,
+                } = item_of(def, piece)?.kind
+                else {
+                    return Err(BadInput("a text piece of an item that is no text").into());
+                };
                 let mut text = Vec::new();
                 push_string_by_id(so, &mut text, piece.text as u32);
-                let action = item.data();
-                if action != 0 {
-                    text_action(action, &mut text)?;
+                if ends_line {
+                    crate::install::end_text_line::end_text_line(&mut text);
                 }
                 text.push(0);
                 store_text(&strings.text.buffer.text, &text);
                 draw_text(
-                    font(install, colour(install, first, item.font_kind() as u32))?,
+                    font(install, colour(install, first, u32::from(font_kind)))?,
                     &text,
                     x,
                     y,
                     gfx,
                 )?;
             }
-            Way::Action => draw_action(item_of(piece).data())?,
+            Way::Action => return Err(BadInput("an action item (the pages hold none)").into()),
             Way::Other => {}
         }
     }

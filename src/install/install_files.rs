@@ -6,10 +6,10 @@
 //! (`flow::Copied`): a folder that cannot be used, too little room, or the copy stopped with its
 //! error / cancel message shown. Always the full installation.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
-    hold, lock, normalise, pause, pump, rb, run_frame, set_cd, show, sleep, store_text, take_key,
-    text_at, unlock, wb,
+    hold, lock, normalise, pause, pump, run_frame, set_cd, show, sleep, store_text, take_key,
+    text_at, unlock,
 };
 
 use crate::install::vars::StringRecord;
@@ -115,9 +115,12 @@ pub(super) fn install_files(
     install.run.files_copied.set(0);
     install.run.copy_spare.set(0);
     install.run.files_to_copy.set(install.run.file_count.get());
-    let room = crate::install::installer::rd(
+    let room = u32::from_le_bytes(
         crate::memory::place::BytePlace::from(&install.names.room_by_mode)
-            .add(4 * crate::install::installer::FULL_INSTALLATION),
+            .add(4 * crate::install::installer::FULL_INSTALLATION)
+            .read(4, "the room by installation")?
+            .try_into()
+            .map_err(|_| BadInput("a room that is not four bytes"))?,
     );
     install.run.room_needed.set(room);
     // The folder cannot be used: the folder page says so.
@@ -249,16 +252,16 @@ pub(super) fn install_files(
     install.names.status.set(1);
     // The installed folder's path copied to the install source, with its length (NUL included)
     // kept in `source_size`.
-    let mut n = 0;
+    let mut n = 0usize;
     loop {
-        let b = rb(BytePlace::from(&install.paths.installed).add(n));
-        wb(BytePlace::from(&install.names.source).add(n), b);
+        let b = install.paths.installed.get(n);
+        install.names.source.set(n, b);
         n += 1;
         if b == 0 {
             break;
         }
     }
-    install.names.source_size.set(n);
+    install.names.source_size.set(n as u32);
     i::record::write_installed(install);
     install.run.add_items.set(1);
     install.flags.installing.set(true);

@@ -4,22 +4,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::logged;
-use crate::install::page_links::ListId;
-use crate::memory::list_handle::ListMenu;
-use rc2k_core::install::flow::{self, Page, Step, Ways};
-
-/// The list `page` is shown as. The drive page has three, by the number of drives found.
-fn list_of(install: &'static crate::install::owner::Install, page: Page) -> ListMenu {
-    let list = match page {
-        Page::Language => ListId::Language,
-        Page::Main => ListId::Main,
-        Page::Drive => crate::install::list_drives::drive_list(install.run.drive_count.get()),
-        Page::Folder => ListId::Folder,
-        Page::NoRoom => ListId::Room,
-        Page::Removal => ListId::Removal,
-    };
-    ListMenu::installer(install, list)
-}
+use rc2k_core::install::flow::{self, Step, Ways};
+use rc2k_core::install::model::List;
 
 /// Whether the language page has nothing to ask: this version is installed already, or there
 /// is at most one language.
@@ -46,10 +32,10 @@ pub(super) fn run_pages(
         let next = match (step, step.page()) {
             (Step::Language, _) if language_is_settled(install) => Some(Step::Main),
             (_, Some(page)) => {
-                let list = list_of(install, page);
-                let answer = i::run_page::run_page(install, o, page, list)?;
+                let answer = i::run_page::run_page(install, o, page)?;
                 if flow::resets_highlight(answer) {
-                    list.set_highlight(0);
+                    let list = List::of(page, install.run.drive_count.get());
+                    install.highlights.set(list, 0);
                 }
                 flow::after_page(step, answer, ways)
                     .map_err(|_| BadInput("an answer the installer's page has no way for"))?
@@ -84,14 +70,24 @@ pub(super) fn run_pages(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rc2k_core::install::flow::Page;
 
     /// Every answer an item of a page can leave it with (an item that links on holds its
     /// answer; Escape and the folder page's keys give 0 and 1; the removal page makes its 2 a
     /// 1) is one the flow has a way for, with and without drive letters.
     #[test]
     fn every_answer_a_page_can_give_has_a_way() {
-        let _lock = crate::test_support::test_lock();
-        let install = crate::test_support::own::install();
+        use rc2k_core::install::model::{Facts, Kind};
+        let facts = Facts {
+            same_version: true,
+            installed: true,
+            update_entry: None,
+            languages: 3,
+            drives: 5,
+            path_problem: 0,
+            folder_most: 0x7C,
+            folder_width: 0x2E9,
+        };
         let steps = [
             Step::Language,
             Step::Main,
@@ -103,52 +99,34 @@ mod tests {
         ];
         for step in steps {
             let page = step.page().unwrap();
-            let lists = match page {
-                Page::Drive => vec![ListId::Drives8, ListId::Drives16, ListId::DrivesMore],
-                _ => vec![],
-            };
-            let mut menus: Vec<ListMenu> = lists
-                .into_iter()
-                .map(|list| ListMenu::installer(install, list))
-                .collect();
-            if menus.is_empty() {
-                menus.push(list_of(install, page));
+            let def =
+                rc2k_core::install::model::build(List::of(page, facts.drives), &facts).unwrap();
+            let mut answers = vec![0, 1];
+            for item in &def.items {
+                if let Kind::Link {
+                    answer,
+                    action: None,
+                } = item.kind
+                    && answer & 0x80 == 0
+                {
+                    answers.push(u32::from(answer));
+                }
             }
-            for list in menus {
-                let mut answers = vec![0, 1];
-                for n in 0..u32::from(list.count()) {
-                    let item = list.item(n);
-                    if item.kind() == 1 && item.target() == 0 && item.count() & 0x80 == 0 {
-                        answers.push(u32::from(item.count()));
-                    }
+            if page == Page::Removal {
+                answers.retain(|&answer| answer != 2);
+            }
+            for drives in [true, false] {
+                if page == Page::Drive && !drives {
+                    continue;
                 }
-                if page == Page::Removal {
-                    answers.retain(|&answer| answer != 2);
-                }
-                for drives in [true, false] {
-                    if page == Page::Drive && !drives {
-                        continue;
-                    }
-                    let ways = Ways { drives };
-                    for &answer in &answers {
-                        assert!(
-                            flow::after_page(step, answer, ways).is_ok(),
-                            "{step:?} answer {answer} {ways:?}"
-                        );
-                    }
+                let ways = Ways { drives };
+                for &answer in &answers {
+                    assert!(
+                        flow::after_page(step, answer, ways).is_ok(),
+                        "{step:?} answer {answer} {ways:?}"
+                    );
                 }
             }
         }
-    }
-
-    /// The drive page's list is the one that fits the drives found.
-    #[test]
-    fn the_drive_page_is_the_list_that_fits_the_drives() {
-        use crate::install::list_drives::drive_list;
-        assert_eq!(drive_list(0), ListId::Drives8);
-        assert_eq!(drive_list(8), ListId::Drives8);
-        assert_eq!(drive_list(9), ListId::Drives16);
-        assert_eq!(drive_list(16), ListId::Drives16);
-        assert_eq!(drive_list(17), ListId::DrivesMore);
     }
 }

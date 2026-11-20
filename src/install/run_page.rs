@@ -8,44 +8,61 @@
 //! Returns the answer (`list_answer`). Refused: a page whose every item cannot be chosen.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::installer::{
-    copy_picture, list_clear_marks, list_item_unusable, list_step, list_take_key, lock, run_frame,
-    show, unlock,
-};
-use crate::memory::list_handle::ListMenu;
+use crate::install::installer::{copy_picture, list_take_key, lock, run_frame, show, unlock};
 use rc2k_core::install::flow::Page;
+use rc2k_core::install::model::{self, Kind, List, PageDef};
 
 const NO_CHOICE: BadInput = BadInput("a page whose every item cannot be chosen");
 
-/// The page told where it is: `state` 0 at the start, 1 after a key, -1 at the end.
-fn tell(
-    install: &'static crate::install::owner::Install,
-    o: crate::owners::Owners<'static>,
-    page: Page,
-    list: ListMenu,
-    state: u32,
+const PAST_ITEMS: BadInput = BadInput("an item past the items of a list");
+
+/// Whether the highlighted item cannot be chosen.
+fn unusable(
+    list_state: &crate::menu::list_state::ListState,
+    def: &PageDef,
+) -> Result<bool, BadInput> {
+    def.items
+        .get(list_state.choice.get() as usize)
+        .map(model::Item::unusable)
+        .ok_or(PAST_ITEMS)
+}
+
+/// The page's marks made again: those its facts give, then the highlight lit.
+fn mark(
+    list_state: &crate::menu::list_state::ListState,
+    facts: &model::Facts,
+    def: &mut PageDef,
 ) -> Result<(), Refused> {
-    use crate::install as i;
-    let list_state = &o.menus.list;
-    match page {
-        Page::Language => i::language_page::language_page(install, o, state, list)?,
-        Page::Main => i::mark_main_page::mark_main_page(install, list),
-        Page::Drive => i::drive_page::drive_page(install, list_state, state, list),
-        Page::Folder => i::folder_page::folder_page(install, list_state, state, list),
-        Page::NoRoom => i::room_page::room_page(install, state),
-        Page::Removal => i::removal_page::removal_page(install, list_state, state),
-    }
+    def.clear_marks();
+    def.apply_marks(facts)?;
+    mark_highlight(list_state, def);
     Ok(())
 }
 
-/// The page's own keys (only the folder page has some): whether `key` was taken.
-fn page_own_key(
-    list_state: &crate::menu::list_state::ListState,
-    page: Page,
-    key: u32,
-    list: ListMenu,
-) -> bool {
-    page == Page::Folder && crate::install::folder_key::folder_key(list_state, key, list)
+/// The highlighted item lit (by the blink clock) unless it has marks.
+fn mark_highlight(list_state: &crate::menu::list_state::ListState, def: &mut PageDef) {
+    let clock = list_state
+        .frame_clock
+        .get()
+        .wrapping_sub(list_state.move_clock.get());
+    def.mark_highlight(list_state.choice.get(), clock);
+}
+
+/// `key` moving the highlight of a page of `count` items (a neighbours table the pages have
+/// none of); whether it moved.
+fn step_highlight(list_state: &crate::menu::list_state::ListState, key: u32, count: u8) -> bool {
+    use rc2k_core::menu::list_menu::{MOVES, Step, step};
+    let key = key as u8;
+    if !MOVES.contains(&key) {
+        return false;
+    }
+    let choice = list_state.choice.get();
+    let Step::Moved(item) = step(key, choice as u8, count, false, |_| 0) else {
+        return false;
+    };
+    // Only the low byte is the item; the rest is kept.
+    list_state.choice.set(choice & !0xFF | item as u32);
+    true
 }
 
 /// The Enter key.
@@ -55,14 +72,11 @@ const ENTER: u32 = 0x1C;
 /// The item (its number in the list) a tap on the page since the last frame landed on, if it can
 /// be chosen: the piece the tap is in belongs to it.
 #[cfg(touch_screen)]
-fn tapped_item(
-    install: &'static crate::install::owner::Install,
-    list_state: &crate::menu::list_state::ListState,
-    list: ListMenu,
-) -> Option<u32> {
+fn tapped_item(def: &PageDef, laid: &[crate::install::lay_out_pieces::Piece]) -> Option<u32> {
+    use crate::install::lay_out_pieces::Piece;
+    use rc2k_core::install::model::Owner;
     let (x, y) = crate::shell::touch_menu::take_installer_tap()?;
-    let laid = install.pieces.borrow().clone();
-    let inside = |piece: &crate::install::page_records::Piece| {
+    let inside = |piece: &Piece| {
         let (px, py) = (piece.x as i32 as f32, piece.y as i32 as f32);
         let width = piece.width as f32;
         // A piece's place is where its text starts or where it is centred, by how the page lays
@@ -70,28 +84,38 @@ fn tapped_item(
         x >= px - width / 2.0 && x < px + width && y >= py && y < py + piece.height as f32
     };
     let piece = laid.iter().find(|piece| inside(piece))?;
-    let item = crate::install::page_records::item_of(piece);
-    let before = list_state.choice.get();
-    let found = (0..u32::from(list.count())).find(|&k| list.item(k) == item)?;
-    list_state.choice.set(found);
-    let usable = !list_item_unusable(list_state, list);
-    list_state.choice.set(before);
+    // The title's piece belongs to no item.
+    let Some(Owner::Item(found)) = piece.item else {
+        return None;
+    };
+    let usable = def
+        .items
+        .get(found as usize)
+        .is_some_and(|item| !item.unusable());
     if usable {
         crate::shell::touch_menu::tap_used();
     }
     usable.then_some(found)
 }
 
-/// `page`, shown as `list`, run until it is left; its answer.
+/// `page` run until it is left; its answer.
 pub fn run_page(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
     page: Page,
-    list: ListMenu,
 ) -> Result<u32, Refused> {
     let list_state = &o.menus.list;
     use crate::install as i;
     let (strings, system) = (o.strings, o.system);
+    let facts = i::page_state::facts(install);
+    let list = List::of(page, facts.drives);
+    let mut def = model::build(list, &facts)?;
+    if page == Page::Folder {
+        // The folder typed is the edit's text while the page is shown.
+        if let Some(Kind::Edit(edit)) = def.items.get_mut(1).map(|item| &mut item.kind) {
+            edit.text = i::page_state::typed_text(install);
+        }
+    }
     list_state.list_answer.set(1);
     list_state.list_leave.set(0);
     list_state
@@ -100,20 +124,17 @@ pub fn run_page(
     list_state
         .key_clock
         .set(system.session.key_clock.ticks.get());
-    list_state.choice.set(list.highlight());
-    let count = list.count() as u32;
+    list_state.choice.set(install.highlights.get(list));
+    let count = def.items.len() as u32;
     let round = 2 * count as usize + 2;
-    if count != 0 {
-        list_clear_marks(install, list);
-    }
-    tell(install, o, page, list, 0)?;
+    i::page_actions::start(install, list_state, page, &mut def);
     // A tap on the page is for its items (`shell::touch_menu`).
     #[cfg(touch_screen)]
     let _taps = crate::shell::touch_menu::InstallerPage::begin();
     'page: {
-        i::mark_page::mark_page(install, list_state, list);
+        mark_highlight(list_state, &mut def);
         let mut steps = 0;
-        while list_item_unusable(list_state, list) {
+        while unusable(list_state, &def)? {
             steps += 1;
             if steps > round {
                 return Err(NO_CHOICE.into());
@@ -127,20 +148,24 @@ pub fn run_page(
         }
         i::show_backdrop::show_backdrop(o)?;
         loop {
-            i::lay_out_pieces::lay_out_pieces(install, list)?;
+            let mut laid = i::lay_out_pieces::lay_out_pieces(install, &def)?;
             i::measure_pieces::measure_pieces(
                 crate::strings::append_string_by_id::StringOwners::of(o),
                 install,
+                &def,
+                &mut laid,
                 strings,
                 o.gfx,
             )?;
-            i::place_pieces::place_pieces(install)?;
+            i::place_pieces::place_pieces(&def, &mut laid)?;
             run_frame(o, None)?;
             if lock(o.gfx, system) {
                 copy_picture(o.gfx, system)?;
                 i::draw_pieces::draw_pieces(
                     crate::strings::append_string_by_id::StringOwners::of(o),
                     install,
+                    &def,
+                    &laid,
                     strings,
                     o.gfx,
                 )?;
@@ -151,35 +176,29 @@ pub fn run_page(
                 .frame_clock
                 .set(system.session.key_clock.ticks.get());
             list_state.choice_before.set(list_state.choice.get());
-            // The key, as the callees leave it (`install::edit_key` changes it).
+            // The key, as the callees leave it (an edit changes it).
             let mut key = list_take_key(list_state, o.input)? as u32;
             if system.session.flags.quitting.is_set() {
                 break 'page;
             }
             // A tap on an item highlights it and chooses it, as Enter does.
             #[cfg(touch_screen)]
-            if let Some(chosen) = tapped_item(install, list_state, list) {
+            if let Some(chosen) = tapped_item(&def, &laid) {
                 list_state.choice.set(chosen);
                 key = ENTER;
             }
-            i::page_key::type_into_edit(o, install, list.item(list_state.choice.get()))?;
+            i::page_key::type_into_edit(o, install, &mut def)?;
             if key as u8 != 0 && key & 0x80 == 0 {
                 let mut again = 0;
                 loop {
-                    let item = list.item(list_state.choice.get());
-                    let (left, mut took) = i::page_key::page_key(o, install, key, item, list)?;
+                    let (left, took) = i::page_key::page_key(o, install, page, &mut def, key)?;
                     key = left;
-                    if !took {
-                        took = page_own_key(list_state, page, key, list);
-                    }
-                    let moved = took || list_step(list_state, key, list.neighbours(), list)?;
+                    let moved = took || step_highlight(list_state, key, count as u8);
                     if moved {
                         list_state.move_clock.set(list_state.frame_clock.get());
                     }
-                    list_clear_marks(install, list);
-                    tell(install, o, page, list, 1)?;
-                    i::mark_page::mark_page(install, list_state, list);
-                    if !list_item_unusable(list_state, list) {
+                    mark(list_state, &facts, &mut def)?;
+                    if !unusable(list_state, &def)? {
                         break;
                     }
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
@@ -206,7 +225,7 @@ pub fn run_page(
                                 list_state.choice.set(0);
                             }
                         }
-                        if !list_item_unusable(list_state, list) {
+                        if !unusable(list_state, &def)? {
                             break;
                         }
                         steps += 1;
@@ -217,10 +236,8 @@ pub fn run_page(
                     break;
                 }
             } else {
-                list_clear_marks(install, list);
-                tell(install, o, page, list, 1)?;
-                i::mark_page::mark_page(install, list_state, list);
-                if list_item_unusable(list_state, list) {
+                mark(list_state, &facts, &mut def)?;
+                if unusable(list_state, &def)? {
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
                     if arrow && list_state.choice.get() != list_state.choice_before.get() {
                         return Err(BadInput("an arrow that is no key").into());
@@ -232,7 +249,7 @@ pub fn run_page(
                         if count == c {
                             list_state.choice.set(0);
                         }
-                        if !list_item_unusable(list_state, list) {
+                        if !unusable(list_state, &def)? {
                             break;
                         }
                         steps += 1;
@@ -247,11 +264,13 @@ pub fn run_page(
             }
         }
         i::show_backdrop::show_backdrop(o)?;
-        tell(install, o, page, list, u32::MAX)?;
+        i::page_actions::end(install, o, page)?;
     }
-    if count != 0 {
-        list_clear_marks(install, list);
+    if page == Page::Folder
+        && let Some(Kind::Edit(edit)) = def.items.get(1).map(|item| &item.kind)
+    {
+        i::page_state::store_typed_text(install, &edit.text);
     }
-    list.set_highlight(list_state.choice.get());
-    Ok(list_state.list_answer.get() as u32)
+    install.highlights.set(list, list_state.choice.get());
+    Ok(u32::from(list_state.list_answer.get()))
 }

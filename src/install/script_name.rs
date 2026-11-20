@@ -2,7 +2,6 @@
 //! a NUL written at the end.
 
 use crate::errors::Refused;
-use crate::install::installer::wb;
 use rc2k_core::install::script;
 
 /// The name at the script's `cursor` written at `to`, NUL-ended. Returns the
@@ -22,9 +21,9 @@ pub fn script_name(
     let (name, _) = script::script_name(&words)?;
     let mut at = to.into();
     for &c in &name {
-        wb(at, c);
+        at.write(&[c], "a script name")?;
         at = at.add(1);
     }
-    wb(at, 0);
+    at.write(&[0], "a script name")?;
     Ok((cursor.add(name.len() as u32), at))
 }
