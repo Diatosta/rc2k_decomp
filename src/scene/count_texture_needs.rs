@@ -41,9 +41,18 @@ pub fn count_texture_needs(scene: &crate::scene::owner::Scene) -> Result<(), Bad
         Err(number) => log_int(number as i32, newline, 1),
     };
     let totals = totals(scene)?;
-    for (cell, total) in scene.textures.places.get().totals.iter().zip(totals) {
-        cell.set(total);
+    {
+        let mut places = scene.texture_places_mut();
+        places.video_kilobytes = totals[0];
+        places.system_kilobytes = totals[1];
+        places.system_textures = totals[3];
     }
+    scene
+        .textures
+        .place_slots
+        .get()
+        .video_textures
+        .set(totals[2]);
     log(Ok(c"VID"), false);
     log(Err(totals[0]), false);
     log(Ok(c"k in"), false);

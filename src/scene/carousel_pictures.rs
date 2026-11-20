@@ -58,7 +58,7 @@ pub fn update(
     write_all(&carousel.pictures.held, held);
     let textures = rc2k_core::scene::carousel::picture_textures(held, first_texture);
     for (n, texture) in textures.into_iter().enumerate() {
-        scene_textures.places.get().slot_wanted[first_slot as usize + n].set(texture);
+        scene.texture_places_mut().slot_wanted[first_slot as usize + n] = texture;
     }
     let _ = record;
     Ok(())

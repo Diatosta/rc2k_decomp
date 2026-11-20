@@ -24,7 +24,6 @@ use crate::logfile::log_int::log_int;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::Scene;
 use crate::scene::texture_needs::TEXTURES;
-use crate::scene::texture_places_store::cell_at;
 use rc2k_core::Invalid;
 
 // ---- game data ----
@@ -83,13 +82,14 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     }
     fn set_first_texture(&mut self, texture: u32, first: u32) -> Result<(), Invalid> {
         let textures = &self.scene.textures;
-        cell_at(
-            textures.places.get(),
-            crate::scene::texture_places_store::PlacesTable::TextureOf,
-            first,
-        )
-        .map_err(|e| Invalid(e.0))?
-        .set(texture);
+        *self
+            .scene
+            .texture_places_mut()
+            .texture_of
+            .get_mut(first as usize)
+            .ok_or(Invalid(
+                "a texture's first slot past the texture places' table",
+            ))? = texture;
         textures.kinds.get().kind_first_textures[texture as usize].set(first);
         Ok(())
     }

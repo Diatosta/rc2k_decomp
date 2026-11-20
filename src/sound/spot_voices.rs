@@ -132,26 +132,11 @@ pub(super) fn store_voices(
     }
 }
 
-/// A voice as the pickers' work holds it: its number + 1, or 0 for none (nothing reads the voice
-/// back by address).
-fn voice_or_0(n: Option<usize>) -> u32 {
-    n.map_or(0, |n| n as u32 + 1)
-}
-
-/// The pickers' work stored, and the scratch dword (1000.0, then the last distance x 1000) when a
-/// distance was worked out.
-pub(super) fn store_picks(
-    sound: &crate::sound::owner::Sound,
-    picks: &rc2k_core::sound::spot_voices::Picks,
+/// The scratch dword (1000.0, then the last distance x 1000) when a distance was worked out.
+pub(super) fn store_scratch(
     trail: &rc2k_core::sound::spot_voices::Trail,
     system: &crate::system::owner::System,
 ) {
-    let work = sound.race.spot_picks.get();
-    work.pick_playing.set(voice_or_0(picks.playing));
-    work.pick_nearest_distance.set(picks.nearest_distance);
-    work.pick_nearest.set(voice_or_0(picks.nearest));
-    work.pick_next_distance.set(picks.next_distance);
-    work.pick_next.set(voice_or_0(picks.next));
     if let Some(d) = trail.last_distance {
         system.machine().scratch.set(d);
     }

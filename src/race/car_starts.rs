@@ -65,7 +65,7 @@ fn matrix_and_wheels(
 pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics = c.physics;
     let shared = c.shared;
-    crate::physics::set_handling::set_handling(c.physics.damage(), c.numbers, c.shared)?;
+    crate::physics::set_handling::set_handling(&mut c.physics.damage_mut(), c.numbers, c.shared)?;
     shared.car().car_pitch.set(0);
     shared.car().car_roll.set(0);
     shared.physics_tables.get().settle_steps[0].set(0x2000_0000u32);

@@ -45,6 +45,12 @@ impl Raw for u32 {
     }
 }
 
+impl Raw for i32 {
+    fn raw(&self) -> u32 {
+        *self as u32
+    }
+}
+
 impl Raw for f32 {
     fn raw(&self) -> u32 {
         self.to_bits()

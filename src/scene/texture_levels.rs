@@ -135,14 +135,7 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
         },
     )?;
     // `kind_slot_bytes`: + 4 (or 1) a kind's slot.
-    scene.textures.places.get().kind_slot_bytes.set(
-        scene
-            .textures
-            .places
-            .get()
-            .kind_slot_bytes
-            .get()
-            .wrapping_add(set.kind_slots_added),
-    );
+    let mut places = scene.texture_places_mut();
+    places.kind_slot_bytes = places.kind_slot_bytes.wrapping_add(set.kind_slots_added);
     Ok(())
 }

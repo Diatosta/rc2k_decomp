@@ -1,13 +1,15 @@
 //! The sound module's owner: the sound stores in one struct, grouped by what they serve, handed by
 //! reference to the code that runs them.
 
+use std::cell::RefCell;
+
 use crate::memory::session::{GameThread, PlainDword};
 use crate::sound::sets_store::{
     CueLists, MenuSounds, SoundKinds, SoundRequest, SoundSets, SpotVoices, SurfaceSets,
 };
 use crate::sound::store::{
-    CarStream, RaceClock, RaceSounds, SettingsApplied, SoundOptions, SoundShared, SpotPicks,
-    StageSounds, SurfaceSounds,
+    CarStream, RaceClock, RaceSounds, SoundOptions, SoundShared, SpotKinds, StageSounds,
+    SurfaceSounds,
 };
 
 /// The race's sounds: the objects, the clock, the surface and stage constants, the sets and
@@ -16,17 +18,17 @@ use crate::sound::store::{
 /// All of it is the game thread's; what other threads read is in `SoundForThreads`.
 pub struct RaceSoundState {
     pub sounds: GameThread<RaceSounds>,
-    pub clock: GameThread<RaceClock>,
+    pub clock: GameThread<RefCell<RaceClock>>,
     pub surface: GameThread<SurfaceSounds>,
     pub stage: GameThread<StageSounds>,
-    pub spot_picks: GameThread<SpotPicks>,
+    pub spot_kinds: GameThread<SpotKinds>,
     /// The request each sound is sent with (a work area).
     pub request: GameThread<SoundRequest>,
     pub cue_lists: GameThread<CueLists>,
     pub kinds: GameThread<SoundKinds>,
     pub surface_sets: GameThread<SurfaceSets>,
     pub spot_voices: GameThread<SpotVoices>,
-    pub car_stream: GameThread<CarStream>,
+    pub car_stream: GameThread<RefCell<CarStream>>,
     /// 1 at start; the race's sounds switched.
     pub sounds_on: GameThread<PlainDword>,
 }
@@ -35,16 +37,16 @@ impl RaceSoundState {
     pub const fn new() -> Self {
         RaceSoundState {
             sounds: GameThread::new(RaceSounds::new()),
-            clock: GameThread::new(RaceClock::new()),
+            clock: GameThread::new(RefCell::new(RaceClock::new())),
             surface: GameThread::new(SurfaceSounds::new()),
             stage: GameThread::new(StageSounds::new()),
-            spot_picks: GameThread::new(SpotPicks::new()),
+            spot_kinds: GameThread::new(SpotKinds::new()),
             request: GameThread::new(SoundRequest::new()),
             cue_lists: GameThread::new(CueLists::new()),
             kinds: GameThread::new(SoundKinds::new()),
             surface_sets: GameThread::new(SurfaceSets::new()),
             spot_voices: GameThread::new(SpotVoices::new()),
-            car_stream: GameThread::new(CarStream::new()),
+            car_stream: GameThread::new(RefCell::new(CarStream::new())),
             sounds_on: GameThread::new(PlainDword::new(1)),
         }
     }
@@ -57,7 +59,6 @@ pub struct MenuSoundState {
     /// The clock the next menu sound may be heard at.
     pub next_sound_time: GameThread<PlainDword>,
     pub options: SoundOptions,
-    pub settings_applied: GameThread<SettingsApplied>,
 }
 
 impl MenuSoundState {
@@ -65,7 +66,6 @@ impl MenuSoundState {
         MenuSoundState {
             next_sound_time: GameThread::new(PlainDword::new(0)),
             options: SoundOptions::new(),
-            settings_applied: GameThread::new(SettingsApplied::new()),
         }
     }
 }

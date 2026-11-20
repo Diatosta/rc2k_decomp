@@ -35,7 +35,7 @@ pub(super) fn start_race_sounds(
         }
     }
     crate::sound::let_sounds_play::let_sounds_play_in(audio);
-    sound.race.clock.get().started.set(1);
+    sound.race.clock.get().borrow_mut().started = 1;
     Ok(())
 }
 

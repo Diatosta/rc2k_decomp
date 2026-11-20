@@ -23,13 +23,12 @@ pub fn assign_menu_textures(
         textures.kinds.get().kind_first_slots[KIND].get(),
         textures.kinds.get().kind_first_textures[KIND].get(),
     )?;
+    let mut places = scene.texture_places_mut();
     for (slot, texture) in wanted {
-        crate::scene::texture_places_store::cell_at(
-            textures.places.get(),
-            crate::scene::texture_places_store::PlacesTable::SlotWanted,
-            slot,
-        )?
-        .set(texture);
+        *places
+            .slot_wanted
+            .get_mut(slot as usize)
+            .ok_or(BadInput("a slot past the texture places' slots"))? = texture;
     }
     Ok(())
 }

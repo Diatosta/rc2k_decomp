@@ -6,7 +6,7 @@
 // ---- game data ----
 
 pub fn reset_texture_tables(scene: &crate::scene::owner::Scene) {
-    scene.textures.places.get().kind_slot_bytes.set(0); // TexturePlaces.kind_slot_bytes, cleared first
+    scene.texture_places_mut().kind_slot_bytes = 0; // TexturePlaces.kind_slot_bytes, cleared first
     // The two tables of textures needed, the first slots and the first textures: 0x1000 bytes each.
     for table in [
         &scene.objects.tables.get().video_levels,

@@ -440,20 +440,11 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.sound.race.sounds",
             on_game(o.sound.race.sounds.get()),
         ),
-        listed!("owners.sound.race.clock", on_game(o.sound.race.clock.get()),),
         listed!(
             "owners.sound.race.surface",
             on_game(o.sound.race.surface.get()),
         ),
         listed!("owners.sound.race.stage", on_game(o.sound.race.stage.get()),),
-        listed!(
-            "owners.sound.race.spot_picks",
-            on_game(o.sound.race.spot_picks.get()),
-        ),
-        listed!(
-            "owners.sound.menu.settings_applied",
-            on_game(o.sound.menu.settings_applied.get()),
-        ),
         listed!("owners.input.force_feedback", &o.input.force_feedback,),
         listed!("owners.sound.menu.options", &o.sound.menu.options,),
         listed!("owners.input.devices", &o.input.devices,),
@@ -466,10 +457,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.sound.race.sounds_on",
             on_game(o.sound.race.sounds_on.get()),
-        ),
-        listed!(
-            "owners.sound.race.car_stream",
-            on_game(o.sound.race.car_stream.get()),
         ),
         listed!(
             "owners.saves.savegame_preview",
@@ -707,8 +694,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.scene.objects.tables.get()),
         ),
         listed!(
-            "owners.scene.textures.places",
-            on_game(o.scene.textures.places.get()),
+            "owners.scene.textures.place_slots",
+            on_game(o.scene.textures.place_slots.get()),
         ),
         listed!(
             "owners.race.frame.matrices",
@@ -801,10 +788,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.menus.screens.carousel),
         ),
         listed!("owners.race.shared.state", &o.race.shared.state,),
-        listed!(
-            "owners.race.physics.damage",
-            on_game(o.race.physics.damage()),
-        ),
         listed!(
             "owners.effects.windscreen_drops.inputs",
             on_game(&o.race.effects.get().windscreen_drops.inputs),

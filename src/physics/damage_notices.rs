@@ -58,13 +58,13 @@ fn gauge(car: &Car, mut k: usize) -> u32 {
 }
 
 // Core: `rc2k_core::physics::damage_notices::damage_notices`.
-fn steps(car: &Car, damage: &DamageModel) -> Result<(), Refused> {
+fn steps(car: &Car, damage: &mut DamageModel) -> Result<(), Refused> {
     let mut levels: [u32; LEVELS] = std::array::from_fn(|k| car.damage_levels[k].get());
     let result = damage_notices_core(
         &mut levels,
         |k| f32::from_bits(gauge(car, k)),
         |t| {
-            damage.scratch.set(from_int(t));
+            damage.scratch = from_int(t);
         },
         |q| queue_notice(car, q.notice, q.rank, gauge(car, q.gauge)),
     );
@@ -74,7 +74,7 @@ fn steps(car: &Car, damage: &DamageModel) -> Result<(), Refused> {
     result
 }
 
-pub fn damage_notices(car: &Car, damage: &DamageModel) -> Result<(), Refused> {
+pub fn damage_notices(car: &Car, damage: &mut DamageModel) -> Result<(), Refused> {
     steps(car, damage)
 }
 

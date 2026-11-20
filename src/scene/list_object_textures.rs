@@ -48,10 +48,11 @@ pub fn list_object_textures(
     if let Some(record) = record {
         // `TexturePlaces.object_texture_records[0]`: the records (`record` a byte offset in
         // 64 of 0x40 bytes).
-        let records = &scene.textures.places.get().object_texture_records;
-        records[record / 4].set(textures.len() as u32);
+        let mut places = scene.texture_places_mut();
+        let records = &mut places.object_texture_records;
+        records[record / 4] = textures.len() as u32;
         for (n, &texture) in textures.iter().enumerate() {
-            records[record / 4 + 1 + n].set(texture);
+            records[record / 4 + 1 + n] = texture;
         }
     }
     Ok(())

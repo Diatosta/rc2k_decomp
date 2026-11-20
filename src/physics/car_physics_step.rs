@@ -75,7 +75,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     )?;
     ph::store_motion_length::store_motion_length(race.shared.car());
     ph::set_handling::set_handling(
-        race.physics.damage(),
+        &mut race.physics.damage_mut(),
         race.course.numbers.get(),
         &race.shared,
     )?;
@@ -323,7 +323,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::store_motion_length::store_motion_length(race.shared.car());
     ph::damage_step::damage_step(
         race.shared.car(),
-        race.physics.damage(),
+        &mut race.physics.damage_mut(),
         race.shared.work.get(),
     )?;
     ph::hit_part_checks::hit_part_checks(
@@ -334,7 +334,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         scene,
         sound,
     )?;
-    ph::damage_notices::damage_notices(race.shared.car(), race.physics.damage())?;
+    ph::damage_notices::damage_notices(race.shared.car(), &mut race.physics.damage_mut())?;
     ph::take_notice::take_notice(race.shared.car());
     ph::drop_to_neutral::drop_to_neutral(race.shared.car(), race.shared.physics_tables.get());
     // A step that set only flags nobody reads is left out.

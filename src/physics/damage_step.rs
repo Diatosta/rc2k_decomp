@@ -8,7 +8,7 @@ use crate::race::work_store::RaceWork;
 
 pub(super) fn damage_step(
     car: &Car,
-    damage: &DamageModel,
+    damage: &mut DamageModel,
     work: &RaceWork,
 ) -> Result<(), BadInput> {
     // The steps' arithmetic is written for rounding to nearest, the mode the damage model runs in.

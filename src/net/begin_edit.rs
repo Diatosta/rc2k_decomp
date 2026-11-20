@@ -3,6 +3,7 @@
 
 use crate::net::owner::Net;
 use crate::net::store::Editing;
+use rc2k_core::net::editing;
 
 /// The texts an edit works on: the settings' machine name, host address and players' count,
 /// and the chat's input line.
@@ -24,18 +25,33 @@ impl EditedText {
             EditedText::ChatInput => &net.lobby().chat_input,
         }
     }
+}
 
-    /// The text `edit` names (refused when none is).
-    pub fn edited(edit: &Editing) -> Result<Self, crate::errors::BadInput> {
-        Ok(match edit.edit_text.get() {
-            1 => EditedText::MachineName,
-            2 => EditedText::HostAddress,
-            3 => EditedText::MostPlayers,
-            4 => EditedText::ChatInput,
-            _ => return Err(crate::errors::BadInput("no edited text")),
-        })
+/// Which text an edit works on, kept in a record of cells (none: nothing is edited).
+#[repr(transparent)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+pub struct EditedTextCell(crate::memory::session::Dword);
+
+impl EditedTextCell {
+    pub const fn new() -> Self {
+        Self(crate::memory::session::Dword::new(0))
+    }
+
+    pub fn get(&self) -> Option<EditedText> {
+        match self.0.get() {
+            1 => Some(EditedText::MachineName),
+            2 => Some(EditedText::HostAddress),
+            3 => Some(EditedText::MostPlayers),
+            4 => Some(EditedText::ChatInput),
+            _ => None,
+        }
+    }
+
+    pub fn set(&self, text: EditedText) {
+        self.0.set(text as u32);
     }
 }
+
 /// Starts the edit `edit` of `text` for item `item`.
 pub fn begin_edit(
     net: &Net,
@@ -46,7 +62,7 @@ pub fn begin_edit(
     font: crate::gfx::typefaces::FontId,
 ) -> Result<(), crate::errors::Refused> {
     edit.edited.set(item);
-    edit.edit_text.set(text as u32);
+    edit.edit_text.set(text);
     edit.edit_width.set(width);
     edit.edit_font.set(font);
     Ok(crate::memory::cells::copy_between(
@@ -54,7 +70,7 @@ pub fn begin_edit(
         0,
         &edit.text_before_edit,
         0,
-        0x40,
+        editing::TEXT_LEN,
         "an edited text",
     )?)
 }
@@ -72,15 +88,12 @@ mod tests {
         main.settings.edit.edited.set(u32::MAX);
         main.lobby.edit.edited.set(u32::MAX);
         main.setup.machine_name.set(0, b'A');
-        main.settings
-            .edit
-            .edit_text
-            .set(EditedText::MachineName as u32);
+        main.settings.edit.edit_text.set(EditedText::MachineName);
         assert_eq!(
-            EditedText::edited(&main.settings.edit).unwrap(),
-            EditedText::MachineName
+            main.settings.edit.edit_text.get(),
+            Some(EditedText::MachineName)
         );
-        assert!(EditedText::edited(&main.lobby.edit).is_err());
+        assert_eq!(main.lobby.edit.edit_text.get(), None);
         assert_eq!(main.lobby.edit.edited.get(), u32::MAX);
         assert_eq!(main.settings.edit.text_before_edit.get(0), 0);
     }

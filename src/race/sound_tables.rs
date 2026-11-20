@@ -102,7 +102,7 @@ fn restart_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refused>
     wait_for_commands(o);
     reset_race_sounds(&SoundVars::game(sound), o)?;
     crate::sound::let_sounds_play::let_sounds_play_in(audio);
-    sound.race.clock.get().started.set(1);
+    sound.race.clock.get().borrow_mut().started = 1;
     Ok(())
 }
 

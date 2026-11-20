@@ -3,11 +3,13 @@
 //! notice kind 2), and the port from its text, held to 0 ..= 65535 (0 is the default); the password is kept as typed.
 
 use crate::errors::Refused;
+use crate::net::edit_key::EditOutcome;
 use crate::net::lobby::movsb;
 use crate::net::owner::Net;
 use rc2k_core::net::chat;
 
-/// The key `key` for the setting being edited.
+/// The key `key` for the setting being edited. Escape puts the old text back and stops there: only
+/// a finished edit is read.
 pub(super) fn setting_key(
     strings: &crate::strings::owner::Strings,
     list_state: &crate::menu::list_state::ListState,
@@ -15,7 +17,7 @@ pub(super) fn setting_key(
     key: u8,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    if !crate::net::edit_key::edit_key(net, &net.settings().edit, key, gfx)? {
+    if crate::net::edit_key::edit_key(net, &net.settings().edit, key, gfx)? != EditOutcome::Done {
         return Ok(());
     }
     // The logic is in `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
@@ -25,7 +27,7 @@ pub(super) fn setting_key(
                 movsb(
                     &net.setup().machine_name,
                     &net.settings().edit.text_before_edit,
-                    0x40,
+                    rc2k_core::net::editing::TEXT_LEN as u32,
                 )?;
             }
         }

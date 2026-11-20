@@ -16,7 +16,7 @@
 //! the log, a rule. After the last failed one: "Cant allocate enough textures" and fatal error
 //! 0x80600403.
 
-use crate::errors::{FatalError, Refused};
+use crate::errors::{BadInput, FatalError, Refused};
 use crate::logfile::log_int::log_int;
 use crate::scene::count_texture_needs::count_texture_needs;
 use crate::scene::raise_texture_needs::raise_texture_needs;
@@ -70,7 +70,6 @@ fn run(
     steps: &'static [Step],
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
 ) -> Result<bool, Refused> {
-    let textures = &scene.textures;
     for step in steps {
         match *step {
             Step::Text(text, newline) => {
@@ -83,12 +82,12 @@ fn run(
                 call(Call::Raise { level, tag })?;
             }
             Step::Count(index) => {
-                let counter = crate::scene::texture_places_store::cell_at(
-                    textures.places.get(),
-                    crate::scene::texture_places_store::PlacesTable::Counters,
-                    index,
-                )?;
-                counter.set(counter.get().wrapping_add(1));
+                let mut places = scene.texture_places_mut();
+                let counter = places
+                    .counters
+                    .get_mut(index as usize)
+                    .ok_or(BadInput("a counter past the texture places' counters"))?;
+                *counter = counter.wrapping_add(1);
             }
             Step::Try => {
                 if call(Call::Try)? {
@@ -102,7 +101,8 @@ fn run(
                 call(Call::CountNeeds)?;
             }
             Step::Unless(flag, inner) => {
-                if textures.places.get().step_flags[flag].get() == 0 && run(scene, inner, call)? {
+                let skipped = scene.texture_places().step_flags[flag] != 0;
+                if !skipped && run(scene, inner, call)? {
                     return Ok(true);
                 }
             }
@@ -115,12 +115,12 @@ pub fn build_texture_catalogue(
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let textures = &scene.textures;
-    for counter in &textures.places.get().counters {
-        counter.set(0);
-    }
-    for (n, flag) in textures.places.get().step_flags.iter().enumerate() {
-        flag.set((n == 0) as u32);
+    {
+        let mut places = scene.texture_places_mut();
+        places.counters.fill(0);
+        for (n, flag) in places.step_flags.iter_mut().enumerate() {
+            *flag = (n == 0) as u32;
+        }
     }
     if run(scene, &STEPS, call)? {
         run(scene, &DONE, call)?;

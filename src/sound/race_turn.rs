@@ -17,7 +17,7 @@ pub fn race_turn(
         // The program ends here, as the game's start ends it.
         crate::standalone::leave_on_close(o);
     }
-    if sound.race.clock.get().started.get() != 1 {
+    if sound.race.clock.get().borrow().started != 1 {
         return Ok(());
     }
     if crate::sound::turn_parts::step_clock(sound, &system.session.picture_clock) {

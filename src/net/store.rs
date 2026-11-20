@@ -299,8 +299,8 @@ impl SessionDesc {
 /// the lobby each have their own.
 #[derive(rc2k_derive::Cells)]
 pub struct Editing {
-    /// The text of the item edited, by number (`net::begin_edit::EditedText`).
-    pub edit_text: PlainDword,
+    /// The text of the item edited (none: nothing is edited).
+    pub edit_text: crate::net::begin_edit::EditedTextCell,
     /// The item edited (-1: none).
     pub edited: PlainDword,
     /// The widest the edited text may be.
@@ -314,7 +314,7 @@ pub struct Editing {
 impl Editing {
     pub const fn new() -> Self {
         Self {
-            edit_text: PlainDword::new(0),
+            edit_text: crate::net::begin_edit::EditedTextCell::new(),
             edited: PlainDword::new(0),
             edit_width: PlainDword::new(0),
             // 0 in the image: the first font's number; read only once an edit has set it.

@@ -83,11 +83,11 @@ pub fn ask(o: crate::owners::Owners<'static>, wrong: bool) -> Result<Option<Vec<
         let key = list_key(list_state, o.input)?;
         let went_back = editing::EditKey::of(key) == editing::EditKey::Escape
             || system.session.flags.quitting.is_set();
-        let ended = crate::net::edit_key::edit_key(net, &net.settings().edit, key, o.gfx)?;
+        let outcome = crate::net::edit_key::edit_key(net, &net.settings().edit, key, o.gfx)?;
         if went_back {
             break None;
         }
-        if ended {
+        if outcome == crate::net::edit_key::EditOutcome::Done {
             let typed = net.settings().most_players_text.read();
             let end = typed.iter().position(|&b| b == 0).unwrap_or(typed.len());
             break Some(typed[..end].to_vec());

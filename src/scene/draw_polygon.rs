@@ -313,12 +313,12 @@ fn choose_texture(
     let smooth = poly.smooth.get() == 1;
     outside.state(3, if smooth { 3 } else { 1 });
     let number: u32 = poly.texture_page.get();
-    let loaded: u32 = reads.texture_places.totals[2].get();
+    let loaded: u32 = reads.place_slots.video_textures.get();
     let texture = match number {
         u32::MAX => None,
         0x8000_0000.. => {
             let number = number & 0x7FFF_FFFF;
-            (number < 0xFA0).then(|| reads.texture_places.place_slot[number as usize].get())
+            (number < 0xFA0).then(|| reads.place_slots.place_slot[number as usize].get())
         }
         _ => (number < 0x400).then(|| reads.kind_textures.kind_first_slots[number as usize].get()),
     };

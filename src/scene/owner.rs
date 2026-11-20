@@ -13,7 +13,7 @@ use crate::scene::light_work_store::LightWork;
 use crate::scene::object_slots_store::ObjectTables as ObjectSlots;
 use crate::scene::object_store::ObjectWork;
 use crate::scene::object_tables_store::ObjectTables;
-use crate::scene::texture_places_store::TexturePlaces;
+use crate::scene::texture_places_store::{PlaceSlots, TexturePlaces};
 use std::cell::{Ref, RefCell, RefMut};
 
 /// The scene's state.
@@ -44,6 +44,9 @@ struct SceneMain {
     /// The lights' work variables: borrowed for one statement at a time (`Scene::light_work`); the
     /// drawing parts read the copy their scope was opened with.
     light_work: RefCell<LightWork>,
+    /// The texture places the drawing parts do not read: borrowed for one statement at a time
+    /// (`Scene::texture_places`).
+    texture_places: RefCell<TexturePlaces>,
 }
 
 impl Scene {
@@ -83,6 +86,17 @@ impl Scene {
         self.main.get().light_work.borrow_mut()
     }
 
+    /// The texture places (but the part the drawing reads, `Textures::place_slots`), read: no
+    /// write borrow may be held.
+    pub fn texture_places(&self) -> Ref<'_, TexturePlaces> {
+        self.main.get().texture_places.borrow()
+    }
+
+    /// The texture places, to write: no other borrow may be held.
+    pub fn texture_places_mut(&self) -> RefMut<'_, TexturePlaces> {
+        self.main.get().texture_places.borrow_mut()
+    }
+
     /// The scene objects' work variables, read: no write borrow may be held.
     pub fn object_work(&self) -> Ref<'_, ObjectWork> {
         self.main.get().object_work.borrow()
@@ -119,11 +133,11 @@ pub struct Objects {
     pub tables: DrawShared<ObjectTables>,
 }
 
-/// The texture places and the kinds' texture tables.
+/// The texture places the drawing reads and the kinds' texture tables.
 pub struct Textures {
-    /// The texture places (`TEXTURE_PLACES`): written between frames, read by the drawing parts
-    /// through their reads (`scene::workers::DrawReads`).
-    pub places: DrawShared<TexturePlaces>,
+    /// Each place's slot and the video textures' count: written between frames, read by the
+    /// drawing parts through their reads (`scene::workers::DrawReads`).
+    pub place_slots: DrawShared<PlaceSlots>,
     /// The kinds' texture tables: written between frames, read by the drawing
     /// parts through their reads (`scene::workers::DrawReads`).
     pub kinds: DrawShared<KindTextureTables>,
@@ -146,7 +160,7 @@ impl Scene {
                 tables: DrawShared::new(ObjectTables::new()),
             },
             textures: Textures {
-                places: DrawShared::new(TexturePlaces::new()),
+                place_slots: DrawShared::new(PlaceSlots::new()),
                 kinds: DrawShared::new(KindTextureTables::new()),
             },
             main: GameThread::new(SceneMain {
@@ -154,6 +168,7 @@ impl Scene {
                 object_work: RefCell::new(ObjectWork::new()),
                 draw_switches: RefCell::new(DrawSwitches::new()),
                 light_work: RefCell::new(LightWork::new()),
+                texture_places: RefCell::new(TexturePlaces::new()),
             }),
         }
     }

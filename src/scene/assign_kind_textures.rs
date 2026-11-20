@@ -16,10 +16,13 @@ pub fn assign_kind_textures(scene: &crate::scene::owner::Scene) -> Result<(), Ba
         [
             &scene_textures.kinds.get().kind_first_slots,
             &scene_textures.kinds.get().kind_first_textures,
-            &scene_textures.places.get().slot_wanted,
         ],
-        |[slots, textures, wanted]| {
-            rc2k_core::scene::textures::assign_kind_textures(slots, textures, wanted)
+        |[slots, textures]| {
+            rc2k_core::scene::textures::assign_kind_textures(
+                slots,
+                textures,
+                &mut scene.texture_places_mut().slot_wanted,
+            )
         },
     )?;
     Ok(())

@@ -48,7 +48,7 @@ pub fn stage_sounds(
         }
     }
     // The logic is `rc2k_core::sound::stage::wait_turn`.
-    let clock = sound.race.clock.get().last.get();
+    let clock = sound.race.clock.get().borrow().last;
     let mut wait = rc2k_core::sound::stage::Wait {
         arm: stage.timed_arm.get(),
         delay: stage.timed_delay.get(),

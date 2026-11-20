@@ -5,14 +5,8 @@
 // ---- game data ----
 
 pub fn reset_texture_places(scene: &crate::scene::owner::Scene) {
-    let textures = &scene.textures;
     // `loaded_pictures`, `wanted_pictures`: 0x1000 bytes each, 0xFF.
-    for table in [
-        &textures.places.get().loaded_pictures,
-        &textures.places.get().wanted_pictures,
-    ] {
-        for cell in table {
-            cell.set(u32::MAX);
-        }
-    }
+    let mut places = scene.texture_places_mut();
+    places.loaded_pictures.fill(u32::MAX);
+    places.wanted_pictures.fill(u32::MAX);
 }

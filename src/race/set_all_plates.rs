@@ -23,7 +23,8 @@ pub fn set_all_plates(
     };
     let cars: u32 = shared.view.get().race_cars.get();
     check_picture_cars(cars)?;
-    let pictures = &scene.textures.places.get().kind_pictures;
+    let mut places = scene.texture_places_mut();
+    let pictures = &mut places.kind_pictures;
     let prefs = course.stage_prefs.get();
     for (kind, dwords) in PREF_PIECES {
         // The prefs hold three picture lists of 64 kinds each (`picture_lists_a`, `_b`, `_c`):
@@ -34,11 +35,11 @@ pub fn set_all_plates(
             _ => &prefs.picture_lists_c,
         };
         for n in 0..dwords {
-            pictures[kind + n].set(list[kind % 64 + n].get());
+            pictures[kind + n] = list[kind % 64 + n].get();
         }
     }
     for (kind, picture) in FIXED_PICTURES {
-        pictures[kind].set(picture);
+        pictures[kind] = picture;
     }
     let mut at = CAR_PICTURE_KINDS;
     for car in 0..cars {
@@ -47,10 +48,11 @@ pub fn set_all_plates(
             shared.vars.get().race_car_kinds[car as usize].get(),
         );
         for picture in car_pictures(first) {
-            pictures[at].set(picture);
+            pictures[at] = picture;
             at += 1;
         }
     }
+    drop(places);
     crate::logfile::load_times::mark("reload_system_textures");
     crate::scene::reload_system_textures::reload_system_textures(o, progress)?;
     crate::logfile::load_times::mark("reload_slot_textures");

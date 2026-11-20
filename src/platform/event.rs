@@ -116,7 +116,7 @@ pub enum Event {
     },
     Stick {
         axis: StickAxis,
-        value: i32,
+        value: i16,
     },
     /// The right stick's vertical axis (a page that scrolls reads it).
     ScrollStick(i32),
@@ -221,10 +221,7 @@ pub fn next(overlay_takes: impl FnOnce(&sdl::PolledEvent) -> bool) -> Option<Eve
                 SDL_GAMEPAD_AXIS_RIGHTY => return Some(Event::ScrollStick(value.into())),
                 _ => return Some(Event::Other),
             };
-            Event::Stick {
-                axis,
-                value: value.into(),
-            }
+            Event::Stick { axis, value }
         } else if let Some((id, input)) = event.joystick_input() {
             Event::Joystick { id, input }
         } else if let Some(text) = event.text() {

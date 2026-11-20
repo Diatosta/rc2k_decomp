@@ -24,7 +24,7 @@ pub(super) fn play_cue_queue(
     let in_use = so.in_use.get() == 1;
     let q = &so.cue_queue;
     let mut queue = CueQueue::from_words(&crate::sound::drop_cue::read_words(q)?);
-    let clock = sound.race.clock.get().last.get();
+    let clock = sound.race.clock.get().borrow().last;
     if !in_use {
         return Ok(());
     }

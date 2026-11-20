@@ -7,13 +7,13 @@ use crate::test_support::own::race;
 /// The status word of the engine's speed against its limit times the factor.
 fn over_limit_status(car: &Car, m: &DamageModel) -> u16 {
     compare(
-        car.engine_speed_limit.ld() * m.engine_limit_factor.ld(),
+        car.engine_speed_limit.ld() * crate::math::x87_float::ld(m.engine_limit_factor),
         car.engine_speed.ld(),
     )
 }
 
 /// The damage model as the test's buffer holds it.
-fn dm(base: usize) -> &'static DamageModel {
+fn dm(base: usize) -> &'static mut DamageModel {
     crate::physics::store::model_in_test_buffer(base)
 }
 use crate::math::x87_mem::Base;
@@ -60,7 +60,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 wheel_stiffness_from_share(
                     dm(a[0]),
-                    &dm(a[0]).wheel_stiffness_lerp[0],
+                    dm(a[0]).wheel_stiffness_lerp[0],
                     &crate::test_support::own::race()
                         .shared
                         .car()
@@ -138,7 +138,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 wheel_stiffness_from_share(
                     dm(a[0]),
-                    &dm(a[0]).wheel_stiffness_lerp[1],
+                    dm(a[0]).wheel_stiffness_lerp[1],
                     &crate::test_support::own::race()
                         .shared
                         .car()
@@ -216,7 +216,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 wheel_stiffness_from_share(
                     dm(a[0]),
-                    &dm(a[0]).wheel_stiffness_lerp[2],
+                    dm(a[0]).wheel_stiffness_lerp[2],
                     &crate::test_support::own::race()
                         .shared
                         .car()
@@ -294,7 +294,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 wheel_stiffness_from_share(
                     dm(a[0]),
-                    &dm(a[0]).wheel_stiffness_lerp[3],
+                    dm(a[0]).wheel_stiffness_lerp[3],
                     &crate::test_support::own::race()
                         .shared
                         .car()
@@ -449,10 +449,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                drive_extrapolation_step(
+                dm(a[0]).drive_b_slip_share = drive_extrapolation_step(
                     race().shared.car(),
                     dm(a[0]),
-                    &dm(a[0]).drive_b_slip_share,
                     &crate::test_support::own::race().shared.car().drive_speed_a,
                     &crate::test_support::own::race().shared.car().drive_speed_a,
                 );
@@ -476,10 +475,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                drive_extrapolation_step(
+                dm(a[0]).drive_a_extrapolated_share = drive_extrapolation_step(
                     race().shared.car(),
                     dm(a[0]),
-                    &dm(a[0]).drive_a_extrapolated_share,
                     &crate::test_support::own::race().shared.car().drive_speed_b,
                     &crate::test_support::own::race().shared.car().drive_speed_b,
                 );
@@ -501,7 +499,7 @@ fn blocks() -> Vec<Block> {
                 writes: &[(laid!(0x35B3F4), Out::F)],
             }],
             ulps: 0,
-            plain: |a| dm(a[0]).wheels_down.set(1.0),
+            plain: |a| dm(a[0]).wheels_down = 1.0,
         },
         Block {
             name: "damage_factors line 268",
@@ -510,7 +508,7 @@ fn blocks() -> Vec<Block> {
                 writes: &[(laid!(0x35B3B0), Out::F)],
             }],
             ulps: 0,
-            plain: |a| dm(a[0]).brake_share.set(0.0),
+            plain: |a| dm(a[0]).brake_share = 0.0,
         },
         Block {
             name: "damage_factors line 276",
@@ -553,7 +551,7 @@ fn blocks() -> Vec<Block> {
                 writes: &[(laid!(0x35B3B4), Out::F)],
             }],
             ulps: 0,
-            plain: |a| dm(a[0]).on_surface_5.set(0.0),
+            plain: |a| dm(a[0]).on_surface_5 = 0.0,
         },
         Block {
             name: "damage_factors line 322",

@@ -25,19 +25,18 @@ pub fn load_changed_texture_picture(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let textures = &scene.textures;
     if texture >= TEXTURES {
         return Err(BadInput("a texture past the pictures' tables").into());
     }
     let at = texture as usize;
     let Some(wanted) = rc2k_core::scene::pictures::changed_picture(
-        textures.places.get().wanted_pictures[at].get(),
-        || textures.places.get().loaded_pictures[at].get(),
+        scene.texture_places().wanted_pictures[at],
+        || scene.texture_places().loaded_pictures[at],
     ) else {
         return Ok(());
     };
     let loaded = load_texture_picture(race, gfx, wanted, texture, scene, system)?;
     upload_picture(&loaded, gfx)?;
-    textures.places.get().loaded_pictures[at].set(wanted);
+    scene.texture_places_mut().loaded_pictures[at] = wanted;
     Ok(())
 }

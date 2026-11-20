@@ -21,6 +21,8 @@ const FIELD_GRACE: Duration = Duration::from_millis(500);
 
 /// The most characters waiting.
 const QUEUE_MOST: usize = 64;
+/// The echo keeps the last characters typed, as many as the longest field holds.
+const ECHO_MOST: usize = rc2k_core::net::editing::TEXT_LEN;
 
 #[derive(Default)]
 struct State {
@@ -185,6 +187,9 @@ pub fn osk_press() -> Option<Asks> {
         Press::Type(c) => {
             if st.queue.len() < QUEUE_MOST {
                 st.queue.push_back(c);
+                if st.echo.len() == ECHO_MOST {
+                    st.echo.remove(0);
+                }
                 st.echo.push(c);
             }
             Asks::Nothing
@@ -218,6 +223,15 @@ mod tests {
         assert_eq!(osk_echo().0, [b'2']);
         osk_erased();
         assert!(osk_echo().0.is_empty());
+        // the echo keeps only the newest characters, as many as a field holds
+        for _ in 0..ECHO_MOST + 5 {
+            assert_eq!(osk_press(), Some(Asks::Nothing));
+            let _ = take();
+        }
+        assert_eq!(osk_echo().0.len(), ECHO_MOST);
+        while !osk_echo().0.is_empty() {
+            osk_erased();
+        }
         note_field_y(300);
         assert_eq!(field_y(), Some(300));
         assert!(!osk_echo().1);
@@ -227,7 +241,7 @@ mod tests {
         assert!(osk().is_none());
         let t = take();
         assert!(text_mode());
-        assert_eq!(t.chars, [b'2', b'a', 0xE7]);
+        assert_eq!(t.chars, [b'a', 0xE7]);
         assert!(take().chars.is_empty());
         assert_eq!(osk_press(), None);
     }

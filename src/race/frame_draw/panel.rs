@@ -241,7 +241,7 @@ pub fn object_bytes(
 ) -> Result<(), BadInput> {
     let kind = |n: u32| -> Result<u32, BadInput> {
         reads
-            .texture_places
+            .place_slots
             .place_slot
             .get(n as usize)
             .map(crate::memory::session::PlainDword::get)

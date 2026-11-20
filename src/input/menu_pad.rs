@@ -146,20 +146,21 @@ impl MenuPad {
         })
     }
 
-    /// The left stick's axis moved to `value` (-32768 .. 32767, down and right positive) at
+    /// The left stick's axis moved to `value` (an SDL axis, down and right positive) at
     /// `now`: leaning past the press line is that direction of the pad's cross pressed (with
     /// its repeat), coming back inside the release line lets go of it.
-    pub fn stick(&mut self, axis: StickAxis, value: i32, now: u64) -> Option<MenuAction> {
+    pub fn stick(&mut self, axis: StickAxis, value: i16, now: u64) -> Option<MenuAction> {
         let (slot, negative, positive) = match axis {
             StickAxis::X => (0, PadButton::DpadLeft, PadButton::DpadRight),
             StickAxis::Y => (1, PadButton::DpadUp, PadButton::DpadDown),
         };
+        let value = i32::from(value);
         let (press, release) = (STICK_PRESS, STICK_RELEASE);
         let leaning = if value <= -press {
             Some(negative)
         } else if value >= press {
             Some(positive)
-        } else if value.abs() > release {
+        } else if value.unsigned_abs() > release.unsigned_abs() {
             // between the lines: as it was
             self.stick[slot]
         } else {

@@ -145,7 +145,7 @@ pub fn car_engine_state(
     let record = sound.race.kinds.get().record(kind)?;
     let before = load(so);
     let mut object = before;
-    let clock = sound.race.clock.get().last.get();
+    let clock = sound.race.clock.get().borrow().last;
     // The revs extrapolated, worked out first: its division may trap.
     let change = extrapolation(&object, clock, || {
         race.shared.replay_file().hold_car_revs.get()
@@ -165,9 +165,13 @@ pub fn car_engine_state(
     if let Some(low) = low {
         gear_pitch(so, low, system);
     }
-    distance_and_approach(so, sound.race.clock.get());
+    distance_and_approach(so, &sound.race.clock.get().borrow());
     so.volume_factor.set(0.0);
-    ease_pitch_factor(so, sound.race.clock.get(), sound.race.surface.get());
+    ease_pitch_factor(
+        so,
+        &sound.race.clock.get().borrow(),
+        sound.race.surface.get(),
+    );
     so.volume_factor.set(1.0);
     // The float's bit pattern compared as a signed integer: 1.0f32 is 0x3F80_0000.
     if so.distance.bits() as i32 > 0x3F80_0000 {
@@ -220,14 +224,13 @@ fn distance_and_approach(so: &SoundObject, clock: &RaceClock) {
     let distance = (x * x + (y * y + z * z)).sqrt();
     so.distance.set(stf(distance));
     so.approach
-        .set(stf((old - distance) * ld(clock.turns_a_second.get())));
+        .set(stf((old - distance) * ld(clock.turns_a_second)));
 }
 
 /// The pitch factor eased toward `(approach + sound speed) * (1 / sound speed)`:
 /// `((target - factor) * blend) + factor`.
 fn ease_pitch_factor(so: &SoundObject, clock: &RaceClock, surface: &SurfaceSounds) {
-    let target =
-        (ld(so.approach.get()) + ld(clock.sound_speed.get())) * ld(clock.over_sound_speed.get());
+    let target = (ld(so.approach.get()) + ld(clock.sound_speed)) * ld(clock.over_sound_speed);
     let factor = ld(so.pitch_factor.get());
     let eased = (target - factor) * ld(surface.pitch_blend.get()) + factor;
     so.pitch_factor.set(stf(eased));

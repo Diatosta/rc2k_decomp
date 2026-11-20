@@ -134,14 +134,14 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     crate::logfile::load_times::phase("front end scene: texture places");
     reset_texture_places(scene);
 
-    scene.textures.places.get().kind_pictures[0x87].set(0x82A);
+    scene.texture_places_mut().kind_pictures[0x87] = 0x82A;
     for (k, &picture) in MENU_PICTURES.iter().enumerate() {
-        scene.textures.places.get().kind_pictures[0x258 + k].set(picture);
+        scene.texture_places_mut().kind_pictures[0x258 + k] = picture;
     }
     for place in picture_places() {
         let mut picture = known_kind_picture(race.kind_tables(), place);
         for k in 0..8 {
-            scene.textures.places.get().kind_pictures[0x2BC + place as usize * 8 + k].set(picture);
+            scene.texture_places_mut().kind_pictures[0x2BC + place as usize * 8 + k] = picture;
             picture = picture.wrapping_add(1);
         }
     }

@@ -9,6 +9,7 @@ use crate::errors::{BadInput, Refused};
 use crate::memory::session::PlainDword;
 use crate::menu::load_car_background::shown_car;
 use crate::menu::owner::Menus;
+use crate::sound::store::CarStream;
 
 // ---- game data ----
 
@@ -54,9 +55,11 @@ pub fn play_car_stream(
     if let Some(e) = failed.take() {
         return Err(e.into());
     }
-    sound.race.car_stream.get().on.set(s.on);
-    sound.race.car_stream.get().stream.set(s.list);
-    sound.race.car_stream.get().place.set(s.place);
+    *sound.race.car_stream.get().borrow_mut() = CarStream {
+        on: s.on,
+        stream: s.list,
+        place: s.place,
+    };
     start(s.first, s.volume);
     Ok(())
 }

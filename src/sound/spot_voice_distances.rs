@@ -26,7 +26,7 @@ pub(super) fn spot_voice_distances(sound: &crate::sound::owner::Sound) {
         let (distance, change) = distance_and_change(
             [v.place[0].get(), v.place[1].get(), v.place[2].get()],
             v.distance.get(),
-            sound.race.clock.get().turns_a_second.get(),
+            sound.race.clock.get().borrow().turns_a_second,
         );
         v.distance.set(distance);
         v.distance_change.set(change);
@@ -36,7 +36,7 @@ pub(super) fn spot_voice_distances(sound: &crate::sound::owner::Sound) {
             v.pitch_factor.set(eased_pitch_factor(
                 v.distance_change.get(),
                 v.pitch_factor.get(),
-                sound.race.clock.get(),
+                &sound.race.clock.get().borrow(),
                 sound.race.surface.get(),
             ));
         }
@@ -84,9 +84,9 @@ fn eased_pitch_factor(
     sf: &crate::sound::store::SurfaceSounds,
 ) -> f32 {
     let t0 = ld(change);
-    let t1 = ld(ck.sound_speed.get());
+    let t1 = ld(ck.sound_speed);
     let t2 = t0 + t1;
-    let t3 = ld(ck.over_sound_speed.get());
+    let t3 = ld(ck.over_sound_speed);
     let t4 = t2 * t3;
     let t5 = ld(factor);
     let t6 = t4 - t5;
@@ -142,11 +142,8 @@ mod reference_vectors {
                 plain: |a| {
                     let clock = view::<crate::sound::store::RaceClock>(a[1], 0);
                     let place = [float_at(a[0], 8), float_at(a[0], 0xC), float_at(a[0], 0x10)];
-                    let (distance, change) = distance_and_change(
-                        place,
-                        float_at(a[0], 0x40),
-                        clock.turns_a_second.get(),
-                    );
+                    let (distance, change) =
+                        distance_and_change(place, float_at(a[0], 0x40), clock.turns_a_second);
                     put_float(a[0], 0x40, distance);
                     put_float(a[0], 0x44, change);
                 },

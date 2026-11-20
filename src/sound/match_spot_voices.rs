@@ -28,13 +28,7 @@ pub fn match_spot_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refus
             kind: spot.kind.get(),
         })
         .collect();
-    let kinds: [u32; MOST_KIND as usize + 1] = sound
-        .race
-        .spot_picks
-        .get()
-        .kind_sounds
-        .each_ref()
-        .map(crate::memory::session::PlainDword::get);
+    let kinds: [u32; MOST_KIND as usize + 1] = sound.race.spot_kinds.get().kind_sounds;
     let mut voices = load_voices(sound);
     rc2k_core::sound::spot_voices::match_spots(&spots, &mut voices, &kinds)?;
     store_voices(sound, &voices);

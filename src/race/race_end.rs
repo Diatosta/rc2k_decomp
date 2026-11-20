@@ -159,7 +159,7 @@ pub fn reset_race_sounds(
     }
     sound.race.stage.get().shared_count.set(0);
     crate::sound::queue::send_command_in(audio, Command::Room(3));
-    sound.race.clock.get().started.set(0);
+    sound.race.clock.get().borrow_mut().started = 0;
     Ok(())
 }
 

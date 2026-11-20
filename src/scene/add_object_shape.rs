@@ -76,11 +76,13 @@ pub fn add_object_shape(
     scene.object_work_mut().shape_counts[1] = shape.file_points;
     scene.object_work_mut().shape_counts[0] = shape.file_faces;
     scene.object_work_mut().shape_counts[3] = shape.file_normals;
+    let mut places = scene.texture_places_mut();
     for n in 0..MARKS {
-        scene.textures.places.get().face_marks[n].set(shape.face_taken[n] as u32);
-        scene.textures.places.get().point_marks[n].set(shape.point_marks[n]);
-        scene.textures.places.get().normal_marks[n].set(shape.normal_marks[n]);
+        places.face_marks[n] = shape.face_taken[n] as u32;
+        places.point_marks[n] = shape.point_marks[n];
+        places.normal_marks[n] = shape.normal_marks[n];
     }
+    drop(places);
 
     // The points.
     let (first_point, first_face) = (room.point_count, room.face_count);

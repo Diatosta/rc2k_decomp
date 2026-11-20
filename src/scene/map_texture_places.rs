@@ -8,16 +8,9 @@
 use crate::scene::textures::with_cells;
 
 pub fn map_texture_places(scene: &crate::scene::owner::Scene) {
-    let textures = &scene.textures;
     // Logic: `rc2k_core::scene::textures::map_places`.
-    with_cells(
-        [
-            &textures.places.get().slot_wanted,
-            &textures.places.get().wanted_pictures,
-            &textures.places.get().place_slot,
-        ],
-        |[wanted, pictures, places]| {
-            rc2k_core::scene::textures::map_places(wanted, pictures, places)
-        },
-    );
+    let places = scene.texture_places();
+    with_cells([&scene.textures.place_slots.get().place_slot], |[slots]| {
+        rc2k_core::scene::textures::map_places(&places.slot_wanted, &places.wanted_pictures, slots)
+    });
 }

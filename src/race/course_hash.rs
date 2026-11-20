@@ -5,6 +5,8 @@
 //! path and value (`drive::sim_hash`), so the records' layout does not matter. The stage's second
 //! load in a process (after the first one's free) is a second `load` line set.
 
+#[cfg(feature = "remote")]
+use crate::drive::sim_hash::dword_run_hash;
 use crate::drive::sim_hash::{bytes_hash, record_hash};
 
 /// The switch, read once.
@@ -25,6 +27,52 @@ fn table(table: &crate::memory::shared_table::SharedTable) -> String {
         || "none".to_string(),
         |b| format!("{:016x}", bytes_hash(&b)),
     )
+}
+
+/// The hash of the texture places as the cell store they were hashed as: every table one run of
+/// dwords under its field's name (`record_hash`'s way), the three dwords past the normals' marks
+/// included.
+#[cfg(feature = "remote")]
+fn texture_places_hash(scene: &crate::scene::owner::Scene) -> u64 {
+    let places = scene.texture_places();
+    let slots = scene.textures.place_slots.get();
+    let place_slot: Vec<u32> = slots
+        .place_slot
+        .iter()
+        .map(crate::memory::session::PlainDword::get)
+        .collect();
+    let totals = [
+        places.video_kilobytes,
+        places.system_kilobytes,
+        slots.video_textures.get(),
+        places.system_textures,
+    ];
+    let runs: [(&str, &[u32]); 18] = [
+        (".texture_of[0]", &places.texture_of),
+        (".place_slot[0]", &place_slot),
+        (".kind_pictures[0]", &places.kind_pictures),
+        (".wanted_pictures[0]", &places.wanted_pictures),
+        (".loaded_pictures[0]", &places.loaded_pictures),
+        (".slot_wanted[0]", &places.slot_wanted),
+        (".slot_loaded[0]", &places.slot_loaded),
+        (".totals[0]", &totals),
+        (
+            ".kind_slot_bytes",
+            std::slice::from_ref(&places.kind_slot_bytes),
+        ),
+        (".counters[0]", &places.counters),
+        (".step_flags[0]", &places.step_flags),
+        (".car_icon_sheet_x[0]", &places.car_icon_sheet_x),
+        (".car_icon_sheet_y[0]", &places.car_icon_sheet_y),
+        (".object_texture_records[0]", &places.object_texture_records),
+        (".face_marks[0]", &places.face_marks),
+        (".point_marks[0]", &places.point_marks),
+        (".normal_marks[0]", &places.normal_marks),
+        (".reserved_173d4[0]", &[0; 3]),
+    ];
+    runs.iter().fold(0, |sum, (path, run)| {
+        sum.wrapping_add(dword_run_hash(path, run))
+    })
 }
 
 /// The hash of the stage's stores after loading (`after` "load") or freeing it ("free"), logged.
@@ -79,7 +127,7 @@ pub fn log_hashes(
     );
     say(
         "texture_places",
-        format!("{:016x}", record_hash(scene.textures.places.get())),
+        format!("{:016x}", texture_places_hash(scene)),
     );
     say(
         "texture_kinds",

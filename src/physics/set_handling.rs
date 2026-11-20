@@ -95,7 +95,7 @@ fn after<'a>(
 
 /// The exact version, for `race::settle_car` and `physics::car_physics_step`.
 pub fn set_handling(
-    damage: &DamageModel,
+    damage: &mut DamageModel,
     numbers: &Numbers,
     shared: &RaceShared,
 ) -> Result<(), Refused> {

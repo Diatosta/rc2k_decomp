@@ -82,12 +82,12 @@ pub(super) fn play_placed_sound(
             request.volume_factor.get(),
         ));
         request.volume.set(volume);
-        let clock = owner.race.clock.get();
+        let clock = owner.race.clock.get().borrow();
         let (angle, place) = angle_and_place(
             request.place[2].get(),
             request.place[0].get(),
-            clock.pan_per_radian.get(),
-            clock.pan_centre.get(),
+            clock.pan_per_radian,
+            clock.pan_centre,
         );
         request.angle.set(angle);
         request.pan.set(place);

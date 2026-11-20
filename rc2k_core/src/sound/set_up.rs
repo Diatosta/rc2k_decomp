@@ -1,14 +1,8 @@
 //! The audio thread put in its modes, and the waits for it.
 //!
-//! Both set-ups mark which they are (`SettingsApplied.done`: 1 the menus', 2 the race's), stop the
-//! music, queue their commands, wait for the thread to take them and let sounds play again
+//! Both set-ups stop the music, queue their commands, wait for the thread to take them and let sounds play again
 //! (`AudioShared.sounds_held_back` 0). Each command's values go in as the caller left them; a
 //! command's result is set for those after it.
-
-/// `SettingsApplied.done` after the menus' set-up.
-pub const MENUS: u32 = 1;
-/// `SettingsApplied.done` after the race's.
-pub const RACE: u32 = 2;
 
 use crate::audio::commands::Command;
 

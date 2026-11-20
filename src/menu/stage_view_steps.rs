@@ -28,6 +28,7 @@ use crate::menu::owner::Screens;
 use crate::owners::Owners;
 use crate::records::find_record::{find_record_in, has_section};
 use crate::records::stages_store::RecordRef;
+use crate::sound::store::CarStream;
 use crate::system::owner::System;
 use rc2k_core::menu::stage_screens;
 
@@ -88,9 +89,11 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
             return Err(e.into());
         }
         let at = at?;
-        sound.race.car_stream.get().on.set(1);
-        sound.race.car_stream.get().stream.set(at);
-        sound.race.car_stream.get().place.set(0);
+        *sound.race.car_stream.get().borrow_mut() = CarStream {
+            on: 1,
+            stream: at,
+            place: 0,
+        };
         crate::sound::start_stream::start_stream(
             o,
             crate::menu::texts_store::speech_entry(&menus.texts, &audio.sample_names, at, 0)?,

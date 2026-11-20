@@ -489,12 +489,12 @@ fn assign_light_textures(race: &Race, scene: &Scene) -> Result<(), Refused> {
         let texture = extra.get();
         if texture != u32::MAX {
             let slot = scene.textures.kinds.get().kind_first_slots[220 + k].get();
-            crate::scene::texture_places_store::cell_at(
-                scene.textures.places.get(),
-                crate::scene::texture_places_store::PlacesTable::SlotWanted,
-                slot,
-            )?
-            .set(texture.wrapping_add(scene.textures.kinds.get().kind_first_textures[220].get()));
+            *scene
+                .texture_places_mut()
+                .slot_wanted
+                .get_mut(slot as usize)
+                .ok_or(BadInput("a slot past the texture places' slots"))? =
+                texture.wrapping_add(scene.textures.kinds.get().kind_first_textures[220].get());
         }
     }
     Ok(())

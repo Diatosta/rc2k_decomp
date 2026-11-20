@@ -21,6 +21,35 @@ pub fn store(cell: &PlainFloat, result: f64) {
     cell.set(result as f32);
 }
 
+/// The value of a model figure as the model's arithmetic holds it.
+pub fn figure(x: f32) -> f64 {
+    f64::from(x)
+}
+
+/// A word test on a model figure: true unless every bit is zero.
+pub fn figure_is_set(x: f32) -> bool {
+    x.to_bits() != 0
+}
+
+/// `v` raised to `lim` when below it (or unordered).
+pub fn held_low(v: &mut f32, lim: f32) {
+    if crate::physics::flow::c0(*v, lim) {
+        *v = crate::math::x87::loaded(lim);
+    }
+}
+
+/// `v` lowered to `lim` unless below it (or unordered).
+pub fn held_high(v: &mut f32, lim: f32) {
+    if !crate::physics::flow::c0(*v, lim) {
+        *v = crate::math::x87::loaded(lim);
+    }
+}
+
+/// The clamped table lerp of `x` through a table of four (x0, y0, x1, y1).
+pub fn lerp_table(x: f32, table: &[f32; 4], zero: f32) -> f32 {
+    crate::physics::flow::table_lerp(x, table.map(f32::to_bits), zero)
+}
+
 /// A word test on a float cell: true unless every bit is zero, so a -0.0 counts as set and a
 /// NaN as set, as a compare of the float would not.
 pub fn is_set(cell: &PlainFloat) -> bool {
@@ -96,6 +125,13 @@ pub(super) mod proof {
         }
     }
 
+    /// `fill` for the model, whose fields are plain.
+    fn fill_model(model: &mut DamageModel, rng: &mut Rng) {
+        for word in crate::physics::store::words_of_mut(model) {
+            *word = random_bits(rng);
+        }
+    }
+
     fn words<T>(t: &T) -> Vec<u32> {
         cells(t).iter().map(|c| c.load(Relaxed)).collect()
     }
@@ -117,13 +153,17 @@ pub(super) mod proof {
         }
 
         fn words(&self) -> [Vec<u32>; 3] {
-            [words(&*self.car), words(&*self.damage), words(&*self.work)]
+            [
+                words(&*self.car),
+                crate::physics::store::words_of(&self.damage).to_vec(),
+                words(&*self.work),
+            ]
         }
     }
 
     /// `same_result` with 20,000 runs and a seed made of the name, against the hash frozen
     /// for the name.
-    pub fn prove(name: &str, new: impl Fn(&State) + Sync) {
+    pub fn prove(name: &str, new: impl Fn(&mut State) + Sync) {
         let seed = name.bytes().fold(0xCBF2_9CE4_8422_2325u64, |h, b| {
             (h ^ u64::from(b)).wrapping_mul(0x100_0000_01B3)
         });
@@ -142,7 +182,7 @@ pub(super) mod proof {
     /// to find where each part's first run begins. Each part runs at the caller's x87
     /// control word, the one thread-local state the arithmetic reads, and hashes its runs
     /// one by one; the runs' hashes are hashed in order.
-    pub fn same_result(seed: u64, runs: u32, new: impl Fn(&State) + Sync) -> Digest {
+    pub fn same_result(seed: u64, runs: u32, new: impl Fn(&mut State) + Sync) -> Digest {
         // `fill`'s draws: one a cell.
         let draws_a_run =
             size_of::<Car>() / 4 + size_of::<DamageModel>() / 4 + size_of::<RaceWork>() / 4;
@@ -192,14 +232,14 @@ pub(super) mod proof {
     fn same_result_part(
         mut rng: Rng,
         runs: std::ops::Range<u32>,
-        new: &impl Fn(&State),
+        new: &impl Fn(&mut State),
     ) -> Vec<u64> {
-        let b = State::new();
+        let mut b = State::new();
         runs.map(|_| {
             fill(&*b.car, &mut rng);
-            fill(&*b.damage, &mut rng);
+            fill_model(&mut b.damage, &mut rng);
             fill(&*b.work, &mut rng);
-            new(&b);
+            new(&mut b);
             let mut digest = Digest::default();
             for block in b.words() {
                 for word in block {

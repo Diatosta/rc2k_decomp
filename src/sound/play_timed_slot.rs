@@ -21,7 +21,7 @@ pub(super) fn play_timed_slot(
 ) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{SlotTurn, from_int, slot_turn};
     let mut s = slot.load();
-    let clock = sound.race.clock.get().last.get();
+    let clock = sound.race.clock.get().borrow().last;
     let turn = slot_turn(
         &mut s,
         clock,

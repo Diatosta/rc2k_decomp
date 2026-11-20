@@ -105,8 +105,8 @@ pub struct Lent<'s> {
         crate::memory::session::PhaseRead<'s, crate::scene::object_slots_store::ObjectTables>,
     kind_textures:
         crate::memory::session::PhaseRead<'s, crate::scene::kind_texture_store::KindTextureTables>,
-    texture_places:
-        crate::memory::session::PhaseRead<'s, crate::scene::texture_places_store::TexturePlaces>,
+    place_slots:
+        crate::memory::session::PhaseRead<'s, crate::scene::texture_places_store::PlaceSlots>,
     light_state: crate::memory::session::PhaseRead<'s, crate::scene::light_store::LightState>,
     // The scene's draw variables.
     scene_draw: crate::memory::session::PhaseRead<'s, crate::scene::draw_store::SceneDraw>,
@@ -172,7 +172,7 @@ impl<'s> Lent<'s> {
             object_tables: PhaseRead::lend(&scene.objects.tables, scope),
             object_slots: PhaseRead::lend(&scene.objects.slots, scope),
             kind_textures: PhaseRead::lend(&scene.textures.kinds, scope),
-            texture_places: PhaseRead::lend(&scene.textures.places, scope),
+            place_slots: PhaseRead::lend(&scene.textures.place_slots, scope),
             light_state: PhaseRead::lend(&scene.lights.state, scope),
             // The scene's draw variables.
             scene_draw: PhaseRead::lend(&scene.drawing.scene, scope),
@@ -222,7 +222,7 @@ impl<'s> Lent<'s> {
             object_tables: &self.object_tables,
             object_slots: &self.object_slots,
             kind_textures: &self.kind_textures,
-            texture_places: &self.texture_places,
+            place_slots: &self.place_slots,
             light_state: &self.light_state,
             // The scene's draw variables.
             scene_draw: &self.scene_draw,
@@ -281,8 +281,8 @@ pub struct DrawReads<'a> {
     pub object_slots: &'a crate::scene::object_slots_store::ObjectTables,
     /// The kinds' texture tables (`scene::owner::Textures::kinds`).
     pub kind_textures: &'a crate::scene::kind_texture_store::KindTextureTables,
-    /// The texture places (`scene::owner::Textures::places`).
-    pub texture_places: &'a crate::scene::texture_places_store::TexturePlaces,
+    /// Each place's slot and the video textures' count (`scene::owner::Textures::place_slots`).
+    pub place_slots: &'a crate::scene::texture_places_store::PlaceSlots,
     /// The light state (`scene::owner::Lights::state`).
     pub light_state: &'a crate::scene::light_store::LightState,
     // The scene's draw variables.
@@ -395,7 +395,7 @@ impl<'a> DrawReads<'a> {
             object_tables: scene.objects.tables.get(),
             object_slots: scene.objects.slots.get(),
             kind_textures: scene.textures.kinds.get(),
-            texture_places: scene.textures.places.get(),
+            place_slots: scene.textures.place_slots.get(),
             light_state: scene.lights.state.get(),
             // The scene's draw variables.
             scene_draw: scene.drawing.scene.get(),

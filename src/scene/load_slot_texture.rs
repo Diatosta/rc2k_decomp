@@ -13,11 +13,10 @@ pub fn load_slot_texture(
     slot: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    let textures = &scene.textures;
     let Some(wanted) = rc2k_core::scene::textures::slot_load(
         slot,
-        || textures.places.get().slot_wanted[slot as usize].get(),
-        || textures.places.get().slot_loaded[slot as usize].get(),
+        || scene.texture_places().slot_wanted[slot as usize],
+        || scene.texture_places().slot_loaded[slot as usize],
     )?
     else {
         return Ok(());
@@ -31,6 +30,6 @@ pub fn load_slot_texture(
             .get()
             .wrapping_add(1),
     );
-    textures.places.get().slot_loaded[slot as usize].set(wanted);
+    scene.texture_places_mut().slot_loaded[slot as usize] = wanted;
     Ok(())
 }

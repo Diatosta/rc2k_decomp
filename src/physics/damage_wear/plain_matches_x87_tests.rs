@@ -1,43 +1,45 @@
 use super::*;
-use crate::physics::damage_model::proof::{State, prove};
-
-fn d(s: &State) -> &DamageModel {
-    &s.damage
-}
+use crate::physics::damage_model::proof::prove;
 
 #[test]
 fn wear_additions_and_subtractions() {
     prove("add_wear", |s| {
         let (d, g) = (&s.damage, &s.car.brake_heat[0]);
-        add_wear(d, &d.wear_rates[3], &d.brake_share, g, g);
+        g.set(add_wear(d, d.wear_rates[3], d.brake_share, g.get()));
     });
     prove("add_wear into another cell", |s| {
-        let d = &s.damage;
-        let from = &s.car.engine_heat;
-        add_wear(d, &d.wear_rates[0], &d.overheat_excess, from, &d.scratch);
+        let d = &mut s.damage;
+        d.scratch = add_wear(
+            d,
+            d.wear_rates[0],
+            d.overheat_excess,
+            s.car.engine_heat.get(),
+        );
     });
     prove("subtract_rate", |s| {
         let (d, g) = (&s.damage, &s.car.engine_heat);
-        subtract_rate(d, &d.wear_rates[1], g, g);
+        g.set(subtract_rate(d, d.wear_rates[1], g.get()));
     });
     prove("subtract_wear", |s| {
         let (d, g) = (&s.damage, &s.car.brake_fade);
-        subtract_wear(d, &d.wear_rates[9], &d.brake_share, g, g);
+        g.set(subtract_wear(d, d.wear_rates[9], d.brake_share, g.get()));
     });
 }
 
 #[test]
 fn gap_square_and_figures() {
-    prove("lerp_gap", |s| lerp_gap(&s.damage));
+    prove("lerp_gap", |s| lerp_gap(&mut s.damage));
     prove("square_into", |s| {
-        square_into(&d(s).stiffness_body_factor, &d(s).stiffness_body_factor);
+        square_into(&mut s.damage.stiffness_body_factor);
     });
     prove("square_into another cell", |s| {
-        square_into(&d(s).stiffness_body_factor, &d(s).scratch);
+        let mut x = s.damage.stiffness_body_factor;
+        square_into(&mut x);
+        s.damage.scratch = x;
     });
-    prove("hit_figures", |s| hit_figures(&s.damage));
+    prove("hit_figures", |s| hit_figures(&mut s.damage));
     prove("blend_wear_figures", |s| {
-        let (f, g) = (s.damage.figures[1].bits(), s.damage.figures[2].bits());
-        blend_wear_figures(f as i32, &s.damage, g as i32);
+        let (f, g) = (s.damage.figures[1].to_bits(), s.damage.figures[2].to_bits());
+        blend_wear_figures(f as i32, &mut s.damage, g as i32);
     });
 }

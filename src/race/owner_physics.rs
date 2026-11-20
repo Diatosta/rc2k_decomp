@@ -21,7 +21,7 @@ struct PhysicsMain {
     pub ground: GroundWork,
     pub pace: RefCell<PaceNotes>,
     pub split_tables: RefCell<SplitTables>,
-    pub damage: DamageModel,
+    pub damage: RefCell<DamageModel>,
     pub car_specs: CarSpecs,
 }
 
@@ -32,7 +32,7 @@ impl PhysicsMain {
             ground: GroundWork::new(),
             pace: RefCell::new(PaceNotes::new()),
             split_tables: RefCell::new(SplitTables::new()),
-            damage: DamageModel::new(),
+            damage: RefCell::new(DamageModel::new()),
             car_specs: CarSpecs::new(),
         }
     }
@@ -97,8 +97,14 @@ impl Physics {
         self.main.get().split_tables.borrow_mut()
     }
 
-    pub fn damage(&self) -> &DamageModel {
-        &self.main.get().damage
+    /// The damage model, read: no write borrow may be held.
+    pub fn damage(&self) -> Ref<'_, DamageModel> {
+        self.main.get().damage.borrow()
+    }
+
+    /// The damage model, to write: no other borrow may be held.
+    pub fn damage_mut(&self) -> RefMut<'_, DamageModel> {
+        self.main.get().damage.borrow_mut()
     }
 
     pub fn car_specs(&self) -> &CarSpecs {

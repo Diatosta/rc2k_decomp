@@ -25,7 +25,7 @@ pub fn play_spot_voices(
     audio: &crate::audio::owner::Audio,
     owner: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    let clock = owner.race.clock.get().last.get();
+    let clock = owner.race.clock.get().borrow().last;
     for n in 0..VOICE_COUNT {
         let v = voice(n, owner);
         if v.heard.get() != 1 {

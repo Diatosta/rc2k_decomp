@@ -72,7 +72,15 @@ pub fn store(inbox: &mut Inbox, sequence: u8, time: u32, message: &[u8]) -> Resu
     inbox.records[at] = sequence;
     inbox.records[at + 1] = message.len() as u8;
     inbox.records[at + 2..at + 2 + message.len()].copy_from_slice(message);
+    // What an earlier, longer message left after this one's end goes.
+    inbox.records[at + 2 + message.len()..at + RECORD].fill(0);
     Ok(())
+}
+
+/// The message a record holds: its bytes up to the length byte (never past the record's room).
+pub fn record_message(record: &[u8]) -> &[u8] {
+    let len = (record[1] as usize).min(LONGEST as usize);
+    &record[2..2 + len]
 }
 
 /// The inbox's messages handed to the race: the count and the records to apply; the inbox's
@@ -122,6 +130,20 @@ mod tests {
         let at = k * RECORD;
         let r = &inbox.records;
         (r[at], r[at + 1], &r[at + 2..at + 2 + r[at + 1] as usize])
+    }
+
+    #[test]
+    fn a_record_holds_its_own_length_and_nothing_after_it() {
+        let mut inbox = empty();
+        store(&mut inbox, 0x81, 0, &[7; 0xFE]).unwrap();
+        // the full-length message is read whole
+        assert_eq!(record_message(&inbox.records[..RECORD]), &[7; 0xFE][..]);
+        // a shorter one in the same place leaves no stale bytes and reads as short
+        inbox.count = 0;
+        inbox.oldest = 0;
+        store(&mut inbox, 0x81, 1, b"JGSM").unwrap();
+        assert_eq!(record_message(&inbox.records[..RECORD]), b"JGSM");
+        assert!(inbox.records[6..RECORD].iter().all(|&b| b == 0));
     }
 
     #[test]
