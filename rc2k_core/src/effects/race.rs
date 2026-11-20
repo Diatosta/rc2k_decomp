@@ -45,7 +45,7 @@ pub fn check_cars(count: u32, has: impl Fn(u32) -> bool) -> Result<(), Invalid> 
     Ok(())
 }
 
-/// A kind's row (its block's +0x24 held to 0 .. 0x16): its offset in the rows.
+/// A kind's row (its block's kind held to 0 .. 0x16): its offset in the rows.
 pub fn kind_row(kind: i32) -> usize {
     kind.clamp(0, LAST_KIND) as usize * ROW_LEN
 }

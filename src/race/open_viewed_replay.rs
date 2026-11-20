@@ -139,7 +139,7 @@ pub(super) fn open_viewed_replay(
         };
         replay.v2().lock().ext = Some(extension);
     }
-    // The index is the file's last bytes: the original's 0x3850, the own format's larger one.
+    // The index is the file's last bytes: 0x3850 bytes in the old format, larger in the own one.
     let (index_len, most) = if own {
         (
             rc2k_core::race::replay_v2::OWN_INDEX_LEN as u32,

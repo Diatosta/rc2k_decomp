@@ -86,7 +86,7 @@ pub struct ViewRecord {
     /// `xoff`, `yoff`, `zoff`: the camera's offset (floats; `take_first_view` /
     /// `take_second_view` add the camera frame to it).
     pub offset: [PlainDword; 3],
-    /// `xfoc`, `yfoc`, `zfoc`: the focus (floats). +0x10 .. +0x38 are the eleven figures the
+    /// `xfoc`, `yfoc`, `zfoc`: the focus (floats). The next eleven figures are the ones the
     /// views take whole (`take_first_view` / `take_second_view`).
     pub focus: [PlainDword; 3],
     /// `xang`, `yang`, `zang`: the angles.
@@ -114,12 +114,12 @@ pub struct ViewRecord {
 }
 
 impl ViewRecord {
-    /// The offset's three dwords (+0x4 .. +0xC).
+    /// The offset's three dwords.
     pub fn offset_bits(&self) -> [u32; 3] {
         self.offset.each_ref().map(PlainDword::get)
     }
 
-    /// The eleven dwords the views take whole (+0x10 .. +0x38): focus, angles, speeds, +0x34, fish.
+    /// The eleven dwords the views take whole (`focus`, angles, speeds, one more figure, fish).
     pub fn taken(&self) -> [u32; 11] {
         let [f, a, s] =
             [&self.focus, &self.angles, &self.speeds].map(|t| t.each_ref().map(PlainDword::get));

@@ -1,9 +1,9 @@
-//! `effects::emit_body_particles`: the particles of the car's fifth record (+0x1F4, under the
-//! body). First the object's +0x90 times `MarksFloats.three` (rounded), the record's +4 plus
-//! 0x386A0, its +0 bit 0 flipped (`EmitterVars.record` 2, or 3 when the bit is now clear), its +0xC
-//! 0; then `effects::emit_wheel_particles`' chance (its own random `EmitterVars.body_random`) of
-//! copying the surface's kind and flags, and its switch, but for kind 1
-//! (`effects::emit_body_contact_particles`) and kind 3 (the bursts of kind 2: a slip kept as is).
+//! `effects::emit_body_particles`: the particles of the car's fifth record (the body's, the last of
+//! `records`). First the object's `rate` times `MarksFloats.three` (rounded), the record's `pace`
+//! plus 0x386A0, its `flip` bit 0 flipped (`EmitterVars.record` 2, or 3 when the bit is now clear),
+//! its `driven_speed` 0; then `effects::emit_wheel_particles`' chance (its own random
+//! `EmitterVars.body_random`) of copying the surface's kind and flags, and its switch, but for kind
+//! 1 (`effects::emit_body_contact_particles`) and kind 3 (the bursts of kind 2: a slip kept as is).
 //!
 //! Refuses a null record or object and the emitters' refusals; on a refusal nothing stays written
 //! (all it may write is put back).

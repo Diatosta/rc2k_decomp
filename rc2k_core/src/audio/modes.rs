@@ -144,9 +144,9 @@ pub fn choose_modes(
 }
 
 /// The mixer channels of a sound mode (`audio::set_mode`): 8, 0x10 with bit 0x400000; held to the
-/// free hardware buffers of the mode's kind (`buffers`: the caps' all and static counts, 2D +0x24 /
-/// +0x28, 3D with bit 0x100000 +0x3C / +0x40; bit 0x10000 holds to all, else 0x20000 to static)
-/// when there are any, and at least 6. Also the count looked at last (the second result).
+/// free hardware buffers of the mode's kind (`buffers_2d`, or `buffers_3d` with bit 0x100000: each
+/// the caps' all-buffers and static-buffers counts; bit 0x10000 holds to all, else 0x20000 to
+/// static) when there are any, and at least 6. Also the count looked at last (the second result).
 pub fn channels(mode: u32, buffers_2d: [u32; 2], buffers_3d: [u32; 2]) -> (u32, u32) {
     let mut channels: i32 = if mode & 0x40_0000 != 0 { 0x10 } else { 8 };
     let [all, other] = if mode & 0x10_0000 == 0 {

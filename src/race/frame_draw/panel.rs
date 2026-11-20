@@ -54,7 +54,7 @@ pub fn split_colours(
 
 /// Unless `run_kind` is set, sets `race().frame.panel_and_overlay.panel.view_a.place` and
 /// `view_b.place` to -1; with more than one player also `view_a.back` and `view_a.front` to -1, and
-/// `view_a.place` / `view_b.place` to the two view blocks' +0xFA4.
+/// `view_a.place` / `view_b.place` to the two view blocks' `two_car_place`.
 pub fn panel_players(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     let frame = &race.frame;
@@ -97,7 +97,7 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
             .view_a
             .front
             .set(u32::MAX);
-        // Each view block's +0xFA4.
+        // Each view block's `two_car_place`.
         let field = |n: usize| -> Result<u32, BadInput> {
             Ok(shared
                 .view_car(n)
@@ -123,8 +123,8 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Sets `lamps_wanted` = `lamp_count`, with bit 0 set when a race car has +0x25C and
-/// +0x84 both set. Refused (before anything): more than eight cars (past `car_blocks`).
+/// Sets `lamps_wanted` = `lamp_count`, with bit 0 set when a race car has `driver_kind` and
+/// `lights_on` both set. Refused (before anything): more than eight cars (past `car_blocks`).
 pub fn lamps_wanted(
     frame_cars: &crate::race::frame_view::FrameCars,
     work: &crate::race::work_store::RaceWork,
@@ -160,9 +160,9 @@ pub(super) fn drawn_view(
     Ok(race_view.view_number(n as usize)?)
 }
 
-/// Stores the drawn view's block +0xFB8 = the view's sun on the screen (`sun_on_screen`). The block
-/// and the value are worked out at the scene's end and stored by the game's thread in the views'
-/// order (`ViewOutput::store_view_value`).
+/// Stores the drawn view's block `eased_target` = the view's sun on the screen (`sun_on_screen`).
+/// The block and the value are worked out at the scene's end and stored by the game's thread in the
+/// views' order (`ViewOutput::store_view_value`).
 pub fn view_value(
     race_view: &crate::race::view_store::RaceView,
     sun: &crate::scene::polygon_work::ViewSun,
@@ -171,13 +171,14 @@ pub fn view_value(
     Ok((drawn_view(race_view, view)?, sun.on_screen.get()))
 }
 
-/// The value into the view's block +0xFB8 (`view_value`).
+/// The value into the view's block `eased_target` (`view_value`).
 pub fn store_view_value(race: &Race, block: usize, value: u32) -> Result<(), Refused> {
     race.car_blocks().cars[block].eased_target.set(value);
     Ok(())
 }
 
-/// The view's value (`ViewSun::view_out`, `FrameWork.view_out`) = the drawn view's block +0xFBC.
+/// The view's value (`ViewSun::view_out`, `FrameWork.view_out`) = the drawn view's block
+/// `eased_value`.
 pub fn fetch_view_value(
     cars: &crate::race::frame_view::FrameCars,
     race_view: &crate::race::view_store::RaceView,
@@ -229,12 +230,11 @@ pub fn clear_point_records(
     Ok(())
 }
 
-/// For each of the 0x100 objects (records at each `texture_infos` entry's +0x20, its
-/// first dword the kind, +0xE bit 0): out0 = the record's +0xE bit 0, out1 = 1, out2 = the kinds'
-/// byte (`place_slot`) of the record's kind, out3 = 0xFF, or with faces
-/// (`face_counts`, first `first_face` in `faces`) the kinds' byte of the
-/// first face's +4 word. Outputs: the view's four face tables (`race::view_course`;
-/// `face_table_a` ...)
+/// For each of the 0x100 objects (the record in each `texture_infos` entry, its first dword the
+/// kind, then a flags byte): out0 = bit 0 of the record's flags byte, out1 = 1, out2 = the kinds'
+/// byte (`place_slot`) of the record's kind, out3 = 0xFF, or with faces (`face_counts`, first
+/// `first_face` in `faces`) the kinds' byte of the first face's first point's low word. Outputs:
+/// the view's four face tables (`race::view_course`; `face_table_a` ...)
 pub fn object_bytes(
     reads: crate::scene::workers::DrawReads<'_>,
     mine: &crate::race::view_course::ViewCourse,
@@ -512,11 +512,12 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
 }
 
 /// Wakes the part sounds: for each race car (car 0 at least: the loop tests at its end) and each of
-/// its six slots, when +0x48 is 0 and +0x700 at least 10, +0x48 = 1; then, only when +0x700 was
-/// exactly 10, and when `race().frame.frame_work.listed_car_sounds[current_car]` is not -1, the
-/// car's sound object (`SoundObject` `car & 7`) +0x264 = 1 and +0x10 = 1. Refused (before
-/// anything): more than eight cars, a null block or object it would write, and `current_car` past 7
-/// when it is read.
+/// its six slots, when `part_woken` is 0 and `part_wake_counts` at least 10, `part_woken` = 1;
+/// then, only when the count was exactly 10, and when
+/// `race().frame.frame_work.listed_car_sounds[current_car]` is not -1, the car's sound object
+/// (`SoundObject` `car & 7`) `slot_c.start` = 1 and `new_revs` = 1. Refused (before anything): more
+/// than eight cars, a null block or object it would write, and `current_car` past 7 when it is
+/// read.
 pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let shared = &race.shared;
     let cars = shared.view.get().race_cars.get().max(1);
@@ -565,13 +566,13 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
     Ok(())
 }
 
-/// In mode 2 (`run_kind`), puts the first view's place (+0x654) and its neighbours into
-/// the panel: `view_a.place` the place, `view_a.time` +0x8C x 10, `view_a.back` the car behind's
-/// +0x24 (-1 at the last place), its label (`car_label` of
-/// `arcade_car_numbers[place]`), `view_a.split2` +0x634, `view_a.front` the car ahead's
-/// +0x24 (-1 at place 1), its label (`number_before_first[place]`), `view_a.negated`
-/// -(+0x630); all fields of `race().frame.panel_and_overlay.panel`. Refused (before anything): a
-/// neighbour's car number past 7 or a null block.
+/// In mode 2 (`run_kind`), puts the first view's place (`mode2_place`) and its neighbours into the
+/// panel: `view_a.place` the place, `view_a.time` `time_left` x 10, `view_a.back` the car behind's
+/// `car_kind` (-1 at the last place), its label (`car_label` of `arcade_car_numbers[place]`),
+/// `view_a.split2` `pace_gaps_eased[1]`, `view_a.front` the car ahead's `car_kind` (-1 at place 1),
+/// its label (`number_before_first[place]`), `view_a.negated` -`pace_gaps_eased[0]`; all fields of
+/// `race().frame.panel_and_overlay.panel`. Refused (before anything): a neighbour's car number past
+/// 7 or a null block.
 pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
     let shared = &race.shared;
@@ -639,8 +640,8 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// For each view block, stores +0xAE8 and +0xAEC x 0.5 / 65536 (floats) and the heading,
-/// (-(+0x9C0)) >> 14 x pi x 0.5 / 65536, into the panel
+/// For each view block, stores `map_picture_place[0]` and `[1]` x 0.5 / 65536 (floats) and the
+/// heading, (-`car_heading`) >> 14 x pi x 0.5 / 65536, into the panel
 /// (`race().frame.panel_and_overlay.panel.view_a.motion[0]`.. for the first, `view_b.motion[0]`..
 /// for the second). The heading turn and `scene_clock` less the shown-since clock and 800 are not
 /// stored: nothing reads them.
@@ -680,8 +681,8 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
 }
 
 /// Sets the mark dwords 0; for each view block (the third and fourth of a split screen too),
-/// `race().frame.panel_and_overlay.panel.marks[0].base` / `marks[1].base` = 400 + (+0xFA0), and its
-/// first +0xF98 (at most 4) values at +0xF78, each + 1.
+/// `race().frame.panel_and_overlay.panel.marks[0].base` / `marks[1].base` = 400 +
+/// `car_event_position`, and its first `car_event_count` (at most 4) `car_event_codes`, each + 1.
 pub fn panel_marks(race: &Race) -> Result<(), BadInput> {
     let frame = &race.frame;
     {

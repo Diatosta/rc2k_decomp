@@ -1,9 +1,9 @@
 //! One car's state from its block (0xFE0 bytes) into its record (`car_records[n]`, read by the
 //! drawing and the sounds) and back: the sound object's request flag and a countdown, two levels
-//! from block +0x2B4 / +0x2B8 (`level_from`, `four`, held to 0 .. 7), the car file's light
-//! record, the block handles at record +0x24 / +0x28, about eighty fields moved (`MOVES`, the
-//! wheels' four each; four cleared by the block's switches, a part only when block +0xA34 is
-//! set), and three arrays into the block (+0x700 with its 0x80000000 entries filled from the next
+//! from the block's `engine_heat` / `engine_damage` (`level_from`, `four`, held to 0 .. 7), the car file's light
+//! record, the block handles in the record, about eighty fields moved (`MOVES`, the
+//! wheels' four each; four cleared by the block's switches, a part only when the block's `contact_found` is
+//! set), and three arrays into the block (`part_wake_counts` with its 0x80000000 entries filled from the next
 //! real one). Refuses (before anything) a car file number above 0x21 (past the light records).
 
 use crate::errors::Refused;

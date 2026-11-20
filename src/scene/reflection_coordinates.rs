@@ -3,7 +3,7 @@
 //!
 //! The object's reflection normal number is the number of the vertex's normal, its reflection point
 //! number the number of its point. The normal's place in the view (record 0x1000 + (number &
-//! 0xFFF), +0x10 .. +0x18) goes to the reflection work; the point's, negated, to the work vector,
+//! 0xFFF), its view place) goes to the reflection work; the point's, negated, to the work vector,
 //! which is made one long and copied: the direction from the point to the eye.
 //! `scene::reflect_vector`; the result, with 1.0 added to its second part, is made one long; then
 //! each of its first and third parts, times 0.5 plus the same, times 65536 times 256, rounded, is a

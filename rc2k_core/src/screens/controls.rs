@@ -14,14 +14,14 @@ pub enum Font {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {}
 
-/// A binding (the player's +0x50 + 4 x n): the low byte a button, the next byte a direction, 0
+/// A binding (the player's n-th binding dword): the low byte a button, the next byte a direction, 0
 /// nothing.
 #[derive(Clone, Copy, Debug)]
 pub struct Binding {
     pub binding: u32,
     /// The device kind.
     pub kind: u32,
-    /// The row's axis (+0x3B - n), read for kind 3 on the first two rows.
+    /// The row's axis, read for kind 3 on the first two rows.
     pub axis: u8,
 }
 

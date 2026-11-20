@@ -3,7 +3,7 @@
 //! moved). An item dies off the map (x or z past 0x7FF) or on the edge mask; else its place is
 //! turned and its six corners projected into the vertex ring (0xC0 bytes each; the ring wraps back
 //! to its start, and the batch is drawn by `d3d::draw_marks_windscreen_drops`, the platform's).
-//! Then, with fewer live than the settings' +0x273C and the drift on, new drops are spawned.
+//! Then, with fewer live than the settings' `windscreen_drops_wanted` and the drift on, new drops are spawned.
 //!
 //! Works on the effects settings.
 //!
@@ -44,7 +44,7 @@ fn drift_cell(drops: &WindscreenDrops, k: u32) {
     drift_cell_x87(drops, k as usize);
 }
 
-/// The item's motion (+0x1C, +0x20) eased toward the drift times its kind's
+/// The item's motion (`ITEM_MOTION_X`, `ITEM_MOTION_Z`) eased toward the drift times its kind's
 /// `WindscreenDropWork.radii[0]`[k] by `WindscreenDropVars.ease`, its place moved by it.
 fn drift_move(drops: &WindscreenDrops, k: u32, s: u32) {
     drift_move_x87(drops, k as usize, s as usize);
@@ -274,7 +274,7 @@ fn sprite_corners_x87(
 }
 
 /// `sprite_project`: the centre and the six corners projected to the screen into the six
-/// vertices at `e` of the batch's records (0x20 bytes each; the depth at +8), `inverse_depth`
+/// vertices at `e` of the batch's records (0x20 bytes each; the depth in the third field), `inverse_depth`
 /// being `view_scale / depth`. Same order and rounding as the x87.
 fn sprite_project_x87(
     front: &crate::scene::polygon_work::PolygonWork,
@@ -293,7 +293,7 @@ fn sprite_project_x87(
     let across = work.cell[0].ld() * work.cell[2].ld() + centre(0);
     work.cell[0].st(across);
     work.cell[1].st(up + centre(1));
-    // The corners: x and y written both at the vertex's +0x18 / +0x1C and at its +0 / +4.
+    // The corners: x and y written both at the vertex's screen-place fields and at its first two fields.
     for v in 0..6 {
         let at = e + 0x20 * v;
         let x = work.corners[3 * v].ld() * work.cell[2].ld();

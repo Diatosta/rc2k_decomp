@@ -1,10 +1,10 @@
 //! `effects::init_mark_step`: the stage loading's "init mark" step: the race's cars go into the
 //! effects settings' car list, the own car's object (0x50 but in a network race), a switch 1, and
 //! the work car's file number (`race::car_file_number` of the work car's kind); for each of the
-//! player-count cars (in a network race every car) its record's places +0x23C (0x50 + 0x14 a car)
-//! and +0x240 (0xA more), seven values from its kind's row of the light records (the kind its
-//! block's +0x24 held to 0 .. 0x16, rows of 0x134) and the seventeen fixed numbers +0x36C ..
-//! +0x3AC; then `effects::init_marks` with the settings.
+//! player-count cars (in a network race every car) its record's `object` (0x50 + 0x14 a car) and
+//! `second_object` (0xA more), the slot kinds from its kind's row of the light records (the kind of
+//! its block held to 0 .. 0x16) and the seventeen fixed `kinds`; then `effects::init_marks` with
+//! the settings.
 //!
 //! The file number is worked out by `race::car_file_number` and is also `init_marks`' seed. Refuses
 //! a car count of 0 or past 8 and a missing block or record, before anything.
@@ -96,7 +96,7 @@ mod tests {
     use super::*;
     use rc2k_core::effects::race::{self, SLOT_KIND_GROUPS};
 
-    /// Each field of each kind's row is the dword the byte-offset read gave.
+    /// Each field of each kind's row is the dword the row's byte offset names.
     #[test]
     fn row_words_as_the_old_read() {
         let records = Box::new(LightRecords::new());

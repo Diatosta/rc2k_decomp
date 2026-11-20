@@ -1,5 +1,5 @@
 //! `effects::scale_setting`: `WindscreenFlakeState.scaled_setting` = the settings' whole number
-//! +0x2750 by `EdgeSettings.factor`.
+//! `setting_to_scale` by `EdgeSettings.factor`.
 //!
 //! Works on the effects settings.
 //!

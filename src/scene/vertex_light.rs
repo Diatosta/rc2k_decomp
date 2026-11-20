@@ -11,7 +11,7 @@
 //! - anything else: the number as it came.
 //!
 //! "Plus" is byte by byte without overflow. The lit colour: the normal's place in the view (the
-//! point record 0x1000 + (number & 0xFFF), its +0x10 .. +0x18) goes to `light_dot_point`; if the
+//! point record 0x1000 + (number & 0xFFF), its view place) goes to `light_dot_point`; if the
 //! object's `light_strength` is not 0, the light's direction goes to `light_dot_light`, the
 //! strength as a float to `light_dot_factor`, and `scene::light_dot` gives a number; that plus
 //! `light_level`, held to `light_lowest` .. `light_highest`, picks a colour from the light table

@@ -1,10 +1,10 @@
 //! The cars' order: the two places of a two-car race, and the nearest gap in checkpoints to the
 //! lead car.
 
-/// The byte offsets of the car block's figures `two_car_order` reads.
+/// The car block's figures `two_car_order` reads, by their place in the block.
 pub const FINISHED: u32 = 0xA8;
 pub const CHECKPOINT: u32 = 0x94;
-/// The tie-break (+0x624 = `checkpoint_offset[1]`: the car's z in its checkpoint's frame,
+/// The tie-break figure (`checkpoint_offset[1]`: the car's z in its checkpoint's frame,
 /// `physics::checkpoint_offset`).
 pub const TIE_BREAK: u32 = 0x624;
 

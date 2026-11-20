@@ -14,10 +14,10 @@ use crate::test_support::own::race;
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct LightRecord {
-    /// Eleven dwords (read at +0xC, +0x10 ..= +0x28 by `physics::update_camera`,
+    /// Eleven dwords (the camera's and the car's figures, read by `physics::update_camera`,
     /// `race::car_draw` and `drive::share_car_state`).
     pub head: [PlainDword; 11],
-    /// The five axle values (`race::car_parts`) and, from +0x40, the six listener figures
+    /// The five axle values (`race::car_parts`) followed by the six listener figures
     /// (`drive::set_listener`).
     pub axles: [PlainDword; 11],
     /// The group numbers of the model's parts (`scene::load_object`,
@@ -528,8 +528,9 @@ impl LightRecords {
                 .map(crate::memory::session::PlainDword::get)
                 .ok_or(crate::errors::BadInput(PAST)),
             Some(0) => {
-                // The groups start 0x58 into the record; the one dword between the records and
-                // the gear figures is skipped, and the figures' samples start at +0x38.
+                // The offset counts from the start of the record's groups; the one dword between
+                // the records and the gear figures is skipped, and the figures' samples start
+                // 0x38 bytes before the groups.
                 let sample = (0x58 + offset - 4)
                     .checked_sub(0x38)
                     .ok_or(crate::errors::BadInput(PAST))?;

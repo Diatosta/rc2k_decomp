@@ -4,10 +4,11 @@
 //! objects that blink, rise or are knocked away for a while. Kind 4's move (a point turned and
 //! the ground looked for) stays with the caller.
 
-/// The object whose faces only count down (+0x11).
+/// The object whose faces only count down (`b11`).
 pub const COUNTDOWN_OBJECT: u8 = 0x3B;
 
-/// The face record's bytes the steps change (+8, +9, +0x11, +0x12, +0x13).
+/// The five bytes of a face record that the steps change; each field is named by the byte's
+/// number in the record, in hex (`b11` is byte 0x11).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FaceBytes {
     pub b8: u8,
@@ -17,7 +18,7 @@ pub struct FaceBytes {
     pub b13: u8,
 }
 
-/// Object 0x3B's step: +0x11 less one; true when it reaches 0 (the face leaves).
+/// Object 0x3B's step: `b11` less one; true when it reaches 0 (the face leaves).
 pub fn count_down(f: &mut FaceBytes) -> bool {
     f.b11 = f.b11.wrapping_sub(1);
     f.b11 == 0
@@ -38,8 +39,8 @@ pub fn pace(distance: u32) -> u32 {
 /// The blink's length.
 pub const BLINK_STEPS: u8 = 0x18;
 
-/// Kinds 1 and 9: +0x11 counts up; at `BLINK_STEPS` +0x11 and +0x13 are cleared and the
-/// face leaves (None); else +0x13 = `blink(count)`, returned.
+/// Kinds 1 and 9: `b11` counts up; at `BLINK_STEPS` `b11` and `b13` are cleared and the
+/// face leaves (None); else `b13` = `blink(count)`, returned.
 pub fn blink(f: &mut FaceBytes, blink: impl FnOnce(u8) -> u8) -> Option<u8> {
     f.b11 = f.b11.wrapping_add(1);
     if f.b11 >= BLINK_STEPS {
@@ -51,11 +52,11 @@ pub fn blink(f: &mut FaceBytes, blink: impl FnOnce(u8) -> u8) -> Option<u8> {
     Some(f.b13)
 }
 
-/// The tops kind 2 and kinds 3, 8 rise +0x13 to.
+/// The tops kind 2 and kinds 3, 8 rise `b13` to.
 pub const RISE_TOP: u8 = 0x30;
 pub(crate) const ALIGNED_RISE_TOP: u8 = 0x40;
 
-/// +0x13 up by one `pace` times, stopping at `top`: (true when it is at the top: the face
+/// `b13` up by one `pace` times, stopping at `top`: (true when it is at the top: the face
 /// leaves; the steps left).
 pub fn rise(f: &mut FaceBytes, pace: u32, top: u8) -> (bool, u32) {
     let mut left = pace;
@@ -71,7 +72,7 @@ pub fn rise(f: &mut FaceBytes, pace: u32, top: u8) -> (bool, u32) {
     }
 }
 
-/// Kinds 3 and 8: +9 stepped (up to `pace` x 4 steps) toward making +8 + +9 + +0x12 a
+/// Kinds 3 and 8: `b9` stepped (up to `pace` x 4 steps) toward making `b8` + `b9` + `b12` a
 /// multiple of 0x80 (down below 0x40 past it, up from 0x40 on); once it is, `rise` to
 /// `ALIGNED_RISE_TOP`. Gives (the face leaves, the steps left, the last sum & 0x7F).
 pub fn align(f: &mut FaceBytes, pace: u32) -> (bool, u32, u8) {
@@ -95,8 +96,8 @@ pub fn align(f: &mut FaceBytes, pace: u32) -> (bool, u32, u8) {
     (leave, steps_left, sum)
 }
 
-/// Kind 4 moves while +0x11 is not 0 (else the face leaves); its offset's turn: (the
-/// distance, +0x11 << 8; the angle, (+0x12 + 0x80) << 24).
+/// Kind 4 moves while `b11` is not 0 (else the face leaves); its offset's turn: (the
+/// distance, `b11` << 8; the angle, (`b12` + 0x80) << 24).
 pub fn fall_turn(f: &FaceBytes) -> Option<(u32, u32)> {
     (f.b11 != 0).then(|| (u32::from(f.b11) << 8, (u32::from(f.b12) + 0x80) << 24))
 }
@@ -107,15 +108,15 @@ pub const LIST_ROOM: u32 = 0x100;
 /// What `touch_face` does to a face by the contact's kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Touch {
-    /// 2, 3, 8 (and 1, 9 when the car is fast enough): +9 0, +0x11 1, +0x13 0, +0x12 the
+    /// 2, 3, 8 (and 1, 9 when the car is fast enough): `b9` 0, `b11` 1, `b13` 0, `b12` the
     /// low byte of `ContactWork.face_angle`; then the sound.
     Mark,
     /// 1, 9: `Mark` unless the car's speed is below the limit (or unordered; then nothing
     /// more).
     MarkIfFast,
-    /// 4: +0x11 the fall (`fall_mark`), +0x13 0, +0x12 as `Mark`; then the sound.
+    /// 4: `b11` the fall (`fall_mark`), `b13` 0, `b12` as `Mark`; then the sound.
     Fall,
-    /// 0xFF: one in about 85 (`lucky`) +0x11 0xF and counted, no sound.
+    /// 0xFF: one in about 85 (`lucky`) `b11` 0xF and counted, no sound.
     Chance,
     /// The rest: nothing to the face; the sound.
     Sound,
@@ -132,7 +133,7 @@ pub fn touch(kind: u32) -> Touch {
     }
 }
 
-/// Kind 4's +0x11: `ContactWork.face_speed` >> 14, at most 0x40.
+/// Kind 4's `b11`: `ContactWork.face_speed` >> 14, at most 0x40.
 pub fn fall_mark(v: u32) -> u32 {
     (v >> 14).min(0x40)
 }
@@ -177,7 +178,7 @@ mod tests {
             b13: 0x3F,
             ..Default::default()
         };
-        // 0x7E: two steps up to 0x80, then +0x13 one up to the top (the pace spent).
+        // 0x7E: two steps up to 0x80, then `b13` one up to the top (the pace spent).
         assert_eq!(align(&mut f, 1), (false, 0, 0));
         assert_eq!((f.b9, f.b13), (2, 0x40));
         let mut g = FaceBytes {

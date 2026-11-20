@@ -2,7 +2,7 @@
 //! height); the clock restarted into `clock_a`; 0x20 dwords at `marks` and `play_end` -1; the
 //! start `start_clock`. Each frame: the lead car's revs 0, `input::update`, the time
 //! (`drive::finish_timing`); until the time reaches the length (`finish_lengths[finished]`) or
-//! Esc or key 0x1C is down: the car's view 6 (+0x684), the first car loaded
+//! Esc or key 0x1C is down: the car's `camera_view` 6, the first car loaded
 //! (`race::load_first_car`), the camera (`drive::finish_camera`, `physics::camera_frame`), the
 //! car stored (`drive::store_first_car`), the race's frame (`drive::race_frame`).
 //!

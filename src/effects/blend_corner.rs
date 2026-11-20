@@ -1,5 +1,5 @@
-//! `effects::blend_corner`: one point blended: its factor the record's float at +0x90 + 4 x
-//! (the source point's three sign bits, x the highest; kept in `BlendWork.factor`), each of
+//! `effects::blend_corner`: one point blended: its factor the car's `factors` entry picked by
+//! the source point's three sign bits (x the highest; kept in `BlendWork.factor`), each of
 //! x, y, z base + (source - base) by it, rounded.
 
 use crate::errors::Refused;

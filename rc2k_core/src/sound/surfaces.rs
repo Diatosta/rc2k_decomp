@@ -1,11 +1,11 @@
 //! The sounds of what a car's wheels run on, their choices (the floats that pick the wheel and
 //! make the volume are the caller's).
 //!
-//! The four wheels are records of five dwords at the object's +0x44, +0x58, +0x6C, +0x80 (+0x10 the
+//! The four wheels are records of five dwords, one after another in the object (the fifth dword the
 //! surface). The counting wheel is the front or back pair by the sign of one difference, then the
 //! pair's second by the other's. A surface's set comes from a table of 16, the set from seven
-//! pairs (one for each of the two sounds); a set is four sounds, or eight (+0 is 1) for a car
-//! whose +0xC picks the half.
+//! pairs (one for each of the two sounds); a set is four sounds, or eight (the first is 1) for a car
+//! whose half flag picks the half.
 
 use crate::Invalid;
 
@@ -48,8 +48,8 @@ pub fn set_pair(surface: u32, sets_of: impl FnOnce(u32) -> u32) -> Result<u32, I
 }
 
 /// `sound::surface_sound`: the sound's place in the set (from 0) and the object's dword it
-/// replaces (+0x144 for sets of eight, else +0x148). `object` is the object's +0, `half`
-/// its +0xC (asked only for a set of eight). Refuses a half over 1.
+/// replaces (one for sets of eight, the next otherwise). `object` is the object's first
+/// dword, `half` its half flag (asked only for a set of eight). Refuses a half over 1.
 pub fn pick(eight: bool, object: u32, half: impl FnOnce() -> u32) -> Result<(u32, u32), Invalid> {
     let mut n = object & 3;
     if eight {

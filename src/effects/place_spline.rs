@@ -1,10 +1,10 @@
 //! `effects::place_spline`: spline `n` (of the 8) placed: the spline offset = its number times
-//! 0xE90; the settings' +0x26DC by one constant (unrounded) into its A, B and C records' +0x24, and
-//! that by another into D's; A and D by `effects::place_shape_points`; B's +0x2C its +0x24 by one
-//! constant when under a limit, else by another, the grade flag 0, B by
-//! `effects::place_graded_points`; C's +0x2C its +0x24 by a constant when above a limit (the
-//! compare's status 0), else by another, the grade flag 1, C by `place_graded_points`. Each
-//! compare's status flags go to the shared FPU status cell.
+//! `SPLINE_LEN`; the settings' `listener_scale` by one constant (unrounded) into the size of its
+//! A, B and C records, and that by another into D's; A and D by `effects::place_shape_points`;
+//! B's second size = its size by one constant when under a limit, else by another, the grade flag
+//! 0, B by `effects::place_graded_points`; C's second size = its size by a constant when above a
+//! limit (the compare's status 0), else by another, the grade flag 1, C by
+//! `place_graded_points`. Each compare's status flags go to the shared FPU status cell.
 //!
 //! Refuses null settings, a spline number of 8 or more (before anything), and its steps' refusals
 //! (all it may write is put back first).

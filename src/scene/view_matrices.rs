@@ -69,14 +69,14 @@ pub struct ViewMatrices {
 /// The fourth columns (cells 3, 7, 11, 15) of the turned, lit and made-object matrices, held from
 /// the shared store while a drawing runs (`ViewMatrices::hold`) and put back when it ends: a
 /// hand-off both ways. A product (`scene::multiply_matrices`) writes three columns only, so the
-/// fourth keeps what the last whole copy or scaling left (the size in +0x3C after an object's
-/// scaling). The physics copies all 16 cells on (`physics::spin_matrix` into the crash matrix,
-/// `physics::move_slot` into a slot's, `drive::set_listener` into the listener's), and the
+/// fourth keeps what the last whole copy or scaling left (the size, in the last cell, after an
+/// object's scaling). The physics copies all 16 cells on (`physics::spin_matrix` into the crash
+/// matrix, `physics::move_slot` into a slot's, `drive::set_listener` into the listener's), and the
 /// descriptions the drawing reads (0x3C bytes) take what the physics left. The other columns are
 /// written before they are read on both sides. Exact while the views are drawn one after another. A
-/// drawing part other than the first (`scene::workers::draw_parts`) holds from and puts back into its own
-/// columns (`Columns`), started as the list began; what it changed goes into the store in the
-/// parts' order (`merge_columns`).
+/// drawing part other than the first (`scene::workers::draw_parts`) holds from and puts back into
+/// its own columns (`Columns`), started as the list began; what it changed goes into the store in
+/// the parts' order (`merge_columns`).
 pub struct Held<'a> {
     view: &'a ViewMatrices,
     store: &'a SceneMatrices,

@@ -183,7 +183,7 @@ pub fn player_name(name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
         ))
 }
 
-/// A space and the tag of replay slot `slot`: "old" for a slot that holds only the original's
+/// A space and the tag of replay slot `slot`: "old" for a slot that holds only the 1999
 /// format, none for a slot with a file of the own format or with no replay.
 fn replay_tag(o: &Owners<'static>, slot: u32) -> Vec<u8> {
     use crate::race::replay::SLOT_OLD;
@@ -205,7 +205,7 @@ pub enum HeldText {
     Slot(SlotNames, u32),
     /// A shared text buffer, read when drawn.
     Buffer(Buffer),
-    /// A saved car's name in the read saved-game file (from this offset), run on to the
+    /// A saved car's name in the read saved-game file (from this position), run on to the
     /// file's end.
     SavedCarName(usize),
     /// A player's name in the names' area, run on to the area's end.

@@ -3,13 +3,15 @@
 //! `effects::emit_rolling_dust`: for the wheel kind 1, `effects::emit_rolling_particles_rated`
 //! when the kind-1 choice is not 0, else `emit_particle_1`: one ring entry of kind 1.
 //!
-//! `emit_particle_1` grows the wheel's +4 (a float here) by |+0x18| + |+0x10| + |+0x18 - +0xC|;
-//! when that rounded is 0x18 or more it is kept as its remainder by 0x18 (as a float) and an entry
-//! may be made if the strength (|+0x10| by one factor plus |+0xC - +0x18|, by another; held to at
-//! most 1) is not under the least strength (compared unrounded). The entry sits at the wheel's
-//! place (+0x3C ..) plus a random side, less a lift in y at +0x28; its motion is the car matrix's
-//! first row by +0x10, its third by +0x18 and the side factors by +0xC, each by a factor, moved by
-//! `effects::jitter_point`; its life and fade come from the strength.
+//! `emit_particle_1` grows the wheel's `pace` (a float here) by |`local_velocity_z`| +
+//! |`local_velocity_x`| + |`local_velocity_z` - `driven_speed`|; when that rounded is 0x18 or more
+//! it is kept as its remainder by 0x18 (as a float) and an entry may be made if the strength
+//! (|`local_velocity_x`| by one factor plus |`driven_speed` - `local_velocity_z`|, by another; held
+//! to at most 1) is not under the least strength (compared unrounded). The entry sits at the
+//! wheel's place plus a random side, its `ground_y` that y less a lift; its motion is the car
+//! matrix's first row by `local_velocity_x`, its third by `local_velocity_z` and the side factors
+//! by `driven_speed`, each by a factor, moved by `effects::jitter_point`; its life and fade come
+//! from the strength.
 //!
 //! Refuses (before anything) a null wheel, a null object where read, a null car or matrix when an
 //! entry is made, and `emit_rolling_particles_rated`'s.
@@ -46,7 +48,7 @@ fn life_k(effects: &Effects) -> [&PlainFloat; 2] {
 const SIZE: u32 = 0x1_0000;
 const STEP: i32 = 0x18;
 
-/// The first part of `emit_particle_1`, worked out without writing: the wheel's +4 grown
+/// The first part of `emit_particle_1`, worked out without writing: the wheel's `pace` grown
 /// (rounded and as a float), and, when an entry may be made, the strength (the float
 /// kept, before the hold to 1).
 struct Pace {

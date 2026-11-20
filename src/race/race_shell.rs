@@ -75,8 +75,8 @@ pub(super) fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Copies the league table: with a source (`RaceState.settings.rivals`), its ten records' dword at
-/// +8 into `names` and their sixteen dwords from +0x10 into column n of the sixteen rows.
+/// Copies the league table: with a source (`RaceState.settings.rivals`), its ten records' name dword
+/// into `names` and their sixteen figure dwords into column n of the sixteen rows.
 pub fn copy_league_table(
     race: &Race,
     tables: &crate::saves::best_times::BestTables,
@@ -112,7 +112,7 @@ pub fn copy_league_table(
     Ok(())
 }
 
-/// A kind's value for `set_start_states`: the dword at +0x18 of the kind's record (the kind held
+/// A kind's value for `set_start_states`: the start dword of the kind's record (the kind held
 /// to 0x21) when its limit (`CarSpecs.cars[0].engine_top`) is 0x1B58 or less, else 0.
 fn start_value(physics: &Physics, kind: u32) -> u32 {
     use rc2k_core::race::cars::{start_record, start_state_value};
@@ -125,7 +125,7 @@ fn flagged(race: &Race, kind: u32) -> bool {
     kind < 0x22 && race.kind_tables().kind_has_views[kind as usize].get() != 0
 }
 
-/// A block's camera view (the dword at +0x684) of 2 or 3 made 4.
+/// A block's camera view (`camera_view`) of 2 or 3 made 4.
 fn settle_state(view: &PlainDword) {
     if let Some(v) = rc2k_core::race::cars::settled_state(view.get()) {
         view.set(v);
@@ -184,7 +184,7 @@ pub fn set_start_states(
 }
 
 /// Stores the results by `run_kind`: 2 the first block's `time_left` to
-/// `RaceState.results.figure_ffc`, its dword at +0x654 to `RaceState.results.figure_000` and
+/// `RaceState.results.figure_ffc`, its start-place dword to `RaceState.results.figure_000` and
 /// `start_place`, its `stage_time` to `RaceState.results.results[0].time`; 0 the first two blocks'
 /// `stage_time` to `RaceState.results.results[0].time` / `RaceState.results.results[1].time` and
 /// `stage_car_total` x 100 less each, held to 0 .. 300000, to `RaceState.results.results[0].word` /

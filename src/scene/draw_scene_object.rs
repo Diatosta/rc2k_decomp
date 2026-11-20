@@ -1,13 +1,13 @@
-//! `scene::draw_scene_object`: chooses the set of textures for the current object and
-//! draws it the way the scene's mode asks for.
+//! `scene::draw_scene_object`: chooses the set of textures for the current object and draws it the
+//! way the scene's mode asks for.
 //!
 //! An object's number of 0x100 or more is fatal error 0x80600A01. `GroundWork.object_texture_set`
 //! (added to every face's texture number) = 0; then 0x108 for, outside a race, an object of kind
 //! 0x23A, and in a race for objects 0x50 .. 0xEF (the cars, 0x14 objects each) whose car's block
-//! has 0x21 at +0x24. Nothing more for an object without faces (the slots' face counts). Else by
-//! the lights' draw mode: 0 `scene::draw_shown_object`; 1 and 2 `scene::draw_described_object` (it
-//! takes an object's description and comes back here); anything else nothing. Refuses a car without
-//! its block.
+//! has the value 0x21 in its car-kind field. Nothing more for an object without faces (the slots'
+//! face counts). Else by the lights' draw mode: 0 `scene::draw_shown_object`; 1 and 2
+//! `scene::draw_described_object` (it takes an object's description and comes back here); anything
+//! else nothing. Refuses a car without its block.
 //!
 //! The logic is in the core crate: the texture set and the way on through
 //! `rc2k_core::scene::shown`.

@@ -45,8 +45,8 @@ pub fn clear_race_slots(shared: &RaceShared) {
     }
 }
 
-/// Resets each car block's starts: the dwords at +0x14 and +8 to 0 (0x320 while `in_credits` is
-/// set) and +0x18 and +0x1C to 0.
+/// Resets each car block's starts: `run_ticks` and `step_clock` to 0 (0x320 while `in_credits` is
+/// set), `start_in_gear` and `false_start_count` to 0.
 pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     // Logic in `rc2k_core::race::cars::start_value`.
     let value = rc2k_core::race::cars::start_value(shared.work.get().in_credits.is_set());
@@ -61,7 +61,7 @@ pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Gives each car block's dwords at +0x10 and +0xC one `nonzero_random`.
+/// Gives each car block's `car_flags` and `noise_word` one `nonzero_random`.
 pub fn seed_car_randoms(shared: &RaceShared) -> Result<(), BadInput> {
     // Logic in `rc2k_core::race::cars::car_seeds`.
     let seeds = shared.random.with_random(rc2k_core::race::cars::car_seeds);
@@ -74,8 +74,8 @@ pub fn seed_car_randoms(shared: &RaceShared) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Resets each car block's race state: `notice_id` 0xCA, the dword at +0x72C 0x12C,
-/// `notice_counter` / `notice_last` / `notice_shown` and the dword at +0x730 0, `split_gaps` -1;
+/// Resets each car block's race state: `notice_id` 0xCA, `notice_time` 0x12C,
+/// `notice_counter` / `notice_last` / `notice_shown` and `notice_time_b` 0, `split_gaps` -1;
 /// the four label dwords (`label_behind` and `label_ahead`) are set to spaces, the four kept copies
 /// to -1.
 pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
@@ -108,7 +108,7 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Finds the first checkpoint from 1 whose face's byte +0x26 is not 0, looking up to
+/// Finds the first checkpoint from 1 whose face's check byte is not 0, looking up to
 /// `last_checkpoint` (not included); 0 for none or with `checkpoint_count` - 2 negative. Refuses a
 /// look that would run past the list.
 pub fn first_check_checkpoint(course: &Course, shared: &RaceShared) -> Result<u32, Refused> {
@@ -138,8 +138,8 @@ mod tests {
     use rc2k_core::race::cars::RACE_STATE;
     use rc2k_core::race::panel::OVERLAY_CLEARED;
 
-    /// Each name the core's tables use is the car block field the tables' old byte offsets
-    /// (+0x71C .. +0x730, +0xA0C .. +0xA1C, +0xF78 .. +0xFA0) fell on.
+    /// Each name the core's tables use is a car block field of the same words: the notice
+    /// fields, the split gaps and the panel's marks.
     #[test]
     fn block_words_are_the_old_fields() {
         let car = Box::new(Car::new());

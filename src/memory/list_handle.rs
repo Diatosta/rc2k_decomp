@@ -1,12 +1,12 @@
 //! The record layout of a list menu and its items, as the installer's pages and the replay
 //! viewer's list hold them.
 //!
-//! A list is a header of 0x18 bytes (+0 flags, +1 the item count, +2 the title's string,
-//! +4 the item highlighted, +8 the list's action, +0x10 the neighbours table for
-//! `menu::list_step`, +0x14 a key action) and its items of 0x10 bytes from +0x18 (+0 kind in
-//! the low nibble and marks in the high, +1 the next list or the number of choices, +2 the
-//! text, +4 the item's box, +8 the byte or text it edits or the link's action, +0xC the
-//! choices, the edit record or the least value).
+//! A list is a header of 0x18 bytes (`ListHeader`: the flags, the item count, the title's
+//! string, the item highlighted, the list's action, the neighbours table for `menu::list_step`
+//! and a key action) followed by its items of 0x10 bytes (`Item`: the kind in the low nibble
+//! and marks in the high, the next list or the number of choices, the text, the item's box,
+//! the byte or text it edits or the link's action, and the choices, the edit record or the
+//! least value).
 //!
 //! The words of an item that name data are links the installer's pages resolve
 //! (`install::list_pages`); the replay viewer's list is a `ListData26` in the replay-view
@@ -268,7 +268,7 @@ impl ListItem {
         self.count()
     }
 
-    /// +1 of a text item: the kind of its font.
+    /// The count byte of a text item: the kind of its font.
     pub fn font_kind(self) -> u8 {
         self.count()
     }
@@ -283,7 +283,7 @@ impl ListItem {
         self.0.data.get()
     }
 
-    /// +0xC as the byte the least value is (a value item).
+    /// `data` as the byte the least value is (a value item).
     pub fn value_least(self) -> u8 {
         self.0.data.get().to_le_bytes()[0]
     }

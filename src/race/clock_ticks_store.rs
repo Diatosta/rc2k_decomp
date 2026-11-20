@@ -9,7 +9,7 @@ use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ClockTicks {
-    /// The text "demof\\build" (12 bytes) and the bytes after it up to +0x18: not read.
+    /// The text "demof\\build" (12 bytes) and the bytes after it: not read.
     pub unused_text: [PlainDword; 6],
     /// 0x20 dwords set to -1 by `drive::race_loop` and `drive::finish_run`.
     pub marks: [PlainDword; 32],

@@ -189,7 +189,7 @@ pub struct ForceEffect {
     pub found: Dword,
     /// The GUID the device listed.
     pub guid: Bytes<16>,
-    /// +0x20, +0x24, +0x28: what the device listed (`DIEFFECTINFOA`).
+    /// What the device listed (`DIEFFECTINFOA`): type, static and dynamic parameters.
     pub eff_type: Dword,
     pub static_params: Dword,
     pub dynamic_params: Dword,
@@ -306,10 +306,10 @@ pub struct InputDevice {
     pub strength: Dword,
     pub dead_zone: Dword,
     pub end_zone: Dword,
-    /// Which state dwords the axes are, a byte each (+0x1A, +0x1B the second and
+    /// Which state dwords the axes are, a byte each (the first, second and
     /// third).
     pub axis_code: Dword,
-    /// The axes for the ranges and dead zones, a byte each (+0x1C, +0x1D).
+    /// The axes for the ranges and dead zones, a byte each.
     pub axis_pick: Dword,
     pub sensitivity: Dword,
     /// 1 while acquired.
@@ -330,7 +330,7 @@ pub struct InputDevice {
     /// Steering, brake, throttle (`drive::device_axes`).
     pub readings: [Dword; 3],
     pub bits: Dword,
-    /// +0x4EC, +0x4F0, +0x4F4: the tyre change's gauge, stage and clock
+    /// The tyre change's gauge, stage and clock
     /// (`race::tyre_change_gauge`).
     pub gauge: Dword,
     pub stage: Dword,
@@ -478,7 +478,7 @@ pub(super) struct DiDevCaps {
 }
 
 /// DirectInput's `DIPROPHEADER`: the property's size, the header's, the object, how it
-/// is named (0 the device, 1 by offset).
+/// is named (0 the device, 1 by byte offset).
 #[repr(C)]
 pub(super) struct DiPropHeader {
     pub size: u32,

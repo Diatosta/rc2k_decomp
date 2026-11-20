@@ -158,15 +158,15 @@ impl MarksFloats {
 /// The settings' copies and the kinds' floats (`effects::frame_marks`, `effects::init_marks`).
 #[derive(rc2k_derive::Cells)]
 pub struct MarksKindFloats {
-    /// The settings' +0x4C, copied each frame step (a reading: which colours the ribbons use).
+    /// The settings' `after_loading_copy`, copied each frame step (a reading: which colours the ribbons use).
     pub other: PlainDword,
-    /// The settings' +0x50, copied each frame step (a reading: the snow fades).
+    /// The settings' `listener_near`, copied each frame step (a reading: the snow fades).
     pub fading: PlainDword,
     /// 0x17 floats by kind (the depth bias).
     pub kind_floats: [PlainFloat; 23],
     /// This kind's float.
     pub kind_float: PlainFloat,
-    /// The settings' +0x10, copied each frame step (a reading: whether the effects run).
+    /// The settings' `other_marks_shown`, copied each frame step (a reading: whether the effects run).
     pub running: PlainDword,
 }
 

@@ -20,7 +20,7 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// What an item's +0x1C says goes behind its text.
+// What an item's `behind` says goes behind its text.
 
 const END: u32 = u32::MAX;
 const ITEM_LIMIT: u32 = 256;

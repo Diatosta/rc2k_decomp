@@ -113,7 +113,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             let step = pace(d);
             race.physics.contact.get().lit_face_pace.set(step);
             let kind_of: u32 = scene.objects.tables.get().object_kind(object as u32);
-            // The material's byte +0x1C (the low byte of its eighth word).
+            // The material's kind byte: the low byte of its eighth word.
             let kind =
                 crate::scene::polygon::material_run_byte(race.polygon_tables(), kind_of, 0x1C)?;
             match kind {

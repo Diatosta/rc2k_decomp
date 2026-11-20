@@ -3,7 +3,7 @@
 //! turn (feed while playing; stopped after it: stop, and for the music the next tune); 3 the
 //! volume of what plays; any other plays (stop first if playing; nothing for a volume <= 0, for
 //! no music, and a stop for no path or tune). Music tunes: the file is the music path with the
-//! tune's two last digits at +0xE; tune 0xA is 10 + the tune turn for the first turn (counted on,
+//! tune's two last digits at byte 14; tune 0xA is 10 + the tune turn for the first turn (counted on,
 //! 0 .. 5) whose file exists. When a tune stops, the next tune is played, and it is never cleared
 //! there: the second tune repeats (kept). Fixed: a turn past 5 starts from 0, and after `RETRIES`
 //! plays in a row that stop at their first feed the music stops ("The music can hang the sound",

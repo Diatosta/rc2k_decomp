@@ -191,8 +191,8 @@ fn circle_cells(r: f32, out: &[PlainFloat], count: u32, c: i32, d: f32) {
 
 /// `effects::set_up_windscreen_drops`: once (then the done flag is set) four floats scaled;
 /// then the windscreen drop items cleared, their curve and circles (6 points); 0x40 fans of
-/// four triangles (words: n6, n6+1 .. n6+5); 0x40 records of six parts (+0xC
-/// `MarksFloats.two_fifty_six`, +0x10 -1, +0x14 0xFF000000, 0x20 apart);
+/// four triangles (words: n6, n6+1 .. n6+5); 0x40 records of six parts (0x20 bytes
+/// apart: `MarksFloats.two_fifty_six`, -1 and 0xFF000000 in dwords 3, 4 and 5 of each);
 /// `WindscreenDropVars.started` ..
 /// `WindscreenDropVars.spare[1]` 0.
 fn windscreen_drops_with(

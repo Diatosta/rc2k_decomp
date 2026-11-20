@@ -38,7 +38,7 @@ pub const fn codriver_copy(record: u32) -> Option<u32> {
         None
     }
 }
-/// The voice pool: the original's 0x200, and room for the third and fourth players' co-driver's
+/// The voice pool: 0x200 voices, and room for the third and fourth players' co-driver's
 /// copies of the voices (a split screen of three or four players uses every voice of the 0x200 up).
 pub const VOICES: u32 = 0x240;
 /// The mixer channels that are cleared (`audio::clear_channels`).
@@ -260,7 +260,7 @@ pub fn stop_all<P: Pool>(pool: &mut P, lists: &mut Lists) -> Result<(), Invalid>
     Ok(())
 }
 
-/// The first 0x10 channels made free: `used`, `voice` and the five dwords from +0x44 0.
+/// The first 0x10 channels made free: `used`, `voice` and the five unused dwords of each.
 pub fn clear_channels<P: Pool>(pool: &mut P) {
     for n in 0..CHANNELS_CLEARED {
         let at = pool.channel_at(n);

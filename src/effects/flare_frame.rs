@@ -1,13 +1,14 @@
 //! `effects::flare_frame`: `scene::set_texture` with `KindTextureTables.kind_first_slots[202]`,
-//! `scene::depth_test_off`, and when the settings' +0x2754 (the flare's strength) is set
-//! `effects::draw_lens_flare`.
+//! `scene::depth_test_off`, and when the settings' `listener_figures[0]` (the flare's strength) is
+//! set `effects::draw_lens_flare`.
 //!
 //! Refuses null settings, before anything.
 
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 
-/// `scene::set_texture`, `scene::depth_test_off`, and with the settings' +0x2754 `draw_lens_flare`.
+/// `scene::set_texture`, `scene::depth_test_off`, and with the settings' flare strength
+/// `draw_lens_flare`.
 pub(super) fn flare_frame(
     engine_tables: &crate::math::engine_tables::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,

@@ -230,7 +230,7 @@ impl Record {
         self.markers.each_ref().map(|[x, y]| (x.get(), y.get()))
     }
 
-    /// Its dwords in the old layout's (and the options file's) order, +0 to +0xA0: the one place
+    /// Its dwords in the options file's order: the one place
     /// that knows the record's byte layout.
     fn words(&self) -> [RecordWord<'_>; Record::WORDS] {
         use RecordWord::{Dword as D, Int as I, Name as N};
@@ -299,7 +299,7 @@ impl Record {
             .ok_or(BadInput("a record's field past its end"))
     }
 
-    /// The record of the old layout's dwords `v` (+0 to +0xA0).
+    /// The record of the options file's dwords `v`.
     const fn new(v: [u32; Record::WORDS]) -> Self {
         const fn name(v: &[u32; Record::WORDS], first: usize) -> PlainBytes<HOLDER_NAME_LEN> {
             let mut bytes = [0; HOLDER_NAME_LEN];
@@ -450,7 +450,7 @@ impl TrackField {
         TrackField::Surface3,
     ];
 
-    /// Its dword in the entry's old layout (+0 the name .. +0x3C).
+    /// Its dword in the entry's file layout (the name first).
     pub const fn word(self) -> usize {
         match self {
             TrackField::Name => 0,
@@ -2001,7 +2001,7 @@ impl RecordTable {
         }
     }
 
-    /// Its title string: its first record's name (+0x38).
+    /// Its title string: its first record's name.
     pub fn title(self, stages: &StageTables) -> Result<u32, BadInput> {
         Ok(self.row(stages, 0)?.record(stages)?.name())
     }
@@ -2236,7 +2236,7 @@ mod chain_tests {
     /// Where each piece of `Piece::ORDER` began in the old layout.
     const IDA_STARTS: [usize; 12] = [
         0x734BC6, // the pack head
-        0x734BFA, // its entries (+0x34)
+        0x734BFA, // its entries
         0x7354FA, // the pack's -1
         0x7354FE, // the results' variables
         0x735512, // per stage group

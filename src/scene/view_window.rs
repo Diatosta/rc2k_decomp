@@ -13,7 +13,7 @@ pub struct ViewWindow {
     pub view_offset: [PlainDword; 2],
     /// The zoom, a whole number (0x100; the menus set it), in the scale.
     pub view_zoom: PlainDword,
-    /// Not named (+0x104 of `SceneDraw`).
+    /// Not named: no code uses it.
     pub unknown_104: PlainDword,
     /// The scale (`scene::set_view_window`, `scene::project_point`).
     pub view_scale: PlainFloat,

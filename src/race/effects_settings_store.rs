@@ -15,7 +15,7 @@ use crate::test_support::own::race;
 /// A car's record in the settings (0x4C8 bytes; `effects::blocks`, `effects::cars_particles`,
 /// `effects::morph_object_points`, `effects::tidy_marks` work on it). Names are readings from what
 /// writes the record (`drive::share_car_state`, from the car block) and what reads it. The five
-/// wheel and body records (0x48 bytes each) are `MarkRecord`s; the tail from +0x23C is the lines'
+/// wheel and body records (0x48 bytes each) are `MarkRecord`s; the tail after them is the lines'
 /// and the point morphs' part (`CAR_BLOCK`).
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
@@ -56,12 +56,12 @@ pub struct CarEffects {
     pub unread_8c: PlainDword,
     /// The rate the emitters' gates add (after `cars_particles`); the body's size.
     pub rate: PlainDword,
-    /// The car's inverse matrix (`adjugate_matrix` of the whole one: the turn at +0x94 ..
-    /// +0xb4, the translation at +0xc4 .. +0xcc).
+    /// The car's inverse matrix (`adjugate_matrix` of the whole one: the turn first, then the
+    /// translation).
     pub matrix: [PlainFloat; 15],
     /// Not read.
     pub unread_d0: PlainDword,
-    /// The four wheels' records, then the body's (+0x1f4).
+    /// The four wheels' records, then the body's.
     pub records: [MarkRecord; RECORDS],
     /// The object the lines and morphs work on.
     pub object: PlainDword,
@@ -132,11 +132,11 @@ pub struct MarkRecord {
     /// The car's local velocity z, forward (the body's: `velocity[2]`), copied by
     /// `drive::share_car_state`; the emitters' gates test it for 0.
     pub local_velocity_z: PlainFloat,
-    /// The surface kind the emitters go by (copied from +0x28).
+    /// The surface kind the emitters go by (copied by `drive::share_car_state`).
     pub kind: PlainDword,
-    /// The surface flags (copied from +0x2c); bits 6 and up count entries.
+    /// The surface flags (copied by `drive::share_car_state`); bits 6 and up count entries.
     pub flags: PlainDword,
-    /// The second flags word (copied from +0x30); bits 6 and up count entries.
+    /// The second flags word (copied by `drive::share_car_state`); bits 6 and up count entries.
     pub flags2: PlainDword,
     /// The kind of the surface under the wheel.
     pub under_kind: PlainDword,
@@ -176,7 +176,8 @@ const fn plain_floats<const N: usize>(values: [f32; N]) -> [PlainFloat; N] {
 }
 
 impl MarkRecord {
-    /// The surface under the wheel becomes the current one (+0x28 .. +0x30 to +0x1C .. +0x24).
+    /// The surface under the wheel becomes the current one (`under_kind`, `under_flags`,
+    /// `under_flags2` into `kind`, `flags`, `flags2`).
     pub fn take_surface(&self) {
         self.kind.set(self.under_kind.get());
         self.flags.set(self.under_flags.get());
@@ -203,7 +204,7 @@ pub struct EffectsSettings {
     pub own_marks_shown: PlainDword,
     /// The other view's marks show; `drive::race_init` sets it (`race::frame_views`).
     pub other_marks_shown: PlainDword,
-    /// [0] read and written by no code; [1] (+0x18) the marks were just set up:
+    /// [0] read and written by no code; [1] the marks were just set up:
     /// `effects::init_marks` sets it to 1, `effects::frame_marks` copies it into the clock's
     /// `settings_copies[0]` and clears it after the frame's view step.
     pub fresh_marks_flags: [PlainDword; 2],
@@ -213,9 +214,9 @@ pub struct EffectsSettings {
     pub listener_turn: [PlainFloat; 9],
     /// Copied after the loading picture (`race::single_rally`).
     pub after_loading_copy: PlainDword,
-    /// The viewed car's +0xABC >= 0x10; starts as 1 (`drive::set_listener`).
+    /// The viewed car's `marks_count` is 0x10 or more; starts as 1 (`drive::set_listener`).
     pub listener_near: PlainDword,
-    /// [0] read and written by no code; [1] (+0x58) copied into the snow light's `kept` word
+    /// [0] read and written by no code; [1] copied into the snow light's `kept` word
     /// by `effects::run_snow` (never written: it keeps its first value).
     pub snow_light_words: [PlainDword; 2],
     /// A copy of the race's cars (`effects::init_mark_step`).
@@ -229,12 +230,12 @@ pub struct EffectsSettings {
     /// The work car's file number (`effects::init_mark_step`). The effects' marks kind
     /// (`effects::init_marks` refuses 0x22 or more).
     pub mark_car_file_number: PlainDword,
-    /// ..: the viewed car's three whole numbers +0x134 .. +0x13C as floats
+    /// ..: the viewed car's `position` (three whole numbers) as floats
     /// (`drive::set_listener`).
     pub listener_car_place: [PlainFloat; 3],
-    /// The count of the settings' objects (1 in the mark set-up,
-    /// `effects::init_mark_step`; the effects' splines and shapes read that many from +0x26BC, on
-    /// through the fields after it for a count past 1).
+    /// The count of the settings' objects (1 in the mark set-up, `effects::init_mark_step`; the
+    /// effects' splines and shapes read that many objects from here on, through the fields after it
+    /// for a count past 1).
     pub object_count: PlainInt,
     /// The settings' first object (0x50 in the mark set-up, `effects::init_mark_step`).
     pub first_object: PlainDword,
@@ -342,11 +343,11 @@ impl core::ops::Deref for InGroup {
 pub static EFFECTS_SETTINGS: InGroup = InGroup;
 
 /// The part of each car record the lines, the point morphs and the tidy-up work on: its offset in
-/// the car's record, which starts at the settings' +0x60.
+/// the car's record, which starts after the settings' leading fields.
 pub const CAR_BLOCK: u32 = 0x29C - 0x60;
 
-/// A car record by handle, where an address was once kept (`effects::emitters`' `car`, a
-/// ring entry's +0x68): `CAR_TAG | n` for car `n`; 0 is none.
+/// A car record by handle (`effects::emitters`' `car`, a ring entry's car): `CAR_TAG | n` for car
+/// `n`; 0 is none.
 pub const CAR_TAG: u32 = 0xCC00_0000;
 
 /// Car `n`'s handle.
@@ -382,7 +383,7 @@ impl CarEffects {
         unsafe { std::mem::zeroed() }
     }
 
-    /// The car's whole matrix (the block's +0x8C0; the record holds a block handle, set by
+    /// The car's whole matrix (the block's `whole_matrix`; the record holds a block handle, set by
     /// `drive::share_car_state`); refused when no block is set.
     pub fn whole<'a>(&self, blocks: &'a CarBlocks) -> Result<&'a [PlainFloat; 16], BadInput> {
         blocks
@@ -391,7 +392,7 @@ impl CarEffects {
             .ok_or(BadInput("a car record without its block"))
     }
 
-    /// The car's four part matrices (the block's +0x740); refused when no block is set.
+    /// The car's four part matrices (the block's `part_matrices`); refused when no block is set.
     pub fn parts<'a>(&self, blocks: &'a CarBlocks) -> Result<&'a [PlainFloat; 64], BadInput> {
         blocks
             .of(self.parts_block.get())

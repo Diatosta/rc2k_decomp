@@ -44,8 +44,8 @@ impl Strip {
     }
 }
 
-/// A view block's strip from its `covered` (+0xFA8), `shown` (+0x728), `clock` (+0x72C) and
-/// `period` (+0x730) fields.
+/// A view block's strip from its `covered`, `shown`, `clock` and
+/// `period` fields.
 pub fn strip(covered: u32, shown: u32, clock: u32, period: u32) -> Strip {
     if covered != 0 || shown == 0 {
         return Strip::Hidden;

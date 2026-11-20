@@ -1,10 +1,10 @@
-//! A force-feedback effect's DirectInput object (`IDirectInputEffect`, an effect's +0x30;
-//! the effects are a device record's six from +0x3C, 0xA4 bytes each), asked by the game's
+//! A force-feedback effect's DirectInput object (`IDirectInputEffect`, an effect's `object`;
+//! the effects are a device record's six), asked by the game's
 //! four small functions, each doing nothing when the effect has no object:
-//! - `input::release_effect`: `Stop`, `Release`, +0x30 0;
+//! - `input::release_effect`: `Stop`, `Release`, `object` 0;
 //! - `input::start_effect`: `Download`, `Start` (one iteration, no flags);
 //! - `input::set_effect_parameters`: `SetParameters` with the effect's
-//!   `DIEFFECT` (+0x34) and the flags;
+//!   `DIEFFECT` (`effect`) and the flags;
 //! - `input::stop_effect`: `Stop`.
 
 use crate::input::di_objects::EffectParameters;

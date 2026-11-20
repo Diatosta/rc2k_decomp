@@ -1,7 +1,7 @@
-//! A device given back: with a DirectInput device (+4),
+//! A device given back: with a DirectInput `device`,
 //! `Unacquire`, its effects stopped (`input::end_force`) when its controller's entry
-//! (`controllers`, its number x 0x50, +0x1C) is 1, `Release`, +4 0; then +0x24 (acquired)
-//! and +0x28 (effects on) 0 and its readings cleared (`input::clear_device_readings`).
+//! (`controllers`) has `force_feedback` 1, `Release`, `device` 0; then `acquired`
+//! and `effects_on` 0 and its readings cleared (`input::clear_device_readings`).
 //!
 //! Refuses (before anything) a controller number past 16 with a device.
 

@@ -126,7 +126,7 @@ pub struct BestLine {
     pub leftovers: Leftovers,
 }
 
-/// A face's first point: its number (field +4).
+/// A face's first point: its number (the face's point 0).
 fn point_of(race: &Race, face: u32) -> Result<u32, BadInput> {
     crate::race::course_places::face_field(race.course.reads(), face, 4)
 }
@@ -427,9 +427,9 @@ fn add_surface_share(
     );
 }
 
-/// The share of the line on each surface (whole numbers): for each checkpoint whose face's +0x3C
-/// names a face, that face's two textures add their four surfaces, the second weighted by the
-/// face's blend bytes (+0x22 .. +0x25) and the first by what is left of 0x100.
+/// The share of the line on each surface (whole numbers): for each checkpoint whose face links
+/// another face, that face's two textures add their four surfaces, the second weighted by the
+/// face's corner blend bytes and the first by what is left of 0x100.
 fn surface_shares(race: &Race, faces: &[u32]) -> Result<[u32; 16], Refused> {
     let course = &race.course;
     let count = faces.len() as i32;

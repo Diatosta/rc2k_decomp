@@ -1,5 +1,5 @@
 //! `scene::rotate_point`: the point (three 80-bit values) turned and placed by the matrix (rows
-//! 0x10 bytes apart, the place at +0x30), left there unrounded.
+//! 0x10 bytes apart, the place in the fourth row), left there unrounded.
 //!
 //! Plain Rust: the x87's arithmetic in `X` (`math/x87_float.rs`), the point and the result as
 //! 80-bit values (exact for what `X` holds). The tests compare against recorded vectors

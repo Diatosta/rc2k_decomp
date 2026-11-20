@@ -82,7 +82,7 @@ pub(crate) fn leading_left(value: u32) -> bool {
         .any(|&(_, _, drawn)| drawn)
 }
 
-/// The stage panel's rectangle by the record's +0x28 / +0x30 (none for -1): the number held
+/// The stage panel's rectangle by the record's stage field (none for -1): the number held
 /// to 0 .. 0x16 (signed) from 0x29.
 pub fn stage_rect(field: u32) -> Option<u32> {
     if field == u32::MAX {
@@ -91,7 +91,7 @@ pub fn stage_rect(field: u32) -> Option<u32> {
     Some((field as i32).clamp(0, 0x16) as u32 + 0x29)
 }
 
-/// The needle's sign by the record's +0xCC (+0xD0): its rectangle and
+/// The needle's sign by the record's needle field: its rectangle and
 /// texture: 0x5E on 0xC0, or with the field set 0x60 on 0xC2.
 pub fn needle_sign(field: u32) -> (u32, u32) {
     if field != 0 {

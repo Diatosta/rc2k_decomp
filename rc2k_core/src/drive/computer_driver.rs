@@ -13,7 +13,7 @@ pub fn held_index(n: u32, k: u32, count: u32) -> u32 {
     if i >= count { count.wrapping_sub(1) } else { i }
 }
 
-/// Whether the road is narrow: the face's bytes +0xA and +0xB together below 0x12 (by the
+/// Whether the road is narrow: the face's two width bytes (`a`, `b`) together below 0x12 (by the
 /// sign).
 pub fn narrow(a: u32, b: u32) -> bool {
     (a.wrapping_add(b).wrapping_sub(0x12) as i32) < 0

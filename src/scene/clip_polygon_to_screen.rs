@@ -1,7 +1,7 @@
 //! `scene::clip_polygon_to_screen`: cuts the polygon to the screen's four edges.
 //!
-//! `SceneDraw.screen_clipped` = 1. Each vertex's place on the screen (its record's +0xC and
-//! +0x1C) against the edges `SceneDraw.clip_screen[2]` (left), `[3]` (right), `[0]` (top) and
+//! `SceneDraw.screen_clipped` = 1. Each vertex's place on the screen (its record's screen x and
+//! y) against the edges `SceneDraw.clip_screen[2]` (left), `[3]` (right), `[0]` (top) and
 //! `[1]` (bottom) gives the bits 1, 2, 4, 8 of a mask: right is looked at first and left only
 //! if the vertex is not past it, bottom first and top only if not past that. A mask of 0:
 //! nothing more. Else the mask goes to `SceneDraw.polygon_clip_mask`, and for each of its bits

@@ -50,7 +50,7 @@ pub struct AudioShared {
     pub music_stream: Shared<AudioStream>,
     /// 1 = no music (`nomusic`).
     pub no_music: Dword,
-    /// DirectSound's `DSCAPS` (flags at +4, free hardware buffers at +0x14, free 3D ones at +0x3C).
+    /// DirectSound's `DSCAPS` (flags, free hardware buffers, free 3D ones).
     pub sound_caps: Bytes<96>,
     /// The `ignoredsv` setting.
     pub ignore_dsv_setting: Dword,
@@ -104,7 +104,7 @@ const VOICE_FREE: Voice = Voice {
     frequency: 0xac44,
     place: [0x0, 0x0, 0x0],
 };
-/// A mixer channel as the image holds all of them (a 1.0 at +0x20).
+/// A mixer channel as the image holds all of them (a 1.0 as the first of `gap_20`).
 pub(super) const CHANNEL_IDLE: MixerChannel = MixerChannel {
     used: 0x0,
     gap_4: [0x0, 0x0],

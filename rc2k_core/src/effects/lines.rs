@@ -8,8 +8,8 @@
 #[cfg(test)]
 use crate::math::geometry::fistp64;
 
-/// A block's slots (+0xD0 their kinds, +0xF0 their sums) and kinds (+0x130 the kinds,
-/// +0x1B8 their sums, +0x240 their point counts).
+/// A block's slots (each with a kind and a sum) and kinds (each with a kind, a sum and a point
+/// count): how many of each.
 pub const SLOTS: u32 = 8;
 pub const KINDS: u32 = 0x11;
 
@@ -27,18 +27,18 @@ pub fn difference(p: [u32; 3], q: [u32; 3]) -> [u32; 3] {
 }
 
 /// Whether a slot (its kind's dword) takes a face of slot kind `face_kind` (the face's
-/// +7): the dword's low byte.
+/// slot kind): the dword's low byte.
 pub fn slot_takes(slot: u32, face_kind: u8) -> bool {
     slot as u8 == face_kind
 }
 
-/// Whether a kind (its dword) takes a face of kind `face_kind` (+6) with line kind
-/// `lines` (+0xB): the dword's low byte, and the line kind 1.
+/// Whether a kind (its dword) takes a face of kind `face_kind` with line kind
+/// `lines`: the dword's low byte, and the line kind 1.
 pub fn kind_takes(kind: u32, face_kind: u8, lines: u8) -> bool {
     kind as u8 == face_kind && lines == 1
 }
 
-/// The settings' blocks: from +0x29C of the settings, `BLOCK_LEN` apart (their count at +0x5C).
+/// The settings' blocks: from `BLOCKS_AT` into the settings, `BLOCK_LEN` apart.
 pub const BLOCKS_AT: u32 = 0x29C;
 pub const BLOCK_LEN: u32 = 0x4C8;
 pub const MOST_BLOCKS: u32 = 8;
@@ -71,9 +71,9 @@ pub struct Measured {
 
 /// What the tables tell the planning, asked in the game's order.
 pub trait Blocks {
-    /// Block k's +0xC (marked to be measured).
+    /// Whether block k is marked to be measured.
     fn marked(&self, k: u32) -> bool;
-    /// Block k's two objects (+0, +4).
+    /// Block k's two objects.
     fn objects(&self, k: u32) -> [u32; 2];
     /// An object's face count and first face.
     fn face_count(&self, object: u32) -> u32;

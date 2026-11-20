@@ -1,5 +1,5 @@
-//! The HUD's square icons: an entry of the HUD's record (+0x84 its texture or -1 for none, +0x88
-//! its width, +0x8C its alpha, +0x90 its drop) scaled by `HudBlock.icon_scale` and centred on the
+//! The HUD's square icons: an entry of the HUD's record (its texture or -1 for none, its width,
+//! its alpha and its drop) scaled by `HudBlock.icon_scale` and centred on the
 //! 800-wide screen, shifted by `HudBlock.icon_shift`, as tall as wide, under the top given.
 
 use crate::math::geometry::fistp64;
@@ -7,7 +7,7 @@ use crate::math::geometry::fistp64;
 /// The screen width the icons are centred on (the centre is half of it).
 pub(crate) const MIDDLE: u32 = 0x320;
 
-/// Whether an entry is drawn: its +0x84 is not -1.
+/// Whether an entry is drawn: its texture is not -1.
 pub fn shown(texture: u32) -> bool {
     texture != u32::MAX
 }

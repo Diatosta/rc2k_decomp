@@ -6,7 +6,7 @@
 //! more at the end; then for each vertex A and the one after it, B: A goes to the new list if
 //! it is inside, and if one of the two is inside and the other not, a new vertex where the side
 //! crosses the edge goes there too. "Inside" is one x87 compare of the edge with the vertex's
-//! coordinate (the record's +0xC, +0x1C or +0x18), read as "edge below coordinate" or as its
+//! coordinate (the record's screen x, screen y or depth), read as "edge below coordinate" or as its
 //! opposite, with "no number" counting as below. The new vertex takes the next entry of the
 //! work table and the next record of the pool: place in the view, on the screen, the record's
 //! first three dwords (screen edges only), the entry's four texture coordinates and five

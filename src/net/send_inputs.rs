@@ -38,7 +38,7 @@ pub fn fields(kind: Kind) -> &'static [Field] {
     }
 }
 
-/// +0xFD0 .. +0xFDC.
+/// The kept throttle, key bits, steering and brake words.
 const INPUT_FIELDS: [Field; 4] = [
     (|c| &c.kept_throttle_word, Free),
     (|c| &c.kept_keys_word, Free),
@@ -46,7 +46,7 @@ const INPUT_FIELDS: [Field; 4] = [
     (|c| &c.kept_brake_word, Free),
 ];
 
-/// +0x134 .. +0x13C (the place, put where the car is to be on arrival), the matrix's first
+/// The place (put where the car is to be on arrival), the matrix's first
 /// twelve, the spin, the velocities, and others.
 const POSITION_FIELDS: [Field; 40] = [
     (|c| &c.position[0], Free),
@@ -134,7 +134,7 @@ pub fn send_inputs(race: &Race, net: &Net) -> Result<(), Refused> {
 mod tests {
     use super::*;
 
-    /// Each field sits where the core's table had its offset in the car's block.
+    /// Each field sits where the core's table had its position in the car's block.
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
         let car = crate::test_support::own::race().shared.car();
@@ -165,7 +165,7 @@ mod tests {
         );
     }
 
-    /// The limits are the ranges the core's table matched by offset.
+    /// The limits are the ranges the core's table matched by position.
     #[test]
     fn the_limits_are_the_old_ranges() {
         let car = crate::test_support::own::race().shared.car();

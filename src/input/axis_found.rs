@@ -1,8 +1,8 @@
 //! DirectInput's `EnumObjects` callback for a joystick
-//! being listed: the object's type GUID (`DIDEVICEOBJECTINSTANCEA` +4) named among the six
+//! being listed: the object's type GUID (`DIDEVICEOBJECTINSTANCEA`'s `guid_type`) named among the six
 //! axes' (`GUID_XAxis`, `GUID_YAxis`, `GUID_ZAxis`, `GUID_RxAxis`, `GUID_RyAxis`,
 //! `GUID_RzAxis`, in the device-object table) sets the bit (1, 2, 4, 8, 0x10, 0x20) in the
-//! controller's entry's +0x14 (kept: the bits are added to it). Always goes on (returns 1).
+//! controller entry's `axis_bits` (kept: the bits are added to it). Always goes on (returns 1).
 
 use crate::errors::BadInput;
 use crate::input::guids::InputGuids;

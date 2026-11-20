@@ -1,14 +1,12 @@
 //! The course face being drawn, a view's own working values: the corners, the two textures with
 //! their orders and backs, the colours, lights and see-through by corner, the polygon mode, the
 //! object face's number, kind and unlit byte, and the fade of the car being drawn. One per view
-//! slot (`race::view_scratch::ViewScratch::face`). They replace the values once shared by every
-//! view in turn: the race view's fields (`face_turned` .. `polygon_mode`), `RaceVars`'s
-//! `face_number`, `mapping_a` and `mapping_b`, the sound spot block's `face_kind` and `face_unlit`,
-//! and `fade_alpha_moved`, `faded_bits`, `faded` (the fade), the current course face
-//! (`current_course_face`) and the texture coordinates by corner (`corner_uv`,
-//! `corner_uv_b`). A face without a second texture copies the second set into its entries
-//! unwritten: the last such face's, now the same view's last (none drawn: zeros). Nothing reads
-//! them on such a face, so the fans' hashes are the same.
+//! slot (`race::view_scratch::ViewScratch::face`): the corner values (`face_turned` ..
+//! `polygon_mode`), `face_number`, `mapping_a` and `mapping_b`, `face_kind` and `face_unlit`, the
+//! fade (`fade_alpha`, `faded_bits`, `faded`), the current course face and the texture
+//! coordinates by corner (`corner_uv`, `corner_uv_b`). A face without a second texture copies the
+//! second set into its entries unwritten: the last such face's in the same view (none drawn:
+//! zeros). Nothing reads them on such a face.
 
 use crate::memory::session::PlainDword;
 
@@ -32,7 +30,7 @@ pub struct FaceWork {
     pub corner_alphas: [PlainDword; 4],
     /// How `scene::draw_polygon` draws.
     pub polygon_mode: PlainDword,
-    /// The two textures' mapping modes (+0 the mode; +4 is not used).
+    /// The two textures' mapping modes (the first dword the mode; the second is not used).
     pub mapping_a: [PlainDword; 2],
     pub mapping_b: [PlainDword; 2],
     /// The object face being listed or drawn.
@@ -42,13 +40,13 @@ pub struct FaceWork {
     pub face_kind: PlainDword,
     pub face_unlit: PlainDword,
     /// The fade of the car being drawn: its alpha (`race::car_draw`; `fade_alpha_moved`), the faded
-    /// bits of its model (record +0x10, -1 outside a car's drawing: `faded_bits`) and whether the
-    /// face being drawn is faded (`scene::draw_object_face` for `scene::draw_polygon`: `faded`).
+    /// bits of its model (-1 outside a car's drawing: `faded_bits`) and whether the face being
+    /// drawn is faded (`scene::draw_object_face` for `scene::draw_polygon`: `faded`).
     pub fade_alpha: PlainDword,
     pub faded_bits: PlainDword,
     pub faded: PlainDword,
     /// The course face being drawn or listed (`current_course_face`), named by the bad polygon's
-    /// log; the objects of two shapes would keep their moving state in its +0x30 ..
+    /// log; the objects of two shapes would keep their moving state in the face's normals' place
     /// (`scene::set_object_material`), but no kind in the game's files has that material (way 4:
     /// none in objsinfo, carsinfo, frntinfo or extrinfo).
     pub course_face: PlainDword,

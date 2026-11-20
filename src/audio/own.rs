@@ -71,7 +71,7 @@ pub struct AudioOwn {
     pub sound_list_loaded: Plain<Option<SoundList>>,
     /// The tune played when the music stops.
     pub next_tune: PlainDword,
-    /// `;3files\music\00.wav`, the tune's two digits are put at +0xE.
+    /// `;3files\music\00.wav`, the tune's two digits are put at byte 14.
     pub music_path: PlainBytes<24>,
     /// The 0xC00 bytes a stream's file head is read into (an address; 0: not taken yet).
     pub stream_header: PlainDword,
@@ -91,7 +91,7 @@ pub struct AudioOwn {
     pub sound_listener: PlainDword,
     /// What `Lock` gives: two pointers and their sizes.
     pub locked_parts: [PlainDword; 4],
-    /// The primary buffer's `DSBCAPS` (its bytes at +8).
+    /// The primary buffer's `DSBCAPS` (its size in bytes in the third dword).
     pub primary_caps: PlainBytes<20>,
     /// The `DSBUFFERDESC` a buffer is made with.
     pub buffer_description: Plain<BufferDescription>,

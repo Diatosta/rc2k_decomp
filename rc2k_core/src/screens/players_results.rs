@@ -64,7 +64,7 @@ pub struct Row<T> {
 /// The page's other parts.
 #[derive(Clone, Debug)]
 pub struct Page {
-    /// The section's title string (its first record's +0x38).
+    /// The section's title string (its first record's title field).
     pub section: u32,
     /// The stage line, with its NUL.
     pub stage: Vec<u8>,

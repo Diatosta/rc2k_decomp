@@ -1,12 +1,12 @@
-//! `effects::burst_particles`: up to 0x100 entries of the effects' ring started at the
-//! place of the record (+0xC .. +0x14), each in a random direction on a sphere of a random
-//! radius: a burst flag is set; the radius (the effects' random's low word times a
-//! constant, plus a base, times a scale) is kept, and so are a kind ((its low 3 bits) times
-//! 0x400) and ((its bit 16) + 8); then each entry taken from the ring's first free one (its
-//! +0, while the used count is not 0xFFF): +8 the first kept value, +0x48 the second, the
-//! place, a direction by two angles of the next random (the sine and cosine tables) times
-//! the radius at +0x28 .. +0x34, +0x38 0x10000, +0x3C 0xFF000000, +0x44 3000 and +0x40 the
-//! life factor / 3000.
+//! `effects::burst_particles`: up to 0x100 entries of the effects' ring started at the place of the
+//! record (its three place coordinates), each in a random direction on a sphere of a random radius:
+//! a burst flag is set; the radius (the effects' random's low word times a constant, plus a base,
+//! times a scale) is kept, and so are a kind ((its low 3 bits) times 0x400) and ((its bit 16) + 8);
+//! then each entry taken from the ring's first free one (its link to the next, while the used count
+//! is not 0xFFF): the kind the first kept value, the colours' place the second, the place, the
+//! motion a direction by two angles of the next random (the sine and cosine tables) times the
+//! radius with the lift 0, the size 0x10000, the colour 0xFF000000, the life 3000 and the colour's
+//! step the life factor / 3000.
 //!
 //! Refuses a null record or ring (when an entry is to be taken), before anything.
 
@@ -30,7 +30,7 @@ fn next_seed(effects: &crate::effects::owner::Effects) -> u32 {
     s
 }
 
-/// The entries the burst takes, from the ring's first free one along +0.
+/// The entries the burst takes, from the ring's first free one along the links to the next.
 fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused> {
     Ok({
         let used: u32 = ring.pool.used.get();

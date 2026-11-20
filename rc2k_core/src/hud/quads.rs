@@ -49,8 +49,7 @@ pub fn scaled_size(size: u32, scale: f64) -> u32 {
 /// colour.
 pub const SOLID_TEXEL: [u32; 2] = [0xF8_0000, 0x8_0000];
 
-/// One vertex of the polygon (x at +0, y +4, colour +0x10, u +0x18, v
-/// +0x1C; the rest left).
+/// One vertex of the polygon (x, y, colour, u, v; the rest of the record is left).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Vertex {
     pub x: f32,

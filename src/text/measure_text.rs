@@ -1,7 +1,7 @@
-//! Runs `draw_text` with the font's two result fields zeroed first, and returns them.
-//! With a font in measure mode nothing is drawn, +0x14 counts the lines and +0x1C is the width of
-//! the widest one. The y passed on is the font's dword at +8. Any other font would draw, with a
-//! null palette: kept as it is.
+//! Runs `draw_text` with the font's two result fields zeroed first, and returns them. With a font
+//! in measure mode nothing is drawn, the font's `palette` counts the lines and its `box_width` is
+//! the width of the widest one. The y passed on is the font's `line_height`. Any other font would
+//! draw, with a null palette: kept as it is.
 
 use crate::errors::Refused;
 use crate::gfx::glyph_store;
@@ -13,9 +13,9 @@ use rc2k_core::strings::bytes::Bytes;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Measured {
     pub outcome: Outcome,
-    /// The font's dword at +0x14 afterwards: the number of lines, in measure mode.
+    /// The font's `palette` afterwards: the number of lines, in measure mode.
     pub lines: u32,
-    /// The font's dword at +0x1C afterwards: the widest line, in measure mode.
+    /// The font's `box_width` afterwards: the widest line, in measure mode.
     pub width: u32,
 }
 

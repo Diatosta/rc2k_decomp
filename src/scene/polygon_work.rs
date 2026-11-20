@@ -55,7 +55,7 @@ pub struct PolygonWork {
     /// [11].
     pub clip_work: [PlainFloat; 12],
     /// `scene::clip`'s second output run (five words written back from its work);
-    /// `race::car_shadow` keeps the new crossing vertex's fog byte (+0x20) in [0].
+    /// `race::car_shadow` keeps the new crossing vertex's fog byte in [0].
     pub clip_out_words: [PlainDword; 5],
     /// The four quad vertices (8 dwords each; `scene::point_records::of_quad`): the screen
     /// quads', the halfway vertices' and the skidmarks' own. Every writer sets dwords 3, 6, 7

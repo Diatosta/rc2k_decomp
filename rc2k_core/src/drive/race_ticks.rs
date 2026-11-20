@@ -2,7 +2,7 @@
 //! "quit?" question's answers and the best frame kept, the keys that end a pause, and when the
 //! tyre-change screen shows.
 
-/// The fatal error a tick raises with the first car block's +0x260 at 0.
+/// The fatal error a tick raises with the first car block's car number at 0.
 pub const NO_CAR_FATAL: u32 = 0x8060_0655;
 
 /// Whether tick `tick` (already counted) runs the race's step, by `RaceView.after_credits`
@@ -86,7 +86,7 @@ pub fn held_wait(wait: u32) -> u32 {
     if wait <= 10 { 10 } else { wait }
 }
 
-/// Whether the tyre-change screen shows: a change under way (the first block's +0x26C not 0 or
+/// Whether the tyre-change screen shows: a change under way (the first block's change word not 0 or
 /// -1).
 pub fn tyre_change_shown(change: u32) -> bool {
     change != 0 && change != u32::MAX

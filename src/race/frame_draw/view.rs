@@ -48,8 +48,8 @@ pub fn draw_distance_settings(course: &Course) {
         .set(course.stage_prefs.get().nearer_by_level[level].get());
 }
 
-/// Samples the 64 x 64 byte map `map` bytes into `noise_bytes` at `car`'s camera
-/// place (`car` +0x6A4 and +0x6AC: the top byte the cell, the next two the fraction): the four
+/// Samples the 64 x 64 byte map `map` bytes into `noise_bytes` at `car`'s camera place
+/// (`car.camera_position` x and z: the top byte the cell, the next two the fraction): the four
 /// corners are blended along x and then along z, each step a product shifted right by 16; the
 /// result shifted left 8 is returned.
 pub fn sample_noise(
@@ -156,7 +156,7 @@ pub fn set_up_fog(
 
 /// `race::place_view`: the view's place from the camera (`race().course.course.place_x`,
 /// `race().course.course.place_y`, `race().course.course.place_z`) and its angles. Flat
-/// (`race().course.stage_prefs.flat_depth` set): the place as it is, `car` +0x6A8 +=
+/// (`race().course.stage_prefs.flat_depth` set): the place as it is, `car.camera_position` y +=
 /// `race().course.course.flat_depth`, `view_angles` = `race().course.course.place_heading`,
 /// `race().frame.view_and_records.view_vars.view_angles[1]` = 0x40000000. Else the place moved by
 /// (-`race().course.course.flat_depth`, 0, 0) turned by `race().course.course.camera_first`
@@ -279,14 +279,14 @@ fn view_place_tail(
 
 /// `race::view_matrices`: the view's matrices for the frame. With `view_mirrored` set:
 /// `view_turn_matrix` the kept turn (`race().frame.matrices.view_turn_copy`). Else for the car's
-/// views 0 .. 3 (`car` +0x684) the car's turn undone (`crash_matrix`); for the others the identity
-/// turned by the view's angles (fine y, fine x, z of `view_angles`,
+/// views 0 .. 3 (`car.camera_view`) the car's turn undone (`crash_matrix`); for the others the
+/// identity turned by the view's angles (fine y, fine x, z of `view_angles`,
 /// `race().frame.view_and_records.view_vars.view_angles[1]`,
 /// `race().frame.view_and_records.view_vars.view_angles[2]`, each negated; then again by
 /// `race().frame.view_and_records.view_vars.view_angles[3]` ..
 /// `race().frame.view_and_records.view_vars.view_angles[5]`), each step `turn y`, `turn x`, `turn
-/// z` multiplied in. Views 1 and 2 then roll with the car (`car` +0x648 by its speed, eased into
-/// `car` +0x6A0, turned about z). Then the place (see `view_place_tail`).
+/// z` multiplied in. Views 1 and 2 then roll with the car (by its speed and steering, eased into
+/// `car.camera_roll`, turned about z). Then the place (see `view_place_tail`).
 pub fn view_matrices(
     matrices: &crate::race::matrices_store::SceneMatrices,
     course: crate::race::owner_course::CourseReads<'_>,
@@ -412,14 +412,13 @@ fn rolled_angle(
 /// `race::camera_view`: the view for the frame:
 /// `race().frame.view_and_records.view_vars.view_car_flag_b`,
 /// `race().frame.view_and_records.view_vars.view_car_flag_a`,
-/// `race().frame.view_and_records.view_vars.view_car_stage` from `car` +0x6F0, +0x69C, +0x684; then
-/// without `scene_set_up` `race::place_view`; else the place from the car's camera
-/// (`car` +0x6A4 .., the angles from +0x6B0 ..,
-/// `race().frame.view_and_records.view_vars.view_scale` from +0x6C8) or, with
-/// `view_mirrored`, from the crash (the kept turn made from
-/// `race().frame.matrices.view_work` and `crash_matrix`, the place the car's raised by 0x8000),
-/// written as whole numbers and floats (also to `car` +0x734 ..), and `scene::set_view_window`;
-/// then `view_matrices`.
+/// `race().frame.view_and_records.view_vars.view_car_stage` from `car.camera_mode_is_2_or_3`,
+/// `camera_switch_share`, `camera_view`; then without `scene_set_up` `race::place_view`; else the
+/// place from the car's camera (`car.camera_position`, the angles from `camera_heading` ..,
+/// `race().frame.view_and_records.view_vars.view_scale` from `camera_zoom`) or, with
+/// `view_mirrored`, from the crash (the kept turn made from `race().frame.matrices.view_work` and
+/// `crash_matrix`, the place the car's raised by 0x8000), written as whole numbers and floats (also
+/// to `car.kept_view_place`), and `scene::set_view_window`; then `view_matrices`.
 pub fn camera_view(
     reads: crate::scene::workers::DrawReads<'_>,
     m: &ViewMatrices,

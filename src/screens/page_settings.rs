@@ -39,7 +39,7 @@ fn push_id(
     crate::strings::append_string_by_id::push_string(so, out, id)
 }
 
-/// The stage line string `id`, " ", the record's +0x40 as a fraction of 6
+/// The stage line string `id`, " ", the record's fraction field as a fraction of 6
 /// (`strings::append_fraction`), ": ", the name of its track-pack entry
 /// (`records::trakpak_entry`'s first dword, a string id), and its NUL.
 pub(super) fn stage_line_bytes(
@@ -65,7 +65,7 @@ fn stage_line(
     Ok(())
 }
 
-/// Menu item `n`'s value (+0x14).
+/// Menu item `n`'s value (its `string`).
 fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Result<(), BadInput> {
     items
         .get(n as usize)
@@ -75,7 +75,7 @@ fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Res
     Ok(())
 }
 
-/// The stage record of the event's stage table `a`, `b` (its +0x38 the page's value), and the
+/// The stage record of the event's stage table `a`, `b` (its name field the page's value), and the
 /// record + `c` x 0xA4 the line is about.
 fn stage_record(
     stages: &crate::records::stages_store::StageTables,

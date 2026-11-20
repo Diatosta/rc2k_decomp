@@ -5,8 +5,8 @@
 //! five builds with `gfx::build_glyphs`, a new table for each: `files\d\fnt\pal_00.pcx` (a sheet
 //! without glyphs: its palette becomes the 256 pixels at the palettes' place, and is kept as
 //! components at `palette_sheet`), `fnt13_00.pcx`, `fnt21_00.pcx`, `fnt23_00.pcx`, `fnt27_00.pcx`;
-//! `end_glyph_tables`. Then 125 stores: each font object's palette (+0x14: the palettes' place plus
-//! the offset of its sixteen colours) and glyph table (+0x18), as listed in `HUNG`. A font that
+//! `end_glyph_tables`. Then 125 stores: each font object's `palette` (the palettes' place plus
+//! the offset of its sixteen colours) and `glyph_table`, as listed in `HUNG`. A font that
 //! measures (mode 4) gets a palette too, which `text::draw_text` then uses as its line counter. A
 //! refusal from one of the steps leaves the work half done; none can come with the game's own
 //! files.

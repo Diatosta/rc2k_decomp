@@ -58,11 +58,11 @@ pub struct TimeEntry {
     pub unread_0: PlainDword,
     /// The player (1 .. 4), 0 for a computer driver.
     pub player: PlainDword,
-    /// The nationality (the driver's +0x14).
+    /// The nationality (the driver's `nation`).
     pub nation: PlainDword,
     /// The name's string id.
     pub name_id: PlainDword,
-    /// The car (the driver's +0x18).
+    /// The car (the driver's `car`).
     pub car: PlainDword,
     /// The time in a stage's table.
     pub stage_time: PlainDword,
@@ -81,16 +81,16 @@ pub struct TimeEntry {
     pub unread_48: [PlainDword; 2],
     /// Read by no code (0xB in a made-up entry).
     pub unread_50: PlainDword,
-    /// +0x54, +0x58: read by no code.
+    /// The two dwords after `unread_50`: read by no code.
     pub unread_54: [PlainDword; 2],
     /// The checkpoints' times.
     pub checkpoints: [PlainDword; 16],
 }
 
 impl TimeEntry {
-    /// A made-up time (`saves::defaults`), field by field: the time at `time_at` (+0x14 the stage
-    /// time, +0x18 the rally time), the driver's first field as the group, the second as the
-    /// nationality, 0xB at +0x50, the guessed checkpoints when it has them, the car, the name's
+    /// A made-up time (`saves::defaults`), field by field: the time at `time_at` (`stage_time` or
+    /// `rally_time`), the driver's first field as the group, the second as the
+    /// nationality, 0xB in `unread_50`, the guessed checkpoints when it has them, the car, the name's
     /// string id and the name's bytes. Refuses a name longer than the field, writing nothing.
     pub fn fill_made_up(
         &self,
@@ -1360,8 +1360,8 @@ mod fill_made_up_tests {
     use super::*;
     use crate::memory::cells::load_cells;
 
-    /// A made-up time written by fields is the entry the core writes by offsets, in a stage's
-    /// table (+0x14) and a rally's (+0x18); a name longer than the field and another place for
+    /// A made-up time written by fields is the entry the core writes by byte position, in a stage's
+    /// table (`stage_time`) and a rally's (`rally_time`); a name longer than the field and another place for
     /// the time are refused, writing nothing.
     #[test]
     fn a_made_up_time_is_the_cores_bytes() {

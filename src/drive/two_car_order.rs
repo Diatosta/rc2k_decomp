@@ -1,6 +1,6 @@
-//! The two cars' places in a two-car race (the car blocks' +0xFA4): -1 for both outside mode 0
-//! (`run_kind`) or with one car; left as they are while either has +0xA8 set; else 1 for the
-//! one ahead (checkpoint +0x94, then +0x624), 2 for the other. Gives the last figure compared.
+//! The two cars' places in a two-car race (the car blocks' `two_car_place`): -1 for both outside mode 0
+//! (`run_kind`) or with one car; left as they are while either has `finish_flag` set; else 1 for the
+//! one ahead (`reset_checkpoint`, then `checkpoint_offset[1]`), 2 for the other. Gives the last figure compared.
 
 use crate::race::owner::Race;
 use rc2k_core::drive::places;

@@ -1,8 +1,9 @@
 //! `effects::place_graded_points`: a spline record's first two grades of points placed. For grade
-//! 0: the turns by the record's +0x20, +0x24, +0x28 (`splines::turn_record`), its +0xC points from
-//! its start (+0) turned into the ordered coordinates, bent (`effects::bend_points`), and each
-//! written plus +0xC54 .. through the record's pointer for it (+0x454); for grade 1 the same with
-//! +0x2C for the y turn, its start +4 and count +0x10, and no bend.
+//! 0: the turns by the record's three angles (`splines::turn_record`), its points counted by the
+//! grade-0 count from its start turned into the ordered coordinates, bent (`effects::bend_points`),
+//! and each written plus the centre (`CENTRE ..`) through the record's pointer for it (the
+//! pointers at `IDS`); grade 1 the same with another second angle (for the y turn), its own start
+//! and count, and no bend.
 //!
 //! Refuses (before anything) a negative count (the loop runs on), points past the record's 0x80, a
 //! null pointer among them, an angle with no sine and cosine, and `bend_points`' refusals.

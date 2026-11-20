@@ -54,7 +54,7 @@ fn moved_at(fraction: f32, a: [i32; 3], b: [i32; 3]) -> ([i32; 3], u32) {
 }
 
 /// A normal's three floats through the matrix's first three rows, into
-/// the record's +0x10, +0x14, +0x18.
+/// the record's three view floats.
 fn turn(normal: &[u32; 3], matrix: &[f32; 16], record: &mut [u32]) {
     record[4..7].copy_from_slice(&turn_normal(normal.map(f32::from_bits), matrix));
 }

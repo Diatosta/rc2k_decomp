@@ -41,14 +41,14 @@ fn screen_of(c: &[std::cell::Cell<u32>]) -> (Screen, [f32; 3]) {
     (screen, [f(12), f(13), f(14)])
 }
 
-/// The screen's x and y into the test's record (+0xC, +0x1C).
+/// The screen's x and y into the test's record (its screen x and y).
 fn put_screen(c: &[std::cell::Cell<u32>], [x, y]: [u32; 2]) {
     c[11].set(x);
     c[15].set(y);
 }
 
 /// dwords 0 .. 4 the scale, centre x, centre y and whole number, 4 the checked word, 8 ..
-/// 16 the record (+0x10 .. +0x18 the place in the view).
+/// 16 the record (its view place after the number and the screen x).
 fn screen_fill(rng: &mut crate::test_support::vectors::Rng, m: &mut [u32; 16]) {
     m.fill(0xAAAA_AAAA);
     let moderate = rng.below(2) == 0;

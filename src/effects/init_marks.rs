@@ -1,9 +1,10 @@
 //! `effects::init_marks`: the marks set up for a stage: the settings and the seed kept, then
 //! the fifteen steps, the screen's middle and the kind's float.
 //!
-//! Refuses a kind (the settings' +0x26A8, which step 1 makes the effects kind) of 0x22 or more (the
-//! kinds' tables); both before anything. Kinds 0x17 .. 0x21 are past the kind float table's 0x17
-//! entries: they get 18240.0 (wiki/Fixed-bugs.md: "Some cars' marks lose their depth bias").
+//! Refuses a kind (the settings' `mark_car_file_number`, which step 1 makes the effects kind) of
+//! 0x22 or more (the kinds' tables); both before anything. Kinds 0x17 .. 0x21 are past the kind
+//! float table's 0x17 entries: they get 18240.0 (wiki/Fixed-bugs.md: "Some cars' marks lose their
+//! depth bias").
 
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};

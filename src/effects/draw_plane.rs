@@ -1,15 +1,15 @@
 //! `effects::draw_plane`: a quad laid on the windscreen drops' frame (a reading: the ground glare).
-//! The rate, the place and two axes come from the settings (+0x2720 .., +0x272C .., +0x2708 ..,
-//! +0x2740); the axes' lengths take their shares and the axes are made one long and square
-//! (`scene::normalise_vector3`, `scene::cross_product3`) and scaled (`effects::scale_axes`).
-//! Nothing more happens unless the place's way faces the third axis away, or a frame switch is set.
-//! Then, with the depth test off (`scene::depth_test_off`), render states 0x11 = 2, 0x12 = 2 and
-//! the effects' texture, the four corners are laid out; their texture places come from the quad's
-//! corner in the mark corners table, then from the plane's `places`; the colour is the view's
-//! light. Unless a corner's depth is at or below the nearest depth (signed compares of the bits)
-//! the corners are projected (depth plus the kind float and the plane's `lifts`, times the depth
-//! scale; rhw 1 over the depth times `rhw_k`), drawn with `scene::draw_fan`, and the depth test is
-//! switched on again.
+//! The rate, the place and two axes come from the settings (`windscreen_flakes_rate_factor` and the
+//! `light_point_a` / `light_point_b` points); the axes' lengths take their shares and the axes are
+//! made one long and square (`scene::normalise_vector3`, `scene::cross_product3`) and scaled
+//! (`effects::scale_axes`). Nothing more happens unless the place's way faces the third axis away,
+//! or a frame switch is set. Then, with the depth test off (`scene::depth_test_off`), render states
+//! 0x11 = 2, 0x12 = 2 and the effects' texture, the four corners are laid out; their texture places
+//! come from the quad's corner in the mark corners table, then from the plane's `places`; the
+//! colour is the view's light. Unless a corner's depth is at or below the nearest depth (signed
+//! compares of the bits) the corners are projected (depth plus the kind float and the plane's
+//! `lifts`, times the depth scale; rhw 1 over the depth times `rhw_k`), drawn with
+//! `scene::draw_fan`, and the depth test is switched on again.
 //!
 //! The x87 runs are plain Rust on the x87 model (`math::x87_float`). Refuses null settings and a
 //! corner past the mark corners table, before anything.

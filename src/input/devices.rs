@@ -1,15 +1,15 @@
 //! The players' input devices, as the input thread keeps them: two records of 0x4F8 bytes.
 //! What is known of a record:
-//! - +0 the controller's number, +4 its DirectInput device (0: none), +8 its kind (1 digital:
-//!   every reading all or nothing; 2, 3), +0xC .. +0x20 its settings (+0x1A .. +0x1D which
-//!   state dwords its axes are), +0x24 1 while acquired,
-//!   +0x28 1 while its effects run, +0x3C six effects of 0xA4 bytes;
-//! - +0x2C, +0x30, +0x34 its three axes and +0x38 its buttons (bits), copied from the device's
-//!   state at each poll;
-//! - +0x414 1 while it is read, +0x418 its hat's kind; from +0x41C twelve bindings of 0x10 bytes
-//!   (key, axis place, sign, button bit): steering left and right, throttle, brake, then eight
-//!   buttons;
-//! - +0x4DC .. +0x4E8 its four readings, which `drive::device_axes` reads.
+//! - `controller` the controller's number, `device` its DirectInput device (0: none), `kind`
+//!   (1 digital: every reading all or nothing; 2, 3), its settings from `strength` to
+//!   `sensitivity` (`axis_code` and `axis_pick` hold, a byte each, which state dwords its axes
+//!   are), `acquired` 1 while acquired, `effects_on` 1 while its effects run, and six `effects`
+//!   of 0xA4 bytes;
+//! - `axes` (three) and `buttons` (bits), copied from the device's state at each poll;
+//! - `reading` 1 while it is read, `hat_kind` its hat's kind; then twelve `bindings` of 0x10
+//!   bytes (key, axis place, sign, button bit): steering left and right, throttle, brake, then
+//!   eight buttons;
+//! - `readings` and `bits`, which `drive::device_axes` reads.
 
 use crate::errors::BadInput;
 use crate::input::store::Devices;

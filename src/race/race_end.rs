@@ -133,7 +133,7 @@ pub fn wait_for_commands(o: crate::owners::Owners<'static>) {
 /// Resets the race's sounds: waits for the sound commands, sends command 7 and waits again, holds
 /// the sounds back and starts the race clock; resets the eight race sound objects' 32 fields
 /// and eleven variables to 0; sets the 0x48 voices' first dword to 0x1888FFFF and
-/// their dword at +0x14 to -2; clears two more sound flags, sends
+/// their second status dword to -2; clears two more sound flags, sends
 /// command 2 with the value 3 and clears one more flag.
 pub fn reset_race_sounds(
     v: &SoundVars<'_>,

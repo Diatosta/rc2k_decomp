@@ -4,12 +4,12 @@
 //!
 //! - `ViewerAndKinds`: the viewer's panel, the bytes after it, the kinds' tables. The effects read
 //!   the marks' settings as one record from `ViewerAndKinds.marks_settings.settings_text` (in the
-//!   panel) to +0x26A8 (in the kinds' tables: `effects::init_marks`).
+//!   panel) to its end (in the kinds' tables: `effects::init_marks`).
 //! - `LightsAndGear`: the light records, a dword, the gear figures. `scene::load_object` reads a
 //!   kind's record past the 34 (an unbounded kind) into the gear figures.
 //! - `PanelAndOverlay`: the hud's panel and the race's overlay. The hud reads its records from
-//!   `PANEL.split_6` on (+0xF4 at the panel's end: `hud::draw_hud`'s layouts). Two lead bytes
-//!   come before the panel.
+//!   `PANEL.split_6` on (the last 0xF4 bytes of the panel: `hud::draw_hud`'s layouts).
+//!   Two lead bytes come before the panel.
 //! - `ViewAndRecords`: the view variables and the 52 view records of 0x5C after them
 //!   (`ViewAndRecords.view_vars.view_records[0]`'s targets). The records are one array: with the
 //!   variables overrunning onto the first records' fields, the third chase view read half of

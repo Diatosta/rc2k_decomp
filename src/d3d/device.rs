@@ -1,7 +1,6 @@
-//! The 3D layer the game's 3D code stands on: textures of our own, the
-//! scene's beginning and end, the depth buffer's clearing. Each function takes the place of a piece of
-//! the game's 3D layer, keeps what that piece leaves for the game's own code, and does the rest
-//! itself.
+//! The 3D layer the game's 3D code stands on: textures of our own, the scene's beginning and end,
+//! the depth buffer's clearing. Each function takes the place of a piece of the game's 3D layer,
+//! keeps what that piece leaves for the game's own code, and does the rest itself.
 //!
 //! The textures. The game keeps two pools of records, up to 0x140 each: system textures, into which
 //! pictures are put, and video textures, which are drawn with. A record (`TextureRecord`) holds its
@@ -16,12 +15,11 @@
 //!   at them.
 //! - `gfx::allocate_textures`, `gfx::release_all_textures`.
 //! - `scene::load_texture`: a system texture into a video texture, level for level.
-//! - `d3d::begin_scene`, `d3d::end_scene`: the layer's own
-//!   states and its "in a scene" switch.
+//! - `d3d::begin_scene`, `d3d::end_scene`: the layer's own states and its "in a scene" switch.
 //! - `d3d::clear_viewport`: the depth buffer.
 //!
-//! The drawing is noted and drawn in tiles over the processor's threads when something is to
-//! see it (see `flush`).
+//! The drawing is noted and drawn in tiles over the processor's threads when something is to see it
+//! (see `flush`).
 
 #![allow(unsafe_code)]
 
@@ -235,7 +233,7 @@ fn object(number: usize) -> u32 {
 }
 
 /// DirectDraw's `Lock` of a texture's surface (`d3d::lock_texture`,
-/// `gfx::upload_texture_picture`): the pixels' address at +0x24 and the pitch at +0x10 of
+/// `gfx::upload_texture_picture`): the pixels' address and the pitch of
 /// the surface description at `description`; `NOT_THERE` for a surface with no memory.
 pub fn lock_surface(surface: u32, description: &crate::gfx::upload::SurfaceDesc) -> i32 {
     let number = surface.wrapping_sub(1) as usize;
@@ -389,9 +387,9 @@ fn reads_texture(pixels: TextureId) -> bool {
     game_part().is_some_and(|part| part.noted.lock().noted.reads_texture(pixels))
 }
 
-/// The screen's width, height and bits per pixel as part `part`'s drawing reads them: its own
-/// copy (`scene::workers::set_game_part_screen` for the game's part, `scene::workers::draw_parts` for every
-/// part when a scope opens).
+/// The screen's width, height and bits per pixel as part `part`'s drawing reads them: its own copy
+/// (`scene::workers::set_game_part_screen` for the game's part, `scene::workers::draw_parts` for
+/// every part when a scope opens).
 fn screen_figures(part: &crate::scene::workers::PartScratch) -> (u32, u32, u32) {
     let [width, height, bits] = part
         .screen_size
@@ -988,7 +986,7 @@ pub fn load_texture(system: u32, video: u32) {
 }
 
 /// Video texture `video` made to hold system texture `system` (`scene::load_texture`,
-/// `d3d::copy_to_device_texture`): its record's +0x64 the system one, its levels the
+/// `d3d::copy_to_device_texture`): its record's `holds` the system one, its levels the
 /// system one's where both have the level.
 pub fn hold_texture(caller: &str, system: u32, video: u32) {
     flush();

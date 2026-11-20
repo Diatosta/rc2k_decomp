@@ -6,7 +6,7 @@
 use rc2k_core::race::replay_v2::{Extension, Tail};
 use std::sync::{LazyLock, Mutex, MutexGuard};
 
-/// The replay's cars (none for the original's format) and the tail of the block.
+/// The replay's cars (none for the old format) and the tail of the block.
 pub struct V2 {
     pub ext: Option<Extension>,
     pub tail: Tail,

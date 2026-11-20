@@ -99,7 +99,7 @@ pub const CONFIRM_ORDER: [EditPage; 4] = [
     EditPage::SuspensionStiffness,
 ];
 
-/// A setup file's six values (+0x30 ..): the chosen tyre, the car's brake balance, the
+/// A setup file's six values: the chosen tyre, the car's brake balance, the
 /// chosen ride height and stiffness, the car's steering sensitivity, the chosen gearing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SetupValues {
@@ -126,8 +126,8 @@ impl SetupValues {
 }
 
 impl Player {
-    /// What `load_setup_values` copies into the edit pages' pairs: the tyre (+0x10C), the
-    /// gearing (+0x120), the suspension's stiffness (+0x118).
+    /// What `load_setup_values` copies into the edit pages' pairs: the tyre, the
+    /// gearing and the suspension's stiffness.
     pub fn setup_edit_values(&self) -> [u32; 3] {
         [self.tyre, self.gear_ratio, self.suspension_stiffness]
     }

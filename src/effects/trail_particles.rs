@@ -2,7 +2,7 @@
 //! ring's first free entry while the used count is not 0xFFF), started along the way the particle
 //! came: each place is the particle's place moved a random share toward its last place, its motion
 //! the (last - place) and the particle's own motion times the trail's factors, moved by
-//! `effects::jitter_point`; size from the particle's +0x2C, life 300.
+//! `effects::jitter_point`; size from the particle's motion y, life 300.
 //!
 //! Refuses a null particle or ring (an entry to take), before anything.
 
@@ -18,12 +18,12 @@ use crate::race::owner_frame::Frame;
 
 const FULL: u32 = 0xFFF;
 const COUNT: u32 = 8;
-/// Per axis (place offset, last offset, motion offset); its two factors are
+/// Per axis (place, last place and motion byte offsets in a particle); its two factors are
 /// `PARTICLE_TUNING.trail_axes[2 n]` and `[2 n + 1]`.
 const AXES: [(u32, u32, u32); 3] = [(0xC, 0x18, 0x28), (0x10, 0x1C, 0x2C), (0x14, 0x20, 0x34)];
 const LIFE: u32 = 300;
 
-/// The entries it takes, from the ring's first free one along +0.
+/// The entries it takes, from the ring's first free one along the links.
 fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused> {
     Ok({
         let used: u32 = ring.pool.used.get();

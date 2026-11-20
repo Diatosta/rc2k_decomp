@@ -1,7 +1,7 @@
-//! A page's pieces made from its list, measured and drawn. A list: +0 flags (0x40 of 0xC0 hidden),
-//! +1 item count (0: 0x100), +2 title string, from +0x18 its items, 0x10 bytes each: +0 kind (low
-//! four bits: 1 link, 2 choice, 3 value, 4 edit, 5 text, 6 action) and marks, +1 a count or a
-//! font, +2 its string, +0xC a choice's table (a word a choice, high bits marks) or an edit's
+//! A page's pieces made from its list, measured and drawn. A list: flags (0x40 of 0xC0 hidden),
+//! the item count (0: 0x100), the title string, then its items, 0x10 bytes each: a kind (low
+//! four bits: 1 link, 2 choice, 3 value, 4 edit, 5 text, 6 action) and marks, a count or a
+//! font, its string, and a choice's table (a word a choice, high bits marks) or an edit's
 //! record. A piece (`crate::install::layout::Piece`): its item's kind and marks, its own kind
 //! (0x10 and up: drawn by its item), its string, its item, then place and size.
 

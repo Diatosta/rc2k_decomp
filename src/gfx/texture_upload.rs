@@ -526,8 +526,8 @@ pub fn halvings_apart(
     .map_err(|which| fatal(codes[which as usize]))
 }
 
-/// With the record's +0x5C at 1: the second picture (`path`, 0 for none) read and copied `KEPT`
-/// bytes on, or, if there is none or it cannot be read, +0x5C made 0.
+/// With the record's `keeps_alpha` at 1: the second picture (`path`, 0 for none) read and copied
+/// `KEPT` bytes on, or, if there is none or it cannot be read, `keeps_alpha` made 0.
 pub fn keep_second_picture(
     record: &Record,
     path: Option<&dyn crate::memory::session::TextPlace>,

@@ -10,18 +10,19 @@ use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 /// `panel_motion_plain`).
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewA {
-    /// The speed shown, rounded (the car's +0x718).
+    /// The speed shown, rounded.
     pub whole: PlainDword,
-    /// The engine sound's speed (the car's +0xAB0).
+    /// The engine sound's speed.
     pub speed: PlainDword,
-    /// The gear (the car's +0x1D4).
+    /// The car's gear.
     pub gear: PlainDword,
     /// The place (`race::panel_players` and `race::panel_neighbours` set it, `panel_values_plain`
     /// the car's split gap 0).
     pub place: PlainDword,
-    /// The stage time in tenths (the car's +0x88 x 10).
+    /// The stage time in tenths (the car's `stage_time` x 10).
     pub time: PlainDword,
-    /// The car's +0xA14 (split gap 2; `race::panel_neighbours`: its +0x634).
+    /// The car's `split_gaps[2]` (`race::panel_neighbours` sets it from the car's other
+    /// gap figure).
     pub split2: PlainDword,
     /// The car behind's number (the car's split gap 4 in `panel_values_plain`).
     pub back: PlainDword,
@@ -66,7 +67,7 @@ pub struct Lights {
 pub struct Marks {
     /// The first (at most 4) marks, each + 1.
     pub marks: [PlainDword; 4],
-    /// 400 + the car's +0xFA0.
+    /// 400 plus the figure the car keeps for it.
     pub base: PlainDword,
 }
 
@@ -109,7 +110,7 @@ pub struct Panel {
     pub unused_d4: PlainBytes<32>,
     /// The HUD's layout (`hud::overlay_pass`).
     pub players: PlainDword,
-    /// Each view's HUD flags (the car block's +0x220; bit 0x40 flat, 8 the mirror); the third and
+    /// Each view's HUD flags (the car block's `option_bits`; bit 0x40 flat, 8 the mirror); the third and
     /// fourth are the split screen's third and fourth players'.
     pub hud_flags: [PlainDword; 4],
     /// The HUD batch's texture (`hud::add_polygon`, `hud::set_batch_texture`).

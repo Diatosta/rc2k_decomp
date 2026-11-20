@@ -175,7 +175,7 @@ pub(super) fn turn_shape_points(
     Ok(())
 }
 
-/// The two shapes' steps and ends for `turn_all_shapes`: the step (each shape's +0), a, b,
+/// The two shapes' steps and ends for `turn_all_shapes`: the step (each shape's `ease_step`), a, b,
 /// and the switch that picks the second result.
 fn all_steps<'a>(
     masks: &'a crate::effects::mask_store::Masks,
@@ -198,9 +198,9 @@ fn all_steps<'a>(
 }
 
 /// `effects::turn_all_shapes`: for each of the settings' objects (the last first) the two shapes'
-/// eased steps (`smooth_steps` from `ShapeSetTuning.turn_angles[0]` / `_7C` to
-/// `ShapeWork.work.steps[0]` / `_C8` by each shape's +0), the second result of each unless its
-/// switch (`MaskPicks.flags[0]` / `_08`) is 0, and `turn_shape_points` with them. The object's
+/// eased steps (`smooth_steps` from `ShapeSetTuning.turn_angles[0]` / `[2]` to
+/// `ShapeWork.work.steps[0]` / `[1]` by each shape's `ease_step`), the second result of each unless
+/// its switch (`MaskPicks.flags[0]` / `[1]`) is 0, and `turn_shape_points` with them. The object's
 /// offset (times 0xAB8) is worked out and not used: the one set is turned every time (a slip kept
 /// as is). Refuses what `turn_shape_points` would, before writing.
 pub(super) fn turn_all_shapes(
@@ -294,9 +294,9 @@ fn shape_set_checks(
 
 /// `effects::make_shape_set`: unless 0x22 are made, in the working block: the inputs copied,
 /// four scaled; points lists A and B emptied and filled from the object's faces of the two
-/// kinds (+7: two kind numbers; `collect_points`); their ids made pointers into
+/// kinds (`ShapeSetTuning.face_kinds`; `collect_points`); their ids made pointers into
 /// the object points, the points copied to the turned lists A and B, each list's lowest
-/// point (y, the first found lowest) taken from all of it (kept at +0xA40 / +0xA4C), all
+/// point (y, the first found lowest) taken from all of it (kept in the work block), all
 /// 0x40 turned about X by minus the tilts (`turn_matrix3`, `transform_int_points`);
 /// `find_farthest_pairs`; the block copied to set n, n counted.
 /// Refuses a set count past 0x22, an object past 0xFF or faces past the course's faces, a

@@ -1,5 +1,5 @@
 //! `effects::draw_flare_part`: one part of the lens flare drawn as a screen square. Its centre (x,
-//! y) rounded into the polygon vertex buffer's fifth vertex (+0x80, +0x84); the four vertices'
+//! y) rounded into the polygon vertex buffer's fifth vertex; the four vertices'
 //! colour (alpha << 24) | colour; their texture places from the mark corner (its words times
 //! `uv_k`: 0/2, 4/6, 0xC/0xE, 8/0xA); the side: the size (`half`) by the size times the corner's
 //! height over its width (the words' differences, 16-bit, made positive), times two constants into

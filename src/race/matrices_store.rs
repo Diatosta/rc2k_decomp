@@ -54,7 +54,7 @@ pub struct SceneMatrices {
     /// A block whose first 0x40 bytes receive a copy of the made object matrix
     /// (`race::frame_draw`); now each view's (`scene::view_matrices`); unused.
     pub object_matrix_slots: [PlainDword; 32],
-    /// The view's matrix, place at +0x30 (`effects::view_motion`, `race::frame_views`).
+    /// The view's matrix, place (the last row of its 4 x 4 floats) (`effects::view_motion`, `race::frame_views`).
     pub view_place: [PlainFloat; 16],
     /// Unused; it only keeps the layout.
     pub unused_object_matrix: PlainDword,

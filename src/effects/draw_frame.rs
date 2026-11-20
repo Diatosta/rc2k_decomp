@@ -1,6 +1,6 @@
 //! `effects::draw_frame`: the effects' drawing frame. Three `points` turned by the view
 //! matrix (`scene::rotate_point`) into `turned_points`; the course's corners (0x8000 bytes
-//! of the course info, from +0x1C2000) into the mark corners table; when the marks' source
+//! of the course info, at its tail end) into the mark corners table; when the marks' source
 //! switch changed since the last frame (`last_source`) the heading `step` steps on (of 8);
 //! the sound source cell gets it, the sound zero cell 0, `cleared` 0; then
 //! `effects::cars_particles`, `effects::view_heading`, `effects::view_motion`,

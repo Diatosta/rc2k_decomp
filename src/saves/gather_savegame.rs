@@ -7,9 +7,10 @@
 //! - 180 records of 0x94 bytes from the drivers' table.
 //!
 //! Before the cars are copied it also changes them: car 0 gets the two start sections
-//! (`flow.start_section` and `start_section_a8`, at +0x14 and +0x274 of its record), and
-//! every car gets the 0x20 bytes of its name's buffer (the pointer at +0x18) copied to
-//! +0x124, so that the saved copy carries them.
+//! (`flow.start_section` and `start_section_a8`, into `saved_start_section` and
+//! `saved_start_section_a8` of its record), and every car gets the 0x20 bytes of its name's
+//! buffer (the pointer in `name_number`) copied to +0x124 of its saved record, so that the
+//! saved copy carries them.
 //! Refuses, before anything is written: a missing player or a car without that pointer.
 
 use crate::errors::BadInput;
@@ -33,7 +34,7 @@ pub fn head(menus: &Menus) -> [&dyn DwordLike; 7] {
 
 pub use rc2k_core::saves::savegame::{CAR_LEN, CARS, RECORDS_LEN};
 
-/// The four players, if every one has its pointer at +0x18.
+/// The four players, if every one has its name pointer in `name_number`.
 pub fn cars(
     play: &Play,
 ) -> Result<&[crate::memory::session::Shared<crate::menu::player::Player>; CARS], BadInput> {
@@ -87,7 +88,7 @@ mod tests {
     use rc2k_core::saves::savegame::{LEN, car_at};
 
     /// The saved game's cars are each record as it is in memory, with the address of its
-    /// name's buffer at +0x18.
+    /// name's buffer in `name_number`.
     #[test]
     fn the_saved_cars_carry_the_names_addresses() {
         let play = &crate::test_support::own::menus().play;

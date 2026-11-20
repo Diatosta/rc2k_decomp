@@ -44,7 +44,7 @@ pub fn listener_points(f: [i32; 6], less: u32) -> [i32; 6] {
 /// the listener's matrix.
 pub const TURN_FIGURES: [usize; 9] = [0, 1, 2, 4, 5, 6, 8, 9, 10];
 
-/// The viewed car ahead: its +0xABC 0x10 or more (unsigned).
+/// The viewed car ahead: its word 0x10 or more (unsigned).
 pub fn car_ahead(word: u32) -> bool {
     word >= 0x10
 }

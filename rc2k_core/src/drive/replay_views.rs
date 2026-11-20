@@ -93,7 +93,7 @@ pub(crate) fn held_level(v: u32) -> u32 {
     }
 }
 
-/// The first level: the block's +0x900 / 4 - 4, held.
+/// The first level: the block's first figure / 4 - 4, held.
 pub fn first_level(figure: u32) -> u32 {
     held_level((figure >> 2).wrapping_sub(4))
 }
@@ -104,7 +104,7 @@ pub fn rare_draw(random: u32) -> bool {
     (i64::from(random as i32) * 500) >> 32 == 0
 }
 
-/// The second level from the block's +0x908: (its square's low dword >> 12 - 8, held;
+/// The second level from the block's second figure: (its square's low dword >> 12 - 8, held;
 /// the square's high dword).
 pub fn second_level(figure: u32) -> (u32, u32) {
     let square = i64::from(figure as i32) * i64::from(figure as i32);

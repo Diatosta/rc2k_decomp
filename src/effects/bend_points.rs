@@ -1,6 +1,7 @@
 //! `effects::bend_points`: unless the grade flag is the chosen spline, the first record's
-//! +0xC ordered points bent: A the record's point +0x30 (into `SplineWork.bend[0]` ..), C
-//! (+0x44 made 0x2EE0, or -16000 unless `SplineHead.switch` is 1; +0x48, +0x4C) into
+//! point count of ordered points bent: A the record's point (the one its point number names, into
+//! `SplineWork.bend[0]` ..), C (the record's height made 0x2EE0, or -16000 unless
+//! `SplineHead.switch` is 1, with its next two values) into
 //! `SplineWork.bend[6]` .., B (C's x, A's y, C's z) into `SplineWork.bend[3]` ..; D their
 //! blend by the splines' weights (`effects::blend_points`), rounded (z first) into
 //! `SplineWork.bend[9]` ..; each point less A plus D.

@@ -64,7 +64,7 @@ pub(crate) const CENTRED_BUTTON: u32 = 0xFFFF_FFA6;
 /// it means nothing at all behind it.
 pub const NOTHING_EITHER: u32 = 0xFFFF_FFAA;
 
-/// What an item's +0x20 holds: a sprite number, or for a button one of the menus' lists of
+/// What an item's sprite field holds: a sprite number, or for a button one of the menus' lists of
 /// five sprite numbers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ItemSprite {
@@ -75,10 +75,10 @@ pub enum ItemSprite {
 /// A menu item (0x5C bytes): the fields the drawing reads.
 #[derive(Clone, Copy, Debug)]
 pub struct Item<F> {
-    /// +0, +4: the sprite's place, and the text's for the button kinds.
+    /// The sprite's place, and the text's for the button kinds.
     pub x: u32,
     pub y: u32,
-    /// +8, +0xC: the text's place otherwise.
+    /// The text's place otherwise.
     pub text_x: u32,
     pub text_y: u32,
     /// Highlighted when it is the current item.
@@ -124,7 +124,7 @@ pub trait MenuScreen: Screen<Work = Work> {
     fn list_sprite(&mut self, list: usize, x: i32, y: i32) -> Result<(), Self::Error>;
 }
 
-/// The sprite an item's +0x20 names, at (`x`, `y`).
+/// The sprite an item's sprite field names, at (`x`, `y`).
 fn draw_sprite<S: MenuScreen>(
     s: &mut S,
     sprite: ItemSprite,

@@ -1,8 +1,8 @@
 //! The system textures' lock and unlock (`d3d::lock_texture`, `d3d::unlock_texture`,
 //! `d3d::texture_surface_info`): what they share, and their test. A system texture's record
-//! (`Textures.system.records`, `TextureRecord`): +4 width, +8 height, +0xC its pixel kind's
-//! description (+4 bytes a pixel, +8 the format), +0x14 its first level's surface
-//! (`d3d::device::lock_surface` / `unlock_surface`), +0x60 locked.
+//! (`Textures.system.records`, `TextureRecord`): `width`, `height`, `format` (its pixel kind's
+//! description: bytes a pixel and the format), `surfaces[0]` its first level's surface
+//! (`d3d::device::lock_surface` / `unlock_surface`), `locked`.
 
 use crate::errors::FatalError;
 use crate::gfx::texture_upload::RecordCell;

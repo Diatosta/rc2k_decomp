@@ -10,7 +10,7 @@ pub struct WindscreenFlakeTiming {
     /// The frames the windscreen flakes have run (`effects::windscreen_flakes_spawn` adds one each
     /// call).
     pub frames: PlainDword,
-    /// The windscreen flakes' rate this frame, the settings' +0x2740 times
+    /// The windscreen flakes' rate this frame, the settings' `windscreen_flakes_rate_factor` times
     /// `WindscreenFlakeState::rate_share` (`effects::windscreen_flakes_frame`, `draw_plane`); 10.0
     /// at first.
     pub rate: PlainFloat,
@@ -45,7 +45,7 @@ pub struct WindscreenFlakeTables {
     /// The first and second axes' lengths over the frame's divisors
     /// (`effects::windscreen_flakes_frame`, `draw_plane`).
     pub lengths: [PlainFloat; 2],
-    /// The frame's place (the settings' +0x2720 .., as floats).
+    /// The frame's place (the settings' `light_point_b_negated`, as floats).
     pub place: [PlainFloat; 3],
     /// The frame's three axes (the first and second made from the settings, the third their cross
     /// product), each (x, y, z), made one long.
@@ -182,7 +182,7 @@ pub struct WindscreenFlakeItem {
     pub texture_v: PlainFloat,
     /// Three dwords, always 0 (nothing read them, so they are no longer written).
     pub spare_14: [PlainDword; 3],
-    /// +0x20, +0x24: its place (x, z) as floats.
+    /// Its place (x, z) as floats.
     pub place: [PlainFloat; 2],
     /// Five dwords, always 0 (nothing read them, so they are no longer written).
     pub spare_28: [PlainDword; 5],
@@ -259,7 +259,7 @@ pub struct WindscreenFlakeState {
     /// 1024.0, what a flake's z is taken from (`effects::run_windscreen_flakes`).
     pub far: PlainFloat,
     /// A new flake's texture u offset is its kind times the first (1/16) plus the second (1/512);
-    /// the third (0) is its v offset (+0x10) (`effects::spawn_windscreen_flake`).
+    /// the third (0) is its v offset (`texture_v`) (`effects::spawn_windscreen_flake`).
     pub tile_offset_k: [PlainFloat; 3],
     /// 0.1 and 0 (`effects::windscreen_flakes_spawn`).
     pub rate_constants: [PlainFloat; 2],
@@ -269,7 +269,7 @@ pub struct WindscreenFlakeState {
     pub spawn_random: PlainDword,
     /// The random of a flake's place and kind (`effects::pick_windscreen_flake`).
     pub pick_random: PlainDword,
-    /// The settings' +0x2750 times `EdgeSettings::factor` (`effects::scale_setting`).
+    /// The settings' `setting_to_scale` times `EdgeSettings::factor` (`effects::scale_setting`).
     pub scaled_setting: PlainFloat,
     /// 50.0 and a bit (nothing reads it).
     pub unread_limit: PlainFloat,

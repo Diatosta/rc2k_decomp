@@ -22,8 +22,8 @@ use crate::math::matrix3::extended;
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 
-/// The settings' flag for a ring entry's tag (its +8, a car's number times the car record's
-/// length, as `cars_particles` makes it): the first word of that car's record.
+/// The settings' flag for a ring entry's tag (its `emitter_tag`, a car's number times the car
+/// record's length, as `cars_particles` makes it): that car's `streaks_on`.
 fn entry_flag(marks: &EffectsSettings, tag: u32) -> Result<u32, BadInput> {
     let record = crate::race::effects_settings_store::CAR_LEN as u32;
     if !tag.is_multiple_of(record) {
@@ -40,7 +40,7 @@ fn k(cell: &f32) -> u32 {
     cell.to_bits()
 }
 
-/// The car a ring entry is on (its +0x68, a `effects_settings_store::car_handle`).
+/// The car a ring entry is on (its `car`, a `effects_settings_store::car_handle`).
 fn entry_car(
     en: &Entry,
     effects: &crate::effects::owner::Effects,
@@ -50,8 +50,8 @@ fn entry_car(
         .ok_or_else(|| BadInput("a ring entry without its car").into())
 }
 
-/// The place less the object's (`[p + 0x30]` ..) into `RingWork.away[0]` .., turned by the object's
-/// matrix (`m`), |x| and |z| rounded into `RingWork.extent[0]` / `RingWork.extent[1]`.
+/// The place less the object's (the translation of the whole matrix) into `RingWork.away[0]` ..,
+/// turned by the object's matrix (`m`), |x| and |z| rounded into `RingWork.extent[0]` / `RingWork.extent[1]`.
 fn box_(
     ring: &Ring,
     en: &Entry,
@@ -74,7 +74,7 @@ fn whole_of(
         .ok_or(BadInput("a ring entry without its object"))
 }
 
-/// That way made one long (`MarksFloats.one` over its length), dotted with the object's +0x4C ..
+/// That way made one long (`MarksFloats.one` over its length), dotted with the object's `motion`
 /// into `RingWork.facing`.
 fn facing(ring: &Ring, car: &CarEffects, effects: &crate::effects::owner::Effects) {
     facing_x87(car, &effects.setup.floats, &ring.work);
@@ -91,7 +91,7 @@ fn pull_length(
     pull_length_x87(en, whole, length, &ring.work, &ring.kinds);
 }
 
-/// The way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot
+/// The way made one long by the kept length, the object's `motion` over its `pace`, minus their dot
 /// into `RingWork.facing`.
 fn pull_facing(
     ring: &Ring,
@@ -102,7 +102,8 @@ fn pull_facing(
     pull_facing_x87(car, length, &effects.setup.floats, &ring.work);
 }
 
-/// The entry's +0x64 pulled toward `MarksFloats.fixed_16_scale` (rounded into `RingWork.whole`).
+/// The entry's `size_factor` pulled toward `MarksFloats.fixed_16_scale` (rounded into
+/// `RingWork.whole`).
 fn pull_strength(
     ring: &Ring,
     en: &mut Entry,
@@ -310,7 +311,7 @@ fn damp3(
     Ok(())
 }
 
-/// The size pulled toward +0x70.
+/// The size pulled toward `size_goal`.
 fn pull_size(
     ring: &Ring,
     en: &mut Entry,
@@ -541,7 +542,7 @@ fn fading_kind(
     Ok(false)
 }
 
-/// Kind 1's pull of its +0x64 when near and facing.
+/// Kind 1's pull of its `size_factor` when near and facing.
 fn pull_toward(
     ring: &Ring,
     en: &mut Entry,
@@ -777,7 +778,7 @@ pub(super) fn run_ring(
 use crate::effects::plain::{ld_cell, ldi_cell};
 use crate::math::x87_float as bh;
 
-/// `fld dword ptr` of a float of a car record in the settings.
+/// A float of a car record in the settings, loaded onto the x87 model's stack.
 fn car_float(cell: &impl crate::memory::session::Cell32) -> bh::X {
     cell.ld()
 }
@@ -1013,7 +1014,7 @@ pub struct RingKinds {
     pub k15_damp: [f32; 3],
     /// Kind 0x15's size rate
     pub k15_pull: f32,
-    /// Kind 1's size factor (+0x64 times it)
+    /// Kind 1's size factor (`size_factor` times it)
     pub k1_size: f32,
     /// Kind 1's three dampings
     pub k1_damp: [f32; 3],

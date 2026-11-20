@@ -1,14 +1,14 @@
 //! The front-end tables the race takes in: the league table's ten 0x50-byte records as a row
-//! of their +8 and sixteen rows of their dwords, and the rally's ten best times (0x9C-byte
-//! records) cut to 0x50-byte race records.
+//! of their third dword and sixteen rows of their later dwords, and the rally's ten best times
+//! (0x9C-byte records) cut to 0x50-byte race records.
 
 /// Records in a league table or a rally's times.
 pub const RECORDS: usize = 10;
-/// Dwords per league record from +0x10.
+/// Dwords per league record from its fifth on.
 pub(crate) const LEAGUE_ROWS: usize = 16;
 
-/// The league table in race layout: each record's +8 (`firsts`) and its dwords from +0x10 as
-/// columns of sixteen rows.
+/// The league table in race layout: each record's third dword (`firsts`) and its dwords from the
+/// fifth on as columns of sixteen rows.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct League {
     pub firsts: [u32; RECORDS],
@@ -30,8 +30,8 @@ pub fn league(mut record: impl FnMut(usize, u32) -> u32) -> League {
     l
 }
 
-/// A race's best-time record: the rally's +0xC, +8, +0x10, +0x14, then sixteen dwords from
-/// +0x5C (checkpoint times).
+/// A race's best-time record: the rally record's fourth, third, fifth and sixth dwords, then
+/// sixteen dwords from its 24th (checkpoint times).
 pub(crate) type RaceTime = [u32; 20];
 
 /// Cuts one record down; `field(offset)` reads the rally record, asked in a fixed order.

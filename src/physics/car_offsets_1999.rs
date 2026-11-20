@@ -1,6 +1,6 @@
 //! The 1999 byte layout of the work car record, for the tests whose subject is where a field sat
-//! in the original (`(field, offset, length)`; places no code read are not in it). The record
-//! itself keeps no layout: the offsets of the original's code, the replay file's and the recorded
+//! in the 1999 game (`(field, offset, length)`; places no code read are not in it). The record
+//! itself keeps no layout: the offsets of the 1999 code, the replay file's and the recorded
 //! vectors' are mapped to fields here, and nowhere else.
 
 use crate::physics::car_store::Car;

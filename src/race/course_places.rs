@@ -1,7 +1,7 @@
-//! The stage's course data as one value (`CourseData`: the faces, the records, the scene points
-//! and the course info, with the counter of the faces' first-point changes), held by the course owner
-//! (`Course::stage`). `race::load_level` takes the parts from the course file and the info files, and
-//! the stage's freeing gives them back; both happen on the game thread between frames, while no
+//! The stage's course data as one value (`CourseData`: the faces, the records, the scene points and
+//! the course info, with the counter of the faces' first-point changes), held by the course owner
+//! (`Course::stage`). `race::load_level` takes the parts from the course file and the info files,
+//! and the stage's freeing gives them back; both happen on the game thread between frames, while no
 //! drawing part reads, so the drawing threads always see one stage's data.
 //!
 //! The faces (0x40 bytes each) and records (0x20 bytes each) are reached by number
@@ -41,7 +41,7 @@ pub struct CourseData {
     /// `files\b\textinfo`, the mark corners `files\m\markinfo` at +0x1C2000), filled by
     /// `level_init::load_texture_info`.
     pub info: SharedTable,
-    /// Bumped when a face's first point (+4) or a scene point below the count may have
+    /// Bumped when a face's first point or a scene point below the count may have
     /// changed, or the faces or points were taken or given back: what is worked out from them
     /// (`race::start_place`'s checkpoint places) is kept until then.
     first_points_changed: AtomicU64,
@@ -201,7 +201,7 @@ fn table_bytes(table: &Table, at: usize, len: usize) -> Result<Vec<u8>, BadInput
 /// `bytes` written into `table` from `at` (a face's first point noted).
 fn write_table(data: &CourseData, table: &Table, at: usize, bytes: &[u8]) -> Result<(), BadInput> {
     let faces = std::ptr::eq(table, &raw const data.faces);
-    // A face's first point (+4 .. +8) changed is noted.
+    // A change to a face's first point is noted.
     let mut first_point = false;
     table
         .write_noting(at, bytes, |k| {

@@ -1,7 +1,8 @@
 //! `d3d::texture_surface_info`: a locked system texture made the surface the blitters draw on:
 //! width and height from the record, bytes and bits a pixel from its pixel kind's description
-//! (+0xC), the row's bytes and dwords, the pixels and pitch from the lock's description, the row's
-//! gap, the format (the kind's description + 8); then the clip (`gfx::set_clip` on the surface).
+//! (`format`), the row's bytes and dwords, the pixels and pitch from the lock's description, the
+//! row's gap, the format (the kind's description's format); then the clip (`gfx::set_clip` on the
+//! surface).
 //! Takes the record.
 
 use crate::gfx::owner::Gfx;

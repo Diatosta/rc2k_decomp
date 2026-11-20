@@ -4,7 +4,7 @@
 //! ahead (when `drive::checkpoint_taken` allows), their start values cleared; the cars ahead and
 //! behind counted, their least gaps noted and the wanted gaps eased (`pace_gaps_eased`: the HUD's
 //! gaps to the neighbours, `race::panel_neighbours`, are these, not measured times); the four
-//! cars' +0x674 cleared and the two pushed apart when within 8 checkpoints. The game lists up
+//! cars' `pace_push` cleared and the two pushed apart when within 8 checkpoints. The game lists up
 //! to 89 opponents (`arcade_cars`) but only these two are simulated at a time.
 //!
 //! Refuses a start count above 0x58 (the start tables' room) or a start table car past the eight
@@ -29,7 +29,7 @@ fn car(shared: &RaceShared, slot: u32) -> Result<&Car, BadInput> {
 
 /// `arcade_car_kinds`[k]: the car of each start. The table holds 89; the refusal below reads
 /// one past it (the start count's 0x58 + 1), the next variable `number_before_first`, as the
-/// original. A start further on (`put_car`'s is dynamic) reads on through the holder.
+/// game does. A start further on (`put_car`'s is dynamic) reads on through the holder.
 fn car_by_start(shared: &RaceShared, k: u32) -> Result<u32, BadInput> {
     let tables = shared.tables();
     match k as usize {
@@ -286,7 +286,7 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
     let Some(push) = push_apart(apart) else {
         return Ok(());
     };
-    // The original stores the whole numbers first and turns each into its float in place
+    // The whole numbers are stored first and each is turned into its float in place
     // (the two cars differ: a gap of 0 pushes nothing).
     let k = race.shared.tables().pace_push_scale.get();
     for (b, push) in [(first, push), (second, push.wrapping_neg())] {

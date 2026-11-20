@@ -122,7 +122,7 @@ pub fn course_present<E>(
 
 // ---- the lights' data ----
 
-/// The lights' records: 0x22 of 0x134 bytes, each taking 0x90 bytes of data at +0xA4.
+/// The lights' records: 0x22 of 0x134 bytes, each taking 0x90 bytes of data after a 0xA4-byte head.
 pub const LIGHT_RECORDS: usize = 0x22;
 pub const LIGHT_RECORD: usize = 0x134;
 pub(crate) const LIGHT_DATA: usize = 0x90;

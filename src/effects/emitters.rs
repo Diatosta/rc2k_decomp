@@ -1,7 +1,7 @@
 //! What the marks' particle emitters under `effects::emit_wheel_particles` share: the ring
 //! of 0x94-byte entries (a cursor and a count, at most 0x3FE taken), the rate gate on a
 //! wheel record and its object, and their randoms. `effects::emit_wheel_particles` picks an
-//! emitter by the wheel record's +0x1C (the surface's particle kind).
+//! emitter by the wheel record's `kind` (the surface's particle kind).
 
 use crate::effects::owner::Effects;
 use crate::errors::BadInput;
@@ -46,7 +46,8 @@ pub fn next_entry(ring: &Ring) -> Result<Option<u32>, Refused> {
     })
 }
 
-/// The next entry taken (its number + 1; its +8 `EmitterVars.tag`, +0x90 `tag`, +0xC `kind`).
+/// The next entry taken (its number + 1; its `emitter_tag` `EmitterVars.tag`, its `car_tag` `tag`,
+/// its `kind` `kind`).
 pub(super) fn take_entry(
     ring: &Ring,
     effects: &crate::effects::owner::Effects,
@@ -106,16 +107,16 @@ pub(super) fn car_with_matrix(effects: &Effects) -> Result<bool, Refused> {
 pub struct Gate {
     /// `RingWork.rate`.
     pub rate: i32,
-    /// The wheel's new +4 when the second test is reached.
+    /// The wheel's new `pace` when the second test is reached.
     pub count: Option<u32>,
     /// Whether an entry is made (all tests passed and the wheel moves).
     pub passes: bool,
 }
 
 /// The gate: the rate (`x87::rate_to_int` of the wheel's `a` and `b` floats by `k`); the
-/// object's +0x90 plus it at least 0x1000; the wheel's +4 plus the object's +0x88 at
+/// object's `rate` plus it at least 0x1000; the wheel's `pace` plus the object's `pace` at
 /// least 1.5 times that sum (both signed), then kept as its remainder by it; the wheel's
-/// +0x10 or +0x18 not 0.
+/// `local_velocity_x` or `local_velocity_z` not 0.
 pub fn gate(
     effects: &Effects,
     wheel: &MarkRecord,
@@ -157,7 +158,7 @@ pub(super) fn gate_with(
         }
         // The dividend is the unsigned total.
         let rest = (total as i64 % limit as i32 as i64) as u32;
-        // Moving unless both are +0 (the bits tested).
+        // Moving unless both are plain zero (the bits tested).
         let still = |v: f32| v == 0.0 && v.is_sign_positive();
         let moving = !still(wheel.local_velocity_x.get()) || !still(wheel.local_velocity_z.get());
         Gate {
@@ -187,14 +188,15 @@ pub struct EmitterVars {
     /// The first side vector of the emitters.
     pub side_a: [PlainFloat; 3],
     /// A motion vector (`effects::emit_body_contact_particles` reads it as floats, `emit_twin`
-    /// writes the car's +0x4C ..).
+    /// writes the car's `motion`).
     pub motion: [PlainFloat; 3],
-    /// The looks by the car's model (`effects::cars_particles`), or from the car's +0x110 and
-    /// +0x118 (`effects::emit_car_particles`).
+    /// The looks by the car's model (`effects::cars_particles`), or from the first wheel record's
+    /// place x and z (`effects::emit_car_particles`).
     pub looks: [PlainDword; 2],
-    /// The car's number times `tag_k`; each ring entry's +8.
+    /// The car's number times `tag_k`; each ring entry's `emitter_tag`.
     pub tag: PlainDword,
-    /// The six floats `effects::reset_settings_blocks` puts in each settings block's +0x4C ..
+    /// The six floats `effects::reset_settings_blocks` puts in each settings block's `motion` and
+    /// first `steps` row.
     pub settings_start: [PlainFloat; 6],
     /// What a car's number is multiplied by for `tag` (an integer).
     pub tag_k: PlainInt,

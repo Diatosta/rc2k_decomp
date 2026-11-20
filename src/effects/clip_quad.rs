@@ -1,14 +1,14 @@
-//! `effects::clip_quad`: a quad (four vertices of 0x20 bytes: +0 x, +4 y, +8 .. +0x14 kept,
-//! +0x18 / +0x1C texture) clipped against one screen edge chosen by the settings' +8: 4 x
-//! at least the screen's middle x, 3 x at most its middle x less one, 2 y at least the
-//! middle y, 1 y at most the middle y less one (each test a signed compare of the floats'
-//! bits). All in: returns false, nothing changed. All out: returns true. Else the run of
-//! inside vertices (from the first after an outside one to the last) and the two crossings
-//! (the far edge's, then the near edge's: the edge's coordinate the line, the other and the
-//! texture interpolated on the x87, +8 .. +0x14 the outside vertex's) are built in the
-//! clip's work vertices and copied over the quad; the polygon's vertex count and
-//! `GlowState.clip_count` are their number; returns false. Other settings: returns false,
-//! nothing changed.
+//! `effects::clip_quad`: a quad (four vertices: x, y, the depth, `rhw`, colour and specular kept,
+//! then the texture u and v) clipped against one screen edge chosen by the settings'
+//! `marks_layout`: 4 x at least the screen's middle x, 3 x at most its middle x less one, 2 y at
+//! least the middle y, 1 y at most the middle y less one (each test a signed compare of the floats'
+//! bits). All in: returns false, nothing changed. All out: returns true. Else the run of inside
+//! vertices (from the first after an outside one to the last) and the two crossings (the far
+//! edge's, then the near edge's: the edge's coordinate the line, the other and the texture
+//! interpolated on the x87, the depth, `rhw`, colour and specular the outside vertex's) are built
+//! in the clip's work vertices and copied over the quad; the polygon's vertex count and
+//! `GlowState.clip_count` are their number; returns false. Other settings: returns false, nothing
+//! changed.
 //!
 //! Refuses null settings (a null quad cannot come: the quad is the vertices' own).
 

@@ -2,7 +2,7 @@
 //! floats.
 //!
 //! For each entry of the polygon, with the switch `SceneDraw.polygon_sides[0]` its first pair of
-//! coordinates (+8, +0xC) and with `SceneDraw.polygon_sides[1]` its second (+0x10, +0x14): a value
+//! coordinates (`u`, `v`) and with `SceneDraw.polygon_sides[1]` its second (`u2`, `v2`): a value
 //! that is not 0 becomes a float whose bits then lose 0x0C000000: the number over 2^24.
 
 use crate::errors::Refused;

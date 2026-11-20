@@ -88,7 +88,7 @@ pub fn read_caps(state: &AudioOwn) -> Result<bool, Refused> {
         if ds == 0 {
             return Err(BadInput("no DirectSound to ask (the original calls through 0)").into());
         }
-        // `DSCAPS` zeroed, its size, then `GetCaps`'s dwords at +4 .. +0x10.
+        // `DSCAPS` zeroed, its size, then `GetCaps`'s first four result dwords.
         for n in (0..0x60).step_by(4) {
             caps.set_u32(n, 0);
         }

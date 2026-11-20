@@ -1,6 +1,6 @@
 //! `effects::ring_frame`: the emitters' ring drawn: render states 0x15 = 4, 0x13 = 5, 0x14 = 6,
 //! 0x1C = 1, 0x1B = 1, `scene::set_texture` (the ring's texture), `scene::depth_test_off`; the
-//! ring's colour = the settings' +0x7C's low 24 bits, the kind-1 choice = the rain's drop count;
+//! ring's colour = the first car's `tag`'s low 24 bits, the kind-1 choice = the rain's drop count;
 //! `effects::run_ring`; render state 0x14 = 2; `effects::run_ribbons`.
 //!
 //! Screen: the dust and the water splashes (confirmed: both gone with the ring's sprites cut).
@@ -46,7 +46,7 @@ pub(super) fn ring_frame(
         );
         crate::scene::depth_test_off::depth_test_off(part);
         // SurfaceTables.lives_by_level[8]: the ninth of `lives_by_level`.
-        // The settings' +0x7C: the first car record's +0x1C.
+        // The ring's colour: the first car record's tag.
         masks.surface.lives_by_level[8].set(marks.cars[0].tag.get() & 0xFF_FFFF);
         particles.kind1_choice.choice.set(weather.rain.drops.get());
         crate::effects::run_ring::run_ring(buffer, masks, ring, scene, effects, view)?;

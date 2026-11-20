@@ -164,29 +164,29 @@ impl ListItem {
         PageLink::from_raw(self.0.box_link.get())
     }
 
-    /// +8 as the link.
+    /// The target word as the link.
     fn target_link(self) -> PageLink {
         PageLink::from_raw(self.target())
     }
 
-    /// +8 as the text the item edits or shows (a link).
+    /// The target word as the text the item edits or shows (a link).
     pub fn text(self, install: &'static crate::install::owner::Install) -> BytePlace {
         self.link_place(install)
     }
 
-    /// +8 as the byte the item sets (a choice, a value; a link).
+    /// The target word as the byte the item sets (a choice, a value; a link).
     pub fn value(self, install: &'static crate::install::owner::Install) -> ItemByte {
         ItemByte(self.link_place(install))
     }
 
-    /// The place the link at +8 names: the folder typed.
+    /// The place the target link names: the folder typed.
     fn link_place(self, install: &'static crate::install::owner::Install) -> BytePlace {
         self.target_link()
             .place(install)
             .unwrap_or_else(|e| refuse(e))
     }
 
-    /// +0xC as the item's choices (a choice item; a link): the table is the place the link
+    /// The data word as the item's choices (a choice item; a link): the table is the place the link
     /// names (`PageLink::place`), read on past the table (see `Choices`).
     pub fn choices(self, install: &'static crate::install::owner::Install) -> Choices {
         Choices(
@@ -196,7 +196,7 @@ impl ListItem {
         )
     }
 
-    /// +0xC as the item's edit record (an edit item).
+    /// The data word as the item's edit record (an edit item).
     pub(super) fn edit_field(self, install: &'static crate::install::owner::Install) -> EditField {
         EditField(
             PageLink::from_raw(self.data())
@@ -220,7 +220,7 @@ impl ItemByte {
     }
 }
 
-/// A choice item's table: two bytes a choice, the second (at +1, +3, ...) its marks. Its
+/// A choice item's table: two bytes a choice, the second (the odd bytes) its marks. Its
 /// length is the item's own count, which an index is not checked against: a read past it is
 /// bounded by the place's buffer.
 #[derive(Clone, Copy, Debug)]
@@ -237,7 +237,7 @@ impl Choices {
         rw(self.0.add(n.wrapping_mul(2)))
     }
 
-    /// Choice `n`'s byte at +1.
+    /// Choice `n`'s marks byte (the second of its two).
     pub fn marks(self, n: u32) -> u8 {
         rb(self.marks_at(n))
     }

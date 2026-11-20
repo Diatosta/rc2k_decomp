@@ -1,11 +1,11 @@
 //! `effects::emit_car_particles`: a car's particles for the frame. First the places of its four
-//! wheel records (+0x3C .. of the records at +0xD4, +0x11C, +0x164, +0x1AC) are worked out from the
-//! object's whole numbers +0xC .. +0x18 (z, the other z, x and y, each by a factor and offsets),
+//! wheel records (their `place`) are worked out from the object's four `axles` numbers (z, the
+//! other z, x and y, each by a factor and offsets),
 //! turned and placed by the car's matrix (`scene::rotate_point`), and the first x's size and the
 //! two z's sizes are kept, by a factor, rounded. Then `effects::emit_wheel_particles` runs for each
 //! wheel (numbered 0 .. 3; before the rear ones the side factors are the matrix's first row and its
 //! third negated) with the factors set from the constants, and `effects::emit_body_particles` for
-//! the record at +0x1F4.
+//! the body's record.
 //!
 //! Refuses a null object or matrix and the emitters' refusals; on a refusal nothing stays written
 //! (all it may write is put back).

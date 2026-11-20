@@ -44,7 +44,7 @@
 //!   this run only. No race or replay switch goes with them (the lobby chooses the race); in a
 //!   launch file `join`, `name` and `port` are lines (`--host` is a switch only).
 //!
-//! Switches of other parts (`--load-old-options`, the original's `-a`, `-c`, ..) are left alone.
+//! Switches of other parts (`--load-old-options`, `-a`, `-c`, ..) are left alone.
 
 use super::flow::{Call, CarList, Game, Picture, Var};
 use super::leaving::Switch;

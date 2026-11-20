@@ -54,7 +54,7 @@ pub struct Row<T> {
     pub finished: bool,
     /// The page's "not timed" field is `NOT_TIMED`.
     pub not_timed: bool,
-    /// The page's time (+0x18 the rally's, +0x14 the stage's).
+    /// The page's time (the rally's or the stage's, by the record).
     pub time: u32,
     pub nation: u32,
     pub car: u32,
@@ -143,7 +143,7 @@ pub const MOST_ENTRIES: u32 = 0x400;
 /// The rows `screens::draw_class_ranking` draws: from the list's first entry on, the class's
 /// `first`-th entry and up to nine more of the class, each with its place, and the place left
 /// when the list ends while the next row is looked for. `class_of(n)` is entry n's class
-/// (+0x1C), `ends(n)` whether entry n is the end mark. Refused: a list without its end in
+/// field, `ends(n)` whether entry n is the end mark. Refused: a list without its end in
 /// `MOST_ENTRIES`, a page that starts past the list, a row just before the end mark.
 pub fn class_rows(
     class_of: impl Fn(u32) -> u32,

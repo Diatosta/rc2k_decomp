@@ -4,7 +4,7 @@
 //! player's (`two_devices_one_player` not 0), for car A again on the second device. Otherwise
 //! (no effects on the first device, or one device a player), unless one player is playing, for
 //! player B's car on the second device with the second view block. Each only if that device has
-//! effects (+0x28 1). See `input/effects.rs`. Refuses (before anything: the way through is
+//! effects (`effects_on` 1). See `input/effects.rs`. Refuses (before anything: the way through is
 //! worked out first) a car number past the eight sound objects and a null device on the way
 //! taken. The third and fourth players of a larger split screen then get theirs on devices 2 and 3.
 

@@ -2205,8 +2205,7 @@ mod tests {
         assert_eq!(size_of::<MenuTexts>() % 4, 0);
     }
 
-    /// The speech tables' entries as the 1999 image addressed them (the first name of the
-    /// speech names is at 0x506E6C), car rows then stage rows.
+    /// The speech tables' entries as the 1999 image addressed them (car rows then stage rows).
     const SPEECH_ADDRESSES: [u32; 216] = [
         0x50a15d, 0x50a17e, 0xffffffff, 0x50a19f, 0x50a1bf, 0xffffffff, 0x50a1df, 0x50a201,
         0xffffffff, 0x50a223, 0x50a243, 0xffffffff, 0x50a263, 0x50a285, 0xffffffff, 0x50a2a7,

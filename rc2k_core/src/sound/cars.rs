@@ -21,7 +21,7 @@ pub struct Cue {
     pub sounds: [u32; 6],
 }
 
-/// A car's queue of spoken cues (the sound object's +0x298, 0x210 bytes;
+/// A car's queue of spoken cues (the sound object's queue of 0x210 bytes;
 /// `physics::queue_sound_cue` fills it).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CueQueue {
@@ -267,7 +267,7 @@ pub fn from_int(v: i32) -> u32 {
     (v as f32).to_bits()
 }
 
-/// A car's voice marks by its car's +0x25C (`kind`) and its place `n`: (whether it
+/// A car's voice marks by its car's kind (`kind`) and its place `n`: (whether it
 /// sounds, and its voice when set: 0, or !n for a computer's car).
 pub fn voice_mark(n: u32, kind: u32) -> (u32, Option<u32>) {
     match kind {

@@ -1,12 +1,13 @@
 //! `scene::draw_object_faces`: draws the faces of an object that were listed for drawing.
 //!
-//! The list: the view's listed faces, entries of 0x10 bytes: +0 the face's number within the
-//! object, +0xC how see-through it is (to the object's `see_through`). For each: the number to the
-//! view's face number; the face is entry number + the object's first face of the faces table; from
-//! the face's head the first texture (the word +4 plus the object's texture base, with the top bit
-//! set), its kind (byte +6) and byte +0xB; the polygon's colour is white, or with a byte +0xA not 0
-//! that byte in all three places; `scene::draw_object_face`; the colour white again. At the end a
-//! clip work cell is 0. Refuses a face's number past the table and a face that is not there.
+//! The list: the view's listed faces, entries of 0x10 bytes (`ListedFace`): the face's number
+//! within the object and how see-through it is (to the object's `see_through`). For each: the
+//! number to the view's face number; the face is entry number + the object's first face of the
+//! faces table; from the face's head the first texture (the head's texture word plus the object's
+//! texture base, with the top bit set), its kind (`face_kind`) and its unlit byte (`face_unlit`);
+//! the polygon's colour is white, or with a shade byte not 0 that byte in all three places;
+//! `scene::draw_object_face`; the colour white again. At the end a clip work cell is 0. Refuses a
+//! face's number past the table and a face that is not there.
 
 use crate::errors::{BadInput, Refused};
 

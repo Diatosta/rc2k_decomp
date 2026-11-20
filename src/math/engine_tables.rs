@@ -13,7 +13,7 @@ pub struct EngineTables {
     pub sines: [PlainFloat; 0x1400],
     /// 0x1000 words, the angle of a tangent (`scene::fill_engine_tables`).
     pub arctangents: [PlainWord; 0x1000],
-    /// 0x1070 bytes of noise; the noise maps are in it, at +0x20 and +0x50
+    /// 0x1070 bytes of noise; the noise maps are in it, at 0x20 and 0x50
     /// (`physics::probe_ground`, `physics::surface_noise`, `race::frame_draw`).
     pub noise_bytes: PlainBytes<0x1070>,
     /// The room the object file is read into, 0x40000 bytes (+4 points, +8 faces, +0xC normals,

@@ -6,7 +6,7 @@
 pub(crate) const BLOCK_FRAMES: u32 = 100;
 /// A frame's bytes (smaller pieces are put in without counting).
 pub const FRAME_BYTES: u32 = 0x10;
-/// The blocks the original's index holds.
+/// The blocks the first format's index holds.
 pub const MOST_BLOCKS: u32 = 0x708;
 /// The free room (KB) a replay needs on the disc.
 pub(crate) const NEEDED_KB: u32 = 0x7800;

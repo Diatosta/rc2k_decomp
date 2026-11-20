@@ -1,6 +1,5 @@
 //! Draws glyphs 0x9C and 0x9D of the sprite table at the two points stored in a stage record
-//! (`Record::markers`: the stage's two ends on the map; first point at +0x44/+0x48, second at
-//! +0x4C/+0x50).
+//! (`Record::markers`: the stage's two ends on the map, each an x and a y).
 
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::owner::Gfx;

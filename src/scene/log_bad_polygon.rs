@@ -4,9 +4,10 @@
 //! `PolygonWork.screen_clipped`, "cuttest" `PolygonWork.polygon_clip_mask` (with a line's end; then
 //! the mask 0), "tpage" the texture page (hex8), "points" the polygon's vertex count; "polynum" the
 //! current course face, or with the drawing-object flag 1 "objdraw" the current object and
-//! "objfaced" the face number; a line's end. Then with vertices, each (0x20 bytes): "pt" its
-//! number, "x" +0, "yzuwv" +4, "zuwv" +8, "uwv" +0x18, "wv" +0xC, "v" +0x1C (floats, two decimals;
-//! the labels are the tails of one string), "co" +0x10 and "sp" +0x14 (hex8), a line's end; and a
+//! "objfaced" the face number; a line's end. Then with vertices, each (eight dwords): "pt" its
+//! number, "x" dword 0, "yzuwv" dword 1, "zuwv" dword 2, "uwv" dword 6, "wv" dword 3, "v" dword 7
+//! (floats, two decimals; the labels are the tails of one string), "co" dword 4 and "sp" dword 5
+//! (hex8), a line's end; and a
 //! last line's end. Refuses (before anything) more than 64 vertices.
 
 use crate::errors::BadInput;

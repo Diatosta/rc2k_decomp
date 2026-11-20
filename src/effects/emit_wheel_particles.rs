@@ -1,7 +1,7 @@
-//! `effects::emit_wheel_particles`: one wheel's particles. With the chance the wheel's +0x34 by
+//! `effects::emit_wheel_particles`: one wheel's particles. With the chance the wheel's `chance` by
 //! `MarksFloats.fixed_16_scale` (rounded, into `RingWork.whole`) out of 0x10000 (a random's low
-//! word, `EmitterVars.wheel_random`, under it) the wheel's +0x28 .. +0x30 (the kind and two flags
-//! of the surface under it) become its +0x1C .. +0x24; then by the kind (+0x1C): 1
+//! word, `EmitterVars.wheel_random`, under it) the surface under the wheel (its kind and two flags
+//! words) becomes the wheel's current one (`take_surface`); then by the kind: 1
 //! `effects::emit_rolling_dust`; 2, 4, 6 .. 9, 0xC `effects::emit_wheel_grit_bursts` and
 //! `effects::emit_wheel_dust_cloud`; 3 `effects::emit_bursts_kind_3` and
 //! `emit_wheel_dust_cloud`; 5 `effects::emit_slip_spray`; 0xB `effects::emit_slip_snow_cloud`; 0

@@ -1,11 +1,11 @@
-//! `effects::draw_windscreen_flake`: one windscreen flake item drawn on the windscreen
-//! flakes' frame. The four vertices' texture places from `places` (u a, c, c, a; v b, b, d, d)
-//! plus the item's +0xC / +0x10; its place (the across share times `lengths[0]`, the along
+//! `effects::draw_windscreen_flake`: one windscreen flake item drawn on the windscreen flakes'
+//! frame. The four vertices' texture places from `places` (u a, c, c, a; v b, b, d, d) plus the
+//! item's `texture_u` / `texture_v`; its place (the across share times `lengths[0]`, the along
 //! share times `lengths[1]`) along the two axes from the frame's place into `corners`; less
 //! `half_axes`; the four corners (plus, less the scaled axes) into `corners`; unless the first
-//! corner's depth is at or below 4096.0 (a signed compare of the bits): projected (the view
-//! scale over each depth, the view's centre), depth (plus the kind float, times `inverse`),
-//! colour, `scene::draw_fan`.
+//! corner's depth is at or below 4096.0 (a signed compare of the bits): projected (the view scale
+//! over each depth, the view's centre), depth (plus the kind float, times `inverse`), colour,
+//! `scene::draw_fan`.
 //!
 //! The x87 runs are plain Rust on the x87 model (`math::x87_float`).
 

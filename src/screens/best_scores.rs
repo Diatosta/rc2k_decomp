@@ -262,13 +262,13 @@ pub fn replay_range_caption(
 
 /// A stage times page: where its stage record is and which table holds its times.
 pub struct StageTimes {
-    /// The stage record's table (the records 0xA4 bytes; +0x38 the stage's name string, +0x3C
+    /// The stage record's table (the records 0xA4 bytes, each with the stage's name string and
     /// its times' number) and the record's number.
     pub records: fn(&Menus, &System) -> Result<RecordTable, BadInput>,
     pub record: fn(&Menus) -> &dyn DwordLike,
-    /// The times' table (ten for each stage; the record's +0x3C the stage).
+    /// The times' table (ten for each stage; the record names the stage's tables).
     pub table: for<'t> fn(&Menus, &'t crate::saves::best_times::BestTables) -> &'t StageTable,
-    /// The rally page leaves the sprites' y (+4) in `DrawWork.button_x` and the flag's glyph in
+    /// The rally page leaves the sprites' y in `DrawWork.button_x` and the flag's glyph in
     /// `DrawWork.button_y`.
     pub rally: bool,
 }
@@ -318,7 +318,7 @@ pub(super) const RALLY_STAGE_TIMES: StageTimes = StageTimes {
     rally: true,
 };
 
-/// The stage's name (string +0x38 of the records) and its stage line (string 0x482 ..., built
+/// The stage's name (the string of the records' name field) and its stage line (string 0x482 ..., built
 /// in the line buffer), in the heading font. Used for the stage and rally times headings.
 /// Refuses no stage records.
 pub(super) fn draw_times_heading(
@@ -360,7 +360,7 @@ fn stage_line_without_nul(
 }
 
 /// For `screens::draw_stage_times` / `screens::draw_rally_stage_times`: the heading, then up to ten
-/// times of the stage's group (+0x3C, its stage in the table): name (x 0xF0), time
+/// times of the stage's group (the record's table number, its stage in the table): name (x 0xF0), time
 /// (`strings::append_time`, drawn in fixed columns ending at x 0x276), rank (x 0xC8), the car's and
 /// flag's sprites; the player's own in the highlight fonts; rows 0x19 apart from the last text's y.
 /// Refuses (before anything) no stage records or no times table.
@@ -467,7 +467,7 @@ pub(super) fn section_there(
 }
 
 /// The section's heading at (0x2EB, 0x77) in the heading font (in event mode 0x13 the section's
-/// entry of the heading list, else the section's first record's +0x38 string), then record
+/// entry of the heading list, else the section's first record's name string), then record
 /// `index`'s stage line (string 0x481 ...) in the line buffer at (0x2EB, 0x91). Refuses (before
 /// anything) a section the table has not.
 pub fn draw_record_heading(
@@ -545,7 +545,7 @@ pub fn draw_record_times(
 }
 
 /// `screens::draw_event_best_scores`': group `event.shown.class`, the player's own
-/// (+0x14 1) in the highlight fonts.
+/// (its player flag 1) in the highlight fonts.
 pub(super) const EVENT_BEST_SCORES: Table = Table {
     group_at: Some(event_class),
     highlight: true,

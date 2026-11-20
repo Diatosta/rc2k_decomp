@@ -139,7 +139,7 @@ pub fn update_car_effects(feel: &mut Feel, view: &View, k: &Constants) -> Result
     ];
     let mut angle = None;
     let [c4, _, cc, d0] = feel.hit;
-    // A knock when +0xD0 and +0xC4 are not plus or minus zero.
+    // A knock when the hit's first and last figures are not plus or minus zero.
     if d0 & 0x7FFF_FFFF != 0 && c4 & 0x7FFF_FFFF != 0 {
         let a = fpatan(f32::from_bits(cc), f32::from_bits(c4));
         // The angle is kept rounded to `f32`; the work goes on with the `f64`.
@@ -237,7 +237,7 @@ pub fn update_car_effects(feel: &mut Feel, view: &View, k: &Constants) -> Result
             }
         }
     }
-    // The change of +0xBC since last time, held to 0x200 either way, halved.
+    // The change of `figures[3]` since last time, held to 0x200 either way, halved.
     let now = feel.figures[3];
     let change = (now.wrapping_sub(feel.last_figure) as i32).clamp(-0x200, 0x200) >> 1;
     feel.last_figure = now;

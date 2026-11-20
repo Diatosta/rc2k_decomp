@@ -18,8 +18,9 @@ use rc2k_core::effects::lines as core;
 /// A settings block is a car record's part (`core::BLOCKS_AT` from the settings).
 const _: () = assert!(crate::race::effects_settings_store::CAR_BLOCK + 0x60 == core::BLOCKS_AT);
 
-/// The lines of two faces (`from`, `to`): for each of `from`'s points (+0x10, 0x10 apart)
-/// the length to `to`'s, added to the whole number at `sum`.
+/// The lines of two faces (`from`, `to`): for each of `from`'s points (the point numbers in the
+/// 0x10-byte entries after the face's header) the length to `to`'s, added to the whole number at
+/// `sum`.
 fn lines(
     course: &Course,
     paths: &Paths,
@@ -71,8 +72,8 @@ fn lines_with(
 }
 
 /// `effects::measure_slot_lines`: faces `from` and `to`, block `block`: for each
-/// of the block's 8 slots whose kind (the low byte of +0xD0 ..) is the face's +7, its
-/// lines into the slot's sum (+0xF0 ..). The x87's, for `measure_lines`.
+/// of the block's 8 slots whose kind (the low byte of `slot_kinds`) is the face's slot byte, its
+/// lines into the slot's sum (`slot_sums`). The x87's, for `measure_lines`.
 fn measure_slot_lines(
     course: &Course,
     paths: &Paths,
@@ -100,10 +101,10 @@ fn measure_slot_lines(
     Ok(())
 }
 
-/// `effects::measure_kind_lines`: faces `from` and `to`, block `block`: for each
-/// of the block's 0x11 kinds (the low byte of +0x130 ..) that is the face's +6, with the
-/// face's +0xB 1: its point count added to +0x240 .., its lines into +0x1B8 ... The x87's,
-/// for `measure_lines`.
+/// `effects::measure_kind_lines`: faces `from` and `to`, block `block`: for each of the block's
+/// 0x11 kinds (the low byte of `kinds`) that is the face's kind byte, with the face's line kind 1:
+/// its point count added to `kind_counts`, its lines into `kind_sums`. The x87's, for
+/// `measure_lines`.
 fn measure_kind_lines(
     course: &Course,
     paths: &Paths,
@@ -196,16 +197,16 @@ fn measured(
         .collect())
 }
 
-/// `effects::measure_lines`: `LinesWork.any` 0; for the blocks (+0x5C of the
-/// settings, the last first), every one with `LinesWork.every` 1 or else those with +0xC set
-/// (then `LinesWork.any` 1): the block in `LinesWork.current`, its sums cleared (+0x1C .. +0x30,
-/// +0xF0 .., +0x1B8 .., +0x240 ..); for each face of its first object (+0) with the other's
-/// (+4) same: a face of kind 0x1C (+6) with a line kind (+0xB) 1 .. 6 has its lines summed
-/// into +0x18 + 4 kind; then `measure_slot_lines`, `measure_kind_lines`. With
+/// `effects::measure_lines`: `LinesWork.any` 0; for the blocks (the settings' `cars_copy`, the last
+/// first), every one with `LinesWork.every` 1 or else those with `morph_kept` set (then
+/// `LinesWork.any` 1): the block in `LinesWork.current`, its sums cleared (`face_sums`,
+/// `slot_sums`, `kind_sums`, `kind_counts`); for each face of its first `object` with the
+/// `second_object`'s same: a face of kind 0x1C with a line kind 1 .. 6 has its lines summed into
+/// the `face_sums` entry of that line kind; then `measure_slot_lines`, `measure_kind_lines`. With
 /// `LinesWork.shares` 1 each sum then becomes 100 less its share of 100 of what it was
-/// (+0x34 .., +0x110 .., +0x1FC ..), with a `finit` after the first six; a share of 0 gives
-/// 0x80000000, the integer indefinite of the x87's division by 0.
-/// Refuses more than 8 blocks, an object past 0xFF, faces past the course's faces.
+/// (`face_shares`, `slot_shares`, `kind_shares`), with a `finit` after the first six; a share of 0
+/// gives 0x80000000, the integer indefinite of the x87's division by 0. Refuses more than 8 blocks,
+/// an object past 0xFF, faces past the course's faces.
 // The logic is in `rc2k_core::effects::lines::{measured, block_at}` (the lengths and shares
 // stay x87: its `finit` between)
 pub fn measure_lines(
@@ -287,11 +288,11 @@ pub fn measure_lines(
     Ok(())
 }
 
-/// `effects::measure_starting_sums`: `measure_lines` with every block and no
-/// shares; then for each block (the last first) its sums moved to where the shares are made
-/// from (+0x1C .. +0x30 to +0x34 .., +0xF0 .. to +0x110 .., +0x1B8 .. to +0x1FC ..) and
-/// cleared; then the measure-every flag 0 and the make-shares flag 1. Refuses as
-/// `measure_lines` with every block, before writing anything.
+/// `effects::measure_starting_sums`: `measure_lines` with every block and no shares; then for each
+/// block (the last first) its sums moved to where the shares are made from (`face_sums` to
+/// `face_shares`, `slot_sums` to `slot_shares`, `kind_sums` to `kind_shares`) and cleared; then the
+/// measure-every flag 0 and the make-shares flag 1. Refuses as `measure_lines` with every block,
+/// before writing anything.
 // The logic is in `rc2k_core::effects::lines::{measured, block_at}`
 fn measure_starting_sums(
     course: &Course,
@@ -329,12 +330,13 @@ fn measure_starting_sums(
     Ok(())
 }
 
-/// The settings blocks' base points (each block's +0x8C): 12 bytes a point of the block's
-/// object, counted on the block's +0x4C list. A block's +0x8C (and `MorphWork.taken`)
+/// The settings blocks' base points (each block's `point_block`): 12 bytes a point of the
+/// block's object, counted on the block's `points_list`. A block's `point_block` (and
+/// `MorphWork.taken`)
 /// holds its table's number + 1; `effects::tidy_marks` gives them back with the lists.
 /// (`Paths::block_points`.)
 ///
-/// The table `+0x8C` names (its number + 1).
+/// The table `point_block` names (its number + 1).
 fn block_points(paths: &Paths, handle: u32) -> Result<&Owned<Vec<[u32; 3]>>, BadInput> {
     (handle as usize)
         .checked_sub(1)
@@ -349,8 +351,8 @@ pub(super) fn block_point(paths: &Paths, handle: u32, n: u32) -> Result<[u32; 3]
         .ok_or(BadInput("a base point past its table"))
 }
 
-/// `effects::copy_block_points`: the points of block `block`'s object (+0): the object's
-/// point count of 12 bytes from its first point, to the table the block's +0x8C names.
+/// `effects::copy_block_points`: the points of block `block`'s `object`: the object's
+/// point count of 12 bytes from its first point, to the table the block's `point_block` names.
 /// Refuses an object past 0xFF.
 // The logic is in `rc2k_core::effects::lines::check_object`
 fn copy_block_points(
@@ -379,9 +381,10 @@ fn copy_block_points(
 }
 
 /// `effects::set_up_blocks`, step 14: `measure_starting_sums`; then for each block (the last
-/// first) +0x90 .. +0xCC -1, a block of 12 bytes a point of its object taken on its +0x4C
-/// (`Paths::block_points`, its number + 1 into the taken count and +0x8C), `copy_block_points`,
-/// and +0x90 .. +0xAC the eight floats of `LinesWork.block_start`. Refuses as
+/// first) `factors` and `kept_factors` -1, a block of 12 bytes a point of its object taken on
+/// its `points_list` (`Paths::block_points`, its number + 1 into the taken count and
+/// `point_block`), `copy_block_points`, and `factors` the eight floats of
+/// `LinesWork.block_start`. Refuses as
 /// `measure_starting_sums`, before anything is taken.
 // The logic is in `rc2k_core::effects::lines::{measured, block_at}`
 pub(super) fn set_up_blocks(
@@ -429,7 +432,7 @@ pub(super) fn set_up_blocks(
 /// The block lines' work (`lines`).
 #[derive(rc2k_derive::Cells)]
 pub struct LinesWork {
-    /// The eight values a block's +0x90 .. starts with
+    /// The eight values a block's `factors` start with
     pub block_start: [PlainFloat; 8],
     /// The last line's x, y, z differences
     pub difference: [PlainDword; 3],

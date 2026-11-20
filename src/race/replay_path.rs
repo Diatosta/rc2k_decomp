@@ -92,7 +92,7 @@ pub fn replay_path(race: &Race, slot: u32) -> Result<ReplayPath, Refused> {
 }
 
 /// The extension of a replay file in the own format (`rc2k_core::race::replay_v2`): the file of
-/// a slot beside the original's, `replay07.rc2r` beside `replay07`.
+/// a slot beside the old-format one, `replay07.rc2r` beside `replay07`.
 const OWN_FORMAT_SUFFIX: &[u8] = b".rc2r";
 
 /// The own-format file that goes with a saved or shipped replay's path.
@@ -113,8 +113,8 @@ pub fn remove(path: &[u8]) -> bool {
     std::fs::remove_file(crate::files::host_path(path)).is_ok()
 }
 
-/// The file a slot loads from: the own-format one beside the original's when there is one, else
-/// the original's (a replay copied in alone). A file named on the command line is that file.
+/// The file a slot loads from: the own-format one beside the old-format one when there is one, else
+/// the old-format one (a replay copied in alone). A file named on the command line is that file.
 pub fn file_to_load(slot: u32, path: Vec<u8>) -> Vec<u8> {
     use rc2k_core::race::viewer::ReplayFile;
     if matches!(

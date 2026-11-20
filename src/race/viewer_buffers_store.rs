@@ -45,7 +45,7 @@ pub struct ViewerBuffers {
     /// The slot's file, made (`race::save_viewed_replay`).
     pub to_file: PlainDword,
     /// What follows the block's plain frame in a replay with the extra tape: the inputs of cars
-    /// 2 and 3 (`EXTRA_TAPE_BYTES`). Past the original's record, so it is not a place the
+    /// 2 and 3 (`EXTRA_TAPE_BYTES`). Past the old format's record, so it is not a place the
     /// camera marks' reads past their table reach.
     pub block_extra: [PlainDword; EXTRA_TAPE_DWORDS],
     /// The replay in the block has the extra tape: its header's version

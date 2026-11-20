@@ -1,7 +1,7 @@
 //! The objects' faces (the faces' part of `scene::allocate_object_memory`'s block), counted on
 //! the list, given back by `give_back`. The faces are written one after another
-//! by `scene::add_object_shape` (+0 the number of vertices, +4 the texture word, +6 the kind,
-//! +7, +0xB bytes, +0xC the normal, then 0x10 bytes a vertex).
+//! by `scene::add_object_shape` (the number of vertices, the texture word, the kind, the
+//! group, flags, shade and unlit bytes, the normal, then 0x10 bytes a vertex).
 //!
 //! `face_memory` is `BASE` while the faces are taken (0 otherwise), so a face is
 //! named by `BASE` + its offset (`face + 7`, the faces' memory plus the cursor), and a place

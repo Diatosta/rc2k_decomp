@@ -2,7 +2,7 @@
 //! (x, y, z) turned by the view matrix into the draw work's place (the depth also whole in
 //! the ring's `whole`); unless the depth is at or below the nearest depth (a signed compare
 //! of the bits): the four vertices' specular `scene::fog_at` of the depth, colour the
-//! entry's +0x90 | 0xFF000000, texture places from the subcell's entry in the subcell
+//! entry's car tag | 0xFF000000, texture places from the subcell's entry in the subcell
 //! places, depth times the depth scale; half the side (the size's bits as a float, times
 //! the view scale / depth); the corners about the projected place; `effects::clip_quad`,
 //! and unless all is outside `scene::draw_fan` and the polygon's vertex count 4.

@@ -2,8 +2,8 @@
 //! face found is tried first, then the nine grid cells about the point, each cell's course
 //! record and its faces in turn. A face has the point when each of its edges has it on the
 //! inner side; a quad is split by a diagonal into two halves. A face is 0x40 bytes: a kind
-//! byte, a flags word at +2 and corners at +4 .. +0x10 (a triangle when the corners at +0xC
-//! and +0x10 are equal). The contacts walk the same cells and records, every face of each.
+//! byte, a flags word and four corners (a triangle when the third and fourth corners are
+//! equal). The contacts walk the same cells and records, every face of each.
 
 use crate::Invalid;
 

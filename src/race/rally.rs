@@ -25,7 +25,7 @@ const WORDS: [&std::ffi::CStr; 14] = [
 
 /// Where `copy_rally_times` takes its ten records from: the rally's times (by
 /// `EventState.stage.group`'s table, the rally `EventState.stage.sub`, the stage
-/// `EventState.stage.number` x 0xA4, its dword at +0x3C the stage in `stage_best_times_alt` when
+/// `EventState.stage.number` x 0xA4, the stage's dword in the record the stage in `stage_best_times_alt` when
 /// `EventState.stage.group` is 1, else in `ChampView.time_trial_best_times`). None when a table or
 /// the summary they go to (`BestTables::summary`) is not taken.
 fn rally_times_places<'t>(

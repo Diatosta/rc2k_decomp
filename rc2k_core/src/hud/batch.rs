@@ -14,7 +14,7 @@ pub const MOST_VERTICES: u32 = 0x10;
 /// The batch's texture when it has none.
 pub const NO_TEXTURE: u32 = u32::MAX;
 
-/// The HUD's layouts, by the record's +0xF4 (`draw_hud`): 1 and 2 the two-player split ones, 3
+/// The HUD's layouts, by the record's layout number (`draw_hud`): 1 and 2 the two-player split ones, 3
 /// and 4 the larger split screens', anything else the single player's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Layout {

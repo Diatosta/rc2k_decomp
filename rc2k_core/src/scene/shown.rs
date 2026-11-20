@@ -66,7 +66,7 @@ pub enum SetError {
 }
 
 /// The texture set: outside a race the other set for an object of kind 0x23A; in a race for
-/// objects 0x50 ..= 0xEF (the cars, 0x14 objects each) whose car's block has 0x21 at +0x24
+/// objects 0x50 ..= 0xEF (the cars, 0x14 objects each) whose car's word is 0x21
 /// (`car_word(car)`, `None` for a car without its block).
 pub fn texture_set(
     object: u32,

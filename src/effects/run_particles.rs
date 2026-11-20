@@ -1,21 +1,22 @@
 //! `effects::run_particles`: the effects' particle ring's frame.
-//! Nothing when the settings' +4 is 0; else `effects::set_quad_uvs`, then the ring's used count
-//! (as it is at the start) entries from the ring's first free one along +4:
-//! - the life (+0x44) less the frame's ticks; the entry dies when that borrows, or when its y
-//!   (+0x10) is below its ground (+0x24), or when its kind's step gives 1;
-//! - the kinds' steps (each the place moved by the motion times the ticks): 0 (dust: +0x2C
-//!   gains the `dust` gain a tick, +0x3C its whole-number gain; at or above its least
+//! Nothing when the settings' `race_done` is 0; else `effects::set_quad_uvs`, then the ring's used
+//! count (as it is at the start) entries from the ring's first free one along the links:
+//! - the life less the frame's ticks; the entry dies when that borrows, or when its y is below
+//!   its ground, or when its kind's step gives 1;
+//! - the kinds' steps (each the place moved by the motion times the ticks): 0 (dust: the
+//!   motion's y gains the `dust` gain a tick, the colour its whole-number gain; at or above its
+//!   least
 //!   `effects::burst_particles` and death, else `effects::trail_particles` while it rises,
 //!   the last place kept), 4 (trail: the `trail` gains; drawn with a colour from `colours`
-//!   by the life times +0x40), 8 and 9 (burst: +0x10 also moved by +0x30, which gains the
-//!   `burst8` / `burst9` gain, the motion damped by their dampings, colour from the burst
-//!   colour ramps by +0x48 + life times +0x40, none: death; 9 one time in 128 drawn 0x386A0
-//!   bigger), each drawn by `effects::draw_particle`;
+//!   by the life times the colour step), 8 and 9 (burst: y also moved by the lift, which gains
+//!   the `burst8` / `burst9` gain, the motion damped by their dampings, colour from the burst
+//!   colour ramp's place plus life times the colour step, none: death; 9 one time in 128 drawn
+//!   0x386A0 bigger), each drawn by `effects::draw_particle`;
 //! - a dead entry: the ring's used count less 1, and the entry moved to just before the ring's
 //!   first free one (or that moved on past it when it is the entry).
 //!
-//! Every eighth effects step: a flag is set and a drift puff is made near the view (its place at
-//! +0x30) from two steps of the effects' random by `effects::add_drift_particle`.
+//! Every eighth effects step: a flag is set and a drift puff is made near the view (at its
+//! place) from two steps of the effects' random by `effects::add_drift_particle`.
 //!
 //! Works on the effects settings.
 //!
@@ -45,7 +46,7 @@ const TRAIL_COLOURS: i32 = 298;
 const BURST_COLOURS_LEN: i32 = 0x2000;
 const BIGGER: u32 = 0x386A0;
 
-/// The dwords of a particle by name (its offset in the record over 4).
+/// The dwords of a particle by name (indices into its dwords).
 mod at {
     pub const PREV: usize = 0;
     pub const NEXT: usize = 1;
@@ -562,7 +563,7 @@ pub struct ParticleTuning {
     pub dust: [PlainFloat; 3],
     /// Kind 4's gain and int gain
     pub trail: [PlainFloat; 2],
-    /// Kind 8's +0x30 gain, three dampings, +0x3C gain
+    /// Kind 8's lift gain, three dampings, colour gain
     pub burst8: [PlainFloat; 5],
     /// Kind 9's, the same
     pub burst9: [PlainFloat; 5],

@@ -1,10 +1,10 @@
 //! `effects::draw_cell_sprite`: a ring entry's sprite: the place (x, y, z) turned by the view
 //! matrix into the draw work's place (the depth also whole in the ring's `whole`); unless the depth
 //! is at or below the nearest depth (a signed compare of the bits): the four vertices' specular
-//! `scene::fog_at` of the depth, colour (the alpha's top byte | the entry's +0x90), texture places
-//! from the cell's entry in the cell places, depth times the depth scale; half the side (the size
-//! times the view scale / depth, and that times the cell's corner slope) turned by the sine and
-//! cosine tables at the angle; the corners about the projected place; `effects::clip_quad`, and
+//! `scene::fog_at` of the depth, colour (the alpha's top byte | the entry's car tag), texture
+//! places from the cell's entry in the cell places, depth times the depth scale; half the side (the
+//! size times the view scale / depth, and that times the cell's corner slope) turned by the sine
+//! and cosine tables at the angle; the corners about the projected place; `effects::clip_quad`, and
 //! unless all is outside `scene::draw_fan` and the polygon's vertex count 4.
 //!
 //! The x87 blocks are plain Rust on the x87 model (`math::x87_float`). Refuses, before anything, a

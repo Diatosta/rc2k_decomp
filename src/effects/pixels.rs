@@ -118,7 +118,7 @@ fn plan_halves(masks: &Masks, effects: &crate::effects::owner::Effects) -> [Half
 }
 
 /// `effects::map_pixel`: pixel `x`, `MaskVars.pixel[1]` into the pixel table (here its number) at
-/// byte `row + 4 x`, two halves (bytes +2, +3, then +0, +1): the pixel turned into the line's frame
+/// byte `row + 4 x`, two halves (bytes 2 and 3, then 0 and 1): the pixel turned into the line's frame
 /// by the half's forward turn (`turn_pair`, 80-bit differences); the pixel's y worked out from its
 /// x by a shake of the seed (one draw of 0x3FFF, a second of 0xFFFF when the x is not below the
 /// span: `x87::random_step`); turned back by the half's back turn, rounded with the line's start
@@ -260,7 +260,7 @@ pub(super) fn map_shape_rows(
 }
 
 /// `effects::map_shape`: quad `shape` of the shape `shapes`:
-/// `MaskVars.mask_value` the quad, its two entries (2 n, 2 n + 1) of the rows at +8 mapped
+/// `MaskVars.mask_value` the quad, its two entries (2 n, 2 n + 1) of the shape's rows mapped
 fn map_shape(
     masks: &Masks,
     drops: &WindscreenDrops,
@@ -303,7 +303,7 @@ const LINE_FROM: [(u32, u32); 8] = [
 
 /// `effects::map_shapes`: with the x87 rounding toward zero (its word put back after),
 /// shape `n`'s pixel table (0x8000 dwords) cleared and made the table in use, its corner
-/// table kept, the shape's middle (+0xC, +0x10) kept; for each of its +4 quads the line pair
+/// table kept, the shape's middle (`middle`) kept; for each of its quads the line pair
 /// from corner entries k and k + 1 into `MaskVars.lines` and `map_shape`. The kept tables
 /// (`MaskPicks.table_in_use`, `MaskPicks.corners`) hold the shape's number. Refuses a
 /// count of 0 or less or past 0x80, and rows or spans outside the table, before writing.

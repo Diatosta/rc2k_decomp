@@ -2,7 +2,7 @@
 //!
 //! `effects::emit_slip_snow_cloud`: one ring entry of kind 0xB; `effects::emit_slip_spray`'s
 //! code on its own variables (`SlipSprayLongSet.place_random`, `SlipSprayLongSet.motion_x`
-//! .. `SlipSprayLongSet.spin`), a life of 2000, and made only when the wheel's |+0x18|
+//! .. `SlipSprayLongSet.spin`), a life of 2000, and made only when the wheel's |`local_velocity_z`|
 //! rounded to an integer is over 1 (kind 5: when it is not 0).
 //!
 //! Refuses as `emit_slip_spray`.

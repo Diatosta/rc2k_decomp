@@ -23,8 +23,8 @@ pub fn record(audio: &Audio, n: u32) -> Result<SampleRecord, BadInput> {
         .ok_or(BadInput("a sample past the 0x1CD records"))
 }
 
-/// The rate as both leaves take it: -0x6F the record's +0x30, then -0x70 the buffer's
-/// +0x24; held to 100 .. 200000.
+/// The rate as both leaves take it: -0x6F the record's rate, then -0x70 the buffer's
+/// rate; held to 100 .. 200000.
 /// The record's and its first voice's figures (`None`: no voice, not loaded).
 pub fn loaded(audio: &Audio, record: &SampleRecord) -> Option<rc2k_core::audio::samples::Loaded> {
     if record.first_voice == 0 {

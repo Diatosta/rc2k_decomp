@@ -25,7 +25,7 @@ pub struct DrawBatches {
     pub plain_word: PlainDword,
     /// The textured batch's vertices (`race::frame_flush::textured`).
     pub textured_vertices: PlainBytes<0x8200>,
-    /// The textured batch's indices (lies inside, at +0x1860).
+    /// The textured batch's indices (lies inside the vertices' bytes).
     pub textured_indices: PlainBytes<0x30C0>,
     /// The textured batch's triangle count.
     pub textured_count: PlainDword,

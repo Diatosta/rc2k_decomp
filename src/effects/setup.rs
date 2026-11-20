@@ -16,7 +16,7 @@ pub struct MarksClock {
     pub started: PlainDword,
     /// The scene clock at the last tick.
     pub last: PlainDword,
-    /// The clock's ticks since the last frame (0 unless the settings' +0x10 is 1).
+    /// The clock's ticks since the last frame (0 unless the settings' `other_marks_shown` is 1).
     pub frame_ticks: PlainDword,
     /// The ticks' bits taken as a float, times a constant (a game bug, kept as is).
     pub ticks_scaled: PlainFloat,
@@ -32,8 +32,8 @@ pub struct MarksClock {
     pub now: PlainDword,
     /// The clock at the tick before.
     pub before: PlainDword,
-    /// A copy of the settings' +0x18 (`effects::frame_marks`), 1 from `init_marks`; the second is 1
-    /// from `init_marks` (nothing reads it).
+    /// A copy of the settings' `fresh_marks_flags[1]` (`effects::frame_marks`), 1 from
+    /// `init_marks`; the second is 1 from `init_marks` (nothing reads it).
     pub settings_copies: [PlainDword; 2],
 }
 
@@ -113,7 +113,7 @@ pub(super) fn clear_slots(effects: &crate::effects::owner::Effects) {
 /// `effects::tick_clock`. The first time (not started yet): started, the last, now and
 /// before the scene clock, the ticks 0, the reciprocal `ClockK.first_reciprocal`. Then:
 /// before the last, now and the last the clock, the ticks the difference (0 unless the
-/// settings' +0x10 is 1), a quarter and a sixteenth of them (shifted), the reciprocal one
+/// settings' `other_marks_shown` is 1), a quarter and a sixteenth of them (shifted), the reciprocal one
 /// over them and that times `MarksFloats.quarter`, and the ticks' bits taken as a float
 /// (a slip kept as is) times `ClockK.ticks_scale`.
 pub(super) fn tick_clock(
@@ -169,7 +169,7 @@ const CURVE_RECORDS: u32 = 0x20;
 ///   neighbours and itself (`x87::weighted3_to_int`);
 /// - the copy's 0 .. 0xFFD less a ramp from 0 by (copy 0xFFF - copy 0) / 0x1000;
 /// - 0x800 times three 20-bit randoms and (the seed >> 30, three bits) times 0.0625 plus
-///   `SnowLight.spread_base`; then 0x800 times two remainders (`idiv` by 0xC00);
+///   `SnowLight.spread_base`; then 0x800 times two remainders (of a division by 0xC00);
 /// - `SnowState.flag` 0, the 0x20 records' four quarters, the three quads.
 ///
 /// Refuses a divisor that is 0 or 1 or -1 (the division would trap).

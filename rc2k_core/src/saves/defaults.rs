@@ -79,7 +79,7 @@ pub struct Record {
     pub track: u32,
     /// The stage's time (or length).
     pub length: u32,
-    /// +0x24
+    /// The record's time.
     pub time: u32,
     /// Which ten entries of a stage table.
     pub picked: u32,

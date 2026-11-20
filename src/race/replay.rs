@@ -45,9 +45,9 @@ pub struct Replays {
 
 /// A replay slot's kind: no file read (empty, or one that is damaged).
 pub const SLOT_NONE: u8 = 0;
-/// Only the original's format's file.
+/// Only the old-format file.
 pub const SLOT_OLD: u8 = 1;
-/// A file of the own format (the original's may be beside it).
+/// A file of the own format (an old-format file may be beside it).
 pub const SLOT_NEW: u8 = 2;
 
 impl Replays {
@@ -225,7 +225,7 @@ pub(super) fn write_replay_chunk(race: &Race, handle: u32) -> Result<(u32, bool)
     write_chunk_of(race, handle, &block)
 }
 
-/// `write_replay_chunk` of the given block bytes (the original's block is the first of the
+/// `write_replay_chunk` of the given block bytes (the old format's block is the first of the
 /// own format's bytes).
 pub(super) fn write_chunk_of(
     race: &Race,
@@ -392,7 +392,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     use rc2k_core::race::replay::{HEADER_NAME, INDEX_MAGIC, replays_on, room_for_replay};
     use rc2k_core::race::replay_v2::{EXT_LEN_AT, MAGIC, VERSION};
     shared.replay_file().replay_closed.set(0);
-    // Every race is recorded in the own format (`rc2k_core::race::replay_v2`): the original's
+    // Every race is recorded in the own format (`rc2k_core::race::replay_v2`): the old format's
     // block with the extra tape for cars 2 and 3, and the tail for the other cars.
     race.viewer_buffers().extra_tape.set(true);
     race.viewer_buffers().v2.set(true);
@@ -440,7 +440,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     }
     seal_replay_header(race, o.menus, o.strings)?;
     // The car header (0x400 bytes from the stage setting on through the sealed part, the patch
-    // switches and the door: all the dwords of the stretch) copied into the file's header at +0x30.
+    // switches and the door: all the dwords of the stretch) copied into the file's header after its first 0x30 bytes.
     let w = race.replay_work();
     let stage: Vec<u8> = [
         &w.header_stage,

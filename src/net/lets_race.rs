@@ -4,12 +4,12 @@
 use crate::errors::Refused;
 use crate::owners::Owners;
 
-/// This machine's car's time (+0x88) and whether it did not finish
-/// (+0xB0 is -1: `u32::MAX`, else 0).
+/// This machine's car's time (`stage_time`) and whether it did not finish
+/// (`stop_state` is -1: `u32::MAX`, else 0).
 pub fn lets_race(o: Owners<'static>) -> Result<(u32, u32), Refused> {
     let race = o.race;
     race.shared.view.get().after_credits.set(0);
-    // The eight stored cars' +0xB0 (out).
+    // The eight stored cars' `stop_state` (out).
     for car in &race.car_blocks().cars[..8] {
         car.stop_state.set(0);
     }

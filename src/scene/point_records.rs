@@ -1,13 +1,13 @@
-//! The scene's point records (0x40000 bytes, taken by `scene::allocate_point_records`), counted
-//! on the list, given back by `give_back`. 0x2000 records of 0x20 bytes: +0 the
-//! point's number, +0xC the x on the screen, +0x10 .. +0x18 the point in the view, +0x1C the y
-//! on the screen. A scene point n has record n & 0xFFF, an object's point or normal n record
+//! The scene's point records (0x40000 bytes, taken by `scene::allocate_point_records`), counted on
+//! the list, given back by `give_back`. 0x2000 records of eight dwords: the point's number, (after
+//! three unused dwords) the x on the screen, the point in the view (three floats, the depth last),
+//! the y on the screen. A scene point n has record n & 0xFFF, an object's point or normal n record
 //! 0x1000 + (n & 0xFFF).
 //!
-//! A record is named by its number + 1 (1 .. 0x2000), in the polygon entries' +4. The two other
-//! kinds of record the entries name follow: the four quad vertices (`PolygonWork::quad_vertices`,
-//! the view's own, `of_quad`) and the clipper's pool (the part's `PolygonWork::record_pool`,
-//! `of_pool`; `polygon_next_record` holds the next one's number).
+//! A record is named by its number + 1 (1 .. 0x2000), in the polygon entries' record field. The two
+//! other kinds of record the entries name follow: the four quad vertices
+//! (`PolygonWork::quad_vertices`, the view's own, `of_quad`) and the clipper's pool (the part's
+//! `PolygonWork::record_pool`, `of_pool`; `polygon_next_record` holds the next one's number).
 //! `point_records` is `HELD` while the records are taken, 0 otherwise.
 
 use crate::errors::{BadInput, Refused};

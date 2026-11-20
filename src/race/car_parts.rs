@@ -1,7 +1,7 @@
 //! Makes the cars' parts ready to draw (`ready_car_parts`, `car_part_matrices`): each car's marks'
-//! switches (+0xAB4 .. +0xAD0) from its state, and its four parts' matrices (the wheels, turned
-//! about their axles' places) into `part_matrices`, then kept in the block (+0x740 .. +0x8FF) for
-//! `draw_car`.
+//! switches (`marks_on`, `mode_on`, `part_switches`, `marks_count`) from its state, and its four
+//! parts' matrices (the wheels, turned about their axles' places) into `part_matrices`, then kept
+//! in the block for `draw_car`.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::copy_cells;
@@ -25,15 +25,16 @@ fn axles(race: &Race, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
     ))
 }
 
-/// For a car: +0x718 the size from +0x1D8 (not below `idle_engine_speed`); the switch bytes from
-/// +0x84, `marks_mask` / `lamps_mask`, +0x63C, +0x684, +0x1D4, each cut by its broken part (+0x410
-/// .. +0x424; they are cut twice); +0xABC the marks' count x 0x20 (0 when +0x310 is not below
-/// `hundred` or +0x84 is 0); +0xAAC the steering; the axles from the model's record; the light and
-/// place; the car's turn (+0xB4) and place into `body_turn_matrix` / `placed_matrices`; each wheel
-/// placed at minus its axle, turned about x by its spin (+0x1F8 front, +0x1FC rear) and about y by
-/// the steering (front only), placed at its axle with its height (+0x910 ..), into `part_matrices`
-/// (`FrameWork.part_matrices[48]`). Refused (before anything): axle values whose scaling would
-/// fault.
+/// For a car: `shown_engine_speed` the engine speed (not below `idle_engine_speed`); the switch
+/// bytes from `lights_on`, `marks_mask` / `lamps_mask`, `brake`, `camera_view`, `gear` and
+/// `parts_present`, each cut by its broken part (`electrical_failures`); `marks_count` the marks'
+/// count x 0x20 (0 when `electrics_damage` is not below `hundred` or the lights are off);
+/// `shown_steering` the steering; the axles from the model's record; the light and place; the car's
+/// turn (`crash_matrix`) and place into `body_turn_matrix` / `placed_matrices`; each wheel placed
+/// at minus its axle, turned about x by its spin (`driven_wheel_turns`: front, rear) and about y by
+/// the steering (front only), placed at its axle with its height (`wheel_spring_force`), into
+/// `part_matrices` (`FrameWork.part_matrices[48]`). Refused (before anything): axle values whose
+/// scaling would fault.
 fn car_part_matrices(
     race: &Race,
     car: usize,
@@ -194,8 +195,8 @@ fn car_part_matrices(
     Ok(())
 }
 
-/// For each race car with its parts shown (+0x25C): `car_part_matrices`, then the six matrices kept
-/// in the block (+0x740 .. +0x8BF) and the body's turn times the car's (`view_place`) at +0x8C0.
+/// For each race car with its parts shown (`driver_kind`): `car_part_matrices`, then the six
+/// matrices kept in the block and the body's turn times the car's (`view_place`) in `whole_matrix`.
 /// Refused (before anything): no race cars, more than eight, or one without its block.
 pub(super) fn ready_car_parts(
     race: &Race,

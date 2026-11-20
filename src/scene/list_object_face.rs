@@ -5,7 +5,7 @@
 //!
 //! The face's see-through value starts at 0x100, then five tests (in
 //! `rc2k_core::scene::face_tests::dropped`) can each drop the face ("its group" is the low
-//! five bits of the face's byte +7):
+//! five bits of the face's `group`):
 //! 1. Only outside a race: the object's kind is looked for among the known object kinds,
 //!    as an entry or as an entry plus 1 (`scene::find_object_kind`); if it is there, two
 //!    group numbers of that kind's light record become the hidden groups, and a face of
@@ -16,16 +16,16 @@
 //!    set in the second mask; then by which group it is: the lone group is dropped while its
 //!    mask is off, the hidden groups while `groups_which` is 1, the other groups while it
 //!    is 0.
-//! 3. A face with bits 2 or 3 of its byte +8 set, while the object is fading: dropped if
+//! 3. A face with bits 2 or 3 of its `flags` set, while the object is fading: dropped if
 //!    the fade value is 0, else that is its see-through value.
-//! 4. A face of kind (byte +6) 0x1C is dropped outside a race, or if its byte +0xB is 0 or
+//! 4. A face of `kind` 0x1C is dropped outside a race, or if its `extra` is 0 or
 //!    above 6, or if the wake count of that car part is 0x80000000 or under 10; a face of
-//!    another kind than 0 is dropped unless its byte +0xB is the kind byte the car's marks
+//!    another kind than 0 is dropped unless its `extra` is the kind byte the car's marks
 //!    hold for it (`scene::car_marks`).
 //! 5. Dropped if `scene::face_faces_away`.
 //!
 //! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the next entry of
-//! the list: its number, the key plus bit 30 unless bit 0 of its byte +8 is set, the polygon's
+//! the list: its number, the key plus bit 30 unless bit 0 of its `flags` is set, the polygon's
 //! `entry_third` and the see-through value. Refuses an object's number or a list's length past
 //! their tables, no block for kind 0x1C, and what its parts refuse.
 

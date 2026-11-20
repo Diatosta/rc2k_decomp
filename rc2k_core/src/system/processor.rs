@@ -10,7 +10,7 @@
 /// The flags' alignment check bit and ID bit.
 pub(crate) const AC_FLAG: u32 = 0x4_0000;
 pub(crate) const ID_FLAG: u32 = 0x20_0000;
-/// The vendors' texts as `cpuid` 0's ebx, edx, ecx.
+/// The vendors' texts as `cpuid` 0's second, fourth and third result words.
 pub(crate) const AMD: [u32; 3] = [0x6874_7541, 0x6974_6E65, 0x444D_4163];
 pub(crate) const CYRIX: [u32; 3] = [0x6972_7943, 0x736E_4978, 0x6461_6574];
 
@@ -18,7 +18,7 @@ pub(crate) const CYRIX: [u32; 3] = [0x6972_7943, 0x736E_4978, 0x6461_6574];
 pub trait Processor {
     /// Whether toggling `bit` in the flags changes them.
     fn flag_toggles(&self, bit: u32) -> bool;
-    /// The four result words (eax, ebx, ecx, edx) of `cpuid` leaf `leaf`.
+    /// The four result words of `cpuid` leaf `leaf`.
     fn cpuid(&self, leaf: u32) -> (u32, u32, u32, u32);
     /// The status word after `fninit` (0x5A5A there before) and the control word.
     fn fpu_words(&self) -> (u16, u16);

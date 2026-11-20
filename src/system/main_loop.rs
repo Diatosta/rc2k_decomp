@@ -35,7 +35,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     log_line(c"");
     log_line(c"Entering main loop...");
     // Wait for the window to be the active one and the key thread to have run, looked at
-    // every 10 ms (the original slept a whole second before looking); the quit switch leaves
+    // every 10 ms; the quit switch leaves
     // without asking to quit.
     loop {
         if session.flags.quitting.is_set() {

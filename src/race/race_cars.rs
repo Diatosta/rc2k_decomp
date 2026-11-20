@@ -217,7 +217,7 @@ pub(super) fn read_stage_car_numbers(race: &Race) -> Result<(), Refused> {
 /// `suspension_stiffness` 0x80, `tyre_kind` -1, `gear_ratio_setting` 2; logs "autosetup", "t" and
 /// `stage_number`; for stages 0x15 .. 0x4F takes the set-up (stage - 0x15) / 10 x 6 +
 /// (stage - 0x15) % 10 of `auto_setups`: `ride_height` its h, `suspension_stiffness` its s,
-/// `gear_ratio_setting` its +0xC less one, `tyre_kind` its +8, each logged with its range, then a
+/// `gear_ratio_setting` its gear-ratio figure less one, `tyre_kind` its tyre figure, each logged with its range, then a
 /// line break. Refuses stage 0x14, before anything.
 pub(super) fn auto_set_up_car(race: &Race, car: &Car) -> Result<(), Refused> {
     let course = &race.course;

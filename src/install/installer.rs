@@ -3,10 +3,10 @@
 //!
 //! The installer runs only with its script set up (`-u`, or the update disc:
 //! `install::check_at_start`). Its pages are list menus
-//! (`install::run_page`): a list of 0x18 bytes (+0 flags, +1 items, +2 title, +4 the item
-//! chosen) and its items of 0x10 bytes from +0x18 (+0 kind and marks, +1 the answer the item
-//! leaves the page with or the choices, +2 the text, +8 and +0xC the kind's links and
-//! actions). `install::run_pages` goes from page to page by the answer. The actions the items
+//! (`install::run_page`): a list of 0x18 bytes (flags, item count, title, the item
+//! chosen) and its items of 0x10 bytes after it (kind and marks, the answer the item
+//! leaves the page with or the choices, the text, then the target and data words: the kind's
+//! links and actions). `install::run_pages` goes from page to page by the answer. The actions the items
 //! hold are run by `item_action_at`, `text_action` and `draw_action`.
 
 use crate::errors::{BadInput, FatalError, Refused};
@@ -49,9 +49,9 @@ pub(super) fn set_full_installation() {
     crate::files::state::MEDIA_MODE.set(FULL_INSTALLATION);
 }
 
-/// A link item's action (the item's +8): the no-room page's "go on anyway".
+/// A link item's action (the item's target word): the no-room page's "go on anyway".
 pub(super) const GO_ON_ANYWAY: u32 = 1;
-/// A text item's action (the item's +0xC): the text's line is ended.
+/// A text item's action (the item's data word): the text's line is ended.
 pub(super) const END_TEXT_LINE: u32 = 1;
 
 // The installer's other variables (the update switch, the remove-items switch, the install.bun
@@ -399,7 +399,7 @@ pub fn logged<T>(what: &str, done: Result<T, Refused>) -> Result<T, Refused> {
     done
 }
 
-/// A link's or an action item's action (+8). The items hold only the not-enough-room page's
+/// A link's or an action item's action (the target word). The items hold only the not-enough-room page's
 /// "go on anyway".
 pub(super) fn item_action_at(
     install: &crate::install::owner::Install,
@@ -415,7 +415,7 @@ pub(super) fn item_action_at(
     }
 }
 
-/// A text item's action (+0xC), given its +8: more text at `cursor`; the cursor after. The
+/// A text item's action (the data word), given the target word: more text at `cursor`; the cursor after. The
 /// game's items hold only `install::end_text_line`.
 pub(super) fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
     match place {
@@ -427,7 +427,7 @@ pub(super) fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> 
     }
 }
 
-/// An action item's drawing (+0xC): the lists have no action items.
+/// An action item's drawing (the data word): the lists have no action items.
 pub(super) fn draw_action(_place: u32) -> Result<(), Refused> {
     Err(BadInput("an action item's drawing (the game's lists have none)").into())
 }

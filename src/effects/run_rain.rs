@@ -3,7 +3,7 @@
 //! plus the view's place and the drift (wrapped to 0x40000 and centred). Each frame the view's move
 //! since the last frame is scaled and held to a length, the view's place is kept per view entry,
 //! and the drift follows the clock when the drift switch is set; the drops' turned places are kept
-//! when the settings' +0x10 is set. The quad vertices' rhw is the float 256.0.
+//! when the settings' `other_marks_shown` is set. The quad vertices' rhw is the float 256.0.
 //!
 //! Screen: the falling rain, seen from inside and outside the car (confirmed: gone with
 //! `draw_rain_streak`'s draw cut).
@@ -11,7 +11,7 @@
 //! Works on the effects settings.
 //!
 //! The x87 blocks are plain Rust on the x87 model (`math::x87_float`), over the game's variables.
-//! Refuses null settings and a view entry past the five (the settings' +8), before anything.
+//! Refuses null settings and a view entry past the five (the settings' `marks_layout`), before anything.
 
 use crate::effects::rain::{RainRules, RainState, Weather};
 use crate::errors::{BadInput, Refused};

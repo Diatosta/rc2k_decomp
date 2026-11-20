@@ -91,8 +91,8 @@ pub enum CapsLog {
 /// The caps' size (`DSCAPS`), its first dword.
 pub const CAPS_SIZE: u32 = 0x60;
 
-/// What `audio::read_caps` logs, in order: the flags, the primary buffers' rates (+0x10,
-/// +8, +0xC), the hardware buffers (+0x14 .. +0x28) and the 3D ones (+0x2C .. +0x40).
+/// What `audio::read_caps` logs, in order: the flags, the primary buffers' count and the
+/// secondary rates, the hardware buffer counts and then the 3D ones, as the caps record lists them.
 pub const CAPS_LOG: [CapsLog; 19] = [
     CapsLog::Text(CapsText::Caps),
     CapsLog::Hex(4),
@@ -207,14 +207,14 @@ pub fn mixer_figures(rate: u32, block_align: u32) -> (u32, u32) {
 /// What `audio::start` reads of the machine, asked only where it reads it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fact {
-    /// The caps' flags (+4).
+    /// The caps' flags.
     CapsFlags,
-    /// The free hardware buffers (+0x14).
+    /// The free hardware buffers.
     FreeHardware,
     /// Whether a 3D primary buffer was made.
     Has3d,
     VoiceManagerOn,
-    /// The free hardware 3D buffers (+0x3C).
+    /// The free hardware 3D buffers.
     Free3d,
     HasEax,
 }

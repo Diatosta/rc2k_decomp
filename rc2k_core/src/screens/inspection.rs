@@ -14,7 +14,7 @@ pub enum Work {
     Status,
 }
 
-/// A part: the car's damage (+0xCC + 4 x item), its threshold
+/// A part: the car's damage of the item, its threshold
 /// (`MenuState.driver_stats.highs[12][item]`), its weight (`weights[12][item]`) and whether it is
 /// chosen for repair.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

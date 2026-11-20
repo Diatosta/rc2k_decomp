@@ -30,7 +30,7 @@ pub struct Disc {
     pub centre: [f32; 2],
 }
 
-/// A vertex's place and texture place, as stored (+0, +4 and +0x18, +0x1C).
+/// A vertex's place and texture place, as stored in the vertex record.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DiscVertex {
     pub place: [f32; 2],

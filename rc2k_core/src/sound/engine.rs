@@ -19,9 +19,9 @@ pub struct Engine {
     pub gear_event: u32,
     /// 1 in neutral.
     pub no_gear: u32,
-    /// +0x94 / +0x98: the times of the last two readings.
+    /// The times of the last two readings.
     pub reading_times: [u32; 2],
-    /// +0x9C / +0xA0: their revs.
+    /// Their revs.
     pub reading_revs: [u32; 2],
     /// The gear.
     pub gear: u32,
@@ -65,13 +65,13 @@ pub struct Engine {
     pub gear_slot_start: u32,
 }
 
-/// The request's place for the timed sounds: the object's +0x2C .. +0x34 less its +0x38 .. +0x40,
+/// The request's place for the timed sounds: the object's first place less its second place,
 /// each stored as an `f32` (one rounding of an exact `f64` difference).
 pub fn place_behind(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [0, 1, 2].map(|n| (f64::from(a[n]) - f64::from(b[n])) as f32)
 }
 
-/// The gear change's pitch factor: the request's factor (+0x20) times the object's +0x210, as an
+/// The gear change's pitch factor: the request's factor times the object's pitch, as an
 /// `f32`.
 pub fn gear_pitch(factor: f32, pitch: f32) -> f32 {
     (f64::from(factor) * f64::from(pitch)) as f32
@@ -125,8 +125,8 @@ pub fn readings(o: &mut Engine, clock: u32, change: Option<u32>) {
 }
 
 /// The state, the throttle followed, the gear and the back-fires (after the pitch inputs). `kind`
-/// reads the sound kind's flags (+0). Returns the gear change's cue: Some(clock & 0xF) when its
-/// pitch (+0x210) is to be set.
+/// reads the sound kind's flags. Returns the gear change's cue: Some(clock & 0xF) when its
+/// pitch is to be set.
 pub fn state(o: &mut Engine, kind: impl Fn() -> u32, clock: u32) -> Option<u32> {
     o.last_state = o.state;
     o.state = match o.revs {
@@ -236,7 +236,7 @@ fn back_fires(o: &mut Engine, kind: &impl Fn() -> u32, clock: u32) {
     }
 }
 
-/// `+0x104`: the throttle as a float over 256: `from_int`'s bits with the exponent less 8
+/// The throttle as a float over 256: `from_int`'s bits with the exponent less 8
 /// (none for 0).
 pub fn over_256(float_bits: u32) -> u32 {
     if float_bits & 0x7FFF_FFFF != 0 {
@@ -282,8 +282,8 @@ pub fn revs_stopped(state: u32) -> bool {
     state == 0 || state == 3
 }
 
-/// `sound::speed_sound`: the sound is stopped in engine state 0 or 1, in neutral (+0x24
-/// 1), while held off (+0xF4) or off the ground (+0xAC); each asked in that order, only
+/// `sound::speed_sound`: the sound is stopped in engine state 0 or 1, in neutral
+/// (1), while held off or off the ground; each asked in that order, only
 /// while the ones before did not stop it.
 pub fn speed_stopped(
     state: u32,
@@ -295,8 +295,8 @@ pub fn speed_stopped(
 }
 
 /// `sound::car_slot_sounds`: the object's timed slots played at the car's place, in
-/// order (the first four only for a car whose +0xC is 0); then the one at +0x220 at the
-/// place +0x214.
+/// order (the first four only for a car whose own-view flag is 0); then the last slot at the
+/// car's second place.
 pub fn placed_slots(own_view: bool) -> Vec<u32> {
     let mut slots = Vec::new();
     if own_view {

@@ -64,7 +64,7 @@ pub(crate) fn replaces_join(code: u8) -> bool {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Corner {
     pub code: u32,
-    /// + 8 for a note of 0x780000 or longer, + 0x10 turning one way.
+    /// 8 added for a note of 0x780000 or longer, 0x10 added for turning one way.
     pub flags: u32,
     /// The note's length, at least 0x3C0000.
     pub length: u32,

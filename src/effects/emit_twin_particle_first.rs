@@ -1,12 +1,13 @@
 //! `effects::emit_twin_particle_first`: by a chance one ring entry of kind 0x13 for a car each
 //! frame; `effects::emit_twin_particle_second` is the same code on its own variables (`TwinSet`).
 //!
-//! The level (the twin set's `level`) is the car's +0x4C0 (+0x4C4 for the second); a random's bits
-//! 16 .. 18 must be under it (signed). The wheel flags get 0x3E (0x33) and the set's copy of the
-//! car's +0x4C .. +0x54 is kept. The entry's place is the set's start point turned and placed by
-//! the emitting car's matrix (`x87::turned_place_f32`), less the set's lift in y at +0x28; its
-//! motion the matrix's second row by the set's factors, moved by `effects::jitter_point`, plus the
-//! kept car values; its life comes from the lives table by the level.
+//! The level (the twin set's `level`) is the car's `levels[0]` (`levels[1]` for the second); a
+//! random's bits 16 .. 18 must be under it (signed). The wheel flags get 0x3E (0x33) and the set's
+//! copy of the car's `motion` is kept. The entry's place is the set's start point turned and placed
+//! by the emitting car's matrix (`x87::turned_place_f32`), the entry's `ground_y` that y less the
+//! set's lift; its motion the matrix's second row by the set's factors, moved by
+//! `effects::jitter_point`, plus the kept car values; its life comes from the lives table by the
+//! level.
 //!
 //! Refuses (before anything) a null object, and when an entry is made a null car or matrix and a
 //! level past the lives table's 9 entries (the life would be read past the table).
@@ -173,9 +174,9 @@ pub(super) fn emit_twin(
 pub struct TwinState {
     /// The point the entry's place starts at (turned and placed by the car's matrix)
     pub point: [PlainFloat; 3],
-    /// The car's +0x4C .. +0x54, kept
+    /// The car's `motion`, kept
     pub motion: [PlainDword; 3],
-    /// The car's level (its +0x4C0 or +0x4C4)
+    /// The car's level (its `levels[0]` or `levels[1]`)
     pub level: PlainDword,
 }
 

@@ -136,8 +136,8 @@ pub struct RandomTables {
     pub seed: u32,
 }
 
-/// The curve records' (0x20 of 0x80 bytes) values by offset: each quarter's +0xC .. +0x14
-/// the first value, -1, 0; then the other four values at their places.
+/// The curve records' (0x20 of 0x80 bytes) values by offset: each quarter's three words
+/// from 0xC on the first value, -1, 0; then the other four values at their places.
 pub fn record_values([quarter, a, b, c, d]: [u32; 5]) -> Vec<(u32, u32)> {
     let mut v: Vec<(u32, u32)> = (0..4)
         .flat_map(|q| {

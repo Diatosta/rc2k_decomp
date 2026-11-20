@@ -1,5 +1,5 @@
 //! The race frame's 2D pass: the players (`split`); `scene::depth_buffer_off`;
-//! `hud::overlay_states`; with `views` 2, a player whose car block's +0xFA8 is set (`view_covered`)
+//! `hud::overlay_states`; with `views` 2, a player whose car block's `view_covered` is set
 //! keeps only bit 0x40 of its HUD flags (put back after) and its start lights' icon width 0;
 //! `hud::draw_hud`; `scene::depth_buffer_on`; `scene::full_view_window`; render state 3 = 3;
 //! `plain_first` and `plain_second` 1; `hud::draw_view_strips`; `scene::depth_buffer_off`;

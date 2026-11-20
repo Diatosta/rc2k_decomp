@@ -17,7 +17,7 @@ pub struct RingWork {
     pub cursor: PlainDword,
     /// The ring's first entry (an entry number + 1, as the entries' links).
     pub block: PlainDword,
-    /// An entry's +0x14 against it ends the box kinds' draw (`effects::run_ring`).
+    /// An entry's `place[1]` against it ends the box kinds' draw (`effects::run_ring`).
     pub top: PlainFloat,
     /// `effects::emit_rolling_dust`'s fade (the strength times a factor).
     pub fade: PlainFloat,

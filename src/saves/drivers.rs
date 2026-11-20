@@ -23,18 +23,17 @@ impl<'a> Driver<'a> {
         Ok(Self(&menus.cars.drivers.drivers[number as usize]))
     }
 
-    /// The dword at `offset` of the record.
     /// The class.
     pub fn class(&self) -> u32 {
         self.0.class.get()
     }
 
-    /// +0x14.
+    /// The nationality.
     pub fn nation(&self) -> u32 {
         self.0.nation.get()
     }
 
-    /// +0x18.
+    /// The car.
     pub fn car(&self) -> u32 {
         self.0.car.get()
     }

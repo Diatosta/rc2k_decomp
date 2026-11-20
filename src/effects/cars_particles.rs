@@ -1,14 +1,14 @@
-//! `effects::cars_particles`: the effects' frame for each car, when the settings' +0x10 is 1. For
-//! each of the settings' +0x5C cars (from the last; each 0x4C8 bytes from the settings' +0x60) it
-//! sets the emitting car, the matrix's adjugate (+0x94, `scene::adjugate_matrix`), the motion
-//! history (+0x58 .. +0x7C), the mean of the last four motions (+0x4C ..) with its length (+0x88,
-//! rounded) and a rate from it (+0x90), the side factors (from the up vector and the vector at
-//! +0x28, `x87::normalised3`, `x87::crossed_turned`) and two more values from the looks table by
-//! the car's +4. While +0x30 counts down the mean and its length are 0. Then it runs
-//! `effects::emit_car_particles` (unless +0x30 counts down, by one), `effects::emit_exhaust_smoke`,
-//! `emit_twin_particle_first` and `emit_twin_particle_second`.
+//! `effects::cars_particles`: the effects' frame for each car, when the settings'
+//! `other_marks_shown` is 1. For each of the settings' `cars_copy` cars (from the last) it sets the
+//! emitting car, the matrix's adjugate (`CarEffects::matrix`, `scene::adjugate_matrix`), the motion
+//! history (`steps`), the mean of the last four motions (`motion`) with its length (`pace`,
+//! rounded) and a rate from it (`rate`), the side factors (from the up vector and the car's vector
+//! across, `x87::normalised3`, `x87::crossed_turned`) and two more values from the looks table by
+//! the car's model. While `reset_wait` counts down the mean and its length are 0. Then it runs
+//! `effects::emit_car_particles` (unless `reset_wait` counts down, by one),
+//! `effects::emit_exhaust_smoke`, `emit_twin_particle_first` and `emit_twin_particle_second`.
 //!
-//! Refuses null settings, more than 8 cars, a car's null matrix or vector, a car model (+4) of 34
+//! Refuses null settings, more than 8 cars, a car's null matrix or vector, a car model of 34
 //! or more, and the emitters' refusals; on a refusal nothing stays written (all it may write is put
 //! back).
 
@@ -30,8 +30,8 @@ const MOST_CARS: u32 = 8;
 // `SplineHead::look` reads past the table's end.
 const MODELS: u32 = 34;
 
-/// The cars' numbers, last first, worked out without writing: none when the settings' +0x10
-/// is not 1.
+/// The cars' numbers, last first, worked out without writing: none when the settings'
+/// `other_marks_shown` is not 1.
 fn cars(effects: &crate::effects::owner::Effects) -> Result<Vec<usize>, Refused> {
     let marks = effects.settings()?;
     Ok({

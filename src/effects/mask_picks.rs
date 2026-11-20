@@ -25,7 +25,7 @@ pub struct MaskPicks {
     pub moving: PlainDword,
     /// The clock at which to choose again
     pub next: PlainDword,
-    /// 9 masks (1, 3, 7 .. ) by the settings' +0x2748
+    /// 9 masks (1, 3, 7 .. ) by the settings' `mask_number`
     pub masks: [PlainDword; 9],
     /// 0x80 rows of 0x400
     pub pixel_table_a: PlainBytes<131072>,

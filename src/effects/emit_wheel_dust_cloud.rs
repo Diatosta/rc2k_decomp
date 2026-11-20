@@ -1,14 +1,15 @@
 //! Emits: the soft, fading dust (snow powder on snow) cloud that trails behind a wheel.
 //!
 //! `effects::emit_wheel_dust_cloud`: one ring entry of kind 6 from a wheel, when its flags
-//! (+0x20, kept as the wheel flags) have 0xC0 and the rate gate passes (`effects/emitters.rs`, the
-//! wheel's +0xC less +0x18 by the set's rate factors).
+//! (`flags`, kept as the wheel flags) have 0xC0 and the rate gate passes (`effects/emitters.rs`,
+//! the wheel's `driven_speed` less `local_velocity_z` by the set's rate factors).
 //!
-//! The entry sits at the wheel's place (+0x3C ..) plus a random side, less the set's lift in y at
-//! +0x28; its motion is three sums of products of the wheel's speeds; its life comes from the lives
-//! table by the flags' bits 6 and 7 (+0x84; +0x78 a constant over it) and +0x74 is the fade
-//! constant. Refuses (before anything) a null wheel, object or matrix where read, and flags of
-//! 0x100 or more when an entry is made (the life would be read past the lives table's four).
+//! The entry sits at the wheel's place plus a random side, the entry's `ground_y` that y less the
+//! set's lift; its motion is three sums of products of the wheel's speeds; its life comes from the
+//! lives table by the flags' bits 6 and 7 (`life`; `alpha_fade` a constant over it) and `alpha` is
+//! the fade constant. Refuses (before anything) a null wheel, object or matrix where read, and
+//! flags of 0x100 or more when an entry is made (the life would be read past the lives table's
+//! four).
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -214,7 +215,8 @@ pub struct WheelFadeSet {
     pub side_random: PlainDword,
     /// The place's drop in y
     pub lift: PlainFloat,
-    /// Per axis (x, y, z) the scales of the three products (wheel +0x10, +0x18, +0xC)
+    /// Per axis (x, y, z) the scales of the three products (the wheel's `local_velocity_x`,
+    /// `local_velocity_z`, `driven_speed`)
     pub motion_k: [PlainFloat; 9],
     /// The spin's random
     pub spin_random: PlainDword,

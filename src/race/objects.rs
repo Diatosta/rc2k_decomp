@@ -168,7 +168,7 @@ pub fn set_up_car_points(
 
 /// Sets the object kinds: `scene::clear_slot_kinds`, the eight fixed kinds, slots 1 .. 0x3F of
 /// `slot_kinds` from `slot_kind_defaults`, slot 64 = `kept_kind`; with cars, each car's three
-/// kinds (its `known_kind`, `kind_11_table` and `kind_10_table` of its block's +0x24) at slots
+/// kinds (its `known_kind`, `kind_11_table` and `kind_10_table`, taken from its block's kind record) at slots
 /// 0x50 + 0x14 * n, +11, +10; then loads the objects and sets up each car's points. Refuses more
 /// than the eight cars' blocks.
 fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {

@@ -5,7 +5,7 @@ use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
 
 /// A car block's dwords cleared (`clear_car_state`) and what goes in them: 51 of them 0,
-/// `parts_present` (+0x298) -1.
+/// `parts_present` -1.
 type Field = fn(&Car) -> &dyn Cell32;
 
 const CLEARED: [(Field, u32); 52] = [
@@ -73,7 +73,7 @@ pub fn clear_car_state(block: &Car) -> Result<(), crate::errors::BadInput> {
 mod tests {
     use super::*;
 
-    /// Every selector sits where the core's old table of byte offsets had it.
+    /// Every selector sits where the core's old table of byte positions had it.
     #[test]
     fn cleared_sit_at_their_old_offsets() {
         let old: [usize; 52] = [

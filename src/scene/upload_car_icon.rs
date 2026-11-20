@@ -3,11 +3,11 @@
 //!
 //! - The texture, the icon's place on the texture and on the sheet are kept in the icon upload
 //!   cell, and the icon's size 0x52 x 0x2A with them.
-//! - With the texture's record (0x78 bytes) +0x5C at 1: the second picture read
+//! - With the texture's record (0x78 bytes) `keeps_alpha` at 1: the second picture read
 //!   (`gfx::read_texture_picture`) and copied 0x40000 bytes on, or, if there is none or it
-//!   cannot be read, +0x5C made 0.
-//! - The first picture read; `least_colour` of the texture's format (record +0xC, +8);
-//!   `alpha_from_kept` or `key_texture_colours` by +0x5C; `grade_texture`.
+//!   cannot be read, `keeps_alpha` made 0.
+//! - The first picture read; `least_colour` of the texture's format (the record's `format`);
+//!   `alpha_from_kept` or `key_texture_colours` by `keeps_alpha`; `grade_texture`.
 //! - The picture and the texture must be the same number of halvings from 256 (the card's
 //!   sizes table: 256, 128, 64, 32, and 1024 as 4), in width and in height; a size not in it,
 //!   or two different numbers, is a fatal error (0x80A18761 .. 0x80A18767). The picture is

@@ -37,7 +37,7 @@ enum Heading {
 #[derive(Clone, Copy)]
 pub struct Page {
     heading: Heading,
-    /// The time drawn and its gap: +0x18 the rally's, +0x14 the stage's.
+    /// The time drawn and its gap: the rally's (`rally_time`) or the stage's (`stage_time`).
     time: u32,
     /// The "not timed" check's field for others' rows and for a player's.
     check: (u32, u32),
@@ -135,7 +135,7 @@ fn draw_results_page(
                 Drawn::Drawn
             }
         };
-        // A time field of the page's (+0x14 the time, +0x18 the total).
+        // A time field of the page's (`stage_time` the time, `rally_time` the total).
         let time_at = |e: &rc2k_core::saves::entries::BestTime, at: u32| {
             if at == 0x18 {
                 e.head.rally_time

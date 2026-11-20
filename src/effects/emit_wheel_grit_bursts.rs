@@ -1,15 +1,16 @@
 //! Emits: the coarse grit and speckle (dust grains, snow) a wheel throws up in bursts.
 //!
-//! `effects::emit_wheel_grit_bursts`: two bursts of ring entries from a wheel (kinds 0x11 and 0x10), when the
-//! wheel's second flags (+0x24, kept as `wheel_flags2`) >> 6 are not 0.
+//! `effects::emit_wheel_grit_bursts`: two bursts of ring entries from a wheel (kinds 0x11 and
+//! 0x10), when the wheel's second flags (`flags2`, kept as `wheel_flags2`) >> 6 are not 0.
 //!
-//! Each half has a strength (the first the wheel's +0x10 times a factor; the second a blend of +0xC
-//! and +0x18) and a rate; when the half's random's bits 16 .. 23 are under the rate, a direction
-//! and a count (a random's low 12 bits modulo (flags >> 6) times 4) are drawn and that many entries
-//! made: their motion the direction spread (`effects::spread_point`), their place at the wheel less
-//! the car matrix's place plus a random side, a life of 2000. When the ring is full (0x3FE taken)
-//! inside a loop the bursts end (wiki/Fixed-bugs.md: "Crash driving over mud (particle ring
-//! full)"). Refuses (before anything) a null wheel, a null object, car or matrix where read.
+//! Each half has a strength (the first the wheel's `local_velocity_x` times a factor; the second a
+//! blend of `driven_speed` and `local_velocity_z`) and a rate; when the half's random's bits 16 ..
+//! 23 are under the rate, a direction and a count (a random's low 12 bits modulo (flags >> 6) times
+//! 4) are drawn and that many entries made: their motion the direction spread
+//! (`effects::spread_point`), their place at the wheel less the car matrix's place plus a random
+//! side, a life of 2000. When the ring is full (0x3FE taken) inside a loop the bursts end
+//! (wiki/Fixed-bugs.md: "Crash driving over mud (particle ring full)"). Refuses (before anything) a
+//! null wheel, a null object, car or matrix where read.
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;

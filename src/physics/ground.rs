@@ -17,7 +17,7 @@ use crate::physics::plane_height::plane_height;
 use crate::race::owner_course::CourseReads;
 use rc2k_core::physics::ground_search::{self, FaceTest};
 
-/// The first and last faces (+8, +0xC) of course record `record`.
+/// The first and last faces (the record's second and third dwords) of course record `record`.
 fn record_faces(course: CourseReads<'_>, record: u32) -> Result<(u32, u32), BadInput> {
     let face = |offset| crate::race::course_places::record_field::<u32>(course, record, offset);
     Ok((face(8)?, face(0xC)?))
@@ -143,8 +143,8 @@ fn record_refusal(course: CourseReads<'_>, record: u32) -> Option<&'static str> 
     }
 }
 
-/// `physics::search_record_faces`: faces +8 ..= +0xC of course record
-/// `record`, each by `face_under_point`; true when one has the point.
+/// `physics::search_record_faces`: the first to the last face of course
+/// record `record`, each by `face_under_point`; true when one has the point.
 // Core: `rc2k_core::physics::ground_search::search_faces`.
 pub(super) fn search_record_faces_at(
     course: CourseReads<'_>,

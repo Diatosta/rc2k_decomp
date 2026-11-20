@@ -1,11 +1,11 @@
 //! `effects::draw_lens_flare`: the lens flare, 0x11 parts along the line from the glow's place on
-//! the screen (the settings' +0x2758, +0x275C) through the screen's centre. The way out (x, -y)
-//! also goes into the flare's work vector (z 0) and is made one long there
+//! the screen (the settings' `listener_figures[1]` and `[2]`) through the screen's centre. The way
+//! out (x, -y) also goes into the flare's work vector (z 0) and is made one long there
 //! (`scene::vector3::normalise`); its length is kept; the alpha = the base alpha less the length
-//! times a factor (rounded, at least 0) times the settings' +0x2754, >> 8. Then for each part k
-//! from 0x10 down to 0: its centre (-x, y times the wave level k plus the centre, unrounded),
-//! `effects::draw_flare_part` with the part's corner and size (times a factor, rounded), angle 0,
-//! colour 0xFFFFFF, that alpha.
+//! times a factor (rounded, at least 0) times the settings' `listener_figures[0]` (the flare's
+//! strength), >> 8. Then for each part k from 0x10 down to 0: its centre (-x, y times the wave
+//! level k plus the centre, unrounded), `effects::draw_flare_part` with the part's corner and size
+//! (times a factor, rounded), angle 0, colour 0xFFFFFF, that alpha.
 //!
 //! Refuses null settings and a part's corner past the mark corners table, before anything.
 

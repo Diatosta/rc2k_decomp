@@ -1,5 +1,5 @@
-//! A point's place in the view and on the screen. Records are 0x20 bytes: +0 the point's
-//! number, +0xC the x on the screen, +0x10 ..= +0x18 the point in the view, +0x1C the y on
+//! A point's place in the view and on the screen. Records are 0x20 bytes: the point's
+//! number, the x on the screen, the point in the view (three floats), the y on
 //! the screen; point n of the scene has record n & 0xFFF, point -n of an object record
 //! 0x1000 + (n & 0xFFF). Intermediates are `f64`, rounded to `f32` where stored (as in
 //! `math::geometry`). Also an object's points and normals.

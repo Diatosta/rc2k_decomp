@@ -1,6 +1,6 @@
 //! `effects::windscreen_drops_drift`: the windscreen drops' drift from the view's moves. The drift
-//! is 0 on the first two calls; after that the view's move (the settings' +0x26AC .. less the kept
-//! place, times the clock constant) less the decayed last move is turned by the adjugate of the
+//! is 0 on the first two calls; after that the view's move (the settings' `listener_car_place` less
+//! the kept place, times the clock constant) less the decayed last move is turned by the adjugate of the
 //! view's turn and by a turn about x by the drift's angle, then negated into the drops' move and
 //! scaled into the drift; the move and place are kept for the next frame.
 //!
@@ -19,8 +19,8 @@ use crate::memory::session::{PlainBytes, PlainFloat};
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner_frame::Frame;
 
-/// The view's move (the settings' +0x26AC .. less the kept place, times the clock constant),
-/// less the last move, plus the last move times the drift's decay.
+/// The view's move (the settings' `listener_car_place` less the kept place, times the clock
+/// constant), less the last move, plus the last move times the drift's decay.
 fn view_moved(
     drops: &WindscreenDrops,
     m: &EffectsSettings,

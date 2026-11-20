@@ -1,22 +1,24 @@
-//! The graphics options' screen mode choices, in the record `gfx::choices_store` (`made`: made,
-//! the video card (0 primary, 1 secondary), the resolution (a place in the list), the buffering
-//! (0 double, 1 triple), mipmapping, the two cards present, the list made, the mipmapping's limit,
-//! the list's length, the list: 16 bytes a resolution, its width, height, pixel kind's figure and
-//! the mode). The card is the mode's bit `display.modes.kind_bits` (0x1000: the secondary).
+//! The graphics options' screen mode choices, in the record `gfx::choices_store` (`made`: made, the
+//! video card (0 primary, 1 secondary), the resolution (a place in the list), the buffering (0
+//! double, 1 triple), mipmapping, the two cards present, the list made, the mipmapping's limit, the
+//! list's length, the list: 16 bytes a resolution, its width, height, pixel kind's figure and the
+//! mode). The card is the mode's bit `display.modes.kind_bits` (0x1000: the secondary).
 //!
-//! - Made and the choice to be tried: the mode chosen (0x300000 with `kind_bits[+4]`, the list's
-//!   mode at +8 and `third_bits[+0xC]`) tried (`gfx::try_screen_mode`); if it works and +0x10 is
-//!   not above the texture figure (`cards.mips`) it is kept (`gfx::keep_race_screen_mode`); either
-//!   way the menus' mode set again (`gfx::set_menu_screen_mode`); failure if it did not work.
-//! - Not made: the card from the race screen mode (0x1000 or not), the cards present, then as
-//!   made without a choice to try, from the race screen mode.
+//! - Made and the choice to be tried: the mode chosen (0x300000 with `kind_bits[kind]`, the list's
+//!   mode at the chosen resolution and `third_bits[buffering]`) tried (`gfx::try_screen_mode`); if
+//!   it works and the mipmapping choice is not above the texture figure (`cards.mips`) it is kept
+//!   (`gfx::keep_race_screen_mode`); either way the menus' mode set again
+//!   (`gfx::set_menu_screen_mode`); failure if it did not work.
+//! - Not made: the card from the race screen mode (0x1000 or not), the cards present, then as made
+//!   without a choice to try, from the race screen mode.
 //! - Made and no choice to try (or not made): the list made again from the mode table's modes of
 //!   the pixel kind (`system::find_entry_with_bits`, `system::next_entry`), each with its size and
-//!   pixel kind's figure by `system::find_entry` (a key not there: the place past the table, as
-//!   the game reads it); +8 the mode's place in the list by its low 12 bits (else the first whose
-//!   width is not below the mode's: the search keeps 0, its bound never moves); then +8 and +0xC
-//!   from the race screen mode (its low 12 bits in the list, else both 0; +0xC from `modes.kinds`
-//!   by its fourth nibble, less 1, not below 0); +0x10 masked by +0x20; made.
+//!   pixel kind's figure by `system::find_entry` (a key not there: the place past the table, as the
+//!   game reads it); the resolution is the mode's place in the list by its low 12 bits (else the
+//!   first whose width is not below the mode's: the search keeps 0, its bound never moves); then
+//!   the resolution and the buffering from the race screen mode (its low 12 bits in the list, else
+//!   both 0; the buffering from `modes.kinds` by its fourth nibble, less 1, not below 0); the
+//!   mipmapping choice masked by its limit; made.
 //!
 //! Refuses (before anything is written) a list longer than the record's room (64 modes: it would
 //! write over the constants after the record) and a size's place of 0x1000 or more when made (it

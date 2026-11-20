@@ -1,8 +1,8 @@
 //! `scene::set_object_fade`: how see-through an object is drawn by how far off it is, and
 //! whether another, simpler object is drawn in its place.
 //!
-//! From the record of the object's kind (0x80 bytes in `object_materials`) two words: +0x1D to the
-//! first `fade_words` entry (another kind to draw instead) and +0x22 to its second (a distance).
+//! From the record of the object's kind (0x80 bytes in `object_materials`) two words: one to the
+//! first `fade_words` entry (another kind to draw instead) and one to its second (a distance).
 //! The object's `position` x and depth = 0, `object_fading` = 0 (no fading), `fade` = 0x100 (not
 //! see-through). Nothing more if both words are 0 or the object's `object_place` (a point of the
 //! scene) is -1. Else that point's record (made if it is not there, the same as

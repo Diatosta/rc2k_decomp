@@ -5,8 +5,9 @@ use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 
-/// Carry when every player is out (+0xB0 not 0): the chosen car's with `session` 1, else each of
-/// the `players` players'. Refused, before anything: a chosen car past 7 or more than 8 players.
+/// Carry when every player is out (`stop_state` not 0): the chosen car's with `session` 1, else
+/// each of the `players` players'. Refused, before anything: a chosen car past 7 or more than 8
+/// players.
 pub fn players_all_out(
     race: &Race,
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
@@ -29,7 +30,7 @@ pub fn players_all_out(
     }
 }
 
-/// Writes a car block's message in the order +0x71C, +0x730, +0x72C.
+/// Writes a car block's message in the order `notice_id`, `notice_time_b`, `notice_time`.
 fn set_car_counter(car: &Car, value: u32) {
     let m = rc2k_core::race::cars::Message::new(value);
     car.notice_id.set(m.id);
@@ -88,7 +89,7 @@ const SPLIT_KEY: usize = 0x3C;
 const DOWN_KEY: usize = 0x3D;
 const UP_KEY: usize = 0x3E;
 const SHARED_KEY: usize = 0x3F;
-/// The keys that flip a bit of the view block's +0x220 (`rc2k_core::race::keys::BIT_KEYS` by
+/// The keys that flip a bit of the view block's `option_bits` (`rc2k_core::race::keys::BIT_KEYS` by
 /// place): their key bytes, in the order tested.
 pub const BIT_KEYS: [usize; 7] = [0x58, 0x42, 0x41, 0x44, 0x43, 0x40, 0x57];
 fn pressed(devices: &crate::input::store::Devices, key: usize) -> bool {
@@ -121,7 +122,7 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             },
         )
     });
-    // The view block's +0x220 with `bit` flipped; gives the counter.
+    // The view block's `option_bits` with `bit` flipped; gives the counter.
     let flip = |view: &Car, bit: (u32, u32, u32)| -> u32 {
         let (now, counter) = flip_bit(view.option_bits.get(), bit);
         view.option_bits.set(now);
@@ -183,9 +184,9 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
 
 /// Copies the textures (`TyreChange::texture` / `device_texture` from
 /// `KindTextureTables.kind_first_textures[599]` / `KindTextureTables.kind_first_slots[599]`); for
-/// car 0 (block: +0x268 the count `CarBlocks.cars[0].stopped_steps`, +0x26C the change's state
-/// `tyre_change_state`, +0x298 the tyre bits `parts_present`, +0x88 the time `stage_time`, +0x354
-/// .. +0x360 `tyre_wears[0]` .. `tyre_wears[3]`, one per bit 1 .. 4) starts `tyre_change_gauge`,
+/// car 0 (block: the count `CarBlocks.cars[0].stopped_steps`, the change's state
+/// `tyre_change_state`, the tyre bits `parts_present`, the time `stage_time`, and
+/// `tyre_wears[0]` .. `tyre_wears[3]`, one per bit 1 .. 4) starts `tyre_change_gauge`,
 /// then runs it, adding its time when done.
 pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (race, scene) = (o.race, o.scene);

@@ -111,5 +111,5 @@ impl ReplayIndex {
 }
 
 /// The index's dwords: "RCIB" through the places of the own format (`OWN_INDEX_LEN` bytes);
-/// the original's index is the first 0x3850 / 4 of them.
+/// the old format's index is the first 0x3850 / 4 of them.
 pub(super) const INDEX_DWORDS: usize = 4 + 2 * MOST_BLOCKS as usize;

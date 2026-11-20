@@ -1,6 +1,6 @@
-//! Two sound levels from the first car block: +0x900 / 4 - 4, held 0 ..= 0x40 (by the signs), into
+//! Two sound levels from the first car block: `surface_noise_a` / 4 - 4, held 0 ..= 0x40 (by the signs), into
 //! `StageSounds.loop_volume_a`; at 0x38 or more `StageSounds.timed_arm` 1 when a random number
-//! (`math::next_random`) x 500 has a high dword of 0 (a rare draw); (+0x908 squared, low dword) >>
+//! (`math::next_random`) x 500 has a high dword of 0 (a rare draw); (`surface_noise_second` squared, low dword) >>
 //! 12 - 8, held, into `StageSounds.loop_volume_b`.
 
 use crate::race::owner::Race;

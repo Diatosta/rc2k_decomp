@@ -1,8 +1,10 @@
 //! A device's record made from a player's controls
-//! (player 1's or player 2's settings): +0x414 .. +0x4DB 0
-//! (`system::zero_memory`, 0xC8 bytes); with a controller chosen (the car's `controller` n, not 0): +0 n - 1,
-//! +0x418 `controller_mode`, +0xC `strength`, +0x10 `centre_dead_zone_pct`, +0x14
-//! `end_zone_pct`, +0x18 `axis_codes`, +0x20 `sensitivity_level` and +8 the same or 2 for 0, and the controller acquired (`input::acquire_device`);
+//! (player 1's or player 2's settings): `reading`, `hat_kind` and the
+//! `bindings` 0 (`system::zero_memory`, 0xC8 bytes); with a controller chosen (the car's `controller` n, not
+//! 0): `controller` n - 1, `hat_kind` from `controller_mode`, `strength`, `dead_zone` from
+//! `centre_dead_zone_pct`, `end_zone` from `end_zone_pct`, `axis_code` from `axis_codes`,
+//! `sensitivity` from `sensitivity_level` and `kind` the same or 2 for 0, and the controller
+//! acquired (`input::acquire_device`);
 //! then the twelve bindings' keys (bytes of `keys`), in the order of `BINDINGS`; and the
 //! profile the device reads through: the profile of the player whose controls the car took
 //! (`Input::race_players`) for the controller (`input::profiles`), none for the keyboard.
@@ -14,7 +16,7 @@ use crate::race::state_store::PlayerControls;
 #[cfg(test)]
 use std::mem::offset_of;
 
-// The controls run from the car's `controller` (+0) to the key bytes (+0x54): the word 0x20
+// The controls run from the car's `controller` (the first word) to the key bytes: the word 0x20
 // is a gap no binding reads, 0x48 (`UNSET_BINDING`) the word the copies from the player's
 // record pass over.
 #[cfg(test)]
@@ -34,7 +36,7 @@ pub fn set_up_device(
     record: &InputDevice,
     car: &PlayerControls,
 ) -> Result<(), Refused> {
-    // The controls' words by their offset from `controller` (a quarter of it the index).
+    // The controls' words by their byte distance from `controller` (a quarter of it the index).
     let words: [&Dword; 21] = [
         &car.controller,
         &car.gearing,
@@ -58,7 +60,7 @@ pub fn set_up_device(
         &car.bindings[10],
         &car.bindings[11],
     ];
-    // +0x414 .. +0x4DC: the reading flag, the hat's kind and the bindings.
+    // The reading flag, the hat's kind and the bindings.
     record.reading.set(0);
     record.hat_kind.set(0);
     for binding in &record.bindings {

@@ -6,7 +6,7 @@
 //!
 //! One struct (`HudBlock`, the static `HUD`). Its records keep the game's layout (`repr(C)`,
 //! `ByteView`): the recorded-assembly tests of the disc and quad code (`disc_vertex`) read it by
-//! byte offset.
+//! byte position.
 
 use crate::memory::session::{PlainDword, PlainFloat, PlainWord};
 
@@ -163,7 +163,7 @@ pub struct HudBlock {
     /// The stage marker's two colours (`draw_markers`) and the six dwords after them (probably
     /// colours too; nothing reads them).
     pub marker_colours: [PlainDword; 8],
-    /// The stage bar's four part colours, read at the byte offset the kind table gives
+    /// The stage bar's four part colours, read at the byte position the kind table gives
     /// (`draw_stage_bar`).
     pub stage_colours: [PlainDword; 4],
     /// The widths of the eight signs (`draw_signs`: centres a sign in its place).
@@ -172,7 +172,7 @@ pub struct HudBlock {
     pub bar_colour: PlainDword,
     /// The part colours of the two-player stage bars.
     pub bar_colours: [PlainDword; 2],
-    /// The needle's way (the record's +0xCC / +0xD0; 0 or not, `draw_needle`).
+    /// The needle's way (taken from the dial's set-up record; 0 or not, `draw_needle`).
     pub needle_kind: PlainDword,
     /// The quad record `add_quad` makes four vertices of.
     pub quad: HudQuad,
@@ -224,7 +224,7 @@ pub struct HudBlock {
     pub disc_size: PlainFloat,
     /// The disc texture's shift (u, v), from the record.
     pub disc_texture_shift: [PlainFloat; 2],
-    /// The disc texture's turn, from the record (+0x3C / +0x64).
+    /// The disc texture's turn, from the dial's set-up record.
     pub disc_turn: PlainFloat,
     /// A scratch for the x87's integer stores (a sprite's height, the needle's turn, the
     /// marker's x).
@@ -294,8 +294,7 @@ pub struct HudBlock {
     pub vertex_count: PlainDword,
     /// The indices in the batch.
     pub index_count: PlainDword,
-    // Our own, after the original's layout (the kept assembly reaches the fields above by
-    // offset).
+    // Our own, after the fields above (the kept assembly reaches those by byte position).
     /// How the pieces drawn now keep to the screen on a wide one (`layout_common::Keep`).
     pub anchor_rule: PlainDword,
     /// The rule the layout starts with and goes back to.
@@ -596,8 +595,8 @@ impl HudBlock {
 /// (0x29 .. 0x3F), the time digits (a digit at most 9 over the panel's base, 0xC, 0x18 or 2),
 /// the signs (0x4C .. 0x5B: the value is masked) and the gear (0x41 over the gear, which
 /// physics holds to -1 ..= 7; only a damaged replay file brings one outside, and the gear's
-/// drawer, `layout_common::gear_rect`, clamps it and logs it). The original does not check, and reads on into the fields after the
-/// table for a number past it; that is refused.
+/// drawer, `layout_common::gear_rect`, clamps it and logs it). The game does not check and reads on into the
+/// fields after the table for a number past it; that is refused.
 #[derive(Clone, Copy)]
 pub(super) struct RectAt(u32);
 

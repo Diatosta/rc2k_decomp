@@ -85,8 +85,9 @@ fn turns(
 /// (`turn_shape_points`) by the second results of two eased steps (`smooth_steps`), the
 /// list's farthest pair copied in as the entry's two corners, y lifted by 0xB2A7; then in
 /// each entry the corners swapped (x, y) unless the second is farther from the middle; the
-/// scales of the kind's box (its +0x24 - +0x18 over 0x100, +4 - +0x1C over 0x80); each
-/// corner (x, y plus the list's lowest point, less the box's +0x18, +0x1C) over them as
+/// scales of the kind's box (the difference of two of its words over 0x100, of two others over
+/// 0x80); each corner (x, y plus the list's lowest point, less the box's two minimum words) over
+/// them as
 /// floats; y from 0x80; and `clamp_pair`. Refuses a kind of 0x22 or more, a farthest pair
 /// past 0x3F, what `turn_shape_points` refuses at any step, before writing.
 pub(super) fn make_corners(

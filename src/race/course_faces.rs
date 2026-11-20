@@ -1,7 +1,7 @@
 //! Draws the course's faces (`draw_tinted_face` -> `draw_course_face`). A face record is 0x40 bytes
-//! at `course_faces`: +0 the kind and flags, +1 the object, +4 .. +0x10 four scene points, +0x18 /
-//! +0x30 / +0x38 and +0x1C / +0x34 / +0x3C its two triangles' normals (as `face_turned_to_view`
-//! reads them), +0x20 / +0x21 the second's flags and object. This file holds its leaves.
+//! at `course_faces` (`rc2k_core::race::faces::Face`): the kind and flags, the object, four scene
+//! points, its two triangles' normals (as `face_turned_to_view` reads them) and the second
+//! triangle's flags and object. This file holds its leaves.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
@@ -38,8 +38,7 @@ pub(super) fn face_depth_test_off(face: &FaceWork, part: &crate::scene::workers:
 }
 
 /// Turns depth writing back on when `face_depth_test_off` turned it off (`depth_test` set), then
-/// sets `depth_test` 0. Fixed: the 1999 test was the wrong way round (on only when it was not
-/// turned off); "Course faces drawn with the last face's depth setting" in `wiki/Fixed-bugs.md`.
+/// sets `depth_test` 0.
 fn face_depth_test_on(face: &FaceWork, part: &crate::scene::workers::PartScratch) {
     {
         if rc2k_core::race::faces::depth_test_on(face.depth_test.get()) {
@@ -63,8 +62,8 @@ pub fn face_corners(
     corners[3]
 }
 
-/// 1 when the face's triangle at `face`'s `+half` (half 0 or 4) faces the view (its point +8 less
-/// the view's place, `view_place_f` .., dotted with its normal +0x18, +0x30, +0x38 above 0, or not
+/// 1 when the face's triangle at `face`'s `+half` (half 0 or 4) faces the view (its second point
+/// less the view's place, `view_place_f` .., dotted with its normal above 0, or not
 /// a number, as the x87 compares), 0 outside a race.
 #[cfg(test)]
 fn face_turned_to_view(
@@ -161,11 +160,11 @@ fn frame_of(
     to_int(int(t as i32) * ld(f) * ld(a) * ld(b)) as u32
 }
 
-/// Sets face `face`'s two triangles' textures: for each, its object (+1, +0x21) is animated when
-/// `face_speeds` gives it a speed (car 0's +8 clock times `face_key_factors[speed]`, `ten`,
-/// `quarter`, rounded, & 7 picks the frame of `face_places`), into `texture_a` / `texture_b`; the
-/// kind's low three bits and bit 3 (+0, +0x20) go into `order_a` / `back_a` and `order_b` /
-/// `back_b`.
+/// Sets face `face`'s two triangles' textures: for each, its object (the face's object, the second
+/// object) is animated when `face_speeds` gives it a speed (car 0's `step_clock` times
+/// `face_key_factors[speed]`, `ten`, `quarter`, rounded, & 7 picks the frame of `face_places`),
+/// into `texture_a` / `texture_b`; the kind's low three bits and bit 3 (the kind and the second
+/// kind) go into `order_a` / `back_a` and `order_b` / `back_b`.
 pub(super) fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
     let work = &ctx.view.face;
     {
@@ -325,7 +324,7 @@ fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 }
 
 /// True when none of the face's corners (`corners` ..; the fourth when there is one) is in sight: a
-/// corner is in sight when its scene record's depth (+0x18) is not negative and |x| (+0x10) is
+/// corner is in sight when its scene record's depth is not negative and |x| (its view x) is
 /// below `near` or |x| times `slope` is below the depth. The records are made when not there.
 /// Refused (before anything): no point records or points.
 fn face_out_of_view(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
@@ -406,7 +405,7 @@ pub struct TextureSet<'a> {
     pub order: &'a PlainDword,
     /// The texture's size word with bit 31 (`polygon_textures` / `polygon_textures[1]`).
     pub size: &'a PlainDword,
-    /// The texture's mapping mode, its +0x2D signed (`mapping_a` / `mapping_b`).
+    /// The texture's mapping mode, its signed mapping byte (`mapping_a` / `mapping_b`).
     pub mapping: &'a PlainDword,
     /// 1 when the mapping is 0 (`plain_first` / the next flag).
     pub plain: &'a PlainDword,
@@ -463,7 +462,7 @@ fn info_bytes<const N: usize>(
     Err(BadInput("a texture info's bytes past the texture infos"))
 }
 
-/// Sets the triangle's texture's size word (+0x20, bit 31 set) and mapping (+0x2D) and the four
+/// Sets the triangle's texture's size word (bit 31 set) and mapping and the four
 /// corners' u, v from the texture's corner table for the order (`corner_uv_offsets[order * 4 + k]`
 /// points at a u16 pair inside the texture record, << 8, doubled for sizes 0x190 .. 0x31F); with a
 /// mapping above 0 the corners' scene x and z are shifted by (mapping & 3) + 2 instead, less the
@@ -545,9 +544,9 @@ fn entry(polygon_work: &crate::scene::polygon_store::PolygonWork, slot: u32) -> 
     &polygon_work.entries[slot as usize]
 }
 
-/// One polygon entry filled from one of the face's corners: +0 its point, +8 / +0xC the first
-/// texture's u, v, +0x10 / +0x14 the second's, +0x18 its colour, +0x1C its light, +0x21 its fog
-/// byte (`corner_alphas` ..).
+/// One polygon entry filled from one of the face's corners: its `point`, `u` / `v` the first
+/// texture's, `u2` / `v2` the second's, `light` its colour, `lamp_light` its light, `amount` its
+/// fog byte (`corner_alphas` ..).
 fn fill_entry(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
     work: &FaceWork,
@@ -692,10 +691,10 @@ fn draw_face_polygons(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 }
 
 /// Draws a face: its textures (`face_switches`, the first's coordinates when animated;
-/// `polygon_mode` 2, or with a second texture the mode its record's +0x2C picks in `surface_kinds`
-/// and the second's coordinates), the corners' lights (`face_lights`), then the depth test off, the
-/// polygons (`draw_face_polygons`), the depth test on. Refused (before anything): what
-/// `face_lights` refuses.
+/// `polygon_mode` 2, or with a second texture the mode its record's surface byte picks in
+/// `surface_kinds` and the second's coordinates), the corners' lights (`face_lights`), then the
+/// depth test off, the polygons (`draw_face_polygons`), the depth test on. Refused (before
+/// anything): what `face_lights` refuses.
 fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     use rc2k_core::race::face_drawing::{PLAIN_MODE, face_mode};
     let second: u32 = ctx.view.face.texture_b.get();
@@ -760,7 +759,7 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 }
 
 /// The new vertex of `draw_lit_triangle` between two entries' vertices `a` and `b`, into `v`: the
-/// view floats (+0x10 .. +0x18) halfway (b - a) x `half` + a, the screen place (+0xC, +0x1C) 0, or
+/// view floats (x, y, depth) halfway (b - a) x `half` + a, the screen place 0, or
 /// when the depth is not below `k4096_a` projected (by `view_scale` over the depth, or over
 /// `flat_depth` + 1 when `flat_depth` is set; centre `view_centre`, the next).
 fn halfway_vertex(
@@ -808,8 +807,8 @@ fn halfway_record(
 }
 
 /// The new entry of `draw_lit_triangle` between entries `first` and `second`, into `to`: the
-/// texture floats (+8 .. +0x14) (second + first) x `half`, the bytes +0x20, +0x21, +0x18 .. +0x1A
-/// the halves of their sums (+0x1B left as it is).
+/// texture floats (`u`, `v`, `u2`, `v2`) (second + first) x `half`, the `fog` and `amount` bytes
+/// and the low three bytes of `light` the halves of their sums (its top byte left as it is).
 fn halfway_entry(
     course: CourseReads<'_>,
     first: &PolygonEntry,
@@ -951,9 +950,9 @@ fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Works out the corners' colours from `light_table` by the face's bytes +0x14 .. +0x17, with flag
-/// 4 of +2 plus `lamp_table_a[+0x28 ..]` and `lamp_table_b[+0x2C ..]` (`add_colours`);
-/// the fog bytes +0x22 .. +0x25 go into `corner_alphas` ..; then the face is drawn (`draw_face`).
+/// Works out the corners' colours from `light_table` by the face's corner lights, with flag
+/// 4 of its switches plus `lamp_table_a` / `lamp_table_b` by its lamp indices (`add_colours`);
+/// the corner fog bytes go into `corner_alphas` ..; then the face is drawn (`draw_face`).
 fn face_colours(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
     let light_tables = ctx.reads.light_tables;
     use rc2k_core::race::lights::{EXTRA_LIGHTS, corner_colour};
@@ -1009,7 +1008,7 @@ fn turn_over(ctx: &DrawCtx<'_>) -> Result<(), BadInput> {
 }
 
 /// Draws a two-sided face's back (when `back_a`, the first kind's bit 3): the corners turned over,
-/// the colours from `light_table` by +0x28 .. +0x2B and the fog bytes +0x2C .. +0x2F, drawn
+/// the colours from `light_table` by the back's corner lights and fog bytes, drawn
 /// (`draw_face`), the corners turned back.
 fn draw_back_face(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
     if !rc2k_core::race::face_drawing::has_back(ctx.view.face.back_a.get()) {
@@ -1029,9 +1028,10 @@ fn draw_back_face(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
 }
 
 /// Outside a race both sides (`face_colours`, `draw_back_face`) are drawn with neither facing away;
-/// in a race, a face with objects (+1 or +0x21): one-sided (kind bit 3 clear) its front unless both
-/// triangles face away; two-sided its front unless both face away, then the facings flipped and its
-/// back unless both (now) face away. Each after `face_materials`. `face` is the face drawn.
+/// in a race, a face with objects (the object or the second object): one-sided (kind bit 3 clear)
+/// its front unless both triangles face away; two-sided its front unless both face away, then the
+/// facings flipped and its back unless both (now) face away. Each after `face_materials`. `face` is
+/// the face drawn.
 fn draw_face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
     use rc2k_core::race::face_drawing::{flipped, has_objects, side_drawn, two_sided};
     if ctx.reads.switches.scene_set_up.get() == 0 {
@@ -1069,10 +1069,8 @@ fn draw_face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
 
 /// Draws face `face`: its corners, and unless none is in sight (`face_out_of_view`) its facings
 /// (`face_sides`) and its sides (`draw_face_sides`). Refused (before anything): no point records or
-/// points. Fixed: the 1999 code wrapped the sides in `face_depth_test_off` / `on` too, judged by
-/// the previous face's texture and mode (this face's are set inside `draw_face_sides`), so a face
-/// after a mode-4 face could be drawn without writing depth; each side's own `draw_face` does it
-/// with its own ("Course faces drawn with the last face's depth setting" in `wiki/Fixed-bugs.md`).
+/// points. The depth setting is made by each side's own `draw_face`, with the side's own texture
+/// and mode, so a face after a mode-4 face still writes depth.
 fn draw_course_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
     crate::race::frame_draw::points_there(ctx)?;
     // The face is read once for its corners, normals, kinds, objects and colours: drawing it writes
@@ -1090,7 +1088,7 @@ fn draw_course_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
 }
 
 /// Draws face `face` (`draw_course_face`) with `polygon_colour` times its object's tint
-/// (`object_tints[+1]`, when not 0; byte by byte (a x b) >> 8); the colour is put back after.
+/// (`object_tints[object]`, when not 0; byte by byte (a x b) >> 8); the colour is put back after.
 pub(super) fn draw_tinted_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
     use rc2k_core::race::face_drawing::{tinted, tints};
     let colour: u32 = ctx.view.polygon.polygon_colour.get();

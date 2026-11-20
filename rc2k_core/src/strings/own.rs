@@ -1,5 +1,5 @@
-//! The texts of the pages this game adds to the original's (the controller axes page, the
-//! controller buttons page's new rows and the H shifter's switch). The original's language file
+//! The texts of the pages this game adds to the base game's (the controller axes page, the
+//! controller buttons page's new rows and the H shifter's switch). The base game's language file
 //! holds none of them, so they are kept in one file per language, `assets/locale/<name>.rc2k.toml`
 //! (`<name>` the language's `.LOC` file name), and every file is built into the program: the
 //! game's folder never supplies them, so they always match the program. A language with no file,
@@ -147,7 +147,7 @@ pub mod id {
     pub const BOT_START: u32 = FIRST + 0xF6;
     /// The message shown when a replay could not be saved.
     pub const REPLAY_NOT_SAVED: u32 = FIRST + 0xD9;
-    /// The tag the replays list puts after the name of a slot that holds only the original's
+    /// The tag the replays list puts after the name of a slot that holds only the base game's
     pub const REPLAY_OLD: u32 = FIRST + 0xF4;
     /// The network lobby's ready button while the player is ready: it takes the ready back.
     pub const NOT_READY: u32 = FIRST + 0xDA;

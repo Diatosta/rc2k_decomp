@@ -1,11 +1,13 @@
-//! One ring entry of kind 5 from a wheel whose +0x18 is not 0 (spray from a slipping wheel).
+//! One ring entry of kind 5 from a wheel whose `local_velocity_z` is not 0 (spray from a slipping
+//! wheel).
 //!
-//! The strength is |the wheel's +0x18| less its +0x10 on even wheels and plus it on odd ones. The
-//! entry starts at the wheel's place less the car matrix's, plus a random side, and moves along the
-//! matrix's first and third rows by the set's factors, jittered by `effects::jitter_point`. +0x60
-//! is ((`jitter_point`'s third result >> 2) & 0xFFF) + 0x7800 (a slip kept as is); the life is
-//! 5000. The body is shared with kind 0xB (`JitterSet`, `emit_slip_spray_with`). Refuses (before
-//! anything) a null wheel, object, car or matrix where read.
+//! The strength is |the wheel's `local_velocity_z`| less its `local_velocity_x` on even wheels and
+//! plus it on odd ones. The entry starts at the wheel's place less the car matrix's, plus a random
+//! side, and moves along the matrix's first and third rows by the set's factors, jittered by
+//! `effects::jitter_point`. The entry's `size` is ((`jitter_point`'s third result >> 2) & 0xFFF) +
+//! 0x7800 (a slip kept as is); the life is 5000. The body is shared with kind 0xB (`JitterSet`,
+//! `emit_slip_spray_with`). Refuses (before anything) a null wheel, object, car or matrix where
+//! read.
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -76,7 +78,7 @@ pub fn refusal(
     })
 }
 
-/// Whether the wheel's +0x18 passes the set's test.
+/// Whether the wheel's `local_velocity_z` passes the set's test.
 fn emits(set: &JitterSet<'_>, wheel: &MarkRecord) -> Result<bool, Refused> {
     Ok({
         let speed = wheel.local_velocity_z.get().abs();

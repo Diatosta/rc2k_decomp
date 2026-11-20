@@ -21,7 +21,7 @@ use crate::text::draw_text::Canvas;
 // ---- game data ----
 
 // mmss: receives the finish time
-// the summary copy[1]: copy of entry +0x34
+// the summary copy[1]: a copy of the entry's rivals field
 const SECOND_HEADING_STRING: u32 = 0x482;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
@@ -82,14 +82,14 @@ pub(super) fn build_second_heading(
 
 /// Everything from the map markers down to the numbered line at the bottom left, for the
 /// stage `record`. `marker_palette` is whatever the caller passes for the markers (unused).
-/// `keep_entry_34` is the one store that two of the panels add: the entry's field at +0x34 into
+/// `keep_entry_34` is the one store that two of the panels add: the entry's rivals field into
 /// RaceState.settings.rivals[1].
 ///
-/// The stage's track pack entry holds most of what is shown: +0x08 index of its duration,
-/// +0x0C length in hundredths of a mile (0 = none), +0x10 first of three description strings,
-/// +0x14 weather string, +0x1C temperature, +0x20 wind in tenths of a mile per hour,
-/// +0x24/+0x28/+0x2C/+0x30 surface percentages, +0x38 a number and +0x3C which of two labels
-/// goes with it. The record gives +0x10, the start time as hours * 100 + minutes.
+/// The stage's track pack entry holds most of what is shown: the index of its duration, its
+/// length in hundredths of a mile (0 = none), the first of three description strings, the
+/// weather string, the temperature, the wind in tenths of a mile per hour, four surface
+/// percentages, a number and which of two labels goes with it. The record gives the start time
+/// as hours * 100 + minutes.
 pub(super) fn draw_stage_body(
     o: crate::owners::Owners<'static>,
     gfx: &Gfx,
@@ -186,7 +186,7 @@ pub(super) fn best_of(
         .ok_or(crate::errors::BadInput("a stage past its best times table"))
 }
 
-/// The record rows, with the stage's best time (the record's +0x3C its stage) from
+/// The record rows, with the stage's best time (the record's table number its stage) from
 /// `table`. Returns whether the last text was too wide for its box.
 pub(super) fn draw_records_from(
     o: crate::owners::Owners<'static>,
@@ -230,7 +230,7 @@ pub(super) fn draw_records_for_group(
 
 // ---- support ----
 
-/// The string id (+0x14) of item `n` (from 0) of the current menu, or None without a menu
+/// The string id of item `n` (from 0) of the current menu, or None without a menu
 /// (or past its end).
 pub(super) fn menu_item_id<'a>(
     screens: &'a Screens,

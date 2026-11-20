@@ -1,13 +1,14 @@
 //! `effects::emit_rolling_particles_rated`: one ring entry of kind 0x15 for the wheel kind 1, when
 //! the kind-1 choice is not 0 and the rate gate passes.
 //!
-//! The rate (`rate` in the ring's work) is (1 - 1 / (the wheel's +0xC by the set's first two
-//! factors, plus its third)) by its fourth; then the gate of `effects/emitters.rs`. The entry's
-//! place is the wheel's (+0x3C ..) plus a random side, less the set's `lift` in y at +0x28; its
-//! motion per axis the matrix's first row by the wheel's +0x10, its third by +0x18 and by +0xC,
-//! each by a factor (`motion_k`); its life is 1000; +0x60 is the rate sum by `size_k` (after a
-//! first value by the effects' random, which still steps). Refuses (before anything) a null wheel,
-//! a null object, and a null car or matrix when an entry is made.
+//! The rate (`rate` in the ring's work) is (1 - 1 / (the wheel's `driven_speed` by the set's first
+//! two factors, plus its third)) by its fourth; then the gate of `effects/emitters.rs`. The entry's
+//! place is the wheel's `place` plus a random side, the entry's `ground_y` that y less the set's
+//! `lift`; its motion per axis the matrix's first row by the wheel's `local_velocity_x`, its third
+//! by `local_velocity_z` and by `driven_speed`, each by a factor (`motion_k`); its life is 1000;
+//! its `size` is the rate sum by `size_k` (after a first value by the effects' random, which still
+//! steps). Refuses (before anything) a null wheel, a null object, and a null car or matrix when an
+//! entry is made.
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -22,7 +23,7 @@ use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 const LOOK: u32 = 0x34;
 const LIFE: u32 = 0x3E8;
 
-/// The rate, from the wheel's +0xC.
+/// The rate, from the wheel's `driven_speed`.
 fn rate(
     particles: &Particles,
     wheel: &MarkRecord,

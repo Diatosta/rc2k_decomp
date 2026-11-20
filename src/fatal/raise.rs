@@ -1,21 +1,17 @@
-//! Raising a fatal error from Rust: what the original's stubs do before they jump to the
-//! reporter (store the code and the message), followed by the reporter itself.
+//! Raising a fatal error from Rust: store the code and the message, then call the reporter
+//! directly (`fatal::report::report_now`).
 //!
-//! Nothing in the original corresponds to it one to one. It calls the reporter directly
-//! (`fatal::report::report_now`).
-//!
-//! It is not identical to an original error in one respect: the report has register lines
-//! only where the caller knows the registers (those at the entry of the function that
-//! failed), and then not those at the instruction where the original would have noticed.
+//! One limit: the report has register lines only where the caller knows the registers (those
+//! at the entry of the function that failed), not those at the instruction that failed.
 
 use crate::errors::{FatalError, Refused};
 use crate::fatal::state::{CODE, MESSAGE};
 use crate::program_log::log;
 use rc2k_core::fatal::Context;
 
-/// Reports `error` and ends the game the way the original does: on a thread without a thread slot through the exit path (which shows the report in
-/// a message box), on a slot's thread by entering its routine again. It only returns for a
-/// code without the fatal bit, which nothing in this build has.
+/// Reports `error` and ends the game: on a thread without a thread slot through the exit path
+/// (which shows the report in a message box), on a slot's thread by entering its routine again. It
+/// only returns for a code without the fatal bit, which nothing in this build has.
 pub fn raise_bare(error: FatalError) {
     raise_with(error, None);
 }
@@ -41,8 +37,8 @@ fn raise_with(error: FatalError, regs: Option<&Context>) {
 /// hand on to. A refused input (`BadInput`) ends it, saying which function refused and
 /// why (no hidden fallbacks). A fatal error is raised from Rust (`raise_bare`),
 /// so that it shows: the game ends with the report, and the log says which function raised
-/// it. If that ever happens where the original would have carried on, the Rust code is
-/// wrong.
+/// it. If that ever happens where a caller expected the call to carry on, the Rust code
+/// is wrong.
 pub fn refused(name: &str, reason: impl Into<Refused>) {
     refused_with(name, reason, None);
 }

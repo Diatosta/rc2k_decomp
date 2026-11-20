@@ -41,7 +41,7 @@ impl PointList<'_> {
 }
 pub const MOST_POINTS: u32 = rc2k_core::effects::masks::MOST_POINTS;
 
-/// `collect_points`: face `face`'s points (+0 the count, from +0x10, 16 bytes
+/// `collect_points`: face `face`'s points (the count, then 16 bytes
 /// apart) added to the list unless there already, up to 0x40, each with the face. Refuses a list of
 /// more than 0x40. The logic is in `rc2k_core::effects::masks::PointList::add_face`.
 pub(super) fn collect_points(
@@ -84,7 +84,7 @@ pub fn reset_mask_cursor(masks: &Masks) {
 }
 
 /// Entry `index` of a list of shapes' rows (`entries` is the offset of the list in `run_table`): 16
-/// bytes each, +0 the spans (x, length; 8 bytes each), +4 the first row, +8 the count (signed).
+/// bytes each: the spans (x, length; 8 bytes each), the first row, the count (signed).
 fn shape_rows(masks: &Masks, entries: u32, index: u32) -> Result<ShapeRows, Refused> {
     Ok({
         let entry = entries.wrapping_add(index.wrapping_mul(16));
@@ -108,7 +108,7 @@ fn shape_rows(masks: &Masks, entries: u32, index: u32) -> Result<ShapeRows, Refu
 }
 
 /// `effects::draw_mask`: shape `n`'s mask (`MASKS.mask_a`, `_b`) all 0xFF, then each of the
-/// shape's +4 quads drawn (`rc2k_core::effects::masks::draw_shape`); the shape's number is held
+/// shape's quads drawn (`rc2k_core::effects::masks::draw_shape`); the shape's number is held
 /// in the picks.
 /// Refuses a count of 0 or less or a span outside the mask, before writing. The logic is in
 /// `rc2k_core::effects::masks::draw_mask`.
@@ -144,7 +144,7 @@ pub fn draw_mask(masks: &Masks, drops: &WindscreenDrops, n: u32) -> Result<(), R
 pub const WORK_LEN: u32 = 0x8_0000;
 
 // The masks' work (the 0x80000-byte block) is `Masks::work`: the rows of spans
-// `span_triangle` makes, reached by byte offsets (the cursor, the runs' +0). Taken by
+// `span_triangle` makes, reached by byte offsets (the cursor, the runs' start). Taken by
 // `make_masks` counted on its list, given back with it.
 
 /// The work's dword at byte offset `at`.

@@ -1,6 +1,6 @@
-//! The system textures' lock. A texture's record is 0x78 bytes (0x140 of them): +4 width, +8
-//! height, +0xC its pixel kind's description (+4 bytes a pixel, +8 the format), +0x14 its first
-//! level's surface, +0x60 locked. Locked, its surface is the one the blitters draw on.
+//! The system textures' lock. A texture's record (0x140 of them) holds its width, its height,
+//! its pixel kind's description (bytes a pixel, the format), its first level's surface and a
+//! locked flag. Locked, its surface is the one the blitters draw on.
 
 use crate::Invalid;
 

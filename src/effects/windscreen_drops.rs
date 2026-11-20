@@ -2,16 +2,16 @@
 //! (`pick_windscreen_drop`), ended (`expire_windscreen_drops`) and stepped
 //! (`windscreen_drops_step`, called by `effects::windscreen_drops_top`).
 //!
-//! Spawn: of the 32 items from the cursor on (wrapping at 0x800) the first free one (+0 0)
-//! gets +0 1, its place (x, z as floats at +0x14, +0x18), its kind (+4) and the rest 0; the
+//! Spawn: of the 32 items from the cursor on (wrapping at 0x800) the first free one (live
+//! word 0) made live, with its place (x, z as floats), its kind and the rest 0; the
 //! cursor the item after it. With none free, the cursor moves on 32.
 //!
 //! Pick: one step of the marks' random (times 0x9D plus 0x47) split into a place (bits
 //! 0 .. 10, 11 .. 20) and a kind (bits 22 .. 24).
 //!
-//! Expire: each live item (0x800 of 0x30 bytes, +0 1 live) ends one time in 0x800 (its own
+//! Expire: each live item (0x800 of 0x30 bytes, live word 1) ends one time in 0x800 (its own
 //! random, times 0xC5 plus 0x5D, bits 16 .. 26 0), or when its cell's byte in mask A or mask
-//! B (the cell from its place +0x14 / +0x18, rounded, >> 3) is the low byte of one of the
+//! B (the cell from its place, rounded, >> 3) is the low byte of one of the
 //! last few steps' values (the picks' values at (the shape index + k) & 0xFF, the latest
 //! first).
 //!

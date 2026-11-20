@@ -143,7 +143,7 @@ pub fn draw_mask(mask: &mut [u8], entries: &[ShapeRows]) -> Result<(), Invalid> 
 pub(crate) const TEXTURE_ROWS: u32 = 0x7E;
 pub const TEXTURE_ROW_AT: u32 = 0x80;
 
-/// `swap_mask`: with the settings' switch (+0x2704) not the one last seen, which mask goes into the
+/// `swap_mask`: with the settings' switch not the one last seen, which mask goes into the
 /// texture: the second with the switch set; None when it has not changed.
 pub fn swapped(switch: u32, seen: u32) -> Option<bool> {
     (switch != seen).then_some(switch != 0)

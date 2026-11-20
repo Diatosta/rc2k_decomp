@@ -7,7 +7,7 @@
 //! time (the tyre change's `record`) in the text buffer, three times, each 0x78 left and a line
 //! down (`text::draw_text_keep_regs`), and the record's name (`record_name`); then the
 //! device's own panel for player 0 (`player`) or the other half, with string 0x12D and the time
-//! (+0x4F4) when the device's +0x4F0 is 1, else 0x12C. The texture is unlocked
+//! (the device's `clock`) when the device's `stage` is 1, else 0x12C. The texture is unlocked
 //! (`d3d::unlock_texture`), copied to the device (`d3d::copy_to_device_texture`, the platform's)
 //! and `drawn` set to 1. The text is built with `strings::append_string_by_id` and `append_time`.
 //! Called twice by `tyre_change_gauge`. Refused: a text longer than the text buffer, and what its
@@ -446,7 +446,8 @@ pub fn draw_tyre_change(
                     three_times(gfx, strings, x.wrapping_add(4), 0xB2)?;
                     shared.tyre_change().prompt_width[half as usize].set(0);
                 } else {
-                    // The prompt has room on the title texture, drawn once the texture here is done.
+                    // The prompt has room on the title texture, drawn once the texture here is
+                    // done.
                     let prompt = build_text(so, strings, 0x12C, None)?;
                     let picture = stop_picture(o, shared.tyre_change().player.get());
                     prompt_shown = Some((prompt, picture));

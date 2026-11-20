@@ -1,23 +1,23 @@
-//! `scene::set_object_material`: what an object's drawing needs from its kind's record, and for
-//! a kind that moves between two shapes, how far it has moved.
+//! `scene::set_object_material`: what an object's drawing needs from its kind's record, and for a
+//! kind that moves between two shapes, how far it has moved.
 //!
 //! `move_by` = 0 and the polygon's colour white; the object's kind picks a record of 0x80 bytes in
-//! `object_materials`, whose byte +0x20 goes to `other_way_kind`; then the object's `first_face`
-//! and `face_counts` entries to the current object's first face and face count. With that byte at 4
-//! the object has two shapes, the second right after the first: `move_by` = the bytes between them
-//! (the next object's first point less this one's, times 12), and the fraction `move_fraction` is
-//! worked out from a state of four dwords (+0x30 .. +0x3C of the current course face's record of
-//! 0x40 bytes: the clock when last here, the time into the phase, the phase's length, the phase):
-//! the time since last here (the scene clock, at most 100) is added; while the time is not under
-//! the length, it loses the length, the phase goes on by one of four, and the new length is a base
-//! (200, 400, 200, 400) plus a random part of 400 (the drawing's random numbers,
+//! `object_materials`, whose other-way byte goes to `other_way_kind`; then the object's
+//! `first_face` and `face_counts` entries to the current object's first face and face count. With
+//! that byte at 4 the object has two shapes, the second right after the first: `move_by` = the
+//! bytes between them (the next object's first point less this one's, times 12), and the fraction
+//! `move_fraction` is worked out from a state of four dwords (`STATE` on, of the current course
+//! face's record of 0x40 bytes: the clock when last here, the time into the phase, the phase's
+//! length, the phase): the time since last here (the scene clock, at most 100) is added; while the
+//! time is not under the length, it loses the length, the phase goes on by one of four, and the new
+//! length is a base (200, 400, 200, 400) plus a random part of 400 (the drawing's random numbers,
 //! `next_drawing_random`, its top half times 400). The fraction: 0 in phase 0, time over length in
 //! phase 1, 1 in phase 2, 1 less that in phase 3. There is no second way for when the four random
 //! parts are all 0: they never are. Refuses an object's number past the tables and, for a moving
 //! kind, no state.
 //!
-//! The work is `set_object_material_plain`, through `rc2k_core::scene::materials` (the
-//! fraction a plain float; the x87 version stays for the callers in unconverted code).
+//! The work is `set_object_material_plain`, through `rc2k_core::scene::materials` (the fraction a
+//! plain float; the x87 version stays for the callers in unconverted code).
 
 use crate::errors::BadInput;
 use crate::math::x87;
@@ -29,7 +29,7 @@ const OBJECTS: u32 = 0xFF;
 /// `LightWork::phase_lengths` nor `ObjectTables::phase_work` is stored to: nothing reads them.
 const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 
-/// The face whose +0x30 .. +0x40 hold the state (the view's current course face), or None
+/// The face whose record holds the state (the view's current course face), or None
 /// without the course faces. (An object of two shapes before the view's first face has no face
 /// to read; no kind in the game's files has that material, so it never comes into play.)
 fn state(
@@ -39,7 +39,7 @@ fn state(
     crate::race::course_places::held(data).then(|| face.course_face.get())
 }
 
-/// The state's four dwords from +0x30 of the face.
+/// Where the state's four dwords start in the face's record, in bytes.
 const STATE: u32 = 0x30;
 
 /// The fraction of the way between the two shapes, on the state of face `face`.

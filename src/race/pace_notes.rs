@@ -17,7 +17,7 @@
 //!   (`write_calls`), notes less than 0x1E0000 apart and not ended by 'b' joined by ')'
 //!   (0x29), a group ended by a NUL. A corner ('c', 0x63) becomes 1 .. 5 by how sharp (the
 //!   checkpoint angles' `Buffers.checkpoints.angles[2]` change over the note's length times 60), +
-//!   8 for a note of 0x780000 or longer, + 0x10 turning one way.
+//!   8 for a note of 0x780000 or longer, + 0x10 for a turn one way.
 //!
 //! The tables are made by `rc2k_core::race::pace_notes::Notes` (on an image of the tables, written
 //! back only when it is done, so a refusal writes nothing); here the game's stage it asks and the

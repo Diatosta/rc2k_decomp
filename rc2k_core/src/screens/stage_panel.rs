@@ -44,9 +44,9 @@ pub struct Entry {
     pub temperature: i32,
     /// Tenths of a mile per hour.
     pub wind: u32,
-    /// The surface percentages, entry +0x24, +0x28, +0x2C, +0x30.
+    /// The four surface percentages of the entry.
     pub surfaces: [u32; 4],
-    /// Entry +0x34: the stage's number (what `race::single_rally` looks the entry up by); kept in
+    /// The entry's stage number (what `race::single_rally` looks the entry up by); kept in
     /// `Work::Entry34` by two of the panels.
     pub stage_number: u32,
     pub number: u32,

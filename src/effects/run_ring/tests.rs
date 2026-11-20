@@ -21,7 +21,7 @@ fn car_with(at: crate::effects::asm_test::Operand, base: usize, offsets: &[usize
     car
 }
 
-/// The car's 3 x 3 matrix (the record's +0x94) from the buffer at `at`.
+/// The car's 3 x 3 matrix (the record's inverse matrix) from the buffer at `at`.
 fn car_matrix(at: crate::effects::asm_test::Operand) -> CarEffects {
     let offsets: Vec<usize> = [0x0, 0x4, 0x8, 0x10, 0x14, 0x18, 0x20, 0x24, 0x28]
         .iter()
@@ -30,8 +30,8 @@ fn car_matrix(at: crate::effects::asm_test::Operand) -> CarEffects {
     car_with(at, 0x94, &offsets)
 }
 
-/// A whole matrix whose translation (+0x30 ..) is the buffer's at `at` + 0x30 (`at` the
-/// matrix's place).
+/// A whole matrix whose translation (the last three of its 16 floats) is the buffer's at `at` + 0x30
+/// (`at` the matrix's place).
 fn whole_at(at: crate::effects::asm_test::Operand) -> [crate::memory::session::Float; 16] {
     std::array::from_fn(|i| {
         crate::memory::session::Float::from_bits(if (12..15).contains(&i) {

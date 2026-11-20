@@ -1,26 +1,27 @@
 //! Draws the race frame, between the scene's begin and end. In turn: the cars shown are chosen
 //! (`drive::choose_shown_cars`), `view_cleared` cleared and the two view blocks' option bits
-//! (+0x220) copied into `hud_flags` and the next dword (each 0 while its `view_on` flag is 0); the
-//! batches' counts, `whole_polygon_count` and the next, `cars_drawn` and `cars_culled` are set to
-//! 0; bit 1 of `refresh_flags_a` goes into `marks_mask`, bit 0 of `refresh_flags_b` into
+//! `option_bits` copied into `hud_flags` and the next dword (each 0 while its `view_on` flag is 0);
+//! the batches' counts, `whole_polygon_count` and the next, `cars_drawn` and `cars_culled` are set
+//! to 0; bit 1 of `refresh_flags_a` goes into `marks_mask`, bit 0 of `refresh_flags_b` into
 //! `lamps_mask`, bit 6 of the first view's flags into `flat`; `mirror_wanted` is the first view
-//! block's flag (+0x6F0) when `precipitation_range` is not 0, else 0; `d3d_drawing_on` is 1. Then the
-//! sound tick 0xA, `shine` from `shine_from`, the filters and five render states (0x15 = 4, 0x1C =
-//! 1, 0x13 = 5, 0x14 = 6, 0x1B = 1). Then the sound tick 0xB, one more `frames_drawn`, the clock
-//! restarted into `clock_base`, the full view's window, the cars' parts readied, the maps
-//! scrolled; `texture_changes` 0, the views' textures forgotten, the mud's frame; the kinds'
-//! textures assigned (`kind_textures_done` 0), the two textures of the panel's `lights` entries
-//! (unless -1) wanted in kind 0xDC's first slot and the next; the places mapped, the slots'
-//! textures loaded; the sound tick 0xC; the panel set up unless `no_place`. Then the views: one
-//! (`views` 1: car A's, the scene, ticks 0xD and 0xE around `d3d::copy_screen_to_texture`, the
-//! overlays, tick 0xF, the mirror if the view's flags have bit 3), or two halves (`split` 1 side
-//! by side, else one above the other; with three or four players each player's part of the layout
-//! chosen with the split key, `race::split_layout`, and no mirrors), each with its window (`view_size`, `view_zoom`,
-//! `scene::set_view_window`), its car, the scene, tick 0xD, the overlays, tick 0xF and its mirror.
-//! Last: the first car loaded, both batches flushed, the sound spots found and shared, the parts'
-//! sounds woken, the sound tick 0x10, render states 0x11 and 0x12 = 2; the HUD's pass unless
-//! `in_credits` or `no_place`; the sound tick 0x11, the skidmarks laid, the name plates; the tyre
-//! change screen unless `replay_mode` is 2.
+//! block's `camera_mode_is_2_or_3` flag when `precipitation_range` is not 0, else 0;
+//! `d3d_drawing_on` is 1. Then the sound tick 0xA, `shine` from `shine_from`, the filters and five
+//! render states (0x15 = 4, 0x1C = 1, 0x13 = 5, 0x14 = 6, 0x1B = 1). Then the sound tick 0xB, one
+//! more `frames_drawn`, the clock restarted into `clock_base`, the full view's window, the cars'
+//! parts readied, the maps scrolled; `texture_changes` 0, the views' textures forgotten, the mud's
+//! frame; the kinds' textures assigned (`kind_textures_done` 0), the two textures of the panel's
+//! `lights` entries (unless -1) wanted in kind 0xDC's first slot and the next; the places mapped,
+//! the slots' textures loaded; the sound tick 0xC; the panel set up unless `no_place`. Then the
+//! views: one (`views` 1: car A's, the scene, ticks 0xD and 0xE around
+//! `d3d::copy_screen_to_texture`, the overlays, tick 0xF, the mirror if the view's flags have bit
+//! 3), or two halves (`split` 1 side by side, else one above the other; with three or four players
+//! each player's part of the layout chosen with the split key, `race::split_layout`, and no
+//! mirrors), each with its window (`view_size`, `view_zoom`, `scene::set_view_window`), its car,
+//! the scene, tick 0xD, the overlays, tick 0xF and its mirror. Last: the first car loaded, both
+//! batches flushed, the sound spots found and shared, the parts' sounds woken, the sound tick 0x10,
+//! render states 0x11 and 0x12 = 2; the HUD's pass unless `in_credits` or `no_place`; the sound
+//! tick 0x11, the skidmarks laid, the name plates; the tyre change screen unless `replay_mode` is
+//! 2.
 //!
 //! Refused (before anything): a null view block, and a wanted texture's slot past
 //! the 0x400 slots; then what its steps refuse.
@@ -300,10 +301,10 @@ fn draw_view(
         }
         return view();
     }
-    // The mirror drawn beside its view's scene (`scene::workers::draw_beside`, `scene::workers::mirror_beside`),
-    // each on its own state (`race::view_scratch`), the view's overlays once both have ended (they
-    // crumple the cars' points, which the mirror reads), the mirror's changes to the stores they
-    // share put over theirs as when drawn after them.
+    // The mirror drawn beside its view's scene (`scene::workers::draw_beside`,
+    // `scene::workers::mirror_beside`), each on its own state (`race::view_scratch`), the view's
+    // overlays once both have ended (they crumple the cars' points, which the mirror reads), the
+    // mirror's changes to the stores they share put over theirs as when drawn after them.
     if crate::scene::workers::mirror_beside() {
         // (The front end's filter switches are read before the parts, on the game's thread.)
         let filter = filter_input(&o.scene.scratch, car);
@@ -331,15 +332,16 @@ enum Piece {
     Mirror(usize),
 }
 
-/// The `players` players' views and their mirrors beside each other (`scene::workers::draw_side_by_side`):
-/// the first player's scene on the game's thread, its mirror and every other player's scene and
-/// mirror each on a drawing thread, every part from the frame's state with its player's part of the
-/// screen set up (`player`). Then, once all have ended, in the order the views are drawn in, the
-/// parts' changes put back and each player's overlays drawn between its scene and its mirror, on
-/// its scene's window and what the scene left (`race::scene_hand_off`): no overlays while a scene
-/// draws (they crumple the cars' points). So every view's scene starts from the frame's state, not
-/// from what the views before it left (the wake counts, the cars' crumpling and the sun the
-/// overlays work out reach the other views a frame later, however many threads draw).
+/// The `players` players' views and their mirrors beside each other
+/// (`scene::workers::draw_side_by_side`): the first player's scene on the game's thread, its mirror
+/// and every other player's scene and mirror each on a drawing thread, every part from the frame's
+/// state with its player's part of the screen set up (`player`). Then, once all have ended, in the
+/// order the views are drawn in, the parts' changes put back and each player's overlays drawn
+/// between its scene and its mirror, on its scene's window and what the scene left
+/// (`race::scene_hand_off`): no overlays while a scene draws (they crumple the cars' points). So
+/// every view's scene starts from the frame's state, not from what the views before it left (the
+/// wake counts, the cars' crumpling and the sun the overlays work out reach the other views a frame
+/// later, however many threads draw).
 fn draw_players_beside(
     o: Owners<'_>,
     gfx: &crate::gfx::owner::Gfx,
@@ -553,7 +555,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     ] {
         cell.set(0);
     }
-    // `cars_drawn`, now counted in each view's own state.
+    // `cars_drawn` is counted in each view's own state.
     for slot in [
         o.scene.scratch.main_view(0),
         o.scene.scratch.main_view(1),
@@ -598,7 +600,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     let begun = crate::debug::timing::start();
     race_sound_tick(frame, o)?;
     crate::debug::timing::stop(crate::debug::timing::Stage::SoundTick, begun);
-    // `shine` from `shine_from`: each view's from it now (`race::draw_view_scene`).
+    // `shine` from `shine_from`: each view's from it (`race::draw_view_scene`).
     crate::scene::set_filters::set_filters(race, part);
     for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
         set_render_state(part, value, state);

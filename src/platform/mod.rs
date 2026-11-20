@@ -73,7 +73,8 @@ pub(crate) struct Screen {
     #[cfg_attr(handheld, allow(dead_code))]
     // the handheld shows frames on its framebuffer
     pub(crate) texture: sdl::Texture,
-    /// The frame's size: what the game draws on (800 x 600 in the menus, the race's mode in a race).
+    /// The frame's size: what the game draws on (800 x 600 in the menus, the race's mode in a
+    /// race).
     pub(crate) width: usize,
     pub(crate) height: usize,
     /// The window's size: the race's mode, from the start to the end; a frame of another size is
@@ -93,10 +94,10 @@ impl Screen {
     pub(crate) fn with_frame<R>(&self, show: impl FnOnce(&[u8]) -> R) -> R {
         // SAFETY: `PoolBytes::slice`'s promise: the screen's pixels are reached from the game's
         // thread only (the backends' calls and the frame's showing run on it; the drawing threads
-        // they lend the rows to are joined before `Backend::draw` returns), and nothing on it writes
-        // them while `show` runs: the GPU's canvas writes (`render::finish_frame`, `bring_back`,
-        // `show_on_panel`) come before the frame is taken, and `show` only reads it. The slice
-        // borrows `self`, which keeps the pixels.
+        // they lend the rows to are joined before `Backend::draw` returns), and nothing on it
+        // writes them while `show` runs: the GPU's canvas writes (`render::finish_frame`,
+        // `bring_back`, `show_on_panel`) come before the frame is taken, and `show` only reads it.
+        // The slice borrows `self`, which keeps the pixels.
         let pixels = unsafe { self.pixels.slice() };
         show(pixels)
     }
@@ -366,8 +367,8 @@ fn set_mode_variables(mode: u32, gfx: &Gfx, system: &System) -> Result<ModeSizes
     // The z-buffer's depth: none here (there is no 3D device to pick it).
     system.session.screen.get().depth_bits.set(0x10u32);
 
-    // The surface's pixel format, as DirectDraw would report it: +4 blue, +8 green,
-    // +0xC red, +0x10 no alpha.
+    // The surface's pixel format, as DirectDraw would report it: masks for blue,
+    // green and red, none for alpha.
     if bits != 32 {
         return Err("a screen mode that is not 32 bits a pixel".into());
     }

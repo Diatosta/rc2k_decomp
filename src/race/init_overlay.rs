@@ -6,9 +6,9 @@
 //! out huge), / 65536 / 1609.344 (metres in a mile) and doubled. The lengths go into
 //! `overlay_part_miles` (floats, at most 0x40), their sum into `overlay_miles`, their count into
 //! `overlay_parts`, and the two part-kind dwords of each part are set to 0. With fewer than two
-//! checkpoint kinds or no parts, there is one part of 1.0. Then six sizes (0x40, 0x80, 0x50,
-//! twice) are set and each car block's +0xF78 ..= +0xF98 and +0xFA0 are cleared. The x87 steps go
-//! through `math::x87`; `scratch` is left as the `fild` leaves it.
+//! checkpoint kinds or no parts, there is one part of 1.0. Then six sizes (0x40, 0x80, 0x50, twice)
+//! are set and each car block's event codes, event count and event position are cleared. The x87
+//! steps go through `math::x87`; `scratch` is left as the `fild` leaves it.
 //!
 //! Refuses more than 0x40 parts.
 

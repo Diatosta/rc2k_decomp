@@ -215,8 +215,8 @@ fn measure_held(
     let (checkpoints, vars) = (&shared.buffers.reads.get().checkpoints, shared.vars.get());
     let count: u32 = vars.checkpoint_count.get();
     let (x, z) = (ground.ground_x.get(), ground.ground_z.get());
-    // With rounding to nearest the distance is `round(sqrt(dx² + dz²))` in plain doubles,
-    // rising with the sum: a checkpoint whose sum is at least (nearest + 1)² cannot be kept,
+    // With rounding to nearest the distance is `round(sqrt(dx^2 + dz^2))` in plain doubles,
+    // rising with the sum: a checkpoint whose sum is at least (nearest + 1)^2 cannot be kept,
     // and its root is not taken (the bound is exact while the nearest is below 2^26).
     let plain = crate::math::x87::rounds_to_nearest();
     let mut last = None;

@@ -1,4 +1,4 @@
-//! One tick of the race. Fatal error 0x80600655 (no message) when the first car block's +0x260
+//! One tick of the race. Fatal error 0x80600655 (no message) when the first car block's `probe_count`
 //! is 0. Free roaming (`levers_on` 0): `drive::simple_car_step`. Else the tick count
 //! `race_ticks` + 1 and `drive::replay_step` every tick, or with `after_credits` set every
 //! second tick, and past 1 every fourth.

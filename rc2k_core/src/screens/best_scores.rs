@@ -75,8 +75,8 @@ fn fonts(marked: bool) -> (Font, Font, Font) {
     }
 }
 
-/// A row of a section's best times (0x9C-byte entry): name +0x20, time +0x18, nationality +8,
-/// car +0x10, player flag +0x40.
+/// A row of a section's best times (read from a 0x9C-byte entry): name, time, nationality,
+/// car and player flag.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SectionRow<T> {
     pub name: T,

@@ -5,7 +5,7 @@
 //!   the layout flags both 1;
 //! - the first `files\%locale\*.loc`, 0x30 bytes: none is fatal error 0x80E38381, one that does
 //!   not start "LOCL" 0x80E38382. Its byte +0xF is the units (the units setting and each car's
-//!   +0x178); its byte +8 is read further down;
+//!   `metric_units`); its byte +8 is read further down;
 //! - the language's built-in own texts (`language::own_texts`);
 //! - the first `files\%locale\*.kim`, up to 0x400 bytes, if there is one: not starting "KEYB" is
 //!   fatal error 0x80E383A2. The ten offsets at its +0x30 become addresses, the layout is the
@@ -105,7 +105,7 @@ pub fn load_language(
     };
     let units = file.units as u32;
     crate::strings::units::set_units(strings, units);
-    // Each car's copy of the units, at its +0x178.
+    // Each car's copy of the units.
     for player in &o.menus.play.slots.records {
         player.update(|p| p.metric_units = units);
     }

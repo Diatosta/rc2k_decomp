@@ -1,9 +1,9 @@
 //! `effects::add_drift_particle`: one entry of the marks' particle ring (the ring's first
-//! free entry, while the used count is not 0xFFF) started from six values `v`: +8 the
-//! kind; `v[0]` .. `v[2]` at +0x34, +0x2C, +0x28 (the motion); `v[3]` at +0x14 and +0x20;
-//! `v[4]` at +0x10 and (less the drift lowering) +0x1C; `v[5]` at +0xC and +0x18 (the
-//! place, now and last); +0x38 0x8000, +0x3C 0xFF000000, +0x44 50000, +0x24 the view's
-//! +0x34. With the ring full the six are dropped.
+//! free entry, while the used count is not 0xFFF) started from six values `v`: the kind;
+//! `v[0]` .. `v[2]` the motion (the lift is not set); `v[3]`, `v[4]` and `v[5]` the place's
+//! three coordinates, each stored as the place and as the last place (the second coordinate of
+//! the last place less the drift lowering); the size 0x8000, the colour 0xFF000000, the life
+//! 50000, and the ground taken from the view's place. With the ring full the six are dropped.
 //!
 //! Refuses a null ring (an entry to take), before anything.
 

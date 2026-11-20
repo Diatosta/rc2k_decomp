@@ -1302,8 +1302,8 @@ fn matrix_turn(m: &[u32; 15], a: bh::X, b: bh::X, c: bh::X, translate: bool) -> 
 }
 
 /// `effects::emit_exhaust_smoke`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m`
-/// (its rows 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
-/// `lift`, z.
+/// (its rows 0x10 apart), placed by the matrix's fourth row and the place taken off again; then
+/// x, y, y less `lift`, z.
 pub fn turned_place_less_f32(
     t: [f32; 3],
     k: impl Flt,

@@ -45,7 +45,7 @@ pub struct Devices {
     pub joy_dead_zone: Dword,
     /// `joyupperdz`: its end zone.
     pub joy_end_zone: Dword,
-    /// `alt2axcode`: its +0x1C.
+    /// `alt2axcode`: its `axis_pick`.
     pub alt_axes_code: Dword,
     /// `noforcefeedback`.
     pub no_force_feedback: Dword,

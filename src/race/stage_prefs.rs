@@ -1,5 +1,5 @@
 //! More of `race::loadlevel_init`'s steps: "load prefs" (the stage's `localdat`, 0x206C bytes,
-//! which hold `texture_kinds` at +0x100 and the picture lists), "skidmarks init", "render3d
+//! which hold `texture_kinds` and the picture lists), "skidmarks init", "render3d
 //! loadlightsdat" and "getmatcrash".
 
 use crate::errors::BadInput;
@@ -66,7 +66,7 @@ pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::copy_lights_data`: copies 0x22 records of 0x90 bytes from the lights' data to +0xA4 of
+/// `race::copy_lights_data`: copies 0x22 records of 0x90 bytes from the lights' data into the lights' part of
 /// the 0x134-byte light records.
 pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};

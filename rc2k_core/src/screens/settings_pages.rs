@@ -59,8 +59,8 @@ pub fn graphics_item(a: u32, b: u32) -> bool {
     a.wrapping_add(b) == 2
 }
 
-/// The graphics page's first row (the original's 0xDC, moved up three rows for the rows below the
-/// last of the original's, so none lies over the page's buttons).
+/// The graphics page's first row (y 0xDC moved up three rows for the rows below the
+/// last row, so none lies over the page's buttons).
 const GRAPHICS_TOP: i32 = 0xDC - 3 * 0x1B;
 
 /// The graphics page: eight names at rows 0, 2 .. 8 (y 0xDC every 0x1B); after the first,

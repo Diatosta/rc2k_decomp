@@ -1,8 +1,8 @@
 //! The sound spots of the course around the view (`race::find_sound_spots` ->
 //! `race::cell_sound_spots` -> `race::face_sound_spot`): course faces of kind 0xFF with object
 //! 0x3F (sound objects) in the 5 x 5 cells of `course_grid` around the view, at most 0x24, go into
-//! `sound_spots` (0x14 bytes: +0 the point, +4 .. +0xC its place turned by the view and scaled by
-//! `one_over_65536`, +0x10 the sound, the face's +8, 1 .. 0x15).
+//! `sound_spots` (0x14 bytes: the point, its place turned by the view and scaled by
+//! `one_over_65536`, and the sound, the face's sound number, 1 .. 0x15).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
@@ -109,7 +109,7 @@ fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Result
 }
 
 /// `race::cell_sound_spots`: runs `face_sound_spot` on each face of cell `cell`'s record
-/// (`course_grid[c]`; the record's +8 .. +0xC give the faces, none for -1 or a first past the
+/// (`course_grid[c]`; the record's first-face and last-face words give the faces, none for -1 or a first past the
 /// last).
 fn cell_sound_spots(
     race: &Race,

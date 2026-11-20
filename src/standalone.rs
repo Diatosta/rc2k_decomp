@@ -534,8 +534,8 @@ fn start_workers(o: Owners<'static>) {
     }
     rust("sound::wait_for_commands");
     crate::sound::wait_for_commands::wait_in_game(o);
-    // The original slept a second more here, for the sound card of its day; SDL's sound is
-    // ready once the audio thread has taken its commands.
+    // No extra wait is needed here: SDL's sound is ready once the audio thread has taken its
+    // commands.
 }
 
 /// The screen modes, the picture buffer and the pixel converters. `sound::open_cd_audio` is not

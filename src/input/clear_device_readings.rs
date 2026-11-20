@@ -1,5 +1,5 @@
-//! A device's state copies (+0x2C .. +0x38) and
-//! readings (+0x4DC .. +0x4E4) 0, its bits reading +0x4E8 0xE00 (the hat centred).
+//! A device's state copies (`axes`, `buttons`) and
+//! `readings` 0, its `bits` reading 0xE00 (the hat centred).
 
 use crate::input::types::InputDevice;
 
@@ -21,7 +21,7 @@ mod tests {
     use super::*;
     use crate::input::devices::record_bytes;
 
-    /// The fields cleared are the places the original cleared, with its values; the rest of the
+    /// The fields cleared are the state copies, the readings and the bits; the rest of the
     /// record is as it was.
     #[test]
     fn clears_the_original_places() {

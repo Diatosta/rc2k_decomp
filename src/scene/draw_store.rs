@@ -1,10 +1,10 @@
 //! The scene's draw state: the view window, scale and depths (`scene::set_view_window`), the
-//! polygon being drawn and its clipping (`scene::clip`, `scene::draw_polygon`), the turns'
-//! sines, the light, and the x87 code's shared work dword (`scratch`), held by
-//! `scene::owner::Drawing::scene`. Plain cells: a drawing store (`session::DrawShared`),
-//! written on the game's thread between frames (mostly the physics' work dwords) and read by
-//! the drawing parts through their `scene::workers::DrawReads` (the polygons' alpha, the fade and clip
-//! factors, `v3_driver_fix`).
+//! polygon being drawn and its clipping (`scene::clip`, `scene::draw_polygon`), the turns' sines,
+//! the light, and the x87 code's shared work dword (`scratch`), held by
+//! `scene::owner::Drawing::scene`. Plain cells: a drawing store (`session::DrawShared`), written on
+//! the game's thread between frames (mostly the physics' work dwords) and read by the drawing parts
+//! through their `scene::workers::DrawReads` (the polygons' alpha, the fade and clip factors,
+//! `v3_driver_fix`).
 
 use crate::memory::cells::ZeroCells;
 use crate::memory::session::{PlainDword, PlainFloat};
@@ -146,14 +146,14 @@ pub struct SceneDraw {
     pub turn_z_work: [PlainFloat; 2],
     /// 15 dwords after the turns' sines; no code uses them (a gap).
     pub unknown_1e0: [PlainDword; 15],
-    /// The amount (alpha) byte, +0x21, of the vertex a clip crossing makes: the two ends' bytes
+    /// The amount (alpha) byte of the vertex a clip crossing makes: the two ends' bytes
     /// blended by the crossing's share (`race::car_shadow`). Unused: each view has its own in
     /// `scene::polygon_work::PolygonWork`.
     pub crossing_amount: PlainDword,
     /// Three dwords after the vertex byte; no code uses them (a gap).
     pub unknown_220: [PlainDword; 3],
     /// `scene::clip`'s second output run (five words written back from its work);
-    /// `race::car_shadow` keeps the new crossing vertex's fog byte (+0x20, blended like the
+    /// `race::car_shadow` keeps the new crossing vertex's fog byte (blended like the
     /// amount) in [0]. Unused: each view has its own in `scene::polygon_work`.
     pub clip_out_words: [PlainDword; 5],
     /// Two dwords before the farthest depth; no code uses them (a gap).

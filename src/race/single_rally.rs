@@ -901,7 +901,7 @@ mod vector_tests {
         mode: u32,
         count: u32,
         current: u32,
-        /// The +0xD0 word of each record.
+        /// The `d0` word of each record.
         d0: [u32; 4],
         /// Records `players` has no entry for (0).
         stage: u32,

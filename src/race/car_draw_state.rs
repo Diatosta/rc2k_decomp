@@ -1,18 +1,16 @@
 //! A view's cars' drawing state: what drawing the cars and the objects works out and reads again
-//! within the view, one in each view's slot (`view_scratch`) and one for the front end. It replaces
-//! state once shared by every view at once: `FrameWork` (the cars drawn, the car's kept place and
-//! depth), `CameraWork` (the car's kept word), `RaceWork` (the car's drawing word), `FrameSwitches`
-//! (the object's material way, the fade words, the number of the object being drawn, the car's
-//! group masks), `CourseWork` and `ViewVars` (`group_mask`), and each car block's state bits
-//! (+0x6FC). The old fields stay in the stores, unused.
+//! within the view, one in each view's slot (`view_scratch`) and one for the front end: the cars
+//! drawn, the car's kept place and depth, the car's kept word and drawing word, the object's
+//! material way, the fade words, the number of the object being drawn, the car's group masks and
+//! face group mask, and each car block's state bits as the view draws them.
 
 use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells)]
 pub struct CarDrawState {
-    /// Each car block's state bits as the view draws it (+0x6FC of the block: lights, seen from
-    /// inside 0x10, casts a shadow, ...), set at the view's start (`car_light_modes`), by block
-    /// number.
+    /// Each car block's state bits as the view draws it (the block's `state_bits`: lights, seen
+    /// from inside 0x10, casts a shadow, ...), set at the view's start (`car_light_modes`), by
+    /// block number.
     pub car_states: [PlainDword; crate::race::blocks_store::BLOCK_COUNT],
     /// The cars drawn this frame (`cars_drawn`).
     pub cars_drawn: PlainDword,
@@ -30,9 +28,9 @@ pub struct CarDrawState {
     /// (`list_object_face`).
     pub groups_which: PlainDword,
     /// The drawn car's four parts' matrices (`FrameWork.part_matrices`: copied from its block's
-    /// +0x740 by `draw_car`).
+    /// `part_matrices` by `draw_car`).
     pub part_matrices: [crate::memory::session::PlainFloat; 64],
-    /// The drawn car's turn (`FrameWork.placed_matrices`' first: its block's +0x880).
+    /// The drawn car's turn (`FrameWork.placed_matrices`' first: its block's `place_matrix`).
     pub car_turn: [crate::memory::session::PlainFloat; 16],
     /// The material way of the object being drawn (`other_way_kind`).
     pub other_way_kind: PlainDword,

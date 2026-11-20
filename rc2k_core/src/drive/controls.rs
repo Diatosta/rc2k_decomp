@@ -89,7 +89,7 @@ pub(crate) const RESET_FROM: u32 = 0x320;
 pub const RESET_KEY: u32 = 0x80;
 pub(crate) const RESET_STEPS: u32 = 100;
 pub const RESET_NOTICE: u32 = 0xCD;
-/// The time penalty, less the stuck count (+0x1E8).
+/// The time penalty, less the car's stuck count.
 pub(crate) const RESET_PENALTY: u32 = 0x2BC;
 
 /// Whether the start timer is past `RESET_FROM`.

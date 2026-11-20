@@ -1,5 +1,5 @@
-//! A marker sprite (rectangle 0x5C) along the top at the share +0x6C over +0x68 of the HUD's
-//! record, times `HudBlock.marker_k[0]` plus `marker_k[1]` (rounded through `fistp_scratch`),
+//! A marker sprite (rectangle 0x5C) along the top at the share of the panel's `overlay_miles`
+//! over its `distance[0]`, times `HudBlock.marker_k[0]` plus `marker_k[1]` (rounded through `fistp_scratch`),
 //! coloured `HudBlock.marker_colours[0]`.
 
 use crate::errors::Refused;

@@ -2,7 +2,7 @@
 //! polygon-drawn flag 0; the four polygon records' vertex pointers (`quad_vertices`, 0x20
 //! apart), texture places (`quad_uv`), the corners' x (left, right) and y (top, bottom) from
 //! `quad_corners` as floats, the fixed depth; the entries -1, colour `quad_colour`'s low 24
-//! bits, the records' +0x18 0; four vertices, the record pool, the list 0 .. 3; then
+//! bits, the entries' `light` 0; four vertices, the record pool, the list 0 .. 3; then
 //! `scene::scale_texture_coordinates`, `scene::clip_polygon_to_screen` and, with three vertices
 //! or more left, mode 6, both `polygon_sides` switches set (1, 0), the depth buffer off
 //! (`scene::depth_buffer_on::depth_buffer`), `scene::draw_polygon`, the polygon-drawn flag 1,

@@ -166,7 +166,7 @@ impl ReplayViewBlock {
         ))
     }
 
-    /// Where the list's key table (the header's +0x10) is.
+    /// Where the list's key table (from the header) is.
     pub fn key_table(replay: &Replay) -> Result<BytePlace, crate::errors::BadInput> {
         Self::named(
             replay.replay_view().viewer_list.header.neighbours.get(),
@@ -185,7 +185,7 @@ impl ReplayViewBlock {
         )
     }
 
-    /// What item `index`'s picture (its +0xC: a rectangle, or one of the switch tables) is: the
+    /// What item `index`'s picture (a rectangle, or one of the switch tables) is: the
     /// picture's name is compared with the three tables' addresses.
     pub(super) fn item_picture(
         replay: &Replay,

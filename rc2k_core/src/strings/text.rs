@@ -387,9 +387,9 @@ pub fn draw<C: Canvas>(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Measured {
     pub outcome: Outcome,
-    /// The number of lines (the font's +0x14 afterwards).
+    /// The number of lines (left in the font's line count afterwards).
     pub lines: u32,
-    /// The widest line (the font's +0x1C afterwards).
+    /// The widest line (left in the font's width field afterwards).
     pub width: u32,
 }
 

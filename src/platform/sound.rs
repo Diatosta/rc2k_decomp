@@ -69,7 +69,7 @@ impl Format {
 }
 
 /// What `IDirectSound::GetCaps` says (as Wine's DirectSound does: no hardware buffers):
-/// the dwords at +4 .. +0x10 of `DSCAPS`, the rest 0.
+/// the four dwords of `DSCAPS` after its size, the rest 0.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DeviceCaps {
     pub flags: u32,

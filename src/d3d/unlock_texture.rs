@@ -1,5 +1,6 @@
-//! `d3d::unlock_texture`: a system texture unlocked: with a surface (+0x14) that is locked
-//! (+0x60 1), its unlock (a failure is fatal error 0x8021A173) and +0x60 0. Takes the texture.
+//! `d3d::unlock_texture`: a system texture unlocked: with a surface (`surfaces[0]`) that is locked
+//! (`locked` 1), its unlock (a failure is fatal error 0x8021A173) and `locked` 0. Takes the
+//! texture.
 //!
 //! Refuses a texture past the pool's 0x140, before anything.
 

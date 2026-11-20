@@ -20,13 +20,14 @@ fn clamped(kind: u32) -> u32 {
     (kind as i32).clamp(0, MOST_KIND) as u32
 }
 
-/// `effects::load_edges`: once (then the done flag is set) each kind's record (`x87::scale_record` by 65536 /
-/// 1000) and its float less from 90; the settings' +0x2708 0xFFFF7B2E; the kind (held to 0 .. 0x16)
-/// written as two digits into the edge picture's path; that read (`gfx::read_picture_file`, at 256
-/// x 128, the picture's sizes kept round it); its pixels packed (the four bytes or'd, inverted)
-/// into the edge mask; the shape tilt the kind's float times 0.0175; then `make_masks`,
-/// `set_up_windscreen_drops`, `set_up_windscreen_flakes`. A picture that is not read is a trouble the game goes back
-/// from (`Recover`), after the path is written.
+/// `effects::load_edges`: once (then the done flag is set) each kind's record (`x87::scale_record`
+/// by 65536 / 1000) and its float less from 90; the settings' `light_point_a_negated[0]`
+/// 0xFFFF7B2E; the kind (held to 0 .. 0x16) written as two digits into the edge picture's path;
+/// that read (`gfx::read_picture_file`, at 256 x 128, the picture's sizes kept round it); its
+/// pixels packed (the four bytes or'd, inverted) into the edge mask; the shape tilt the kind's
+/// float times 0.0175; then `make_masks`, `set_up_windscreen_drops`, `set_up_windscreen_flakes`. A
+/// picture that is not read is a trouble the game goes back from (`Recover`), after the path is
+/// written.
 #[allow(
     clippy::too_many_arguments,
     reason = "the edges' inputs and the owners they are read from"
@@ -112,7 +113,7 @@ pub(super) fn load_edges(
 }
 
 /// `effects::load_kind_data`, `init_marks`' step 1: the kind taken from the settings'
-/// +0x26A8; then `load_edges`, `load_splines`. Refuses as its steps do.
+/// `mark_car_file_number`; then `load_edges`, `load_splines`. Refuses as its steps do.
 pub(super) fn load_kind_data(
     race: &crate::race::owner::Race,
     effects: &Effects,
@@ -353,15 +354,15 @@ impl KindBoxes {
 /// The edges' scales, once-only mark and picture path.
 #[derive(rc2k_derive::Cells)]
 pub struct EdgeSettings {
-    /// What the settings' +0x2750 is multiplied by (`effects::scale_setting`; 1.0).
+    /// What the settings' `setting_to_scale` is multiplied by (`effects::scale_setting`; 1.0).
     pub factor: PlainFloat,
     /// Set once `effects::load_edges` has scaled the kinds' records.
     pub done: PlainFlag,
     /// 65536.0, 1000.0, 90.0: the kinds' records are scaled by the first over the second,
     /// and their floats taken from the third.
     pub scale: [PlainFloat; 3],
-    /// `files\m\edge00.pcx` and its NUL: the edge picture's path (the kind's two digits at +12,
-    /// +13).
+    /// `files\m\edge00.pcx` and its NUL: the edge picture's path (the kind's two digits at bytes 12
+    /// and 13).
     pub path: PlainBytes<20>,
     /// 0.0175 (degrees to radians), the shape tilt's scale (a float's bits).
     pub tilt_scale: PlainDword,

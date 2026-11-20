@@ -24,7 +24,7 @@ pub struct ShownSetup {
     /// How many of `player_cars` are set (0: the player is the car).
     pub player_count: u32,
     /// The cars whose sounds are all heard (each listed by its own number), the first so many: a
-    /// replay of more than two cars; 0 for the original's choice.
+    /// replay of more than two cars; 0 for the default choice.
     pub heard_cars: u32,
 }
 

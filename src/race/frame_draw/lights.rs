@@ -7,17 +7,17 @@ use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
 
 /// Sets the cars' light modes: the shown car (`shown_car`) is the drawn view's car
-/// (`crate::test_support::own::race().shared.view.view_cars[drawn_view]`); every car block's +0x6FC is
-/// set to 0; then for each race car with lights (+0x25C) that is drawn (any car in modes 0 and 2,
-/// else the shown car only; the shown car not with +0x69C and +0x684 both 0, nor in the mirror,
-/// `mirrored`) +0x6FC's nibbles are set step by step: 0x21; for the shown car with
-/// `view_car_flag_b`, 0x12, then 0x14 unless `view_car_stage` is 1, then 0x11 unless it is 2 or 3;
-/// then 0x100 in the third nibble, 0x200 with
-/// `crate::test_support::own::race().shared.vars.settings_words[3]` (1: the shown car only). Refused
-/// (before anything): a null block among the eight, or more than eight cars. The camera flag and
-/// stage (`view_car_flag_b`, `view_car_stage`) are the shown car's own (`camera_mode_is_2_or_3`,
-/// +0x684 `camera_view`), not what the view drawn before had set from them (which was one frame
-/// late after a camera change).
+/// (`crate::test_support::own::race().shared.view.view_cars[drawn_view]`); every car's state bits
+/// (the view's `CarDrawState`) are set to 0; then for each race car with lights (`driver_kind`)
+/// that is drawn (any car in modes 0 and 2, else the shown car only; the shown car not with
+/// `camera_switch_share` and `camera_view` both 0, nor in the mirror, `mirrored`) the state bits'
+/// nibbles are set step by step: 0x21; for the shown car with `view_car_flag_b`, 0x12, then 0x14
+/// unless `view_car_stage` is 1, then 0x11 unless it is 2 or 3; then 0x100 in the third nibble,
+/// 0x200 with `crate::test_support::own::race().shared.vars.settings_words[3]` (1: the shown car
+/// only). Refused (before anything): a null block among the eight, or more than eight cars. The
+/// camera flag and stage (`view_car_flag_b`, `view_car_stage`) are the shown car's own
+/// (`camera_mode_is_2_or_3`, `camera_view`), not what the view drawn before had set from them
+/// (which was one frame late after a camera change).
 pub fn car_light_modes(
     frame_cars: &crate::race::frame_view::FrameCars,
     states: &crate::race::car_draw_state::CarDrawState,
@@ -69,7 +69,7 @@ pub fn car_light_modes(
     Ok(())
 }
 
-/// A view's own lamp `n` of the 16 (0x10 bytes: +0 the point, +4 the strength, +8 the colour;
+/// A view's own lamp `n` of the 16 (0x10 bytes: the point, the strength, the colour;
 /// `lamps`). One past the 16 is refused.
 pub(super) fn own_lamp(
     lamps: &crate::race::lamp_work::LampWork,
@@ -82,8 +82,8 @@ pub(super) fn own_lamp(
         .ok_or(BadInput("a lamp past the sixteen"))
 }
 
-/// Adds the lamp entry: the lamp's point (`lamps` +0) through `view_matrix` (the point into
-/// `place` .. `place[2]`, then x and y turned there, z rounded into
+/// Adds the lamp entry: the lamp's point (the first of its `lamps` entry) through `view_matrix`
+/// (the point into `place` .. `place[2]`, then x and y turned there, z rounded into
 /// `face_depth_key`, + 0x2000000 and shifted right 10), and a depth entry of that key with
 /// `lamp_count` + 0x3000000. The caller checks the room.
 pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
@@ -110,10 +110,10 @@ pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Sets `lamp_count` 0; each lit face (`lit_faces`, the count `lit_face_count`) whose object (+1)
-/// is 0x3B becomes a lamp while there are fewer than 16: a `lamps` entry (+0 the face's first
-/// point, +4 its +0x11 byte, +8) and its depth entry (`add_lamp_entry`). Refused (before anything):
-/// more than 0x100 lit faces, or a depth list without room for 16.
+/// Sets `lamp_count` 0; each lit face (`lit_faces`, the count `lit_face_count`) whose object is
+/// 0x3B becomes a lamp while there are fewer than 16: a `lamps` entry (the face's first point, its
+/// mark byte, the colour) and its depth entry (`add_lamp_entry`). Refused (before anything): more
+/// than 0x100 lit faces, or a depth list without room for 16.
 pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
     let contact = ctx.reads.contact;
     let count: u32 = contact.lit_face_count.get();
@@ -244,9 +244,9 @@ pub(super) fn car_lights_on_point(
     Ok(())
 }
 
-/// The lamps' light on the lit place: each lamp with a strength (+4) gives ((0x200000 - its
-/// approximate distance) x strength) >> 17 (held to 0 .. 0xFF) as a grey, times its colour (+8,
-/// `lamp_tint`) byte by byte, added to `light_colour`.
+/// The lamps' light on the lit place: each lamp with a strength gives ((0x200000 - its approximate
+/// distance) x strength) >> 17 (held to 0 .. 0xFF) as a grey, times its colour (`lamp_tint`) byte
+/// by byte, added to `light_colour`.
 pub(super) fn lamp_lights_on_point(
     course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
@@ -315,11 +315,10 @@ pub fn light_colour_at(
     Ok(())
 }
 
-/// Sets the lit place to the view's car's (`ViewScratch::car`, its +0x134 ..); `light_colour_at`;
+/// Sets the lit place to the view's car's (`ViewScratch::car`, its `position`); `light_colour_at`;
 /// the view's `ObjectLight::view_light` = the view's car's light colour plus the light
-/// (`add_colours`). Fixed: `view_light_base`, the light colour of the last car the
-/// previous view drew, used to be added, so the views' order showed in the snowflakes' tint ("Each
-/// view lit by what the view before it left" in `wiki/Fixed-bugs.md`).
+/// (`add_colours`). `view_light_base`, the light colour of the last car the previous view drew, is
+/// not added, so the views' order does not show in the snowflakes' tint.
 pub fn view_light(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let (race, view) = (ctx.race, ctx.view);
     let (lamps, object_light, car) = (&view.lamps, &view.light, &view.car);

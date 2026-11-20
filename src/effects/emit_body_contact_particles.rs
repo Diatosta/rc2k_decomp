@@ -1,15 +1,15 @@
 //! `effects::emit_body_contact_particles`: ring entries of kind 0x12, for the record's kind
 //! 1 (entered from `effects::emit_body_particles`).
 //!
-//! Takes: the record (the car object's +0x1F4), the car object.
+//! Takes: the record (the car object's body record, the last of its `records`), the car object.
 //!
-//! The wheel flags get the record's +0x20; the count (`whole`): the record's +0x38 by a
+//! The wheel flags get the record's `flags`; the count (`whole`): the record's `size` by a
 //! constant (held to 1 unless under another constant) times four times the flags >> 6,
 //! rounded; that many entries (none for 0 or less, but 0x80000000 of them for 0x80000000),
 //! until the ring is full. Each: its motion the side vector moved by `effects::jitter_point`
-//! (a spread constant), y made positive; its place the record's (+0x3C ..), less a lift in y
-//! at +0x28; +0x1C .. +0x24 0; a life of 300 (+0x78 a constant over it); +0x68 the emitting
-//! car. The first entry's tag (+0x90) is the object's +0x1C, the later ones the previous
+//! (a spread constant), y made positive; its place the record's `place`, its `ground_y` that y
+//! less a lift; the last place 0; a life of 300 (`alpha_fade` a constant over it); `car` the
+//! emitting car. The first entry's `car_tag` is the object's `tag`, the later ones the previous
 //! entry's (0: a slip kept as is). Refuses (before anything) a null record, and a null
 //! object when an entry is made.
 

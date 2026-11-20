@@ -1,46 +1,46 @@
-//! The replay format of this project (version 2), beside the original's: up to eight cars, every
+//! The replay format of this project (version 2), beside the first format's: up to eight cars, every
 //! one of them recorded. A file is
 //!
-//! - the original's `HEADER_LEN` (0x430) header with its own magic ("RC2R") and version
+//! - the first format's `HEADER_LEN` (0x430) header with its own magic ("RC2R") and version
 //!   (`VERSION`), the same settings, sealed part and physics switches; its dword at `EXT_LEN_AT`
-//!   (a place the original leaves zero) says how long the extension is;
+//!   (a place the first format leaves zero) says how long the extension is;
 //! - the extension at 0x430: sections of (tag, length, bytes), each padded to a dword, so that a
 //!   later version can add sections and an older reader skips what it does not know: `CARS`
 //!   (the cars: model, kind, how recorded, name), `BLKS` (the layout of a block), `NEXT` (what
 //!   playback of sound for more than two cars and of a split screen will need);
-//! - the blocks, one second each, as in the original's file: the original's block of
+//! - the blocks, one second each, as in the first format's file: the first format's block of
 //!   `EXTENDED_FRAME_BYTES` (cars 0 .. 3 as their state at the second's start, the loose parts, the
 //!   computer driver's state, and the inputs of cars 0 .. 3 for the second's hundred steps), then
 //!   the **tail** (`TAIL_BYTES`): the state of cars 4 .. 7 at the second's start, their inputs,
 //!   and the **states**: for the cars not driven on the machine that recorded (a network game's
 //!   other players and bots, which that machine saw glided to the host's places) their
 //!   motion at each of the second's steps, as that machine showed it;
-//! - the index at the file's end, as the original's (`RCIB`, up to 1800 blocks).
+//! - the index at the file's end, as the first format's (`RCIB`, up to 1800 blocks).
 //!
-//! The blocks are packed by runs and indexed as the original's are, so the viewer's cutting,
+//! The blocks are packed by runs and indexed as the first format's are, so the viewer's cutting,
 //! pasting and camera editing work on them unchanged.
 
 use crate::race::replay::HEADER_MAGIC;
 
 /// The header's first dword of a replay of this format, "RC2R".
 pub const MAGIC: u32 = 0x5232_4352;
-/// The header's version (the original's are 0x50400 and 0x50401).
+/// The header's version (the first format's are 0x50400 and 0x50401).
 pub const VERSION: u32 = 0x0002_0000;
-/// Where the header keeps the extension's length (the original's header has zero there).
+/// Where the header keeps the extension's length (the first format's header has zero there).
 pub const EXT_LEN_AT: usize = 0x1B0;
 /// The header's bytes before the extension.
 pub const HEADER_LEN: usize = 0x430;
 /// The most cars a replay holds.
 pub const MAX_CARS: usize = 8;
-/// The cars the original's block holds the state of.
+/// The cars the first format's block holds the state of.
 pub const HEAD_CARS: usize = 4;
 /// The cars whose state the tail holds (4 .. 7).
 pub const TAIL_CARS: usize = MAX_CARS - HEAD_CARS;
 /// Steps in a block.
 pub const STEPS: usize = 100;
-/// The blocks the own format's index holds: 90 minutes (the original's holds 1800, 30 minutes).
+/// The blocks the own format's index holds: 90 minutes (the first format's holds 1800, 30 minutes).
 pub const MOST_BLOCKS: u32 = 5400;
-/// The own format's index at a file's end: the original's four head dwords and a (place, size)
+/// The own format's index at a file's end: the first format's four head dwords and a (place, size)
 /// pair for each of `MOST_BLOCKS` blocks.
 pub const OWN_INDEX_LEN: usize = 16 + 8 * MOST_BLOCKS as usize;
 
@@ -70,7 +70,7 @@ pub(crate) fn is_magic(word: u32) -> bool {
     word == MAGIC
 }
 
-/// Whether a header's first dword is one of the two formats' (the original's or this one).
+/// Whether a header's first dword is one of the two formats' (the first format's or this one).
 pub(crate) fn is_replay_magic(word: u32) -> bool {
     word == HEADER_MAGIC || word == MAGIC
 }
@@ -344,7 +344,7 @@ pub(crate) fn decode_states(
 // ---- the tail ----
 
 /// A block's tail: the state of cars 4 .. 7 at the second's start, their inputs at each step
-/// (the two words a car's entry holds, as the original's tape does), and the recorded states.
+/// (the two words a car's entry holds, as the first format's tape does), and the recorded states.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Tail {
     pub keyframes: [[u32; CAR_DWORDS]; TAIL_CARS],
@@ -579,9 +579,9 @@ impl Extension {
     }
 
     /// The cars' models when every car of the replay is heard (each with a sound object of its
-    /// own): a replay of more than two cars that the original's format could not hold (three or
-    /// four players, or cars of other machines). A replay the original's format holds sounds as
-    /// the original's does.
+    /// own): a replay of more than two cars that the first format's format could not hold (three or
+    /// four players, or cars of other machines). A replay the first format's format holds sounds as
+    /// the first format's does.
     pub fn heard_kinds(&self) -> Option<Vec<u32>> {
         (self.cars.len() > 2 && !self.old_format_holds())
             .then(|| self.cars.iter().map(|c| c.kind).collect())
@@ -604,7 +604,7 @@ impl Extension {
         }
     }
 
-    /// Whether the original's format can hold the race: at most two players, none of them
+    /// Whether the first format's format can hold the race: at most two players, none of them
     /// elsewhere, and no car recorded by its states.
     pub fn old_format_holds(&self) -> bool {
         self.player_cars().len() <= 2 && self.state_mask() == 0
@@ -681,13 +681,13 @@ fn parse_cars(body: &[u8]) -> Option<Vec<CarEntry>> {
 
 // ---- whole files ----
 
-/// The original's index at a file's end: its bytes.
+/// The first format's index at a file's end: its bytes.
 pub const INDEX_LEN: usize = 0x3850;
 
 /// Which format a file is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileFormat {
-    /// The original's, with or without the extra tape.
+    /// The first format's, with or without the extra tape.
     Original { extra_tape: bool },
     /// This project's own.
     Own,
@@ -772,7 +772,7 @@ impl ReplayFile {
     }
 
     /// The file's bytes as the game writes them: the header (its extension length set for the own
-    /// format, zero for the original's), the extension, each block packed when that is smaller,
+    /// format, zero for the first format's), the extension, each block packed when that is smaller,
     /// and the index.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut header = self.header.clone();
@@ -1063,7 +1063,7 @@ mod tests {
         }
         assert_eq!(seen, [0, 1, 2, 3, 4, 5, 10, 0, 1]);
         assert_eq!(four.next_layout(5), SPLIT_LAYOUT as u8);
-        // Every car of a replay of more than two that the original's format cannot hold is
+        // Every car of a replay of more than two that the first format's format cannot hold is
         // heard; one it holds sounds as before.
         assert_eq!(four.heard_kinds().map(|k| k.len()), Some(6));
         assert_eq!(local(2, 3).heard_kinds(), None);
@@ -1120,8 +1120,8 @@ mod tests {
         assert_eq!(ReplayFile::parse(&bytes[..0x500]), None);
     }
 
-    /// A stage of 50 minutes (3000 blocks, past the original's 1800) reads in the own format and
-    /// is refused in the original's.
+    /// A stage of 50 minutes (3000 blocks, past the first format's 1800) reads in the own format and
+    /// is refused in the first format's.
     #[test]
     fn a_long_stage_fits_the_own_index_only() {
         let one = ReplayFile {
@@ -1167,7 +1167,7 @@ mod tests {
                 blocks: (0..3).map(|k| block(len, k)).collect(),
             };
             let bytes = file.to_bytes();
-            // The original's header is untouched: nothing at the extension's place.
+            // The first format's header is untouched: nothing at the extension's place.
             assert_eq!(dword_at(&bytes, EXT_LEN_AT), Some(0));
             assert_eq!(bytes[..HEADER_LEN], file.header[..]);
             assert_eq!(ReplayFile::parse(&bytes), Some(file));

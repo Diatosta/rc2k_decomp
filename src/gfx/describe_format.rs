@@ -1,4 +1,4 @@
-//! Works a pixel format's layout out from its masks (`PixelFormat`: +0 layout, +4 four masks, +0x14
+//! Works a pixel format's layout out from its masks (`PixelFormat`: the layout, the four masks, the
 //! number).
 //! If each of the four masks is empty or one run of bits: the layout is four bytes, lowest first
 //! the masks' top bits' numbers less 7, 15, 23 and 31 (an empty mask counts as 0xFF;
@@ -24,7 +24,7 @@ pub fn describe_masks(formats: &Formats, masks: [u32; 4]) -> (u32, u32) {
     describe(masks, &numbers)
 }
 
-/// On a format record (+0 layout, +4 four masks, +0x14 number).
+/// On a format record (layout, four masks, number).
 pub fn describe_format<C: crate::memory::session::DwordLike>(formats: &Formats, format: &[C; 6]) {
     let (layout, number) = describe_masks(formats, std::array::from_fn(|n| format[1 + n].get()));
     format[0].set(layout);

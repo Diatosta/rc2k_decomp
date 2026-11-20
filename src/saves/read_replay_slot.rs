@@ -25,7 +25,7 @@ pub fn read_replay_slot(slot: u32, race: &'static Race) -> Result<bool, Refused>
     }
     let template = race.shared.replay_templates.saved;
     let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
-    // A slot with a file of the own format is read from it, else from the original's.
+    // A slot with a file of the own format is read from it, else from the 1999 format's.
     let own = crate::race::replay_path::own_format(&path);
     let (path, kind) = if crate::race::replay_path::exists(&own) {
         (own, crate::race::replay::SLOT_NEW)

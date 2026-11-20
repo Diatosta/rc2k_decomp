@@ -1,5 +1,5 @@
 //! `effects::emit_twin_particle_second`: `effects::emit_twin_particle_first`'s code on its
-//! own variables: kind 0x16, the level the car's +0x4C4, the flags 0x33,
+//! own variables: kind 0x16, the level the car's `levels[1]`, the flags 0x33,
 //! `TwinTuning.chance_random`, `TwinTuning.lift` .. `TwinTuning.motion_k[2]`,
 //! `TwinTuning.spin_random`.
 //!

@@ -11,9 +11,8 @@ pub fn free_list(list: &impl HeldList) -> Result<(), BadInput> {
     // Rust's own tables counted on it (`memory::owned`) are given back by their owners
     // (`saves::free_best_times`); its total counts them like the others.
     let mut l = list.get();
-    // No block of the system's is put on a list any more (every user's memory is Rust's;
-    // the original gave each back with `VirtualFree`, or to its own heap): a list
-    // holding one is refused.
+    // No block of the system's is put on a list any more (every user's memory is Rust's):
+    // a list holding one is refused.
     if l.head != 0 {
         return Err(BadInput("a memory list holding a block"));
     }

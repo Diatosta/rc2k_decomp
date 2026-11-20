@@ -1,7 +1,7 @@
 //! `drive::keep_lead_car_values`, `drive::set_listener`, then for each of the eight cars
 //! `drive::share_car_state` with its block, its record and its sound object; then
 //! `sound_objects_shown` = 1 when `CarBlocks.cars[0].car_kind` is not 0x21 and the first record's
-//! +0x258 is 10 or more (else 0); then `drive::put_back_lead_car_values`.
+//! `hard_ground_count` is 10 or more (else 0); then `drive::put_back_lead_car_values`.
 //!
 //! Refuses (before anything) what `set_listener` refuses, a car whose file number is above 0x21,
 //! and a null record or block.

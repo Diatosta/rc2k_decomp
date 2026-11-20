@@ -21,17 +21,17 @@ use rc2k_core::net::race::{self, Arrival, Kind};
 /// The log text before the sender's number.
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr";
 
-/// A car's place (+0x134 .. +0x13C).
+/// A car's place (`position`).
 pub fn place(car: &Car) -> &[PlainDword; 3] {
     &car.position
 }
 
-/// Where a place received goes, to be glided to (+0xFC0 .. +0xFC8; then the glide's 32nd).
+/// Where a place received goes, to be glided to (`glide_target`).
 pub fn wanted(car: &Car) -> &[PlainDword] {
     &car.glide_target
 }
 
-/// The glide's steps left (+0xFCC).
+/// The glide's steps left.
 pub(super) fn glide_steps(car: &Car) -> &PlainDword {
     &car.glide_steps_left
 }
@@ -95,7 +95,7 @@ pub fn apply_message(race: &Race, net: &Net, player: u32, message: &[u8]) -> Res
             for (cell, v) in place(car).iter().zip(wanted_place) {
                 cell.set(v);
             }
-            // +0xFC0 now holds a place, not a step: a glide under way ends.
+            // The glide target now holds a place, not a step: a glide under way ends.
             glide_steps(car).set(0);
         }
         Arrival::Glide(step) => {

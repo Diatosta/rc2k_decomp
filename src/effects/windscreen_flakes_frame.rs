@@ -3,7 +3,7 @@
 //! axes from the settings, made one long and square, scaled (`effects::scale_axes`). Nothing more
 //! happens unless the place's way faces away from the third axis; then `effects::run_pong` runs;
 //! unless the rate times a constant comes to 0 (rounded as the x87 is set),
-//! `effects::run_windscreen_flakes` runs, and with the settings' +0x2744 and the drift switch
+//! `effects::run_windscreen_flakes` runs, and with the settings' `windscreen_wet` and the drift switch
 //! `effects::windscreen_flakes_step`.
 //!
 //! Screen: the snow settling on the windscreen in the in-car view (confirmed: gone with

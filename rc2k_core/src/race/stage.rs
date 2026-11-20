@@ -267,15 +267,15 @@ pub fn timed_kind(kind: i32) -> u32 {
     }
 }
 
-/// A texture's record from its kind and the course info's record of the kind (+kind x 0x80);
+/// A texture's record from its kind and the course info's record of the kind (`kind` x 0x80 bytes in);
 /// bytes not written are left.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TextureInfo {
-    /// +0 ..= +0xC: the course record's first four dwords.
+    /// The course record's first four dwords.
     pub first: [u32; 4],
-    /// +0x10, +0x14, +0x18: the course record's +0x20, +0x10, +0x14.
+    /// Three more dwords, taken from the course record's ninth, fifth and sixth.
     pub values: [u32; 3],
-    /// The course record's byte +0x18.
+    /// One byte taken from the course record's 25th byte.
     pub byte: u8,
     /// The kind >> 4.
     pub group: u32,
@@ -283,7 +283,7 @@ pub struct TextureInfo {
     pub row: u32,
     /// The group with bit 31 set.
     pub marked: u32,
-    /// +0x2C ..= +0x2E: the course record's bytes +0x24 ..= +0x26.
+    /// Three bytes taken from the course record's 37th to 39th bytes.
     pub bytes: [u8; 3],
 }
 

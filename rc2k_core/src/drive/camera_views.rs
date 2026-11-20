@@ -2,7 +2,7 @@
 //! views 0 .. 6 cycle, 2 and 3 only for cars with their own views (`kind_has_views`) and with one
 //! player; 7 and above are the fixed replay cameras.
 
-/// A car block's view fields (block offsets +0x684 .. +0x69C).
+/// A car block's view fields.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CameraView {
     /// The view shown.
@@ -37,7 +37,7 @@ impl CameraView {
 }
 
 /// The view after `view` for the change-view key. 2 and 3 become 4 when the car (`car()`, the
-/// block's +0x24) has none (past the table or `has_views(car)` false) or with two players
+/// block's car file number) has none (past the table or `has_views(car)` false) or with two players
 /// (`players()`, asked only when it has them); 7 and above wrap to 0.
 pub fn next_view(
     view: u32,

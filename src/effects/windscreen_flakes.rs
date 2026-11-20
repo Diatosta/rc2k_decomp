@@ -2,17 +2,17 @@
 //! (`pick_windscreen_flake`), ended (`expire_windscreen_flakes`) and stepped
 //! (`windscreen_flakes_step`, called by `effects::windscreen_flakes_frame`).
 //!
-//! Spawn: of the 32 items from the cursor on (wrapping at 0x800) the first free one (+0 0)
-//! gets +0 1, its place (x, z as floats at +0x20, +0x24), its size from its kind (kind & 7,
-//! times a factor plus a base, +0xC), a constant at +0x10 and the scene clock (+4); the
+//! Spawn: of the 32 items from the cursor on (wrapping at 0x800) the first free one (not
+//! `live`) made live, with its place (x, z as floats), its texture u from its kind (kind & 7,
+//! times a factor plus a base), a constant as texture v and the scene clock as `born`; the
 //! cursor the item after it. With none free, the cursor moves on 32. Returns the kind & 7.
 //!
 //! Pick: one step of the flakes' own random (times 0xC5 plus 0x5D) split into a place (bits
 //! 0 .. 10, 11 .. 20) and a kind (bits 21 .. 23).
 //!
-//! Expire: each live item (0x800 of 0x3C bytes, +0 1 live) ends when its cell's byte in
+//! Expire: each live item (0x800 of 0x3C bytes, `live` 1) ends when its cell's byte in
 //! mask A (or, with the mask run count above 1, in mask B) is the low byte of the first
-//! shape's ease step (the cell from its place +0x20 / +0x24, rounded, >> 3).
+//! shape's ease step (the cell from its place, rounded, >> 3).
 //!
 //! Step: a frame switch 0; for each step since the flakes were last looked at (their
 //! last-seen clock less the picks' clock, low byte) `effects::pick_shapes` and expire, the
@@ -28,7 +28,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner_shared::RaceShared;
 
-/// Ecx as it leaves it.
+/// Makes a flake live (see the header); the kind is returned as it is when no item is free.
 pub(super) fn spawn_windscreen_flake(
     shared: &RaceShared,
     fl: &WindscreenFlakes,

@@ -8,10 +8,10 @@ use crate::math::x87_float::X;
 use crate::math::x87_mem::{Base, cells, fild, fistp, fld, fstp};
 
 /// The block the arithmetic works in, in dwords. Offsets: 0 the first point's record, 0x20 the
-/// second's, 0x40 and 0x88 their entries, 0xD0 and 0xE4 the entries' five bytes (+0x18, +0x19,
-/// +0x1A, +0x20, +0x21) as dwords, 0xF8 the work variables `SceneDraw.clip_work[0]` ..
-/// `SceneDraw.clip_work[11]`, 0x128 `SceneDraw.clip_out_words[0]` .. `SceneDraw.clip_out_words[4]`,
-/// 0x13C `SceneDraw.scratch`, 0x140 `SceneDraw.clip_plane`.
+/// second's, 0x40 and 0x88 their entries, 0xD0 and 0xE4 the entries' five bytes (the three low
+/// bytes of `light`, `fog` and `amount`) as dwords, 0xF8 the work variables
+/// `SceneDraw.clip_work[0]` .. `SceneDraw.clip_work[11]`, 0x128 `SceneDraw.clip_out_words[0]` ..
+/// `SceneDraw.clip_out_words[4]`, 0x13C `SceneDraw.scratch`, 0x140 `SceneDraw.clip_plane`.
 pub type Work = [u32; 0x51];
 pub const RECORD_A: usize = 0x00;
 pub const RECORD_B: usize = 0x20;

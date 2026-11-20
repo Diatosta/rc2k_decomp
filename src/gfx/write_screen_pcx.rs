@@ -1,4 +1,4 @@
-//! Writes the locked surface as a 24-bit PNG file (the original's screenshots were PCX). The
+//! Writes the locked surface as a 24-bit PNG file (an older version wrote PCX). The
 //! file is `name` when set, else the next screenshot name `000.png` (999 goes round to 000).
 //!
 //! Kept as the game's screenshots had it: a 16-bit pixel goes into the low half of the running

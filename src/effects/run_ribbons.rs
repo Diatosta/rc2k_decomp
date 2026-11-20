@@ -1,6 +1,6 @@
-//! `effects::run_ribbons`: the effects' ring walked for its streaks (kind 0x12) when the settings'
-//! +0x60 is set. Each streak's life runs down by the frame's ticks (dead when it borrows or its y
-//! is below its ground); a new one has its place turned by the view into its last place and is
+//! `effects::run_ribbons`: the effects' ring walked for its streaks (kind 0x12) when the first car's
+//! `streaks_on` is set. Each streak's life runs down by the frame's ticks (dead when it borrows
+//! or its y is below its ground); a new one has its place turned by the view into its last place and is
 //! moved once, then moved each frame (the motion's y gains a constant a tick). Each is drawn by
 //! `effects::draw_ribbon` with a colour from the streak colours (or the second ramp when the
 //! effects' kind switch is set). A dead entry is moved to just before the cursor.
@@ -48,7 +48,7 @@ impl Colours257 {
     }
 }
 
-/// A new streak's place turned into its last (+0x1C ..), and a first move.
+/// A new streak's place turned into its last place, and a first move.
 fn first_frame(
     view_matrix: &[crate::memory::session::PlainFloat; 16],
     ring: &Ring,
@@ -221,7 +221,7 @@ pub fn run_ribbons(
         return Err(BadInput(why).into());
     }
     walk_ring(ring, |e| {
-        // The settings' +0x60: the first car record's first word.
+        // The settings' streak switch: the first car record's `streaks_on`.
         Ok(effects.settings()?.cars[0].streaks_on.get() != 0
             && entry(ring, e)?.kind == STREAK
             && streak(buffer, view_matrix, ring, e, scene, effects, fog)?)

@@ -1,12 +1,12 @@
-//! `scene::draw_described_object`: an object drawn from its description (a course face record
-//! of kind 0xFF, part R1 of stream A; also `scene::draw_scene_object`'s modes 1 and 2).
+//! `scene::draw_described_object`: an object drawn from its description (a course face record of
+//! kind 0xFF, part R1 of stream A; also `scene::draw_scene_object`'s modes 1 and 2).
 //!
 //! Nothing for an object above 0x64 or a point past the scene's point count, nor in a race for
 //! object 0x3F. Objects 0x38 and 0x3A ..= 0x3F are signs: upright (0x2000), full light, 0x3D / 0x3E
-//! half bright when any of +0x19 .. +0x1B, +0x20, +0x28 .. +0x2B is set. Then the view kind 2,
-//! `race::place_object_matrix`, the light kind 2 (1 when the object's material record has
-//! +0x1F), `scene::draw_scene_object` (given the material record, the object and its +0x1F);
-//! after it (and in the cases of nothing) `only_object` 0 and the object place -1. Refuses
+//! half bright when any of the course face record's flag bytes that mark them is set. Then the view
+//! kind 2, `race::place_object_matrix`, the light kind 2 (1 when the object's material record has
+//! its light-kind byte), `scene::draw_scene_object` (given the material record, the object and that
+//! byte); after it (and in the cases of nothing) `only_object` 0 and the object place -1. Refuses
 //! (before anything) what `draw_scene_object` refuses for the object (a race car without its
 //! block).
 
@@ -42,7 +42,8 @@ pub enum Description<'a> {
 const HEAD_LEN: usize = 0x3C;
 
 impl Description<'_> {
-    /// The first `len` bytes of the words (the rest zero), or the refusal `past` when they are fewer.
+    /// The first `len` bytes of the words (the rest zero), or the refusal `past` when they are
+    /// fewer.
     fn from_words(
         words: impl Iterator<Item = u32>,
         len: usize,

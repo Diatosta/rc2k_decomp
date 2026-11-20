@@ -60,7 +60,7 @@ pub struct WindscreenDropWork {
     pub inverse: PlainFloat,
     /// The axes' lengths' shares (`effects::windscreen_drops_top`).
     pub shares: [PlainFloat; 2],
-    /// The view's place (the settings' +0x2720 ..).
+    /// The view's place (the settings' `light_point_b_negated`).
     pub place: [PlainFloat; 3],
     /// The three axes (rows of three).
     pub axes: [PlainFloat; 9],

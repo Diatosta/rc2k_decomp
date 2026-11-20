@@ -41,8 +41,8 @@ pub fn each_car<E>(
     }
 }
 
-/// Whether the skid marks are begun again: unless the first block's clock (+8) is one past the
-/// kept one (+0xF0C).
+/// Whether the skid marks are begun again: unless the first block's clock is one past the
+/// kept one.
 pub fn skids_restart(clock: u32, kept: u32) -> bool {
     clock.wrapping_sub(kept) != 1
 }

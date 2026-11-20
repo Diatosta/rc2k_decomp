@@ -89,7 +89,7 @@ pub struct RaceVars {
     pub race_stage: PlainDword,
     /// The cars' start numbers (`net::set_up_race`).
     pub start_numbers: [PlainDword; 8],
-    /// The mud file's path, "files\b\mudfile.0xx" (`race::mud`; the digits at +0x11).
+    /// The mud file's path, "files\b\mudfile.0xx" (`race::mud`; the digits start at byte 0x11).
     pub mud_path: crate::memory::session::PlainBytes<20>,
     /// Unused; it only keeps the layout.
     pub unused_320: PlainDword,

@@ -1,9 +1,9 @@
 //! `effects::windscreen_drops_top`: the windscreen drops' frame from the settings: the vertex ring
-//! from its start, the ease and the rate, the place (the settings' +0x2720 ..) and two axes made
+//! from its start, the ease and the rate, the place (the settings' `light_point_b_negated`) and two axes made
 //! one long and square, then (only when the place's way faces away from the third axis) the 0x30
 //! windscreen drop points scaled and turned onto the axes. Unless the rate is 0, the drops' frame
 //! runs, the vertices left in the ring are drawn (`d3d::draw_marks_windscreen_drops`, the
-//! platform's), and with the settings' +0x2744 and the drift on the drops step. Finally the marks'
+//! platform's), and with the settings' `windscreen_wet` and the drift on the drops step. Finally the marks'
 //! texture and a polygon vertex count of 4 are set.
 //!
 //! Screen: the rain drops on the windscreen in the in-car view (confirmed: gone with
@@ -100,7 +100,7 @@ pub fn windscreen_drops_top(
         point_turned(drops, p);
     }
     let rate = drops.state.rate.get();
-    // Any rate but +0 (the bits tested).
+    // Any rate but positive zero (the bits tested).
     if rate != 0.0 || rate.is_sign_negative() {
         crate::effects::windscreen_drops_frame::windscreen_drops_frame(
             buffer, frame, masks, drops, scene, gfx, effects,

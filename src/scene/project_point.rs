@@ -1,8 +1,9 @@
 //! `scene::project_point`: a point's place in the view and on the screen, worked out once and
 //! kept.
 //!
-//! The records are 0x20 bytes each in the scene's point records: +0 the point's number, +0xC the x
-//! on the screen, +0x10, +0x14, +0x18 the point in the view, +0x1C the y on the screen. A point n
+//! The records are eight dwords each in the scene's point records: the point's number, the x
+//! on the screen (after three unused dwords), the point in the view (three floats), the y on the
+//! screen. A point n
 //! of the scene has record n & 0xFFF; a point -n of an object has record 0x1000 + (n & 0xFFF),
 //! which is made elsewhere and only found here. A record whose number is not the point's is made
 //! anew: the point's three whole numbers (12 bytes each in the course's point table) through the
@@ -41,7 +42,7 @@ const TOO_HIGH: FatalError = FatalError {
 };
 
 /// `scene::rotate_point` as `project_point` uses it: the point's three whole numbers through the
-/// matrix, into the record's +0x10, +0x14, +0x18.
+/// matrix, into the record's three view floats.
 pub(crate) fn rotate(point: &[u32], matrix: &[f32; 16], record: &mut [u32]) {
     at_rounding!(|r| rotate_with(r, point, matrix, record));
 }

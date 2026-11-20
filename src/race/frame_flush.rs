@@ -12,7 +12,7 @@ use crate::race::owner_frame::Frame;
 const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (2, 0x14), (1, 0x1B)];
 
 /// A batch: its count, its first word (the draw's first argument), the vertices and indices, where
-/// the count is kept, and the second render state's value (+0x14).
+/// the count is kept, and the second render state's value (state 0x14).
 pub struct Batch<'a> {
     pub count: &'a PlainDword,
     pub word: &'a PlainDword,

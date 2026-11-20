@@ -151,7 +151,8 @@ pub(super) fn build_texture_infos(race: &Race) -> Result<(), Refused> {
         for (k, &value) in t.values.iter().enumerate() {
             out[4 + k].set(value);
         }
-        // The record's byte at +0x1C and three at +0x2C are bytes inside their dwords.
+        // One byte of the record's seventh dword and three of its twelfth are stored inside those
+        // dwords.
         out[7].store(0, &[t.byte])?;
         out[11].store(0, &t.bytes)?;
         for (k, &value) in t.first.iter().enumerate() {
@@ -169,7 +170,7 @@ pub(super) fn reset_refresh(scratch: &crate::scene::workers::DrawingScratch) {
 }
 
 /// The checkpoints the split tables list: of the table entries 1 .. `last_checkpoint`, those whose
-/// face has its byte +0x26 set. None with fewer than two checkpoints. Reads the loaded course
+/// face has its check byte set. None with fewer than two checkpoints. Reads the loaded course
 /// and writes nothing. Refused: an end below 2, or more found than the list's 0x201 (a real
 /// stage's end is past 0x201).
 pub fn listed_checkpoints(race: &Race) -> Result<Option<Vec<u32>>, Refused> {

@@ -396,7 +396,7 @@ fn replay_name(path: &[u8]) -> Result<Vec<u8>, String> {
     file.read_exact(&mut head)
         .map_err(|_| not_one.to_string())?;
     let name = kept::replay_name(&head).ok_or(not_one)?;
-    // The own format's index is longer than the original's.
+    // The own format's index is longer than the 1999 format's.
     let index_len = if head[..4] == rc2k_core::race::replay_v2::MAGIC.to_le_bytes() {
         rc2k_core::race::replay_v2::OWN_INDEX_LEN as u32
     } else {

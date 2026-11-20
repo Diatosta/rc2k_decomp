@@ -1,15 +1,16 @@
 //! Emits: the thin smoke trail behind the car's exhaust.
 //!
 //! `effects::emit_exhaust_smoke`: one ring entry of kind 0xD for a car each frame, at its model's
-//! point (the looks table, 12 bytes by the car's +4).
+//! point (the looks table, three floats by the car's model).
 //!
 //! The entry's place is that point (x negated, y less a constant) turned by the emitting car's
-//! matrix (`x87::turned_place_less_f32`), less the set's lift in y at +0x28, then moved along the
-//! motion (the matrix's third row by the strength and the set's factors) by a random's low word
-//! times a constant times the frame's ticks. The strength is a float, 1 - 1 / (the car's +8 by the
-//! set's factor plus 1); the life is 250 (+0x78 the strength by a constant over it) and +0x74 the
-//! strength by the fade constant. Refuses (before anything) a null object, a null car or matrix,
-//! and a model (+4) past the table's 34 entries, when an entry is made.
+//! matrix (`x87::turned_place_less_f32`), the entry's `ground_y` that y less the set's lift, then
+//! moved along the motion (the matrix's third row by the strength and the set's factors) by a
+//! random's low word times a constant times the frame's ticks. The strength is a float, 1 - 1 /
+//! (the car's `engine_speed` by the set's factor plus 1); the life is 250 (`alpha_fade` the
+//! strength by a constant over it) and `alpha` the strength by the fade constant. Refuses (before
+//! anything) a null object, a null car or matrix, and a model past the table's 34 entries, when an
+//! entry is made.
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;

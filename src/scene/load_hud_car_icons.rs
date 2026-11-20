@@ -4,7 +4,7 @@
 //! "plate".
 //!
 //! Unless kind 0xC1's first texture is none, twice, for the player's car (the own car, or in a
-//! network session the block of the network player's car, its +0x24) and then for the second
+//! network session the block of the network player's car, its `car_kind`) and then for the second
 //! player's car:
 //! - `scene::car_icon_number` of it gives the icon's number;
 //! - under 0x12 the pictures `files\b\tx1822.pcx` and `tx1823.pcx`, else `tx1824.pcx` and

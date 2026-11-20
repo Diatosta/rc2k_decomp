@@ -1,7 +1,7 @@
 //! Makes one of a device record's six force-feedback effects: the object it had is given back;
-//! its `DIEFFECT` (+0x34) and its type-specific parameters (+0x68) are set by its kind (+4: 1
+//! its `DIEFFECT` and its `type_specific` parameters are set by its `kind` (1
 //! constant force, 2 ramp, 3 periodic, 4 condition, others none) at their default values; its
-//! change function is called with the change 1; and with an effect found for it (+0xC 1) its
+//! change function is called with the change 1; and with an effect found for it (`found` 1) its
 //! object is made (`CreateEffect`; the result is not looked at).
 
 use crate::errors::Refused;

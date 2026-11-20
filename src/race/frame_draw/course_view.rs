@@ -10,9 +10,9 @@ use crate::race::view_scratch::{DrawCtx, SortLists};
 /// The most entries in a sort list (`race::view_scratch`).
 pub(super) const SORT_MAX: u32 = crate::race::view_scratch::ENTRIES as u32;
 
-/// Adds entry `sort_entry_count` of the view's sort entries for `face`: +4 the face, +0 0, or with
-/// the face number (without its top bit) below 0x1000000 the object `kind` << 16 | the face's low
-/// 16 bits; the count + 1. Refused (before anything): an entry past the 0x1000.
+/// Adds entry `sort_entry_count` of the view's sort entries for `face`: the entry's face, and its
+/// key 0, or with the face number (without its top bit) below 0x1000000 the object `kind` << 16 |
+/// the face's low 16 bits; the count + 1. Refused (before anything): an entry past the 0x1000.
 fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Refused> {
     let n: u32 = lists.sort_entry_count.get();
     if n >= SORT_MAX {
@@ -27,7 +27,7 @@ fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Refused
 }
 
 /// Colours for the current checkpoint's (`CAR.checkpoint`) face (`checkpoint_faces`, records of
-/// 0x40 at `course_faces`): its +0x10 byte's low and high nibbles (0 read as 0x10) and
+/// 0x40 at `course_faces`): its colour byte's low and high nibbles (0 read as 0x10) and
 /// `CHECKPOINTS.angles[2][checkpoint]` - `CAR.car_heading`; returns the far cells' limit: the low
 /// (twice the distance below 0x40000000 as signed), the high (from), else the larger. The tables
 /// are read unchecked.
@@ -63,7 +63,7 @@ pub fn side_widening(
 }
 
 /// A scene point's record: the record at `point_records` + (point & 0xFFF) x 0x20, made anew
-/// (`scene::make_scene_record`) when its +0 is not the point.
+/// (`scene::make_scene_record`) when its first field is not the point.
 pub fn point_record(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     point: u32,
@@ -88,11 +88,11 @@ pub fn points_there(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), 
 }
 
 /// Whether the face record is hidden from the shown view: when the view's
-/// `race().frame.view_and_records.view_vars.view_hides` entry is 0, `scene_set_up`
-/// is set and the face's +2 word has a bit of `race().frame.frame_work.face_hide_mask`; else by its
-/// first point's record (+4): `object_position` = |x| and `face_depth` =
-/// depth + `depth_shift` as whole numbers, hidden when the depth is below |x| (the sign
-/// of the difference). Refused (before anything): no point records or points.
+/// `race().frame.view_and_records.view_vars.view_hides` entry is 0, `scene_set_up` is set and the
+/// face's switches word has a bit of `race().frame.frame_work.face_hide_mask`; else by its first
+/// point's record: `object_position` = |x| and `face_depth` = depth + `depth_shift` as whole
+/// numbers, hidden when the depth is below |x| (the sign of the difference). Refused (before
+/// anything): no point records or points.
 fn face_hidden(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: &rc2k_core::race::faces::Face,
@@ -135,9 +135,9 @@ fn face_hidden(
 }
 
 /// Works out the depth key of `face` (records of 0x40 at `course_faces`) into
-/// `face_depth_key`: for a kind (+0) of 0x10 or more, its first point's depth (rounded;
-/// and `face_side` its x); else, with its object's (+1) record +0xE bit 1, the largest of
-/// its four points' depths (+4 .. +0x10, each rounded), otherwise their float sum rounded and
+/// `face_depth_key`: for a kind of 0x10 or more, its first point's depth (rounded;
+/// and `face_side` its x); else, with bit 1 of its object's texture info, the largest of
+/// its four points' depths (each rounded), otherwise their float sum rounded and
 /// shifted right 2. Then + 0x2000000, shifted right 10 (logical). Refused (before anything): no
 /// point records or points.
 pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Result<(), Refused> {
@@ -153,7 +153,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
     let trap = Trap::new();
     let by = depth_by(kind, || {
         let object = trap.keep_read(face_field::<u8>(ctx.reads.course(), face, 1)) as u32;
-        // +0x2E of the object's 0x40-byte info (`object` a byte: inside the 0x100).
+        // A byte of the object's 0x40-byte texture info (`object` a byte: inside the 0x100).
         ctx.reads.buffers.polygon_tables.texture_infos[object as usize].words[11]
             .get()
             .to_le_bytes()[2]
@@ -186,7 +186,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
 }
 
 /// Adds `face`'s depth entry (`face_depth`) as entry `depth_entry_count` of the view's depth
-/// entries: +0 the key, +4 the face; the count + 1. Refused (before anything): an entry past the
+/// entries: the key and the face; the count + 1. Refused (before anything): an entry past the
 /// 0x1000, or what `face_depth` refuses.
 fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
     let DrawCtx { view, .. } = *ctx;
@@ -203,16 +203,15 @@ fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
 }
 // `course_grid[0x400]`: 32 x 32 course records.
 
-/// Makes the course records around the view into a 32 x 32 grid. The half size
-/// `grid_half` = `hold_to_limit(grid_reach)`, the span
-/// `grid_span` twice that; the corner is the view's place
+/// Makes the course records around the view into a 32 x 32 grid. The half size `grid_half` =
+/// `hold_to_limit(grid_reach)`, the span `grid_span` twice that; the corner is the view's place
 /// (`race().frame.view_and_records.view_vars.view_x` / `view_z` >> 21, arithmetic) less the half.
 /// With an unchanged corner nothing more happens. Else the corner is kept, the grid cleared to
-/// 0x0FFFFFFF, and each record (0x20 bytes at `course_records`, +0 two 11-bit cell numbers, -1
-/// none; each into `COURSE.record_place` / `COURSE.record_place[1]`) whose cell less the corner (&
-/// 0x7FF) is within the span on both axes goes in at row z, column x. Refused (before anything is
-/// written): no records when the grid is to be made. `vars`: the view's variables (its place,
-/// `ViewScratch::vars`).
+/// 0x0FFFFFFF, and each record (0x20 bytes at `course_records`, its first dword two 11-bit cell
+/// numbers, -1 none; each into `COURSE.record_place` / `COURSE.record_place[1]`) whose cell less
+/// the corner (& 0x7FF) is within the span on both axes goes in at row z, column x. Refused (before
+/// anything is written): no records when the grid is to be made. `vars`: the view's variables (its
+/// place, `ViewScratch::vars`).
 pub fn course_grid(
     course: CourseReads<'_>,
     work: &crate::race::work_store::RaceWork,
@@ -263,7 +262,7 @@ pub(super) fn byte_at(
     Ok(mine.tables()[which].get(n as usize) as u32)
 }
 
-/// A course record's faces (+8 first, +0xC last; -1 none), or None.
+/// A course record's faces (its first and last face; -1 none), or None.
 pub(super) fn record_faces(
     course: CourseReads<'_>,
     record: u32,
@@ -275,13 +274,13 @@ pub(super) fn record_faces(
     Ok((first != u32::MAX && first <= last).then_some((first, last)))
 }
 
-/// Gathers each face of course record `record` (+8 .. +0xC), `COURSE.current_course_face` the face:
-/// a kind (+0) of 0xFF, or below 0x10, not `face_hidden`, goes to `add_depth_entry` when its
-/// object's flag says so (`face_table_b` / `face_table_a`), else to
-/// `add_sort_entry` with the object's kind byte (`face_table_d` /
-/// `face_table_c`). For kinds below 0x10 the object is +1, or +0x21 when +1 is 0.
-/// Refused: a last face of -1 (the loop would not end); the full tables and missing points are
-/// refused where they are met.
+/// Gathers each face of course record `record` (its first to last face),
+/// `COURSE.current_course_face` the face: a kind of 0xFF, or below 0x10, not `face_hidden`, goes to
+/// `add_depth_entry` when its object's flag says so (`face_table_b` / `face_table_a`), else to
+/// `add_sort_entry` with the object's kind byte (`face_table_d` / `face_table_c`). For kinds below
+/// 0x10 the object is the face's object, or the second object when that is 0. Refused: a last face
+/// of -1 (the loop would not end); the full tables and missing points are refused where they are
+/// met.
 pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
     let DrawCtx { view, .. } = *ctx;
     let Some((first, last)) = record_faces(ctx.reads.course(), record)? else {
@@ -325,9 +324,9 @@ pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Runs `physics::probe_ground`, then, unless the face under the car (`car` +0xE00) is -1, sets
-/// `race().frame.frame_work.face_hide_mask` = its +2 word's bits 1 and 3 flipped when any is set
-/// (0xA), or'd with bits 4 and 5 likewise (0x30).
+/// Runs `physics::probe_ground`, then, unless the face under the car (`car.probe_point_face[4]`) is
+/// -1, sets `race().frame.frame_work.face_hide_mask` = its switches word's bits 1 and 3 flipped
+/// when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
 pub fn face_hide_mask(
     reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,

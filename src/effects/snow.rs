@@ -70,9 +70,9 @@ pub struct SnowState {
     pub last_clock: PlainDword,
     /// 0 with no flakes (and after `effects::make_noise_curve`).
     pub flag: PlainDword,
-    /// The settings' +0x1C .. +0x24, the view's place.
+    /// The settings' `listener_place`, the view's place.
     pub view_place: [PlainDword; 3],
-    /// The settings' +0x28 .. +0x48, the view's 3 x 3 matrix.
+    /// The settings' `listener_turn`, the view's 3 x 3 matrix.
     pub view_matrix: [PlainFloat; 9],
     /// How far the flakes have fallen (28 bits).
     pub fall: PlainDword,
@@ -80,7 +80,7 @@ pub struct SnowState {
     pub drawn: PlainDword,
     /// A copy of `flakes`.
     pub count_copy: PlainDword,
-    /// The flakes (the settings' +0x2760, held to 0x800; initially 0x800).
+    /// The flakes (the settings' `snow_flakes`, held to 0x800; initially 0x800).
     pub flakes: PlainDword,
     /// The flake's depth as a whole number.
     pub depth: PlainDword,
@@ -248,7 +248,7 @@ pub struct SnowLight {
     pub fade_inverses: [PlainDword; 3],
     /// The inverses times the step.
     pub fade_scaled: [PlainDword; 3],
-    /// The settings' +0x58.
+    /// The settings' `snow_light_words[1]`.
     pub kept: PlainDword,
     /// The light's dot with the flake's way, squared (`effects::draw_snow`).
     pub dot: PlainFloat,

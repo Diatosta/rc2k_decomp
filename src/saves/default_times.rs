@@ -1,11 +1,11 @@
 //! The made-up entries of the best times: `default_time_entry` and `guess_checkpoint_times`.
 //!
 //! An entry is 0x9C bytes. `default_time_entry` gives it a random driver (a number under 0xAA):
-//! the driver's class to the entry's +0x1C, nationality to +8, car to +0x10, the id of the
-//! name's string to +0xC, the name (without a NUL) to +0x20, and 0xB to +0x50. While the
+//! the driver's class to the entry's `group`, `nation`, `car`, the id of the
+//! name's string to `name_id`, the name (without a NUL) to `name`, and 0xB to `unread_50`. While the
 //! checkpoint switch is 1 it first guesses the stage's checkpoint times from the entry's time
 //! and the stage, writes some twenty-six pieces to the game's log about it
-//! ("guesscheckpointtimes:start" ..), and copies the sixteen times to +0x5C on.
+//! ("guesscheckpointtimes:start" ..), and copies the sixteen times to `checkpoints`.
 //! `guess_checkpoint_times`: the sixteen dwords of `guessed_checkpoints` = 0; for a stage up to
 //! 0x24, with `checkpoint_counts[stage]` checkpoints, checkpoint n's time is the time *
 //! (n + 1) / the count. Everything is worked out before anything is written (`GameSource` and

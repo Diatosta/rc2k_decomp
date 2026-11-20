@@ -38,7 +38,7 @@ impl Reading {
 }
 
 /// The objects' point records (`scene::point_records`, 0x1000 + (n & 0xFFF) for a point or
-/// normal number `n`; +0x10 its place, three words), the drawing part's.
+/// normal number `n`; its place, three words), the drawing part's.
 pub struct PointRecords<'a> {
     part: &'a crate::scene::workers::PartScratch,
 }

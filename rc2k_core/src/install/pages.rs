@@ -33,8 +33,8 @@ pub type Mark = (u32, u8, u8);
 /// The string id of the update script's title.
 pub(crate) const UPDATE_TITLE: u16 = 0xBD;
 
-/// The main page's marks: not this version, "play" (+0x28) unusable; no installation, "uninstall"
-/// (+0x38) unusable; for the update script, "play" usable again and "uninstall" hidden.
+/// The main page's marks: not this version, "play" unusable; no installation, "uninstall"
+/// unusable; for the update script, "play" usable again and "uninstall" hidden.
 pub fn main_page_marks(same_version: bool, installed: bool, title: u16) -> Vec<Mark> {
     let mut marks = Vec::new();
     if !same_version {
@@ -76,8 +76,8 @@ pub fn chosen_drive(highlight: u32) -> Option<u32> {
 pub(crate) const BAD_FOLDER: u32 = 1;
 pub(crate) const NO_ROOM: u32 = 2;
 
-/// Which of the folder page's two notices are hidden (+0x38 and +0x48 for a bad folder,
-/// +0x58 and +0x68 for no room): those that are not the problem.
+/// Which of the folder page's two notices are hidden (the two for a bad folder, the two for
+/// no room): those that are not the problem.
 pub fn hidden_notices(problem: u32) -> (bool, bool) {
     (problem != BAD_FOLDER, problem != NO_ROOM)
 }

@@ -72,10 +72,10 @@ enum Format {
     Old { extra_tape: bool },
 }
 
-/// Whether it was saved. A replay of the own format is saved in it and, when the original's can
-/// hold the race (`Extension::old_format_holds`), also in the original's beside it, each in the
+/// Whether it was saved. A replay of the own format is saved in it and, when the old format can
+/// hold the race (`Extension::old_format_holds`), also in the old format beside it, each in the
 /// slot's file of its kind (`race::replay_path`); the other kind of file the slot may have is
-/// taken away, so that the slot holds what was saved. A replay of the original's format is saved
+/// taken away, so that the slot holds what was saved. A replay of the old format is saved
 /// as it was.
 fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
     use crate::race::replay_path::{own_format, remove};

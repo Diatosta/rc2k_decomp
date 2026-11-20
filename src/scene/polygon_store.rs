@@ -178,7 +178,7 @@ pub struct PolygonWork {
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct PolygonTables {
     /// 256 records of 0x40 bytes (`scene::draw_polygon`, `race::course_faces`,
-    /// `physics::wheel_surfaces`, `race::level_init`); +0x20 of a record is the kind of the
+    /// `physics::wheel_surfaces`, `race::level_init`); word 8 of a record is the kind of the
     /// object whose record it is.
     pub texture_infos: [TextureInfo; 256],
     /// By object kind, 0x80 bytes each, 1200 of them (`scene::set_object_material`,

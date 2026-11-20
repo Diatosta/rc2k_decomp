@@ -1,7 +1,7 @@
 //! The game's file search on std: the folder listed with `std::fs::read_dir`, its names matched
 //! as Windows matched them (`rc2k_core::files::wildcard`) in NTFS's order. One search at a time.
-//! Each name found is put in the search record (`FindFileData`): the attributes at +0, the name
-//! at +0x2C. `.` and `..` are not listed.
+//! Each name found is put in the search record (`FindFileData`): the attributes first, the name
+//! after them. `.` and `..` are not listed.
 
 use std::sync::Mutex;
 

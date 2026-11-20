@@ -28,49 +28,49 @@ pub const UNSET_BINDING: usize = 9;
 /// The first part of one player's settings as the race variables keep them (0x16C bytes each, the
 /// controls (`PlayerControls`) the last 0x6C of them): copies of fields of the player's record
 /// (`Player`), in the record's order less the words the race does not take. Only the game's
-/// thread reaches it. Field docs name the record's field and offset.
+/// thread reaches it. Field docs name the record's field.
 #[derive(rc2k_derive::Cells)]
 pub struct RaceCarOwn {
-    /// `Player.tyre` (+0x10C).
+    /// `Player.tyre`.
     pub tyre: PlainDword,
-    /// `Player.brake_balance` (+0x110).
+    /// `Player.brake_balance`.
     pub brake_balance: PlainDword,
-    /// `Player.ride_height` (+0x114).
+    /// `Player.ride_height`.
     pub ride_height: PlainDword,
-    /// `Player.suspension_stiffness` (+0x118).
+    /// `Player.suspension_stiffness`.
     pub suspension_stiffness: PlainDword,
-    /// `Player.steering_sensitivity` (+0x11C).
+    /// `Player.steering_sensitivity`.
     pub steering_sensitivity: PlainDword,
-    /// `Player.gear_ratio` (+0x120).
+    /// `Player.gear_ratio`.
     pub gear_ratio: PlainDword,
-    /// `Player.damage` words +0xD4 .. +0x100 and +0x108 (+0x104 goes into `wear[9]`, whose own
-    /// +0x1A0 follows it).
+    /// `Player.damage`'s words but one (the one between them goes into `wear[9]`, which
+    /// follows it).
     pub damage: [PlainDword; 13],
-    /// `Player.parts_wear` and `tyre_wear` (+0x17C .. +0x208, one word each).
+    /// `Player.parts_wear` and `tyre_wear`, one word each.
     pub wear: [PlainDword; 36],
-    /// `Player.map_area` (+0x158).
+    /// `Player.map_area`.
     pub map_area: PlainDword,
-    /// `Player.rear_mirror` (+0x15C).
+    /// `Player.rear_mirror`.
     pub rear_mirror: PlainDword,
-    /// `Player.rev_counter` (+0x160).
+    /// `Player.rev_counter`.
     pub rev_counter: PlainDword,
-    /// `Player.metric_units` (+0x178).
+    /// `Player.metric_units`.
     pub metric_units: PlainDword,
-    /// `Player.message_display` (+0x168).
+    /// `Player.message_display`.
     pub message_display: PlainDword,
-    /// `Player.car_info` (+0x164).
+    /// `Player.car_info`.
     pub car_info: PlainDword,
-    /// `Player.progress_bar` (+0x16C).
+    /// `Player.progress_bar`.
     pub progress_bar: PlainDword,
-    /// `Player.driver_info` (+0x170).
+    /// `Player.driver_info`.
     pub driver_info: PlainDword,
-    /// `Player.pace_notes` (+0x174).
+    /// `Player.pace_notes`.
     pub pace_notes: PlainDword,
-    /// `Player.race_number` (+0x28).
+    /// `Player.race_number`.
     pub race_number: PlainDword,
-    /// `Player.codriver_sex` (+0x154).
+    /// `Player.codriver_sex`.
     pub codriver_sex: PlainDword,
-    /// `Player.view` (+0xC).
+    /// `Player.view`.
     pub view: PlainDword,
 }
 
@@ -81,29 +81,29 @@ pub struct RaceCarOwn {
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct PlayerControls {
-    /// `Player.controller` (+0x2C).
+    /// `Player.controller`.
     pub controller: Dword,
-    /// `Player.gearing` (+0x30); the network lobby keeps the car's colours here.
+    /// `Player.gearing`; the network lobby keeps the car's colours here.
     pub gearing: Dword,
-    /// `Player.sensitivity_level` (+0x34).
+    /// `Player.sensitivity_level`.
     pub sensitivity_level: Dword,
-    /// `Player.axis_codes` (+0x38), the four bytes as one word.
+    /// `Player.axis_codes`, the four bytes as one word.
     pub axis_codes: Dword,
-    /// `Player.controller_mode` (+0x3C).
+    /// `Player.controller_mode`.
     pub controller_mode: Dword,
-    /// `Player.end_zone_pct` (+0x40): the end zone, percent.
+    /// `Player.end_zone_pct`: the end zone, percent.
     pub end_zone_pct: Dword,
-    /// `Player.centre_dead_zone_pct` (+0x44): the centre dead zone, percent.
+    /// `Player.centre_dead_zone_pct`: the centre dead zone, percent.
     pub centre_dead_zone_pct: Dword,
-    /// `Player.strength` (+0x48).
+    /// `Player.strength`.
     pub strength: Dword,
-    /// The record's +0x4C: not taken.
+    /// The record's word after `strength`: not taken.
     pub _unused_4c: Dword,
     /// The twelve bindings' controller words (`input::set_up_device`, by
     /// `rc2k_core::input::devices::DEVICE_BINDINGS`): `Player.bindings`' eleven words go to all but
     /// `UNSET_BINDING` (`race::single_rally`, `net::take_player_settings`).
     pub bindings: [Dword; 12],
-    /// `Player.keys` (+0x1C .. +0x27): the 12 bytes of the controls.
+    /// `Player.keys`: the 12 bytes of the controls.
     pub keys: Bytes<12>,
 }
 
@@ -170,17 +170,17 @@ pub struct SettingsHead {
     pub race_mode: PlainDword,
     /// A copy of `ScreenFlow.kept`, put back after the race.
     pub kept: PlainDword,
-    /// The current player's car kind (Shaun's `race_car_kinds`): the record word at +8.
+    /// The current player's car kind (Shaun's `race_car_kinds`): the record's car kind word.
     pub car_kind_current: PlainDword,
-    /// Player 1's record word at +8.
+    /// Player 1's record's car kind word.
     pub car_kind_first: PlainDword,
     /// The stage's direction (the selected group's copy).
     pub direction: PlainDword,
     /// Never used; 0 at start.
     pub unused_after_direction: PlainDword,
-    /// The track entry's +0x1C.
+    /// The track entry's first extra word.
     pub track_1c: PlainDword,
-    /// The track entry's +0x20.
+    /// The track entry's second extra word.
     pub track_20: PlainDword,
     /// The lens flare option, copied from `MenuOptions.lens_flare`.
     pub lens_flare: PlainDword,
@@ -238,30 +238,30 @@ pub struct RaceResults {
     pub race_stage: PlainDword,
     /// The arcade race's level (Shaun's `RaceVars.race_level`).
     pub race_level: PlainDword,
-    /// A figure of the race (the record's +0x654 side;
+    /// A figure of the race (the record's start-place side;
     /// `race::race_shell`).
     pub figure_ffc: PlainDword,
     /// A figure of the race (Shaun's `RaceTables.start_place`).
     pub figure_000: PlainDword,
-    /// The current player's record +0x288.
+    /// The current player's record's service time.
     pub service_spent_current: PlainDword,
-    /// Player 1's record +0x288.
+    /// Player 1's record's service time.
     pub service_spent_first: PlainDword,
-    /// The current player's record +0x284 (the HUD's bits);
+    /// The current player's record's HUD bits;
     /// goes back to it.
     pub hud_bits_current: PlainDword,
-    /// Player 1's record +0x284.
+    /// Player 1's record's HUD bits.
     pub hud_bits_first: PlainDword,
-    /// The current player's record +0x278.
+    /// The current player's record's flags.
     pub flags_current: PlainDword,
-    /// Player 1's record +0x278.
+    /// Player 1's record's flags.
     pub flags_first: PlainDword,
     /// The two cars' results: [0] the current car's, [1] the first car's.
     pub results: [RaceResult; 2],
     /// The arcade race's index into the stage table
     /// (`drive::finish_race`).
     pub stage_index: PlainDword,
-    /// The finishing player (+0xAA8 of the car block).
+    /// The finishing player (the car block's finishing player field).
     pub finish_player: PlainDword,
     /// The cars' kind (into `race_car_kinds`).
     pub finish_kind: PlainDword,
@@ -306,7 +306,7 @@ impl RaceState {
         }
     }
 
-    /// Player `k`'s record word at +8 (the same order).
+    /// Player `k`'s record's car kind word (the same order).
     pub fn car_kind(&self, k: usize) -> &PlainDword {
         match k {
             0 => &self.settings.car_kind_current,
@@ -323,7 +323,7 @@ impl RaceState {
         }
     }
 
-    /// Player `k`'s record's service time (+0x288).
+    /// Player `k`'s record's service time.
     pub fn service_spent(&self, k: usize) -> &PlainDword {
         match k {
             0 => &self.results.service_spent_current,

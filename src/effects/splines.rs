@@ -111,7 +111,7 @@ impl Spline {
         Ok(rc2k_core::effects::splines::points(self.get(paths, COUNT)?)? as u32)
     }
 
-    /// The `n` points from point `first` (+0x654), as cells for the matrix helpers.
+    /// The `n` points from point `first` (from `COORDS`), as cells for the matrix helpers.
     pub fn points(self, paths: &Paths, first: u32, n: u32) -> Result<Vec<PlainDword>, BadInput> {
         Ok(self
             .triples(paths, COORDS + 12 * first, n)?
@@ -145,8 +145,8 @@ mod spline_handle_tests {
     }
 }
 
-/// `effects::centre_spline_points`: record `s`'s points (+0x654, 12 bytes, the
-/// last first) less its centre (+0xC54). Refuses more than 0x80 points. The logic is in
+/// `effects::centre_spline_points`: record `s`'s points (from `COORDS`, 12 bytes, the
+/// last first) less its centre (`CENTRE`). Refuses more than 0x80 points. The logic is in
 /// `rc2k_core::effects::splines::centre`.
 pub fn centre_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
@@ -158,8 +158,8 @@ pub fn centre_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::grade_spline_points`: record `s`'s points' grades (+0xC90, the last
-/// first) by their heights (+0x658): 0 below 0x3830, 1 below 0x6720, else 2. Refuses more
+/// `effects::grade_spline_points`: record `s`'s points' grades (from `GRADES`, the last
+/// first) by their heights (the second value of each point in `COORDS`): 0 below 0x3830, 1 below 0x6720, else 2. Refuses more
 /// than 0x80 points. The logic is in `rc2k_core::effects::splines::grade`.
 pub fn grade_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
@@ -174,9 +174,10 @@ pub fn grade_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::find_spline_ends`: of record `s`'s +0xC points from +0 the last with the
-/// highest third value, into +0x30; of the +0x10 from +4 the last with the lowest, into
-/// +0x34. The value is read at +0x65C + 0x30 a point, not 12 (a slip kept as is).
+/// `effects::find_spline_ends`: of record `s`'s points of the first grade (its start and
+/// count) the last with the highest third value, into the first end field; of the second grade's
+/// the last with the lowest, into the second end field. The value is read at the third value of
+/// `COORDS` + 0x30 a point, not 12 (a slip kept as is).
 /// Refuses a negative start or count, or points past 0x80.
 /// The logic is in `rc2k_core::effects::splines::find_end`.
 pub fn find_spline_ends(paths: &Paths, s: Spline) -> Result<(), Refused> {
@@ -198,9 +199,9 @@ pub fn find_spline_ends(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::add_face_points`: face `face`'s points (+0 the count, from +0x10, 16
-/// bytes each: the point and two values) added to record `s`'s (+0x50 the count, ids
-/// +0x454, values +0x54 and +0x254) unless there already, up to 0x80. Refuses a record of
+/// `effects::add_face_points`: face `face`'s points (the count, then 16
+/// bytes each: the point and two values) added to record `s`'s (`COUNT`, `IDS`, values
+/// `FIRSTS` and `SECONDS`) unless there already, up to 0x80. Refuses a record of
 /// more than 0x80 points. The logic is in `rc2k_core::effects::splines::FacePoints::add_face`.
 pub fn add_face_points(
     object_faces: &crate::scene::object_faces::ObjectFaces,
@@ -255,8 +256,8 @@ pub fn reset_pong(pong: &crate::effects::pong::Pong, effects: &crate::effects::o
 }
 
 /// `effects::gather_spline_points`: record `s` emptied, then the points of object
-/// `object`'s faces of kind `kind` (+7, low five bits) added (`add_face_points`; the faces
-/// counted); the ids made pointers into the object points and the points copied to +0x654
+/// `object`'s faces of kind `kind` (the face's kind, low five bits) added (`add_face_points`; the faces
+/// counted); the ids made pointers into the object points and the points copied to `COORDS`
 /// (both the last first). Its last step, finding the farthest points, keeps nothing (a
 /// slip kept as is): not made. Refuses an object past 0xFF, a negative face count or faces
 /// past the course's faces.
@@ -309,7 +310,7 @@ fn gather_spline_points(
     Ok(())
 }
 
-/// An angle as `fld dword [x]; fchs` leaves it.
+/// An angle as an extended-precision value with its sign flipped.
 fn negated(f: u32) -> [u8; 10] {
     let mut a = crate::math::matrix3::extended(f);
     a[9] ^= 0x80;
@@ -334,8 +335,8 @@ fn multiply_turns(paths: &Paths) {
     }
 }
 
-/// `effects::turn_spline_points`: the turns about X, Y, Z by minus record `s`'s +0x20, +0x24,
-/// +0x28 into the work turns, X x Y into the XY turn, that x Z into the turn, and the
+/// `effects::turn_spline_points`: the turns about X, Y, Z by minus record `s`'s three angles
+/// into the work turns, X x Y into the XY turn, that x Z into the turn, and the
 /// record's points turned by it in place. Refuses more than 0x80 points or an angle with
 /// no sine and cosine, before writing anything.
 fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
@@ -375,11 +376,11 @@ fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::place_shape_points`: the turns about X, Y, Z by record `s`'s +0x20, +0x24,
-/// +0x28 (not negated, as `turn_spline_points` does) into the work turns, X x Y into the XY
+/// `effects::place_shape_points`: the turns about X, Y, Z by record `s`'s three angles
+/// (not negated, as `turn_spline_points` does) into the work turns, X x Y into the XY
 /// turn, that x Z into the turn; the record's points turned by it into the ordered
-/// coordinates; then, from the last, each written plus the record's +0xC54 .. through the
-/// record's pointer at +0x454. Refuses more than 0x80 points, an angle with no sine and
+/// coordinates; then, from the last, each written plus the record's centre (`CENTRE`) through the
+/// record's pointer (`IDS`). Refuses more than 0x80 points, an angle with no sine and
 /// cosine, and a null pointer among the points', before writing anything.
 pub(super) fn place_shape_points(
     object_points: &crate::scene::object_points::ObjectPoints,
@@ -452,8 +453,8 @@ pub(super) fn transform_int_points_from(
     )
 }
 
-/// Ordered point `k` plus record `s`'s +0xC54 .. written through the record's pointer
-/// `pointer` (at +0x454).
+/// Ordered point `k` plus record `s`'s centre written through the record's pointer
+/// `pointer` (at `IDS`).
 pub(super) fn write_point(
     object_points: &crate::scene::object_points::ObjectPoints,
     paths: &Paths,
@@ -477,8 +478,8 @@ pub(super) fn write_point(
 }
 
 /// `effects::order_spline_points`: record `s`'s ids and points put in grade order (each
-/// grade's the last first) through the ordered ids and coordinates; +0 .. +8 each grade's
-/// start, +0xC .. +0x14 its count; then the count's ids and points moved back (as a
+/// grade's the last first) through the ordered ids and coordinates; the three grades' starts and
+/// counts are kept in the record; then the count's ids and points moved back (as a
 /// byte move would, as many as the count, whatever their grade). Refuses more
 /// than 0x80 points or a negative count. The logic is in
 /// `rc2k_core::effects::splines::order`.
@@ -528,8 +529,8 @@ pub fn order_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
 /// `effects::bound_spline_points`: record `s`'s points' smallest and largest in each part;
 /// the y and z sizes as floats into the spline size + 4, + 8 (its x is left as it was: a
 /// slip kept as is); the box's middle (half the size, shifted right, plus the smallest) into the
-/// centre (+0xC54); the angle between the spline's up vector and the size
-/// (`scene::angle_between_vectors`, both normalised) into +0x20. Refuses more than 0x80
+/// centre (`CENTRE`); the angle between the spline's up vector and the size
+/// (`scene::angle_between_vectors`, both normalised) into the record's first angle. Refuses more than 0x80
 /// points. The logic is in `rc2k_core::effects::splines::bounds` (the floats, the sizes made
 /// floats and the angle, stay the x87's: the first round as its control word says).
 pub fn bound_spline_points(
@@ -576,9 +577,9 @@ fn spline_checks(
 /// `effects::make_spline`: `object` kept as the spline object; unless 8 are made, the next
 /// record of each table for it: of the faces of that table's kind gathered, bounded,
 /// centred, given the table's angles and turned; the second and third also given the first
-/// table's record 0's centre and +0x20 first (record 0's whatever the place: a slip kept as
-/// is) and then graded (+0x18, +0x1C 0x58F0, 0x6F78), ordered and their ends found; the
-/// third's +0x44 .. the highest point plus the spline shift. Then the place counted.
+/// table's record 0's centre and first angle first (record 0's whatever the place: a slip kept
+/// as is) and then graded (the two grade heights set to 0x58F0 and 0x6F78), ordered and their
+/// ends found; the third's top fields the highest point plus the spline shift. Then the place counted.
 /// Refuses a negative place, an object past 0xFF or faces past the course's faces, an angle
 /// with no sine and cosine, before writing anything else.
 fn make_spline(
@@ -653,7 +654,7 @@ const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
 /// `effects::load_splines`, in step 1: once (then the loaded flag is set) `files\m\spline.dat` (0xC00
 /// bytes at most, `files::read_whole_file`) into the spline file; the five values of the
 /// marks' kind kept; the place count 0; `make_spline` for each of the settings' objects
-/// (+0x26BC, the last first). Refuses a kind of 0x22 or
+/// (`object_count` of them from `first_object`, the last first). Refuses a kind of 0x22 or
 /// more, more than 19 objects, and what `make_spline` would refuse for any of them, before
 /// writing anything.
 pub(super) fn load_splines(
@@ -716,7 +717,7 @@ pub struct SplineHead {
     pub angle: PlainFloat,
     /// The wave (`effects::run_splines`).
     pub wave: PlainFloat,
-    /// Added to the third table's highest point for its +0x44.
+    /// Added to the third table's highest point for its top fields.
     pub shift: [PlainDword; 3],
     /// 0 or 1, which of the two graded records is being placed.
     pub switch: PlainDword,
@@ -1455,7 +1456,7 @@ pub struct SplineConstants {
     pub wave_k: [PlainFloat; 3],
     /// `place_spline`'s factors and limits.
     pub place_k: [PlainFloat; 8],
-    /// Each table's +0x24, +0x2C, +0x28 (four times three).
+    /// Each table's three values (four times three).
     pub angles: [PlainFloat; 12],
 }
 

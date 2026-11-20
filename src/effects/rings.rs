@@ -35,8 +35,8 @@ fn angle_put(angles: &PlainBytes<1032>, at: u32, v: u32) -> Result<(), BadInput>
     angles.write_at(at as usize, &v.to_le_bytes(), "the ring angles")
 }
 
-/// The quad of corner entries k and k + 1: k's +0, +4, k + 1's +0, +4, k + 1's +0xC, +0x10,
-/// k's +0xC, +0x10.
+/// The quad of corner entries k and k + 1: the first two values of k, the first two of k + 1, then
+/// the fourth and fifth of k + 1, and the fourth and fifth of k.
 fn quad(corners: &PlainBytes<3096>, k: u32) -> Result<[u32; 8], Refused> {
     Ok({
         let e = k * ENTRY;
@@ -48,7 +48,7 @@ fn quad(corners: &PlainBytes<3096>, k: u32) -> Result<[u32; 8], Refused> {
 }
 
 /// `effects::span_ring_quad`: the two angles' sines and minus cosines into the ring's
-/// floats, the quad they give by the shape's radii (+0x1C, +0x20) and middle (+0xC, +0x10)
+/// floats, the quad they give by the shape's `radii` and `middle`
 /// into the ring's quad, then all eight of its floats overwritten by corner entries k and
 /// k + 1 (so the computed quad is lost: a slip kept as is), and that spanned (`span_quad`).
 /// `s` the shape.
@@ -94,8 +94,8 @@ fn span_ring_quad(
     Ok(())
 }
 
-/// `effects::span_ring`: shape `s`'s ring (+4 quads): a run counted, the runs' place into +8;
-/// the angles' ends (+0x14, +0x18 times 0.0175), their half and middle; for each quad its two
+/// `effects::span_ring`: shape `s`'s ring (its quads): a run counted, the runs' place into its
+/// rows; the angles' ends (`angle_ends` times 0.0175), their half and middle; for each quad its two
 /// angles (the middle less the half times the cosine of the step's angle, and of the next),
 /// sines and cosines into the table `angles` (then the angles over the sines), and
 /// `span_ring_quad`; the angle on by pi over the count. Refuses a count of 0 or less or past

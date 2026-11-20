@@ -258,7 +258,7 @@ fn camera(race: &Race, ui: &Ui) {
     }
 }
 
-/// Mode 7: the places kept: 0x20 bytes each: view, x, y, z, heading, .. in use at +0x1C.
+/// Mode 7: the places kept: each with its view, x, y, z, heading, .. and an in-use flag.
 fn kept_places(race: &Race, ui: &Ui) {
     let mut last = KEPT
         .lock()

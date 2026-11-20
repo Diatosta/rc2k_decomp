@@ -74,7 +74,7 @@ pub const ALIGN_RIGHT: u32 = 3;
 
 // ---- the three button functions ----
 
-/// What the three functions do: the item is only read for its sprites (`set`, its +0x20).
+/// What the three functions do: the item is only read for its sprites (`set`, its `sprites`).
 pub fn draw_button(
     menus: &Menus,
     kind: &Kind,
@@ -132,7 +132,7 @@ pub fn draw_button(
 
 // ---- the five that choose for an item ----
 
-/// The button an item describes itself (width at +8, alignment at +0xC), highlighted if the
+/// The button an item describes itself (`width_or_text_x`, `alignment_or_text_y`), highlighted if the
 /// item is.
 pub(super) fn draw_item_button(
     menus: &Menus,

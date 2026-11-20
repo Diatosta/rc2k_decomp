@@ -13,9 +13,9 @@ pub struct SurfaceTables {
     pub lives_by_flags: [PlainDword; 4],
     /// The life by the level (`effects::emit_twin`; 9 entries are allowed, the last is the tint).
     pub lives_by_level: [PlainDword; 9],
-    /// The wheel's +0x24 kept.
+    /// The wheel's second flags kept.
     pub wheel_flags2: PlainDword,
-    /// The wheel's +0x20 kept.
+    /// The wheel's flags kept.
     pub wheel_flags: PlainDword,
     /// The 128 colours a streak takes by its age (the other table has 257).
     pub colours: [PlainDword; 128],

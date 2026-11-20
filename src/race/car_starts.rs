@@ -57,7 +57,7 @@ fn matrix_and_wheels(
 }
 
 /// Settles the work car on the ground: `physics::set_handling`; the work car's pitch and roll
-/// (+0x9C4, +0x9C8) 0, both steps 0x20000000, `settle_mark` 0x80; eight times the matrix
+/// (`car_pitch`, `car_roll`) 0, both steps 0x20000000, `settle_mark` 0x80; eight times the matrix
 /// (`get_mat_crash`) and the wheels (`physics::probe_ground`), the roll moved by the step towards
 /// wheels 0 + 2 against 1 + 3, the pitch towards 0 + 1 against 2 + 3, each step halved; once more
 /// the matrix and the wheels, then the car's y and the four wheels and the four after them are
@@ -116,10 +116,11 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
 }
 
 /// Settles the car (`settle_car`), undoes its matrix (`invert_car_matrix`) and clears its motion:
-/// the work car's +0x198 .. +0x1A0 0, +0x1A4 1.0, +0x1A8 0, `speed` (+0x1AC) 0, +0x184 ..
-/// +0x18C 0; heading, pitch and roll copied to `start_heading` / `58` / `54` and +0x6B0 / +0x6B8 /
-/// +0x6B4; +0x1E8, `drive_speed_a`, `drive_speed_b`, `gear`, +0x200, +0x204, +0x1C4,
-/// +0x1F4 0; with +0x68C not 0, +0x688 and +0x684 get it less one and +0x68C 0.
+/// the work car's `velocity` and `spin` 0, `local_velocity` (1.0, 0, 0), `speed` 0; heading, pitch
+/// and roll copied to `start_heading` / `start_pitch` / `start_roll` and `camera_heading` /
+/// `camera_pitch` / `camera_roll_turn`; `stuck_count`, `drive_speed_a`, `drive_speed_b`, `gear`,
+/// `eased_yaw_spin`, `grip_force_sum`, `wall_hit_timer` 0; with `camera_view_return` not 0,
+/// `camera_blend_view` and `camera_view` get it less one and `camera_view_return` 0.
 pub fn reset_car_motion(
     c: &ResetInputs<'_>,
     scene: &crate::scene::owner::Scene,
@@ -178,15 +179,16 @@ fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
     add(&shared.car().position[2], z);
 }
 
-/// Sets the work car's start: +0x478, +0x694 0, +0xAD4/+0xAD8 0x80000000, +0x1E4, +0x1D8, +0x1D4 0,
-/// +0x644 .. +0x650 and +0x638 .. +0x640 0. Unless `run_kind` is 4: its checkpoint is
-/// `first_check_checkpoint` (less the car's number / 2 but with `run_kind` 1 or 3) into
-/// `line_place`, `line_fraction` 0 (both 0 with `Finish.no_place`); `place_car_on_line`; without
-/// `Finish.no_place` the car is moved back (0, -0x20000 turned by `place_heading`) and, with
-/// `session` or (`run_kind` 0 and `players` not 1), to the side (+-0x14000 by the car's number's
-/// low bit). Then `nearest_checkpoint` goes into +0x98, +0x94, +0x9C; its check count less one held
-/// to 0 .. 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. Refused: a nearest
-/// checkpoint past the lists (when met).
+/// Sets the work car's start: `notice_count`, `camera_switch_active` 0, `map_corner` 0x80000000,
+/// the engine's sound revs, engine speed and gear 0, the steering and pedal values 0. Unless
+/// `run_kind` is 4: its checkpoint is `first_check_checkpoint` (less the car's number / 2 but with
+/// `run_kind` 1 or 3) into `line_place`, `line_fraction` 0 (both 0 with `Finish.no_place`);
+/// `place_car_on_line`; without `Finish.no_place` the car is moved back (0, -0x20000 turned by
+/// `place_heading`) and, with `session` or (`run_kind` 0 and `players` not 1), to the side
+/// (+-0x14000 by the car's number's low bit). Then `nearest_checkpoint` goes into `checkpoint`,
+/// `reset_checkpoint`, `last_pace_call`; its check count less one held to 0 .. 100 into
+/// `splits_passed` and `splits_recorded`; `reset_car_motion`; `reset_key_count`, `stopped_steps`,
+/// `tyre_change_state` 0. Refused: a nearest checkpoint past the lists (when met).
 pub fn start_car(
     c: &ResetInputs<'_>,
     scene: &crate::scene::owner::Scene,
@@ -260,8 +262,8 @@ pub fn start_car(
 }
 
 /// For each car of the race (`race_cars`): `current_car`, `drive::load_car`, `start_car`, the work
-/// car's +0xA3C (8 dwords) and +0xA5C (0x11) cleared, `drive::store_car`. Refused (before
-/// anything): no cars or more than 8.
+/// car's `part_damage_limits` and first 18 `saved_point_figures` cleared, `drive::store_car`.
+/// Refused (before anything): no cars or more than 8.
 pub fn start_cars(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -280,7 +282,7 @@ pub fn start_cars(
             scene,
             net_race,
         )?;
-        // Clears +0xA3C (8 dwords) and +0xA5C (0x11).
+        // Clears the damage limits and the first 18 saved point figures.
         for cell in shared
             .car()
             .part_damage_limits

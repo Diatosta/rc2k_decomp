@@ -256,8 +256,8 @@ pub const COFACTORS: [(u32, [u32; 4]); 9] = [
 ];
 
 /// Matrix `m`'s 3 x 3 cofactors, transposed, into `out` (each stored before the next is
-/// worked out: `out` may be `m`), then its place (+0x30 ..= +0x38) negated. +0xC, +0x1C,
-/// +0x2C, +0x3C are left.
+/// worked out: `out` may be `m`), then its place (the x, y, z of the fourth row) negated. The
+/// fourth column is left.
 pub fn adjugate_matrix(p: &mut impl Places, m: u32, out: u32) {
     for (to, [a, b, c, d]) in COFACTORS {
         let f = |o: u32| p.float(m.wrapping_add(o));

@@ -42,7 +42,7 @@ impl ListCells {
         }
     }
 
-    /// A copy of the list (its fields may be read half changed, as the original's).
+    /// A copy of the list (its fields may be read half changed).
     pub fn get(&self) -> MemoryList {
         MemoryList {
             head: self.head.get(),
@@ -141,7 +141,7 @@ pub fn figures() -> rc2k_core::memory::Figures {
 }
 
 /// The three figures loaded from the game, changed by `f`, stored back (only those that
-/// changed are written, as the original writes only what it counts).
+/// changed are written).
 pub fn with_figures(f: impl FnOnce(&mut rc2k_core::memory::Figures)) {
     use state::{HELD, MOST_HELD, TURNOVER};
 

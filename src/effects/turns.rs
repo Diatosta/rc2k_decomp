@@ -7,8 +7,8 @@ use crate::math::x87;
 use crate::memory::session::{PlainDword, PlainFloat};
 
 /// `effects::set_line_turn` (and with `back`, the turn back):
-/// from the line (+0, +4 to +0xC, +0x10: here `line`'s dwords 0, 1 to 3, 4) dx into
-/// +0x396 and +0x3A6, minus dy (dy when `back`) into +0x3A2, its negation into +0x39A.
+/// from the line (`line`'s dwords 0, 1 to 3, 4) dx into the turn's first and fifth cells, minus
+/// dy (dy when `back`) into its fourth, its negation into its second.
 pub fn set_line_turn(masks: &Masks, line: &[PlainDword; 6], back: bool) {
     let dx = x87::sub(line[3].get(), line[0].get());
     let dy = if back {

@@ -1,10 +1,10 @@
 //! The "quit?" question in a race. The race's sounds stopped,
-//! `scene_switch` 1; the best whole frame less 7 (the first block's +8 / 100) kept in
+//! `scene_switch` 1; the best whole frame less 7 (the first block's `step_clock` / 100) kept in
 //! `last_kept` when not below it (by the sign); the eight blocks' notice 0xC2 (with
-//! `no_replay`) or 0xC1, +0x730 0, +0x72C -1. Then until answered (`input::yes_no_key`, the
+//! `no_replay`) or 0xC1, `notice_time_b` 0, `notice_time` -1. Then until answered (`input::yes_no_key`, the
 //! race's frame drawn each turn, `drive::race_frame` through the game): yes -1, no 0, and outside
 //! mode 2 with `no_replay` the third answer -2. The notices cleared, `scene_switch` 0 and the
-//! sounds woken, the eight blocks' +0x468 0.
+//! sounds woken, the eight blocks' `input_keys` 0.
 //!
 //! Gives the answer.
 //!

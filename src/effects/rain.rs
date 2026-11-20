@@ -20,26 +20,27 @@ pub struct RainState {
     /// A random's halves times 0x100 (x, [y not used], z); `run_rain` adds the first and third to
     /// the drops' places.
     pub drift_halves: [PlainDword; 3],
-    /// The settings' +0x1C .. +0x24, the view's place (whole numbers).
+    /// The settings' `listener_place`, the view's place (whole numbers).
     pub view_place: [PlainDword; 3],
-    /// The settings' +0x28 .. +0x48, the view's 3 x 3 matrix (identity at first).
+    /// The settings' `listener_turn`, the view's 3 x 3 matrix (identity at first).
     pub view_matrix: [PlainFloat; 9],
     /// The view's move since the last frame (floats), held to a length.
     pub motion: [PlainFloat; 3],
-    /// The view's move since the last frame, scaled, by view entry (the settings' +8; 5 of 12
-    /// bytes).
+    /// The view's move since the last frame, scaled, by view entry (the settings' `marks_layout`;
+    /// 5 entries).
     pub moves: [[PlainFloat; 3]; 5],
-    /// The view's place at the last frame, by view entry (5 of 12 bytes; whole numbers, the y with
+    /// The view's place at the last frame, by view entry (5 entries; whole numbers, the y with
     /// the drift).
     pub last_views: [[PlainDword; 3]; 5],
     /// The drift added to the drops' y (the clock's low 20 bits times a constant when drifting).
     pub drift: PlainDword,
-    /// The number of drops (the settings' +0x2764, held to 0x100; initially 0x100). Also read by
+    /// The number of drops (the settings' `rain_drops`, held to 0x100; initially 0x100). Also read by
     /// `effects::ring_frame`.
     pub drops: PlainDword,
     /// The drops' random places, three tables (18 bits; `effects::seed_noise`).
     pub noise: [[PlainDword; 256]; 3],
-    /// Each drop's turned place kept for the next frame (when the settings' +0x10 is set).
+    /// Each drop's turned place kept for the next frame (when the settings' `other_marks_shown`
+    /// is set).
     pub kept: [[PlainDword; 256]; 3],
     /// The streak's half-width offset (x, y) at its first end: the line across the streak's screen
     /// direction (the direction turned a quarter: -dy, dx) normalised, times the kind's half width

@@ -79,10 +79,8 @@ pub(super) fn surface_sounds(
 
 // ---- the x87-precision arithmetic ----
 
-/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
-/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [t + 0] = 0x3E800000`
-/// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
+/// An x87-precision run in plain Rust over `X`: `volume = volume * 0.25` (the constant 0x3E800000
+/// stored in the scratch cell `t`).
 fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
     let t0 = ld(sf.volume.get());
     mov(t, 0, 0x3E800000);
@@ -91,10 +89,8 @@ fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
     sf.volume.set(stf(t2));
 }
 
-/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
-/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [t + 0] = 0x3DCCCCCD`
-/// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
+/// An x87-precision run in plain Rust over `X`: `volume = volume * 0.1` (the constant 0x3DCCCCCD
+/// stored in the scratch cell `t`).
 fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
     let t0 = ld(sf.volume.get());
     mov(t, 0, 0x3DCCCCCD);
@@ -103,12 +99,12 @@ fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
     sf.volume.set(stf(t2));
 }
 
-/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
-/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[sf + 0x34] = (((0 - [bx + 0x4C]) + [bx + 0x60]) - [bx + 0x74]) + [bx + 0x88]`
-/// `[sf + 0x3C] = (((0 + [bx + 0x4C]) + [bx + 0x60]) - [bx + 0x74]) - [bx + 0x88]`
-/// `int [bx + 0x284] = ((([bx + 0x44] + [bx + 0x58]) + [bx + 0x6C]) + [bx + 0x80]) * [sf + 0xC]`
-/// `int [bx + 0x28C] = ((([bx + 0x4C] + [bx + 0x60]) + [bx + 0x74]) + [bx + 0x88]) * [sf + 0x10]`
+/// With `a`, `b` the four voices' `share_a`, `share_b`:
+/// `across = (((0 - b0) + b1) - b2) + b3`
+/// `along = (((0 + b0) + b1) - b2) - b3`
+/// `sum_a = (a0 + a1 + a2 + a3) * across_scale` (a whole number)
+/// `sum_b = (b0 + b1 + b2 + b3) * along_scale` (a whole number)
+/// `volume = (a0 * b0 + a1 * b1 + a2 * b2 + a3 * b3) * volume_scale`
 /// (a long formula: checked by the tests' `reference_vectors`)
 fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::SurfaceSounds) {
     let t0 = X(0.0);
@@ -173,12 +169,11 @@ fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     sf.volume.set(stf(t54));
 }
 
-/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
-/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[sf + 0x34] = (((0 - [bx + 0x50]) + [bx + 0x64]) - [bx + 0x78]) + [bx + 0x8C]`
-/// `[sf + 0x3C] = (((0 + [bx + 0x50]) + [bx + 0x64]) - [bx + 0x78]) - [bx + 0x8C]`
-/// `int [bx + 0x290] = ((([bx + 0x50] + [bx + 0x64]) + [bx + 0x78]) + [bx + 0x8C]) * [sf + 0x10]`
-/// `[sf + 0x40] = ((([bx + 0x50] + [bx + 0x64]) + [bx + 0x78]) + [bx + 0x8C]) * [sf + 4]`
+/// With `c` the four voices' `share_c`:
+/// `across = (((0 - c0) + c1) - c2) + c3`
+/// `along = (((0 + c0) + c1) - c2) - c3`
+/// `sum_c = (c0 + c1 + c2 + c3) * along_scale` (a whole number)
+/// `volume = (c0 + c1 + c2 + c3) * volume_scale`
 fn x87_4(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::SurfaceSounds) {
     let t0 = X(0.0);
     let t1 = ld(bx.voices[0].share_c.get());

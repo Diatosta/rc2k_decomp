@@ -1,10 +1,9 @@
-//! `effects::morph_object_points`: for each car (the settings' +0x5C, the last first; its
-//! block at +0x29C of its 0x4C8 bytes) the block's +0xC its +8; when its eight factors
-//! (+0x90 ..) differ from the kept ones (+0xB0 ..): +0xC -1, the factors kept (also in
-//! `MorphWork.kept[0]` ..), and for each of its first object's (+0) points the matching
-//! point of the second object (+4) blended toward from the base list (+0x8C) by
-//! `effects::blend_corner`, where the base and the second object's point differ. Then
-//! `effects::measure_lines`.
+//! `effects::morph_object_points`: for each car (the settings' `cars_copy`, the last first), when
+//! its eight `factors` differ from the `kept_factors`: `morph_kept` -1 (the start `morph_start`
+//! is copied into it first), the factors kept (also in `MorphWork.kept[0]` ..), and for each of
+//! its first object's points the matching point of the second object blended toward from the
+//! base list (`point_block`) by `effects::blend_corner`, where the base and the second
+//! object's point differ. Then `effects::measure_lines`.
 //!
 //! Refuses (before anything) null settings, more than 8 cars, and for a car whose factors changed:
 //! an object past 0xFF, a null base list or one (`Paths::block_points`) shorter than the points,

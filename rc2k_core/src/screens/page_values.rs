@@ -31,8 +31,8 @@ pub fn stage_options_caption(page: u32) -> u32 {
 /// buffer, its NUL with it.
 pub const STAGE_LINE_ROOM: usize = 0x100;
 
-/// The setting the controller pages copy from the player picked: its +0x2C and the 0x2C
-/// bytes from +0x50.
+/// The setting the controller pages copy from the player picked: one dword and a run of 0x2C
+/// bytes.
 pub(crate) const PICKED_LEN: usize = 0x2C;
 
 impl Player {

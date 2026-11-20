@@ -109,7 +109,7 @@ pub struct InstallerNames {
     /// The count script (`install::install_files`).
     pub script_count: PlainBytes<200>,
     /// The uninstall script, 17 bytes, then the mark (`SCRIPT_MARK`), then the rest of the script
-    /// to its end (5) at +0x2F: the save and settings folders. `install::run_script` reads on
+    /// to its end (5) after it: the save and settings folders. `install::run_script` reads on
     /// into the rest when the mark is 1; 5 in the mark ends the script there.
     pub script: PlainBytes<{ SCRIPT_MARK + 1 + 30 }>,
     /// "ral.exe" (in ".\ral.exe").
@@ -173,7 +173,7 @@ impl InstallerNames {
 }
 
 /// A record of a drawing list on the pages (`install::draw_string_list`): 16 bytes, the
-/// offsets from the list's place, the font's link and the text's string id (the dwords in this
+/// offsets (dx, dy) from the list's place, the font's link and the text's string id (the dwords in this
 /// order are its bytes).
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
@@ -253,7 +253,7 @@ pub struct InstallerPages {
     pub frame: PlainBytes<17>,
     /// The page's fonts (links to the font objects).
     pub fonts: [PlainDword; 25],
-    /// Font by mark, 8 bytes a kind (`install::lay_out_pieces`, from +4).
+    /// Font by mark, 8 bytes a kind (`install::lay_out_pieces`, from the fifth byte).
     pub kind_fonts: PlainBytes<108>,
     /// `language_page`'s list: the nine languages and cancel.
     pub language_menu: ListData10,
@@ -269,7 +269,7 @@ pub struct InstallerPages {
     /// The drive page's list when there are more drives.
     pub menu_more: ListData26,
     /// `folder_page`'s list; its second item is the edit item (`folder_edit`), whose text link
-    /// (+8) `run_installer` sets on Unix.
+    /// (the target word) `run_installer` sets on Unix.
     pub folder_menu: ListData6,
     /// `room_page`'s list.
     pub room_menu: ListData3,

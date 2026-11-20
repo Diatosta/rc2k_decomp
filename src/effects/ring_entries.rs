@@ -1,8 +1,8 @@
 //! The effects' ring of 0x400 entries of 0x94 bytes (0x25000 bytes, taken by
 //! `effects::set_up_surface`), counted on the ring list as the game's block was, given back by
 //! `effects::tidy_marks`. An entry is named by its number + 1 (0 none), in `RingWork.cursor` /
-//! `block` and in the entries' links (+0 the one before, +4 the one after). Each field keeps its
-//! offset in the record.
+//! `block` and in the entries' links (`prev` the one before, `next` the one after). The fields keep
+//! the record's order.
 
 use crate::effects::ring_store::Ring;
 use crate::errors::BadInput;
@@ -23,63 +23,62 @@ const RING_BYTES: u32 = 0x2_5000;
 /// Fields no code reads or writes by name are `unknown_<offset>`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Entry {
-    /// 0x00: The link to the entry before it in the ring (an entry number + 1).
+    /// The link to the entry before it in the ring (an entry number + 1).
     pub prev: u32,
-    /// 0x04: The link to the entry after it.
+    /// The link to the entry after it.
     pub next: u32,
-    /// 0x08: The emitter's tag (`EMITTER.tag`) at the time it was taken.
+    /// The emitter's tag (`EMITTER.tag`) at the time it was taken.
     pub emitter_tag: u32,
-    /// 0x0C: The particle's kind (1, 5, 6, 0xB, 0xD, 0x10 ..).
+    /// The particle's kind (1, 5, 6, 0xB, 0xD, 0x10 ..).
     pub kind: u32,
-    /// 0x10: Its place.
+    /// Its place.
     pub place: [f32; 3],
-    /// 0x1C: Its last place (the streaks), kept for the next frame's segment.
+    /// Its last place (the streaks), kept for the next frame's segment.
     pub last_place: [f32; 3],
-    /// 0x28: The height of the ground under it: it dies when its y is below this.
+    /// The height of the ground under it: it dies when its y is below this.
     pub ground_y: f32,
-    /// 0x2C: Its motion a frame. It lies 0x1C after the place, as the place plus
-    /// the motion times the ticks is how it moves.
+    /// Its motion a frame: the place plus the motion times the ticks is how it moves.
     pub motion: [f32; 3],
-    /// 0x38: The burst particles' extra push (three floats; the car's +0x4C .. +0x54 times
+    /// The burst particles' extra push (three floats; the car's `motion` times
     /// minus an eighth, x first).
     pub push: [f32; 3],
-    /// 0x44: Three dwords no emitter sets (0 from the emitter that clears them).
+    /// Three dwords no emitter sets (0 from the emitter that clears them).
     pub spare: [u32; 3],
-    /// 0x50: The sprite's angle.
+    /// The sprite's angle.
     pub angle: u32,
-    /// 0x54: How fast the angle turns.
+    /// How fast the angle turns.
     pub angle_rate: u32,
-    /// 0x58: The sprite's cell in its picture.
+    /// The sprite's cell in its picture.
     pub cell: u32,
-    /// 0x5C: How fast the sprite's cell advances with its life (read by the draw of kinds
+    /// How fast the sprite's cell advances with its life (read by the draw of kinds
     /// 0x10, 0x11; no emitter writes it, so it is 0 as the ring takes it).
     pub cell_rate: f32,
-    /// 0x60: The sprite's size.
+    /// The sprite's size.
     pub size: u32,
-    /// 0x64: Kind 1's size factor (a float): the size grows by it times `k1_size`; pulled
+    /// Kind 1's size factor (a float): the size grows by it times `k1_size`; pulled
     /// toward 65536 while the entry is near the car and faces it.
     pub size_factor: f32,
-    /// 0x68: The car it was emitted for (a `effects_settings_store::car_handle`).
+    /// The car it was emitted for (a `effects_settings_store::car_handle`).
     pub car: u32,
-    /// 0x6C: The emitting car's +0x88 (its pace), kept by the emitters of kinds 6, 0xD, 0x15.
+    /// The emitting car's `pace`, kept by the emitters of kinds 6, 0xD, 0x15.
     pub car_pace: u32,
-    /// 0x70: The size it is pulled toward.
+    /// The size it is pulled toward.
     pub size_goal: u32,
-    /// 0x74: The sprite's alpha.
+    /// The sprite's alpha.
     pub alpha: u32,
-    /// 0x78: How much of the alpha goes a tick.
+    /// How much of the alpha goes a tick.
     pub alpha_fade: f32,
-    /// 0x7C: The limits the object's box extents are tested against (kinds 6, 0x15, 0x10,
+    /// The limits the object's box extents are tested against (kinds 6, 0x15, 0x10,
     /// 0x11); no emitter writes them, so they are 0 as the ring takes it.
     pub box_limit: [u32; 2],
-    /// 0x84: The ticks of life left.
+    /// The ticks of life left.
     pub life: u32,
-    /// 0x88: no emitter writes it and no ring step reads it (only the tests' word copies touch it);
+    /// No emitter writes it and no ring step reads it (only the tests' word copies touch it);
     /// an unused word.
     pub unused_88: u32,
-    /// 0x8C: as 0x88, an unused word.
+    /// As `unused_88`, an unused word.
     pub unused_8c: u32,
-    /// 0x90: The emitting car's tag (its object's +0x1C, 24 bits), for the draw lists.
+    /// The emitting car's tag (its `tag`, 24 bits), for the draw lists.
     pub car_tag: u32,
 }
 

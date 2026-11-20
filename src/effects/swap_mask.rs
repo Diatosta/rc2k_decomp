@@ -1,4 +1,4 @@
-//! `effects::swap_mask`: when the settings' +0x2704 differs from the last seen (then it is kept),
+//! `effects::swap_mask`: when the settings' `sound_objects_shown` differs from the last seen (then it is kept),
 //! the effects' mask texture is refilled from mask block A (or mask block B when it is set; the
 //! choice is kept): the mask texture slot locked (`d3d::lock_texture`, the platform's), rows 0 ..
 //! 0x7D of 0x100 pixels (the locked surface's width each) put at y + 0x80 by

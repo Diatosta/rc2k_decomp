@@ -1,11 +1,11 @@
 //! The marks' mask pictures' variables: which ground picture (`load_mask_pictures`), the
 //! lists the mask blocks are taken on, the blocks, the paths of the mask pictures, and the
 //! number of the picture of each kind. Four statics, so that each struct starts at its first
-//! cell and its offsets stay as listed.
+//! cell and the layout stays as listed.
 
 use crate::memory::session::{PlainBytes, PlainDword};
 
-/// The ground picture's name. The offsets are from its start.
+/// The ground picture's name.
 #[derive(rc2k_derive::Cells)]
 pub struct GroundNames {
     /// Which of the six names (0 .. 5)
@@ -41,7 +41,7 @@ impl GroundNames {
     }
 }
 
-/// The mask blocks' lists and pointers. The offsets are from its start.
+/// The mask blocks' lists and pointers.
 #[derive(rc2k_derive::Cells)]
 pub struct MaskBlocks {
     /// The last mask switch seen by `swap_mask` (-1 once the masks are loaded)
@@ -142,15 +142,15 @@ impl Mask {
     }
 }
 
-/// The picture copy's list and pointer, and the mask paths. The offsets are from its start.
+/// The picture copy's list and pointer, and the mask paths.
 #[derive(rc2k_derive::Cells)]
 pub struct PictureCopy {
     /// The list the 0x80000-byte picture copy is taken on
     pub list: crate::memory::ListCells,
     /// The picture copy block (0x80000 bytes; unused, the copy is Rust's)
     pub copy: PlainDword,
-    /// `files\m\mask00.pcx` at +0, `files\m\bmask00.pcx` at +0x13, `files\m\bdata00.pcx` at
-    /// +0x25 (the digits: +0xC, +0x20, +0x34)
+    /// `files\m\mask00.pcx`, then `files\m\bmask00.pcx`, then `files\m\bdata00.pcx`, each
+    /// NUL-ended (the digits are patched per picture kind)
     pub paths: PlainBytes<60>,
 }
 
@@ -171,7 +171,7 @@ impl PictureCopy {
     }
 }
 
-/// The picture number of each kind. The offsets are from its start.
+/// The picture number of each kind.
 pub struct KindPictures {
     /// Per kind, the number in the mask and picture paths' two digits
     pub numbers: [u32; 34],

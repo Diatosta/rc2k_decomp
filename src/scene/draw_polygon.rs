@@ -2,10 +2,10 @@
 //! material.
 //!
 //! The polygon is `polygon_vertex_count` entries of the work table (0x44 bytes each), picked
-//! through the entry list. An entry: +4 the projected vertex (its +0xC x, +0x1C y, +0x18
-//! depth), +8 and +0x10 two pairs of texture coordinates, +0x18 the vertex's light as a colour,
-//! +0x20 a byte (fog or alpha by the pass) and +0x21 another, +0x24 and +0x2C two pairs of
-//! colour and specular that this function fills.
+//! through the entry list. An entry: `record` the projected vertex (its screen x and y
+//! and depth), `u`, `v` and `u2`, `v2` two pairs of texture coordinates, `light` the vertex's
+//! light as a colour, `fog` and `amount` two bytes (fog or alpha by the pass), and then two
+//! pairs of colour and specular that this function fills.
 //!
 //! What it does, in order:
 //! 1. While the sun's `on_screen` switch is set and the polygon has three vertices or more,
@@ -17,12 +17,12 @@
 //! 4. The positions into the vertex buffer: x and y plus an offset, the depth times a factor,
 //!    and 1/w as 0.01 / that.
 //! 5. With `faded` set: a first pass in a colour faded from `fade_from` towards 0x10 by each
-//!    entry's byte +0x20 (`gfx::fade_colour`), with texture 0xC0.
+//!    entry's `fog` byte (`gfx::fade_colour`), with texture 0xC0.
 //! 6. The pass or two of the polygon mode (0, 2 .. 6, 8, 9, 0xA; anything else draws nothing):
 //!    the entries' colours (`Shade`), which texture and coordinates, five or six render
 //!    states, `scene::submit_polygon`. `passes` has the table. Modes 3, 4 and 5 fall back to 2,
 //!    and to 8, 9 and 0xA, when one of the two material switches is 0; mode 3 first lets
-//!    `clear_a_switch` clear a switch by the entries' bytes +0x21.
+//!    `clear_a_switch` clear a switch by the entries' `amount` bytes.
 //!
 //! The x87's arithmetic is used with its own rounding. Refuses a polygon of no
 //! vertices or of more than 256, a list entry past the work table and an entry without its
@@ -48,16 +48,17 @@ const FADE_TEXTURE: u32 = 0xC0;
 /// How the entries' colours are filled before a mode's passes.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Shade {
-    /// +0x24 the material's colour, +0x28 nothing.
+    /// The first colour the material's colour, the first specular nothing.
     Plain,
-    /// +0x24 the material's colour with its alpha, +0x28 nothing.
+    /// The first colour the material's colour with its alpha, the first specular nothing.
     WithAlpha,
-    /// +0x24 the light times the colour, +0x28 the byte +0x20 as the specular's alpha.
+    /// The first colour the light times the colour, the first specular the `fog` byte as its alpha.
     Lit,
-    /// `Lit`, and +0x2C a grey of the two bytes' product, +0x30 opaque black.
+    /// `Lit`, and the second colour a grey of the two bytes' product, the second specular opaque
+    /// black.
     LitAndGrey,
-    /// `Lit`, and +0x2C the first colour with the byte +0x21 as its alpha, +0x30 as
-    /// +0x28 (`true`) or opaque black.
+    /// `Lit`, and the second colour the first colour with the `amount` byte as its alpha, the
+    /// second specular as the first (`true`) or opaque black.
     LitAndSecond(bool),
 }
 
@@ -326,7 +327,7 @@ fn choose_texture(
     poly.polygon_texture.set(texture.unwrap_or(NO_TEXTURE));
 }
 
-/// Clears a switch by what the entries' bytes +0x21 hold.
+/// Clears a switch by what the entries' `amount` bytes hold.
 fn clear_a_switch(
     tables: &crate::scene::polygon_store::PolygonTables,
     poly: &crate::scene::polygon_work::PolygonWork,
@@ -343,7 +344,7 @@ fn clear_a_switch(
             .texture_infos
             .get(face.texture_b.get() as usize)
             .ok_or(BadInput("a texture past the records"))?;
-        // the record's byte +0x2E
+        // the third byte of the record's word 0xB
         if info.words[0xB].get().to_le_bytes()[2] == 0 {
             poly.polygon_sides[0].set(0u32);
         }

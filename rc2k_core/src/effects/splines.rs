@@ -7,7 +7,7 @@ use crate::effects::points::{Collected, add_points};
 
 /// The most points a record holds.
 pub const MOST_POINTS: u32 = 0x80;
-/// The heights the grades part at: constants (the record's own +0x18 and +0x1C are not used).
+/// The heights the grades part at: constants (the record's own two height words are not used).
 pub(crate) const LOW: i32 = 0x3830;
 pub(crate) const HIGH: i32 = 0x6720;
 /// The grades.
@@ -74,8 +74,7 @@ pub fn grade(height: i32) -> u32 {
     }
 }
 
-/// What `order_spline_points` works out: each grade's start and count (the record's +0
-/// .. +8, +0xC .. +0x14), how many it placed, and the last point it took.
+/// What `order_spline_points` works out: each grade's start and count, how many it placed, and the last point it took.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Order {
     pub starts: [u32; 3],

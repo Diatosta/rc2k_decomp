@@ -1,8 +1,8 @@
 //! `effects::run_snow`: the snow's frame. The light's place and way are turned by the view into the
-//! snow's light, then the fade colours are made. The flakes (the settings' +0x2760, held to 0x800;
+//! snow's light, then the fade colours are made. The flakes (the settings' `snow_flakes`, held to 0x800;
 //! none leaves `flag` 0) are drawn by `effects::draw_snow` from the view's place and matrix (the
-//! settings' +0x1C .. +0x48), with the four vertices' rhw, the view's light as colour and the
-//! texture places from `uv`. When the settings' +0x10 is set the fall gains the clock's step times
+//! settings' `listener_place` and `listener_turn`), with the four vertices' rhw, the view's light as colour and the
+//! texture places from `uv`. When the settings' `other_marks_shown` is set the fall gains the clock's step times
 //! `fall_k`, kept to 28 bits.
 //!
 //! Works on the effects settings.

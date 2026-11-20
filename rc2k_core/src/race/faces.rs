@@ -1,6 +1,6 @@
-//! The course's faces as the frame draws them: a 0x40-byte face record (+0 kind and flags, +1
-//! object, +2 switches, +4 .. +0x10 four scene points, +0x11 .. +0x13 and +0x30 .. +0x38 lights,
-//! +0x20 / +0x21 the second triangle's kind and object); its corners, switches, texture
+//! The course's faces as the frame draws them: a 0x40-byte face record (kind and flags, object,
+//! switches, four scene points, lights, and the second triangle's kind and object); its
+//! corners, switches, texture
 //! coordinates, normals, hide masks, gathering, depths and materials.
 
 use crate::Invalid;
@@ -82,7 +82,7 @@ pub fn repeated_points(points: [u32; 4], quad: impl FnOnce() -> bool) -> bool {
 /// The switches word's bit for a face with repeated points.
 pub const REPEATED: u16 = 0x200;
 
-/// The switches word (+2) with `REPEATED` set or cleared.
+/// The switches word with `REPEATED` set or cleared.
 pub fn with_repeated(word: u16, repeated: bool) -> u16 {
     if repeated {
         word | REPEATED
@@ -91,8 +91,8 @@ pub fn with_repeated(word: u16, repeated: bool) -> u16 {
     }
 }
 
-/// The two triangles' normal points (+4, +8, +0xC and +0x10, +0xC, +8) and where each normal
-/// goes (+0x18, +0x30, +0x38 and +0x1C, +0x34, +0x3C).
+/// The two triangles' normal points (points 0, 1, 2 and 3, 2, 1) and where each normal's three
+/// floats go in the record (`[usize; 3]` points, `[u32; 3]` record offsets).
 pub const NORMAL_TRIANGLES: [([usize; 3], [u32; 3]); 2] = [
     ([0, 1, 2], [0x18, 0x30, 0x38]),
     ([3, 2, 1], [0x1C, 0x34, 0x3C]),
@@ -103,7 +103,7 @@ pub fn normal_made(points: [u32; 3], count: u32) -> bool {
     points.iter().all(|&p| p < count)
 }
 
-/// A face of kind 0xFF gets its lights (+0x30 .. +0x38 and +0x11 .. +0x13) 0; others stay.
+/// A face of kind 0xFF gets its lights (the lit normals and the light marks) 0; others stay.
 pub fn reset_lights(face: &mut [u8; FACE_BYTES]) {
     if face[0] == LIT_KIND {
         face[0x30..0x3C].fill(0);
@@ -130,7 +130,7 @@ pub fn switches(textures: [u32; 2]) -> [u32; 2] {
 pub struct TextureInfo {
     /// The size word.
     pub size: u32,
-    /// +0x2D, signed: 0 plain, above 0 mapped from the scene's x and z.
+    /// Signed: 0 plain, above 0 mapped from the scene's x and z.
     pub mapping: i8,
 }
 
@@ -221,7 +221,7 @@ pub enum Gathered {
     No,
     /// A lit face (kind 0xFF): its object, the second tables.
     Lit,
-    /// A plain face (kind below 0x10): its object, or +0x21 when that is 0.
+    /// A plain face (kind below 0x10): its object, or the second triangle's object when that is 0.
     Plain,
 }
 
@@ -236,7 +236,8 @@ pub fn gathered(kind: u8) -> Gathered {
     }
 }
 
-/// A gathered face's object: +1, for a plain face +0x21 when +1 is 0.
+/// A gathered face's object: its first object, for a plain face the second triangle's when the
+/// first is 0.
 pub fn face_object(how: Gathered, first: u8, second: impl FnOnce() -> u8) -> u32 {
     if how == Gathered::Plain && first == 0 {
         second() as u32
@@ -303,7 +304,7 @@ pub fn hidden_by_depth(depth: u32, x: u32, widening: f32) -> bool {
 pub enum DepthBy {
     /// Kind 0x10 or more: its first point's depth.
     First,
-    /// Its object's flags bit 1 (record +0xE): the deepest of its four points.
+    /// Its object's flags bit 1: the deepest of its four points.
     Deepest,
     /// Else the four points' sum over four.
     Average,
@@ -362,7 +363,7 @@ pub fn frame_place(object: u32, frame: u32) -> (u32, u32) {
 }
 
 /// A course face, its fields by name. The same bytes mean different things for different kinds
-/// (a checkpoint face's +0xC is its next link, the fourth point's dword shares its high bytes
+/// (a checkpoint face's fourth dword is its next link, the fourth point's dword shares its high bytes
 /// with the lights), so the record stays its bytes and each reading is a method.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Face(pub [u8; FACE_BYTES]);
@@ -409,7 +410,7 @@ impl Face {
         self.0[2..4].copy_from_slice(&word.to_le_bytes());
     }
 
-    /// +4 + 4 `n`: point `n` (0 ..= 3) of the scene points.
+    /// Point `n` (0 ..= 3) of the scene points.
     pub fn point(&self, n: usize) -> u32 {
         self.dword(4 + 4 * (n & 3))
     }
@@ -419,24 +420,24 @@ impl Face {
         NORMAL_TRIANGLES[t & 1].1.map(|at| self.dword(at as usize))
     }
 
-    /// A checkpoint face's +0xC: the next checkpoint face in its chain.
+    /// A checkpoint face's next link: the next checkpoint face in its chain.
     pub fn next_link(&self) -> u32 {
         self.dword(0xC)
     }
 
-    /// A sound spot face's +8 (point 1's low byte): its sound.
+    /// A sound spot face's sound (point 1's low byte).
     pub fn sound(&self) -> u8 {
         self.0[8]
     }
 
-    /// A checkpoint face's +0xA and +0xB (point 1's high bytes): the computer driver's
+    /// A checkpoint face's two bend bytes (point 1's high bytes): the computer driver's
     /// bends.
     pub fn bends(&self) -> (u8, u8) {
         (self.0[0xA], self.0[0xB])
     }
 
-    /// `physics::touch_face`'s marks: +9 0 when `clear_9`, then +0x11 `mark`, +0x13 0,
-    /// +0x12 `angle`.
+    /// `physics::touch_face`'s marks: byte 9 zeroed when `clear_9`, then the mark, the touch
+    /// byte zeroed and the angle.
     pub fn touch(&mut self, mark: u8, angle: u8, clear_9: bool) {
         if clear_9 {
             self.0[9] = 0;
@@ -455,27 +456,27 @@ impl Face {
         self.0[0x11] = mark;
     }
 
-    /// +0x14 + `k`: corner `k`'s (0 ..= 3) colour, an index of the light table.
+    /// Corner `k`'s (0 ..= 3) colour, an index of the light table.
     pub fn corner_light(&self, k: usize) -> u8 {
         self.0[0x14 + (k & 3)]
     }
 
-    /// +0x22 + `k`: corner `k`'s fog byte.
+    /// Corner `k`'s fog byte.
     pub fn corner_fog(&self, k: usize) -> u8 {
         self.0[0x22 + (k & 3)]
     }
 
-    /// +0x28 + `k`: corner `k`'s colour on a two-sided face's back.
+    /// Corner `k`'s colour on a two-sided face's back.
     pub fn back_light(&self, k: usize) -> u8 {
         self.0[0x28 + (k & 3)]
     }
 
-    /// +0x2C + `k`: corner `k`'s fog byte on the back.
+    /// Corner `k`'s fog byte on the back.
     pub fn back_fog(&self, k: usize) -> u8 {
         self.0[0x2C + (k & 3)]
     }
 
-    /// The second triangle's kind and flags (as +0 for the first).
+    /// The second triangle's kind and flags (as the kind byte is for the first).
     pub fn second_kind(&self) -> u8 {
         self.0[0x20]
     }
@@ -485,17 +486,17 @@ impl Face {
         self.0[0x21]
     }
 
-    /// A checkpoint face's +0x26: its check (0 and 1 are none).
+    /// A checkpoint face's check: (0 and 1 are none).
     pub fn check(&self) -> u8 {
         self.0[0x26]
     }
 
-    /// The extra lights' first lamp indices (+0x28 + `k`) and second (+0x2C + `k`).
+    /// The extra lights' first lamp indices and second (shared with the back colours and fog).
     pub fn lamps(&self, k: usize) -> (u8, u8) {
         (self.0[0x28 + (k & 3)], self.0[0x2C + (k & 3)])
     }
 
-    /// A checkpoint face's map place (+0x2C, +0x2E); a map anchor when not both 0.
+    /// A checkpoint face's map place (x, y); a map anchor when not both 0.
     pub fn map_place(&self) -> (u16, u16) {
         (self.word(0x2C), self.word(0x2E))
     }

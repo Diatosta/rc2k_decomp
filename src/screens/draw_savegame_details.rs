@@ -36,7 +36,7 @@ pub fn draw_savegame_details(
     // are copied into the preview's variables first.
     use rc2k_core::screens::savegame_preview::{Car, Title, details};
     {
-        // The read file's dwords and cars, by offset in it.
+        // The read file's dwords and cars, by position in it.
         let file = &saves.save_games.file;
         let saved_dword = |at: usize| -> Result<u32, crate::errors::BadInput> {
             let b = file.read_at(at, 4, "a saved game's head")?;
@@ -71,7 +71,7 @@ pub fn draw_savegame_details(
                 bytes.try_into().expect("CAR_LEN bytes"),
             );
             Ok(Car {
-                // The saved car's copy of its player's name (+0x124), read as far as its NUL
+                // The saved car's copy of its player's name, read as far as its NUL
                 // inside the read file.
                 name: crate::screens::game_screen::HeldText::SavedCarName(at + 0x124),
                 nation: p.nationality,

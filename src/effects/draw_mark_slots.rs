@@ -1,13 +1,13 @@
-//! `effects::draw_mark_slots`: the mark slots drawn, one square sprite each. When the settings'
-//! +0x8C is set, `effects::add_mark_slot` first takes a slot (with the settings' +0x64 and the view
-//! place); `scene::set_texture` sets the marks' texture. Then each of the 0x20 slots, the last
-//! first, whose life (+0) is above 0 loses the frame's ticks and is drawn: its point (+4, 12 bytes
-//! each, as z, y, -x, each scaled) is turned by the slot's matrix (+8) and the view
+//! `effects::draw_mark_slots`: the mark slots drawn, one square sprite each. When the first car's
+//! `gear_notice` is set, `effects::add_mark_slot` first takes a slot (with that car's `model` and
+//! the view place); `scene::set_texture` sets the marks' texture. Then each of the 0x20 slots, the
+//! last first, whose `life` is above 0 loses the frame's ticks and is drawn: its point (three
+//! floats, taken as z, y, -x, each scaled) is turned by the slot's `matrix` and the view
 //! (`scene::rotate_point` twice); one of eight corner pictures is chosen by the slots' random
 //! (entry 0x50 plus its low three bits) for the texture places; unless the turned z is at or below
 //! the nearest depth (a signed compare of the bits), the point is projected and the square drawn
-//! around it with `scene::draw_fan`. Its half side comes from slot 0's +0x10 for every slot (a slip
-//! kept as is).
+//! around it with `scene::draw_fan`. Its half side comes from slot 0's `size` for every slot (a
+//! slip kept as is).
 //!
 //! Refuses (before anything) null settings and a live slot with a null matrix.
 
@@ -49,7 +49,7 @@ pub fn draw_mark_slots(
     if let Some(why) = refusal(effects) {
         return Err(BadInput(why).into());
     }
-    // The settings' +0x8C and +0x64: the first car record's +0x2C and +4.
+    // The first car record's `gear_notice` and `model`.
     let first = &effects.settings()?.cars[0];
     if first.gear_notice.get() != 0 {
         crate::effects::add_mark_slot::add_mark_slot(

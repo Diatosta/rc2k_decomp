@@ -28,9 +28,9 @@ pub struct CarSpec {
     /// Copied to the physics `side_grip_scale`, the factor `physics::drive_grip_forces`
     /// multiplies the sideways grip force by.
     pub side_grip_scale: PlainFloat,
-    /// Copied to the physics `spec_surface` 0, 1, 2 (+0x2C, +0x30, +0x34).
+    /// Copied to the physics `spec_surface` 0, 1, 2.
     pub surface: [PlainFloat; 3],
-    /// +0x38, +0x3C: two figures times `PhysicsTables.gravity` into `PhysicsTables.spec_drive[0]`,
+    /// Two figures times `PhysicsTables.gravity` into `PhysicsTables.spec_drive[0]`,
     /// `PhysicsTables.spec_drive[1]`.
     pub weights: [PlainFloat; 2],
     /// Three whole figures x 65536 / `Numbers.thousand` into `PhysicsTables.spec_ints[0]` ..

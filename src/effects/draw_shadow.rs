@@ -3,12 +3,12 @@
 //! (`scene::depth_buffer_on`, `scene::depth_test_on`) with render states 0x15 = 4, 0x13 = 5, 0x14 =
 //! 6, 0x1C = 0, 0x1B = 1. The quad's two `sides` are made one long and square
 //! (`scene::cross_product3`, `scene::normalise_vector3`); its `matrix` is turned about z by an
-//! angle from the settings' +0x26A4 (two lines, by the quad's `ratio`) and the light's way turned
-//! by it; the quad's `corners` about its `place` (the `frame`) are drawn in a little and turned to
-//! the view (`scene::rotate_point`); the texture places come from the mark corner the quad's
-//! `corner` names and the colour is the shadow colour | 0xFF000000 brought halfway to white. Unless
-//! a corner's depth is at or below the nearest depth (signed compares of the bits) the corners are
-//! projected, their depths less the quad's lift times a depth scale, and drawn with
+//! angle from the settings' engine speed copy (two lines, by the quad's `ratio`) and the light's
+//! way turned by it; the quad's `corners` about its `place` (the `frame`) are drawn in a little and
+//! turned to the view (`scene::rotate_point`); the texture places come from the mark corner the
+//! quad's `corner` names and the colour is the shadow colour | 0xFF000000 brought halfway to white.
+//! Unless a corner's depth is at or below the nearest depth (signed compares of the bits) the
+//! corners are projected, their depths less the quad's lift times a depth scale, and drawn with
 //! `scene::draw_fan`.
 //!
 //! The long x87 runs are plain Rust on the x87 model (`math::x87_float`); the vector helpers are

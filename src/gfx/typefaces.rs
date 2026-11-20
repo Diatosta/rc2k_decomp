@@ -1,9 +1,9 @@
-//! The fonts, 63 font objects of 0x20 bytes (`rc2k_core::strings::text::Font`). Their palettes (+0x14) and
-//! glyph tables (+0x18) are hung on by `gfx::build_fonts`; the drawing functions take a font by its
+//! The fonts, 63 font objects of 0x20 bytes (`rc2k_core::strings::text::Font`). Their `palette`s
+//! and `glyph_table`s are hung on by `gfx::build_fonts`; the drawing functions take a font by its
 //! place (`FontId::addr`). The game's own fonts (the credits' and the race's ..) are a block of
-//! `rest`'s. Which font is which is a reading of the callers: a font's mode (+2) says how it draws
-//! (0 at x as given, 2 centred, 3 right-aligned or fixed pitch, 4 measuring), its line height (+8)
-//! the size of the sheet it was built from (10, 21, 23, 27, 13).
+//! `rest`'s. Which font is which is a reading of the callers: a font's `mode` says how it draws (0
+//! at x as given, 2 centred, 3 right-aligned or fixed pitch, 4 measuring), its `line_height` the
+//! size of the sheet it was built from (10, 21, 23, 27, 13).
 
 use crate::memory::session::{PlainByte, PlainDword};
 use rc2k_core::strings::text::Font;

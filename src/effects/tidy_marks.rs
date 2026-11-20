@@ -1,6 +1,6 @@
 //! `effects::tidy_marks`: the effects' memory given back at a stage's unload. Its steps: for each
-//! of the settings' +0x5C cars from the first, its list at +0x2E8 freed and its +0x328 made the
-//! taken cell, then `memory::free_list` of the ring list, the surface list, the two mask lists, the
+//! of the settings' `cars_copy` cars from the first, its `points_list` freed and its `point_block`
+//! made the taken cell, then `memory::free_list` of the ring list, the surface list, the two mask lists, the
 //! places list and the links list.
 //!
 //! Works on the effects settings.
@@ -13,7 +13,7 @@ use crate::errors::{BadInput, Refused};
 use crate::memory::ListCells;
 use crate::memory::free_list::free_list;
 
-// The cars' loop starts from the settings' +0x29C (car 0).
+// The cars' loop starts from the first car's record.
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
 fn lists(effects: &Effects) -> [&ListCells; 6] {

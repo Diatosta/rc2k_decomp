@@ -20,15 +20,15 @@ pub fn end_kept_reflections(view: &crate::race::view_scratch::ViewScratch) {
     view.face.reflections_kept.set(0u32);
 }
 
-/// `race::draw_slot_object`: the race slot's object (+0, into `object_number`) drawn, unless
+/// `race::draw_slot_object`: the race slot's object (`part`, into `object_number`) drawn, unless
 /// outside one player and modes 0 and 2 its car (object 0x50 + 0x14 x car) is not the drawn view's
 /// (`race().frame.frame_work.listed_car_sounds`): the light (lowest 0, highest 0xFF, level
-/// `light_level`, strength `light_strength`, turns -`sun_turn`
-/// / `sun_height`, `view_kind` 1, `light_kind` 2), its turn (+0x10, 16
-/// dwords to `ctx.view.matrices.object_turn_matrix`) placed at +4, +8 + (+0x5C), +0xC (into
-/// `place` ..) and moved by the view (into `ctx.view.matrices.matrix_scratch`), times
-/// the view's turn into `made_object_matrix`; the reflections kept around the drawing
-/// (`scene::draw_scene_object`). Refuses (before anything) as `check_slot_object`.
+/// `light_level`, strength `light_strength`, turns -`sun_turn` / `sun_height`, `view_kind` 1,
+/// `light_kind` 2), its turn (`matrix`, 16 dwords to `ctx.view.matrices.object_turn_matrix`) placed
+/// at `place` with its y plus `draw_height_offset` (into `place` ..) and moved by the view (into
+/// `ctx.view.matrices.matrix_scratch`), times the view's turn into `made_object_matrix`; the
+/// reflections kept around the drawing (`scene::draw_scene_object`). Refuses (before anything) as
+/// `check_slot_object`.
 fn draw_slot_object(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     slot: &crate::race::work_store::RaceSlot,
@@ -113,7 +113,7 @@ fn check_slot_object(
 }
 
 /// `race::draw_race_slots`: `draw_slot_object` for each of the eight race slots (0x78 bytes at
-/// `race_slots`) whose +0 is not 0. Refuses (before anything) as `check_slot_object` for any.
+/// `race_slots`) whose `part` is not 0. Refuses (before anything) as `check_slot_object` for any.
 pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let slots = &ctx.reads.work.race_slots;
     for slot in slots {
@@ -214,8 +214,8 @@ pub fn draw_view_tint(
     draw_screen_quad(poly, part, face, reads, screen, view)
 }
 
-/// `race::add_car_depth_entry`: the place (+0x134 .., into `place` ..) of the block of
-/// car `car` (its address) through `view_matrix` (rounded into `turned_place` ..; x and
+/// `race::add_car_depth_entry`: the place (the car's `position`, into `place` ..) of the block of
+/// car `car` through `view_matrix` (rounded into `turned_place` ..; x and
 /// y back as floats, z the key: plus 0x2000000, shifted right 10), a depth entry of the key with
 /// the car's `number` plus 0x2000000. Refuses (before anything) a depth entry past the 0x1000.
 pub fn add_car_depth_entry(ctx: &DrawCtx, car: usize, number: u32) -> Result<(), Refused> {
@@ -298,8 +298,8 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// A flare at `point` in the frame of the car block at `car` (its matrix +0xB4, each part rounded,
-/// plus its place +0x134 ..), object 0x39, by `add_flare`.
+/// A flare at `point` in the frame of the car block at `car` (its `crash_matrix`, each part
+/// rounded, plus its `position`), object 0x39, by `add_flare`.
 pub(super) fn place_flare(ctx: &DrawCtx, car: usize, point: [u32; 3]) -> Result<(), BadInput> {
     let t = crate::math::x87::rotate_rounding(
         point.map(|v| v as i32),
@@ -314,12 +314,13 @@ pub(super) fn place_flare(ctx: &DrawCtx, car: usize, point: [u32; 3]) -> Result<
     Ok(())
 }
 
-/// The car block's part switches' place (+0xAC0), from which `light_pair`'s byte offsets count.
+/// The car block's part switches' byte offset (0xAC0), from which `light_pair`'s byte offsets
+/// count.
 pub(super) const PART_SWITCHES: u32 = 0xAC0;
 
-/// A pair of lights at the light record's +`at` (three dwords: none when all are 0) for the car
-/// block at `car`: the right one (x as it is) when the block's byte +`right` is set, the left (x
-/// negated) when +`left` is (-1: no byte), each by `place_flare`;
+/// A pair of lights at byte `at` of the light record (three dwords: none when all are 0) for the
+/// car block at `car`: the right one (x as it is) when the block's byte `right` is set, the left (x
+/// negated) when `left` is (-1: no byte), each by `place_flare`;
 /// `race().frame.frame_work.light_left` / `race().frame.frame_work.light_right` the two bytes.
 pub(super) fn light_pair(
     ctx: &DrawCtx,
@@ -329,7 +330,7 @@ pub(super) fn light_pair(
     left: u32,
     right: u32,
 ) -> Result<(), BadInput> {
-    // The bytes are the block's part switches (+0xAC0 ..).
+    // The bytes are the block's `part_switches`.
     let switches = &ctx.reads.car_blocks.cars[car].part_switches;
     let byte = |o: u32| -> Result<u32, BadInput> {
         let n = o.wrapping_sub(PART_SWITCHES) as usize;
@@ -354,7 +355,7 @@ pub(super) fn light_pair(
         .get(record)
         .ok_or(BadInput("a light record past the 34 models'"))?
         .lights;
-    // `at` counts from the record's start; the lights lie from +0xA4 and every pair is inside.
+    // `at` counts from the record's start; the lights lie from byte 0xA4 and every pair is inside.
     let first = (at as usize).wrapping_sub(0xA4) / 4;
     let [x, y, z]: [u32; 3] = match lights.get(first..first.wrapping_add(3)) {
         Some([x, y, z]) => [x.get(), y.get(), z.get()],
@@ -449,7 +450,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::car_lights`: with `scene_set_up` set, for each race car: with +0x6FC bit 5
+/// `race::car_lights`: with `scene_set_up` set, for each race car: with bit 5 of its state bits
 /// (lights on, `car_light_modes`) its depth entry (`add_car_depth_entry`) and then
 /// `car_light_flares`. Refuses (before anything) no cars (the loop tests at its end) or more than
 /// eight, a null block, or a depth list without room for every car's entries.
@@ -520,7 +521,7 @@ pub(super) fn scale_object_turn(ctx: &DrawCtx) -> Result<(), BadInput> {
 /// (after `scene::set_light_direction`). With `light_turn_off` 0: turned about y, x and
 /// z (16 bits a turn) by `angles[1]`, `angles`, `angles[2]`
 /// negated, unscaled. Else (nothing more with `view_kind` 4) by the object's material
-/// (+0x20 of its kind's 0x80-byte record at `object_materials`): 1 and 2 facing the view
+/// (a field of its kind's 0x80-byte record at `object_materials`): 1 and 2 facing the view
 /// (`view_back_matrix`); 5 turned about y by
 /// `race().frame.view_and_records.view_vars.view_angles[3]` and the view's y angle (fine turns);
 /// else about y by -`angles`, then with `angles[1]` tilted about x round
@@ -709,7 +710,7 @@ pub fn draw_flare(
 }
 
 /// `race::draw_lamp_flare`: lamp `lamp` (`lamps`): its point (`scene_points`) into
-/// `place` .., its +4 x 8 the size, +8 the colour, object
+/// `place` .., its strength x 8 the size, its colour, object
 /// `marker_object`; `view_kind` 2, `place_object_matrix`, `light_kind` 0
 /// and the drawing.
 fn draw_lamp_flare(ctx: &crate::race::view_scratch::DrawCtx<'_>, lamp: u32) -> Result<(), Refused> {
