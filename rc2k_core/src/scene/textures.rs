@@ -350,8 +350,6 @@ pub trait TextureMemory {
     fn level_mips(&self, level: u32) -> u32;
     /// Each kind's first slot and first texture set to -1.
     fn forget_kinds(&mut self);
-    /// The memory asked for: video, then system.
-    fn set_asked(&mut self, asked: [u32; 2]);
     /// A video texture's first slot.
     fn set_first_slot(&mut self, texture: u32, slot: u32);
     /// A system texture's first texture and the texture at that number, the second first (the
@@ -382,7 +380,6 @@ pub fn try_allocate(
         }
     }
     m.forget_kinds();
-    m.set_asked(asked);
     call(Call::Text(c"VMEMREQ", false));
     call(Call::Number(asked[0]));
     call(Call::Text(c"SMEMREQ", false));
@@ -402,13 +399,8 @@ pub fn try_allocate(
                 pixel_kind: pixel_kind(texture),
                 mips: mips.wrapping_mul(m.level_mips(level)),
             };
-            if video {
-                let size = m.size(level);
-                asked = asked.map(|sum| sum.wrapping_add(size));
-                m.set_asked(asked);
-                if texture >= 0x80 && !(0x100..0x140).contains(&texture) {
-                    ask.mips = 0;
-                }
+            if video && texture >= 0x80 && !(0x100..0x140).contains(&texture) {
+                ask.mips = 0;
             }
             let Some(given) = call(Call::Allocate(ask)) else {
                 call(Call::Text(c"NO -", false));

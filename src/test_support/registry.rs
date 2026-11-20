@@ -398,7 +398,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.gfx.fonts.game_fonts_memory",
             on_game(&o.gfx.fonts.game_fonts_memory),
         ),
-        listed!("owners.scene.icon_upload", on_game(o.scene.icon_upload()),),
         listed!("owners.race.frame.map", on_game(o.race.frame.map()),),
         listed!(
             "owners.gfx.drawing.surfaces",
@@ -738,7 +737,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.course.stage_prefs",
             on_game(o.race.course.stage_prefs.get()),
         ),
-        listed!("owners.scene.file_numbers", on_game(o.scene.file_numbers()),),
         listed!(
             "owners.race.shared.physics_tables",
             on_game(o.race.shared.physics_tables.get()),
@@ -803,10 +801,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.scene.lights.work",
             on_game(o.scene.lights.work.get()),
-        ),
-        listed!(
-            "owners.scene.drawing.object_work",
-            on_game(o.scene.object_work()),
         ),
         listed!(
             "owners.race.physics.ground",

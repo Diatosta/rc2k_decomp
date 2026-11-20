@@ -32,7 +32,7 @@ fn room(
         points: course.lists.get().object_points.get(),
         point_count: scene.objects.tables.get().point_count.get(),
         face_memory: course.lists.get().face_memory.get(),
-        face_cursor: scene.object_work().face_cursor.get(),
+        face_cursor: scene.object_work().face_cursor,
         face_count: scene.objects.tables.get().face_count.get(),
     };
     if slot >= SLOTS || room.points == 0 || room.face_memory == 0 {
@@ -60,22 +60,22 @@ pub fn add_object_shape(
     parsed: &Parsed,
 ) -> Result<(), BadInput> {
     let course = &race.course;
-    scene.object_work().loading_slot.set(slot);
-    crate::memory::session::write_first(&scene.object_work().shape_counts[5..7], &[u32::MAX, 0]);
+    scene.object_work_mut().loading_slot = slot;
+    scene.object_work_mut().shape_counts[5..7].copy_from_slice(&[u32::MAX, 0]);
     let shape = match parsed {
         Parsed::Shape(shape) => shape,
         Parsed::Empty { points } => {
             if let Some(points) = points {
-                scene.object_work().shape_counts[1].set(*points);
+                scene.object_work_mut().shape_counts[1] = *points;
             }
             return Ok(());
         }
     };
     let room = room(course, scene, slot, shape)?;
     let slot = slot as usize;
-    scene.object_work().shape_counts[1].set(shape.file_points);
-    scene.object_work().shape_counts[0].set(shape.file_faces);
-    scene.object_work().shape_counts[3].set(shape.file_normals);
+    scene.object_work_mut().shape_counts[1] = shape.file_points;
+    scene.object_work_mut().shape_counts[0] = shape.file_faces;
+    scene.object_work_mut().shape_counts[3] = shape.file_normals;
     for n in 0..MARKS {
         scene.textures.places.get().face_marks[n].set(shape.face_taken[n] as u32);
         scene.textures.places.get().point_marks[n].set(shape.point_marks[n]);
@@ -84,10 +84,7 @@ pub fn add_object_shape(
 
     // The points.
     let (first_point, first_face) = (room.point_count, room.face_count);
-    crate::memory::session::write_prefix(
-        &scene.object_work().shape_firsts,
-        &[first_point, first_face],
-    );
+    scene.object_work_mut().shape_firsts[..2].copy_from_slice(&[first_point, first_face]);
     scene.objects.slots.get().first_point[slot].set(first_point);
     scene.objects.slots.get().first_face[slot].set(first_face);
     let mut count = first_point;
@@ -104,7 +101,7 @@ pub fn add_object_shape(
     scene.objects.slots.get().radii[slot].set(shape.radius);
     scene.objects.slots.get().point_counts[slot].set(count - first_point);
     let first_normal = count;
-    scene.object_work().shape_firsts[2].set(first_normal);
+    scene.object_work_mut().shape_firsts[2] = first_normal;
 
     // The faces.
     let mut face_number = first_face;
@@ -116,10 +113,8 @@ pub fn add_object_shape(
         out += bytes.len();
         face_number += 1;
     }
-    crate::memory::session::write_first(
-        &scene.object_work().shape_counts[5..7],
-        &[shape.lowest_texture, shape.highest_texture],
-    );
+    scene.object_work_mut().shape_counts[5..7]
+        .copy_from_slice(&[shape.lowest_texture, shape.highest_texture]);
     let without: u32 = scene.objects.slots.get().no_normals.get();
     scene
         .objects
@@ -128,10 +123,7 @@ pub fn add_object_shape(
         .no_normals
         .set(without.wrapping_add(shape.missing_normals));
     scene.objects.tables.get().face_count.set(face_number);
-    scene
-        .object_work()
-        .face_cursor
-        .set(out as u32 - room.face_memory);
+    scene.object_work_mut().face_cursor = out as u32 - room.face_memory;
 
     // The normals.
     for normal in &shape.normals {

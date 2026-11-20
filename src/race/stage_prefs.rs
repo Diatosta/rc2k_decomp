@@ -104,7 +104,7 @@ pub fn get_mat_crash(
         car.car_pitch.get(),
         car.car_roll.get(),
     ]);
-    crate::memory::session::write_bits(&scene.object_work().angles, turns);
+    scene.object_work_mut().angles = turns;
     matrix::set_turn_x(
         engine_tables,
         &matrices.turn_x_matrix,

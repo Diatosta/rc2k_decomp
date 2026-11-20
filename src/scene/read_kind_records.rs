@@ -36,10 +36,7 @@ pub fn read_kind_records(
     for (range, path) in RANGES.into_iter().zip(PATHS) {
         let mut file = vec![0u8; range.kinds * RECORD_LEN];
         let read = read_whole_file_len(
-            &scene
-                .file_numbers()
-                .text_at(path)
-                .text("a kinds file's path")?,
+            &scene.path_text(path).text("a kinds file's path")?,
             &mut file,
         )?;
         records.overlay(range, &file[..read]);

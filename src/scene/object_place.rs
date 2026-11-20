@@ -145,13 +145,12 @@ mod tests {
         fn bits<D: crate::memory::session::DwordLike>(c: &[D]) -> Vec<u32> {
             c.iter().map(D::get).collect()
         }
-        assert_eq!(bits(&o.position), bits(&work.object_position));
-        assert_eq!(o.face_depth.get(), work.face_depth.get());
-        assert_eq!(o.car_switches.get(), work.car_switches.get());
-        assert_eq!(bits(&o.turned_place), bits(&work.turned_place));
-        assert_eq!(bits(&o.turned_place), bits(&work.turned_place));
-        assert_eq!(o.first_face.get(), work.object_first_face.get());
-        assert_eq!(o.face_count.get(), work.object_face_count.get());
+        assert_eq!(bits(&o.position), work.object_position.to_vec());
+        assert_eq!(o.face_depth.get(), 0);
+        assert_eq!(o.car_switches.get(), 0);
+        assert_eq!(bits(&o.turned_place), [0, 0, 0]);
+        assert_eq!(o.first_face.get(), 0);
+        assert_eq!(o.face_count.get(), 0);
         assert_eq!(bits(&o.normal_work), bits(&ground.normal_work));
         assert_eq!(o.fading.get(), ground.object_fading.get());
         assert_eq!(o.see_through.get(), ground.object_see_through.get());

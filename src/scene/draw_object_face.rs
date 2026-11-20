@@ -74,7 +74,6 @@ pub fn draw_object_face(
 
     light.face_bits.set(words[7] as u32 & 0x1F);
     let face_shine = words[9] as u32;
-    ctx.view.polygon.face_shine.set(face_shine);
     let reflects = shine != 0
         && ctx.reads.vars.settings_words[1].get() != 0
         && view_kind != 4

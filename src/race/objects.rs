@@ -235,7 +235,7 @@ pub(super) fn reload_objects(
     log(c"total polys", false);
     log_number(scene.objects.tables.get().face_count.get(), false);
     log(c"facemem used", false);
-    log_number(scene.object_work().face_cursor.get(), true);
+    log_number(scene.object_work().face_cursor, true);
     log(c"LOAD OBJECTS - FINIS", true);
     log(c"-------------------------------------", true);
     Ok(())

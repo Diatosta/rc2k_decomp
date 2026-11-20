@@ -109,9 +109,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             .wrapping_sub(race.car_blocks().cars[0].position[2].get());
             scene.drawing.scene.get().scratch.set(dz);
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
-            race.physics.contact.get().lit_face_distance.set(d);
             let step = pace(d);
-            race.physics.contact.get().lit_face_pace.set(step);
             let kind_of: u32 = scene.objects.tables.get().object_kind(object as u32);
             // The material's kind byte: the low byte of its eighth word.
             let kind =

@@ -20,8 +20,6 @@ pub struct SceneDraw {
     /// A work dword (`physics::engine_torque`, `physics::wheel_springs`);
     /// `race::find_present_courses`' four-byte probe.
     pub work_dword: PlainDword,
-    /// The motion's length (`physics::limit_motion`).
-    pub motion_length: PlainFloat,
     /// The camera's heading, saved round a step (`physics::camera_avoid_ground`).
     pub camera_heading_saved: PlainDword,
     /// The camera's heading kept from step to step (`physics::camera_avoid_ground`).
@@ -74,9 +72,6 @@ pub struct SceneDraw {
     pub polygon_alpha: PlainDword,
     /// The polygon's texture. Unused: each view has its own in `scene::polygon_work_store`.
     pub polygon_texture: PlainDword,
-    /// The face's shine (`scene::draw_object_face`). Unused: each view has its own in
-    /// `scene::polygon_work_store`.
-    pub face_shine: PlainDword,
     /// The polygon's two side switches (`scene::draw_polygon`, the quads). Unused: each view
     /// has its own in `scene::polygon_work_store`.
     pub polygon_sides: [PlainDword; 2],
@@ -137,9 +132,6 @@ pub struct SceneDraw {
     pub view_offset_float: [PlainFloat; 2],
     /// (`scene::set_view_window`).
     pub fade_b: PlainFloat,
-    /// The depth divisor: 100 less a held setting, times a constant. Unused: each
-    /// view has its own in `scene::view_window`.
-    pub depth_divisor: PlainFloat,
     /// (`scene::set_view_window`).
     pub fade_a: PlainFloat,
     /// `clip_farthest` is the farthest times it.
@@ -175,7 +167,6 @@ impl SceneDraw {
                 PlainDword::new(0x257),
             ],
             fade_b: PlainFloat::new(1.5),
-            depth_divisor: PlainFloat::new(0.91),
             fade_a: PlainFloat::new(0.9),
             clip_factor: PlainFloat::new(0.9),
             ..ZeroCells::ZERO

@@ -23,20 +23,18 @@ pub fn load_front_end_objects(
     scene.objects.slots.get().no_normals.set(0);
     for slot in 0..SLOTS {
         let kind: u32 = scene.objects.tables.get().slot_kinds[slot as usize].get();
-        scene.object_work().loading_kind.set(kind);
-        scene.object_work().loading_slot.set(slot);
+        scene.object_work_mut().loading_kind = kind;
+        scene.object_work_mut().loading_slot = slot;
         load_object(scene, race)?;
     }
-    let cursor: u32 = scene.object_work().face_cursor.get();
-    scene.object_work().point_memory_total.set(
-        scene
-            .objects
-            .tables
-            .get()
-            .point_count
-            .get()
-            .wrapping_mul(12),
-    );
-    scene.object_work().face_memory_total.set(cursor);
+    let cursor: u32 = scene.object_work().face_cursor;
+    scene.object_work_mut().point_memory_total = scene
+        .objects
+        .tables
+        .get()
+        .point_count
+        .get()
+        .wrapping_mul(12);
+    scene.object_work_mut().face_memory_total = cursor;
     Ok(())
 }

@@ -41,7 +41,7 @@ pub fn measure_object(
 ) -> Result<(), BadInput> {
     use rc2k_core::scene::objects::{HIGHEST_START, LOWEST_START, measure};
     {
-        let slot: u32 = scene.object_work().loading_slot.get();
+        let slot: u32 = scene.object_work().loading_slot;
         let (at, count) = points_of(course, slot, scene)?;
         let mut points: Vec<[u32; 3]> = if count == 0 {
             Vec::new()

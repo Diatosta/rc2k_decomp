@@ -5,8 +5,7 @@
 use crate::memory::session::{DrawShared, GameThread};
 use crate::scene::draw_store::SceneDraw;
 use crate::scene::draw_switches_store::DrawSwitches;
-use crate::scene::file_numbers_store::ObjectFileNumbers;
-use crate::scene::icon_upload_store::IconUploadCell;
+use crate::scene::file_numbers_store::{ObjectFileNumbers, PathText};
 use crate::scene::kind_texture_store::KindTextureTables;
 use crate::scene::light_store::LightState;
 use crate::scene::light_tables_store::LightTables;
@@ -15,6 +14,7 @@ use crate::scene::object_slots_store::ObjectTables as ObjectSlots;
 use crate::scene::object_store::ObjectWork;
 use crate::scene::object_tables_store::ObjectTables;
 use crate::scene::texture_places_store::TexturePlaces;
+use std::cell::{Ref, RefCell, RefMut};
 
 /// The scene's state.
 pub struct Scene {
@@ -34,26 +34,40 @@ pub struct Scene {
 }
 
 /// What the game's thread alone reaches (no drawing part or other thread does): the object
-/// loaders' file numbers and path texts, the car icon upload's work and the scene objects'
-/// work variables.
+/// loaders' file numbers and path texts and the scene objects' work variables.
 struct SceneMain {
-    file_numbers: ObjectFileNumbers,
-    icon_upload: IconUploadCell,
-    /// The scene objects' work variables (`OBJECT_WORK`).
-    object_work: ObjectWork,
+    /// The loaders' file numbers and path texts: borrowed for one statement at a time.
+    file_numbers: RefCell<ObjectFileNumbers>,
+    /// The scene objects' work variables: borrowed for one statement at a time (`Scene::object_work`,
+    /// `Scene::object_work_mut`); `Scene` is shared by reference, so the writes go through the cell.
+    object_work: RefCell<ObjectWork>,
 }
 
 impl Scene {
-    pub fn file_numbers(&self) -> &ObjectFileNumbers {
-        &self.main.get().file_numbers
+    /// The loaders' file numbers and path texts, read: no write borrow may be held.
+    pub fn file_numbers(&self) -> Ref<'_, ObjectFileNumbers> {
+        self.main.get().file_numbers.borrow()
     }
 
-    pub fn icon_upload(&self) -> &IconUploadCell {
-        &self.main.get().icon_upload
+    /// The loaders' file numbers and path texts, to write: no other borrow may be held.
+    pub fn file_numbers_mut(&self) -> RefMut<'_, ObjectFileNumbers> {
+        self.main.get().file_numbers.borrow_mut()
     }
 
-    pub fn object_work(&self) -> &ObjectWork {
-        &self.main.get().object_work
+    /// The path text that starts at byte `from` of the file numbers' texts (`texts`); each of its
+    /// reads and writes borrows the store itself.
+    pub fn path_text(&self, from: usize) -> PathText<'_> {
+        PathText::new(&self.main.get().file_numbers, from)
+    }
+
+    /// The scene objects' work variables, read: no write borrow may be held.
+    pub fn object_work(&self) -> Ref<'_, ObjectWork> {
+        self.main.get().object_work.borrow()
+    }
+
+    /// The scene objects' work variables, to write: no other borrow may be held.
+    pub fn object_work_mut(&self) -> RefMut<'_, ObjectWork> {
+        self.main.get().object_work.borrow_mut()
     }
 }
 
@@ -118,9 +132,8 @@ impl Scene {
                 kinds: DrawShared::new(KindTextureTables::new()),
             },
             main: GameThread::new(SceneMain {
-                file_numbers: ObjectFileNumbers::new(),
-                icon_upload: IconUploadCell::new(),
-                object_work: ObjectWork::new(),
+                file_numbers: RefCell::new(ObjectFileNumbers::new()),
+                object_work: RefCell::new(ObjectWork::new()),
             }),
         }
     }

@@ -111,9 +111,9 @@ pub fn steps(
         return Ok(());
     }
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
-        scene.object_work().angles[k].set(contacts::turn_word(face_byte(*o)?));
+        scene.object_work_mut().angles[k] = contacts::turn_word(face_byte(*o)?);
     }
-    scene.object_work().size.set(face_byte(0x18)?);
+    scene.object_work_mut().size = face_byte(0x18)?;
     // The face is both the record and the object here.
     let (inside, point) = { crate::physics::scene_point_hits_car::scene_point_hits_car(c, face) }?;
     if !inside {
@@ -139,7 +139,7 @@ pub fn steps(
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         let (reach, _) = contacts::reach(
             scene.objects.slots.get().radii[c.contact.face_object.get() as usize].get(),
-            scene.object_work().size.get(),
+            scene.object_work().size,
         );
         if contacts::out_of_reach(reach, distance) {
             return Ok(());

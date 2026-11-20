@@ -278,11 +278,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         if race.shared.physics_tables.get().contact_step.get()
             >= race.shared.physics_tables.get().contact_steps.get()
         {
-            ph::limit_motion::limit_motion(
-                race.shared.car(),
-                race.shared.physics_tables.get(),
-                scene,
-            );
+            ph::limit_motion::limit_motion(race.shared.car(), race.shared.physics_tables.get());
             ph::find_clear_place::find_clear_place(&inputs.clear_place(sound), scene)?;
 
             race.shared.physics_tables.get().step_count.set(
@@ -301,7 +297,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
             race.shared.car(),
             race.shared.physics_tables.get(),
         );
-        ph::limit_motion::limit_motion(race.shared.car(), race.shared.physics_tables.get(), scene);
+        ph::limit_motion::limit_motion(race.shared.car(), race.shared.physics_tables.get());
     }
     ph::feel_ground::feel_ground(&inputs.ground())?;
     ph::reset_when_stuck::reset_when_stuck(&inputs.reset(), scene)?;

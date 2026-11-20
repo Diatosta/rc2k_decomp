@@ -7,15 +7,13 @@
 //!   bit b + 5 of `parts_present` is set and then unless bit b + 1 is; less `probe_share` times
 //!   `handling[3]` (the point's own y only goes to the scratch dword);
 //! - the point is turned by the crash matrix (`scene::rotate_point`), its x y z kept as floats
-//!   (`probe_turned_x`, `probe_turned_y`, `probe_turned_z`; x and z also in `probe_turned_x_last`
-//!   and `probe_turned_z_last`), and as whole numbers times 65536 plus the car's `position` in
+//!   (`probe_turned_x`, `probe_turned_y`, `probe_turned_z`), and as whole numbers times 65536 plus the car's `position` in
 //!   `probe_x`, `probe_y`, `probe_z`;
 //! - the ground under (x, z) comes from `physics::find_ground`, with the mask `settle_mark` 0x80
 //!   and the last face `probe_point_face[b]`; `probe_found[b]` records the result;
 //! - not found: `probe_ground_height[b]` = 0, `crossed_probe` = b;
 //! - found: `probe_ground_height[b]` is the height (`ground_height`) plus a bump: the noise bytes
-//!   (`noise_bytes`, 64 x 64) at (x >> 14, z >> 14) mixed by the low 14 bits
-//!   (`ground_noise_corners` the steps), times `ground_bump_scale`, 256, over 100; the face's half
+//!   (`noise_bytes`, 64 x 64) at (x >> 14, z >> 14) mixed by the low 14 bits, times `ground_bump_scale`, 256, over 100; the face's half
 //!   and shares (`probe_face_flip`, `probe_share_u`, `probe_share_v`); `probe_height[b]` = y less
 //!   that ground; for b < 4 that also goes into `wheel_height_raw[b]` and `probe_height[b]` is
 //!   multiplied by the car's wheel-load figure (held to at least 0); `probe_point_face[b]` = the
@@ -120,10 +118,8 @@ fn probe_points(
         let x = extended(car.probe_point_x[b as usize].get());
         let out = rotate_point(&car.crash_matrix, [x, y, extended(z)]);
         let [ox, oy, oz] = out.map(rounded_value);
-        contact.probe_turned_x_last.set(ox);
         work.probe_turned_x[i].set(ox);
         work.probe_turned_y[i].set(oy);
-        contact.probe_turned_z_last.set(oz);
         work.probe_turned_z[i].set(oz);
         for (v, place, list) in [
             (ox, &car.position[0], &work.probe_x[i]),
@@ -160,13 +156,7 @@ fn probe_points(
         };
         let n = cell.corners.map(noise);
         trap.finish()?;
-        for (c, x) in [0, 1, 3, 2].into_iter().zip(n) {
-            work.ground_noise_corners[c].set(x);
-        }
-        let (n58, n54, n5c, _) = ground::bump_noise(n, q.x.get(), q.z.get());
-        contact.ground_noise_mix[1].set(n58);
-        contact.ground_noise_mix[0].set(n54);
-        contact.ground_noise_mix[2].set(n5c);
+        let (_, _, n5c, _) = ground::bump_noise(n, q.x.get(), q.z.get());
         scratch.set(n5c);
         let bump = bh::to_int(
             bh::int(n5c as i32) * car.ground_bump_scale.ld() * c.numbers.k256.ld()

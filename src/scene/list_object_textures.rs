@@ -34,7 +34,7 @@ pub fn list_object_textures(
 
     let textures =
         texture_list(|offset| file_dword(race, offset).map_err(|e| rc2k_core::Invalid(e.0)))?;
-    let slot: u32 = scene.object_work().loading_slot.get();
+    let slot: u32 = scene.object_work().loading_slot;
     let record = texture_record(slot, textures.len())?;
     scene
         .objects

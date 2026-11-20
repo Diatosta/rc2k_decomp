@@ -21,8 +21,6 @@ pub struct PolygonWork {
     pub polygon_colour: PlainDword,
     /// The polygon's texture.
     pub polygon_texture: PlainDword,
-    /// The face's shine (`scene::draw_object_face`).
-    pub face_shine: PlainDword,
     /// The polygon's two side switches (`scene::draw_polygon`, the quads).
     pub polygon_sides: [PlainDword; 2],
     /// Kept by `scene::draw_polygon`.
@@ -115,7 +113,6 @@ impl PolygonWork {
             texture_page: PlainDword::new(0),
             polygon_colour: PlainDword::new(0),
             polygon_texture: PlainDword::new(0),
-            face_shine: PlainDword::new(0),
             polygon_sides: [const { PlainDword::new(0) }; 2],
             polygon_kept: [const { PlainDword::new(0) }; 3],
             polygon_outside_count: PlainDword::new(0),

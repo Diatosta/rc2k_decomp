@@ -270,8 +270,8 @@ fn load_objects_and_map(
     s.indent(3);
     let game_map = crate::race::game_map::load_game_map(
         &race.frame,
-        &scene.file_numbers().text_at(texts::MAP_PATH),
-        &scene.file_numbers().text_at(texts::MAP_KEY),
+        &scene.path_text(texts::MAP_PATH),
+        &scene.path_text(texts::MAP_KEY),
         system,
         gfx,
     )?;

@@ -71,7 +71,7 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     tables
         .clear_place_tries
         .set(tables.clear_place_tries.get().wrapping_add(1));
-    crate::physics::limit_motion::limit_motion(car, tables, scene);
+    crate::physics::limit_motion::limit_motion(car, tables);
     Ok(())
 }
 

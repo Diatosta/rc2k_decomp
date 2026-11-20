@@ -93,7 +93,6 @@ pub fn set_view_window_reaching(
         nearer = 0x64;
     }
     let divisor = x87::int_times(nearer as i32, &course.numbers.hundredth_a);
-    window.depth_divisor.set(divisor);
     let product = depth as u64 * 0x1_0000;
     let low = product as u32;
     let farthest = x87::int_over(low as i32, divisor);
@@ -152,7 +151,6 @@ pub fn set_view_window_plain(
     crate::memory::session::write_bits(&window.view_middle, w.middle);
     crate::memory::session::write_bits(&window.clip_edges, w.edges);
     window.view_scale.set(w.scale);
-    window.depth_divisor.set(w.divisor);
     window.farthest.set(w.farthest);
     window.one_over_farthest.set(w.reciprocal);
     window.farthest_scaled.set(w.fade_depth as u32);

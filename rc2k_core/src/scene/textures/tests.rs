@@ -149,7 +149,6 @@ fn look_ups() {
 
 struct Memory {
     levels: [Vec<u32>; 2],
-    asked: Vec<[u32; 2]>,
     slots: Vec<(u32, u32)>,
 }
 
@@ -167,9 +166,6 @@ impl TextureMemory for Memory {
         level + 100
     }
     fn forget_kinds(&mut self) {}
-    fn set_asked(&mut self, asked: [u32; 2]) {
-        self.asked.push(asked);
-    }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
         self.slots.push((texture, slot));
     }
@@ -183,7 +179,6 @@ impl TextureMemory for Memory {
 fn allocations() {
     let mut m = Memory {
         levels: [vec![NONE; SLOTS as usize], vec![NONE; SLOTS as usize]],
-        asked: Vec::new(),
         slots: Vec::new(),
     };
     m.levels[0][0x90] = 9;
@@ -194,7 +189,8 @@ fn allocations() {
         Some(5)
     };
     assert_eq!(try_allocate(&mut m, &mut call), Ok(true));
-    assert_eq!(m.asked, [[90, 20], [160, 90]]);
+    assert_eq!(asks[1], Call::Number(90));
+    assert_eq!(asks[3], Call::Number(20));
     assert_eq!(m.slots, [(0x90, 5), (0x80DC, 5)]);
     assert_eq!(
         asks[4],

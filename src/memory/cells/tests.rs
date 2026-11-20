@@ -303,13 +303,11 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.shared.work.get(),
         *scene.drawing.scene.get(),
         *crate::test_support::own::scene().draw_switches.get(),
-        *scene.file_numbers(),
         *scene.textures.kinds.get(),
         *scene.lights.state.get(),
         *crate::test_support::own::scene().light_tables.get(),
         *scene.lights.work.get(),
         *scene.objects.slots.get(),
-        *scene.object_work(),
         *scene.objects.tables.get(),
         *scene.textures.places.get(),
     }

@@ -35,7 +35,7 @@ pub fn reset_objects(
         }
         scene.objects.tables.get().point_count.set(1);
         scene.objects.tables.get().face_count.set(0);
-        scene.object_work().face_cursor.set(0u32);
+        scene.object_work_mut().face_cursor = 0u32;
         for kind in &scene.objects.tables.get().object_kinds {
             kind.set(u32::MAX);
         }

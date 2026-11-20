@@ -61,10 +61,9 @@ pub fn load_hud_car_icons(
             let names = car_icons::pictures(number);
             let [target_x, target_y] = car_icons::half_place(n);
             upload_car_icon(
-                scene.icon_upload(),
                 &CarIcon {
-                    sheet: scene.file_numbers().text_at(NAMES[names]),
-                    alpha_sheet: scene.file_numbers().text_at(NAMES[names + 1]),
+                    sheet: scene.path_text(NAMES[names]),
+                    alpha_sheet: scene.path_text(NAMES[names + 1]),
                     texture,
                     sheet_x: scene.textures.places.get().car_icon_sheet_x[number as usize].get(),
                     sheet_y: scene.textures.places.get().car_icon_sheet_y[number as usize].get(),
@@ -86,10 +85,9 @@ pub fn load_hud_car_icons(
     for (number, target_y) in numbers.into_iter().zip(car_icons::ROWS) {
         let names = car_icons::pictures(number);
         upload_car_icon(
-            scene.icon_upload(),
             &CarIcon {
-                sheet: scene.file_numbers().text_at(NAMES[names]),
-                alpha_sheet: scene.file_numbers().text_at(NAMES[names + 1]),
+                sheet: scene.path_text(NAMES[names]),
+                alpha_sheet: scene.path_text(NAMES[names + 1]),
                 texture,
                 sheet_x: scene.textures.places.get().car_icon_sheet_x[number as usize].get(),
                 sheet_y: scene.textures.places.get().car_icon_sheet_y[number as usize].get(),

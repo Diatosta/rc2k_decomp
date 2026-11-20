@@ -56,7 +56,6 @@ pub(super) fn load_texture_info(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{CourseInfo, MARK_INFO, TEXTURE_INFO_A, TEXTURE_INFO_B};
-    let file_numbers = &scene.file_numbers();
     if !crate::race::course_places::info_held(&course.stage.course) {
         return Err(BadInput("no course info to read the info files into").into());
     }
@@ -66,7 +65,7 @@ pub(super) fn load_texture_info(
         (texts::MARK_INFO, MARK_INFO),
         (texts::TEXTURE_INFO_B, TEXTURE_INFO_B),
     ] {
-        let path = file_numbers.text_at(texts_at).text("a course info path")?;
+        let path = scene.path_text(texts_at).text("a course info path")?;
         let mut file = vec![0u8; part.1];
         let read = crate::files::read_whole_file::read_whole_file_len(&path, &mut file)?;
         info.lay_file(part, &file[..read])?;
@@ -93,11 +92,9 @@ pub(super) fn set_course_number(
         texts::NUMBER_PLACE_B,
         texts::NUMBER_PLACE_C,
     ] {
-        scene.file_numbers().text_at(text).write_text_at(
-            0,
-            &[tens, units],
-            "a path's course number",
-        )?;
+        scene
+            .path_text(text)
+            .write_text_at(0, &[tens, units], "a path's course number")?;
     }
     Ok(())
 }
@@ -109,8 +106,7 @@ pub(super) fn load_error_list(
 ) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_plain_bytes(
         &scene
-            .file_numbers()
-            .text_at(texts::ERROR_LIST_PATH)
+            .path_text(texts::ERROR_LIST_PATH)
             .text("the error list's path")?,
         &frame.error_list().list,
     )?;

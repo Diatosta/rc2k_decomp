@@ -2,11 +2,11 @@
 //! the levels they are needed at.
 //!
 //! - Each kind's first slot and first texture (`kind_first_slots`, `kind_first_textures`) = -1.
-//! - The memory asked for is added up for the log: `video_memory_asked` over the textures
-//!   needed in video memory and `system_memory_asked` over those in system memory, by their
-//!   levels' sizes; "VMEMREQ `<n>` SMEMREQ `<n>`" is logged.
+//! - The memory asked for is added up for the log: the sizes of the textures needed in video
+//!   memory, and of those in system memory, by their levels; "VMEMREQ `<n>` SMEMREQ `<n>`" is
+//!   logged.
 //! - Then for each of the 0x400 textures: if it is needed in video memory, its level (held to
-//!   0 ..= 7) is added to both sums again and one video texture is asked for from
+//!   0 ..= 7) is used and one video texture is asked for from
 //!   `gfx::allocate_textures` with the pixel kind (3 for 18 textures by their number, else 2)
 //!   and the mip levels (`mip_setting` times the level's entry of `level_mips`; none for
 //!   textures 0x80 ..= 0xFF and from 0x140 on: `scene::no_mips_for`); what comes back is the
@@ -29,7 +29,6 @@ use rc2k_core::Invalid;
 
 // ---- game data ----
 
-/// The memory asked for is kept in `video_memory_asked` and `system_memory_asked`.
 /// Mip levels a level has: `OBJECT_TABLES.level_mips` (the sizes' table from its fifth entry).
 pub use rc2k_core::scene::textures::Call;
 
@@ -78,11 +77,6 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
                 cell.set(u32::MAX);
             }
         }
-    }
-    fn set_asked(&mut self, asked: [u32; 2]) {
-        let textures = &self.scene.textures;
-        textures.kinds.get().video_memory_asked.set(asked[0]);
-        textures.kinds.get().system_memory_asked.set(asked[1]);
     }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
         self.scene.textures.kinds.get().kind_first_slots[texture as usize].set(slot);

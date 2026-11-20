@@ -1,8 +1,8 @@
 //! Holds the work car's motion to its limits. A motion part that is no number or infinite (its
 //! exponent all ones) logs "*** INFINITY", "[car0.newxspd] =" and the three (5 decimals) and zeroes
 //! the motion, its car-frame copy and the spin. Then the spin's parts are held to +-`spin_limit`
-//! and the motion's (x, z, y) to +-`velocity_limit`; its length (`physics::vector_length`) goes
-//! into `motion_length`, and past `top_speed` the motion and its copy are scaled down to it
+//! and the motion's (x, z, y) to +-`velocity_limit`; past `top_speed` (against the motion's
+//! length, `physics::vector_length`) the motion and its copy are scaled down to it
 //! (`physics::scale_vector`).
 //!
 //! The x87 compares are plain Rust over `X` (`math/x87_float.rs`).
@@ -34,8 +34,7 @@ fn hold(v: &impl Cell32, l: &impl Cell32) {
 }
 
 /// The exact version, for `physics::car_physics_step` and `physics::find_clear_place`.
-pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
+pub fn limit_motion(car: &Car, tables: &PhysicsTables) {
     // Infinity or not a number (the float's exponent bits are tested).
     let bad = car
         .velocity
@@ -62,7 +61,6 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
         hold(&car.velocity[k], &tables.velocity_limit);
     }
     let length = rounded_value(vector_length(&car.velocity));
-    drawing.scene.get().motion_length.set(length);
     let top = tables.top_speed.get();
     let past =
         matches!(top.partial_cmp(&length), Some(Ordering::Less)) || top.is_nan() || length.is_nan();

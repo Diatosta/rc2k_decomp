@@ -26,8 +26,7 @@ use crate::memory::place::BytePlace;
 
 // ---- game data ----
 
-/// `ObjectFileNumbers.picture_number` the picture's number, `ObjectFileNumbers.picture_texture` the
-/// texture, then the twelve names up to the end of `files\s\extr\txxxxx.pcx`. The six folders'
+/// The twelve names up to the end of `files\s\extr\txxxxx.pcx`. The six folders'
 /// names and second names, and where the number is in the name.
 fn folders(course: &'static crate::race::owner_course::Course) -> [(BytePlace, BytePlace, u32); 6] {
     let p = course.level_paths();
@@ -43,29 +42,21 @@ fn folders(course: &'static crate::race::owner_course::Course) -> [(BytePlace, B
 use crate::logfile::log_write::log_nul;
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
 
-/// The numbers and the names: everything the function writes.
+/// The six folders' picture names and second names with the picture's number in them.
 fn write_names(
     course: &'static crate::race::owner_course::Course,
     number: u32,
-    texture: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    let file_numbers = &scene.file_numbers();
+    for ((name, second_name, at), (first, second)) in folders(course).into_iter().zip(names(number))
     {
-        file_numbers.picture_number.set(number);
-        file_numbers.picture_texture.set(texture);
-        for ((name, second_name, at), (first, second)) in
-            folders(course).into_iter().zip(names(number))
-        {
-            name.add(at).write(&first, "a picture's file number")?;
-            if let Some(second) = second {
-                second_name
-                    .add(at)
-                    .write(&second, "a picture's file number")?;
-            }
+        name.add(at).write(&first, "a picture's file number")?;
+        if let Some(second) = second {
+            second_name
+                .add(at)
+                .write(&second, "a picture's file number")?;
         }
-        Ok(())
     }
+    Ok(())
 }
 
 // Logic: `rc2k_core::scene::pictures`
@@ -78,7 +69,7 @@ pub fn load_texture_picture(
     system: &crate::system::owner::System,
 ) -> Result<TexturePicture, Refused> {
     let (course, shared) = (&race.course, &race.shared);
-    write_names(course, number, texture, scene)?;
+    write_names(course, number)?;
     let mut gravel_chosen = false;
     let car = picture_car(
         number,

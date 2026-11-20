@@ -63,21 +63,13 @@ pub struct ContactWork {
     pub crash_ground_scale: PlainFloat,
     /// The contact force copied from the record (`physics::crash_contact`, `ground_contact`).
     pub ground_force: [PlainDword; 3],
-    /// 0 then 1 in `physics::ground_contact` (a reading).
+    /// 0 then 1 in `physics::ground_contact`; shown on the developers' page.
     pub ground_contact_started: PlainDword,
     /// `drive::animate_lit_faces`: the face's x offset saved before a kind-4 face is
     /// moved, put back when no ground is found under the new place.
     pub lit_face_saved_30: PlainDword,
     /// `drive::animate_lit_faces`: the face's z offset saved the same way.
     pub lit_face_saved_38: PlainDword,
-    /// `drive::animate_lit_faces`: the distance to a lit face, rounded to a whole number.
-    pub lit_face_distance: PlainDword,
-    /// `drive::animate_lit_faces`: the pace 1 .. 17 from the distance.
-    pub lit_face_pace: PlainDword,
-    /// `physics::probe_ground`: the noise bytes at the cell's four corners.
-    pub ground_noise_corners: [PlainDword; 4],
-    /// `physics::probe_ground`: the mixed steps.
-    pub ground_noise_mix: [PlainDword; 3],
     /// The deepest point's depth (`physics::lowest_body_point`, `crash_contact`,
     /// `ground_contact`, `find_clear_place`).
     pub lowest_depth: PlainDword,
@@ -164,10 +156,6 @@ pub struct ContactWork {
     /// The contact kind being looked at (`physics::face_contact`,
     /// `point_hits_car`).
     pub contact_kind: PlainDword,
-    /// `physics::probe_ground`: the last probe x float (a reading).
-    pub probe_turned_x_last: PlainFloat,
-    /// `physics::probe_ground`: the last probe z float (a reading).
-    pub probe_turned_z_last: PlainFloat,
     /// The object's offset, whole numbers (`physics::scene_point_hits_car`, `object_hits_car`,
     /// `point_hits_car`).
     pub object_offset: [PlainDword; 3],
