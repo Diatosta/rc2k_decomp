@@ -199,8 +199,8 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
             ..
         }
     );
-    crate::race::render_row::select(false);
-    crate::race::viewer_tip::reset();
+    crate::race::render_row::select(race, false);
+    crate::race::viewer_tip::reset(race);
     race.shared.replay_file().viewer_mode.set(mode as u32);
     race.shared.replay_file().hold_car_revs.set(1);
     replay.replay_view().viewer_only_shown.set(0);
@@ -367,14 +367,14 @@ fn stopped_key(
     // The "render to video" row under the buttons: the down arrow from the lower row reaches
     // it, up or left leaves it, Enter renders.
     use crate::race::render_row::{KEY_DOWN, KEY_ENTER, KEY_LEFT, KEY_UP, LOWER_ROW};
-    if crate::race::render_row::selected() {
+    if crate::race::render_row::selected(race) {
         return Ok(match key {
             KEY_UP | KEY_LEFT => {
-                crate::race::render_row::select(false);
+                crate::race::render_row::select(race, false);
                 Next::Mark
             }
             KEY_ENTER => {
-                crate::race::render_row::select(false);
+                crate::race::render_row::select(race, false);
                 crate::race::render_row::render(race, o)?;
                 Next::Mark
             }
@@ -390,7 +390,7 @@ fn stopped_key(
         && (LOWER_ROW.contains(&list_state.choice.get())
             || way_down_closed(race, list, list_state.choice.get())?)
     {
-        crate::race::render_row::select(true);
+        crate::race::render_row::select(race, true);
         return Ok(Next::Mark);
     }
     let stepped = crate::menu::list_step::list_step(

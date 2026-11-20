@@ -47,7 +47,7 @@ fn overview(
     // are long): the edges on the part's pixels by the same rule, so that the runs meet.
     let edge = |n: u32| left + n * side / OVERVIEW_SIDE;
     let mut runs = Vec::new();
-    crate::race::overview_map::with_picture(|picture| {
+    crate::race::overview_map::with_picture(frame, |picture| {
         for (y, row) in picture.chunks(OVERVIEW_SIDE as usize).enumerate() {
             let y = y as u32;
             let cut = |c: Option<u32>| c.map(|c| c & 0xF0_F0F0);

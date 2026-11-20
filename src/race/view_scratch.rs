@@ -264,7 +264,13 @@ impl ViewScratch {
         match self.number() {
             4 => race.shared.view.get().drawn_view.get(),
             // With more than two players the four slots are the players' views (no mirrors).
-            n if many_views() => n as u32,
+            n if race
+                .frame
+                .many_views
+                .load(std::sync::atomic::Ordering::Relaxed) =>
+            {
+                n as u32
+            }
             n => (n % 2) as u32,
         }
     }
@@ -276,21 +282,6 @@ const _: () = {
     const fn assert_send<T: Send>() {}
     assert_send::<ViewScratch>();
 };
-
-static MANY_VIEWS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// Whether the race is a split screen of three or four players: then the view slots are the
-/// players' views (slot `n` player `n`) and there are no mirrors, where with one or two players
-/// slots 2 and 3 are the first two players' mirrors. Set by the frame's drawing, before its
-/// parts run.
-pub(super) fn set_many_views(many: bool) {
-    MANY_VIEWS.store(many, std::sync::atomic::Ordering::Relaxed);
-}
-
-/// Whether the view slots are the players' (`set_many_views`).
-pub(super) fn many_views() -> bool {
-    MANY_VIEWS.load(std::sync::atomic::Ordering::Relaxed)
-}
 
 /// The slots the parts of a drawing draw: the views and the mirrors.
 pub(crate) const PART_SLOTS: usize = 4;

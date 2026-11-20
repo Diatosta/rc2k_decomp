@@ -22,6 +22,18 @@ use crate::race::text_state_store::TextState;
 /// variables, the panel and the overlay are fields of `view_and_records` and
 /// `panel_and_overlay` (`view_vars_store`, `panel_store`, `overlay_store` read them there).
 pub struct Frame {
+    /// Whether the race is a split screen of three or four players: then the view slots are the
+    /// players' views (slot `n` player `n`) and there are no mirrors, where with one or two
+    /// players slots 2 and 3 are the first two players' mirrors. Set by the frame's drawing,
+    /// before its parts run.
+    pub many_views: std::sync::atomic::AtomicBool,
+    /// The frames drawn between ticks: each car's last two ticks and the next frame's place.
+    pub blend: crate::race::blend::Blend,
+    /// The overview map's picture of the stage: its colours (0xRRGGBB, `None` where the map has no
+    /// tile); `None` until it is made.
+    pub overview_picture: std::sync::Mutex<Option<Vec<Option<u32>>>>,
+    /// The whole nanosecond count at the last frame-rate measure.
+    pub last_frame_nanos: std::sync::atomic::AtomicU64,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it (the two
     /// counters nobody reads stay atomic).
     pub frame_work: DrawShared<FrameWork>,
@@ -61,6 +73,10 @@ struct FrameMain {
 impl Frame {
     pub const fn new() -> Self {
         Frame {
+            many_views: std::sync::atomic::AtomicBool::new(false),
+            blend: crate::race::blend::Blend::new(),
+            overview_picture: std::sync::Mutex::new(None),
+            last_frame_nanos: std::sync::atomic::AtomicU64::new(0),
             frame_work: DrawShared::new(FrameWork::new()),
             matrices: DrawShared::new(SceneMatrices::new()),
             shadow_skids: DrawShared::new(ShadowSkids::new()),

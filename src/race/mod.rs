@@ -150,7 +150,7 @@ pub(crate) mod view_vars_store;
 pub(crate) mod viewer_buffers_store;
 pub(crate) mod viewer_screen_store;
 pub(crate) mod viewer_state_store;
-mod viewer_tip;
+pub(crate) mod viewer_tip;
 pub(crate) mod work_store;
 
 pub(crate) mod vars_store;

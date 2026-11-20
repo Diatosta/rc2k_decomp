@@ -191,7 +191,7 @@ pub fn load_race_sounds(
     // throttle and speed sounds of its model (the replay's set holds none), for the first two
     // cars the model's own pair.
     if replay
-        && crate::race::heard_cars::is_on()
+        && crate::race::heard_cars::is_on(&race.shared)
         && let Some(kinds) = crate::race::viewer_load_stage::every_car_kinds(race)
     {
         for (car, &model) in kinds.iter().enumerate().take(OBJECTS as usize) {

@@ -97,7 +97,7 @@ pub fn choose_shown_cars_in(race: &Race, net: &crate::net::owner::Net) -> Result
                 .unwrap_or_default(),
             // Only while the sound objects are set up for every car.
             ext.and_then(rc2k_core::race::replay_v2::Extension::heard_kinds)
-                .filter(|_| crate::race::heard_cars::is_on())
+                .filter(|_| crate::race::heard_cars::is_on(&race.shared))
                 .map_or(0, |kinds| kinds.len() as u32),
         )
     } else {

@@ -27,7 +27,7 @@ pub fn car_input_words(
     check_car(car)?;
     let mut device = frame.frame_work.get().listed_car_sounds[car as usize].get();
     // A replay that hears every car lists each by its own number, which names no device.
-    if crate::race::heard_cars::is_on() {
+    if crate::race::heard_cars::is_on(&race_owner.shared) {
         device = NO_DEVICE;
     }
     // The third and fourth players of a larger split screen have no sound object or view

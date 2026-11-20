@@ -46,7 +46,7 @@ pub(super) fn play_movie_loop(
         .race_clock_base
         .set(race.shared.physics_tables.get().scene_clock.get());
     let pad_at_start = input.pad_marker();
-    let _racing = crate::race::blend::Racing::begin();
+    let _racing = crate::race::blend::Racing::begin(race);
     loop {
         race_parts::input_update(o);
         if input.devices.keys_pressed.get(1) != 0 || input.pad_pressed_since(pad_at_start) {

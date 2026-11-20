@@ -166,28 +166,44 @@ struct Pair {
     cur: Option<Snap>,
 }
 
-static PAIRS: Mutex<[Pair; BLOCK_COUNT]> = Mutex::new(
-    [Pair {
-        prev: None,
-        cur: None,
-    }; BLOCK_COUNT],
-);
-
-fn pairs() -> std::sync::MutexGuard<'static, [Pair; BLOCK_COUNT]> {
-    PAIRS
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
+/// What the blend keeps between frames: each car's last two ticks and where the next frame is
+/// between the ticks. One per race (`Frame::blend`).
+pub struct Blend {
+    pairs: Mutex<[Pair; BLOCK_COUNT]>,
+    /// Where the next frame is between the ticks (`rc2k_core::race::blend::alpha`, as float
+    /// bits); 1 (the last tick) unless a tick step has just set it.
+    alpha: AtomicU32,
 }
 
-/// The race's ticks begin: nothing is known of the ticks before.
-pub fn reset() {
-    *pairs() = [Pair::default(); BLOCK_COUNT];
-    ALPHA.store(1.0f32.to_bits(), Relaxed);
+impl Blend {
+    pub const fn new() -> Self {
+        Blend {
+            pairs: Mutex::new(
+                [Pair {
+                    prev: None,
+                    cur: None,
+                }; BLOCK_COUNT],
+            ),
+            alpha: AtomicU32::new(0x3F80_0000),
+        }
+    }
+
+    fn pairs(&self) -> std::sync::MutexGuard<'_, [Pair; BLOCK_COUNT]> {
+        self.pairs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// The race's ticks begin: nothing is known of the ticks before.
+    fn reset(&self) {
+        *self.pairs() = [Pair::default(); BLOCK_COUNT];
+        self.alpha.store(1.0f32.to_bits(), Relaxed);
+    }
 }
 
 /// A tick has run: each car's values kept beside the tick before.
 pub fn note_tick(race: &Race) {
-    let mut pairs = pairs();
+    let mut pairs = race.frame.blend.pairs();
     for (pair, car) in pairs.iter_mut().zip(&race.car_blocks().cars) {
         pair.prev = pair.cur;
         pair.cur = Some(read(car));
@@ -208,8 +224,8 @@ pub fn set_smooth(on: bool) {
 pub struct Racing;
 
 impl Racing {
-    pub fn begin() -> Self {
-        reset();
+    pub fn begin(race: &Race) -> Self {
+        race.frame.blend.reset();
         crate::platform::pacing::set_blending(true);
         Racing
     }
@@ -221,21 +237,17 @@ impl Drop for Racing {
     }
 }
 
-/// Where the next frame is between the ticks (`rc2k_core::race::blend::alpha`, as float
-/// bits); 1 (the last tick) unless a tick step has just set it.
-static ALPHA: AtomicU32 = AtomicU32::new(0x3F80_0000);
-
 /// The ticks of this turn are done (`drive::race_step`): the frame to draw is `rest`
 /// milliseconds past the last of them; `ticking` false (the simulation paused) shows the last
 /// tick.
-pub fn ticks_done(rest: u32, ticking: bool) {
+pub fn ticks_done(race: &Race, rest: u32, ticking: bool) {
     // Scripted runs with a held clock (one frame, one tick) show the ticks as they are, so their
     // pictures do not depend on the clock's phase; `RC2K_BLEND_HELD` blends them anyway.
     if crate::remote::held_clock().is_some() && std::env::var_os("RC2K_BLEND_HELD").is_none() {
         return;
     }
     let alpha = if ticking { core::alpha(rest) } else { 1.0 };
-    ALPHA.store(alpha.to_bits(), Relaxed);
+    race.frame.blend.alpha.store(alpha.to_bits(), Relaxed);
 }
 
 /// The blocks holding the frame's blend while it is drawn; the ticks' values are put back when
@@ -251,10 +263,10 @@ impl<'a> Blended<'a> {
     /// and puts the blend in the blocks of the cars that have two ticks to blend and whose
     /// blocks are still as the last tick left them.
     pub fn new(race: &'a Race) -> Self {
-        let alpha = f32::from_bits(ALPHA.swap(0x3F80_0000, Relaxed));
+        let alpha = f32::from_bits(race.frame.blend.alpha.swap(0x3F80_0000, Relaxed));
         let mut saved = Vec::new();
         if smooth_on() && alpha < 1.0 {
-            let pairs = pairs();
+            let pairs = race.frame.blend.pairs();
             for (n, (pair, car)) in pairs.iter().zip(&race.car_blocks().cars).enumerate() {
                 let (Some(prev), Some(cur)) = (&pair.prev, &pair.cur) else {
                     continue;
@@ -355,7 +367,7 @@ mod tests {
         note_tick(race);
         write(car, &b);
         note_tick(race);
-        ALPHA.store(0.5f32.to_bits(), Relaxed);
+        race.frame.blend.alpha.store(0.5f32.to_bits(), Relaxed);
         {
             let _blended = Blended::new(race);
             assert_eq!(car.position[0].get(), 1500);
@@ -366,6 +378,6 @@ mod tests {
             let _blended = Blended::new(race);
             assert_eq!(car.position[0].get(), 2000);
         }
-        reset();
+        race.frame.blend.reset();
     }
 }

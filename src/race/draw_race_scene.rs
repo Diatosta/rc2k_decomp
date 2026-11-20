@@ -70,7 +70,11 @@ impl<'a> Owners<'a> {
 /// Whether the view with `flags` has its mirror (the flags' bit 3).
 fn mirrored(race: &Race, flags: usize) -> bool {
     // A split screen of more than two players has no mirrors: their slots are the players' views.
-    if crate::race::view_scratch::many_views() {
+    if race
+        .frame
+        .many_views
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
         return false;
     }
     race.frame.panel_and_overlay.get().panel.hud_flags[flags].get() & 8 != 0
@@ -520,7 +524,9 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     crate::memory::session::write_bits(&race.shared.view.get().view_cleared, [0u32; 0x20]);
     // The split screen's further views show their own player's car; each is on.
     let views = race.shared.view.get().views.get();
-    crate::race::view_scratch::set_many_views(views > 2);
+    race.frame
+        .many_views
+        .store(views > 2, std::sync::atomic::Ordering::Relaxed);
     if views > 2 {
         // A view slot that was a mirror in an earlier race keeps its mirror flag: the players'
         // views are never mirrors, or the camera looks back from the car.

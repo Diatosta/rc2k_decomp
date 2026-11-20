@@ -207,7 +207,7 @@ fn set_up_objects(
 ) -> Result<(), Refused> {
     let (race, sound, system) = (o.race, o.sound, o.system);
     let shared = &race.shared;
-    crate::race::heard_cars::set(every_car.is_some());
+    crate::race::heard_cars::set(shared, every_car.is_some());
     {
         let net_race = o.net.race_slot.get();
         if net_race.is_some_and(|n| n.player > 7) {

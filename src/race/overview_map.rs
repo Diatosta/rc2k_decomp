@@ -10,9 +10,6 @@ use crate::race::owner::Race;
 use rc2k_core::race::map::{TILE, TILES, pixel_width};
 use rc2k_core::race::overview::{Fit, SIDE};
 
-/// The overview picture of the stage: its colours (0xRRGGBB, `None` where the map has no tile).
-static PICTURE: std::sync::Mutex<Option<Vec<Option<u32>>>> = std::sync::Mutex::new(None);
-
 /// The players the overview map serves.
 const PLAYERS: u32 = 3;
 
@@ -25,8 +22,12 @@ pub fn wanted(race: &Race) -> bool {
 }
 
 /// The overview picture's colours, if it is made: `f` gets them row by row.
-pub fn with_picture<R>(f: impl FnOnce(&[Option<u32>]) -> R) -> Option<R> {
-    let kept = PICTURE
+pub fn with_picture<R>(
+    frame: &crate::race::owner_frame::Frame,
+    f: impl FnOnce(&[Option<u32>]) -> R,
+) -> Option<R> {
+    let kept = frame
+        .overview_picture
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     kept.as_deref().map(f)
@@ -104,7 +105,9 @@ pub fn update(race: &Race, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> 
                 )
             })
         })?;
-        let mut kept = PICTURE
+        let mut kept = race
+            .frame
+            .overview_picture
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         match made {

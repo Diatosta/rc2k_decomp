@@ -24,6 +24,7 @@ pub fn race_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
     }
     let tables = race.shared.physics_tables.get();
     crate::race::blend::ticks_done(
+        race,
         tables
             .race_clock_now
             .get()

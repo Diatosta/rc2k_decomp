@@ -11,20 +11,32 @@ use crate::race::owner::Race;
 use rc2k_core::race::render_dialog::Part;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
 
-/// The blocks a render started from the command line plays, from the first to the end (for its
-/// progress).
-static FROM_BLOCK: AtomicU32 = AtomicU32::new(0);
-static END_BLOCK: AtomicU32 = AtomicU32::new(0);
-
-/// The row has the highlight (the lower row's button is not lit then).
-static SELECTED: AtomicBool = AtomicBool::new(false);
-
-pub fn selected() -> bool {
-    SELECTED.load(Relaxed)
+/// The render row's state, one per race (`Replay::render_row`).
+pub struct RenderRow {
+    /// The blocks a render started from the command line plays, from the first to the end (for its
+    /// progress).
+    from_block: AtomicU32,
+    end_block: AtomicU32,
+    /// The row has the highlight (the lower row's button is not lit then).
+    selected: AtomicBool,
 }
 
-pub fn select(on: bool) {
-    SELECTED.store(on, Relaxed);
+impl RenderRow {
+    pub const fn new() -> Self {
+        RenderRow {
+            from_block: AtomicU32::new(0),
+            end_block: AtomicU32::new(0),
+            selected: AtomicBool::new(false),
+        }
+    }
+}
+
+pub fn selected(race: &Race) -> bool {
+    race.replay.render_row.selected.load(Relaxed)
+}
+
+pub fn select(race: &Race, on: bool) {
+    race.replay.render_row.selected.store(on, Relaxed);
 }
 
 /// The viewer's number of the key table's down, up and left arrows, and Enter.
@@ -97,7 +109,7 @@ pub fn draw_button(
     panel.item_place[3].set(lower[3]);
     let colour = rc2k_core::race::viewer::item_colour(
         0,
-        selected(),
+        selected(race),
         || false,
         || {
             list_state
@@ -121,8 +133,8 @@ pub fn draw_button(
 pub fn fraction(race: &Race) -> f64 {
     rc2k_core::race::render_dialog::progress(
         race.replay.replay_view().replay_block.get(),
-        FROM_BLOCK.load(Relaxed),
-        END_BLOCK.load(Relaxed),
+        race.replay.render_row.from_block.load(Relaxed),
+        race.replay.render_row.end_block.load(Relaxed),
     )
 }
 
@@ -141,8 +153,8 @@ pub(super) fn play_range(
         .map_or(blocks, |t| t.div_ceil(100).min(blocks))
         .max(start + 1)
         .min(blocks);
-    FROM_BLOCK.store(start, Relaxed);
-    END_BLOCK.store(end, Relaxed);
+    race.replay.render_row.from_block.store(start, Relaxed);
+    race.replay.render_row.end_block.store(end, Relaxed);
     let view = race.replay.replay_view();
     view.replay_block.set(start);
     view.replay_frame

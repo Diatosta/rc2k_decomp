@@ -11,11 +11,8 @@
 
 use crate::race::owner::Race;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::Ordering::Relaxed;
 use std::time::Instant;
-
-/// The whole count at the last measure (`frame_last` holds its low half).
-static LAST: AtomicU64 = AtomicU64::new(0);
 
 /// Nanoseconds since the first measure.
 fn nanos() -> u64 {
@@ -35,7 +32,7 @@ pub fn measure_frame_rate(race: &Race, scene: &crate::scene::owner::Scene) -> Op
     let whole = nanos();
     let now = whole as u32;
     shared.switches.get().frame_now.set(now);
-    if let Some(time) = nanos_since(whole, LAST.swap(whole, Relaxed)) {
+    if let Some(time) = nanos_since(whole, race.frame.last_frame_nanos.swap(whole, Relaxed)) {
         scene.drawing.scene.get().scratch.set(time as u32);
         let numbers = race.course.numbers.get();
         let rate = frame_rate(numbers.thousand.get(), numbers.sixteen.get(), time);

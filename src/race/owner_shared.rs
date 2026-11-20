@@ -44,6 +44,8 @@ pub struct RaceShared {
     pub replay_templates: Templates,
     /// The turn the race's sounds are placed by.
     pub heard_turn: GameThread<crate::race::heard_turn::HeardTurn>,
+    /// Whether the cars of the replay now viewed are all heard (`race::heard_cars`).
+    pub every_car_heard: std::sync::atomic::AtomicBool,
     main: GameThread<SharedMain>,
     /// The random numbers: the main generator and the sounds' and drawing's own streams. Drawing
     /// threads draw from it in the list's order (`Randoms::next_drawing`).
@@ -75,6 +77,7 @@ impl RaceShared {
             car_blocks: DrawShared::new(CarBlocks::new()),
             replay_templates: Templates::new(),
             heard_turn: GameThread::new(crate::race::heard_turn::HeardTurn::new()),
+            every_car_heard: std::sync::atomic::AtomicBool::new(false),
             random: crate::math::next_random::Randoms::new(),
             main: GameThread::new(SharedMain {
                 tables: RaceTables::new(),

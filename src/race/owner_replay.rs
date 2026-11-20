@@ -23,6 +23,10 @@ pub struct Replay {
     pub given_file: std::sync::OnceLock<Vec<u8>>,
     /// The viewer's panel through the kinds' tables (`race::groups_store`).
     pub viewer_and_kinds: ViewerAndKinds,
+    /// The render row under the viewer's buttons.
+    pub render_row: crate::race::render_row::RenderRow,
+    /// The name shown under the render button.
+    pub viewer_tip: crate::race::viewer_tip::ViewerTip,
     main: GameThread<ReplayMain>,
 }
 
@@ -45,6 +49,8 @@ impl Replay {
             last_race: with_runs(&[(0, b"var\\tmprpl\0")]),
             given_file: std::sync::OnceLock::new(),
             viewer_and_kinds: ViewerAndKinds::new(),
+            render_row: crate::race::render_row::RenderRow::new(),
+            viewer_tip: crate::race::viewer_tip::ViewerTip::new(),
             main: GameThread::new(ReplayMain {
                 replay_frames: ReplayFrames::new(),
                 replay_work: ReplayWork::new(),

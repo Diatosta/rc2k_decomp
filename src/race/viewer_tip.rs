@@ -21,11 +21,21 @@ struct Shown {
     since: Instant,
 }
 
-static SHOWN: Mutex<Option<Shown>> = Mutex::new(None);
+/// The name last started, one per race (`Replay::viewer_tip`).
+pub struct ViewerTip(Mutex<Option<Shown>>);
+
+impl ViewerTip {
+    pub const fn new() -> Self {
+        ViewerTip(Mutex::new(None))
+    }
+}
 
 /// The viewer opens: the first highlight shown names itself.
-pub fn reset() {
-    *SHOWN
+pub fn reset(race: &Race) {
+    *race
+        .replay
+        .viewer_tip
+        .0
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
 }
@@ -35,7 +45,7 @@ fn highlight(race: &Race, choice: u32) -> Highlight {
     let editing = race.viewer_buffers().camera_edit.get();
     if editing != 0 {
         Highlight::Editing(editing)
-    } else if render_row::selected() {
+    } else if render_row::selected(race) {
         Highlight::Render
     } else {
         Highlight::Button(choice.min(BUTTONS - 1))
@@ -77,7 +87,11 @@ fn text_of(o: Owners<'static>, highlight: Highlight) -> String {
 pub fn draw(o: Owners<'static>) -> Result<(), Refused> {
     let highlight = highlight(o.race, o.menus.list.choice.get());
     let elapsed = {
-        let mut shown = SHOWN
+        let mut shown = o
+            .race
+            .replay
+            .viewer_tip
+            .0
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let now = Instant::now();

@@ -146,7 +146,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     race.shared.vars.get().scene_switch.set(0);
     crate::remote::race_loop_begins();
     restart_clock(race, &system.session.picture_clock);
-    let _racing = crate::race::blend::Racing::begin();
+    let _racing = crate::race::blend::Racing::begin(race);
     race.frame
         .clock_ticks()
         .clock_a
