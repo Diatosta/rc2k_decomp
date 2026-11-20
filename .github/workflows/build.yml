@@ -21,6 +21,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Read-only unless a job says more (the pages and release jobs do).
+permissions:
+  contents: read
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true

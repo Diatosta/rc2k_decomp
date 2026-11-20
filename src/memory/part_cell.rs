@@ -1,6 +1,6 @@
 //! The cells of the drawing's per-part state: `PartCell<T>`, an element of the parts (one
 //! `PartScratch` per drawing thread) or of the view slots (one `ViewScratch` per drawn piece) of
-//! `scene::workers::DrawingScratch`, reached by exactly one thread at a time.
+//! `scene::scratch_store::DrawingScratch`, reached by exactly one thread at a time.
 //!
 //! Two doors lead in. `claim` is the parts' own: `scene::workers::draw_parts` makes a `PartTurn` for
 //! each run it starts (on the thread that runs it) and the run claims its part's scratch and its
@@ -44,7 +44,7 @@ pub struct PartCell<T> {
 //    else reaches it. Inside a scope the game's thread is run 0, so it reaches the elements run 0
 //    claimed (`PARTS[0]` and run 0's view) as itself; an element a run other than 0 holds is on
 //    another thread, and `on_game_thread` stops at it in debug builds (`claimed` above 1). The
-//    callers of the accessors outside the parts (`scene::workers::DrawingScratch::{game_scratch,
+//    callers of the accessors outside the parts (`scene::scratch_store::DrawingScratch::{game_scratch,
 //    all_parts_on_game_thread, main_view, mirror, slot, front_end}`) are the game's thread's own
 //    code, and the parts are handed what they draw on (`PartRun`): a drawing thread holds the
 //    scratch too (through the context's scene) and could call an accessor, which the debug check

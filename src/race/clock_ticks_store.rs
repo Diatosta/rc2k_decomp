@@ -13,8 +13,6 @@ pub struct ClockTicks {
     pub unused_text: [PlainDword; 6],
     /// 0x20 dwords set to -1 by `drive::race_loop` and `drive::finish_run`.
     pub marks: [PlainDword; 32],
-    /// Unused; it only keeps the image's layout.
-    pub unused_98: [PlainDword; 96],
     /// The scene clock at the last race-sound tick (`sound::race_sound_tick`,
     /// `drive::race_loop`, `drive::finish_run`).
     pub sound_tick_last: PlainDword,

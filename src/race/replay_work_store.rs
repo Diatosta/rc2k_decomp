@@ -10,7 +10,7 @@ use crate::memory::session::PlainDword;
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayWork {
     /// Unused; nothing reads it.
-    pub unknown_640: [PlainDword; 6],
+    pub reserved_640: [PlainDword; 6],
     /// The car header's stage setting, header offset 0 (`race::replay`, `race::race_end`,
     /// `race::viewer`).
     pub header_stage: PlainDword,
@@ -59,7 +59,7 @@ pub struct ReplayWork {
     pub header_patches: [PlainDword; 13],
     /// The low byte of the first dword is the first car's door (race) number the viewer
     /// reads (`race::viewer_load_stage`); the rest is read by no code.
-    pub unknown_7d0: [PlainDword; 162],
+    pub after_header: [PlainDword; 162],
     /// The wished camera per head byte, indexed by a byte of the frame head
     /// (`drive::replay_cameras`).
     pub replay_camera_wishes: [PlainDword; 47],
@@ -74,7 +74,7 @@ impl ReplayWork {
     /// The work with its first values.
     pub const fn new() -> Self {
         Self {
-            unknown_640: [
+            reserved_640: [
                 PlainDword::new(0x3C0),
                 PlainDword::new(0x1A10),
                 PlainDword::new(0x640),

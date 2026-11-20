@@ -9,7 +9,7 @@
 //! null pointer among them, an angle with no sine and cosine, and `bend_points`' refusals.
 
 use crate::effects::bend_points::bend_points;
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::effects::splines::{
     MOST_POINTS, Spline, transform_int_points_from, turn_record, turnable_record, write_point,
 };
@@ -48,7 +48,7 @@ fn refusal(paths: &Paths, s: Spline) -> Result<(), Refused> {
 }
 
 pub(super) fn place_graded_points(
-    object_points: &crate::scene::object_points::ObjectPoints,
+    object_points: &crate::scene::object_points_store::ObjectPoints,
     paths: &Paths,
     s: Spline,
 ) -> Result<(), Refused> {

@@ -79,8 +79,8 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
             .settings
             .race_mode
             .set(sound.threads.shared.one_player.get());
-        // The door number is the low byte of the first dword of `unknown_7d0`.
-        let door = race.replay_work().unknown_7d0[0].get() & 0xFF;
+        // The door number is the low byte of the first dword of `after_header`.
+        let door = race.replay_work().after_header[0].get() & 0xFF;
         shared.state.settings.cars[0].race_number.set(door);
         race.car_blocks().cars[0].start_slot_value.set(door);
         crate::logfile::log_write::log_nul(&DOOR_TEXT, false, 1);

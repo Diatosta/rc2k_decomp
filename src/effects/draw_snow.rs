@@ -14,9 +14,9 @@
 //! curve index past the 4095 entries and a fade index past the 17.
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
-use crate::effects::rain::Weather;
-use crate::effects::snow::{SnowLight, SnowState, SnowTables};
-use crate::effects::tuning::MarksFloats;
+use crate::effects::rain_store::Weather;
+use crate::effects::snow_store::{SnowLight, SnowState, SnowTables};
+use crate::effects::tuning_store::MarksFloats;
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 
@@ -35,7 +35,7 @@ fn fade(weather: &Weather, effects: &crate::effects::owner::Effects) {
 
 /// The projected square, its depth and u.
 fn square(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     weather: &Weather,
     i: u32,
@@ -236,7 +236,7 @@ fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
 
 /// `square`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn square_x87(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     vt: impl Base,
     i: usize,
     t: &SnowTables,

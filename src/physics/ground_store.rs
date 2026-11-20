@@ -11,35 +11,22 @@ use crate::memory::session::{PlainDword, PlainFloat};
 pub struct GroundWork {
     /// A count kept up by one for each frame drawn (`race::draw_race_scene`).
     pub frames_drawn: PlainDword,
-    /// Unused.
-    pub unused_4: PlainDword,
     /// Set to 0 at the end of loading a stage (`race::stage_loading`, a reading: 1 while one
     /// loads).
     pub stage_loading: PlainDword,
-    /// Unused.
-    pub unused_c: [PlainDword; 6],
     /// `face_normal`'s work: the three points (9 dwords) and the six differences (`race::norms`,
     /// `scene::face_faces_away`); the drawing's is each view's (`ctx.view.object.normal_work`);
     /// this one is written by `race::face_normal` and read by none.
     pub normal_work: [PlainDword; 15],
-    /// Unused.
-    pub unused_60: [PlainDword; 8],
     /// The point's x, copied from `ground_x` by `physics::face_shares` (`physics::ground`).
     pub face_point_x: PlainDword,
-    /// Between the point's x and z: the slot of its y, which nothing uses.
-    pub unused_84: PlainDword,
     /// The point's z, copied from `ground_z` by `physics::face_shares` (`physics::ground`).
     pub face_point_z: PlainDword,
     /// The face's three corners (x, y, z each) copied by `physics::face_shares`; the y's are
     /// `physics::plane_height`'s inputs (`physics::ground`).
     pub face_corners: [PlainDword; 9],
-    /// Unused.
-    pub unused_b0: [PlainDword; 3],
     /// Point x - corner 0 x, corner 1 x - corner 0 x, corner 2 x - corner 0 x (`physics::ground`).
     pub corner_x_differences: [PlainDword; 3],
-    /// Between the x and y differences: the slot of the point's y less corner 0's y, which nothing
-    /// uses.
-    pub unused_c8: PlainDword,
     /// Corner 1 y - corner 0 y, corner 2 y - corner 0 y (`physics::ground`).
     pub corner_y_differences: [PlainDword; 2],
     /// Point z - corner 0 z, corner 1 z - corner 0 z, corner 2 z - corner 0 z (`physics::ground`).
@@ -76,13 +63,9 @@ pub struct GroundWork {
     pub ground_z: PlainDword,
     /// 1 when `physics::ground_search` finds a face, else 0 (`physics::count_ground_probe`).
     pub ground_found: PlainDword,
-    /// Unused.
-    pub unused_1b8: [PlainDword; 23],
     /// The three corner point numbers of the face now looked at (`physics::face_shares`,
     /// `race::car_shadow::raise_onto_face`).
     pub face_corner_numbers: [PlainDword; 3],
-    /// Unused.
-    pub unused_220: [PlainDword; 40],
     /// Set while a mirrored view is drawn (`race::frame_views`, `scene::draw_polygon`,
     /// `race::frame_draw`) (a reading); now each view's (`PolygonWork::view_mirrored`); unused.
     pub view_mirrored: PlainDword,

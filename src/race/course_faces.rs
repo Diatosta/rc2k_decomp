@@ -27,7 +27,10 @@ fn table_byte(
 
 /// With no texture animation (`texture_a` 0) and `polygon_mode` 4, turns the depth test off and
 /// sets `depth_test` 1.
-pub(super) fn face_depth_test_off(face: &FaceWork, part: &crate::scene::workers::PartScratch) {
+pub(super) fn face_depth_test_off(
+    face: &FaceWork,
+    part: &crate::scene::scratch_store::PartScratch,
+) {
     {
         if !rc2k_core::race::faces::depth_test_off(face.texture_a.get(), face.polygon_mode.get()) {
             return;
@@ -39,7 +42,7 @@ pub(super) fn face_depth_test_off(face: &FaceWork, part: &crate::scene::workers:
 
 /// Turns depth writing back on when `face_depth_test_off` turned it off (`depth_test` set), then
 /// sets `depth_test` 0.
-fn face_depth_test_on(face: &FaceWork, part: &crate::scene::workers::PartScratch) {
+fn face_depth_test_on(face: &FaceWork, part: &crate::scene::scratch_store::PartScratch) {
     {
         if rc2k_core::race::faces::depth_test_on(face.depth_test.get()) {
             crate::scene::depth_test_on::depth_test_on(part);
@@ -223,7 +226,7 @@ fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 
 /// Sets `polygon_sides` and the next polygon flag to 1 when the face's first / second texture is
 /// animated (`texture_a` / `texture_b` not 0), else 0.
-fn face_switches(poly: &crate::scene::polygon_work::PolygonWork, work: &FaceWork) {
+fn face_switches(poly: &crate::scene::polygon_work_store::PolygonWork, work: &FaceWork) {
     {
         let [first, second] =
             rc2k_core::race::faces::switches([work.texture_a.get(), work.texture_b.get()]);
@@ -580,7 +583,7 @@ fn lamp_byte(
 /// `polygon_next_entry` `next`.
 fn plain_list(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     count: u32,
     next: u32,
 ) {
@@ -764,7 +767,7 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// `flat_depth` + 1 when `flat_depth` is set; centre `view_centre`, the next).
 fn halfway_vertex(
     course: CourseReads<'_>,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     quad: &[crate::memory::session::PlainDword; 32],
     a: u32,
     b: u32,

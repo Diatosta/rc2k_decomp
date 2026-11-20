@@ -4,20 +4,17 @@
 //!
 //! The virtual gamepad is attached at the start, so the game lists it with the other
 //! controllers: its default profile (the left stick steers, the right trigger accelerates, the
-//! left one brakes, the south button is a gear up, east a gear down, west the handbrake, north the
-//! camera, start the pause) is what the touch layout presses. A real gamepad plugged in hides the
+//! left one brakes, the south button is a gear up, west a gear down, east the handbrake, north the
+//! camera, back the lights, start the pause) is what the touch layout presses. A real gamepad plugged in hides the
 //! overlay.
 
 use crate::platform::ffi::{sdl, sdl_input};
 use rc2k_core::input::menu_touch::Phase;
+use rc2k_core::input::touch::PAD_NAME;
 use rc2k_core::input::touch::{
     Answer, AnswerTaps, Asked, Button, Controls, Layout, Output, Source,
 };
-use sdl3_sys::everything::{
-    SDL_GAMEPAD_AXIS_LEFT_TRIGGER, SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER,
-    SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_NORTH, SDL_GAMEPAD_BUTTON_SOUTH,
-    SDL_GAMEPAD_BUTTON_START, SDL_GAMEPAD_BUTTON_WEST, SDL_JoystickID,
-};
+use sdl3_sys::everything::{SDL_GAMEPAD_AXIS_LEFTX, SDL_JoystickID};
 use std::sync::Mutex;
 
 /// The virtual gamepad's USB ids (pid.codes' vendor, an id of this program's own).
@@ -63,9 +60,6 @@ fn state() -> std::sync::MutexGuard<'static, State> {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
-
-/// The name the virtual gamepad is listed with.
-const PAD_NAME: &str = "Touch screen";
 
 /// Where the touch screen's pad is among the controllers listed.
 fn index_in(list: &[rc2k_core::input::device_id::Listed]) -> Option<usize> {
@@ -230,27 +224,12 @@ pub fn update(driving: bool, now: u64) {
         if was == now_held {
             continue;
         }
-        match button {
-            Button::Throttle => {
-                pad.set_virtual_axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER.0, level(now_held));
+        match crate::platform::input::touch_pad_button(button) {
+            Ok(pressed) => {
+                pad.set_virtual_button(pressed.0, now_held);
             }
-            Button::Brake => {
-                pad.set_virtual_axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER.0, level(now_held));
-            }
-            Button::Handbrake => {
-                pad.set_virtual_button(SDL_GAMEPAD_BUTTON_WEST.0, now_held);
-            }
-            Button::GearUp => {
-                pad.set_virtual_button(SDL_GAMEPAD_BUTTON_SOUTH.0, now_held);
-            }
-            Button::GearDown => {
-                pad.set_virtual_button(SDL_GAMEPAD_BUTTON_EAST.0, now_held);
-            }
-            Button::Camera => {
-                pad.set_virtual_button(SDL_GAMEPAD_BUTTON_NORTH.0, now_held);
-            }
-            Button::Pause => {
-                pad.set_virtual_button(SDL_GAMEPAD_BUTTON_START.0, now_held);
+            Err(axis) => {
+                pad.set_virtual_axis(axis.0, level(now_held));
             }
         }
     }
@@ -271,8 +250,7 @@ pub fn draw(renderer: sdl::Renderer, window: sdl::Window, now: u64) {
         .controls
         .as_ref()
         .map_or_else(Output::default, |c| c.output(now));
-    for button in Button::ALL {
-        let r = layout.rect(button);
+    for (button, r) in layout.places() {
         let held = out.is_held(button);
         let alpha = if held { 120 } else { 45 };
         renderer.fill_blended([255, 255, 255, alpha], [r.x, r.y, r.w, r.h]);

@@ -7,7 +7,8 @@
 
 use crate::errors::Refused;
 use crate::hud::disc_vertex::disc_vertex;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::math::x87;
 use crate::math::x87_float::{ld, to_int};
 use crate::race::owner_frame::Frame;

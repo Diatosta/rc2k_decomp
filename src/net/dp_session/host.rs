@@ -287,7 +287,7 @@ impl Session {
             let average = s
                 .pings
                 .get(&machine)
-                .map_or(trip, |&old| (old * 3 + trip) / 4);
+                .map_or(trip, |&old| moving_average(old, trip));
             s.pings.insert(machine, average);
             let mut w = W::default().u8(PINGS).u32(s.pings.len() as u32);
             for (&m, &ms) in &s.pings {
@@ -528,6 +528,12 @@ impl Session {
             );
         }
     }
+}
+
+/// A machine's round trip averaged with a new one, a quarter of it new. The stamp a machine gives
+/// back is its own to choose, so the trips can be any figure: no sum may overflow.
+pub(super) fn moving_average(old: u32, trip: u32) -> u32 {
+    ((u64::from(old) * 3 + u64::from(trip)) / 4) as u32
 }
 
 /// The host's thread that pings every machine every `every` until the session closes or goes.

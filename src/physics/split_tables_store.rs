@@ -10,8 +10,6 @@ use crate::memory::session::{PlainDword, PlainFloat};
 pub struct SplitTables {
     /// The arcade kind (1 or 2: `race::race_end`, `race::credits_race`, `race::race_cars`).
     pub arcade_kind: PlainDword,
-    /// Unused.
-    pub unused_4: PlainDword,
     /// The replay still / marks flag (`race::show_replay_still`, `race::frame_views`,
     /// `physics::camera_frame`, `drive::set_listener`).
     pub still: PlainDword,
@@ -25,14 +23,10 @@ pub struct SplitTables {
     /// The splits' count ("numcheckposits"; `physics::splits`, `race::frame_draw`,
     /// `race::level_init`).
     pub split_colour_count: PlainDword,
-    /// Unused.
-    pub unused_818: [PlainDword; 262],
     /// The sum of the stage's numbers (`race::race_cars`, `race::race_shell`).
     pub stage_car_total: PlainDword,
     /// The extra time (`race::race_cars::set_car_times`).
     pub extra_time: PlainDword,
-    /// Unused.
-    pub unused_c38: [PlainDword; 4],
     /// The kind's time factor (`race::race_cars::set_car_times`).
     pub kind_factor: PlainFloat,
     /// The kept split times, 64 of them.
@@ -56,18 +50,9 @@ pub struct SplitTables {
 impl SplitTables {
     pub const fn new() -> Self {
         use crate::memory::cells::ZeroCells;
-        use crate::memory::session::{PlainDword, PlainFloat};
+        use crate::memory::session::PlainFloat;
         Self {
             timer_factor: PlainFloat::new(2.5),
-            unused_818: {
-                let mut v: [PlainDword; 262] = ZeroCells::ZERO;
-                v[256] = PlainDword::new(0x656C6966);
-                v[257] = PlainDword::new(0x5C735C73);
-                v[258] = PlainDword::new(0x656D6974);
-                v[259] = PlainDword::new(0x6D69745C);
-                v[260] = PlainDword::new(0x302E7365);
-                v
-            },
             kind_factor: PlainFloat::new(1.0),
             ..ZeroCells::ZERO
         }

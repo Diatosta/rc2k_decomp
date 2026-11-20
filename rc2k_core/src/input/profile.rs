@@ -525,7 +525,7 @@ impl Profile {
     /// The profile a controller gets when a player first picks it.
     /// - gamepad: the left stick's x steers, the right trigger accelerates, the left one
     ///   brakes, the cross left and right steer too, buttons 0, 2, 1 and 3 (A, X, B, Y) are gear
-    ///   up, gear down, handbrake and camera;
+    ///   up, gear down, handbrake and camera, Back the lights;
     /// - wheel: x steers, buttons 0 .. 3 are gear up, gear down, handbrake and camera, no pedals
     ///   (they are learnt);
     /// - other: x steers, y up accelerates and y down brakes, the same buttons.
@@ -554,6 +554,7 @@ impl Profile {
                 let b = &mut profile.bindings;
                 b.gear_down = button(2);
                 b.handbrake = button(1);
+                b.lights = button(crate::input::touch::LIGHTS_BUTTON);
                 b.accelerate_axis = Some(AxisUse::Pedal {
                     axis: RIGHT_TRIGGER,
                     rest_high: false,

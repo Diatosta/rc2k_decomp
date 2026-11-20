@@ -38,13 +38,13 @@ const BY_X_DOWN: Sort = Sort { key: 0, down: true };
 /// The sorts (by y, by z, and two by x downwards): the points from `first` to `last` (both
 /// included), step by step. Refuses (before anything) what `sorting::sort_records` refuses.
 fn sort_points(
-    object_points: &crate::scene::object_points::ObjectPoints,
+    object_points: &crate::scene::object_points_store::ObjectPoints,
     s: Sort,
     first: u32,
     last: u32,
 ) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::quick_sort::quick_sort`, on the points' places
-    // (`scene::object_points`).
+    // (`scene::object_points_store`).
     use rc2k_core::race::quick_sort::{Order, quick_sort};
     let order = if s.down { Order::Down } else { Order::Up };
     if first >= last {

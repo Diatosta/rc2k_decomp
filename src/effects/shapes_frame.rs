@@ -7,7 +7,7 @@
 //! first).
 
 use crate::effects::mask_store::Masks;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::effects::{copy_first_point, run_shapes, scale_setting, tilt_shape};
 use crate::errors::{BadInput, Refused};
 use crate::race::owner_shared::RaceShared;

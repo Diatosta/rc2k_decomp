@@ -19,35 +19,12 @@ pub(super) fn current_directory() -> Result<Option<Vec<u8>>, BadInput> {
     }
 }
 
-/// The path as it is written, with its NUL; None if it is not one that is taken.
-/// `current` is the current directory, asked for only if the path is empty.
-pub fn normalised(
-    path: crate::memory::place::BytePlace,
-    current: &mut dyn FnMut() -> Result<Option<Vec<u8>>, BadInput>,
-) -> Result<Option<Vec<u8>>, BadInput> {
-    let path = path.text("a path")?;
-    // The system's rules (`install::folders`; Windows: `rc2k_core::install::paths::normalise`).
-    <Native as Folders>::normalised(&path, current)
-}
-
-/// `normalised` of a path in hand (up to its NUL or its end).
+/// The path (up to its NUL or its end) as it is written, with its NUL; None if it is not one
+/// that is taken. `current` is the current directory, asked for only if the path is empty.
 pub(super) fn normalised_bytes(
     path: &[u8],
     current: &mut dyn FnMut() -> Result<Option<Vec<u8>>, BadInput>,
 ) -> Result<Option<Vec<u8>>, BadInput> {
     let n = path.iter().position(|&c| c == 0).unwrap_or(path.len());
     <Native as Folders>::normalised(&path[..n], current)
-}
-
-/// For Rust callers: writes the path at `to`. Returns whether it was written.
-pub(super) fn normalise_path(
-    path: crate::memory::place::BytePlace,
-    to: crate::memory::place::BytePlace,
-) -> Result<bool, BadInput> {
-    let Some(text) = normalised(path, &mut || current_directory())? else {
-        return Ok(false);
-    };
-    // An empty path takes the current directory, of any length; the places written hold 0x100.
-    to.write(&text, "a normalised path")?;
-    Ok(true)
 }

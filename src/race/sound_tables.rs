@@ -154,7 +154,7 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
         .reading_times
         .iter()
         .chain(&o.reading_revs)
-        .chain(&o.unused_a4)
+        .chain(&o.reserved_a4)
     {
         d.set(0);
     }
@@ -166,7 +166,7 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
     o.flag_ac.set(0);
     o.landed.set(0);
     o.last_forward_speed.set(0);
-    o.unused_280.set(0);
+    o.reserved_280.set(0);
     o.state.set(0);
 }
 

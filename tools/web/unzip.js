@@ -93,6 +93,8 @@ async function unpack(file, root, done, total, report) {
       for await (const chunk of chunks(stream)) {
         out.write(chunk, { at });
         at += chunk.byteLength;
+        // A packed entry that grows past what the index says is stopped before it fills the storage.
+        if (at > e.unpacked) throw new Error(e.name + ": more than the index says (" + e.unpacked + " bytes)");
       }
       if (at !== e.unpacked) throw new Error(e.name + ": " + at + " bytes, the index says " + e.unpacked);
     } finally {

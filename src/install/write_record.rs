@@ -15,8 +15,7 @@ pub(super) fn write_record(
         .then(|| crate::files::state::directory_text(1, "the locale directory"))
         .transpose()?;
     let text = rc2k_core::install::config::record_text(
-        &crate::memory::place::BytePlace::from(&install.paths.game_dir)
-            .text("the game's folder")?,
+        &install.paths.game_dir.text(),
         locale.as_deref(),
         FULL_INSTALLATION,
     );

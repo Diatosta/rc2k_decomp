@@ -167,7 +167,7 @@ pub struct PolygonWork {
     pub old_list: [PlainDword; 64],
     /// 0x600 bytes between the old list and the record pool: a polygon of more than 128
     /// vertices lists on into them (`scene::polygon::list_cell`).
-    pub unknown_2400: [PlainDword; 0x180],
+    pub reserved_2400: [PlainDword; 0x180],
     /// The point records a clip makes, 0x2020 bytes (`scene::clip`, `scene::draw_flat_quad`).
     pub record_pool: [PlainDword; 0x808],
 }
@@ -188,7 +188,7 @@ pub struct PolygonTables {
 
 impl PolygonWork {
     /// The work area, zeroed as in the image: one for each drawing part
-    /// (`scene::workers::PartScratch::polygon`).
+    /// (`scene::scratch_store::PartScratch::polygon`).
     pub const fn new() -> Self {
         crate::memory::cells::zeroed_cells()
     }

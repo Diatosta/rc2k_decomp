@@ -48,7 +48,7 @@ pub(super) fn put_split_time(
             &car.eased_yaw_spin,
             &car.grip_force_sum,
             &car.steer_trim,
-            &car.unused_20c,
+            &car.reserved_20c,
             &car.grip_forces,
             &car.option_bits,
             &car.contact_point,

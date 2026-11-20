@@ -28,8 +28,8 @@ pub enum Step {
 
 /// `scene::needs_clipping` on the work table's records.
 fn needs_clipping(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
     count: u32,
 ) -> Result<bool, BadInput> {
@@ -66,8 +66,8 @@ fn needs_clipping(
 
 // Logic: `rc2k_core::scene::polygons`
 pub fn draw_object_polygon(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
     object: &crate::scene::object_place::ObjectPlace,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,

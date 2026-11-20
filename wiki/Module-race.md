@@ -25,7 +25,7 @@ are in `blocks_store.rs`.
 | `loadlevel_init` | `src/race/loadlevel.rs` | The loading steps in order: course, objects, textures, sounds, pace notes. |
 | `load_level` | `src/race/course_data.rs` | Reads the course file. |
 | `open_replay`, `close_replay` | `src/race/replay.rs` | Starts and finishes the replay file. |
-| `viewer_list`, `render_row`, `viewer_tip` | files of the same names | The replay viewer's state: its list of buttons, the render row and the name shown under it. The viewer itself (keys, frame, render dialog) is `menu::replay_viewer`. |
+| `viewer_list_store`, `render_row`, `viewer_tip` | `viewer_list_store.rs`, `render_row.rs`, `viewer_tip.rs` | The replay viewer's state: its list of buttons, the render row and the name shown under it. The viewer itself (keys, frame, render dialog) is `menu::replay_viewer`. |
 | `open_viewed_replay`, `save_viewed_replay` | files of the same names | Opens a saved replay for the viewer; saves one into a slot. |
 | `draw_race_scene` | `src/race/draw_race_scene.rs` | Draws every player's view, then the overlays. |
 | `blend` | `src/race/blend.rs` | The frames between two ticks: each car's moving values after every tick, and the blend of the last two put in the blocks while a frame is drawn (the advanced page's "smooth frames"). |

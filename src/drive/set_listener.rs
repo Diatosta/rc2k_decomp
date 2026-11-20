@@ -43,7 +43,7 @@ pub struct ListenerView<'a> {
     pub view_turn_matrix: &'a [PlainFloat; 16],
     pub view_place: [&'a dyn DwordLike; 3],
     /// The view's sun (its place and the view's value).
-    pub sun: &'a crate::scene::polygon_work::ViewSun,
+    pub sun: &'a crate::scene::polygon_work_store::ViewSun,
 }
 
 impl<'a> ListenerView<'a> {

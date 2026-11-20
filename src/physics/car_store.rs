@@ -1,6 +1,6 @@
 //! The work car: the copy of the current car's block that the physics step works on.
 //! `drive::load_car` copies the current car's block (the same layout) into it
-//! and `drive::store_car` back. Most names are readings; `unknown_*` runs are places no ported
+//! and `drive::store_car` back. Most names are readings; `reserved_*` runs are places no ported
 //! code names. Its layout is Rust's own: no code addresses it by byte (the replay file's layout
 //! is `drive::replay_state`'s, field by field).
 
@@ -43,7 +43,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Drive layout (1 both axles).
     pub drive_kind: K::Dword,
     /// Only cleared at the start (`drive::clear_start_state`); nothing else uses it.
-    pub unused_44: K::Dword,
+    pub reserved_44: K::Dword,
     /// Per part (six): 1 once the part's wake count reached 10 and the part's sound object was
     /// woken (`race::wake_part_sounds`). Never cleared but with the block.
     pub part_woken: [K::Dword; 6],
@@ -134,7 +134,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Steering pull from steering damage.
     pub steer_trim: K::Dword,
     /// Nothing reads or writes it.
-    pub unused_20c: K::Dword,
+    pub reserved_20c: K::Dword,
     /// The four terms: lateral, engine braking, yaw, lean.
     pub grip_forces: [K::Float; 4],
     /// Flags: bit 2 damage notices, bit 8 sound speed scale.

@@ -6,7 +6,7 @@
 use crate::effects::mask_store::Masks;
 use crate::effects::shape_points::{farthest_pair, turn_shape_checks, turn_shape_points, turned};
 use crate::effects::turns::{clamp_pair, smooth_pair, smooth_steps};
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded};
 use crate::math::x87;

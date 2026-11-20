@@ -3,7 +3,7 @@
 //! quarter-circle curve of 0x100 floats and 8 circles of points (by the radii after the curve), and
 //! sets up what follows.
 
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -271,7 +271,7 @@ pub(super) fn set_up_windscreen_drops(
 /// `effects::set_up_windscreen_flakes`: the square items cleared, their curve and circles
 /// (4 points); then `effects::reset_pong`.
 fn windscreen_flakes_with(
-    pong: &crate::effects::pong::Pong,
+    pong: &crate::effects::pong_store::Pong,
     fl: &WindscreenFlakes,
     plain: bool,
     effects: &crate::effects::owner::Effects,
@@ -289,7 +289,7 @@ fn windscreen_flakes_with(
 
 /// `effects::set_up_windscreen_flakes`' x87 version, for `effects::load_edges`.
 pub(super) fn set_up_windscreen_flakes(
-    pong: &crate::effects::pong::Pong,
+    pong: &crate::effects::pong_store::Pong,
     fl: &WindscreenFlakes,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {

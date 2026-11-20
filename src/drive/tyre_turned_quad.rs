@@ -57,7 +57,7 @@ pub fn tyre_turned_quad(
     device: &InputDevice,
     system: &crate::system::owner::System,
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
 ) -> Result<(), Refused> {
     let buffer = &part.vertices;
     system.machine().scratch.set(0x40C9_0FDB);

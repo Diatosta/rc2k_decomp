@@ -5,7 +5,7 @@
 //! `scene::workers::DrawReads`.
 
 use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainBytes, PlainDword, PlainWord};
+use crate::memory::session::{PlainDword, PlainWord};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightTables {
@@ -19,13 +19,8 @@ pub struct LightTables {
     pub car_light_table: [PlainDword; 256],
     /// A third lamp table of 256 colours (`scene::fill_light_tables`).
     pub lamp_table_c: [PlainDword; 256],
-    /// 14 bytes between the lamp tables and `view_mode`; nothing reads or writes them (a gap,
-    /// probably padding).
-    pub unknown_400: PlainBytes<0xE>,
     /// The view window's mode (`scene::choose_view_window`, `scene::full_view_window`).
     pub view_mode: PlainWord,
-    /// 24 dwords after `view_mode`; nothing reads or writes them (a gap).
-    pub unknown_410: [PlainDword; 24],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -34,13 +29,6 @@ pub struct LightTables {
 impl LightTables {
     /// The store with its first values (every field not named here starts at zero).
     pub const fn new() -> Self {
-        Self {
-            unknown_410: {
-                let mut a: [PlainDword; 24] = ZeroCells::ZERO;
-                a[0] = PlainDword::new(0xC0000);
-                a
-            },
-            ..ZeroCells::ZERO
-        }
+        Self { ..ZeroCells::ZERO }
     }
 }

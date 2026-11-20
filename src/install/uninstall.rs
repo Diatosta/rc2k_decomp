@@ -13,30 +13,27 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    copy_picture, delete_file, lock, normalise, pause, remove_dir, run_frame, set_cd, show,
-    store_text, text_at, unlock,
+    copy_picture, delete_file, lock, normalise, pause, remove_dir, run_frame, set_cd, show, unlock,
 };
+use crate::install::vars::fixed;
 
-/// `path_b` = `paths.installed` + name #index of `table`, NUL-ended.
+/// `paths.installed` + name #index of `table`, kept as `path_b`.
 fn build_path(
     install: &'static crate::install::owner::Install,
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
-) -> Result<crate::memory::place::BytePlace, Refused> {
-    let mut path = text_at(&install.paths.installed);
+) -> Result<Vec<u8>, Refused> {
+    let mut path = install.paths.installed.text();
     crate::install::name_tables::push_name(table, index, &mut path)?;
-    path.push(0);
-    store_text(&install.paths.path_b, &path);
-    Ok(crate::memory::place::BytePlace::from(&install.paths.path_b))
+    install.paths.path_b.set(&path)?;
+    Ok(install.paths.path_b.text())
 }
 
-/// The installation's folder, when "remove all" was chosen and it is one that may go whole.
 fn whole_folder(install: &crate::install::owner::Install) -> Option<std::path::PathBuf> {
-    if install.names.script.get(crate::install::vars::SCRIPT_MARK) == 5 {
+    if install.names.script_mark.get() == fixed::MARK_KEEP_SAVES {
         return None;
     }
-    let text = install.paths.installed.read();
-    let text = &text[..text.iter().position(|&b| b == 0).unwrap_or(text.len())];
+    let text = &install.paths.installed.text();
     let mut record = text.to_vec();
     if !record.ends_with(b"\\") {
         record.push(b'\\');
@@ -84,7 +81,7 @@ pub fn uninstall(
 ) -> Result<(), Refused> {
     let (system, gfx) = (o.system, o.gfx);
     use crate::install as i;
-    if install.names.status.get() == 0 || install.names.source.get(0) == 0 {
+    if install.names.status.get() == 0 || install.names.source.is_empty() {
         return Ok(());
     }
     install.names.status.set(0x80);
@@ -103,14 +100,16 @@ pub fn uninstall(
         unlock(gfx);
         show(o);
     }
-    normalise(&install.names.source, &install.paths.installed)?;
+    if let Some(installed) = normalise(&install.names.source.text())? {
+        install.paths.installed.set(&installed)?;
+    }
     let whole = whole_folder(install);
-    set_cd(&install.paths.installed);
-    i::run_script::run_script(install, &install.names.script.read())?;
+    set_cd(&install.paths.installed.text());
+    i::run_script::run_script(install, &install.names.uninstall_script())?;
     if install.run.file_count.get() != 0 {
         let mut n = 0;
         loop {
-            delete_file(build_path(install, &install.files, n)?);
+            delete_file(&build_path(install, &install.files, n)?);
             n = n.wrapping_add(1);
             if n == install.run.file_count.get() {
                 break;
@@ -120,23 +119,23 @@ pub fn uninstall(
     if install.run.dir_count.get() != 0 {
         let mut n = install.run.dir_count.get().wrapping_sub(1);
         loop {
-            remove_dir(build_path(install, &install.folders, n)?);
+            remove_dir(&build_path(install, &install.folders, n)?);
             n = n.wrapping_sub(1);
             if (n as i32) < 0 {
                 break;
             }
         }
     }
-    set_cd(&install.texts.dotdot);
-    remove_dir(&install.paths.installed);
+    set_cd(&install.texts.dotdot.text());
+    remove_dir(&install.paths.installed.text());
     if let Some(folder) = whole {
         remove_whole(&folder);
     }
     pause(o, 1000);
     install.names.status.set(0);
-    install.names.source.set(0, 0);
+    install.names.source.set(&[])?;
     i::record::write_installed(install);
-    install.run.remove_items.set(1);
+    install.run.remove_items.set(true);
     install.flags.installing.set(false);
     Ok(())
 }

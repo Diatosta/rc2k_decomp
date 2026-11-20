@@ -225,10 +225,14 @@ fn sdl_error() -> String {
     }
 }
 
-/// The bytes of `width` x `height` RGBA pixels, for a call that reads them.
+/// The bytes of `width` x `height` RGBA pixels, for a call that reads them. Saturating, so that a
+/// size too large for `usize` (32-bit targets) asks for more than any slice holds instead of
+/// wrapping round to a small number that a short slice would pass.
 #[inline]
 fn pixel_bytes(width: i32, height: i32) -> usize {
-    width.max(0) as usize * height.max(0) as usize * 4
+    (width.max(0) as usize)
+        .saturating_mul(height.max(0) as usize)
+        .saturating_mul(4)
 }
 
 #[cfg(not(any(handheld, web)))]
@@ -1169,5 +1173,20 @@ mod web_gl {
             unsafe { emscripten_webgl_destroy_context(context.handle) };
             GlWindow(crate::platform::ffi::sdl::Window(context.window))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pixel_bytes;
+
+    #[test]
+    fn pixel_bytes_counts_four_bytes_a_pixel_and_never_wraps() {
+        assert_eq!(pixel_bytes(3, 2), 24);
+        assert_eq!(pixel_bytes(-1, 5), 0);
+        assert_eq!(pixel_bytes(5, -1), 0);
+        // The largest sizes asked for ask for the most `usize` can say, not a wrapped small number.
+        let most = pixel_bytes(i32::MAX, i32::MAX);
+        assert!(most >= (usize::MAX / 4).min(1 << 62));
     }
 }

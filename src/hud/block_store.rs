@@ -187,7 +187,7 @@ pub struct HudBlock {
     pub ends: [PlainFloat; 2],
     /// The stage bar's width in places.
     pub bar_width: PlainDword,
-    pub unused_c004: [PlainDword; 2],
+    pub reserved_c004: [PlainDword; 2],
     /// The texture places over it make the u (`add_quad`, `turned_vertex`, markers).
     pub uv_scale_x: PlainFloat,
     /// The texture places over it make the v; also the needle's first turn factor (`draw_needle`).
@@ -244,13 +244,13 @@ pub struct HudBlock {
     pub sign: PlainDword,
     /// The stage marker's position factors (`draw_marker`).
     pub marker_k: [PlainFloat; 2],
-    pub unused_c0b0: [PlainFloat; 2],
+    pub reserved_c0b0: [PlainFloat; 2],
     /// The icon scale of layouts 0, 2 and 1 (`icons_*`).
     pub icon_scales: [PlainFloat; 3],
     /// Whole numbers in fours, probably six screen rectangles (x, y, width, height; e.g. 0x25d,
     /// 0x30, 0xd6, 0x24); nothing reads them.
-    pub unused_c0c4: [PlainDword; 0x18],
-    pub unused_c124: [PlainDword; 4],
+    pub reserved_c0c4: [PlainDword; 0x18],
+    pub reserved_c124: [PlainDword; 4],
     /// The set-up of layout 2's first disc (copied by `dials::set_up`; the fifth only with
     /// `Panel::flat` 0).
     pub disc_setup_layout2_first: [PlainFloat; 5],
@@ -273,7 +273,7 @@ pub struct HudBlock {
     pub needle_size: PlainFloat,
     /// The needle's base, base 2, split, scale, scale 2, most, most 2.
     pub needle_k: [PlainFloat; 7],
-    pub unused_c2d8: [PlainFloat; 2],
+    pub reserved_c2d8: [PlainFloat; 2],
     /// The needle's value (a whole number, from the record).
     pub needle_value: PlainDword,
     /// The set-up of layout 0's needle (centre x, y, size).
@@ -439,7 +439,7 @@ impl HudBlock {
             point: [const { PlainDword::new(0x0) }; 2],
             ends: [const { PlainFloat::new(0.0) }; 2],
             bar_width: PlainDword::new(0x0),
-            unused_c004: [const { PlainDword::new(0x3e000000) }; 2],
+            reserved_c004: [const { PlainDword::new(0x3e000000) }; 2],
             uv_scale_x: PlainFloat::new(256.0),
             uv_scale_y: PlainFloat::new(65536.0),
             turn_k: PlainFloat::new(4096.0),
@@ -466,13 +466,13 @@ impl HudBlock {
             digits: [const { PlainDword::new(0x0) }; 6],
             sign: PlainDword::new(0x0),
             marker_k: [PlainFloat::new(550.0), PlainFloat::new(119.0)],
-            unused_c0b0: [PlainFloat::new(0.96875), PlainFloat::new(0.03125)],
+            reserved_c0b0: [PlainFloat::new(0.96875), PlainFloat::new(0.03125)],
             icon_scales: [
                 PlainFloat::new(1.0),
                 PlainFloat::new(0.75),
                 PlainFloat::new(1.0),
             ],
-            unused_c0c4: [
+            reserved_c0c4: [
                 PlainDword::new(0x25d),
                 PlainDword::new(0x30),
                 PlainDword::new(0xd6),
@@ -498,7 +498,7 @@ impl HudBlock {
                 PlainDword::new(0x25d),
                 PlainDword::new(0x131),
             ],
-            unused_c124: [const { PlainDword::new(0x0) }; 4],
+            reserved_c124: [const { PlainDword::new(0x0) }; 4],
             disc_setup_layout2_first: [
                 PlainFloat::new(46.0),
                 PlainFloat::new(0.75),
@@ -552,7 +552,7 @@ impl HudBlock {
                 PlainFloat::new(64000.0),
                 PlainFloat::new(9500.0),
             ],
-            unused_c2d8: [PlainFloat::new(3000.0), PlainFloat::new(48000.0)],
+            reserved_c2d8: [PlainFloat::new(3000.0), PlainFloat::new(48000.0)],
             needle_value: PlainDword::new(0x0),
             needle_setup_layout0: [
                 PlainFloat::new(96.0),

@@ -4,7 +4,7 @@
 //! 0xFF elsewhere. These are the leaves.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::PlainDword;
 use crate::race::owner_course::Course;
@@ -45,7 +45,7 @@ pub const MOST_POINTS: u32 = rc2k_core::effects::masks::MOST_POINTS;
 /// apart) added to the list unless there already, up to 0x40, each with the face. Refuses a list of
 /// more than 0x40. The logic is in `rc2k_core::effects::masks::PointList::add_face`.
 pub(super) fn collect_points(
-    object_faces: &crate::scene::object_faces::ObjectFaces,
+    object_faces: &crate::scene::object_faces_store::ObjectFaces,
     list: &PointList<'_>,
     face: u32,
 ) -> Result<(), Refused> {

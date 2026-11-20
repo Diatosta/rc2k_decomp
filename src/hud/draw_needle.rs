@@ -5,7 +5,8 @@
 //! x87's (they follow its control word); an unordered compare counts as below.
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::math::matrix3::extended;
 use crate::math::x87;
 use crate::math::x87_float::{ld, to_int};

@@ -10,7 +10,7 @@
 //! Refuses null settings and a part's corner past the mark corners table, before anything.
 
 use crate::effects::draw_flare_part::draw_flare_part;
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;

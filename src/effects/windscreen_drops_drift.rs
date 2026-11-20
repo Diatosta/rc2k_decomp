@@ -10,8 +10,8 @@
 //! the x87 stack across the two calls kept as 80 bits). Refuses null settings, before anything.
 
 use crate::effects::adjugate3::adjugate3;
-use crate::effects::setup::MarksClock;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::setup_store::MarksClock;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::{Axis, extended, turn_matrix3};

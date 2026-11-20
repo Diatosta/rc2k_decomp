@@ -47,7 +47,7 @@ impl ViewerList {
     pub fn item(&self, n: u32) -> &ViewerItem {
         match self.items.get(n as usize) {
             Some(item) => item,
-            None => crate::fatal::raise::end(
+            None => crate::memory::host_hooks::end(
                 "viewer list",
                 crate::errors::BadInput("an item past the items of the viewer's list"),
             ),

@@ -11,8 +11,6 @@ pub struct RaceView {
     /// Not 0 while a replay of a network race is viewed: the headlights then light the road
     /// for the drawn view's car (`race::frame_draw::lights`), as a network race's for its own.
     pub lights_follow_view: PlainDword,
-    /// Unused; it only keeps the layout.
-    pub unused_4: [PlainDword; 5],
     /// The face's surface kinds (`race::course_faces`, `physics::wheel_surfaces`,
     /// `race::best_line`).
     pub surface_kinds: [PlainDword; 4],
@@ -31,7 +29,7 @@ pub struct RaceView {
     /// The face's near value (`race::course_faces`).
     pub near: PlainFloat,
     /// Unused; it only keeps the layout.
-    pub unused_4c: PlainDword,
+    pub reserved_4c: PlainDword,
     /// The frame the face was drawn in (`race::face_materials` wrote it; nothing read it, so
     /// it is no longer written); unused.
     pub face_frame: PlainDword,
@@ -60,7 +58,7 @@ pub struct RaceView {
     /// unused.
     pub corner_alphas: [PlainDword; 4],
     /// Unused; it only keeps the layout.
-    pub unused_bc: [PlainDword; 2],
+    pub reserved_bc: [PlainDword; 2],
     /// The turned orders, a byte table read in place (`race::course_faces`).
     pub turned_corner_order: [PlainDword; 14],
     /// The polygon mode; now each view's (`race::face_work::FaceWork`); unused.
@@ -75,11 +73,11 @@ pub struct RaceView {
     /// The level (`drive::share_car_state`).
     pub level_from: PlainFloat,
     /// Unused; it only keeps the layout.
-    pub unused_1a8: [PlainDword; 3],
+    pub reserved_1a8: [PlainDword; 3],
     /// 0 from `race::draw_view_scene`, never read; no longer written.
     pub view_lamps: PlainDword,
     /// Unused; it only keeps the layout.
-    pub unused_1b8: PlainDword,
+    pub reserved_1b8: PlainDword,
     /// Each view on (`race::draw_race_scene`, `race::show_replay_still`).
     pub view_on: [PlainDword; 2],
     /// The two players' option bits (`drive::replay_cameras`, `race::settings_copy`).
@@ -89,7 +87,7 @@ pub struct RaceView {
     /// The view switch (`drive::choose_shown_cars`, `drive::replay_cameras`).
     pub view_switch: PlainDword,
     /// Unused; it only keeps the layout.
-    pub unused_1d4: PlainDword,
+    pub reserved_1d4: PlainDword,
     /// The race's cars.
     pub race_cars: PlainDword,
     /// The players (`settings.race_mode`; `[shaunnumplayers]`).
@@ -143,7 +141,7 @@ impl RaceView {
             ],
             slope: PlainFloat::new(1.2),
             near: PlainFloat::new(1048576.0),
-            unused_bc: [PlainDword::new(0x3020100), PlainDword::new(0x7060504)],
+            reserved_bc: [PlainDword::new(0x3020100), PlainDword::new(0x7060504)],
             turned_corner_order: [
                 PlainDword::new(0x2030001),
                 PlainDword::new(0x5040706),
@@ -195,7 +193,7 @@ impl RaceView {
                 PlainDword::new(8),
             ],
             level_from: PlainFloat::new(75.0),
-            unused_1a8: [PlainDword::new(1), PlainDword::new(0), PlainDword::new(0)],
+            reserved_1a8: [PlainDword::new(1), PlainDword::new(0), PlainDword::new(0)],
             players: PlainDword::new(1),
             view_cars: [PlainDword::new(0), PlainDword::new(1)],
             view_blocks: [
@@ -223,7 +221,7 @@ impl RaceView {
                 &self.corners,
                 &self.slope,
                 &self.near,
-                &self.unused_4c,
+                &self.reserved_4c,
                 &self.face_frame,
                 &self.corner_uv,
                 &self.texture_a,
@@ -235,21 +233,21 @@ impl RaceView {
                 &self.corner_colours,
                 &self.corner_lights,
                 &self.corner_alphas,
-                &self.unused_bc,
+                &self.reserved_bc,
                 &self.turned_corner_order,
                 &self.polygon_mode,
                 &self.corner_uv_b,
                 &self.corner_uv_offsets,
                 &self.lamps_wanted,
                 &self.level_from,
-                &self.unused_1a8,
+                &self.reserved_1a8,
                 &self.view_lamps,
-                &self.unused_1b8,
+                &self.reserved_1b8,
                 &self.view_on,
                 &self.player_options,
                 &self.after_credits,
                 &self.view_switch,
-                &self.unused_1d4,
+                &self.reserved_1d4,
                 &self.race_cars,
                 &self.players,
                 &self.views,

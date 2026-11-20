@@ -52,7 +52,7 @@ fn negated_at(a: impl Base, o: impl Base) {
 }
 
 pub fn reflection_coordinates(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     reads: crate::scene::workers::DrawReads<'_>,
     object: &crate::scene::object_place::ObjectPlace,
     m: &crate::scene::view_matrices::ViewMatrices,

@@ -5,8 +5,9 @@
 //! wall put at its reset place, at or below the bottom wall less its height put at the bottom reset
 //! place less its height, its along way turned each time. ("At or" includes an unordered compare.)
 
-use crate::effects::pong::{self, Pong};
+use crate::effects::pong::{self};
 use crate::effects::pong_ball_hits::pong_ball_hits;
+use crate::effects::pong_store::Pong;
 use crate::math::x87;
 use crate::memory::session::PlainFloat;
 

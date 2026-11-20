@@ -4,7 +4,7 @@
 
 /// The three states set.
 // Logic: `rc2k_core::scene::render_states::GLOW`
-pub fn glow_render_states(part: &crate::scene::workers::PartScratch) {
+pub fn glow_render_states(part: &crate::scene::scratch_store::PartScratch) {
     for s in rc2k_core::scene::render_states::GLOW {
         crate::scene::set_render_state::set_render_state(part, s.value, s.state);
     }

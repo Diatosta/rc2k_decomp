@@ -2,7 +2,7 @@
 //! lengths, and two cosine-eased steps.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::math::x87;
 use crate::memory::session::{PlainDword, PlainFloat};
 

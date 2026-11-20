@@ -2,8 +2,8 @@ use crate::effects::asm_layout::with_laid;
 use crate::effects::asm_test::Kind::*;
 
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
-use crate::effects::snow::{SnowLight, SnowState, SnowTables};
-use crate::effects::tuning::MarksFloats;
+use crate::effects::snow_store::{SnowLight, SnowState, SnowTables};
+use crate::effects::tuning_store::MarksFloats;
 
 #[test]
 fn turn_x87_matches() {

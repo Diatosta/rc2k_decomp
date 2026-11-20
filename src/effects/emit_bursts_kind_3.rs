@@ -6,8 +6,8 @@
 //! See `emit_wheel_grit_bursts.rs`; no variable of its own is shared but the entries' and the scratch ones.
 //! Refuses as `emit_wheel_grit_bursts`.
 
-use crate::effects::emit_wheel_grit_bursts::BurstTuning;
 use crate::effects::emit_wheel_grit_bursts::{BurstSet, emit_bursts_with, halves};
+use crate::effects::emit_wheel_grit_bursts_store::BurstTuning;
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::memory::session::{PlainDword, PlainFloat};

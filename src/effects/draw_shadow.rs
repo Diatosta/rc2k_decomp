@@ -434,7 +434,7 @@ fn corners_in_x87(s: &Shadow) {
 
 /// `projected`'s arithmetic as plain Rust on the x87 model, in the same order, on either shadow's
 /// variables.
-fn projected_x87(front: &crate::scene::polygon_work::PolygonWork, s: &Shadow) {
+fn projected_x87(front: &crate::scene::polygon_work_store::PolygonWork, s: &Shadow) {
     let t0 = crate::math::x87_float::ld(front.window.view_scale.get());
     let t1 = t0 / s.quad.corners[0][2].ld();
     let t2 = t1 * s.quad.corners[0][0].ld();

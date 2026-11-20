@@ -7,7 +7,7 @@
 //! The x87 run is plain Rust on the x87 model (`math::x87_float`); the picks run under the same
 //! rounding.
 
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::effects::windscreen_drops::pick_windscreen_drop;
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
@@ -56,7 +56,7 @@ pub(super) fn windscreen_drops_spawn(
 }
 
 use crate::effects::plain::ld_cell;
-use crate::effects::view_vectors::KeptView;
+use crate::effects::view_vectors_store::KeptView;
 use crate::math::x87_float as bh;
 
 /// `rate`'s arithmetic as plain Rust on the x87 model, in the same order.
@@ -88,7 +88,7 @@ mod reference_vectors {
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
 
     use crate::effects::typed_sync::{overlay_laid, with_overlays};
-    use crate::effects::view_vectors::KeptView;
+    use crate::effects::view_vectors_store::KeptView;
 
     #[test]
     fn rate_x87_matches() {

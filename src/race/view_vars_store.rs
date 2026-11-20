@@ -55,11 +55,11 @@ pub struct ViewVars<K: CellKind = PlainCells> {
     /// The camera's zoom hold (`physics::update_camera`).
     pub camera_zoom_hold: K::Float,
     /// Unused; it only keeps the layout.
-    pub unused_68: K::Dword,
+    pub reserved_68: K::Dword,
     /// The camera vector (three floats) whose length `physics::update_camera` takes.
     pub camera_vector: [K::Float; 3],
     /// Unused.
-    pub unknown_78: [K::Dword; 14],
+    pub reserved_78: [K::Dword; 14],
     /// Held to 0 ..= 1 (`physics::camera_height_bias`, `physics::update_camera`).
     pub camera_distance: K::Float,
     /// 0x34 pointers to view records (`physics::camera_view`, `drive::pick_replay_camera`,
@@ -69,7 +69,7 @@ pub struct ViewVars<K: CellKind = PlainCells> {
     /// `race::frame_draw::scene_objects` and `car_draw` branch on it).
     pub view_kind: K::Dword,
     /// Unused; it only keeps the layout.
-    pub unused_188: [K::Dword; 33],
+    pub reserved_188: [K::Dword; 33],
     /// The table of which views hide what, by camera view (`race::frame_draw`): 0 for
     /// the views near the car (the faces its ground marks are hidden), 1 for the others.
     pub view_hides: [K::Dword; 52],
@@ -95,7 +95,7 @@ pub struct ViewRecord {
     pub speeds: [PlainDword; 3],
     /// The record's dword before `fish`; copied with the rest of the record and never
     /// used otherwise.
-    pub unknown_34: PlainDword,
+    pub reserved_34: PlainDword,
     /// `fish` (a whole number).
     pub fish: PlainDword,
     /// How long a change into this mode takes (ticks; `physics::camera_view::share_done`).
@@ -133,7 +133,7 @@ impl ViewRecord {
             s[0],
             s[1],
             s[2],
-            self.unknown_34.get(),
+            self.reserved_34.get(),
             self.fish.get(),
         ]
     }
@@ -198,9 +198,9 @@ macro_rules! first_view_vars {
             view_z: ZeroCells::ZERO,
             view_angles: ZeroCells::ZERO,
             camera_zoom_hold: $float::new(128.0),
-            unused_68: $dword::new(0x40A00000),
+            reserved_68: $dword::new(0x40A00000),
             camera_vector: ZeroCells::ZERO,
-            unknown_78: ZeroCells::ZERO,
+            reserved_78: ZeroCells::ZERO,
             camera_distance: ZeroCells::ZERO,
             view_records: {
                 let mut a: [$dword; 52] = ZeroCells::ZERO;
@@ -212,7 +212,7 @@ macro_rules! first_view_vars {
                 a
             },
             view_kind: $dword::new(1),
-            unused_188: [
+            reserved_188: [
                 $dword::new(1),
                 $dword::new(2),
                 $dword::new(2),
@@ -552,7 +552,7 @@ impl ViewRecord {
                 PlainDword::new(w[11]),
                 PlainDword::new(w[12]),
             ],
-            unknown_34: PlainDword::new(w[13]),
+            reserved_34: PlainDword::new(w[13]),
             fish: PlainDword::new(w[14]),
             change_time: PlainDword::new(w[15]),
             turn_rates: [

@@ -3,7 +3,7 @@
 //! `ViewSources.sources[1].scaled[0]` .. = `ViewSources.sources[1].vector[0]` .. by
 //! `ViewSources.sources[1].factor` (`fld; fmul`, three on the stack, stored last first).
 
-use crate::effects::view_vectors::VectorSource;
+use crate::effects::view_vectors_store::VectorSource;
 use crate::math::x87;
 
 pub(super) fn scale_vectors_by(effects: &crate::effects::owner::Effects) {

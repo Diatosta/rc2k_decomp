@@ -50,7 +50,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::race::viewer::LAST_RACE;
-use crate::race::viewer_list::ViewerList;
+use crate::race::viewer_list_store::ViewerList;
 use crate::race::viewer_state_store::ReplayViewBlock;
 
 /// (key, action) with editing on, in order (0x26 twice: the first wins).
@@ -455,7 +455,7 @@ fn way_down_closed(list: &ViewerList, from: u32) -> Result<bool, Refused> {
         .add(from.wrapping_mul(4) + 1)
         .read(1, "the viewer's key table")?[0];
     Ok((entry as i8) < 0
-        || u32::from(entry) >= crate::race::viewer_list::ITEMS
+        || u32::from(entry) >= crate::race::viewer_list_store::ITEMS
         || rc2k_core::menu::list_menu::unusable(list.item(u32::from(entry)).first.get()))
 }
 

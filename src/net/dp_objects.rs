@@ -619,11 +619,15 @@ fn elements(address: &[u8]) -> Vec<(Guid, Vec<u8>)> {
     while at + 20 <= address.len() {
         let kind: Guid = address[at..at + 16].try_into().unwrap();
         let n = u32::from_le_bytes(address[at + 16..at + 20].try_into().unwrap()) as usize;
-        let Some(data) = address.get(at + 20..at + 20 + n) else {
+        // The length is the address's own word: a sum past the range is no element.
+        let Some(next) = (at + 20).checked_add(n) else {
+            break;
+        };
+        let Some(data) = address.get(at + 20..next) else {
             break;
         };
         out.push((kind, data.to_vec()));
-        at += 20 + n;
+        at = next;
     }
     out
 }
@@ -1079,5 +1083,18 @@ mod tests {
         assert_eq!(inbox.records[0x100..0x103], [0x0E, 1, 9]);
         assert_eq!(release(guest), 0);
         assert_eq!(net.link.release_dplay(), Some(0));
+    }
+
+    /// Guards the reading of an address: an element whose length is past the range ends the
+    /// list (on a 32-bit system the sum would wrap), the elements before it are kept.
+    #[test]
+    fn an_address_element_with_a_huge_length_ends_the_list() {
+        let mut address = compound(&[(DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec())]);
+        let whole = elements(&address);
+        assert!(whole.len() >= 2);
+        address.extend([7u8; 16]);
+        address.extend(u32::MAX.to_le_bytes());
+        address.extend([0u8; 8]);
+        assert_eq!(elements(&address), whole);
     }
 }

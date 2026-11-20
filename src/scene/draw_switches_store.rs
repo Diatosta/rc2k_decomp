@@ -11,20 +11,14 @@ pub struct DrawSwitches {
     pub far_on: PlainDword,
     /// The switch `scene::draw_polygon` clears (`clear_a_switch`).
     pub clears_switch: PlainDword,
-    /// Eleven dwords after the polygon switch; nothing reads or writes them (the developer
-    /// front end keeps its mode, mipmapping, cars and screens in `debug::dev_front_end`).
-    pub unknown_8: [PlainDword; 11],
     /// The group table word (`scene::list_object_face`).
     pub group_table: PlainDword,
     /// 71 dwords after the group table word: the rest of the table indexed by group, which
     /// `scene::list_object_face` reads on into from `group_table`; nothing else reads or writes
     /// them (the developer front end's rally and stage live in `debug::dev_front_end`).
-    pub unknown_38: [PlainDword; 71],
+    pub reserved_38: [PlainDword; 71],
     /// The loading group mask (`scene::add_object_shape`).
     pub loading_group_mask: PlainDword,
-    /// Ten dwords, unreferenced (the first three were the 1999 program's SSE, 3DNow! and MMX
-    /// switches).
-    pub unknown_158: [PlainDword; 10],
     /// The marks source word (`effects::draw_frame`).
     pub marks_source: PlainDword,
 }
@@ -38,20 +32,7 @@ impl DrawSwitches {
         Self {
             far_on: PlainDword::new(1),
             clears_switch: PlainDword::new(1),
-            unknown_8: [
-                PlainDword::new(1),
-                PlainDword::new(1),
-                PlainDword::new(1),
-                PlainDword::new(1),
-                PlainDword::new(1),
-                PlainDword::new(1),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-            ],
-            unknown_38: {
+            reserved_38: {
                 let mut a: [PlainDword; 71] = ZeroCells::ZERO;
                 a[64] = PlainDword::new(0x5C726176);
                 a[65] = PlainDword::new(0x74706F73);

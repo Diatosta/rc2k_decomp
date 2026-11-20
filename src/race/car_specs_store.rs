@@ -21,7 +21,7 @@ pub struct CarSpec {
     pub gear_count: PlainDword,
     /// Copied to `PhysicsTables.unused_spec_20` (`unused_spec_20`) by
     /// `physics::load_car_specs`; nothing reads that copy, so the figure is unused.
-    pub unused_20: PlainDword,
+    pub reserved_20: PlainDword,
     /// Copied to the physics `grip_scale`, the factor `physics::drive_grip_forces`
     /// multiplies the driving grip force by.
     pub grip_scale: PlainFloat,
@@ -37,7 +37,7 @@ pub struct CarSpec {
     /// (kinds from 0x17 on; the others take the game's constants).
     pub whole_figures: [PlainDword; 3],
     /// Not read.
-    pub unused_4c: [PlainDword; 4],
+    pub reserved_4c: [PlainDword; 4],
     /// Into `SceneDraw.scratch` (`scene::draw_store`'s `scratch`).
     pub scratch_value: PlainDword,
     /// Into the physics `downforce_spec`.
@@ -425,13 +425,13 @@ impl CarSpec {
             name: PlainBytes::new(*name),
             drive_kind: PlainDword::new(d[0]),
             gear_count: PlainDword::new(d[1]),
-            unused_20: PlainDword::new(d[2]),
+            reserved_20: PlainDword::new(d[2]),
             grip_scale: PlainFloat::from_bits(d[3]),
             side_grip_scale: PlainFloat::from_bits(d[4]),
             surface: PlainFloat::bits_array([d[5], d[6], d[7]]),
             weights: PlainFloat::bits_array([d[8], d[9]]),
             whole_figures: PlainDword::array([d[10], d[11], d[12]]),
-            unused_4c: PlainDword::array([d[13], d[14], d[15], d[16]]),
+            reserved_4c: PlainDword::array([d[13], d[14], d[15], d[16]]),
             scratch_value: PlainDword::new(d[17]),
             downforce: PlainDword::new(d[18]),
             figures: PlainDword::array([d[19], d[20], d[21], d[22]]),

@@ -7,7 +7,7 @@
 //! Another key does not move it.
 
 use crate::memory::place::BytePlace;
-use crate::race::viewer_list::ITEMS;
+use crate::race::viewer_list_store::ITEMS;
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
 
 /// `key` moving the highlight of the viewer's list by the neighbours table `table` (None

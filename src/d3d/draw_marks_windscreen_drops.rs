@@ -6,7 +6,7 @@
 
 /// Draws the windscreen drops' batch.
 pub fn draw_marks_windscreen_drops(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     gfx: &crate::gfx::owner::Gfx,
 ) {
     let card = &gfx.card;

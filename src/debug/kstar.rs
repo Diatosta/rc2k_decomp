@@ -130,7 +130,7 @@ fn group_cell(scene: &Scene, g: usize) -> &crate::memory::session::PlainDword {
     let switches = scene.draw_switches.get();
     match g.checked_sub(1) {
         None => &switches.group_table,
-        Some(k) => &switches.unknown_38[k],
+        Some(k) => &switches.reserved_38[k],
     }
 }
 

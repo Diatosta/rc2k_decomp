@@ -3,11 +3,11 @@
 //! the eight settings blocks (0x4C8 apart) by the face's kind, and then made shares of what
 //! they were.
 
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::memory::owned::Owned;
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::PlainDword;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::SlotTable;
@@ -427,50 +427,6 @@ pub(super) fn set_up_blocks(
         }
     }
     Ok(())
-}
-
-/// The block lines' work (`lines`).
-#[derive(rc2k_derive::Cells)]
-pub struct LinesWork {
-    /// The eight values a block's `factors` start with
-    pub block_start: [PlainFloat; 8],
-    /// The last line's x, y, z differences
-    pub difference: [PlainDword; 3],
-    /// The block being measured. Not used: nothing reads it
-    pub current: PlainDword,
-    /// Measure every block
-    pub every: PlainDword,
-    /// Make the shares
-    pub shares: PlainDword,
-    /// A marked block was measured
-    pub any: PlainDword,
-}
-
-impl LinesWork {
-    /// The values the game starts with.
-    pub const fn new() -> Self {
-        LinesWork {
-            block_start: [
-                PlainFloat::new(1.0),
-                PlainFloat::new(1.0),
-                PlainFloat::new(1.0),
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            difference: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-            current: PlainDword::new(0x0),
-            every: PlainDword::new(0x0),
-            shares: PlainDword::new(0x0),
-            any: PlainDword::new(0x0),
-        }
-    }
 }
 
 #[cfg(test)]

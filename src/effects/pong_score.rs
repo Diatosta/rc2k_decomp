@@ -3,7 +3,7 @@
 //! three `effects::pong_digit`s (hundreds, tens, ones), 0x20 on, the best (low byte, kept) the
 //! same.
 
-use crate::effects::pong::Pong;
+use crate::effects::pong_store::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::memory::session::PlainDword;

@@ -50,7 +50,7 @@ impl ViewGrid {
 pub(super) const UNKNOWN_CORNER: u32 = 0x8000_0000;
 
 /// Every slot's corner made unknown, so each view makes its grid again (a stage's start).
-pub(super) fn reset_corners(scratch: &crate::scene::workers::DrawingScratch) {
+pub(super) fn reset_corners(scratch: &crate::scene::scratch_store::DrawingScratch) {
     for n in 0..crate::race::view_scratch::SLOT_COUNT {
         let grid = &scratch.slot(n).grid;
         grid.x.set(UNKNOWN_CORNER);

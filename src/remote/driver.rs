@@ -119,7 +119,7 @@ fn load_pgm(path: &str) -> Option<crate::platform::ffi::sdl_camera::Frame> {
     }
     at += 1;
     let (w, h): (usize, usize) = (words[1].parse().ok()?, words[2].parse().ok()?);
-    let grey = data.get(at..at + w * h)?;
+    let grey = data.get(at..at.checked_add(w.checked_mul(h)?)?)?;
     let rgba = match fake_layout() {
         // The picture as a camera of that format would send it, with padded rows, read back
         // by the conversion the real camera's frames go through.
@@ -1127,7 +1127,7 @@ pub fn texture_row(texture: u32, level: u32, y: u32, row: &[u8]) {
 /// The hashes of what the marks' masks leave.
 pub fn mask_hashes(
     masks: &crate::effects::mask_store::Masks,
-    drops: &crate::effects::windscreen_drop_vars::WindscreenDrops,
+    drops: &crate::effects::windscreen_drop_vars_store::WindscreenDrops,
     effects: &crate::effects::owner::Effects,
 ) {
     crate::race::course_hash::log_mask_hashes(masks, drops, effects);

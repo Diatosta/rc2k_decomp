@@ -181,7 +181,7 @@ pub fn texture_row(_texture: u32, _level: u32, _y: u32, _row: &[u8]) {}
 #[inline(always)]
 pub fn mask_hashes(
     _masks: &crate::effects::mask_store::Masks,
-    _drops: &crate::effects::windscreen_drop_vars::WindscreenDrops,
+    _drops: &crate::effects::windscreen_drop_vars_store::WindscreenDrops,
     _effects: &crate::effects::owner::Effects,
 ) {
 }

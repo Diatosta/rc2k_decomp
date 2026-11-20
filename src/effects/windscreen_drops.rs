@@ -21,7 +21,7 @@
 
 use crate::effects::item_walk::walk_to_free;
 use crate::effects::mask_store::Masks;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::Refused;
 use crate::math::x87;
 

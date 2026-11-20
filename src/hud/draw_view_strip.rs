@@ -30,7 +30,7 @@ pub struct Overlay<'a> {
     pub race: &'a Race,
     pub scratch: &'a ViewScratch,
     /// The drawing part's scratch (the game's thread's: the overlays draw after the parts).
-    pub part: &'a crate::scene::workers::PartScratch,
+    pub part: &'a crate::scene::scratch_store::PartScratch,
     pub system: &'a System,
     pub scene: &'a Scene,
     pub strips: &'a Strips,

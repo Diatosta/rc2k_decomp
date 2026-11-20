@@ -4,7 +4,8 @@
 //! and player has a `SignStyle` for whose marks they are and the row they are drawn at.
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
 /// The row: `y`, or 0x20 higher with `Panel::flat` 0.
@@ -81,7 +82,7 @@ pub(super) fn draw_signs(
         else {
             continue;
         };
-        let rect = crate::hud::store::RectAt::number(sign.rectangle / 0x10);
+        let rect = crate::hud::block_store::RectAt::number(sign.rectangle / 0x10);
         crate::hud::add_sprite::add_sprite(
             frame,
             hud,

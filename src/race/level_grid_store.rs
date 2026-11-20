@@ -25,13 +25,13 @@ pub struct LevelGrid {
     pub grid_half: PlainDword,
     /// The course grid's span. Unused: each view keeps its own (`race::view_grid`).
     pub grid_span: PlainDword,
-    /// The polygon smoothing switch. Unused: each view keeps its own (`scene::polygon_work`).
+    /// The polygon smoothing switch. Unused: each view keeps its own (`scene::polygon_work_store`).
     pub smooth: PlainDword,
     /// "Plain" flag of the first triangle's texture set. Unused: each view keeps its own
-    /// (`scene::polygon_work`).
+    /// (`scene::polygon_work_store`).
     pub plain_first: PlainDword,
     /// "Plain" flag of the second triangle's set. Unused: each view keeps its own
-    /// (`scene::polygon_work`).
+    /// (`scene::polygon_work_store`).
     pub plain_second: PlainDword,
     /// The view value kept by `race::draw_mirror_view` around its drawing. Unused: each view keeps
     /// its own (`race::view_course::ViewCourse`).

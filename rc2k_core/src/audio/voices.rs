@@ -148,7 +148,7 @@ pub struct MixerChannel {
     pub left: i32,
     pub right: i32,
     /// Five dwords nothing reads (cleared when the channel is released).
-    pub unused_44: [u32; 5],
+    pub reserved_44: [u32; 5],
 }
 
 const _: () = assert!(std::mem::size_of::<SampleRecord>() == 0x40);
@@ -267,7 +267,7 @@ pub fn clear_channels<P: Pool>(pool: &mut P) {
         pool.update_channel(at, |c| {
             c.used = 0;
             c.voice = 0;
-            c.unused_44 = [0; 5];
+            c.reserved_44 = [0; 5];
         });
     }
 }

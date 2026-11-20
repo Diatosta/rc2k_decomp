@@ -10,7 +10,7 @@ texture after the 3D views.
 ## State
 
 `Hud` (`src/hud/owner.rs`), a field of the race's owner (`Race::hud`). It is one block,
-`HudBlock` in `src/hud/store.rs`: the batch's vertices and indices, the virtual screen's size,
+`HudBlock` in `src/hud/block_store.rs`: the batch's vertices and indices, the virtual screen's size,
 the layouts' values. The numbers the HUD shows (speed, times, gear) are filled in by the race
 each frame (`src/race/panel_store.rs`).
 

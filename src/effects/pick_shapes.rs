@@ -6,7 +6,7 @@
 //! it with 0xFF).
 
 use crate::effects::mask_store::Masks;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::Refused;
 
 // The logic is in `rc2k_core::effects::steps::{shape_entry, pick_shapes}`

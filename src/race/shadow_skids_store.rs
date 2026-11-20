@@ -91,7 +91,7 @@ pub struct ShadowSkids {
     pub skid_place: [PlainDword; 3],
     /// The views that show the skid marks, as bits. Nothing reads or writes it; it only
     /// keeps the layout.
-    pub unused_2040: PlainDword,
+    pub reserved_2040: PlainDword,
     /// 0x400 links of 8 bytes each (`race::skid_laying`, `race::skidmarks`,
     /// `race::stage_prefs`).
     pub skid_links: PlainBytes<0x2000>,

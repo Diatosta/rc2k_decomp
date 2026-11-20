@@ -14,9 +14,6 @@ pub struct ObjectWork {
     pub point_memory_total: PlainDword,
     /// The bytes of face memory used (the log's "total facemem").
     pub face_memory_total: PlainDword,
-    /// Eight dwords between the memory totals and the shape's counts; no code uses them (a
-    /// gap).
-    pub unknown_c: [PlainDword; 8],
     /// The shape's counts (`scene::add_object_shape`): [0] faces, [1] points, [3] normals, [5]
     /// lowest, [6] highest.
     pub shape_counts: [PlainDword; 7],
@@ -31,8 +28,6 @@ pub struct ObjectWork {
     /// `scene::set_object_fade`). Unused: each view has its own in
     /// `scene::object_place::ObjectPlace`.
     pub object_place: PlainDword,
-    /// One dword between the object's place and its position; no code uses it (a gap).
-    pub unknown_60: PlainDword,
     /// The object's x, y, depth (`scene::set_object_fade`, `physics::fill_race_slot`); the
     /// drawing's is each view's (`ctx.view.object.position`); this one is
     /// `physics::fill_race_slot`'s own.
@@ -72,8 +67,6 @@ pub struct ObjectWork {
     /// The light added to each vertex (`scene::vertex_light`). Unused: each view has its own in
     /// `scene::object_light`.
     pub light_added: PlainDword,
-    /// Two dwords between the light added and the part weights; no code uses them (a gap).
-    pub unknown_cc: [PlainDword; 2],
     /// The car's part weights (`race::car_parts`).
     pub part_weights: [PlainDword; 4],
     /// The lit colour's lowest place. Unused: each view has its own in `scene::object_light`.
@@ -88,16 +81,12 @@ pub struct ObjectWork {
     /// The light's turns, y then x (`scene::matrix`). Unused: each view has its own in
     /// `scene::object_light`.
     pub light_turns: [PlainDword; 2],
-    /// Eight dwords after the light's turns; no code uses them (a gap).
-    pub unknown_fc: [PlainDword; 8],
     /// The object's first face. Unused: each view has its own in `ctx.view.object.first_face`.
     pub object_first_face: PlainDword,
     /// The object's face count. Unused: each view has its own in `ctx.view.object.face_count`.
     pub object_face_count: PlainDword,
     /// The shape's first point, face, normal (`scene::add_object_shape`).
     pub shape_firsts: [PlainDword; 3],
-    /// Eighteen dwords closing the piece; nothing uses them (a gap).
-    pub unknown_130: [PlainDword; 18],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of

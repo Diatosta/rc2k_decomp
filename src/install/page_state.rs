@@ -34,12 +34,12 @@ impl Highlights {
 /// What the pages depend on, as the installer is now.
 pub(super) fn facts(install: &Install) -> Facts {
     Facts {
-        same_version: install.run.same_version.get() == 1,
+        same_version: install.run.same_version.get(),
         installed: install.names.status.get() != 0,
         update_entry: install.flags.update_entry.get(),
         languages: install.names.language_count.get(),
         drives: install.run.drive_count.get(),
-        path_problem: install.run.path_problem.get(),
+        path_problem: install.run.path_problem.get().code(),
         folder_most: <Native as Folders>::field_most(FOLDER_MOST),
         folder_width: <Native as Folders>::field_width(FOLDER_WIDTH),
     }
@@ -55,21 +55,12 @@ pub(super) const TEXT_AT: usize = if <Native as Folders>::DRIVES { 2 } else { 0 
 
 /// The folder field's text: the folder typed from `TEXT_AT` to its NUL.
 pub(super) fn typed_text(install: &Install) -> Vec<u8> {
-    let typed = &install.paths.typed;
-    (TEXT_AT..256)
-        .map(|k| typed.get(k))
-        .take_while(|&byte| byte != 0)
-        .collect()
+    install.paths.typed.text_from(TEXT_AT)
 }
 
 /// `text` as the folder field's text (cut to its place, NUL-ended).
 pub(super) fn store_typed_text(install: &Install, text: &[u8]) {
-    let typed = &install.paths.typed;
-    let n = text.len().min(255 - TEXT_AT);
-    for (k, &byte) in text[..n].iter().enumerate() {
-        typed.set(TEXT_AT + k, byte);
-    }
-    typed.set(TEXT_AT + n, 0);
+    install.paths.typed.set_from(TEXT_AT, text);
 }
 
 /// The font of an edit's kind.

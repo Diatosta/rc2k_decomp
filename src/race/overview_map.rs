@@ -5,7 +5,8 @@
 //! to the panel.
 
 use crate::errors::Refused;
-use crate::race::game_map::{GameMap, Tile};
+use crate::race::game_map_store::GameMap;
+use crate::race::game_map_store::Tile;
 use crate::race::owner::Race;
 use rc2k_core::race::map::{TILE, TILES, pixel_width};
 use rc2k_core::race::overview::{Fit, SIDE};

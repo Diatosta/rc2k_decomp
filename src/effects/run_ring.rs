@@ -11,11 +11,12 @@
 
 use crate::effects::emitters::matrix_float;
 use crate::effects::mask_store::Masks;
-use crate::effects::ring_entries::{Entry, walk_ring_copies};
+use crate::effects::ring_entries::walk_ring_copies;
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
-use crate::effects::setup::MarksClock;
-use crate::effects::tuning::MarksFloats;
+use crate::effects::ring_store::{Entry, RingKinds};
+use crate::effects::setup_store::MarksClock;
+use crate::effects::tuning_store::MarksFloats;
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::extended;
@@ -997,88 +998,6 @@ fn box_place_x87(en: &Entry, w: &RingWork, car: &CarEffects) {
     w.extent[0].set(bh::to_int(t27) as u32);
     let t28 = t26.abs();
     w.extent[1].set(bh::to_int(t28) as u32);
-}
-
-/// The ring kinds' constants (`run_ring`, and the ribbons' two).
-#[derive(Clone, Copy)]
-pub struct RingKinds {
-    /// Kind 5's drift factors
-    pub drift5: [f32; 3],
-    /// Kind 0xB's drift factors
-    pub drift_b: [f32; 3],
-    /// Kind 6's three dampings
-    pub k6_damp: [f32; 3],
-    /// Kind 6's size rate
-    pub k6_pull: f32,
-    /// Kind 0x15's three dampings
-    pub k15_damp: [f32; 3],
-    /// Kind 0x15's size rate
-    pub k15_pull: f32,
-    /// Kind 1's size factor (`size_factor` times it)
-    pub k1_size: f32,
-    /// Kind 1's three dampings
-    pub k1_damp: [f32; 3],
-    /// Kind 1's size rate
-    pub k1_pull: f32,
-    /// Less this from the length to the object (`pull_length`)
-    pub near_less: f32,
-    /// The strength's pull scale (`pull_strength`)
-    pub near_scale: f32,
-    /// The strength's pull rate (`pull_strength`)
-    pub near_rate: f32,
-    /// Kind 0xD's y gain
-    pub kd_gain: f32,
-    /// Kind 0xD's three dampings
-    pub kd_damp: [f32; 3],
-    /// Kind 0xD's size rate
-    pub kd_pull: f32,
-    /// Kind 0x13's three dampings
-    pub k13_damp: [f32; 3],
-    /// Kind 0x13's y gain
-    pub k13_gain: f32,
-    /// Kind 0x16's three dampings
-    pub k16_damp: [f32; 3],
-    /// Kind 0x16's y gain
-    pub k16_gain: f32,
-    /// Kind 0x10's y gain
-    pub k10_gain: f32,
-    /// Kind 0x11's y gain
-    pub k11_gain: f32,
-    /// A ribbon's y gain (`run_ribbons::first_frame`)
-    pub ribbon_a: f32,
-    /// A ribbon's y gain per frame (`run_ribbons::move_`)
-    pub ribbon_b: f32,
-}
-
-/// RingKinds's first values.
-impl RingKinds {
-    pub const fn new() -> Self {
-        RingKinds {
-            drift5: [-2.0, 92.0, f32::from_bits(0xFF800000)],
-            drift_b: [-2.0, 92.0, f32::from_bits(0xFF800000)],
-            k6_damp: [0.001, 0.001, 0.001],
-            k6_pull: 0.01_f32,
-            k15_damp: [0.001, 0.001, 0.001],
-            k15_pull: 0.01_f32,
-            k1_size: 1.0_f32,
-            k1_damp: [0.003, 0.003, 0.003],
-            k1_pull: 0.0015_f32,
-            near_less: 111072.0_f32,
-            near_scale: 0.0002_f32,
-            near_rate: 0.005_f32,
-            kd_gain: 0.01_f32,
-            kd_damp: [0.004, 0.004, 0.004],
-            kd_pull: 0.01_f32,
-            k13_damp: [0.003, 0.003, 0.003],
-            k13_gain: 16.0_f32,
-            k16_damp: [0.003, 0.003, 0.003],
-            k16_gain: 16.0_f32,
-            k10_gain: -0.5_f32,
-            k11_gain: -0.5_f32,
-            ribbon_a: -0.5_f32,
-            ribbon_b: -0.5_f32,
-        }
-    }
 }
 
 #[cfg(test)]

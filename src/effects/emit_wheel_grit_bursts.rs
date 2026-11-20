@@ -12,6 +12,7 @@
 //! (wiki/Fixed-bugs.md: "Crash driving over mud (particle ring full)"). Refuses (before anything) a
 //! null wheel, a null object, car or matrix where read.
 
+use crate::effects::emit_wheel_grit_bursts_store::BurstTuning;
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
@@ -19,7 +20,7 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
-use crate::memory::session::{PlainDword, PlainFloat, read_bits, write_bits};
+use crate::memory::session::{PlainFloat, read_bits, write_bits};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 
 const LIFE: u32 = 0x7D0;
@@ -85,13 +86,6 @@ pub fn first(effects: &Effects) -> BurstSet<'_> {
     BurstSet {
         halves: halves(effects),
         tuning: &effects.particles.first_tuning,
-    }
-}
-
-impl BurstTuning {
-    /// The half's (`n` 0 or 1) rate, count and entry randoms.
-    pub fn randoms(&self, n: usize) -> &[PlainDword; 3] {
-        if n == 0 { &self.first } else { &self.second }
     }
 }
 
@@ -282,37 +276,4 @@ pub(super) fn emit_bursts_with(
         }
     }
     Ok(())
-}
-
-/// One burst emitter's factors and randoms (`emit_wheel_grit_bursts`' and `emit_bursts_kind_3`'s).
-#[derive(rc2k_derive::Cells)]
-pub struct BurstTuning {
-    /// The strength's factor
-    pub strength_k: PlainFloat,
-    /// The first half's rate, count and entry randoms
-    pub first: [PlainDword; 3],
-    /// The blend's two factors
-    pub blend_k: [PlainFloat; 2],
-    /// The second half's rate, count and entry randoms
-    pub second: [PlainDword; 3],
-}
-
-impl BurstTuning {
-    /// The values the game starts with.
-    pub const fn first() -> Self {
-        BurstTuning {
-            strength_k: PlainFloat::new(-0.25),
-            first: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-            blend_k: [PlainFloat::new(-0.25), PlainFloat::new(-0.05)],
-            second: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-        }
-    }
 }

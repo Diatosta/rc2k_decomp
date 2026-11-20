@@ -5,10 +5,9 @@
 //! three a whole number (signed) of it: the third for the last value, the second for the middle
 //! one, the first for the first.
 
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::math::matrix3::{extended, rounded};
 use crate::math::x87;
-use crate::memory::session::PlainDword;
 
 /// The three results.
 pub fn spread_point(
@@ -34,20 +33,4 @@ pub fn spread_point(
     let c = x87::grown(second as i32, k, c, spread);
     let b = x87::grown(first as i32, k, b, spread);
     ([extended(b), extended(c), extended(d)], third)
-}
-
-/// The spread point's random.
-#[derive(rc2k_derive::Cells)]
-pub struct SpreadRandom {
-    /// The random (times 0x9D plus 0x47) of `effects::spread_point`.
-    pub random: PlainDword,
-}
-
-impl SpreadRandom {
-    /// The values the game starts with.
-    pub const fn new() -> Self {
-        SpreadRandom {
-            random: PlainDword::new(0x0),
-        }
-    }
 }

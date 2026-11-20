@@ -1,14 +1,11 @@
 //! The object and picture loaders' file numbers: the .ro3 / .lwo name numbers and paths, the
-//! picture number and texture. The path strings between them stay unknown_* bytes, reached by
-//! address.
+//! picture number and texture.
 
 use crate::memory::cells::ZeroCells;
 use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectFileNumbers {
-    /// The dword before the file numbers; nothing reads or writes it (a gap).
-    pub unknown_0: PlainDword,
     /// .ro3 name number, kept as the text's place in `path_texts`
     /// (`scene::set_object_file_names`).
     pub object_ro3_number: PlainDword,

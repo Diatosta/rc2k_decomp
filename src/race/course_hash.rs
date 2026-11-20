@@ -136,7 +136,7 @@ pub fn note_texture_row(texture: u32, level: u32, y: u32, row: &[u8]) {
 #[cfg(feature = "remote")]
 pub fn log_mask_hashes(
     masks: &crate::effects::mask_store::Masks,
-    drops: &crate::effects::windscreen_drop_vars::WindscreenDrops,
+    drops: &crate::effects::windscreen_drop_vars_store::WindscreenDrops,
     effects: &crate::effects::owner::Effects,
 ) {
     if !on() {

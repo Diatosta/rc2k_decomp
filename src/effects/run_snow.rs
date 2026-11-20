@@ -10,8 +10,8 @@
 //! The two turns are plain Rust on the x87 model (`math::x87_float`), over the game's variables.
 //! Refuses null settings, before anything.
 
-use crate::effects::rain::Weather;
-use crate::effects::snow::SnowLight;
+use crate::effects::rain_store::Weather;
+use crate::effects::snow_store::SnowLight;
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;

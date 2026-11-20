@@ -13,7 +13,7 @@ pub struct League {
     /// `physics::compare_split_times` reads up to split 27, rows past the sixteenth: a slip, kept).
     pub rows: [PlainDword; 160],
     /// Unused; it only keeps the layout.
-    pub unused_2a8: [PlainDword; 17],
+    pub reserved_2a8: [PlainDword; 17],
     /// The car's time (`physics::compare_split_times`).
     pub car_time: PlainDword,
     /// The 36 automatic set-ups, 0x10 bytes each (h, s, g5, g4 + 1;
@@ -35,7 +35,7 @@ impl League {
         crate::memory::session::read_runs(
             &[
                 &self.rows,
-                &self.unused_2a8,
+                &self.reserved_2a8,
                 &self.car_time,
                 &self.auto_setups,
             ],

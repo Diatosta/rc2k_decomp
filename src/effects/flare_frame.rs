@@ -4,7 +4,7 @@
 //!
 //! Refuses null settings, before anything.
 
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::errors::{BadInput, Refused};
 
 /// `scene::set_texture`, `scene::depth_test_off`, and with the settings' flare strength

@@ -8,29 +8,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
-    hold, lock, normalise, pause, pump, run_frame, set_cd, show, sleep, store_text, take_key,
-    text_at, unlock,
+    hold, lock, normalise, pause, pump, run_frame, set_cd, show, sleep, take_key, unlock,
 };
 
-use crate::install::vars::StringRecord;
-use crate::memory::place::BytePlace;
+use crate::install::vars::{InstallPath, PathProblem, StringRecord, fixed};
 use rc2k_core::install::flow::Copied;
-
-fn game_dir(install: &'static crate::install::owner::Install) -> BytePlace {
-    BytePlace::from(&install.paths.game_dir)
-}
-
-fn installed(install: &'static crate::install::owner::Install) -> BytePlace {
-    BytePlace::from(&install.paths.installed)
-}
-
-fn path_a(install: &'static crate::install::owner::Install) -> BytePlace {
-    BytePlace::from(&install.paths.path_a)
-}
-
-fn path_b(install: &'static crate::install::owner::Install) -> BytePlace {
-    BytePlace::from(&install.paths.path_b)
-}
 
 /// Whether file `index` of the CD's list is not installed: the CD's `ral.exe` (the 1999 program,
 /// which this one replaces), and on macOS every file outside the CD's folders (the readmes and the
@@ -42,17 +24,16 @@ fn left_out(install: &'static crate::install::owner::Install, index: u32) -> Res
     Ok(top_level && (name.eq_ignore_ascii_case(b"ral.exe") || cfg!(target_os = "macos")))
 }
 
-/// `to` = `base` + name `index` of `table`, NUL-ended.
+/// `to` = `base` + name `index` of `table`.
 fn build(
-    base: BytePlace,
-    to: BytePlace,
+    base: &InstallPath,
+    to: &InstallPath,
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
 ) -> Result<(), Refused> {
-    let mut path = text_at(base);
+    let mut path = base.text();
     crate::install::name_tables::push_name(table, index, &mut path)?;
-    path.push(0);
-    store_text(to, &path);
+    to.set(&path)?;
     Ok(())
 }
 
@@ -107,10 +88,11 @@ pub(super) fn install_files(
     crate::install::installer::set_full_installation();
     install.names.status.set(0x80);
     i::record::write_installed(install);
-    normalise(&install.paths.game_dir, &install.paths.game_dir)?;
-    i::run_script::run_script(install, &install.names.script_count.read())?;
+    if let Some(game_dir) = normalise(&install.paths.game_dir.text())? {
+        install.paths.game_dir.set(&game_dir)?;
+    }
+    i::run_script::run_script(install, fixed::COUNT_SCRIPT)?;
     install.run.files_copied.set(0);
-    install.run.copy_spare.set(0);
     install.run.files_to_copy.set(install.run.file_count.get());
     let room = u32::from_le_bytes(
         crate::memory::place::BytePlace::from(&install.names.room_by_mode)
@@ -122,23 +104,24 @@ pub(super) fn install_files(
     install.run.room_needed.set(room);
     // The folder cannot be used: the folder page says so.
     let bad_path = || {
-        install.run.path_problem.set(1);
+        install.run.path_problem.set(PathProblem::BadFolder);
         Ok(Copied::BadFolder)
     };
-    if !normalise(&install.paths.typed, &install.paths.installed)? {
+    let Some(into) = normalise(&install.paths.typed.text())? else {
         return bad_path();
-    }
-    if i::check_folder_name::check_folder_name(&install.paths.installed) {
+    };
+    install.paths.installed.set(&into)?;
+    if i::check_folder_name::check_folder_name(&install.paths.installed.text()) {
         return bad_path();
     }
     // The room where it goes, by the system's rules (`install::folders`).
-    let folder = BytePlace::from(&install.paths.installed).text("the install folder")?;
+    let folder = install.paths.installed.text();
     match <i::folders::Native as i::folders::Folders>::room(&folder, o.system) {
         i::folders::Room::Unreadable => return bad_path(),
         i::folders::Room::Kb(free)
             if free < install.run.room_needed.get() && !install.flags.ignore_room.get() =>
         {
-            install.run.path_problem.set(2);
+            install.run.path_problem.set(PathProblem::NoRoom);
             return Ok(Copied::NoRoom);
         }
         _ => {}
@@ -164,12 +147,17 @@ pub(super) fn install_files(
     // the folders
     if install.run.dir_count.get() != 0 {
         for n in 0..install.run.dir_count.get() {
-            build(installed(install), path_b(install), &install.folders, n)?;
+            build(
+                &install.paths.installed,
+                &install.paths.path_b,
+                &install.folders,
+                n,
+            )?;
             if !i::make_folders::make_folders(&install.paths.path_b.text())? {
                 return message(o, &error_messages(install), 0);
             }
         }
-        set_cd(&install.paths.game_dir);
+        set_cd(&install.paths.game_dir.text());
     }
     // the files
     if install.run.file_count.get() != 0 {
@@ -180,14 +168,24 @@ pub(super) fn install_files(
         const FRAME_GAP: std::time::Duration = std::time::Duration::from_millis(66);
         let mut last_frame: Option<std::time::Instant> = None;
         loop {
-            build(game_dir(install), path_a(install), &install.files, n)?;
-            build(installed(install), path_b(install), &install.files, n)?;
+            build(
+                &install.paths.game_dir,
+                &install.paths.path_a,
+                &install.files,
+                n,
+            )?;
+            build(
+                &install.paths.installed,
+                &install.paths.path_b,
+                &install.files,
+                n,
+            )?;
             // A failed copy is the error message.
             if !left_out(install, n)?
                 && !i::copy_counted::copy_counted(
                     install,
-                    &install.paths.path_a,
-                    &install.paths.path_b,
+                    &install.paths.path_a.text(),
+                    &install.paths.path_b.text(),
                 )?
             {
                 return message(o, &error_messages(install), 0);
@@ -219,48 +217,32 @@ pub(super) fn install_files(
     }
     // The change of folder's result is not looked at; a failed record write is the error
     // message.
-    set_cd(&install.paths.installed);
+    set_cd(&install.paths.installed.text());
     if !i::write_record::write_record(install, o.strings)? {
         return message(o, &error_messages(install), 0);
     }
     // On macOS only the game's files go into the application.
     if crate::files::state::directory_byte(1) != 0 && !cfg!(target_os = "macos") {
         // readme.txt then manual.pdf
-        for (full, base) in [
-            (
-                &install.names.readme,
-                BytePlace::from(&install.names.readme).add(0xE),
-            ),
-            (
-                &install.names.manual,
-                BytePlace::from(&install.names.manual).add(0xE),
-            ),
-        ] {
-            let mut path = text_at(&install.paths.game_dir);
-            path.extend(text_at(full));
-            path.push(0);
-            store_text(&install.paths.path_a, &path);
+        for full in [fixed::README, fixed::MANUAL] {
+            let mut path = install.paths.game_dir.text();
+            path.extend_from_slice(full);
+            install.paths.path_a.set(&path)?;
             // Not looked at.
-            i::copy_counted::copy_counted(install, &install.paths.path_a, base)?;
+            i::copy_counted::copy_counted(
+                install,
+                &install.paths.path_a.text(),
+                &full[fixed::README_FOLDERS..],
+            )?;
         }
     }
     crate::shell::events::hold_quit(o.system, false);
     pause(o, 1000);
     install.names.status.set(1);
-    // The installed folder's path copied to the install source, with its length (NUL included)
-    // kept in `source_size`.
-    let mut n = 0usize;
-    loop {
-        let b = install.paths.installed.get(n);
-        install.names.source.set(n, b);
-        n += 1;
-        if b == 0 {
-            break;
-        }
-    }
-    install.names.source_size.set(n as u32);
+    // The installed folder is the install source from now on.
+    install.names.source.set(&install.paths.installed.text())?;
     i::record::write_installed(install);
-    install.run.add_items.set(1);
+    install.run.add_items.set(true);
     install.flags.installing.set(true);
     Ok(Copied::Installed)
 }

@@ -17,8 +17,8 @@ use crate::scene::project_point::{NEAR, project_point};
 // ---- game data ----
 
 pub fn project_polygon(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
@@ -28,8 +28,8 @@ pub fn project_polygon(
 
 /// `project_polygon` on the polygon's entries as listed.
 pub fn project_entries(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     entries: &Listed,
     reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,

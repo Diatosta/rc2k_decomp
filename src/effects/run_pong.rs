@@ -6,7 +6,7 @@
 
 use crate::effects::move_pong_ball::move_pong_ball;
 use crate::effects::move_pong_bat::move_pong_bat;
-use crate::effects::pong::Pong;
+use crate::effects::pong_store::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::matrix3::extended;

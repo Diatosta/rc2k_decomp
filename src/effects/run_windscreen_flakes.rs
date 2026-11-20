@@ -5,7 +5,7 @@
 //! coloured by the view light under an alpha that fades with age.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::effects::windscreen_flakes_spawn::windscreen_flakes_spawn;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 

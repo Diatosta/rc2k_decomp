@@ -34,7 +34,7 @@ pub enum Step {
 
 pub fn draw_clipped_polygon(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     {

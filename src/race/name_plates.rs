@@ -75,8 +75,8 @@ fn draw_time_plate(frame: &Frame, slot: u32, gfx: &'static Gfx) -> Result<(), Re
     // dword after it, which ends it.
     let overlay = &frame.panel_and_overlay.get().overlay;
     for ((label, after), (x, y)) in [
-        (&overlay.label_behind, &overlay.unused_334),
-        (&overlay.label_ahead, &overlay.unused_340),
+        (&overlay.label_behind, &overlay.reserved_334),
+        (&overlay.label_ahead, &overlay.reserved_340),
     ]
     .into_iter()
     .zip(time_places(line))

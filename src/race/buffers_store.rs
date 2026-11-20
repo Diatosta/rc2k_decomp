@@ -1,5 +1,5 @@
 //! The image's zeroed tail past the drawing parts' scratch (the polygon vertices and the polygon
-//! work, each part's own: `scene::workers::PartScratch`): the read tables (`BufferReads`). One static and
+//! work, each part's own: `scene::scratch_store::PartScratch`): the read tables (`BufferReads`). One static and
 //! not seven: the checkpoint tables are read by a number held to the count
 //! (`race::checkpoints_store::nth`), and the pieces of the read tables stay together.
 

@@ -1,7 +1,8 @@
 //! A polygon of three vertices: `hud::add_polygon`.
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
 pub(super) fn add_triangle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {

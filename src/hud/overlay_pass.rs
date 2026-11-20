@@ -6,7 +6,8 @@
 //! `scene::set_filters`.
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 
@@ -69,7 +70,7 @@ pub fn overlay_pass(
         system,
         scene,
         engine_tables: race.engine_tables(),
-        scope: crate::hud::owner::PartScope::default(),
+        scope: crate::hud::pen::PartScope::default(),
     };
     let done = crate::hud::draw_hud::draw_hud(&race.frame, hud, pen);
     race.frame.panel_and_overlay.get().panel.hud_flags[1].set(kept[1]);

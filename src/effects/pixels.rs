@@ -3,10 +3,10 @@
 //! row (`MaskVars.pixel_table`).
 
 use crate::effects::mask_store::Masks;
-use crate::effects::mask_vars::Shape;
+use crate::effects::mask_vars_store::Shape;
 use crate::effects::spans::run_get;
 use crate::effects::turns::{scale_rows3, set_line_turn, turn_pair, turn_pair_with};
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;

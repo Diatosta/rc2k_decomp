@@ -5,13 +5,14 @@
 //! between.
 
 use crate::errors::Refused;
+use crate::hud::block_store::texture;
 use crate::hud::draw_signs::row;
 use crate::hud::layout_common::{
     Keep, begin_dials, clock_panel, gear_rect, keep, keep_layout, lap_panel, leading_time,
     needle_sign, sign, sprite, time_digits, white_opaque,
 };
-use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::texture;
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::panels;
 
@@ -21,7 +22,7 @@ fn car_icon(frame: &Frame, hud: &Hud, pen: Pen, y: u32) -> Result<(), Refused> {
     let Some(player) = pen.scope.icon else {
         return sprite(frame, hud, pen, 0, 0xE, y);
     };
-    let [_, _, width, height] = crate::hud::store::RectAt::number(0).read(hud)?;
+    let [_, _, width, height] = crate::hud::block_store::RectAt::number(0).read(hud)?;
     let [left, top] = rc2k_core::scene::car_icons::half_place(player);
     let [w, h] = rc2k_core::scene::car_icons::HALF_SIZE;
     hud.block

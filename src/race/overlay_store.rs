@@ -30,19 +30,15 @@ pub struct OverlayBlock {
     /// `physics::rank_split_time`, `race::race_init`).
     pub label_behind: [PlainDword; 2],
     /// Unused; it only keeps the layout.
-    pub unused_334: PlainDword,
+    pub reserved_334: PlainDword,
     /// A 7-byte text, the label ahead (same modules).
     pub label_ahead: [PlainDword; 2],
     /// Unused; it only keeps the layout.
-    pub unused_340: PlainDword,
+    pub reserved_340: PlainDword,
     /// The kept copy of `label_behind` (`race::name_plates`, `race::race_init`).
     pub kept_behind: [PlainDword; 2],
-    /// Unused; it only keeps the layout.
-    pub unused_34c: PlainDword,
     /// The kept copy of `label_ahead` (same).
     pub kept_ahead: [PlainDword; 2],
-    /// Unused; it only keeps the layout.
-    pub unused_358: [PlainDword; 3],
 }
 
 impl OverlayBlock {

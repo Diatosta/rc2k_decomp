@@ -3,15 +3,14 @@
 use crate::errors::Refused;
 use crate::install::installer::copy_file;
 
-/// `from` copied to `to`; whether it was all done. The callers see a failed copy.
 pub(super) fn copy_counted(
     install: &crate::install::owner::Install,
-    from: impl Into<crate::memory::place::BytePlace>,
-    to: impl Into<crate::memory::place::BytePlace>,
+    from: &[u8],
+    to: &[u8],
 ) -> Result<bool, Refused> {
     install
         .run
         .files_copied
         .set(install.run.files_copied.get().wrapping_add(1));
-    copy_file(from.into(), to.into())
+    copy_file(from, to)
 }

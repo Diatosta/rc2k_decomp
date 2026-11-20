@@ -3,7 +3,8 @@
 //! colour.
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
 pub fn add_solid_quad(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {

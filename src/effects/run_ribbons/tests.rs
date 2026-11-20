@@ -189,10 +189,9 @@ mod same_as_old {
                 c.set_bits(word(&mut state));
             }
             clock.frame_ticks.set(next(&mut state) % 40);
-            let entry =
-                crate::effects::ring_entries::Entry::from_words(std::array::from_fn(|_| {
-                    word(&mut state)
-                }));
+            let entry = crate::effects::ring_store::Entry::from_words(std::array::from_fn(|_| {
+                word(&mut state)
+            }));
             let gain = f32::from_bits(word(&mut state));
             let mut results = Vec::new();
             for which in 0..2 {
@@ -239,7 +238,7 @@ mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
 
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
-    use crate::effects::frame_state::DrawWork;
+    use crate::effects::frame_state_store::DrawWork;
     use crate::test_support::own::effects;
 
     fn word(at: crate::effects::asm_test::Operand) -> u32 {
@@ -316,7 +315,9 @@ mod reference_vectors {
                         .view_matrix,
                     ring,
                     e,
-                    crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(b[1]),
+                    crate::effects::asm_layout::copy_of::<crate::effects::setup_store::MarksClock>(
+                        b[1],
+                    ),
                     f32::from_bits(word(b[3] + 0x94)),
                 );
             });
@@ -361,7 +362,9 @@ mod reference_vectors {
                 super::move_x87(
                     ring,
                     e,
-                    crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(b[0]),
+                    crate::effects::asm_layout::copy_of::<crate::effects::setup_store::MarksClock>(
+                        b[0],
+                    ),
                     f32::from_bits(word(b[2] + 0x98)),
                 );
             });

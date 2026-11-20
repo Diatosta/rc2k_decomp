@@ -74,8 +74,6 @@ pub struct FrameWork {
     pub view_scale_y: [PlainFloat; 5],
     /// The car's place for the camera.
     pub camera_car: [PlainDword; 3],
-    /// Unused; only keeps the layout.
-    pub unused_168: PlainDword,
     /// The car's decal places.
     pub car_decal_places: [PlainDword; 18],
     /// The decal limit used by `race::car_draw`.
@@ -97,20 +95,14 @@ pub struct FrameWork {
     /// The car parts' four matrices, used by `race::car_parts`; the drawing's are the view's
     /// (`CarDrawState::part_matrices`).
     pub part_matrices: [PlainFloat; 64],
-    /// Unused; only keeps the layout.
-    pub unused_354: [PlainDword; 18],
     /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_strength: PlainDword,
     /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_point_count: PlainDword,
     /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_texture: PlainDword,
-    /// Unused; only keeps the layout.
-    pub unused_3a8: PlainDword,
     /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_light: [PlainDword; 3],
-    /// Unused; only keeps the layout.
-    pub unused_3b8: PlainDword,
     /// The shadow's corners, x and z twice. Unused: the shadow keeps its own work
     /// (`race::car_shadow::ShadowWork`); kept for the layout.
     pub shadow_corners: [PlainDword; 4],

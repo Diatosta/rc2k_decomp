@@ -46,7 +46,7 @@ pub fn vertices_fit(vertices: &[Vertex], width: u32, height: u32) -> bool {
 
 /// `device_on`: the draw switch (`d3d_drawing_on`) is set; `screen` is the screen's size.
 pub fn submit_polygon(
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &PolygonVertices,
     outside: &mut dyn Outside,
     device_on: bool,
@@ -76,7 +76,7 @@ pub fn submit_polygon(
 /// The game's Direct3D layer and log, for drawing part `.0` and its view `.1` (a bad polygon's
 /// log names the view's object and face).
 pub struct Game<'a>(
-    pub &'a crate::scene::workers::PartScratch,
+    pub &'a crate::scene::scratch_store::PartScratch,
     pub &'a crate::race::view_scratch::ViewScratch,
 );
 

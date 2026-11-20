@@ -27,7 +27,7 @@ fn vertices(at: &dyn Store, count: u32) -> Result<Vec<Vertex>, BadInput> {
 
 /// Draws the strip of `count` vertices at `at`.
 pub fn draw_vertex_strip(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     at: &dyn Store,
     count: u32,
 ) -> Result<(), BadInput> {

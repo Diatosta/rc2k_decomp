@@ -5,12 +5,28 @@
 //! A race has a layout for a phone held sideways: a steering area on the left (a finger put down
 //! anywhere in it is the wheel's middle; moving it left and right steers, and past the reach the
 //! middle follows the finger, so letting it come back is easy), pedals and the handbrake on the
-//! right, small buttons for the gears, the camera and the pause at the top. The game reads them as
+//! right, small buttons for the gears, the camera (the lights under it) and the pause at the top, and the gears again under the pause. The game reads them as
 //! a gamepad (`Output`: steering -1 .. 1 and the buttons held).
 //!
 //! Positions are in the window's pixels, times in milliseconds.
 
 use super::menu_touch::{Phase, Rect, Screen};
+
+/// The touch screen's virtual gamepad as the controller list names it.
+pub const PAD_NAME: &str = "Touch screen";
+
+/// The pad button the overlay's LIGHTS presses, in the profiles' numbering (Back).
+pub const LIGHTS_BUTTON: u8 = 6;
+
+/// A kept profile of the touch screen's pad from before the overlay had a LIGHTS button: the
+/// lights bound to what that button presses, when the player has them on nothing.
+pub fn give_lights(profile: &mut super::profile::Profile) {
+    if profile.device.name == PAD_NAME && profile.bindings.lights.is_none() {
+        profile.bindings.lights = Some(super::profile::Digital::Button {
+            button: LIGHTS_BUTTON,
+        });
+    }
+}
 
 /// The buttons of the race's layout.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
@@ -21,11 +37,12 @@ pub enum Button {
     GearUp,
     GearDown,
     Camera,
+    Lights,
     Pause,
 }
 
 /// How many buttons there are.
-pub const BUTTONS: usize = 7;
+pub const BUTTONS: usize = 8;
 
 impl Button {
     pub const ALL: [Button; BUTTONS] = [
@@ -35,6 +52,7 @@ impl Button {
         Button::GearUp,
         Button::GearDown,
         Button::Camera,
+        Button::Lights,
         Button::Pause,
     ];
 
@@ -57,6 +75,7 @@ impl Button {
             Button::GearUp => "+",
             Button::GearDown => "-",
             Button::Camera => "CAM",
+            Button::Lights => "LIGHTS",
             Button::Pause => "II",
         }
     }
@@ -73,6 +92,9 @@ pub struct Layout {
     /// How far the finger goes for full lock.
     pub reach: f32,
     pub buttons: [Rect; BUTTONS],
+    /// The gears' second pair, on the left under the pause (up, then down): the same buttons as
+    /// the pair on the right, for whichever hand is free.
+    pub left_gears: [Rect; 2],
 }
 
 impl Layout {
@@ -97,7 +119,10 @@ impl Layout {
         let gear_up = Rect::new(u.right() - 0.8 * s, u.y + 0.1 * s, 0.8 * s, 0.7 * s);
         let gear_down = Rect::new(gear_up.x, gear_up.bottom() + gap, 0.8 * s, 0.7 * s);
         let camera = Rect::new(gear_up.x - gap - 1.0 * s, u.y + 0.1 * s, 1.0 * s, 0.7 * s);
+        let lights = Rect::new(camera.x, camera.bottom() + gap, 1.0 * s, 0.525 * s);
         let pause = Rect::new(u.x + 0.1 * s, u.y + 0.1 * s, 0.7 * s, 0.7 * s);
+        let left_up = Rect::new(u.x + 0.1 * s, pause.bottom() + gap, 0.8 * s, 0.525 * s);
+        let left_down = Rect::new(left_up.x, left_up.bottom() + gap, 0.8 * s, 0.525 * s);
         let mut buttons = [Rect::default(); BUTTONS];
         for (button, rect) in [
             (Button::Throttle, throttle),
@@ -106,6 +131,7 @@ impl Layout {
             (Button::GearUp, gear_up),
             (Button::GearDown, gear_down),
             (Button::Camera, camera),
+            (Button::Lights, lights),
             (Button::Pause, pause),
         ] {
             buttons[button.index()] = rect;
@@ -114,6 +140,7 @@ impl Layout {
             wheel: Rect::new(u.x, u.y + 0.3 * u.h, 0.42 * u.w, 0.7 * u.h),
             reach: (0.085 * u.w).max(1.0),
             buttons,
+            left_gears: [left_up, left_down],
         }
     }
 
@@ -121,11 +148,20 @@ impl Layout {
         self.buttons[button.index()]
     }
 
-    /// The button under a point.
+    /// Every button's place, the left gears' too (a button can have two).
+    pub fn places(&self) -> impl Iterator<Item = (Button, Rect)> + '_ {
+        Button::ALL.into_iter().map(|b| (b, self.rect(b))).chain(
+            [Button::GearUp, Button::GearDown]
+                .into_iter()
+                .zip(self.left_gears),
+        )
+    }
+
+    /// The button under a point (a finger on a button is not on the wheel).
     pub(crate) fn button_at(&self, x: f32, y: f32) -> Option<Button> {
-        Button::ALL
-            .into_iter()
-            .find(|b| self.rect(*b).contains(x, y))
+        self.places()
+            .find(|(_, r)| r.contains(x, y))
+            .map(|(b, _)| b)
     }
 }
 
@@ -450,8 +486,8 @@ mod tests {
         ] {
             let layout = Layout::new(&screen);
             let u = screen.usable();
-            for b in Button::ALL {
-                let r = layout.rect(b);
+            let places: Vec<_> = layout.places().collect();
+            for &(b, r) in &places {
                 assert!(
                     r.x >= u.x - 0.01 && r.right() <= u.right() + 0.01,
                     "{b:?} {r:?}"
@@ -462,12 +498,11 @@ mod tests {
                 );
                 assert!(r.w > 40.0 && r.h > 40.0, "{b:?} too small: {r:?}");
             }
-            for a in Button::ALL {
-                for b in Button::ALL {
-                    if a == b {
+            for (i, &(a, ra)) in places.iter().enumerate() {
+                for (j, &(b, rb)) in places.iter().enumerate() {
+                    if i == j {
                         continue;
                     }
-                    let (ra, rb) = (layout.rect(a), layout.rect(b));
                     let apart = ra.right() <= rb.x
                         || rb.right() <= ra.x
                         || ra.bottom() <= rb.y
@@ -475,19 +510,55 @@ mod tests {
                     assert!(apart, "{a:?} overlaps {b:?}");
                 }
             }
-            // The wheel's area is clear of every button.
-            for b in Button::ALL {
-                let r = layout.rect(b);
+            // The wheel's area is clear of every button but those on the left, which keep
+            // to its top corner and take a finger first.
+            for (n, &(b, r)) in places.iter().enumerate() {
+                let left = b == Button::Pause || n >= BUTTONS;
                 assert!(
                     layout.wheel.right() <= r.x
                         || r.right() <= layout.wheel.x
                         || r.bottom() <= layout.wheel.y
                         || layout.wheel.bottom() <= r.y
-                        || b == Button::Pause,
+                        || left,
                     "{b:?} in the wheel's area"
                 );
+                if left {
+                    assert!(
+                        r.bottom() <= u.y + 0.7 * u.h,
+                        "{b:?} low in the wheel: {r:?}"
+                    );
+                    assert_eq!(layout.button_at(centre(r).0, centre(r).1), Some(b));
+                }
             }
         }
+    }
+
+    #[test]
+    fn a_kept_touch_profile_gets_the_lights_button_and_keeps_a_choice() {
+        use crate::input::device_id::DeviceId;
+        use crate::input::profile::{Digital, Kind, Profile};
+        let id = |name: &str| DeviceId {
+            name: name.into(),
+            serial: None,
+            nth: 1,
+        };
+        let mut old = Profile::new(id(PAD_NAME), Kind::Pad);
+        old.bindings.lights = None;
+        give_lights(&mut old);
+        assert_eq!(
+            old.bindings.lights,
+            Some(Digital::Button {
+                button: LIGHTS_BUTTON
+            })
+        );
+        let chosen = Some(Digital::Button { button: 9 });
+        old.bindings.lights = chosen;
+        give_lights(&mut old);
+        assert_eq!(old.bindings.lights, chosen);
+        let mut other = Profile::new(id("Xbox Controller"), Kind::Pad);
+        other.bindings.lights = None;
+        give_lights(&mut other);
+        assert_eq!(other.bindings.lights, None);
     }
 
     #[test]
@@ -539,6 +610,19 @@ mod tests {
         c.finger(2, Phase::Down, throttle.0, throttle.1, 2000);
         c.finger(2, Phase::Up, throttle.0, throttle.1, 2010);
         assert!(!c.output(2020).is_held(Button::Throttle));
+    }
+
+    #[test]
+    fn the_left_gears_change_gear_and_do_not_steer() {
+        let mut c = Controls::new(&phone());
+        let [up, down] = c.layout().left_gears.map(centre);
+        c.finger(1, Phase::Down, down.0, down.1, 1000);
+        let out = c.output(1010);
+        assert!(out.is_held(Button::GearDown) && !out.is_held(Button::GearUp));
+        assert_eq!(out.steer, 0.0);
+        c.finger(1, Phase::Up, down.0, down.1, 1020);
+        c.finger(2, Phase::Down, up.0, up.1, 2000);
+        assert!(c.output(2010).is_held(Button::GearUp));
     }
 
     #[test]

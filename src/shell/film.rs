@@ -97,7 +97,9 @@ fn parse_avi(b: &[u8]) -> Result<Avi, String> {
         && let Some((scale, rate)) = scale_rate
         && rate != 0
     {
-        avi.frame_us = (scale as u64 * 1_000_000 / rate as u64) as u32;
+        // A corrupt header's huge scale must not wrap round to a tiny (or zero) time a frame.
+        avi.frame_us =
+            u32::try_from(u64::from(scale) * 1_000_000 / u64::from(rate)).unwrap_or(u32::MAX);
     }
     if video_stream.is_none() || avi.frames.is_empty() {
         return Err("no video stream or no frames".into());
@@ -229,8 +231,9 @@ fn pack(value: u32, mask: u32) -> u32 {
         return 0;
     }
     let shift = mask.trailing_zeros();
-    let most = mask >> shift;
-    ((value * most + 127) / 255) << shift
+    let most = u64::from(mask >> shift);
+    // In 64 bits: a mask of more than 24 bits would overflow 32.
+    ((((u64::from(value) * most + 127) / 255) as u32) << shift) & mask
 }
 
 /// The picture stretched over the locked surface, a checked row at a time.
@@ -570,6 +573,51 @@ pub fn play_film_now(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_channel_is_packed_into_its_mask_without_overflow() {
+        assert_eq!(super::pack(255, 0xFF00), 0xFF00);
+        assert_eq!(super::pack(0, 0xFF00), 0);
+        assert_eq!(super::pack(255, 0xF800), 0xF800);
+        assert_eq!(super::pack(128, 0x07E0), 0x0400);
+        assert_eq!(super::pack(255, 0), 0);
+        // A mask wider than any pixel format's (the product would pass 32 bits).
+        assert_eq!(super::pack(255, 0xFFFF_FFFF), 0xFFFF_FFFF);
+    }
+
+    #[test]
+    fn a_huge_frame_scale_is_not_wrapped_to_a_short_frame_time() {
+        // No time a frame in avih; strh gives a scale of 0xFFFF_FFFF over a rate of 1.
+        let mut avih = vec![0u8; 56];
+        avih[32..36].copy_from_slice(&320u32.to_le_bytes());
+        let mut strh = vec![0u8; 56];
+        strh[0..4].copy_from_slice(b"vids");
+        strh[4..8].copy_from_slice(b"IV41");
+        strh[20..24].copy_from_slice(&u32::MAX.to_le_bytes());
+        strh[24..28].copy_from_slice(&1u32.to_le_bytes());
+        let chunk = |id: &[u8], data: &[u8]| {
+            let mut c = id.to_vec();
+            c.extend((data.len() as u32).to_le_bytes());
+            c.extend(data);
+            c
+        };
+        let list = |kind: &[u8], inner: Vec<u8>| {
+            let mut d = kind.to_vec();
+            d.extend(inner);
+            chunk(b"LIST", &d)
+        };
+        let hdrl = list(
+            b"hdrl",
+            [chunk(b"avih", &avih), list(b"strl", chunk(b"strh", &strh))].concat(),
+        );
+        let movi = list(b"movi", chunk(b"00dc", &[0, 0]));
+        let mut riff = b"AVI ".to_vec();
+        riff.extend(hdrl);
+        riff.extend(movi);
+        let file = chunk(b"RIFF", &riff);
+        let avi = super::parse_avi(&file).unwrap();
+        assert_eq!(avi.frame_us, u32::MAX);
+    }
+
     #[test]
     fn walks_a_small_avi() {
         // RIFF AVI with hdrl/avih, strl/strh (vids IV41), movi with two 00dc chunks

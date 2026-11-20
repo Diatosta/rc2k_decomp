@@ -1,7 +1,7 @@
 //! `effects::pong_setup`: the pong game's frame set up, as `effects::windscreen_flakes_setup` with
 //! the texture places from the pong's own constants.
 
-use crate::effects::pong::Pong;
+use crate::effects::pong_store::Pong;
 use crate::effects::windscreen_flakes_setup::setup_with;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 

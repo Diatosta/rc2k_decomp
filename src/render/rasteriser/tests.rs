@@ -108,3 +108,25 @@ fn tiles_and_lanes_draw_the_same() {
         );
     }
 }
+
+#[test]
+fn a_texture_of_no_size_reads_as_one_texel_and_does_not_panic() {
+    let masks = [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000];
+    for (width, height) in [(0, 0), (0, 4), (4, 0)] {
+        let texture = Texture {
+            pixels: &[],
+            width,
+            height,
+            pitch: 0,
+            bytes: 4,
+            masks,
+            lower: &[],
+        };
+        for clamp in [true, false] {
+            let texels = Texels::of(&texture, clamp);
+            // Nothing to read: the first texel's place holds no bytes, which read as zero.
+            assert_eq!(texels.argb(3, -2), to_argb(0, &masks));
+            assert_eq!(texture.texel(-5, 9, clamp), 0);
+        }
+    }
+}

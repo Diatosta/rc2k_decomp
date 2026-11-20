@@ -13,14 +13,10 @@ pub struct ContactWork {
     /// The x of the middle of a face's second and third points, which nothing reads (a local
     /// now).
     pub eax_mid_x: PlainFloat,
-    /// Unused.
-    pub unused_4: PlainDword,
     /// The z of that middle (unused likewise).
     pub eax_mid_z: PlainFloat,
     /// A scene point's x less car 0's, never read: unused.
     pub eax_point_x: PlainDword,
-    /// Unused.
-    pub unused_10: PlainDword,
     /// The z of the same, never read: unused.
     pub eax_point_z: PlainDword,
     /// A face weight's distance, never read: unused.
@@ -176,8 +172,6 @@ pub struct ContactWork {
     pub contact_scratch_b: [PlainFloat; 4],
     /// A factor read as extended (`physics::contact_force`).
     pub contact_factor: PlainFloat,
-    /// Unused.
-    pub unused_1430: [PlainDword; 3],
     /// The probe point being handled (`wall_contacts`, `crossed_edge_contact`,
     /// `wall_edge_contact`).
     pub probe_index: PlainDword,
@@ -249,11 +243,6 @@ pub struct ContactWork {
     pub other_car_number: PlainDword,
     /// The speed between the cars (`physics::bump_cars`).
     pub bump_relative_speed: [PlainFloat; 3],
-    /// The scene batch's index count: nothing counts it up and no code reads or writes it.
-    pub unused_1f14: PlainDword,
-    /// The scene batch's vertex count, likewise; no code reads or writes it (the field's name
-    /// nowhere in Rust), it only keeps the image's layout.
-    pub unused_1f18: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of

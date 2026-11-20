@@ -26,7 +26,7 @@ const OBJECTS: u32 = 0x100;
 
 /// The point at `from` moved towards the one `by` bytes on, as whole numbers.
 fn moved(
-    object_points: &crate::scene::object_points::ObjectPoints,
+    object_points: &crate::scene::object_points_store::ObjectPoints,
     from: usize,
     by: u32,
     fraction: f32,

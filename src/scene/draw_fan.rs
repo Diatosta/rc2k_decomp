@@ -1,9 +1,9 @@
 use crate::scene::owner::Scene;
 /// Draws the polygon's fan while the draw switch is on.
 pub fn draw_fan(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     scene: &Scene,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
 ) {
     if scene.objects.tables.get().d3d_drawing_on.get() == 0 {

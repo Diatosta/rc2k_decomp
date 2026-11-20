@@ -93,8 +93,11 @@ impl Renderer {
     }
 }
 
-/// An SDL texture of Dear ImGui's.
-pub struct Texture(*mut SDL_Texture);
+/// An SDL texture of Dear ImGui's, with its width (the bytes a row of its pixels takes).
+pub struct Texture {
+    raw: *mut SDL_Texture,
+    width: i32,
+}
 
 impl Texture {
     /// A static ABGR8888 texture (RGBA bytes on a little-endian machine) of `width` x `height`
@@ -120,7 +123,7 @@ impl Texture {
         if sdl.is_null() {
             return Err("SDL makes no texture".into());
         }
-        let texture = Self(sdl);
+        let texture = Self { raw: sdl, width };
         if !texture.update(None, height, rows, pitch) {
             texture.destroy();
             return Err("SDL's texture is given too few pixels".into());
@@ -136,14 +139,28 @@ impl Texture {
     /// The pixels of `rect` (the whole texture with none) from `rows`: `height` rows of `pitch`
     /// bytes. False, and nothing done, when `rows` is too short for that.
     pub fn update(&self, rect: Option<&SDL_Rect>, height: i32, rows: &[u8], pitch: i32) -> bool {
-        if pitch < 0 || height < 0 || rows.len() < height as usize * pitch as usize {
+        // The call reads the rectangle's rows (the texture's, with none): as wide as the
+        // rectangle, as many as it is high, `pitch` bytes apart.
+        let (width, rows_read) = rect.map_or((self.width, height), |r| (r.w, r.h));
+        if pitch < 0
+            || height < 0
+            || width < 0
+            || rows_read > height
+            || !super::sdl::rows_fit(
+                rows.len(),
+                pitch as usize,
+                (width as usize).saturating_mul(4),
+                height as usize,
+            )
+        {
             return false;
         }
         // SAFETY: a texture `create` made and not yet destroyed; `rows` holds `height` rows
-        // of `pitch` bytes (checked above), the rectangle read during the call.
+        // of `pitch` bytes, each at least as wide as what the call reads (checked above), the
+        // rectangle read during the call.
         unsafe {
             SDL_UpdateTexture(
-                self.0,
+                self.raw,
                 rect.map_or(std::ptr::null(), std::ptr::from_ref),
                 rows.as_ptr().cast(),
                 pitch,
@@ -154,13 +171,13 @@ impl Texture {
 
     /// The number Dear ImGui carries for this texture (`Renderer::draw_geometry` takes it).
     pub fn id(&self) -> u64 {
-        self.0.expose_provenance() as u64
+        self.raw.expose_provenance() as u64
     }
 
     /// Destroyed; no id of it is drawn after.
     pub fn destroy(self) {
         // SAFETY: a texture `create` made, destroyed once.
-        unsafe { SDL_DestroyTexture(self.0) };
+        unsafe { SDL_DestroyTexture(self.raw) };
     }
 }
 

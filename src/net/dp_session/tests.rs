@@ -636,3 +636,58 @@ fn a_long_announced_frame_that_never_comes_is_an_error() {
     sender.write_all(&[1, 2, 3]).expect("a little");
     assert!(read_frame(&mut receiver).is_err());
 }
+
+/// Guards the round trips' average against a machine that gives back a stamp from far in the
+/// future: the trip is then near the top of the range, and the sums stay in range.
+#[test]
+fn a_round_trip_average_cannot_overflow() {
+    assert_eq!(host::moving_average(100, 20), 80);
+    assert_eq!(host::moving_average(0, 0), 0);
+    assert_eq!(host::moving_average(u32::MAX, u32::MAX), u32::MAX);
+    assert_eq!(
+        host::moving_average(u32::MAX, 0),
+        (u64::from(u32::MAX) * 3 / 4) as u32
+    );
+}
+
+/// A welcome as a host that does not keep to the limits would send it: `players` players with
+/// names of `name_len` bytes. The welcome waits in the connection before the join is made.
+fn welcome_over_limits(players: u32, name_len: usize) -> Result<Arc<Session>, u32> {
+    let (mut host_end, guest_end) = Pipe::pair();
+    let mut welcome = W::default()
+        .u8(WELCOME)
+        .u32(2)
+        .desc(&wire_desc())
+        .u32(players);
+    for id in 0..players {
+        let player = Player {
+            name: "n".repeat(name_len),
+            data: vec![],
+            machine: 1,
+        };
+        welcome = welcome.u32(id + 1).player(&player);
+    }
+    welcome = welcome.u32(0);
+    write_frame(&mut host_end, &welcome.0).unwrap();
+    Session::join_over(Box::new(guest_end), 0, Arc::new(quiet), b"")
+}
+
+/// Guards the joining machine against a host that lists more players than a session holds, or
+/// names longer than one allows: the join is refused, nothing is held.
+#[test]
+fn a_welcome_past_the_limits_is_refused() {
+    let joined = welcome_over_limits(PLAYERS_MOST as u32, 4).expect("a welcome at the limit");
+    assert_eq!(joined.world().players.len(), PLAYERS_MOST);
+    joined.close();
+    assert_eq!(
+        welcome_over_limits(PLAYERS_MOST as u32 + 1, 4).err(),
+        Some(DPERR_NOCONNECTION)
+    );
+    assert_eq!(
+        welcome_over_limits(1, NAME_MOST_FOR_TEST + 1).err(),
+        Some(DPERR_NOCONNECTION)
+    );
+}
+
+/// The longest name a session holds (`rc2k_core::net::protocol::fits`).
+const NAME_MOST_FOR_TEST: usize = 0x100;

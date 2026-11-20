@@ -3,13 +3,10 @@
 //! `\`, `{`, `}`, `[`, `]`, `|`, 0x7F) or a double backslash.
 
 /// Whether `path` has a bad character or `\\`.
-pub(super) fn check_folder_name(path: impl Into<crate::memory::place::BytePlace>) -> bool {
+pub(super) fn check_folder_name(path: &[u8]) -> bool {
     // The system's rules (`install::folders`; Windows: `rc2k_core::install::paths::
     // bad_folder_name`).
     use crate::install::folders::{Folders, Native};
-    let answer = path
-        .into()
-        .text("a folder name")
-        .and_then(|text| <Native as Folders>::bad_name(&text));
+    let answer = <Native as Folders>::bad_name(path);
     answer.unwrap_or_else(|e| crate::fatal::raise::end("install::check_folder_name", e))
 }

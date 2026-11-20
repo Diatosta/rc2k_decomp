@@ -51,7 +51,7 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 /// The normal's place in the view to the light's work variables, the colour set to 0.
 fn set_normal(
     lists: &crate::race::course_lists_store::CourseLists,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     number: u32,
     light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
@@ -100,7 +100,7 @@ fn table_place(
 /// The lit colour, also left in `light_colour`.
 fn lit(
     reads: crate::scene::workers::DrawReads<'_>,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     number: u32,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
@@ -146,7 +146,7 @@ fn blend(
     reason = "the drawing's stores the part reads, as they are lent"
 )]
 pub fn vertex_light(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     number: u32,
     reads: crate::scene::workers::DrawReads<'_>,
     light: &crate::scene::object_light::ObjectLight,

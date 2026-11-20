@@ -19,6 +19,18 @@ use std::net::SocketAddr;
 #[cfg_attr(web, allow(dead_code, reason = "the web build has no network"))]
 const SERVICE: &str = "_rc2k._udp";
 
+/// The services kept as heard, and the addresses kept of each.
+#[cfg_attr(
+    any(target_os = "ios", web),
+    allow(dead_code, reason = "the system's own browsing keeps the list")
+)]
+const HEARD_MOST: usize = 64;
+#[cfg_attr(
+    any(target_os = "ios", web),
+    allow(dead_code, reason = "the system's own browsing keeps the list")
+)]
+const ADDRESSES_MOST: usize = 8;
+
 /// A session announced until this is dropped.
 pub struct Announcement {
     #[cfg(target_os = "ios")]
@@ -159,6 +171,21 @@ mod system {
             .unwrap_or_default()
     }
 
+    /// A service heard, kept with at most `ADDRESSES_MOST` of its addresses; a new service is
+    /// not kept once `HEARD_MOST` are (any machine of the network can announce as many as it
+    /// likes, and every one kept is probed). Whether it is new or its addresses changed.
+    pub(super) fn remember(
+        heard: &mut HashMap<String, Vec<SocketAddr>>,
+        full_name: &str,
+        mut at: Vec<SocketAddr>,
+    ) -> bool {
+        at.truncate(ADDRESSES_MOST);
+        if !heard.contains_key(full_name) && heard.len() >= HEARD_MOST {
+            return false;
+        }
+        heard.insert(full_name.to_owned(), at.clone()) != Some(at)
+    }
+
     fn note(event: ServiceEvent) {
         let mut heard = HEARD
             .lock()
@@ -173,13 +200,12 @@ mod system {
                     .into_iter()
                     .map(|ip| SocketAddr::from((ip, service.get_port())))
                     .collect();
-                if heard.get(service.get_fullname()) != Some(&at) {
+                if remember(heard, service.get_fullname(), at.clone()) {
                     log(&format!(
                         "net: Bonjour: {} heard at {at:?}",
                         service.get_fullname()
                     ));
                 }
-                heard.insert(service.get_fullname().to_owned(), at);
             }
             ServiceEvent::ServiceRemoved(_, full_name) => {
                 heard.remove(&full_name);
@@ -199,5 +225,41 @@ mod system {
 
     pub fn heard() -> Vec<SocketAddr> {
         Vec::new()
+    }
+}
+
+#[cfg(all(test, not(any(target_os = "ios", web))))]
+mod tests {
+    use super::system::remember;
+    use super::*;
+    use std::collections::HashMap;
+
+    fn at(n: u8) -> Vec<SocketAddr> {
+        vec![SocketAddr::from(([10, 0, 0, n], 47000))]
+    }
+
+    /// Guards the list of services heard against a network that announces without end.
+    #[test]
+    fn the_services_heard_are_bounded() {
+        let mut heard = HashMap::new();
+        for n in 0..HEARD_MOST + 20 {
+            remember(&mut heard, &format!("service {n}"), at(1));
+        }
+        assert_eq!(heard.len(), HEARD_MOST);
+        // A service already kept can still change its address.
+        assert!(remember(&mut heard, "service 0", at(2)));
+        assert_eq!(heard["service 0"], at(2));
+        assert!(!remember(&mut heard, "service 0", at(2)));
+        // And a new one is not kept.
+        assert!(!remember(&mut heard, "late", at(3)));
+        assert!(!heard.contains_key("late"));
+    }
+
+    #[test]
+    fn only_the_first_addresses_of_a_service_are_kept() {
+        let mut heard = HashMap::new();
+        let many: Vec<SocketAddr> = (0..40u8).flat_map(at).collect();
+        remember(&mut heard, "one", many);
+        assert_eq!(heard["one"].len(), ADDRESSES_MOST);
     }
 }

@@ -1,7 +1,7 @@
 use crate::effects::asm_layout::with_laid;
 use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::{Op, Spec, recorded};
-use crate::effects::pong::{PongRules, PongState};
+use crate::effects::pong_store::{PongRules, PongState};
 
 #[test]
 fn centres_x87_matches() {

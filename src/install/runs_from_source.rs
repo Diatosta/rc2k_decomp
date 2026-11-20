@@ -30,14 +30,14 @@ pub(super) fn scratch_text() -> Result<Vec<u8>, BadInput> {
     Ok(all[..n].to_vec())
 }
 
-/// The record's source (`InstallerNames.source`) against the current directory (written into the
+/// The record's source (`InstallerNames::source`) against the current directory (written into the
 /// path buffer): None when there is no installed source or no directory.
 pub fn source_against_directory(
     install: &crate::install::owner::Install,
     outside: &mut dyn Outside,
 ) -> Result<Option<Ordering>, BadInput> {
     outside.read_installed();
-    if install.names.status.get() != 1 || install.names.source.get(0) == 0 {
+    if install.names.status.get() != 1 || install.names.source.is_empty() {
         return Ok(None);
     }
     let Some(directory) = outside.current_directory()? else {

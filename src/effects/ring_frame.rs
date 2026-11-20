@@ -10,8 +10,8 @@
 //! Refuses null settings, before anything.
 
 use crate::effects::mask_store::Masks;
+use crate::effects::particles_store::Particles;
 use crate::effects::ring_store::Ring;
-use crate::effects::run_particles::Particles;
 use crate::errors::Refused;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
@@ -25,7 +25,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1,
 pub(super) fn ring_frame(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
-    weather: &crate::effects::rain::Weather,
+    weather: &crate::effects::rain_store::Weather,
     particles: &Particles,
     ring: &Ring,
     scene: &crate::scene::owner::Scene,

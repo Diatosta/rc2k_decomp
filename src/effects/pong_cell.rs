@@ -7,7 +7,7 @@
 //! whole number: exact in `f64`, as the x87's at double precision; at extended too while the
 //! product fits 53 bits, as the score's cells do).
 
-use crate::effects::pong::Pong;
+use crate::effects::pong_store::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::matrix3::extended;

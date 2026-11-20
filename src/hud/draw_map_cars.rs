@@ -5,8 +5,9 @@
 //! not drawn. Nothing in a one-player race outside a network race.
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::RectAt;
+use crate::hud::block_store::RectAt;
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
 /// The sprite sheet's small round marker (14 by 14).

@@ -4,7 +4,7 @@
 //! texture counter.
 
 use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The first view's values for the panel (0x30 bytes; `panel_values_plain`,
 /// `panel_motion_plain`).
@@ -77,8 +77,6 @@ pub struct Panel {
     pub split_6: PlainDword,
     /// The first car's split gap 5.
     pub split_5: PlainDword,
-    /// Unused (a gap of 0x8 bytes).
-    pub unused_8: PlainBytes<8>,
     /// The first view's values.
     pub view_a: ViewA,
     /// The second view's values.
@@ -97,17 +95,12 @@ pub struct Panel {
     /// Each car's distance shown (`panel_values_plain`, the same figure as `distance`), for the
     /// markers of a network race's other cars.
     pub car_distances: [PlainDword; 8],
-    /// Unused (a gap of 0xc bytes): the places of the overlay's three arrays
-    /// (`overlay_part_miles`, `overlay_part_kinds_a`, `overlay_part_kinds_b`); nothing reads them.
-    pub unused_78: PlainBytes<12>,
     /// The two views' start lights.
     pub lights: [Lights; 2],
     /// The two views' marks.
     pub marks: [Marks; 2],
     /// Each view's start value (`race::race_shell`).
     pub start_values: [PlainDword; 2],
-    /// Unused (a gap of 0x20 bytes).
-    pub unused_d4: PlainBytes<32>,
     /// The HUD's layout (`hud::overlay_pass`).
     pub players: PlainDword,
     /// Each view's HUD flags (the car block's `option_bits`; bit 0x40 flat, 8 the mirror); the third and
@@ -117,8 +110,6 @@ pub struct Panel {
     pub shown_texture: PlainDword,
     /// The first view's HUD flags' bit 0x40, the flat layout (`race::draw_race_scene`).
     pub flat: PlainDword,
-    /// Unused (a gap of 0x2 bytes).
-    pub unused_108: PlainBytes<2>,
     /// The texture changes counted this frame (`race::frame_views`,
     /// `race::update_mud_texture`).
     pub texture_changes: PlainDword,
@@ -169,19 +160,12 @@ impl Panel {
             overlay_miles: PlainDword::new(0x42700000),
             distance: [const { PlainDword::new(0x40A00000) }; 2],
             overlay_parts: PlainDword::new(6),
-            unused_78: PlainBytes::new([
-                0xC, 0x15, 0x6D, 0, 0xC, 0x16, 0x6D, 0, 0xC, 0x17, 0x6D, 0,
-            ]),
             lights: [const {
                 Lights {
                     lit: PlainDword::new(0xFFFFFFFF),
                     ..ZeroCells::ZERO
                 }
             }; 2],
-            unused_d4: PlainBytes::new([
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xA0, 0x40, 0, 0, 0xA0, 0x40, 0, 0, 0xA0, 0x40, 0, 0,
-                0xA0, 0x40, 0, 0, 0xA0, 0x40, 0, 0, 0xA0, 0x40,
-            ]),
             ..ZeroCells::ZERO
         }
     }

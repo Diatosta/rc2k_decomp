@@ -32,14 +32,14 @@ pub struct StagePrefs {
     /// `scene::set_up_front_end_scene`).
     pub fog_colour: [PlainDword; 3],
     /// Unused; it only keeps the layout.
-    pub unused_624: [PlainDword; 3],
+    pub reserved_624: [PlainDword; 3],
     /// The light's level for the lit objects (`scene::draw_described_object`,
     /// `race::car_draw`).
     pub light_level: PlainDword,
     /// The light's strength for the lit objects (`scene::draw_described_object`).
     pub light_strength_kept: PlainDword,
     /// Unused; it only keeps the layout.
-    pub unused_638: [PlainDword; 5],
+    pub reserved_638: [PlainDword; 5],
     /// The scene's size, 0x100 at start (`scene::reload_system_textures`,
     /// `scene::set_up_front_end_scene`).
     pub scene_size_a: PlainDword,
@@ -52,7 +52,7 @@ pub struct StagePrefs {
     /// Fog setting: near (`race::frame_draw`).
     pub fog_near: PlainDword,
     /// Unused; it only keeps the layout.
-    pub unused_660: PlainDword,
+    pub reserved_660: PlainDword,
     /// The sky's height, << 8 (`race::frame_draw::sky_matrix`).
     pub sky_height: PlainDword,
     /// A lighting switch (`scene::vertex_light`, `scene::fill_light_tables`; its exact
@@ -76,7 +76,7 @@ pub struct StagePrefs {
     /// The sun's height (`race::frame_draw`, `race::car_shadow`).
     pub sun_height: PlainDword,
     /// Unused; it only keeps the layout.
-    pub unused_68c: PlainDword,
+    pub reserved_68c: PlainDword,
     /// The stage's precipitation range (low, high): the first noise map's sample is scaled into it
     /// (`physics::surface_noise`) for the rain and snow amount, and a screen picture for the
     /// windscreen is wanted only while it is not 0 .. 0 (`race::draw_race_scene`). The
@@ -95,7 +95,7 @@ pub struct StagePrefs {
     /// Fog setting: far (`race::frame_draw`).
     pub fog_far: PlainDword,
     /// Unused; it only keeps the layout.
-    pub unused_6b0: [PlainDword; 7],
+    pub reserved_6b0: [PlainDword; 7],
     /// The course data's number (`race::course_data`).
     pub cdat_number: PlainDword,
     /// 2248 bytes: texture bytes by frame place (`race::course_faces`).
@@ -150,7 +150,7 @@ pub struct StagePrefs {
     /// The rough floor of the surface noise (`physics::surface_noise`).
     pub surface_floor: PlainDword,
     /// Unused; it only keeps the layout.
-    pub unused_2060: PlainDword,
+    pub reserved_2060: PlainDword,
     /// The second noise's scale pair (`physics::surface_noise`).
     pub surface_scale: [PlainDword; 2],
 }
@@ -170,12 +170,12 @@ impl StagePrefs {
                 PlainDword::new(0xFF),
                 PlainDword::new(0xFF),
             ],
-            unused_624: {
+            reserved_624: {
                 let mut a: [PlainDword; 3] = ZeroCells::ZERO;
                 a[2] = PlainDword::new(1);
                 a
             },
-            unused_638: {
+            reserved_638: {
                 let mut a: [PlainDword; 5] = ZeroCells::ZERO;
                 a[0] = PlainDword::new(1);
                 a

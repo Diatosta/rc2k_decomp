@@ -217,7 +217,8 @@ pub fn modules(text: &str) -> Option<qr::Modules> {
 
 /// A QR code read out of a camera frame (RGBA), as the text it carries, if there is one.
 pub fn read_frame(width: usize, height: usize, rgba: &[u8]) -> Option<String> {
-    if rgba.len() < width * height * 4 {
+    let size = width.checked_mul(height)?.checked_mul(4)?;
+    if rgba.len() < size {
         return None;
     }
     let grey: Vec<u8> = rgba
@@ -518,5 +519,14 @@ mod tests {
                 assert_eq!(was[16..], data[16..], "{path}");
             }
         }
+    }
+
+    /// A frame whose size does not fit the address space (a 32-bit module) is read as nothing,
+    /// and one with fewer bytes than its size says as well.
+    #[test]
+    fn a_frame_of_an_impossible_size_reads_nothing() {
+        assert_eq!(read_frame(usize::MAX / 2, 3, &[0; 16]), None);
+        assert_eq!(read_frame(1 << 20, 1 << 20, &[0; 16]), None);
+        assert_eq!(read_frame(8, 8, &[0; 16]), None);
     }
 }

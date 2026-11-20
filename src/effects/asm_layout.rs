@@ -30,20 +30,20 @@ pub trait Laid: Cells + Sized {
     const RUNS: &'static [Run];
 }
 
-use crate::effects::blocks::CornerSlopes;
-use crate::effects::frame_state::{DrawWork, ViewVars};
+use crate::effects::blocks_store::CornerSlopes;
+use crate::effects::frame_state_store::{DrawWork, ViewVars};
 use crate::effects::kind_store::QuadWork;
 use crate::effects::mask_store::{MaskBlocks, PictureCopy};
-use crate::effects::pong::{PongRules, PongState};
-use crate::effects::rain::RainState;
+use crate::effects::pong_store::{PongRules, PongState};
+use crate::effects::rain_store::RainState;
 use crate::effects::ring_store::RingWork;
-use crate::effects::setup::MarksClock;
-use crate::effects::snow::{SnowCurveVars, SnowLight, SnowState, SnowTables};
-use crate::effects::tilt_shape::ShapeTilt;
-use crate::effects::tuning::{MarksFloats, MarksKindFloats};
-use crate::effects::view_vectors::KeptView;
-use crate::effects::windscreen_drop_state::{WindscreenDropState, WindscreenDropWork};
-use crate::effects::windscreen_drop_vars::WindscreenDropVars;
+use crate::effects::setup_store::MarksClock;
+use crate::effects::snow_store::{SnowCurveVars, SnowLight, SnowState, SnowTables};
+use crate::effects::tilt_shape_store::ShapeTilt;
+use crate::effects::tuning_store::{MarksFloats, MarksKindFloats};
+use crate::effects::view_vectors_store::KeptView;
+use crate::effects::windscreen_drop_state_store::{WindscreenDropState, WindscreenDropWork};
+use crate::effects::windscreen_drop_vars_store::WindscreenDropVars;
 use crate::effects::windscreen_flakes_store::{
     WindscreenFlakeState, WindscreenFlakeTables, WindscreenFlakeTiming,
 };

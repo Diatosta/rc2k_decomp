@@ -119,7 +119,7 @@ pub struct MarkRecord {
     /// after `emit_rolling_dust`).
     pub pace: PlainDword,
     /// Read and written by no code.
-    pub unused_8: PlainDword,
+    pub reserved_8: PlainDword,
     /// The driven wheels' speed (the block's `drive_speed_a` / `_b` for the front / rear pair
     /// of wheel records; `emit_rolling_dust`, the bursts, kind 6, kind 21); the body's is
     /// cleared.
@@ -240,12 +240,12 @@ pub struct EffectsSettings {
     /// The settings' first object (0x50 in the mark set-up, `effects::init_mark_step`).
     pub first_object: PlainDword,
     /// Unused; it only keeps the image's layout.
-    pub unused_20: [PlainDword; 7],
+    pub reserved_20: [PlainDword; 7],
     /// The car's visual steering angle / 2^29 plus the listener camera's value
     /// (`drive::set_listener`). The effects: the splines' size (`effects::place_spline`).
     pub listener_scale: PlainFloat,
     /// Unused; it only keeps the image's layout.
-    pub unused_40: [PlainDword; 7],
+    pub reserved_40: [PlainDword; 7],
     /// The car's gear-changed flag kept when set (the car's copy is cleared), 0 while the
     /// replay still frame is shown (`drive::set_listener`). The effects: a spline switch cleared
     /// when used (`effects::run_splines`).
@@ -424,9 +424,9 @@ impl EffectsSettings {
     pub fn object(&self, k: usize) -> Result<u32, crate::errors::BadInput> {
         match k {
             0 => Ok(self.first_object.get()),
-            1..=7 => Ok(self.unused_20[k - 1].get()),
+            1..=7 => Ok(self.reserved_20[k - 1].get()),
             8 => Ok(self.listener_scale.bits()),
-            9..=15 => Ok(self.unused_40[k - 9].get()),
+            9..=15 => Ok(self.reserved_40[k - 9].get()),
             16 => Ok(self.spline_gear_changed.get()),
             17 => Ok(self.spline_handbrake.get()),
             18 => Ok(self.sound_objects_shown.get()),
@@ -443,9 +443,9 @@ mod tests {
     #[test]
     fn the_object_list_runs_through_the_fields_after_it() {
         let first = offset_of!(EffectsSettings, first_object);
-        assert_eq!(offset_of!(EffectsSettings, unused_20), first + 4);
+        assert_eq!(offset_of!(EffectsSettings, reserved_20), first + 4);
         assert_eq!(offset_of!(EffectsSettings, listener_scale), first + 4 * 8);
-        assert_eq!(offset_of!(EffectsSettings, unused_40), first + 4 * 9);
+        assert_eq!(offset_of!(EffectsSettings, reserved_40), first + 4 * 9);
         assert_eq!(
             offset_of!(EffectsSettings, spline_gear_changed),
             first + 4 * 16

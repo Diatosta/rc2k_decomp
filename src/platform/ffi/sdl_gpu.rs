@@ -434,7 +434,7 @@ impl Device {
         cycle: bool,
     ) -> Result<(), String> {
         assert!(
-            at + bytes.len() <= transfer.1 as usize,
+            within(at, bytes.len(), transfer.1),
             "past the transfer buffer"
         );
         // SAFETY: the buffer holds `at + bytes.len()` bytes (checked above), mapped only here
@@ -460,7 +460,7 @@ impl Device {
         assert!(
             parts
                 .iter()
-                .all(|(at, bytes)| at + bytes.len() <= transfer.1 as usize),
+                .all(|(at, bytes)| within(*at, bytes.len(), transfer.1)),
             "past the transfer buffer"
         );
         // SAFETY: every part lies within the buffer (checked above); the mapping is made only
@@ -909,8 +909,31 @@ impl RenderPass {
     }
 }
 
+/// Whether `len` bytes from byte `at` lie within a buffer of `size` bytes (an `at` so large that
+/// the end would wrap round is outside).
+fn within(at: usize, len: usize, size: u32) -> bool {
+    at.checked_add(len).is_some_and(|end| end <= size as usize)
+}
+
 /// The records' dwords as bytes, for a transfer buffer.
 pub fn words_as_bytes<const N: usize>(records: &[[u32; N]]) -> &[u8] {
     // SAFETY: dwords as bytes: same memory, a smaller alignment, every value valid.
     unsafe { std::slice::from_raw_parts(records.as_ptr().cast(), size_of_val(records)) }
+}
+
+#[cfg(test)]
+mod within_tests {
+    use super::within;
+
+    #[test]
+    fn a_range_is_within_a_buffer_only_when_its_end_is() {
+        assert!(within(0, 16, 16));
+        assert!(within(16, 0, 16));
+        assert!(within(8, 8, 16));
+        assert!(!within(8, 9, 16));
+        assert!(!within(17, 0, 16));
+        // An end that would wrap round to a small number is still outside.
+        assert!(!within(usize::MAX, 2, 16));
+        assert!(!within(2, usize::MAX, 16));
+    }
 }

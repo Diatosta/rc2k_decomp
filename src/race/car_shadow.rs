@@ -296,7 +296,7 @@ fn inside_edge(
 fn crossing_block(
     course: CourseReads<'_>,
     points: &OwnPoints,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     work: &ShadowWork,
     (pa, pb): (u32, u32),
     ea: &PolygonEntry,
@@ -1107,7 +1107,7 @@ mod vector_tests {
                 };
                 let (ea, eb) = (entry(&mut r), entry(&mut r));
                 let work = ShadowWork::new();
-                let poly = crate::scene::polygon_work::PolygonWork::new();
+                let poly = crate::scene::polygon_work_store::PolygonWork::new();
                 for (k, &v) in inputs.iter().enumerate() {
                     work.crossing[8 + k].set(v);
                 }

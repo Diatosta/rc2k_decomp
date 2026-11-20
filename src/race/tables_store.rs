@@ -69,7 +69,7 @@ pub struct RaceTables {
     /// `race::panel_neighbours`, `drive::start_cars_behind`).
     pub arcade_cars: PlainDword,
     /// Unused; it only keeps the layout.
-    pub unused_b7c: PlainDword,
+    pub reserved_b7c: PlainDword,
     /// "arc start pos (1-n)" (`race::set_up_mode_2_cars`, `race::settings_copy`,
     /// `race::race_shell`).
     pub start_place: PlainDword,
@@ -146,7 +146,7 @@ impl RaceTables {
             &self.start_share,
             &self.start_speed,
             &self.arcade_cars,
-            &self.unused_b7c,
+            &self.reserved_b7c,
             &self.start_place,
             &self.best_place,
             &self.pace_start_a,

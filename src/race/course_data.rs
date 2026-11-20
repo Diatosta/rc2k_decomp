@@ -31,23 +31,23 @@ fn store_course_header(course: &Course, header: &[u32; HEADER_WORDS]) {
         std::slice::from_ref(&c.course_record_count),
         std::slice::from_ref(&c.course_face_count),
         std::slice::from_ref(&c.scene_point_count),
-        std::slice::from_ref(&c.unused_134),
+        std::slice::from_ref(&c.reserved_134),
         std::slice::from_ref(&c.place_face),
-        &c.unused_13c,
+        &c.reserved_13c,
         std::slice::from_ref(&c.camera_first),
-        &c.unused_154,
+        &c.reserved_154,
         std::slice::from_ref(&c.place_heading),
-        &c.unused_174,
+        &c.reserved_174,
         std::slice::from_ref(&c.flat_depth),
-        &c.unused_194,
+        &c.reserved_194,
         std::slice::from_ref(&c.place_x),
-        &c.unused_1b4,
+        &c.reserved_1b4,
         std::slice::from_ref(&c.place_y),
-        &c.unused_1d4,
+        &c.reserved_1d4,
         std::slice::from_ref(&c.place_z),
     ];
     let mut words = header.iter();
-    for dword in fields.into_iter().flatten().chain(&c.unused_1f4) {
+    for dword in fields.into_iter().flatten().chain(&c.reserved_1f4) {
         if let Some(&word) = words.next() {
             dword.set(word);
         }

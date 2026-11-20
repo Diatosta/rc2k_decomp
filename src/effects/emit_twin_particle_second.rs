@@ -5,8 +5,8 @@
 //!
 //! Refuses as `emit_twin_particle_first`.
 
-use crate::effects::emit_twin_particle_first::TwinTuning;
 use crate::effects::emit_twin_particle_first::{TwinSet, emit_twin};
+use crate::effects::emit_twin_particle_first_store::TwinTuning;
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::memory::session::{PlainDword, PlainFloat};

@@ -12,9 +12,8 @@
 
 use crate::effects::blend_corner::blend_corner;
 use crate::effects::lines::measure_lines;
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::SlotTable;
@@ -152,32 +151,4 @@ pub fn morph_object_points(
         measure_lines(course, faces_table, paths, scene, effects)?;
     }
     Ok(())
-}
-
-/// The object morph's work.
-#[derive(rc2k_derive::Cells)]
-pub struct MorphWork {
-    /// The block last taken for a settings block's points (`lines::set_up_blocks`)
-    pub taken: PlainDword,
-    /// The factors kept
-    pub kept: [PlainFloat; 8],
-}
-
-impl MorphWork {
-    /// The values the game starts with.
-    pub const fn new() -> Self {
-        MorphWork {
-            taken: PlainDword::new(0x0),
-            kept: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-        }
-    }
 }

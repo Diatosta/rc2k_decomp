@@ -3,7 +3,7 @@ use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::staged_vertices as staged;
 
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
-use crate::effects::frame_state::{DrawWork, ViewVars};
+use crate::effects::frame_state_store::{DrawWork, ViewVars};
 
 #[test]
 fn ribbon_x87_matches() {

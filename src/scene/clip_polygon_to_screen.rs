@@ -17,8 +17,8 @@ use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone}
 
 /// The polygon's entries and the mask of the edges some vertex is past.
 fn outside_mask<'p>(
-    part: &'p crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &'p crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
 ) -> Result<(crate::scene::polygon::Listed<'p>, u32), BadInput> {
     let polygon_work = &part.polygon;
     let entries = listed_with_records(polygon_work, poly)?;
@@ -59,8 +59,8 @@ fn outside_mask<'p>(
 }
 
 pub fn clip_polygon_to_screen(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
 ) -> Result<(), BadInput> {
     let (entries, mask) = outside_mask(part, poly)?;

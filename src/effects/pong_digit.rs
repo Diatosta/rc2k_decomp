@@ -3,7 +3,7 @@
 //!
 //! Refuses a digit past 9 (the patterns' end), before anything.
 
-use crate::effects::pong::Pong;
+use crate::effects::pong_store::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 

@@ -22,7 +22,7 @@ pub struct Cards3d {
     /// The 3D scene is begun.
     pub in_scene: PlainDword,
     /// The fade's start (`scene::draw_polygon`). Unused: each view has its own in
-    /// `scene::polygon_work::PolygonWork`.
+    /// `scene::polygon_work_store::PolygonWork`.
     pub fade_from: PlainDword,
     /// The `force3dtrans` setting.
     pub force_trans: PlainDword,

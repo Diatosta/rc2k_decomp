@@ -11,8 +11,8 @@
 //! Refuses a null record or ring (when an entry is to be taken), before anything.
 
 use crate::effects::blocks::{read_particle, update_particle};
+use crate::effects::particles_store::Particles;
 use crate::effects::ring_store::Ring;
-use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;

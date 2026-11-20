@@ -7,7 +7,7 @@
 //! It shares no variable with `place_rain_view`.
 
 use crate::effects::place_rain_view::{ViewPlace, place_view_with};
-use crate::effects::rain::Weather;
+use crate::effects::rain_store::Weather;
 use crate::errors::Refused;
 use crate::math::x87;
 

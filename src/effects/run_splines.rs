@@ -11,7 +11,7 @@
 //! Refuses null settings and more than 8 splines (before anything), and `place_spline`'s refusals
 //! (all it may write is put back first).
 
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::effects::place_spline::place_spline;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

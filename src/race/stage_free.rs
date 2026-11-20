@@ -14,7 +14,7 @@ pub struct Freeing {
     /// Each sets one pointer to 0.
     pub cleared: &'static [fn(&Race)],
     /// What Rust owns on the list, given back with it.
-    pub given_back: fn(&Race, &crate::scene::workers::DrawingScratch),
+    pub given_back: fn(&Race, &crate::scene::scratch_store::DrawingScratch),
 }
 
 /// Frees the course memory.
@@ -92,7 +92,7 @@ pub(super) fn free_game_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refuse
 /// Refuses, before anything, a list with a block (`free_list` refuses it).
 pub fn free(
     race: &Race,
-    scratch: &crate::scene::workers::DrawingScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
     f: &Freeing,
 ) -> Result<(), Refused> {
     let course = &race.course;
@@ -123,7 +123,7 @@ pub fn free(
 /// `race::render3d_tidy`: frees the point records (`POINT_RECORDS`).
 pub fn render3d_tidy(
     race: &Race,
-    scratch: &crate::scene::workers::DrawingScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
 ) -> Result<(), Refused> {
     free(race, scratch, &POINT_RECORDS)
 }
@@ -131,7 +131,7 @@ pub fn render3d_tidy(
 /// `race::objects_tidy`: frees the object points (`OBJECT_POINTS`).
 pub fn objects_tidy(
     race: &Race,
-    scratch: &crate::scene::workers::DrawingScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
 ) -> Result<(), Refused> {
     free(race, scratch, &OBJECT_POINTS)
 }

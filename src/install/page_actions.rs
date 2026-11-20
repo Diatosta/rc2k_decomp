@@ -11,6 +11,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{load_language, refuse};
 use crate::install::owner::Install;
+use crate::install::vars::{PathProblem, fixed};
 use rc2k_core::install::flow::Page;
 use rc2k_core::install::model::PageDef;
 use rc2k_core::install::pages;
@@ -34,7 +35,9 @@ pub(super) fn start(
 ) {
     match page {
         Page::Drive => {
-            let letter = crate::strings::same_text::lower(install.paths.typed.get(0));
+            let letter = crate::strings::same_text::lower(
+                install.paths.typed.text().first().copied().unwrap_or(0),
+            );
             let (_, highlight) = pages::drive_highlight(
                 letter,
                 |n| drive_letter(install, pages::DRIVE_TEXT.wrapping_mul(n)),
@@ -77,18 +80,14 @@ pub(super) fn end(
         }
         Page::Drive => {
             if let Some(offset) = pages::chosen_drive(list_state.choice.get()) {
-                install.paths.typed.set(0, drive_letter(install, offset));
-                install.paths.typed.set(1, b':');
-                install.run.path_problem.set(0);
+                install.paths.typed.set_drive(drive_letter(install, offset));
+                install.run.path_problem.set(PathProblem::None);
             }
         }
-        Page::Folder => install.run.path_problem.set(0),
+        Page::Folder => install.run.path_problem.set(PathProblem::None),
         Page::Removal => {
             if pages::keeps_saves(list_state.list_answer.get()) {
-                install
-                    .names
-                    .script
-                    .set(crate::install::vars::SCRIPT_MARK, 5);
+                install.names.script_mark.set(fixed::MARK_KEEP_SAVES);
                 list_state.list_answer.set(1);
             }
         }

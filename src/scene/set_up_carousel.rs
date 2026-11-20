@@ -75,7 +75,7 @@ pub enum Op {
     Set(Field, u32),
     /// A dword of the race block's, found at run time (those statics do not deref in a `const`).
     Run(
-        fn(&crate::scene::workers::DrawingScratch) -> &dyn DwordLike,
+        fn(&crate::scene::scratch_store::DrawingScratch) -> &dyn DwordLike,
         u32,
     ),
     /// The eight textures of the menu set to -1.
@@ -99,7 +99,7 @@ const CARS_TAIL: [Op; 9] = [
 const FIXED_KINDS: [u32; 6] = [0x195, 0x199, 0x19F, 0x1A5, 0x1AD, 0x1BD];
 
 /// A store of the tables (never a `Fill`).
-fn run_op(carousel: &Carousel, scratch: &crate::scene::workers::DrawingScratch, op: Op) {
+fn run_op(carousel: &Carousel, scratch: &crate::scene::scratch_store::DrawingScratch, op: Op) {
     match op {
         Op::Set(field, value) => field.cell(carousel).set(value),
         Op::Run(cell, value) => cell(scratch).set(value),
@@ -158,7 +158,7 @@ fn check_cars(parts: CarListParts, list: CarList, from_second: bool) -> Result<(
 /// The cars' carousels, from the list; `size` the object's size.
 fn cars(
     parts: CarListParts,
-    scratch: &crate::scene::workers::DrawingScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
     list: CarList,
     size: u32,
 ) -> Result<(), BadInput> {
@@ -200,7 +200,7 @@ fn cars(
 // Logic: `rc2k_core::scene::carousel::{check_cars, list_end}`
 pub fn set_up_carousel(
     parts: CarListParts,
-    scratch: &crate::scene::workers::DrawingScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
     list: Option<CarList>,
 ) -> Result<(), Refused> {
     let given = || list.ok_or(BadInput("no list of cars"));

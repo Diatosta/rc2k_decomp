@@ -2,7 +2,7 @@ use crate::effects::asm_layout::with_laid;
 use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
 use crate::effects::ring_store::RingWork;
-use crate::effects::tuning::MarksFloats;
+use crate::effects::tuning_store::MarksFloats;
 use crate::race::effects_settings_store::CarEffects;
 
 fn word(at: crate::effects::asm_test::Operand) -> u32 {
@@ -297,9 +297,9 @@ fn pull_strength_x87_matches() {
                     super::pull_strength_x87(
                         e,
                         &car,
-                        crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(
-                            b[0],
-                        ),
+                        crate::effects::asm_layout::copy_of::<
+                            crate::effects::setup_store::MarksClock,
+                        >(b[0]),
                         f,
                         w,
                         &kinds,

@@ -22,6 +22,37 @@ pub fn newest_lines(chat: &[u8], lines: usize) -> &[u8] {
     &chat[from..]
 }
 
+/// The chat's bytes (eight lines ended by line feeds, then the NUL, in `chat`'s room) with the top
+/// line dropped and `line` added at the bottom, NUL-ended. When the lines do not all fit the room
+/// (a hostile machine can send lines of narrow characters, each as long as the line buffer), the
+/// oldest lines are emptied, one by one, until they do: still eight lines, as the lobby draws them.
+pub fn scrolled(chat: &[u8], line: &[u8]) -> Result<Vec<u8>, crate::Invalid> {
+    let top = chat
+        .iter()
+        .position(|&b| b == b'\n')
+        .ok_or(crate::Invalid("a chat with no line end"))?;
+    let kept = &chat[top + 1..];
+    let end = kept
+        .iter()
+        .position(|&b| b == 0)
+        .ok_or(crate::Invalid("a chat text without its end"))?;
+    let mut lines: Vec<&[u8]> = kept[..end].split(|&b| b == b'\n').collect();
+    lines.push(line);
+    // The lines, a line feed between each, and the NUL.
+    let size = |lines: &[&[u8]]| lines.iter().map(|l| l.len()).sum::<usize>() + lines.len();
+    let mut oldest = 0;
+    while size(&lines) > chat.len() {
+        if oldest + 1 >= lines.len() {
+            return Err(crate::Invalid("a chat line longer than the chat"));
+        }
+        lines[oldest] = &[];
+        oldest += 1;
+    }
+    let mut out = lines.join(&b'\n');
+    out.push(0);
+    Ok(out)
+}
+
 /// The settings screen's items edited: 1 the player's name, 2 the most players.
 pub const NAME: u32 = 1;
 pub const MOST_PLAYERS: u32 = 2;
@@ -64,6 +95,39 @@ mod tests {
             newest_lines(b"a\nb\nc\nd\ne\nf\ng\nh", 8),
             b"a\nb\nc\nd\ne\nf\ng\nh"
         );
+    }
+
+    #[test]
+    fn a_line_is_added_at_the_bottom_and_the_top_one_dropped() {
+        let mut chat = [0u8; 0x300];
+        chat[..EMPTY.len()].copy_from_slice(&EMPTY);
+        let out = scrolled(&chat, b"hello").unwrap();
+        assert_eq!(out, b"\n\n\n\n\n\n\nhello\0");
+        chat[..out.len()].copy_from_slice(&out);
+        assert_eq!(scrolled(&chat, b"x").unwrap(), b"\n\n\n\n\n\nhello\nx\0");
+        // No line end, or no NUL after it: refused.
+        assert!(scrolled(&[b'a'; 0x300], b"x").is_err());
+        assert!(scrolled(b"a\nb", b"x").is_err());
+    }
+
+    /// Guards the chat against lines of narrow characters: each as long as a line buffer holds,
+    /// they would fill more than the room; the oldest lines are emptied, there are still eight
+    /// lines, and the newest is whole.
+    #[test]
+    fn long_lines_empty_the_oldest_ones_not_the_room() {
+        let mut chat = [0u8; 0x300];
+        chat[..EMPTY.len()].copy_from_slice(&EMPTY);
+        for n in 0..40u8 {
+            let line = vec![b'a' + n % 26; 127];
+            let out = scrolled(&chat, &line).unwrap();
+            assert!(out.len() <= chat.len());
+            assert_eq!(out.iter().filter(|&&b| b == b'\n').count(), 7);
+            assert_eq!(out.last(), Some(&0));
+            assert!(out[..out.len() - 1].ends_with(&line));
+            chat = [0u8; 0x300];
+            chat[..out.len()].copy_from_slice(&out);
+        }
+        assert!(scrolled(&chat, &[b'z'; 0x300]).is_err());
     }
 
     #[test]

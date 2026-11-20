@@ -9,7 +9,7 @@
 //! Refuses (before anything) a point number of 0x80 or more and a count above 0x80.
 
 use crate::effects::blend_points::blend_points;
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::effects::splines::{MOST_POINTS, Spline};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::ext_to_int;

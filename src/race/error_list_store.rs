@@ -4,14 +4,12 @@
 
 use crate::memory::cells::ZeroCells;
 
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::session::PlainBytes;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ErrorList {
     /// The error list read from the file named in the course (`race::load_error_list`).
     pub list: PlainBytes<0x2000>,
-    /// Unused.
-    pub unknown_2000: [PlainDword; 7],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of

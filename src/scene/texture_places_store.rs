@@ -51,7 +51,7 @@ pub struct TexturePlaces {
     pub normal_marks: [PlainDword; 4096],
     /// Three dwords past the normals' marks; nothing reads or writes them (an overrun space for
     /// the marks table, probably padding).
-    pub unknown_173d4: [PlainDword; 3],
+    pub reserved_173d4: [PlainDword; 3],
 }
 
 /// A table of the places, by name: the field a slot or counter number indexes.
@@ -120,7 +120,7 @@ impl PlacesTable {
             PlacesTable::FaceMarks => &places.face_marks,
             PlacesTable::PointMarks => &places.point_marks,
             PlacesTable::NormalMarks => &places.normal_marks,
-            PlacesTable::Unknown173d4 => &places.unknown_173d4,
+            PlacesTable::Unknown173d4 => &places.reserved_173d4,
         }
     }
 }

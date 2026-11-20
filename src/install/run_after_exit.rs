@@ -36,8 +36,8 @@ pub fn run_after_exit(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let run_vars = &install.run;
-    let add_items = run_vars.add_items.get() == 1;
-    let remove_items = run_vars.remove_items.get() == 1;
+    let add_items = run_vars.add_items.get();
+    let remove_items = run_vars.remove_items.get();
     let installing = install.flags.installing.get();
     if crate::fatal::state::REPORTED.get() == 1 {
         return Ok(());
@@ -66,10 +66,7 @@ pub fn run_after_exit(
     let Some(installed) = normalised else {
         return Ok(());
     };
-    install
-        .paths
-        .installed
-        .write_at(0, &installed, "the installed folder")?;
+    install.paths.installed.set(&installed)?;
     if !set_cd(&install.paths.installed.text()) {
         return Ok(());
     }

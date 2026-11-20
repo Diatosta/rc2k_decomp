@@ -12,8 +12,6 @@ pub struct LightState {
     /// `race::frame_draw`, `race::course_faces`). Unused: each view has its own in
     /// `scene::object_light`.
     pub lit_place: [PlainDword; 3],
-    /// Nine dwords before the turned light; nothing uses them (a gap).
-    pub unknown_c: [PlainDword; 9],
     /// The turned light direction seen by the car lights (`scene::add_car_light`,
     /// `race::frame_draw`). Unused: each view has its own in `scene::object_light`.
     pub turned_light: [PlainDword; 3],
@@ -32,13 +30,9 @@ pub struct LightState {
     /// the object work angles (y, x, z); non-0 uses the material rules (facing the view, turned
     /// by the view's angles) (`race::frame_draw::scene_objects`).
     pub light_turn_off: PlainDword,
-    /// Four dwords after the light switch; no code uses them (a gap).
-    pub unknown_4c: [PlainDword; 4],
     /// The checkpoint the car is on, on the best line (`race::start_place`,
     /// `physics::reset_car`, `race::best_line`).
     pub line_place: PlainDword,
-    /// One dword between the line place and its fraction; no code uses it (a gap).
-    pub unknown_60: PlainDword,
     /// The fraction on to the next checkpoint, / 65536 (`race::start_place`,
     /// `physics::reset_car_on_line`).
     pub line_fraction: PlainDword,
@@ -46,8 +40,6 @@ pub struct LightState {
     pub fog_near: PlainDword,
     /// The fog's far value, now each view's (`scene::fog::Fog::far`); unused.
     pub fog_far: PlainDword,
-    /// Four dwords after the fog's far value; no code uses them (a gap).
-    pub unknown_70: [PlainDword; 4],
     /// The face bits of the object being drawn (`scene::draw_object_face`). Unused: each view
     /// has its own in `scene::object_light`.
     pub face_bits: PlainDword,
@@ -55,8 +47,6 @@ pub struct LightState {
     pub faded: PlainDword,
     /// The fog's next step, now each view's (`scene::fog::Fog::next`); unused.
     pub fog_next: PlainDword,
-    /// Two dwords before the fog table; no code uses them (a gap).
-    pub unknown_8c: [PlainDword; 2],
     /// 0x1000 bytes of fog levels, now each view's (`scene::fog::Fog`); unused.
     pub fog_table: [PlainDword; 1024],
     /// Now each view's (`scene::fog::Fog::length`); unused.
@@ -93,12 +83,6 @@ impl LightState {
     pub const fn new() -> Self {
         Self {
             light_turn_off: PlainDword::new(1),
-            unknown_4c: [
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(1),
-            ],
             ..ZeroCells::ZERO
         }
     }

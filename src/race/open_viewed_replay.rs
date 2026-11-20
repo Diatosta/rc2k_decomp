@@ -237,7 +237,7 @@ fn put_header_stage(race: &Race, header: &[u8]) {
         .chain(&w.sealed_header)
         .chain(std::iter::once(&w.patches_in_header))
         .chain(&w.header_patches)
-        .chain(&w.unknown_7d0);
+        .chain(&w.after_header);
     for (dword, bytes) in cells.zip(header.as_chunks::<4>().0) {
         dword.set(u32::from_le_bytes(*bytes));
     }

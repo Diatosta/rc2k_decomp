@@ -3,13 +3,14 @@
 //! player's needle sign follows that player's own start value.
 
 use crate::errors::Refused;
+use crate::hud::block_store::texture;
 use crate::hud::draw_signs::row_by;
 use crate::hud::layout_common::{
     Keep, begin_dials, black_divider, clock_panel, gear_rect, keep, keep_layout, lap_panel,
     leading_time, needle_sign, scaled, sign, sprite, time_digits, white_opaque,
 };
-use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::texture;
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
 /// The upper half's rows: 0x10 down with `Panel::flat` 0.

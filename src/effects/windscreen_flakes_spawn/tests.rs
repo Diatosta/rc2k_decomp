@@ -5,7 +5,7 @@ use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
 
 use crate::effects::typed_sync::{overlay_laid, with_overlays};
-use crate::effects::view_vectors::KeptView;
+use crate::effects::view_vectors_store::KeptView;
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTiming};
 
 #[test]

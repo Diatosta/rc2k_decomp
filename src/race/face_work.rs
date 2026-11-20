@@ -116,7 +116,7 @@ impl FaceWork {
 /// slip kept as is); before any face was drawn it is the image's first value.
 pub(super) fn last_fourth_corner(
     shared: &crate::race::owner_shared::RaceShared,
-    scratch: &crate::scene::workers::DrawingScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
 ) -> u32 {
     match scratch.last_face_view() {
         None => shared.view.get().corners[3].get(),

@@ -14,7 +14,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1,
 pub fn begin_scene(
     race: &crate::race::owner::Race,
     d3d: &crate::d3d::owner::D3d,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
 ) {
     crate::d3d::device::begin_layer(d3d, part);
     set_filters(race, part);

@@ -1,7 +1,7 @@
 //! The race's work variables after the work car: the cars' blocks and the current car, the stage's
 //! direction, the cars' number textures, the loose parts' slots, the computer driver's state, the
 //! credits' race, the network's message, the `patch*` settings, the stages' checkpoint counts.
-//! Named from the code's uses; most names are readings, and `unknown_*` runs are places no code
+//! Named from the code's uses; most names are readings, and `reserved_*` runs are places no code
 //! names. `#[repr(C)]`, the unused runs at either end and in the middle left out.
 
 use crate::errors::BadInput;

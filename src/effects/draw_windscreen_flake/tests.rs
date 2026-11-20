@@ -3,7 +3,7 @@ use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::staged_vertices as staged;
 
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
-use crate::effects::tuning::MarksKindFloats;
+use crate::effects::tuning_store::MarksKindFloats;
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeItem, WindscreenFlakeTables};
 
 #[test]

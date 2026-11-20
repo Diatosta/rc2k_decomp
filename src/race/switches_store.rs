@@ -30,8 +30,6 @@ pub struct FrameSwitches {
     pub frame_last: PlainDword,
     /// The measured frame rate (`race::measure_frame_rate`, `race::frame_text`).
     pub frame_rate: PlainFloat,
-    /// Unused; it only keeps the layout.
-    pub unused_74: [PlainDword; 2],
     /// The object being drawn or set up (`scene::draw_object_face`, `race::frame_draw`,
     /// `race::car_draw`); now each view's (`ctx.view.cars.object_number`; the bad polygon's log
     /// reads the view's); this one not used.
@@ -60,22 +58,13 @@ pub struct FrameSwitches {
     pub dev_front_end_choices: [PlainDword; 103],
     /// A word copied on by `race::objects`.
     pub kept_kind: PlainDword,
-    /// Unused; it only keeps the layout.
-    pub unused_3c8: [PlainDword; 10],
     /// The mask kind, 8 tested by `race::frame_draw`, cleared by `race::race_end`
     /// (`scene::list_object_face`).
     pub mask_kind: PlainDword,
-    /// Unused; it only keeps the layout.
-    pub unused_3f4: [PlainDword; 4],
     /// 1 lets the levers push the car (`physics::lever_pushes`, `drive::race_tick`).
     pub levers_on: PlainDword,
-    /// Unused; it only keeps the layout.
-    pub unused_408: [PlainDword; 2],
     /// The view marks (`race::frame_views`, `race::stage_loading`, `drive::finish_race`).
     pub view_marks_on: PlainDword,
-    /// Used by the developers' front end, which keeps it in `debug::dev_front_end`, not
-    /// here.
-    pub unknown_414: [PlainDword; 6],
     /// Set to 0 by `screens::draw_service_area`; never read.
     pub service_cleared: PlainDword,
 }
@@ -95,7 +84,6 @@ impl FrameSwitches {
                 a[14] = PlainDword::new(0x697661);
                 a
             },
-            unused_74: [PlainDword::new(0), PlainDword::new(0x445E38D5)],
             group_mask: PlainDword::new(0xFFFFFFFF),
             dev_front_end_choices: [
                 PlainDword::new(1),
@@ -202,35 +190,8 @@ impl FrameSwitches {
                 PlainDword::new(0),
                 PlainDword::new(0),
             ],
-            unused_3c8: [
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(2),
-                PlainDword::new(0),
-            ],
-            unused_3f4: [
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(1),
-                PlainDword::new(0),
-            ],
             levers_on: PlainDword::new(1),
-            unused_408: [PlainDword::new(1), PlainDword::new(0)],
             view_marks_on: PlainDword::new(1),
-            unknown_414: [
-                PlainDword::new(1),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(1),
-                PlainDword::new(0),
-                PlainDword::new(0),
-            ],
             ..ZeroCells::ZERO
         }
     }

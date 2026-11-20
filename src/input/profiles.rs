@@ -26,7 +26,11 @@ pub fn kept(input: &Input) -> [Vec<Profile>; 4] {
 }
 
 /// The profiles from the options file.
-pub fn keep(input: &Input, profiles: [Vec<Profile>; 4]) {
+pub fn keep(input: &Input, mut profiles: [Vec<Profile>; 4]) {
+    profiles
+        .iter_mut()
+        .flatten()
+        .for_each(rc2k_core::input::touch::give_lights);
     *all(input) = profiles;
 }
 

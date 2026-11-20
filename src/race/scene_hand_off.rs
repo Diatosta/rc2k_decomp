@@ -69,7 +69,7 @@ impl SceneHandOff {
     pub fn keep(
         &self,
         m: &crate::race::matrices_store::SceneMatrices,
-        part: &crate::scene::workers::PartScratch,
+        part: &crate::scene::scratch_store::PartScratch,
     ) {
         for (kept, n) in [(&self.lit, 1), (&self.made, 2)] {
             let now = crate::scene::view_matrices::current_matrix(m, part, n);

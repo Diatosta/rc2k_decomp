@@ -85,7 +85,7 @@ fn mirrored(race: &Race, flags: usize) -> bool {
 /// View `car`'s car loaded into its own state (`frame::load_view_car`).
 fn load_car(
     race: &Race,
-    scratch: &crate::scene::workers::DrawingScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
     car: usize,
 ) -> Result<(), Refused> {
     crate::race::frame::load_view_car(

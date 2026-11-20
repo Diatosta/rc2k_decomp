@@ -34,7 +34,7 @@ pub fn draw_mirror_view(
     scene: &crate::scene::owner::Scene,
     input: &crate::input::owner::Input,
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     reads: crate::scene::workers::DrawReads<'_>,
 ) -> Result<Option<crate::race::draw_view_scene::ViewOutput>, Refused> {
     view.take_vars(reads);

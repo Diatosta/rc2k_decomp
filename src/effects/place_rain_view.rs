@@ -5,7 +5,7 @@
 //! rounded); the matrix's nine dwords copied to `RainState.matrix_copy[0]`; the point put back to
 //! (0, 0, 0x20000).
 
-use crate::effects::rain::Weather;
+use crate::effects::rain_store::Weather;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;

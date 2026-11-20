@@ -39,7 +39,7 @@ pub enum Edge {
 /// The polygon's entries, each with its record.
 pub fn listed_with_records<'w>(
     polygon_work: &'w crate::scene::polygon_store::PolygonWork,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
 ) -> Result<crate::scene::polygon::Listed<'w>, BadInput> {
     let entries = listed(polygon_work, poly)?;
     if entries.is_empty() {
@@ -84,8 +84,8 @@ fn cut_point(record: &[u8], entry: &PolygonEntry) -> CutPoint {
 /// what the screen's passes keep as the clip's kept mask. Returns the entry's number; the
 /// caller lists it and counts the next free entry on.
 fn cut(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
     edge: Edge,
     a: &PolygonEntry,
@@ -188,8 +188,8 @@ fn cut(
 /// `listed_with_records` gives them, when the caller has them already. Returns them again
 /// when the pass kept every vertex (the list is as it was), else `None`.
 pub fn clip_pass<'p>(
-    part: &'p crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &'p crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
     listed: Option<crate::scene::polygon::Listed<'p>>,
     edge: Edge,

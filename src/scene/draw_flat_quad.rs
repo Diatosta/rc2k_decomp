@@ -20,8 +20,8 @@ use crate::race::owner_course::CourseReads;
     reason = "the view's polygon work, the part's scratch and the owners"
 )]
 pub fn draw_flat_quad(
-    poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::scene::workers::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
     face: &crate::race::face_work::FaceWork,
     course: CourseReads<'_>,
     reads: crate::scene::workers::DrawReads<'_>,

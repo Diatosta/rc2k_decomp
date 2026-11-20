@@ -165,7 +165,7 @@ pub(super) fn drawn_view(
 /// views' order (`ViewOutput::store_view_value`).
 pub fn view_value(
     race_view: &crate::race::view_store::RaceView,
-    sun: &crate::scene::polygon_work::ViewSun,
+    sun: &crate::scene::polygon_work_store::ViewSun,
     view: u32,
 ) -> Result<(usize, u32), Refused> {
     Ok((drawn_view(race_view, view)?, sun.on_screen.get()))
@@ -182,7 +182,7 @@ pub fn store_view_value(race: &Race, block: usize, value: u32) -> Result<(), Ref
 pub fn fetch_view_value(
     cars: &crate::race::frame_view::FrameCars,
     race_view: &crate::race::view_store::RaceView,
-    sun: &crate::scene::polygon_work::ViewSun,
+    sun: &crate::scene::polygon_work_store::ViewSun,
     view: u32,
 ) -> Result<(), Refused> {
     let b = drawn_view(race_view, view)?;
@@ -221,8 +221,8 @@ pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Res
 /// `point_records`: each first dword -1; `part` is the drawing part clearing them
 /// (`scene::point_records::first_records_everywhere`).
 pub fn clear_point_records(
-    scratch: &crate::scene::workers::DrawingScratch,
-    part: &crate::scene::workers::PartScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
+    part: &crate::scene::scratch_store::PartScratch,
 ) -> Result<(), BadInput> {
     for record in crate::scene::point_records::first_records_everywhere(scratch, part, 0x1000)? {
         record[0].set(u32::MAX);
@@ -260,7 +260,7 @@ pub fn object_bytes(
                 .get(first)
                 .ok_or(BadInput("an object's first face past the faces"))?
                 .get();
-            // The face is a place of `scene::object_faces`.
+            // The face is a place of `scene::object_faces_store`.
             let word = reads.stage.object_faces.array::<2>(face.wrapping_add(4))?;
             let word = u16::from_le_bytes(word);
             Some(kind(word as u32)?)

@@ -112,7 +112,7 @@ pub struct Normals {
 /// course and writes nothing. Refused: no faces, 0x100000 or more, or a read past a table.
 fn face_normals(
     race: &Race,
-    scratch: &crate::scene::workers::DrawingScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
     work_vector: [u32; 3],
 ) -> Result<Normals, Refused> {
     use rc2k_core::race::faces::{

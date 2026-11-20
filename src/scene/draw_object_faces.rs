@@ -16,9 +16,9 @@ use crate::errors::{BadInput, Refused};
 const FACES: u32 = 0xC000;
 
 pub fn draw_object_faces(
-    object_faces: &crate::scene::object_faces::ObjectFaces,
+    object_faces: &crate::scene::object_faces_store::ObjectFaces,
     faces_table: &crate::scene::faces_store::Faces,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     object: &crate::scene::object_place::ObjectPlace,
     work: &crate::race::face_work::FaceWork,
     list: &crate::scene::face_list::FaceList,

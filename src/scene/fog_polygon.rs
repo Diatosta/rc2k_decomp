@@ -16,7 +16,7 @@ use crate::scene::polygon::{Listed, listed};
 const TABLE_LEN: u32 = crate::scene::fog::TABLE_LEN as u32;
 
 pub fn fog_polygon(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let polygon_work = &part.polygon;
@@ -25,7 +25,7 @@ pub fn fog_polygon(
 
 /// `fog_polygon` on the polygon's entries as listed.
 pub fn fog_entries(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     entries: &Listed,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
@@ -58,7 +58,7 @@ fn table_length(view: &crate::race::view_scratch::ViewScratch) -> Result<u32, Ba
 /// The fog byte of the point whose record is `record`, as `fog_entries` gives an entry: by
 /// the record's depth (`length` the table's), or `fixed`'s low byte, inverted.
 fn byte(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     view: &crate::race::view_scratch::ViewScratch,
     record: u32,
     length: u32,
@@ -86,7 +86,7 @@ fn byte(
 /// kind 4 (whose byte is fixed): what a reflective object face's shine is scaled by
 /// (`scene::draw_object_face`). Refuses as `fog_entries` does a table longer than its room.
 pub fn fog_of_record(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     view: &crate::race::view_scratch::ViewScratch,
     record: u32,
 ) -> Result<u8, BadInput> {

@@ -4,8 +4,8 @@
 // Logic: `rc2k_core::scene::render_states::fog_colour`
 pub fn set_fog_colour(
     colour: u32,
-    poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::scene::workers::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
 ) {
     poly.fade_from.set(colour);
     let s = rc2k_core::scene::render_states::fog_colour(colour);

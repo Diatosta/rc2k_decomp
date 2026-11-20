@@ -33,7 +33,7 @@ const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 /// without the course faces. (An object of two shapes before the view's first face has no face
 /// to read; no kind in the game's files has that material, so it never comes into play.)
 fn state(
-    data: &crate::race::course_places::CourseData,
+    data: &crate::race::course_places_store::CourseData,
     face: &crate::race::face_work::FaceWork,
 ) -> Option<u32> {
     crate::race::course_places::held(data).then(|| face.course_face.get())

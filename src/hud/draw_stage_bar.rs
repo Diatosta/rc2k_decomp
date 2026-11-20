@@ -4,7 +4,8 @@
 //! 0x40 parts and a colour offset past `HudBlock.stage_colours`' four, before anything.
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::memory::session::PlainDword;
 use crate::race::owner_frame::Frame;
 
@@ -108,7 +109,7 @@ mod tests {
     /// Every colour offset the check lets through reads the four bytes the byte-offset read did.
     #[test]
     fn colour_bytes_as_the_old_read() {
-        let hud = Box::new(crate::hud::store::HudBlock::new());
+        let hud = Box::new(crate::hud::block_store::HudBlock::new());
         for (k, cell) in hud.stage_colours.iter().enumerate() {
             cell.set((0x0101_0101 * (k as u32 + 1)) ^ 0x00A0_0C00);
         }

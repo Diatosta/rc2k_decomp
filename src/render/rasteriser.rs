@@ -364,6 +364,8 @@ fn unpack(argb: u32) -> Colour {
 impl Texture<'_> {
     /// A texel place along an axis of `size`: wrapped or clamped.
     fn place(n: i32, size: usize, clamp: bool) -> usize {
+        // A texture of no width or height reads as one texel across: `clamp(0, -1)` would panic.
+        let size = size.max(1);
         if clamp {
             n.clamp(0, size as i32 - 1) as usize
         } else if size.is_power_of_two() {

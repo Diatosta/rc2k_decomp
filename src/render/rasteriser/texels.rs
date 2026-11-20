@@ -108,8 +108,8 @@ impl<'a> Texels<'a> {
         let t = self.texture;
         let (x, y) = match (self.clamp, self.masks) {
             (true, _) => (
-                x.clamp(0, t.width as i32 - 1) as usize,
-                y.clamp(0, t.height as i32 - 1) as usize,
+                x.clamp(0, t.width.max(1) as i32 - 1) as usize,
+                y.clamp(0, t.height.max(1) as i32 - 1) as usize,
             ),
             (false, Some((mx, my))) => ((x & mx) as usize, (y & my) as usize),
             (false, None) => (
@@ -149,8 +149,8 @@ impl<'a> Texels<'a> {
         let place = |x: i32, y: i32| -> usize {
             match (self.clamp, self.masks) {
                 (true, _) => {
-                    y.clamp(0, t.height as i32 - 1) as usize * t.pitch
-                        + x.clamp(0, t.width as i32 - 1) as usize * t.bytes
+                    y.clamp(0, t.height.max(1) as i32 - 1) as usize * t.pitch
+                        + x.clamp(0, t.width.max(1) as i32 - 1) as usize * t.bytes
                 }
                 (false, Some((mx, my))) => {
                     (y & my) as usize * t.pitch + (x & mx) as usize * t.bytes

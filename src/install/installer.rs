@@ -83,47 +83,38 @@ pub(super) fn push_string_by_id(
     crate::menu::event_flow::refuse_here(pushed, "install::installer: a string");
 }
 
-/// A path place read as text (a refused read ends the installer, as every wrapper here).
-fn path_text(path: impl Into<BytePlace>) -> Vec<u8> {
-    path.into().text("a path").unwrap_or_else(|e| refuse(e))
-}
-
 /// Makes `path` the current directory; whether it worked.
-pub(super) fn set_cd(path: impl Into<BytePlace>) -> bool {
-    crate::files::directories::set_current_directory(&path_text(path))
+pub(super) fn set_cd(path: &[u8]) -> bool {
+    crate::files::directories::set_current_directory(path)
 }
 
 /// `files::remove_directory` (remove a directory): whether it worked.
-pub fn remove_dir(path: impl Into<BytePlace>) -> bool {
-    crate::files::directories::remove_directory(&path_text(path))
+pub fn remove_dir(path: &[u8]) -> bool {
+    crate::files::directories::remove_directory(path)
 }
 
 /// Deletes the file `path`; whether it worked.
-pub fn delete_file(path: impl Into<BytePlace>) -> bool {
-    crate::files::directories::delete_file(&path_text(path))
+pub fn delete_file(path: &[u8]) -> bool {
+    crate::files::directories::delete_file(path)
 }
 
-/// `path` normalised and written at `to`; whether it was.
-pub fn normalise(path: impl Into<BytePlace>, to: impl Into<BytePlace>) -> Result<bool, Refused> {
-    Ok(crate::install::normalise_path::normalise_path(
-        path.into(),
-        to.into(),
+/// `path` in the installer's one form of a folder (with its NUL); None when the path is not
+/// taken.
+pub fn normalise(path: &[u8]) -> Result<Option<Vec<u8>>, Refused> {
+    Ok(crate::install::normalise_path::normalised_bytes(
+        path,
+        &mut || crate::install::normalise_path::current_directory(),
     )?)
 }
 
 /// Copies the file `from` to `to`; whether it worked.
-pub fn copy_file(from: impl Into<BytePlace>, to: impl Into<BytePlace>) -> Result<bool, Refused> {
-    Ok(crate::files::copy_file::copy_file(
-        &from.into().text("a file to copy")?,
-        &to.into().text("a copy's path")?,
-    )?)
+pub fn copy_file(from: &[u8], to: &[u8]) -> Result<bool, Refused> {
+    Ok(crate::files::copy_file::copy_file(from, to)?)
 }
 
 /// The path the game opens (without its NUL).
-pub fn resolve_path(path: impl Into<BytePlace>) -> Result<Vec<u8>, Refused> {
-    Ok(crate::files::resolve_path::resolve(
-        &path.into().text("a path")?,
-    )?)
+pub fn resolve_path(path: &[u8]) -> Result<Vec<u8>, Refused> {
+    Ok(crate::files::resolve_path::resolve(path)?)
 }
 
 /// Starts a file search on `pattern`, passing over the `skipped` attributes; whether a file was

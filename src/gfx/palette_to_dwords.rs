@@ -15,7 +15,7 @@ pub fn palette_to_dwords(from: &dyn Store, from_at: usize, to: &dyn Store) -> Re
 }
 
 /// The same for a palette held as bytes.
-pub(super) fn palette_bytes_to_dwords(
+pub(crate) fn palette_bytes_to_dwords(
     palette: &[u8; ENTRIES * 3],
     to: &dyn Store,
 ) -> Result<(), BadInput> {

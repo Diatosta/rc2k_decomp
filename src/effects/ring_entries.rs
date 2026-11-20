@@ -4,7 +4,9 @@
 //! `block` and in the entries' links (`prev` the one before, `next` the one after). The fields keep
 //! the record's order.
 
-use crate::effects::ring_store::Ring;
+#[cfg(test)]
+use crate::effects::ring_store::ENTRY_LEN;
+use crate::effects::ring_store::{Entry, Ring};
 use crate::errors::BadInput;
 use crate::math::x87_float::{self as bh, X};
 #[cfg(test)]
@@ -12,144 +14,8 @@ use crate::test_support::own::effects;
 
 /// The entries.
 pub const ENTRIES: u32 = 0x400;
-/// An entry's bytes.
-#[cfg(test)]
-pub const ENTRY_LEN: u32 = 0x94;
 /// The block's bytes, as counted.
 const RING_BYTES: u32 = 0x2_5000;
-
-/// One ring entry: 37 dwords (the size, alpha and pull fields stay dwords: kinds differ in
-/// whether they hold a float or a whole number). The three-axis fields are arrays x, y, z.
-/// Fields no code reads or writes by name are `unknown_<offset>`.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct Entry {
-    /// The link to the entry before it in the ring (an entry number + 1).
-    pub prev: u32,
-    /// The link to the entry after it.
-    pub next: u32,
-    /// The emitter's tag (`EMITTER.tag`) at the time it was taken.
-    pub emitter_tag: u32,
-    /// The particle's kind (1, 5, 6, 0xB, 0xD, 0x10 ..).
-    pub kind: u32,
-    /// Its place.
-    pub place: [f32; 3],
-    /// Its last place (the streaks), kept for the next frame's segment.
-    pub last_place: [f32; 3],
-    /// The height of the ground under it: it dies when its y is below this.
-    pub ground_y: f32,
-    /// Its motion a frame: the place plus the motion times the ticks is how it moves.
-    pub motion: [f32; 3],
-    /// The burst particles' extra push (three floats; the car's `motion` times
-    /// minus an eighth, x first).
-    pub push: [f32; 3],
-    /// Three dwords no emitter sets (0 from the emitter that clears them).
-    pub spare: [u32; 3],
-    /// The sprite's angle.
-    pub angle: u32,
-    /// How fast the angle turns.
-    pub angle_rate: u32,
-    /// The sprite's cell in its picture.
-    pub cell: u32,
-    /// How fast the sprite's cell advances with its life (read by the draw of kinds
-    /// 0x10, 0x11; no emitter writes it, so it is 0 as the ring takes it).
-    pub cell_rate: f32,
-    /// The sprite's size.
-    pub size: u32,
-    /// Kind 1's size factor (a float): the size grows by it times `k1_size`; pulled
-    /// toward 65536 while the entry is near the car and faces it.
-    pub size_factor: f32,
-    /// The car it was emitted for (a `effects_settings_store::car_handle`).
-    pub car: u32,
-    /// The emitting car's `pace`, kept by the emitters of kinds 6, 0xD, 0x15.
-    pub car_pace: u32,
-    /// The size it is pulled toward.
-    pub size_goal: u32,
-    /// The sprite's alpha.
-    pub alpha: u32,
-    /// How much of the alpha goes a tick.
-    pub alpha_fade: f32,
-    /// The limits the object's box extents are tested against (kinds 6, 0x15, 0x10,
-    /// 0x11); no emitter writes them, so they are 0 as the ring takes it.
-    pub box_limit: [u32; 2],
-    /// The ticks of life left.
-    pub life: u32,
-    /// No emitter writes it and no ring step reads it (only the tests' word copies touch it);
-    /// an unused word.
-    pub unused_88: u32,
-    /// As `unused_88`, an unused word.
-    pub unused_8c: u32,
-    /// The emitting car's tag (its `tag`, 24 bits), for the draw lists.
-    pub car_tag: u32,
-}
-
-#[cfg(test)]
-impl Entry {
-    /// The entry's dwords in order of offset.
-    pub fn words(&self) -> [u32; (ENTRY_LEN / 4) as usize] {
-        let mut w = [0; (ENTRY_LEN / 4) as usize];
-        let mut n = 0;
-        let mut push = |v: &[u32]| {
-            w[n..n + v.len()].copy_from_slice(v);
-            n += v.len();
-        };
-        push(&[self.prev, self.next, self.emitter_tag, self.kind]);
-        push(&self.place.map(f32::to_bits));
-        push(&self.last_place.map(f32::to_bits));
-        push(&[self.ground_y.to_bits()]);
-        push(&self.motion.map(f32::to_bits));
-        push(&self.push.map(f32::to_bits));
-        push(&self.spare);
-        push(&[
-            self.angle,
-            self.angle_rate,
-            self.cell,
-            self.cell_rate.to_bits(),
-            self.size,
-            self.size_factor.to_bits(),
-            self.car,
-            self.car_pace,
-            self.size_goal,
-            self.alpha,
-            self.alpha_fade.to_bits(),
-        ]);
-        push(&self.box_limit);
-        push(&[self.life, self.unused_88, self.unused_8c, self.car_tag]);
-        assert_eq!(n, w.len());
-        w
-    }
-
-    /// An entry from its dwords in order of offset.
-    pub fn from_words(w: [u32; (ENTRY_LEN / 4) as usize]) -> Entry {
-        Entry {
-            prev: w[0],
-            next: w[1],
-            emitter_tag: w[2],
-            kind: w[3],
-            place: [w[4], w[5], w[6]].map(f32::from_bits),
-            last_place: [w[7], w[8], w[9]].map(f32::from_bits),
-            ground_y: f32::from_bits(w[10]),
-            motion: [w[11], w[12], w[13]].map(f32::from_bits),
-            push: [w[14], w[15], w[16]].map(f32::from_bits),
-            spare: [w[17], w[18], w[19]],
-            angle: w[20],
-            angle_rate: w[21],
-            cell: w[22],
-            cell_rate: f32::from_bits(w[23]),
-            size: w[24],
-            size_factor: f32::from_bits(w[25]),
-            car: w[26],
-            car_pace: w[27],
-            size_goal: w[28],
-            alpha: w[29],
-            alpha_fade: f32::from_bits(w[30]),
-            box_limit: [w[31], w[32]],
-            life: w[33],
-            unused_88: w[34],
-            unused_8c: w[35],
-            car_tag: w[36],
-        }
-    }
-}
 
 /// The ring made: each entry linked to its neighbours, counted on `list`.
 pub fn take(ring: &Ring, list: &crate::memory::ListCells) -> Result<(), crate::errors::Refused> {

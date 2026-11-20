@@ -306,7 +306,7 @@ struct NotedLevel {
 }
 
 /// Part `part`'s noted drawing's way to the backend: nothing noted is left behind.
-fn draw_noted(part: &crate::scene::workers::PartScratch, pending: &mut Pending) {
+fn draw_noted(part: &crate::scene::scratch_store::PartScratch, pending: &mut Pending) {
     // A list drawn before, or one with room for as many as there has been: growing to them
     // shows in a profile.
     let spare = crate::render::spare_list(&pending.noted);
@@ -328,7 +328,7 @@ fn draw_noted(part: &crate::scene::workers::PartScratch, pending: &mut Pending) 
     crate::render::draw(screen, racing, &target, commands);
 }
 
-/// A drawing part's drawing noted since the last flush (`scene::workers::PartScratch`): the
+/// A drawing part's drawing noted since the last flush (`scene::scratch_store::PartScratch`): the
 /// first part's is the game's thread's, what is flushed (fans, mode changes, the frame
 /// shown); each other part's holds what it notes in a run until the run's end puts it
 /// after the first's (`take_noted`, `put_noted`). Only its part's thread reaches it (a part's
@@ -359,27 +359,27 @@ thread_local! {
     /// noted drawing (the game's thread's): the platform's calls (a surface locked, the frame
     /// shown) carry no owner to reach it by. Set once on the game's thread
     /// (`register_game_scratch`); a thread with none has nothing noted.
-    static GAME_SCRATCH: std::cell::Cell<Option<&'static crate::scene::workers::DrawingScratch>> =
+    static GAME_SCRATCH: std::cell::Cell<Option<&'static crate::scene::scratch_store::DrawingScratch>> =
         const { std::cell::Cell::new(None) };
 }
 
 /// The game's thread's owners' drawing scratch is where the platform's flush finds the noted
 /// drawing: called once on the game's thread, as the owners are made.
-pub fn register_game_scratch(scratch: &'static crate::scene::workers::DrawingScratch) {
+pub fn register_game_scratch(scratch: &'static crate::scene::scratch_store::DrawingScratch) {
     GAME_SCRATCH.set(Some(scratch));
 }
 
 /// The drawing scratch registered on this thread, if any.
-pub fn game_scratch() -> Option<&'static crate::scene::workers::DrawingScratch> {
+pub fn game_scratch() -> Option<&'static crate::scene::scratch_store::DrawingScratch> {
     GAME_SCRATCH.get()
 }
 
 /// The game's thread's noted drawing's part: the first one's, none when no scratch is
 /// registered on this thread.
-fn game_part() -> Option<&'static crate::scene::workers::PartScratch> {
+fn game_part() -> Option<&'static crate::scene::scratch_store::PartScratch> {
     GAME_SCRATCH
         .get()
-        .map(crate::scene::workers::DrawingScratch::game_scratch)
+        .map(crate::scene::scratch_store::DrawingScratch::game_scratch)
 }
 
 /// Whether a noted fan reads the texture `pixels`.
@@ -390,7 +390,7 @@ fn reads_texture(pixels: TextureId) -> bool {
 /// The screen's width, height and bits per pixel as part `part`'s drawing reads them: its own copy
 /// (`scene::workers::set_game_part_screen` for the game's part, `scene::workers::draw_parts` for
 /// every part when a scope opens).
-fn screen_figures(part: &crate::scene::workers::PartScratch) -> (u32, u32, u32) {
+fn screen_figures(part: &crate::scene::scratch_store::PartScratch) -> (u32, u32, u32) {
     let [width, height, bits] = part
         .screen_size
         .each_ref()
@@ -426,7 +426,7 @@ fn screen_of(pixels: u32, (width, height, bits): (u32, u32, u32)) -> Target {
 
 /// Notes in part `part`'s drawing for the screen as it is now (the noted so far drawn first
 /// when that is another): `what` adds to `pending.noted`.
-fn note(part: &crate::scene::workers::PartScratch, what: impl FnOnce(&mut Pending)) {
+fn note(part: &crate::scene::scratch_store::PartScratch, what: impl FnOnce(&mut Pending)) {
     {
         let pending = &mut *part.noted.lock();
         // A fan asks every time: the pixels' bytes are looked up only when they may differ.
@@ -444,13 +444,13 @@ fn note(part: &crate::scene::workers::PartScratch, what: impl FnOnce(&mut Pendin
 }
 
 /// The commands part `part` has noted since the last flush or take (`d3d::run_states`).
-pub(super) fn noted_len(part: &crate::scene::workers::PartScratch) -> usize {
+pub(super) fn noted_len(part: &crate::scene::scratch_store::PartScratch) -> usize {
     part.noted.lock().noted.len()
 }
 
 /// The commands part `part` has noted, taken out with its textures, the screen, the states and the
 /// level as the last fan had them forgotten (`workers`: each part notes as from nothing).
-pub fn take_noted(part: &crate::scene::workers::PartScratch) -> CommandList {
+pub fn take_noted(part: &crate::scene::scratch_store::PartScratch) -> CommandList {
     let p = &mut *part.noted.lock();
     p.into = None;
     p.states = None;
@@ -461,7 +461,7 @@ pub fn take_noted(part: &crate::scene::workers::PartScratch) -> CommandList {
 
 /// `commands` noted after those the game's thread has so far (`workers`), their textures
 /// with them; the emptied list kept for the next.
-pub fn put_noted(first: &crate::scene::workers::PartScratch, mut commands: CommandList) {
+pub fn put_noted(first: &crate::scene::scratch_store::PartScratch, mut commands: CommandList) {
     {
         let p = &mut *first.noted.lock();
         p.states = None;
@@ -484,7 +484,7 @@ pub fn flush() {
 /// A triangle strip (`D3DPT_TRIANGLESTRIP`): triangle n of vertices n, n + 1, n + 2, every
 /// second one's first two swapped so that all keep the strip's winding (as Direct3D does).
 pub(super) fn draw_strip(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     vertices: &[crate::render::rasteriser::Vertex],
 ) {
     for n in 0..vertices.len().saturating_sub(2) {
@@ -502,7 +502,7 @@ pub static NOTE_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomic
 
 /// A fan drawn by drawing part `part` (with its render states and texture).
 pub fn draw_fan(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     vertices: &[crate::render::rasteriser::Vertex],
 ) {
     // Timed only where something shows it: a look at the clock for every fan shows in a profile.
@@ -519,12 +519,12 @@ pub fn draw_fan(
 }
 
 /// A render state of part `part` has changed: its next fan's are read again.
-pub fn forget_states(part: &crate::scene::workers::PartScratch) {
+pub fn forget_states(part: &crate::scene::scratch_store::PartScratch) {
     part.noted.lock().states = None;
 }
 
 fn note_fan(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     vertices: &[crate::render::rasteriser::Vertex],
 ) {
     if vertices.len() < 3 {
@@ -704,7 +704,7 @@ pub fn copy_screen_to_system_texture(number: u32, figures: &crate::memory::sessi
 /// `index(k)` the `k`-th index. An index past the vertices ends the list (Direct3D would
 /// have refused the call).
 pub(super) fn draw_triangles(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     vertex_count: u32,
     index_count: u32,
     vertex: impl Fn(u16) -> crate::d3d::Vertex,
@@ -721,7 +721,7 @@ pub(super) fn draw_triangles(
 
 /// `draw_triangles` on a batch's own buffers. A count past them ends the game.
 pub(super) fn draw_indexed_bytes(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     vertices: &impl crate::memory::session::ByteBuffer,
     vertex_room: usize,
     vertex_count: u32,
@@ -757,7 +757,7 @@ pub(super) fn draw_indexed_bytes(
 /// `draw_triangles` (DrawIndexedPrimitive, type 4, flags 0x1C). Returns Direct3D's result:
 /// 0, drawn.
 pub fn draw_indexed<const V: usize, const I: usize>(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     vertices: &crate::memory::session::PlainBytes<V>,
     vertex_count: u32,
     indices: &crate::memory::session::PlainBytes<I>,
@@ -1036,7 +1036,7 @@ const BEGIN_STATES: [(u32, u32); 12] = [
 
 /// `d3d::begin_scene` for Rust callers: the layer's states at a scene's beginning, no
 /// texture set (in drawing part `part`'s cache). It cannot fail.
-pub fn begin_layer(d3d: &crate::d3d::owner::D3d, part: &crate::scene::workers::PartScratch) {
+pub fn begin_layer(d3d: &crate::d3d::owner::D3d, part: &crate::scene::scratch_store::PartScratch) {
     d3d.cards.get().in_scene.set(1u32);
     for (value, state) in BEGIN_STATES
         .into_iter()
@@ -1066,7 +1066,7 @@ pub fn end_layer(d3d: &crate::d3d::owner::D3d) -> bool {
 /// `d3d::clear_viewport` for Rust callers: the depth buffer cleared over the rectangle
 /// `DRAW.cleared_rectangle` holds, noted in drawing part `part`'s drawing.
 pub fn clear_viewport(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     own: &[crate::memory::session::PlainDword; 4],
 ) {
     let [left, top, right, bottom] = crate::memory::session::read_bits(own).map(|v| v as i32);

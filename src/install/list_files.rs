@@ -14,10 +14,7 @@ fn find_name() -> Vec<u8> {
 }
 
 /// The files of `pattern` added to the files' table.
-pub fn list_files(
-    install: &crate::install::owner::Install,
-    pattern: impl Into<crate::memory::place::BytePlace>,
-) -> Result<(), Refused> {
+pub fn list_files(install: &crate::install::owner::Install, pattern: &[u8]) -> Result<(), Refused> {
     let pattern = resolve_path(pattern)?;
     if find_first(&pattern, DIRECTORY) {
         loop {

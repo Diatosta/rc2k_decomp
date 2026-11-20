@@ -12,7 +12,7 @@ use std::cell::Cell;
 use std::sync::Arc;
 
 use crate::render::{Command, STATES};
-use crate::scene::workers::PartScratch;
+use crate::scene::scratch_store::PartScratch;
 
 type States = [u32; STATES];
 
@@ -26,7 +26,7 @@ pub struct RunStates {
     left: crate::d3d::render_cache::Cache,
 }
 
-/// A drawing part's run under way (`scene::workers::PartScratch::run`): where it first set each
+/// A drawing part's run under way (`scene::scratch_store::PartScratch::run`): where it first set each
 /// state. Only a part other than the first has one; only the thread drawing it reaches it
 /// (plain cells, `memory::part_cell::PartCell`).
 pub struct OwnRun {

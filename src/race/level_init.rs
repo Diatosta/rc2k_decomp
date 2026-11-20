@@ -165,7 +165,7 @@ pub(super) fn build_texture_infos(race: &Race) -> Result<(), Refused> {
 
 /// Resets `grid_x` and `grid_z`, the course grid's corner (each view keeps its own,
 /// `race::view_grid`), so every view makes its grid again.
-pub(super) fn reset_refresh(scratch: &crate::scene::workers::DrawingScratch) {
+pub(super) fn reset_refresh(scratch: &crate::scene::scratch_store::DrawingScratch) {
     crate::race::view_grid::reset_corners(scratch);
 }
 

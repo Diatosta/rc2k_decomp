@@ -19,7 +19,7 @@ pub struct Checkpoints {
     /// `physics::passed_split_point`.
     pub angles: [PlainDword; 5146],
     /// Nothing reads or writes it (the gap between the angles and the distances).
-    pub unused_f130: [PlainDword; 5148],
+    pub reserved_f130: [PlainDword; 5148],
     /// Each checkpoint's distance along the line (`race::best_line`, `race::pace_notes`,
     /// `race::frame_draw`, `race::init_overlay`).
     pub distances: [PlainDword; 5146],
@@ -67,7 +67,7 @@ fn record_cell(table: &Checkpoints, index: usize) -> Option<&PlainDword> {
         &table.checkpoint_faces,
         &table.check_counts,
         &table.angles,
-        &table.unused_f130,
+        &table.reserved_f130,
         &table.distances,
         &table.map_x,
         &table.map_y,

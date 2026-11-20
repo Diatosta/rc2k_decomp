@@ -165,7 +165,7 @@ pub struct Projected {
 
 /// A scene point's record made anew: the point through the view's matrix and onto the screen.
 pub(crate) fn make_scene_record(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     point: u32,
     record: u32,
     reads: crate::scene::workers::DrawReads<'_>,
@@ -208,7 +208,7 @@ pub(crate) fn make_scene_record(
 }
 
 pub fn project_point(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     point: u32,
     reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,

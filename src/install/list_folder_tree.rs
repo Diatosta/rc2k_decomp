@@ -38,10 +38,7 @@ fn found_path(search: &[u8]) -> Result<Vec<u8>, Refused> {
     found_name(search, &find_name())
 }
 
-fn walk(
-    install: &'static crate::install::owner::Install,
-    folder: crate::memory::place::BytePlace,
-) -> Result<(), Refused> {
+fn walk(install: &'static crate::install::owner::Install, folder: &[u8]) -> Result<(), Refused> {
     let mut folder = resolve_path(folder)?;
     if !folder.is_empty() {
         let (used, scan) = install
@@ -128,9 +125,8 @@ fn walk(
 /// the files'.
 pub(super) fn list_folder_tree(
     install: &'static crate::install::owner::Install,
-    folder: impl Into<crate::memory::place::BytePlace>,
+    folder: &[u8],
 ) -> Result<(), Refused> {
-    let folder = folder.into();
     walk(install, folder)
 }
 
@@ -158,8 +154,6 @@ mod tests {
             std::fs::write(dir.join(f), b"x").unwrap();
         }
         let root = crate::files::ansi_bytes(&dir.to_string_lossy());
-        let mut path = root.clone();
-        path.push(0);
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
         crate::test_support::own::install()
@@ -179,12 +173,7 @@ mod tests {
         ] {
             d.set(0);
         }
-        let path_buffer: &'static crate::memory::session::Bytes<1024> =
-            Box::leak(Box::new(crate::memory::session::Bytes::new([0; 1024])));
-        for (n, &b) in path.iter().enumerate() {
-            path_buffer.set(n, b);
-        }
-        super::list_folder_tree(crate::test_support::own::install(), path_buffer).unwrap();
+        super::list_folder_tree(crate::test_support::own::install(), &root).unwrap();
         let joined = |parts: &[&str]| {
             let mut p = root.clone();
             for part in parts {

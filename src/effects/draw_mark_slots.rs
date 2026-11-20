@@ -12,7 +12,7 @@
 //! Refuses (before anything) null settings and a live slot with a null matrix.
 
 use crate::effects::mark_slots::slot_matrix;
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;

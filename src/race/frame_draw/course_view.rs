@@ -330,7 +330,7 @@ pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
 pub fn face_hide_mask(
     reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
 ) -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground_in_view(
         &crate::physics::probe_ground::ProbeInputs {
@@ -429,7 +429,7 @@ fn mark_far_cells_with<R: crate::math::x87_float::Rounds>(
 pub fn prepare_course_view(
     reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
 ) -> Result<(), Refused> {
     check_course_grid(reads.course())?;
     face_hide_mask(reads, view, part)?;

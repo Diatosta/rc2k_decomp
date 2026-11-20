@@ -11,8 +11,8 @@
 pub fn clear_depth_buffer(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
-    part: &crate::scene::workers::PartScratch,
-    polygons: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    polygons: &crate::scene::polygon_work_store::PolygonWork,
 ) {
     let session = &system.session;
     if scene.objects.tables.get().d3d_drawing_on.get() == 0 {

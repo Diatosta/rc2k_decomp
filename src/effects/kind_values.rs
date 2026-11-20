@@ -7,7 +7,7 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::PlainFloat;
 
 pub const KINDS: u32 = 0x22;
 
@@ -136,19 +136,4 @@ pub(super) fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), 
     q.sides[1][1].set(x87::sub(triple(0, 1), triple(1, 1)));
     q.sides[1][2].set(x87::negated(x87::sub(triple(0, 0), triple(1, 0))));
     Ok(())
-}
-
-/// The marks' kind (`effects::kind_values`).
-#[derive(rc2k_derive::Cells)]
-pub struct MarksKind {
-    /// The kind of the marks (the surface / weather: 0 .. 0x21), set at `effects::init_marks`.
-    pub kind: PlainDword,
-}
-
-impl MarksKind {
-    pub const fn new() -> Self {
-        Self {
-            kind: PlainDword::new(0x0),
-        }
-    }
 }

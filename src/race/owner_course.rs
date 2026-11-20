@@ -13,7 +13,7 @@ use crate::race::level_paths_store::LevelPaths;
 use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
 use crate::race::prefs_store::StagePrefs;
-use crate::race::stage_data::StageData;
+use crate::race::stage_data_store::StageData;
 
 /// The race's course state.
 pub struct Course {

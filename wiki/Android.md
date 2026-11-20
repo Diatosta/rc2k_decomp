@@ -41,8 +41,9 @@ In the race (the overlay over the picture; a real gamepad being used hides it, a
 | GO | accelerates |
 | BRAKE | brakes |
 | HAND | handbrake |
-| + and - | gear up and down |
+| + and - | gear up and down (a second pair on the left, under II, for the other hand) |
 | CAM | the camera |
+| LIGHTS (under CAM) | the lights on and off |
 | II | the pause: asks whether to leave the stage |
 
 The controls are a virtual gamepad ("Touch screen") the game reads like any other, so its

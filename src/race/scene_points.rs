@@ -6,13 +6,13 @@
 //! A point is reached by its number (`point_number`, `point_word`, `put_point_word`, `copy_point`):
 //! the number's byte is 12 n. The points are a part of the stage's `CourseData`.
 //!
-//! The points past the count are scratch: each drawing part (`scene::workers::PartScratch`) has its
+//! The points past the count are scratch: each drawing part (`scene::scratch_store::PartScratch`) has its
 //! own while it is drawn in a run of a list drawn by several parts, taken from the shared ones
 //! as they are when it first reaches them in the run (`OwnPoints`). A reader names the own
 //! points it reads through; outside the parts that is `no_own()`, the shared points throughout.
 
 use crate::errors::BadInput;
-use crate::race::course_places::CourseData;
+use crate::race::course_places_store::CourseData;
 use crate::race::owner_course::CourseReads;
 use std::cell::{Cell, RefCell};
 
@@ -27,7 +27,7 @@ fn table(tables: &CourseData) -> &crate::memory::shared_table::SharedTable {
     &tables.points
 }
 
-/// A drawing part's own points past the count (`scene::workers::PartScratch::points`): kept from the
+/// A drawing part's own points past the count (`scene::scratch_store::PartScratch::points`): kept from the
 /// count on while the part is drawn in a run of a list drawn by several parts (the game thread's
 /// first part too), none otherwise (see the header). Plain cells: only the thread that draws the
 /// part reaches it (`memory::part_cell::PartCell`).

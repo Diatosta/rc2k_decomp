@@ -6,10 +6,11 @@
 //!
 //! Refuses a null particle or ring (an entry to take), before anything.
 
-use crate::effects::blocks::{ParticleKind, read_particle, update_particle};
+use crate::effects::blocks::{read_particle, update_particle};
+use crate::effects::blocks_store::ParticleKind;
 use crate::effects::jitter_point::jitter_point;
+use crate::effects::particles_store::Particles;
 use crate::effects::ring_store::Ring;
-use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded};
 use crate::math::x87;

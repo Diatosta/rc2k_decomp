@@ -12,7 +12,7 @@
 //! (`clip_quad`'s refusal), before anything.
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
-use crate::effects::rain::{RainRules, RainState, Weather};
+use crate::effects::rain_store::{RainRules, RainState, Weather};
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;
@@ -24,7 +24,7 @@ fn turn(weather: &Weather, p: &[[u8; 10]; 3]) {
 
 /// Both ends projected and the quad's x, y and depth.
 fn project(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     weather: &Weather,
 ) {
@@ -133,7 +133,7 @@ fn turn_x87(p: &[[u8; 10]; 3], r: &RainState) {
 
 /// `project`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn project_x87(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     r: &RainState,
     k: &RainRules,

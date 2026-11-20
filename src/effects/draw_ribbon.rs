@@ -19,7 +19,7 @@ const CELLS: u32 = 0x41;
 
 /// The two places projected and the ribbon's corners.
 fn ribbon(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     effects: &crate::effects::owner::Effects,
 ) {
@@ -88,14 +88,14 @@ pub(super) fn draw_ribbon(
     Ok(())
 }
 
-use crate::effects::frame_state::{DrawWork, ViewVars};
+use crate::effects::frame_state_store::{DrawWork, ViewVars};
 use crate::effects::plain::st_cell;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
 /// `ribbon`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn ribbon_x87(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     dw: &DrawWork,
     vv: &ViewVars,

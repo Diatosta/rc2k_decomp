@@ -1,5 +1,5 @@
 //! The polygon vertex buffer: 64 transformed and lit vertices (`Vertex`, 0x20 bytes), one
-//! buffer for each drawing part (`scene::workers::PartScratch::vertices`). The polygon about to be
+//! buffer for each drawing part (`scene::scratch_store::PartScratch::vertices`). The polygon about to be
 //! drawn stands in its first vertices (`polygon_vertex_count` says how many).
 
 use crate::memory::session::{CellKind, PlainCells};
@@ -26,7 +26,7 @@ pub struct Vertex<K: CellKind = PlainCells> {
     pub v: K::Float,
 }
 
-/// The vertices of the polygon being drawn: a drawing part's own (`scene::workers::PartScratch`), on
+/// The vertices of the polygon being drawn: a drawing part's own (`scene::scratch_store::PartScratch`), on
 /// plain cells, reached by the one thread that draws the part.
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]

@@ -42,10 +42,10 @@ pub fn check_at_start(
     let put = |at: usize, text: &[u8]| -> Result<(), BadInput> {
         scratch_put(at, &[text, &[0]].concat())
     };
-    let program = install.names.program.text();
+    let program = crate::install::vars::fixed::PROGRAM;
 
     outside.read_installed();
-    if install.names.status.get() == 1 && install.names.source.get(0) != 0 {
+    if install.names.status.get() == 1 && !install.names.source.is_empty() {
         // Whether the source could be put there is not asked: the program's name goes
         // after whatever text the place holds.
         if let Some(normalised) = outside.normalise_path(&install.names.source.text())? {
@@ -59,7 +59,7 @@ pub fn check_at_start(
         else {
             return Err(BadInput("the scratch path holds no text to go on from").into());
         };
-        put(len, &program)?;
+        put(len, program)?;
         if outside.file_exists(&scratch_text()?)? {
             // "patch6: ", then the version from the blank before its `(`.
             let version = system.start().texts.version.text();
@@ -80,7 +80,7 @@ pub fn check_at_start(
             continue;
         }
         put(0, &[letter, b':', b'\\'])?;
-        put(3, &program)?;
+        put(3, program)?;
         if !outside.file_exists(&scratch_text()?)? {
             continue;
         }

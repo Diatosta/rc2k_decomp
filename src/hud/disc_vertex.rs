@@ -7,8 +7,8 @@
 
 use crate::d3d::vertices_store::Vertex;
 use crate::errors::{BadInput, Refused};
+use crate::hud::block_store::HudBlock;
 use crate::hud::owner::Hud;
-use crate::hud::store::HudBlock;
 use crate::math::x87_float::{ld, stf};
 
 pub use rc2k_core::hud::disc::ENTRIES;

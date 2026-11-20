@@ -3,7 +3,8 @@
 //! `hud::layout_1` (1), `hud::layout_2` (2) or `hud::layout_0`; then `hud::flush_batch`.
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
 pub fn draw_hud(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {

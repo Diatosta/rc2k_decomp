@@ -10,7 +10,7 @@ the installation's record, makes the menu shortcuts, and removes the game again.
 ## State
 
 The owner is `Install` (`src/install/owner.rs`). Its parts: the installer's variables
-(`src/install/vars.rs`, `store.rs`), the lists of names it builds (`name_tables.rs`) and the
+(`src/install/vars.rs`: the run's counters and flags, the paths and the record's status as plain cells and text fields, the fixed paths and scripts in `vars::fixed`; `store.rs`), the lists of names it builds (`name_tables.rs`) and the
 highlight each page's list keeps (`page_state.rs`). A page is a typed `PageDef` (`rc2k_core/src/install/model.rs`),
 made when it opens; its pieces are a plain list made by `lay_out_pieces.rs`.
 

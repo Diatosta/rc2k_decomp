@@ -132,7 +132,7 @@ fn put_header(sealed: &[PlainDword; 64], at: usize, bytes: &[u8]) -> Result<(), 
 }
 
 /// The settings the sealed header copies: the low bytes of each go to its place in the header;
-/// the first car's race number also goes to the first dword of `unknown_7d0`, outside the header
+/// the first car's race number also goes to the first dword of `after_header`, outside the header
 /// (a slip kept as is).
 #[cfg(test)]
 fn copy_header_settings(sealed: &[PlainDword; 64]) -> Result<(), BadInput> {
@@ -207,7 +207,7 @@ fn copy_header_settings_of(
         put_header(sealed, at, &value.to_le_bytes()[..size])?;
     }
     // The viewer's first car number, kept outside the header.
-    let door = &race.replay_work().unknown_7d0[0];
+    let door = &race.replay_work().after_header[0];
     door.set(door.get() & !0xFF | (car.race_number.get() & 0xFF));
     Ok(())
 }
@@ -464,7 +464,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     .chain(&w.sealed_header)
     .chain(std::iter::once(&w.patches_in_header))
     .chain(&w.header_patches)
-    .chain(&w.unknown_7d0)
+    .chain(&w.after_header)
     .flat_map(|d| d.get().to_le_bytes())
     .collect();
     debug_assert_eq!(stage.len(), 0x400);
@@ -630,7 +630,7 @@ mod header_tests {
             let work = race().replay_work();
             match to {
                 Sealed(at) => crate::memory::cells::Store::store(&work.sealed_header, at, &bytes)?,
-                Door => crate::memory::cells::Store::store(&work.unknown_7d0[0], 0, &bytes)?,
+                Door => crate::memory::cells::Store::store(&work.after_header[0], 0, &bytes)?,
             }
         }
         Ok(())
@@ -679,7 +679,7 @@ mod header_tests {
         let locale = &crate::test_support::own::strings().language.locale;
         let header = &shared.replays().header;
         let sealed = &crate::test_support::own::race().replay_work().sealed_header;
-        let door = &crate::test_support::own::race().replay_work().unknown_7d0[0];
+        let door = &crate::test_support::own::race().replay_work().after_header[0];
         let kept_cells: Vec<u32> = cells.iter().map(|c| c.get()).collect();
         let kept_locale = locale.get(8);
         let kept_header: Vec<u8> = (0..16).map(|i| header.get(i)).collect();

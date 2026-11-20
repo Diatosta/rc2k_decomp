@@ -86,21 +86,17 @@ pub(super) fn read_installed(install: &crate::install::owner::Install) {
     if !crate::files::host_path(FILE.as_bytes()).exists() {
         return;
     }
-    names.source_size.set(1);
     let Some(record) = InstallRecord::load(&crate::files::host_path(FILE.as_bytes())) else {
         return;
     };
     names.status.set(record.status);
-    names.source_size.set(SOURCE_ROOM);
     let Some(mut folder) = here() else {
         return;
     };
     folder.push(0);
-    names.source_size.set(folder.len() as u32);
     if folder.len() as u32 <= SOURCE_ROOM {
-        for (k, &b) in folder.iter().enumerate() {
-            names.source.set(k, b);
-        }
+        // Fits: its length is under the place's.
+        let _ = names.source.set(&folder);
     }
 }
 
@@ -109,11 +105,7 @@ pub(super) fn read_installed(install: &crate::install::owner::Install) {
 pub(super) fn write_installed(install: &crate::install::owner::Install) {
     let names = &install.names;
     let status = names.status.get();
-    let folder = if names.source.get(0) != 0 {
-        names.source.text()
-    } else {
-        Vec::new()
-    };
+    let folder = names.source.text();
     let mut var = folder.clone();
     if !var.is_empty() && !var.ends_with(b"\\") {
         var.push(b'\\');

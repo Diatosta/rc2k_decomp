@@ -3,7 +3,8 @@
 //! down) and held between the walls, then it is put back where it was if it
 //! now overlaps the ball. (The original jumps over the moves, so its bat never moves.)
 
-use crate::effects::pong::{self, Pong};
+use crate::effects::pong::{self};
+use crate::effects::pong_store::Pong;
 
 /// `steer`: negative for left, positive for right, 0 for none.
 pub fn move_pong_bat(pong: &Pong, effects: &crate::effects::owner::Effects, steer: i32) {

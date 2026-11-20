@@ -12,8 +12,6 @@ pub struct Numbers {
     /// The replay's mode, 1 recording, 2 playing (`drive::keep_replay_frame`; the scene skips
     /// the tyre screen while 2).
     pub replay_mode: PlainDword,
-    /// Unused; it only keeps the layout.
-    pub unused_4: [PlainDword; 2],
     /// `in_race`.
     pub in_race: PlainFlag,
     /// 1609.3457 (`metres_in_mile`).
@@ -145,8 +143,6 @@ pub struct Numbers {
     /// The debug font's pixel size (1 at first; `debug::draw` writes it before each of the
     /// overlay's prints).
     pub debug_scale: PlainDword,
-    /// Unused; it only keeps the layout.
-    pub unused_130: [PlainDword; 2],
     /// 4096.0.
     pub k4096_a: PlainFloat,
     /// 262144.0.
@@ -186,7 +182,6 @@ impl Numbers {
     pub const fn new() -> Self {
         Self {
             // A text nothing reads ("xyz").
-            unused_4: [PlainDword::new(0x7A7978), PlainDword::new(0)],
             metres_in_mile: PlainFloat::new(1609.3457),
             thousandth_a: PlainFloat::new(0.001),
             hundred_a: PlainFloat::new(100.0),

@@ -183,19 +183,3 @@ pub(super) fn set_up_surface(
     }
     Ok(())
 }
-
-/// The surface masks' memory list and the bytes after it.
-#[derive(rc2k_derive::Cells)]
-pub struct MaskList {
-    /// A `memory::List` (head, total, cursor, remaining)
-    pub list: crate::memory::ListCells,
-}
-
-/// MaskList's first values.
-impl MaskList {
-    pub const fn new() -> Self {
-        MaskList {
-            list: crate::memory::ListCells::empty(),
-        }
-    }
-}

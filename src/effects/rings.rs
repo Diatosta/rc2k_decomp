@@ -3,7 +3,7 @@
 //! second table.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::mask_vars::Shape;
+use crate::effects::mask_vars_store::Shape;
 use crate::effects::spans::{span_quad, spans_fit, triangle_rows};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;

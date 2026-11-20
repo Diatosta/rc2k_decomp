@@ -93,7 +93,7 @@ pub fn fog_table(
     prefs: &crate::race::prefs_store::StagePrefs,
     fog: &crate::scene::fog::Fog,
     car: &crate::physics::car_store::ViewCar,
-    sun: &crate::scene::polygon_work::ViewSun,
+    sun: &crate::scene::polygon_work_store::ViewSun,
     window: &crate::scene::view_window::ViewWindow,
 ) -> Result<(), Refused> {
     let length = window.view_depth[1].get().wrapping_shl(3);
@@ -131,9 +131,9 @@ pub fn set_up_fog(
     tables: &crate::math::engine_tables::EngineTables,
     prefs: &crate::race::prefs_store::StagePrefs,
     fog: &crate::scene::fog::Fog,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     car: &crate::physics::car_store::ViewCar,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
 ) -> Result<(), Refused> {
     let length = poly.window.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {

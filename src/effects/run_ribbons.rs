@@ -12,41 +12,13 @@
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_entries::{entry, ld, set, st, walk_ring};
 use crate::effects::ring_store::Ring;
-use crate::effects::setup::MarksClock;
+use crate::effects::setup_store::MarksClock;
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::scene::fog_at::fog_at;
 
 const STREAK: u32 = 0x12;
-
-/// The colour table used while the kind floats' `other` is 0: 257 colours (the surface's own
-/// 128 colours are the ones in use while it is not).
-pub struct Colours257 {
-    /// The 257 colours
-    pub colours: [u32; 257],
-}
-
-/// The 257 colours as the image has them: 0x00FFFF00 + 2 i for the first 128, then 0x00FFFFFF.
-impl Colours257 {
-    pub const fn new() -> Self {
-        Colours257 {
-            colours: {
-                let mut colours = [0; 257];
-                let mut i = 0;
-                while i < 257 {
-                    colours[i] = if i < 128 {
-                        0x00FF_FF00 + 2 * i as u32
-                    } else {
-                        0x00FF_FFFF
-                    };
-                    i += 1;
-                }
-                colours
-            },
-        }
-    }
-}
 
 /// A new streak's place turned into its last place, and a first move.
 fn first_frame(
@@ -228,7 +200,7 @@ pub fn run_ribbons(
     })
 }
 
-use crate::effects::frame_state::DrawWork;
+use crate::effects::frame_state_store::DrawWork;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::int;
 

@@ -16,7 +16,7 @@
 
 use crate::effects::kind_store::QuadWork;
 use crate::effects::plain::ldi_cell;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
@@ -84,7 +84,7 @@ fn plane_corners(fl: &WindscreenFlakes, effects: &crate::effects::owner::Effects
 
 /// The four corners projected.
 fn plane_projected(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     effects: &crate::effects::owner::Effects,
 ) {
     plane_projected_x87(front, &effects.kinds.plane_quad);
@@ -314,7 +314,7 @@ fn plane_corners_x87(sq: &WindscreenFlakeTables, q: &QuadWork) {
 }
 
 /// `plane_projected`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn plane_projected_x87(front: &crate::scene::polygon_work::PolygonWork, q: &QuadWork) {
+fn plane_projected_x87(front: &crate::scene::polygon_work_store::PolygonWork, q: &QuadWork) {
     let t0 = crate::math::x87_float::ld(front.window.view_scale.get());
     let t1 = t0 / q.corners[0][2].ld();
     let t2 = t1 * q.corners[0][0].ld();

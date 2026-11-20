@@ -44,7 +44,7 @@ pub fn draw_view_scene(
     input: &crate::input::owner::Input,
     view: &ViewScratch,
     filter: [u32; 3],
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     reads: crate::scene::workers::DrawReads<'_>,
     helper: Option<crate::scene::workers::Helper<'_>>,
 ) -> Result<ViewOutput, Refused> {

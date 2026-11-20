@@ -18,9 +18,9 @@ pub(super) fn run_script(
     script: &[u8],
 ) -> Result<(), Refused> {
     use crate::install as i;
-    // Bounded by the buffer the script is in: the uninstall script (`names.script`) holds the
-    // mark and the rest of the script after its first 17 bytes (the end at the mark, 5, or at
-    // the end of the buffer); the other scripts end inside their own fields.
+    // Bounded by the buffer the script is in: the uninstall script holds the mark and the rest
+    // of the script after its head (the end at the mark, 5, or at the end of the script); the
+    // other scripts end inside their own bytes.
     let mut cursor = 0usize;
     let byte = |at: usize| {
         script
@@ -30,14 +30,7 @@ pub(super) fn run_script(
     };
     // The path being built, kept in `script_path` as its text for the scans that read it.
     let mut path: Vec<u8> = Vec::new();
-    let show = |path: &[u8]| {
-        let mut text = path.to_vec();
-        text.push(0);
-        install
-            .paths
-            .script_path
-            .write_at(0, &text, "a script path")
-    };
+    let show = |path: &[u8]| install.paths.script_path.set(path);
     show(&path)?;
     // The path's length before each folder entered.
     let mut levels: Vec<usize> = Vec::new();
@@ -58,7 +51,7 @@ pub(super) fn run_script(
                 levels.push(path.len());
                 path.extend_from_slice(&name);
                 show(&path)?;
-                i::list_folder::list_folder(install, &install.paths.script_path)?;
+                i::list_folder::list_folder(install, &path)?;
                 path.push(b'\\');
                 show(&path)?;
             }
@@ -79,9 +72,9 @@ pub(super) fn run_script(
                 path.extend_from_slice(&name);
                 show(&path)?;
                 if op == 3 {
-                    i::list_files::list_files(install, &install.paths.script_path)?;
+                    i::list_files::list_files(install, &path)?;
                 } else {
-                    i::list_folder_tree::list_folder_tree(install, &install.paths.script_path)?;
+                    i::list_folder_tree::list_folder_tree(install, &path)?;
                 }
                 path.truncate(level);
                 show(&path)?;

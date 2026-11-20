@@ -8,7 +8,7 @@
 //!
 //! The offsets are rounded as the x87 rounds.
 
-use crate::effects::rain::Weather;
+use crate::effects::rain_store::Weather;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner::Race;

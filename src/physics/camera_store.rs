@@ -28,8 +28,6 @@ pub struct CameraWork {
     pub camera_offset_y: PlainDword,
     /// The camera's offset, z (`physics::update_camera`, `physics::place_camera`).
     pub camera_offset_z: PlainDword,
-    /// Unused.
-    pub unused_34: [PlainDword; 5],
     /// The start's heading, also the heading the camera eases to (`race::car_starts`,
     /// `physics::ease_view_turn`).
     pub start_heading: PlainDword,
@@ -101,8 +99,6 @@ pub struct CameraWork {
     /// The last pitch step, 0 ends the search (`physics::ease_pitch_up`,
     /// `physics::ease_pitch_down`).
     pub pitch_step: PlainDword,
-    /// Unused.
-    pub unused_120: [PlainDword; 5],
     /// Ground probes made, `physics::count_ground_probe` (a reading: statistics).
     pub ground_probes: PlainDword,
     /// Probes that found ground (`physics::count_ground_probe`).

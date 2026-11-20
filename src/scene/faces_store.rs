@@ -23,6 +23,4 @@ pub struct SortLists {
     /// 0x1000 entries of 8 bytes: +0 the key, +4 the second word (`race::frame_draw`,
     /// `race::draw_view_scene`).
     pub sort_entries: [PlainDword; 0x2000],
-    /// Two dwords after the sort entries; nothing reads or writes them.
-    pub unknown_40000: [PlainDword; 2],
 }

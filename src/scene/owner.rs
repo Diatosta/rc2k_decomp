@@ -6,6 +6,7 @@ use crate::memory::session::{DrawShared, GameThread};
 use crate::scene::draw_store::SceneDraw;
 use crate::scene::draw_switches_store::DrawSwitches;
 use crate::scene::file_numbers_store::ObjectFileNumbers;
+use crate::scene::icon_upload_store::IconUploadCell;
 use crate::scene::kind_texture_store::KindTextureTables;
 use crate::scene::light_store::LightState;
 use crate::scene::light_tables_store::LightTables;
@@ -14,7 +15,6 @@ use crate::scene::object_slots_store::ObjectTables as ObjectSlots;
 use crate::scene::object_store::ObjectWork;
 use crate::scene::object_tables_store::ObjectTables;
 use crate::scene::texture_places_store::TexturePlaces;
-use crate::scene::upload_car_icon::IconUploadCell;
 
 /// The scene's state.
 pub struct Scene {
@@ -25,8 +25,8 @@ pub struct Scene {
     /// (`scene::workers::DrawReads`).
     pub light_tables: DrawShared<LightTables>,
     pub drawing: Drawing,
-    /// The scratch every drawing part and view works on (`scene::workers::DrawingScratch`).
-    pub scratch: crate::scene::workers::DrawingScratch,
+    /// The scratch every drawing part and view works on (`scene::scratch_store::DrawingScratch`).
+    pub scratch: crate::scene::scratch_store::DrawingScratch,
     pub lights: Lights,
     pub objects: Objects,
     pub textures: Textures,
@@ -101,7 +101,7 @@ impl Scene {
         Self {
             draw_switches: DrawShared::new(DrawSwitches::new()),
             light_tables: DrawShared::new(LightTables::new()),
-            scratch: crate::scene::workers::DrawingScratch::new(),
+            scratch: crate::scene::scratch_store::DrawingScratch::new(),
             drawing: Drawing {
                 scene: DrawShared::new(SceneDraw::new()),
             },

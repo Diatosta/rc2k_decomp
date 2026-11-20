@@ -2,14 +2,14 @@
 //! stores, the waves, the profiles, the morph, spread and line work, and the block points.
 //! It is the `paths` field of `effects::owner::Effects`.
 
-use crate::effects::lines::LinesWork;
-use crate::effects::morph_object_points::MorphWork;
-use crate::effects::profiles::{ProfileRings, ProfileTables};
-use crate::effects::splines::{
+use crate::effects::lines_store::LinesWork;
+use crate::effects::morph_object_points_store::MorphWork;
+use crate::effects::profiles_store::{ProfileRings, ProfileTables};
+use crate::effects::splines_store::{
     SplineConstants, SplineHead, SplineKinds, SplinePath, SplineTables, SplineWork,
 };
-use crate::effects::spread_point::SpreadRandom;
-use crate::effects::waves::{MarksSines, WaveLevels, WaveState};
+use crate::effects::spread_point_store::SpreadRandom;
+use crate::effects::waves_store::{MarksSines, WaveLevels, WaveState};
 use crate::memory::owned::Owned;
 
 /// The paths' state.

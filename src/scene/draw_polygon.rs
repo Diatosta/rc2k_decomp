@@ -204,9 +204,9 @@ fn entries(
 
 /// The sun's hit test.
 fn hit_test(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     quad: &[crate::memory::session::PlainDword; 32],
-    sun: &crate::scene::polygon_work::ViewSun,
+    sun: &crate::scene::polygon_work_store::ViewSun,
     entries: &[Listed],
 ) {
     if sun.on_screen.get() == 0 {
@@ -241,7 +241,7 @@ fn hit_test(
 
 /// The positions into the vertex buffer, mirrored for a mirrored view.
 fn place(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     quad: &[crate::memory::session::PlainDword; 32],
     reads: crate::scene::workers::DrawReads<'_>,
     entries: &[Listed],
@@ -254,7 +254,7 @@ fn place(
 /// `place` at the rounding `r`.
 fn place_with<R: x87_float::Rounds>(
     r: R,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     quad: &[crate::memory::session::PlainDword; 32],
     reads: crate::scene::workers::DrawReads<'_>,
     entries: &[Listed],
@@ -306,7 +306,7 @@ fn copy_set(buffer: &PolygonVertices, entries: &[Listed], set: Set) {
 /// `scene::choose_texture` with `scene::look_up_texture`: the texture filter's state, and the
 /// polygon's texture from the number in `texture_page`.
 fn choose_texture(
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     outside: &mut dyn Outside,
     reads: crate::scene::workers::DrawReads<'_>,
 ) {
@@ -329,7 +329,7 @@ fn choose_texture(
 /// Clears a switch by what the entries' `amount` bytes hold.
 fn clear_a_switch(
     tables: &crate::scene::polygon_store::PolygonTables,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     face: &crate::race::face_work::FaceWork,
     entries: &[Listed],
 ) -> Result<(), BadInput> {
@@ -354,7 +354,7 @@ fn clear_a_switch(
 }
 
 fn shade(
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     draw: &crate::scene::draw_store::SceneDraw,
     entries: &[Listed],
     how: Shade,
@@ -394,8 +394,8 @@ fn shade(
 }
 
 pub fn draw_polygon(
-    poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::scene::workers::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
     face: &crate::race::face_work::FaceWork,
     outside: &mut dyn Outside,
     reads: crate::scene::workers::DrawReads<'_>,
@@ -533,7 +533,7 @@ pub fn draw_polygon(
 
 /// The game's Direct3D layer and log, for drawing part `.0` and its view `.1`.
 pub struct Game<'a>(
-    pub &'a crate::scene::workers::PartScratch,
+    pub &'a crate::scene::scratch_store::PartScratch,
     pub &'a crate::race::view_scratch::ViewScratch,
 );
 
@@ -562,7 +562,7 @@ impl Outside for Game<'_> {
 /// callers.
 pub fn draw_polygon_in_game(
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     reads: crate::scene::workers::DrawReads<'_>,
     screen: &crate::memory::session::Screen,
 ) -> Result<(), BadInput> {

@@ -97,7 +97,7 @@ impl FaceWorld for GameFace<'_> {
         // switches); a face's group is its byte & 0x1F.
         let cell = match group.checked_sub(1) {
             None => Some(&draw_switches.group_table),
-            Some(k) => draw_switches.unknown_38.get(k as usize),
+            Some(k) => draw_switches.reserved_38.get(k as usize),
         };
         self.1
             .keep(
@@ -156,7 +156,7 @@ impl FaceWorld for GameFace<'_> {
 
 /// The face's bytes the tests read.
 fn face_bytes(
-    object_faces: &crate::scene::object_faces::ObjectFaces,
+    object_faces: &crate::scene::object_faces_store::ObjectFaces,
     face: usize,
 ) -> Result<(Face, u32), BadInput> {
     let b: [u8; 0xC] = object_faces.array(face as u32)?;

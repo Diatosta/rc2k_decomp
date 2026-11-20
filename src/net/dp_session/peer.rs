@@ -58,13 +58,31 @@ impl Session {
             desc,
             ..Default::default()
         };
-        for _ in 0..r.u32().ok_or(bad)? {
-            let id = r.u32().ok_or(bad)?;
-            world.players.insert(id, r.player().ok_or(bad)?);
+        // What the host lists is held to the limits every change is: a host that lists more, or
+        // longer, is not one of this game's.
+        let players = r.u32().ok_or(bad)?;
+        if players as usize > PLAYERS_MOST {
+            return Err(bad);
         }
-        for _ in 0..r.u32().ok_or(bad)? {
+        for _ in 0..players {
             let id = r.u32().ok_or(bad)?;
-            world.groups.insert(id, r.group().ok_or(bad)?);
+            let player = r.player().ok_or(bad)?;
+            if !fits(&player.name, &player.data) {
+                return Err(bad);
+            }
+            world.players.insert(id, player);
+        }
+        let groups = r.u32().ok_or(bad)?;
+        if groups as usize > GROUPS_MOST {
+            return Err(bad);
+        }
+        for _ in 0..groups {
+            let id = r.u32().ok_or(bad)?;
+            let group = r.group().ok_or(bad)?;
+            if !fits(&group.name, &group.data) || group.members.len() > PLAYERS_MOST {
+                return Err(bad);
+            }
+            world.groups.insert(id, group);
         }
         let _ = stream.set_write_timeout(Some(WRITE_WAIT));
         let session = Session::new(me, world, signal, port, None);

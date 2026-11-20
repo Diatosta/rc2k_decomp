@@ -47,7 +47,7 @@ const MIRROR_REACH: u32 = 2;
 pub fn mirror_view_window(
     race: &Race,
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     reads: crate::scene::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
     let draw = reads.scene_draw;
@@ -134,7 +134,7 @@ pub fn mirror_view_window(
 /// Draws a flat triangle of three vertices at (1, 1, 0) with texture 0 and colour 0
 /// (`scene::draw_fan`, `polygon_vertex_count` 3).
 pub(super) fn draw_flat_triangle(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     scene: &crate::scene::owner::Scene,
 ) {
     let buffer = &part.vertices;
@@ -468,8 +468,8 @@ pub(super) fn draw_screen_tint(
 fn clear_view_depth(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
 ) {
     let session = &system.session;
     if scene.objects.tables.get().d3d_drawing_on.get() == 0 {
@@ -682,7 +682,7 @@ pub fn run_view_marks(
 /// `v3_driver_fix` is not 0.
 fn clear_viewport_unless_held(
     draw: &crate::scene::draw_store::SceneDraw,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     own: &[crate::memory::session::PlainDword; 4],
 ) {
     if draw.v3_driver_fix.get() == 0 {

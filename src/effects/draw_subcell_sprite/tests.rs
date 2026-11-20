@@ -2,7 +2,7 @@ use crate::effects::asm_layout::with_laid;
 use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::staged_vertices as staged;
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
-use crate::effects::frame_state::DrawWork;
+use crate::effects::frame_state_store::DrawWork;
 use crate::effects::ring_store::RingWork;
 
 #[test]

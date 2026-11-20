@@ -7,7 +7,8 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_stage_bar::*;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
 /// How far layout 2's bars lie below layout 1's.

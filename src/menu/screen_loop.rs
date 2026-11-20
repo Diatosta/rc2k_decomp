@@ -193,7 +193,7 @@ pub enum SceneVar {
 
 impl SceneVar {
     /// The variable in the front end's scene.
-    pub fn cell(self, scratch: &crate::scene::workers::DrawingScratch) -> &dyn DwordLike {
+    pub fn cell(self, scratch: &crate::scene::scratch_store::DrawingScratch) -> &dyn DwordLike {
         let window = &scratch.front_end_polygon().window;
         let light = &scratch.front_end().light;
         match self {
@@ -223,7 +223,7 @@ pub enum SceneFloat {
 
 impl SceneFloat {
     /// The variable in the front end's scene.
-    pub fn cell(self, scratch: &crate::scene::workers::DrawingScratch) -> &PlainFloat {
+    pub fn cell(self, scratch: &crate::scene::scratch_store::DrawingScratch) -> &PlainFloat {
         let window = &scratch.front_end_polygon().window;
         match self {
             SceneFloat::ClipLeft => &window.clip_screen[2],
@@ -281,7 +281,11 @@ pub enum Step {
 impl Step {
     /// Runs the step if it only writes a variable (to `menus`, or the front end's scene):
     /// whether it did.
-    pub fn write(&self, menus: &Menus, scratch: &crate::scene::workers::DrawingScratch) -> bool {
+    pub fn write(
+        &self,
+        menus: &Menus,
+        scratch: &crate::scene::scratch_store::DrawingScratch,
+    ) -> bool {
         match *self {
             Step::Write(variable, value) => variable.cell(menus).set(value),
             Step::WriteFlag(flag, on) => flag.cell(menus).set(on),
@@ -529,7 +533,7 @@ pub struct Entry {
     pub menus: &'static Menus,
     pub cars: Option<CarList>,
     /// The front end's slot of polygon work (its window is the screens' view).
-    pub front_end: &'static crate::scene::polygon_work::PolygonWork,
+    pub front_end: &'static crate::scene::polygon_work_store::PolygonWork,
     /// Every owner: the screens reach the others (`owners.system`, `owners.race`, ..) through it.
     pub owners: Owners<'static>,
 }
@@ -585,7 +589,7 @@ impl Entry {
 pub struct SetUp<'a> {
     pub menus: &'a Menus,
     pub cars: Option<CarList>,
-    front_end: &'a crate::scene::polygon_work::PolygonWork,
+    front_end: &'a crate::scene::polygon_work_store::PolygonWork,
     race: &'a crate::race::owner::Race,
     scene: &'a crate::scene::owner::Scene,
     system: &'a System,

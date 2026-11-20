@@ -4,6 +4,7 @@
 //! Z is found but never listed, a slip kept as is; at most 24 drives are listed), and the drive
 //! count is kept (the drive page's items are made from it).
 
+use crate::install::vars::DriveFound;
 use rc2k_core::install::drives;
 
 pub(super) fn list_drives(
@@ -12,6 +13,7 @@ pub(super) fn list_drives(
 ) {
     // Per letter from 'a', a pair of dwords: how often it was found and its free space.
     let drives = &install.run.drives;
+    let found_at = |letter: u8| &drives[(letter - b'a') as usize];
     let mut letter = u32::from(install.flags.first_drive.get());
     loop {
         let kind = crate::files::drive_type::drive_type(letter as u8);
@@ -21,10 +23,12 @@ pub(super) fn list_drives(
                 letter,
             )
         {
-            // The first letter is 'a' or 'c', the last 'z': inside the 26 pairs.
-            let slot = 2 * (letter - b'a' as u32) as usize;
-            drives[slot].set(drives[slot].get().wrapping_add(1));
-            drives[slot + 1].set(free);
+            // The first letter is 'a' or 'c', the last 'z': inside the 26 drives.
+            let drive = found_at(letter as u8);
+            drive.set(DriveFound {
+                found: drive.get().found.wrapping_add(1),
+                free_kb: free,
+            });
         }
         letter = letter.wrapping_add(1);
         if letter > b'z' as u32 {
@@ -36,18 +40,17 @@ pub(super) fn list_drives(
     let mut next_row = 0usize;
     // 'a' .. 'y': the loop's bound leaves 'z' out (the game's slip, section 16)
     let found: Vec<u8> = drives::LISTED
-        .filter(|letter| drives[2 * (letter - b'a') as usize].get() != 0)
+        .filter(|&letter| found_at(letter).get().found != 0)
         .collect();
     // At most what the largest menu holds: with 25 drives the last, y, is not listed.
     for &letter in drives::kept(&found) {
-        let slot = 2 * (letter - b'a') as usize;
         install
             .run
             .drive_count
             .set(install.run.drive_count.get() + 1);
         let row = next_row;
         rows.set(row, letter);
-        let free = drives::free(drives[slot + 1].get());
+        let free = drives::free(found_at(letter).get().free_kb);
         let mut unit = Vec::new();
         crate::menu::event_flow::refuse_here(
             crate::strings::append_string_by_id::append_string_by_id(

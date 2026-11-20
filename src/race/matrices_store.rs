@@ -44,8 +44,6 @@ pub struct SceneMatrices {
     pub view_back_matrix: [PlainFloat; 16],
     /// The view's turn (`drive::set_listener`, `physics::car_sounds`, `race::frame_draw`).
     pub view_turn_matrix: [PlainFloat; 16],
-    /// Unused; it only keeps the layout.
-    pub unused_3c4: [PlainDword; 16],
     /// The view matrix and its elements, used in place (`scene::project_point`,
     /// `effects::draw_particle`, `race::skidmarks`).
     pub view_matrix: [PlainFloat; 16],
@@ -58,13 +56,9 @@ pub struct SceneMatrices {
     pub view_place: [PlainFloat; 16],
     /// Unused; it only keeps the layout.
     pub unused_object_matrix: PlainDword,
-    /// Unused; it only keeps the layout.
-    pub unused_548: [PlainDword; 6],
     /// The vector reflected (`scene::reflect_vector`); now each view's
     /// (`scene::view_matrices`); unused.
     pub reflect_vector: [PlainFloat; 3],
-    /// Unused; it only keeps the layout.
-    pub unused_56c: PlainDword,
     /// The normal (`scene::reflect_vector`); now each view's (`scene::view_matrices`); unused.
     pub reflect_normal: [PlainFloat; 3],
     /// The object's turn matrix (`physics::object_turn_matrix`, `physics::object_hits_car`,

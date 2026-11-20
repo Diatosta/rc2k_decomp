@@ -71,7 +71,7 @@ pub(super) fn draw_sort_list<'a>(
         ..
     } = *ctx;
     let faces = &faces;
-    let draw = move |part: &crate::scene::workers::PartScratch,
+    let draw = move |part: &crate::scene::scratch_store::PartScratch,
                      view: &ViewScratch,
                      reads: crate::scene::workers::DrawReads<'_>,
                      entries: std::ops::Range<usize>| {

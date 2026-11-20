@@ -139,26 +139,26 @@ impl WindscreenDropVars {
 /// part of the effects' owner (`effects::owner::Effects`).
 pub struct WindscreenDrops {
     pub hex: WindscreenDropVars,
-    pub state: crate::effects::windscreen_drop_state::WindscreenDropState,
-    pub work: crate::effects::windscreen_drop_state::WindscreenDropWork,
-    pub shape_work: crate::effects::shape_work::ShapeWork,
-    pub tilt: crate::effects::tilt_shape::ShapeTilt,
-    pub inputs: crate::effects::shape_points::ShapeInputs,
-    pub tuning: crate::effects::shape_points::ShapeSetTuning,
-    pub picks: crate::effects::mask_picks::MaskPicks,
+    pub state: crate::effects::windscreen_drop_state_store::WindscreenDropState,
+    pub work: crate::effects::windscreen_drop_state_store::WindscreenDropWork,
+    pub shape_work: crate::effects::shape_work_store::ShapeWork,
+    pub tilt: crate::effects::tilt_shape_store::ShapeTilt,
+    pub inputs: crate::effects::shape_points_store::ShapeInputs,
+    pub tuning: crate::effects::shape_points_store::ShapeSetTuning,
+    pub picks: crate::effects::mask_picks_store::MaskPicks,
 }
 
 impl WindscreenDrops {
     pub const fn new() -> Self {
         WindscreenDrops {
             hex: WindscreenDropVars::new(),
-            state: crate::effects::windscreen_drop_state::WindscreenDropState::new(),
-            work: crate::effects::windscreen_drop_state::WindscreenDropWork::new(),
-            shape_work: crate::effects::shape_work::ShapeWork::new(),
-            tilt: crate::effects::tilt_shape::ShapeTilt::new(),
-            inputs: crate::effects::shape_points::ShapeInputs::new(),
-            tuning: crate::effects::shape_points::ShapeSetTuning::new(),
-            picks: crate::effects::mask_picks::MaskPicks::new(),
+            state: crate::effects::windscreen_drop_state_store::WindscreenDropState::new(),
+            work: crate::effects::windscreen_drop_state_store::WindscreenDropWork::new(),
+            shape_work: crate::effects::shape_work_store::ShapeWork::new(),
+            tilt: crate::effects::tilt_shape_store::ShapeTilt::new(),
+            inputs: crate::effects::shape_points_store::ShapeInputs::new(),
+            tuning: crate::effects::shape_points_store::ShapeSetTuning::new(),
+            picks: crate::effects::mask_picks_store::MaskPicks::new(),
         }
     }
 }

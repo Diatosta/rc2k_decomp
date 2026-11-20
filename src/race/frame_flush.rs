@@ -17,7 +17,7 @@ pub struct Batch<'a> {
     pub count: &'a PlainDword,
     pub word: &'a PlainDword,
     /// The platform's draw on the batch's vertices and indices (its result), given their counts.
-    pub draw: fn(&crate::scene::workers::PartScratch, &Frame, u32, u32) -> u32,
+    pub draw: fn(&crate::scene::scratch_store::PartScratch, &Frame, u32, u32) -> u32,
     pub kept: &'a PlainDword,
     pub blend: u32,
     pub text: &'static std::ffi::CStr,
@@ -70,7 +70,7 @@ pub fn textured(frame: &Frame) -> Batch<'_> {
 /// (level 1); the count and word 0. In drawing part `part`'s render states.
 pub fn flush_batch(
     scene: &crate::scene::owner::Scene,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     frame: &Frame,
     b: &Batch,
     textured: bool,
@@ -138,7 +138,7 @@ fn int_over_two(
 pub(super) fn draw_view_backdrop(
     reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
 ) {
     let buffer = &part.vertices;
     view.quad.uv[0].set(0xF8_0000);

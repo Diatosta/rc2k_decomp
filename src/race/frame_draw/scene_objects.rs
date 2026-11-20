@@ -137,8 +137,8 @@ pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
 /// off (`polygon_mode` 0, switches -1, 1, 0; `polygon_drawn` 1); the colour back to 0xFFFFFF.
 /// Refuses what the clip refuses (after the entries are set: never seen with four vertices).
 pub fn draw_screen_quad(
-    poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::scene::workers::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
     face: &crate::race::face_work::FaceWork,
     reads: crate::scene::workers::DrawReads<'_>,
     screen: &crate::memory::session::Screen,
@@ -196,8 +196,8 @@ pub fn draw_screen_quad(
 /// `race::draw_view_tint`: the whole view (0 .. `view_size`, 0 .. `view_size[1]`) as a
 /// screen quad in 0x204080 (`quad_colour`), switches -1, 1, 0, by `draw_screen_quad`.
 pub fn draw_view_tint(
-    poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::scene::workers::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
     face: &crate::race::face_work::FaceWork,
     reads: crate::scene::workers::DrawReads<'_>,
     screen: &crate::memory::session::Screen,

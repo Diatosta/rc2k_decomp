@@ -36,7 +36,7 @@ pub struct ObjectTables {
     pub d3d_drawing_on: PlainDword,
     /// Seven dwords between the 3D switch and the level sizes; nothing reads or writes them (a
     /// gap).
-    pub unknown_c14: [PlainDword; 7],
+    pub reserved_c14: [PlainDword; 7],
     /// What a texture of each level takes, in k (`scene::texture_needs`).
     pub level_sizes: [PlainDword; 4],
     /// The levels' mip figures (`scene::try_allocate_textures`).
@@ -69,7 +69,7 @@ impl ObjectTables {
                 &self.car_mark_textures,
                 &self.car_letter_b,
                 &self.d3d_drawing_on,
-                &self.unknown_c14,
+                &self.reserved_c14,
                 &self.level_sizes,
                 &self.level_mips,
                 &self.other_levels,
@@ -92,7 +92,7 @@ impl ObjectTables {
     pub const fn new() -> Self {
         Self {
             d3d_drawing_on: PlainDword::new(1),
-            unknown_c14: [
+            reserved_c14: [
                 PlainDword::new(0),
                 PlainDword::new(0),
                 PlainDword::new(0),
@@ -140,7 +140,7 @@ mod tests {
             &t.car_mark_textures,
             from_ref(&t.car_letter_b),
             from_ref(&t.d3d_drawing_on),
-            &t.unknown_c14,
+            &t.reserved_c14,
             &t.level_sizes,
             &t.level_mips,
             from_ref(&t.other_levels),

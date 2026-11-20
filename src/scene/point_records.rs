@@ -25,7 +25,7 @@ pub type Record = [u32; 8];
 /// The records of one part, as cells: read and written many times a polygon.
 pub type Records = [[PlainDword; 8]; COUNT as usize];
 
-/// A part's records, all zero (`scene::workers::PartScratch::records`): a record is the part's own
+/// A part's records, all zero (`scene::scratch_store::PartScratch::records`): a record is the part's own
 /// projection, made again by another part that needs it. Every reader below is handed the
 /// part's scratch.
 pub const fn new_records() -> Records {
@@ -33,7 +33,7 @@ pub const fn new_records() -> Records {
 }
 
 /// Which of a part's records have been written since `clear_written`, a bit each
-/// (`scene::workers::PartScratch::records_written`): what a piece drawn aside wrote is put into its
+/// (`scene::scratch_store::PartScratch::records_written`): what a piece drawn aside wrote is put into its
 /// part's records (`put_written`).
 pub type Written = [std::cell::Cell<u64>; COUNT as usize / 64];
 
@@ -44,7 +44,7 @@ pub const fn new_written() -> Written {
 
 /// Record `r` (1 .. `COUNT`) written in `part`'s records.
 #[inline]
-fn note_written(part: &crate::scene::workers::PartScratch, r: u32) {
+fn note_written(part: &crate::scene::scratch_store::PartScratch, r: u32) {
     if let Some(k) = (r as usize).checked_sub(1)
         && let Some(bits) = part.records_written.get(k / 64)
     {
@@ -53,7 +53,7 @@ fn note_written(part: &crate::scene::workers::PartScratch, r: u32) {
 }
 
 /// The records `part` has written (since `clear_written`), each by its index.
-fn each_written(part: &crate::scene::workers::PartScratch, mut f: impl FnMut(usize)) {
+fn each_written(part: &crate::scene::scratch_store::PartScratch, mut f: impl FnMut(usize)) {
     for (n, bits) in part.records_written.iter().enumerate() {
         let mut left = bits.get();
         while left != 0 {
@@ -65,8 +65,8 @@ fn each_written(part: &crate::scene::workers::PartScratch, mut f: impl FnMut(usi
 
 /// Each record `from` has written (since `clear_written`) put into `to`'s records, whole.
 pub fn put_written(
-    from: &crate::scene::workers::PartScratch,
-    to: &crate::scene::workers::PartScratch,
+    from: &crate::scene::scratch_store::PartScratch,
+    to: &crate::scene::scratch_store::PartScratch,
 ) {
     each_written(from, |k| {
         for (a, b) in to.records[k].iter().zip(&from.records[k]) {
@@ -78,7 +78,7 @@ pub fn put_written(
 /// The records `part` has written (since the last time) set back to 0 and forgotten: a piece
 /// drawn aside starts from records all 0 each time (`scene::workers::draw_aside`) without clearing
 /// all 0x2000.
-pub fn clear_written(part: &crate::scene::workers::PartScratch) {
+pub fn clear_written(part: &crate::scene::scratch_store::PartScratch) {
     each_written(part, |k| part.records[k].iter().for_each(|c| c.set(0)));
     for bits in &part.records_written {
         bits.set(0);
@@ -88,7 +88,7 @@ pub fn clear_written(part: &crate::scene::workers::PartScratch) {
 /// The scene points' records of `part` (the first 0x1000) marked as holding no point, as a
 /// view's start leaves them (`race::clear_point_records`): a scratch whose records were set
 /// back to 0 would otherwise pass for holding scene point 0. Not counted as written.
-pub fn mark_scene_records_unmade(part: &crate::scene::workers::PartScratch) {
+pub fn mark_scene_records_unmade(part: &crate::scene::scratch_store::PartScratch) {
     for record in &part.records[..0x1000] {
         record[0].set(u32::MAX);
     }
@@ -96,7 +96,7 @@ pub fn mark_scene_records_unmade(part: &crate::scene::workers::PartScratch) {
 
 /// The records made, zeroed, counted on `list`.
 pub fn take(
-    scratch: &crate::scene::workers::DrawingScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
     course: &crate::race::owner_course::Course,
     list: &crate::memory::ListCells,
 ) -> Result<(), Refused> {
@@ -110,7 +110,7 @@ pub fn take(
 }
 
 /// Given back (the list's `free_list` counts them down).
-pub fn give_back(scratch: &crate::scene::workers::DrawingScratch) {
+pub fn give_back(scratch: &crate::scene::scratch_store::DrawingScratch) {
     for part in scratch.all_parts_on_game_thread() {
         part.records_taken.set(false);
     }
@@ -121,8 +121,8 @@ pub fn give_back(scratch: &crate::scene::workers::DrawingScratch) {
 /// views are drawn beside each other (`scene::workers::draw_beside`) only `part`'s copy (the
 /// drawing part clearing them): the other view's are its own, being drawn.
 pub fn first_records_everywhere<'a>(
-    scratch: &'a crate::scene::workers::DrawingScratch,
-    part: &'a crate::scene::workers::PartScratch,
+    scratch: &'a crate::scene::scratch_store::DrawingScratch,
+    part: &'a crate::scene::scratch_store::PartScratch,
     n: usize,
 ) -> Result<impl Iterator<Item = &'a [PlainDword; 8]>, BadInput> {
     if !part.records_taken.is_set() {
@@ -133,13 +133,13 @@ pub fn first_records_everywhere<'a>(
     }
     // Beside each other: the part's own. Otherwise the game's thread draws alone and reaches
     // every part's (no scope is open: no run holds one).
-    let copies: [Option<&'a crate::scene::workers::PartScratch>; crate::memory::draw_order::COUNT] =
-        if crate::scene::workers::beside() {
-            std::array::from_fn(|k| (k == 0).then_some(part))
-        } else {
-            let mut all = scratch.all_parts_on_game_thread();
-            std::array::from_fn(|_| all.next())
-        };
+    let copies: [Option<&'a crate::scene::scratch_store::PartScratch>;
+        crate::memory::draw_order::COUNT] = if crate::scene::workers::beside() {
+        std::array::from_fn(|k| (k == 0).then_some(part))
+    } else {
+        let mut all = scratch.all_parts_on_game_thread();
+        std::array::from_fn(|_| all.next())
+    };
     Ok(copies
         .into_iter()
         .flatten()
@@ -190,7 +190,7 @@ pub fn of_pool(k: u32) -> u32 {
 /// then refused).
 #[inline]
 fn cells<'a>(
-    part: &'a crate::scene::workers::PartScratch,
+    part: &'a crate::scene::scratch_store::PartScratch,
     r: u32,
     quad: Option<&'a [PlainDword; 32]>,
 ) -> Result<&'a [PlainDword; 8], BadInput> {
@@ -208,7 +208,7 @@ fn cells<'a>(
 
 /// The cells of a quad vertex's or a pool record (`part`'s pool).
 fn far_cells<'a>(
-    part: &'a crate::scene::workers::PartScratch,
+    part: &'a crate::scene::scratch_store::PartScratch,
     r: u32,
     quad: Option<&'a [PlainDword; 32]>,
 ) -> Result<&'a [PlainDword; 8], BadInput> {
@@ -240,14 +240,14 @@ fn cell(cells: &[PlainDword; 8], offset: u32) -> Result<&PlainDword, BadInput> {
 
 /// Record `r` of `part`'s records; refused for none or one past the records.
 #[inline]
-pub fn get(part: &crate::scene::workers::PartScratch, r: u32) -> Result<Record, BadInput> {
+pub fn get(part: &crate::scene::scratch_store::PartScratch, r: u32) -> Result<Record, BadInput> {
     get_in(part, None, r)
 }
 
 /// `get` with the view's quad vertices (`PolygonWork::quad_vertices`).
 #[inline]
 pub fn get_in(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     quad: Option<&[PlainDword; 32]>,
     r: u32,
 ) -> Result<Record, BadInput> {
@@ -258,7 +258,7 @@ pub fn get_in(
 /// Record `r` set to `record`; refused as `get`.
 #[inline]
 pub fn set(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     r: u32,
     record: Record,
 ) -> Result<(), BadInput> {
@@ -268,7 +268,7 @@ pub fn set(
 /// `set` with the view's quad vertices.
 #[inline]
 pub fn set_in(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     quad: Option<&[PlainDword; 32]>,
     r: u32,
     record: Record,
@@ -283,7 +283,7 @@ pub fn set_in(
 /// The dword at `offset` of record `r`; refused for an offset past the record.
 #[inline]
 pub fn field(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     r: u32,
     offset: u32,
 ) -> Result<u32, BadInput> {
@@ -293,7 +293,7 @@ pub fn field(
 /// `field` with the view's quad vertices.
 #[inline]
 pub fn field_in(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     quad: Option<&[PlainDword; 32]>,
     r: u32,
     offset: u32,
@@ -304,7 +304,7 @@ pub fn field_in(
 /// The dword at `offset` of record `r` set to `v`; refused as `field`.
 #[inline]
 pub fn put_field(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     r: u32,
     offset: u32,
     v: u32,
@@ -315,7 +315,7 @@ pub fn put_field(
 /// `put_field` with the view's quad vertices.
 #[inline]
 pub fn put_field_in(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     quad: Option<&[PlainDword; 32]>,
     r: u32,
     offset: u32,
@@ -330,7 +330,7 @@ pub fn put_field_in(
 /// code's reads cannot carry one).
 #[inline]
 pub fn vertex(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     quad: &[PlainDword; 32],
     v: u32,
     offset: u32,
@@ -341,7 +341,7 @@ pub fn vertex(
 
 /// A polygon vertex's whole record (as `vertex`), its bytes.
 pub fn vertex_bytes(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     quad: &[PlainDword; 32],
     v: u32,
 ) -> Result<[u8; 32], BadInput> {

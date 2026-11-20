@@ -15,7 +15,7 @@ use crate::effects::emitters::next_c5;
 use crate::effects::mask_store::Masks;
 use crate::effects::pick_shapes::pick_shapes;
 use crate::effects::shape_points::turn_all_shapes;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::race::owner_shared::RaceShared;
 

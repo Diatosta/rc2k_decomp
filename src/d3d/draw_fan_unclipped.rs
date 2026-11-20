@@ -1,6 +1,6 @@
 //! `d3d::draw_fan_unclipped`: draws the polygon in the vertex buffer: a triangle fan of transformed
 //! and lit vertices, not to be clipped, lit or measured. The polygon vertex buffer is the drawing
-//! part's (`scene::workers::PartScratch`), the number of vertices the polygon's vertex count. The
+//! part's (`scene::scratch_store::PartScratch`), the number of vertices the polygon's vertex count. The
 //! fan is only noted and the rasteriser draws it (`d3d::device::draw_fan`); the result is 0.
 
 use crate::d3d::Vertex;
@@ -13,7 +13,7 @@ const INLINE_VERTICES: usize = 12;
 /// The polygon as it stands in the buffer (the store's 64 vertices). More vertices than the
 /// buffer holds is a count gone wrong: a refusal.
 pub fn polygon(
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &PolygonVertices,
 ) -> smallvec::SmallVec<[Vertex; INLINE_VERTICES]> {
     let count = poly.polygon_vertex_count.get() as usize;
@@ -43,8 +43,8 @@ pub fn polygon(
 
 /// Draws the polygon's fan.
 pub fn draw_fan_unclipped(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &PolygonVertices,
 ) {
     crate::d3d::device::draw_fan(part, &polygon(poly, buffer));

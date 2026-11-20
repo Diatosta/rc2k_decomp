@@ -34,7 +34,7 @@ fn turn(
 /// The square, turned, about the projected place. Gives a value kept in the draw work's
 /// `DrawWork.sprite_half[1]` cell between its two stores.
 fn square(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     engine_tables: &crate::math::engine_tables::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: u32,
@@ -130,8 +130,8 @@ pub(super) fn draw_cell_sprite(
     Ok(())
 }
 
-use crate::effects::blocks::CornerSlopes;
-use crate::effects::frame_state::DrawWork;
+use crate::effects::blocks_store::CornerSlopes;
+use crate::effects::frame_state_store::DrawWork;
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::engine_tables::{cosine, sine};
 use crate::math::x87_float as bh;
@@ -195,7 +195,7 @@ fn slope_at(cs: &CornerSlopes, k: usize) -> &PlainFloat {
 /// on; a slip kept as is), so that read goes through `slope_at`. `angle` is the sine
 /// table's cell (the cosine is the cell 0x400 on).
 fn square_x87(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     engine_tables: &crate::math::engine_tables::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: usize,

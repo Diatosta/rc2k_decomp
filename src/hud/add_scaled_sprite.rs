@@ -4,8 +4,9 @@
 
 use crate::errors::Refused;
 use crate::hud::add_sprite::{put_corners, put_places};
-use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::RectAt;
+use crate::hud::block_store::RectAt;
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::to_f64;

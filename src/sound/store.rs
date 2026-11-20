@@ -99,7 +99,7 @@ pub struct SoundObject {
     pub reading_revs: [PlainDword; 2],
     /// Two dwords cleared by the set-up (`race::set_up_race_sound_objects`); nothing else uses
     /// them.
-    pub unused_a4: [PlainDword; 2],
+    pub reserved_a4: [PlainDword; 2],
     /// Set by the physics; the speed sound stops when it is not 0.
     pub flag_ac: PlainDword,
     /// The force feedback's inputs (`input::update_car_effects`), from the view block's sideways
@@ -199,7 +199,7 @@ pub struct SoundObject {
     /// effect (`input::update_car_effects`); cleared by the set-up.
     pub last_forward_speed: PlainDword,
     /// Cleared by the set-up; nothing else reads or writes it.
-    pub unused_280: PlainDword,
+    pub reserved_280: PlainDword,
     /// The first wheel sum x 0.4 (a whole number).
     pub sum_a: PlainDword,
     /// The second wheel sum x 64 (a whole number).
@@ -291,7 +291,7 @@ pub(crate) const fn initial_object(sound_offset: u32) -> SoundObject {
         }; 4],
         reading_times: [PlainDword::new(0), PlainDword::new(0)],
         reading_revs: [PlainDword::new(0), PlainDword::new(0)],
-        unused_a4: [PlainDword::new(0), PlainDword::new(0)],
+        reserved_a4: [PlainDword::new(0), PlainDword::new(0)],
         flag_ac: PlainDword::new(0),
         effect_in: [const { PlainDword::new(0) }; 4],
         knock: PlainDword::new(0),
@@ -426,7 +426,7 @@ pub(crate) const fn initial_object(sound_offset: u32) -> SoundObject {
         },
         landed: PlainDword::new(0),
         last_forward_speed: PlainDword::new(0),
-        unused_280: PlainDword::new(0),
+        reserved_280: PlainDword::new(0),
         sum_a: PlainDword::new(0),
         sum_b: PlainDword::new(0),
         sum_c: PlainDword::new(0),
@@ -568,20 +568,20 @@ pub struct SurfaceSounds {
     /// 64: the second wheel sum (`sum_b`, `sum_c`) is scaled by it.
     pub along_scale: PlainFloat,
     /// 160; nothing reads it.
-    pub unused_160: PlainFloat,
+    pub unused_constant_160: PlainFloat,
     /// 0.014: the car speed's (|`SoundObject.speed`|) factor for the speed sound's input
     /// (`speed_input`).
     pub speed_scale: PlainFloat,
     /// 65536.0; nothing reads it.
-    pub unused_65536: PlainFloat,
+    pub unused_constant_65536: PlainFloat,
     /// 2.0; nothing reads it.
-    pub unused_2: PlainFloat,
+    pub unused_constant_2: PlainFloat,
     /// 1.4: the speed sound's gain.
     pub speed_gain: PlainFloat,
     /// 0.714: the revs and throttle sounds' gain.
     pub revs_gain: PlainFloat,
     /// 0.625 and 0.25; nothing reads them.
-    pub unused_625: PlainFloat,
+    pub unused_constant_0_625: PlainFloat,
     pub unused_quarter: PlainFloat,
     /// Front less back of the wheel floats (the signs pick the wheel).
     pub across: PlainFloat,
@@ -600,13 +600,13 @@ impl SurfaceSounds {
             pitch_blend: PlainFloat::new(0.1),
             across_scale: PlainFloat::new(0.4),
             along_scale: PlainFloat::new(64.0),
-            unused_160: PlainFloat::new(160.0),
+            unused_constant_160: PlainFloat::new(160.0),
             speed_scale: PlainFloat::new(0.0140625),
-            unused_65536: PlainFloat::new(65536.0),
-            unused_2: PlainFloat::new(2.0),
+            unused_constant_65536: PlainFloat::new(65536.0),
+            unused_constant_2: PlainFloat::new(2.0),
             speed_gain: PlainFloat::new(1.4),
             revs_gain: PlainFloat::new(0.71428573),
-            unused_625: PlainFloat::new(0.625),
+            unused_constant_0_625: PlainFloat::new(0.625),
             unused_quarter: PlainFloat::new(0.25),
             across: PlainFloat::new(0.0),
             along: PlainFloat::new(0.0),

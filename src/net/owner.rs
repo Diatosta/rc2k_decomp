@@ -36,6 +36,9 @@ pub struct Net {
     chat_sequence: std::sync::atomic::AtomicU32,
 }
 
+/// The chat messages kept waiting for the game's thread (far more than a lobby's eight lines).
+const CHAT_WAITING_MOST: usize = 64;
+
 /// A chat message the receiving thread took.
 pub struct WaitingChat {
     /// The author's car number.
@@ -61,16 +64,22 @@ impl Net {
         }
     }
 
-    /// A chat message from `player`, waiting for the game's thread.
+    /// A chat message from `player`, waiting for the game's thread. The game's thread takes them
+    /// only in the lobby: past `CHAT_WAITING_MOST` the oldest are dropped, so that a machine that
+    /// sends lines all through a race cannot fill this one's memory.
     pub(super) fn queue_chat(&self, player: u32, text: Vec<u8>, sequence: Option<u32>) {
-        self.chat_waiting
+        let mut waiting = self
+            .chat_waiting
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(WaitingChat {
-                player,
-                text,
-                sequence,
-            });
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if waiting.len() >= CHAT_WAITING_MOST {
+            waiting.remove(0);
+        }
+        waiting.push(WaitingChat {
+            player,
+            text,
+            sequence,
+        });
     }
 
     /// The number for the next line the host orders.
@@ -123,5 +132,27 @@ impl Net {
     /// The session joined.
     pub fn joined(&self) -> &JoinedVars {
         &self.main.get().joined
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Guards the waiting chat: only the newest `CHAT_WAITING_MOST` lines are kept, in order.
+    #[test]
+    fn a_flood_of_chat_lines_keeps_only_the_newest() {
+        let net: Box<Net> = Box::new(Net::new());
+        for n in 0..CHAT_WAITING_MOST as u32 + 40 {
+            net.queue_chat(n, vec![b'x', 0], None);
+        }
+        let waiting = net.take_waiting_chat();
+        assert_eq!(waiting.len(), CHAT_WAITING_MOST);
+        assert_eq!(waiting[0].player, 40);
+        assert_eq!(
+            waiting.last().map(|w| w.player),
+            Some(CHAT_WAITING_MOST as u32 + 39)
+        );
+        assert!(net.take_waiting_chat().is_empty());
     }
 }

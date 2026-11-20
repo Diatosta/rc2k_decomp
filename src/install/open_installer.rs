@@ -6,28 +6,21 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{components_to_pixels, copy_picture, draw_string, fatal, show};
+use crate::install::vars::fixed;
 
 const FONT_94: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
 const FONT_1000: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LABEL;
 
-/// `count` bytes of the file `path` into `buffer`; the fatal error `code` when it cannot be
-/// read.
-fn read<const N: usize>(
-    path: &[u8],
-    buffer: &crate::memory::session::PlainBytes<N>,
-    count: usize,
-    code: u32,
-) -> Result<(), Refused> {
-    let mut bytes = vec![0u8; count];
-    let read = crate::files::read_file::read_file_into(path, &mut bytes, 0)?;
-    // What was read goes in (the rest of the buffer is left as it was).
-    let got = read.bytes_read.unwrap_or(0) as usize;
-    buffer.write_at(0, &bytes[..got.min(count)], "a file's bytes")?;
+/// The installer's palette (0x300 bytes) from the file `path`; the fatal error `code` when it
+/// cannot be read.
+fn read_palette(path: &[u8], code: u32) -> Result<[u8; 0x300], Refused> {
+    let mut palette = [0u8; 0x300];
+    let read = crate::files::read_file::read_file_into(path, &mut palette, 0)?;
     if !read.ok {
         return Err(fatal(code));
     }
-    Ok(())
+    Ok(palette)
 }
 
 pub(super) fn open_installer(
@@ -53,22 +46,13 @@ pub(super) fn open_installer(
     let mut bytes = crate::memory::owned::counted(list, 0x3000)?;
     let glyphs = crate::gfx::glyph_store::new_table(&gfx.fonts, list)?;
     install.run.bar_glyphs.set(glyphs);
-    let path = install.names.installer_data.text();
-    if !crate::files::read_file::read_file_into(&path[..], &mut bytes[..0x3000], 0)?.ok {
+    if !crate::files::read_file::read_file_into(fixed::INSTALLER_DATA, &mut bytes[..0x3000], 0)?.ok
+    {
         return Err(fatal(0x80AF_7444));
     }
     crate::gfx::glyph_store::write_bytes(&gfx.fonts, glyphs, 0, &bytes, "the progress glyphs")?;
-    read(
-        &install.names.install_pal.text(),
-        &install.palette.palette,
-        0x300,
-        0x80AF_7445,
-    )?;
-    crate::gfx::palette_to_dwords::palette_to_dwords(
-        &install.palette.palette,
-        0,
-        &gfx.fonts.blended_palette,
-    )?;
+    let palette = read_palette(fixed::INSTALL_PAL, 0x80AF_7445)?;
+    crate::gfx::palette_to_dwords::palette_bytes_to_dwords(&palette, &gfx.fonts.blended_palette)?;
     components_to_pixels(
         &gfx.fonts.blended_palette,
         &gfx.fonts.blended_palette,
@@ -76,7 +60,7 @@ pub(super) fn open_installer(
         system,
     );
     // Whether `gfx::load_picture` worked is not looked at.
-    crate::gfx::load_picture::load_picture_with(&install.names.backdrop, gfx, system)?;
+    crate::gfx::load_picture::load_picture_with(&fixed::BACKDROP, gfx, system)?;
     crate::gfx::convert_picture::convert_picture_now_in(gfx)?;
     gfx.pictures
         .picture

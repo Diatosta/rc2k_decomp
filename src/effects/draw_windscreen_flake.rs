@@ -9,7 +9,7 @@
 //!
 //! The x87 runs are plain Rust on the x87 model (`math::x87_float`).
 
-use crate::effects::tuning::MarksKindFloats;
+use crate::effects::tuning_store::MarksKindFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::math::cell_x87::CellX87;
 use crate::memory::session::PlainFloat;
@@ -31,7 +31,7 @@ fn corners(fl: &WindscreenFlakes, v: &[[u8; 10]; 2]) {
 
 /// The corners projected, and their depth.
 fn projected(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     fl: &WindscreenFlakes,
     effects: &crate::effects::owner::Effects,
@@ -156,7 +156,7 @@ fn corners_x87(v: &[[u8; 10]; 2], sq: &WindscreenFlakeTables) {
 
 /// `projected`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn projected_x87(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: &MarksKindFloats,
     sq: &WindscreenFlakeTables,

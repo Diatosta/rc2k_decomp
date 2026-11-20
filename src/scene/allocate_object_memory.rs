@@ -11,7 +11,7 @@ use crate::errors::Refused;
 
 use rc2k_core::scene::objects::object_rooms as rooms;
 
-/// The points and the faces are Rust's (`scene::object_points`, `scene::object_faces`),
+/// The points and the faces are Rust's (`scene::object_points_store`, `scene::object_faces_store`),
 /// counted on the list.
 // Logic: `rc2k_core::scene::objects::object_rooms`
 pub fn allocate_object_memory_in_game(

@@ -4,7 +4,8 @@
 //! `hud::add_polygon`.
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
 use rc2k_core::hud::quads;

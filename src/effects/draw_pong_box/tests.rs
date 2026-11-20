@@ -3,8 +3,8 @@ use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::staged_vertices as staged;
 
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
-use crate::effects::pong::PongState;
-use crate::effects::tuning::MarksFloats;
+use crate::effects::pong_store::PongState;
+use crate::effects::tuning_store::MarksFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakeTables;
 
 /// The four ten-byte values at `at` of the test buffer (0 where the buffer does not

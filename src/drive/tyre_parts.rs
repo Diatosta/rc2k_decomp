@@ -11,12 +11,12 @@ use crate::race::viewer_screen_store::ViewerPanelBlock;
 pub use rc2k_core::hud::anchor::Spread;
 
 /// `d3d::set_texture` on `part`.
-pub fn set_texture(part: &crate::scene::workers::PartScratch, texture: u32) {
+pub fn set_texture(part: &crate::scene::scratch_store::PartScratch, texture: u32) {
     crate::d3d::set_texture::set_texture(part, texture);
 }
 
 /// `d3d::set_render_state` on `part`.
-pub fn set_render_state(part: &crate::scene::workers::PartScratch, value: u32, state: u32) {
+pub fn set_render_state(part: &crate::scene::scratch_store::PartScratch, value: u32, state: u32) {
     crate::d3d::set_render_state::set_render_state(part, value, state);
 }
 
@@ -117,7 +117,7 @@ fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch
 }
 
 /// The draw (`d3d::draw_vertex_strip`) of 4 vertices.
-pub fn draw(part: &crate::scene::workers::PartScratch) -> Result<(), Refused> {
+pub fn draw(part: &crate::scene::scratch_store::PartScratch) -> Result<(), Refused> {
     crate::d3d::draw_vertex_strip::draw_vertex_strip(part, &part.vertices.vertices, 4)?;
     Ok(())
 }

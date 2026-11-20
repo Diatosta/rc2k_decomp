@@ -1,8 +1,8 @@
 use crate::effects::asm_layout::with_laid;
 use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
-use crate::effects::blocks::CornerSlopes;
-use crate::effects::frame_state::DrawWork;
+use crate::effects::blocks_store::CornerSlopes;
+use crate::effects::frame_state_store::DrawWork;
 use crate::effects::ring_store::RingWork;
 use crate::math::engine_tables::{cosine, sine};
 

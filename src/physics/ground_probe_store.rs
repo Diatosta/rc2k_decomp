@@ -7,15 +7,9 @@ use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct GroundProbe {
-    /// Referenced only by dead code outside any function; the port never reaches it.
-    pub unused_0: PlainDword,
-    /// Referenced only by dead code outside any function; the port never reaches it.
-    pub unused_4: PlainDword,
     /// The product of the edge test, low then high dword (`physics::crossed_edge_contact`,
     /// `physics::ground`, `race::car_shadow`).
     pub product: [PlainDword; 2],
-    /// Unused.
-    pub unused_10: [PlainDword; 2],
     /// 0x40 or 0x80 by the caller of the ground search (`physics::count_ground_probe`,
     /// `physics::move_slot`, `physics::probe_ground`, `race::car_starts`).
     pub settle_mark: PlainDword,

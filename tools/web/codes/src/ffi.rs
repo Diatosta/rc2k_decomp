@@ -34,18 +34,15 @@ unsafe fn input<'a>(ptr: *const u8, len: usize) -> &'a [u8] {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn alloc(len: usize) -> *mut u8 {
-    let mut v = vec![0u8; len.max(1)];
-    let ptr = v.as_mut_ptr();
-    std::mem::forget(v);
-    ptr
+    Box::into_raw(vec![0u8; len.max(1)].into_boxed_slice()).cast()
 }
 
 /// # Safety
 /// `ptr` came from `alloc(len)` and is not used again.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dealloc(ptr: *mut u8, len: usize) {
-    // SAFETY: `alloc` made it a vector of this length (at least one).
-    drop(unsafe { Vec::from_raw_parts(ptr, len.max(1), len.max(1)) });
+    // SAFETY: `alloc` made it a boxed slice of this length (at least one).
+    drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len.max(1))) });
 }
 
 #[unsafe(no_mangle)]
@@ -109,8 +106,12 @@ pub unsafe extern "C" fn qr_modules(ptr: *const u8, len: usize) -> i32 {
 /// `ptr`: `width * height * 4` bytes from `alloc`, filled.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn scan_frame(ptr: *const u8, width: usize, height: usize) -> i32 {
+    // The size is the page's word: one that does not fit the address space reads nothing.
+    let Some(size) = width.checked_mul(height).and_then(|n| n.checked_mul(4)) else {
+        return 0;
+    };
     // SAFETY: as promised.
-    let rgba = unsafe { input(ptr, width * height * 4) };
+    let rgba = unsafe { input(ptr, size) };
     let Some(text) = crate::read_frame(width, height, rgba) else {
         return 0;
     };

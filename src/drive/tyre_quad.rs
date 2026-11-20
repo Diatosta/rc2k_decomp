@@ -17,7 +17,7 @@ pub fn tyre_quad(
     colour: u32,
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     spread: Spread,
 ) -> Result<(), Refused> {
     quad_of(
@@ -38,7 +38,7 @@ pub(super) fn quad_of(
     colour: u32,
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     spread: Spread,
 ) -> Result<(), Refused> {
     let buffer = &part.vertices;

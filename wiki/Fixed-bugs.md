@@ -1057,3 +1057,12 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **In game**: with a field of more than 171 entries the page counted 81.
 - **Seen or read**: read in the code, not seen in play.
 - **Fix**: a figure above 0xAB is held to 0xAB, like the pages beside it (`results_pages::held_figure`).
+
+## Lobby chat lines of narrow letters could fill the chat's buffer
+
+*Original*: `net::add_chat_line`. *Fixed*: 2026-11-20.
+
+- **What**: the lobby chat keeps eight lines in 768 bytes, but a line of narrow characters can be 127 bytes long and still fit the screen's width, so six such lines are more than the buffer holds. The scrolling then wrote past the buffer's end and the game stopped on that error.
+- **In game**: another player in the lobby could end every machine's game by sending lines of narrow characters (a modified client; the stock one types at most 64 characters).
+- **Seen or read**: read in the code, not seen in play.
+- **Fix**: when the lines do not all fit, the oldest lines are emptied until they do (`rc2k_core::net::chat::scrolled`); the chat still has eight lines.

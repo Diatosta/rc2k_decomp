@@ -34,7 +34,7 @@ fn turn(
 
 /// The square about the projected place.
 fn square(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     effects: &crate::effects::owner::Effects,
 ) {
@@ -106,7 +106,7 @@ pub(super) fn draw_subcell_sprite(
     Ok(())
 }
 
-use crate::effects::frame_state::DrawWork;
+use crate::effects::frame_state_store::DrawWork;
 use crate::effects::plain::st_cell;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
@@ -156,7 +156,7 @@ fn turn_x87(
 
 /// `square`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn square_x87(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     dw: &DrawWork,
 ) {

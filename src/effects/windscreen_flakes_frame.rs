@@ -14,7 +14,7 @@
 
 use crate::effects::mask_store::Masks;
 use crate::effects::plain::ldi_cell;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::effects::windscreen_flakes::windscreen_flakes_step;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
@@ -51,7 +51,7 @@ pub fn windscreen_flakes_frame(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     masks: &Masks,
     drops: &WindscreenDrops,
-    pong: &crate::effects::pong::Pong,
+    pong: &crate::effects::pong_store::Pong,
     fl: &WindscreenFlakes,
     cheats: &crate::menu::cheats_store::Cheats,
     effects: &crate::effects::owner::Effects,

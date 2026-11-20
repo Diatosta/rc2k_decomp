@@ -9,7 +9,7 @@ a small hidden game of Pong played on the windscreen.
 ## State
 
 `Effects` (`src/effects/owner.rs`), a field of the race's owner (`Race::effects`). Its parts
-are grouped in `src/effects/owner_groups.rs` and the `*_store.rs` files (masks, particle rings,
+are grouped in `src/effects/owner_groups_store.rs` and the `*_store.rs` files (masks, particle rings,
 surfaces, windscreen drops and flakes).
 
 ## Main entry points

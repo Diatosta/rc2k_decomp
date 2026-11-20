@@ -5,7 +5,7 @@
 //! (times 0xC5 plus 0x5D) are at most its fraction times a constant. The x87 run is plain Rust on
 //! the x87 model (`math::x87_float`).
 
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::effects::windscreen_flakes::pick_windscreen_flake;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
@@ -65,7 +65,7 @@ pub(super) fn windscreen_flakes_spawn(
     Ok(())
 }
 
-use crate::effects::view_vectors::KeptView;
+use crate::effects::view_vectors_store::KeptView;
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTiming};
 use crate::math::x87_float as bh;
 

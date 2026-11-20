@@ -4,7 +4,7 @@
 //! values between the menus' draws), passed down the drawing in a `DrawCtx`. Never read by
 //! another step.
 //!
-//! The slots are held by `scene::workers::DrawingScratch`. The race's four (views 0 and 1, mirrors 0
+//! The slots are held by `scene::scratch_store::DrawingScratch`. The race's four (views 0 and 1, mirrors 0
 //! and 1) are `PartCell`s: the parts of a drawing scope get theirs from `scene::workers::draw_parts`
 //! (`scene::workers::PartRun::view`), the main thread reaches them by `main_view`, `mirror` and `slot`
 //! outside the parts. The front end's slot belongs to the main thread alone (`front_end`).
@@ -13,13 +13,13 @@
 //! the effects and the listener read included): the scratch is reached by one thread at a time
 //! and handed from one to the next, so it is `Send` (asserted below) and not `Sync`. What
 //! stays atomic beside it is `DrawingScratch`'s last-drawn-view slot and the mutex of a part's
-//! noted drawing (`scene::workers::PartScratch::noted`).
+//! noted drawing (`scene::scratch_store::PartScratch::noted`).
 //!
 //! Holds the two sort lists the view's drawing fills, sorts and draws and their counts, the
 //! view's fog (`scene::fog`), its object's placing (`scene::object_place`) and its object lighting
 //! (`scene::object_light`), its face work (`race::face_work`), its cars' drawing state
 //! (`race::car_draw_state`), its matrices (`scene::view_matrices`) and its polygon pipeline's work
-//! (`scene::polygon_work`).
+//! (`scene::polygon_work_store`).
 
 use crate::errors::BadInput;
 use crate::memory::session::PlainDword;
@@ -131,8 +131,8 @@ pub struct ViewScratch {
     pub cars: crate::race::car_draw_state::CarDrawState,
     /// The view's matrices and turning work (`scene::view_matrices`).
     pub matrices: crate::scene::view_matrices::ViewMatrices,
-    /// The polygon pipeline's working values (`scene::polygon_work`).
-    pub polygon: crate::scene::polygon_work::PolygonWork,
+    /// The polygon pipeline's working values (`scene::polygon_work_store`).
+    pub polygon: crate::scene::polygon_work_store::PolygonWork,
     /// The view's course grid (`race::view_grid`).
     pub grid: crate::race::view_grid::ViewGrid,
     /// The course working values (`race::view_course`).
@@ -167,7 +167,7 @@ impl ViewScratch {
             face: crate::race::face_work::FaceWork::new(),
             cars: crate::race::car_draw_state::CarDrawState::new(),
             matrices: crate::scene::view_matrices::ViewMatrices::new(),
-            polygon: crate::scene::polygon_work::PolygonWork::new(),
+            polygon: crate::scene::polygon_work_store::PolygonWork::new(),
             grid: crate::race::view_grid::ViewGrid::new(),
             course: crate::race::view_course::ViewCourse::new(),
             quad: crate::race::quad_work::QuadWork::new(),
@@ -223,7 +223,7 @@ impl ViewScratch {
         // window (`scene::view_window`). The fresh copy is made beside and copied in whole, so the
         // window is never seen reset: the mirror's part reads its view's depth while the view
         // begins.
-        let fresh = crate::scene::polygon_work::PolygonWork::new();
+        let fresh = crate::scene::polygon_work_store::PolygonWork::new();
         fresh.window.copy_from(&self.polygon.window);
         fresh.view_mirrored.set(self.polygon.view_mirrored.get());
         fresh.sun.view_out.set(self.polygon.sun.view_out.get());
@@ -319,9 +319,9 @@ pub struct DrawCtx<'a> {
     /// The marks the faces' kinds pick: the car's while one is drawn (`race::draw_car`), none
     /// between cars, the menus' outside a race (`scene::car_marks`).
     pub marks: &'a crate::scene::car_marks::CarMarks,
-    /// The drawing part's scratch (`scene::workers::PartScratch`): the vertex buffer, the polygon
+    /// The drawing part's scratch (`scene::scratch_store::PartScratch`): the vertex buffer, the polygon
     /// work and the point records it draws with.
-    pub part: &'a crate::scene::workers::PartScratch,
+    pub part: &'a crate::scene::scratch_store::PartScratch,
     /// The stores every drawing part reads (`scene::workers::DrawReads`): the part's own inside a
     /// drawing scope, the owners' on the game's thread outside one.
     pub reads: crate::scene::workers::DrawReads<'a>,
@@ -339,7 +339,7 @@ impl<'a> DrawCtx<'a> {
         scene: &'a crate::scene::owner::Scene,
         input: &'a crate::input::owner::Input,
         view: &'a ViewScratch,
-        part: &'a crate::scene::workers::PartScratch,
+        part: &'a crate::scene::scratch_store::PartScratch,
         reads: crate::scene::workers::DrawReads<'a>,
     ) -> Self {
         Self {
@@ -356,14 +356,17 @@ impl<'a> DrawCtx<'a> {
     }
 }
 
-/// The texture filter's switches the view in slot `slot` starts from (`scene::polygon_work`'s
+/// The texture filter's switches the view in slot `slot` starts from (`scene::polygon_work_store`'s
 /// `smooth`, `plain_first`, `plain_second`): for the first view (slot 0) the front end's slot's,
 /// where the HUD's overlay left them the frame before (1, 1) or the menus' passes; for the others
 /// 0 (measured: the mirror and the second view always started from what the first view's last list
 /// entry left). The first view's sky is drawn smooth, the others' not. Taken on the main thread,
 /// before the parts (the front end's slot is not a part's); the view's drawing is handed the
 /// values.
-pub fn filter_input(scratch: &crate::scene::workers::DrawingScratch, slot: usize) -> [u32; 3] {
+pub fn filter_input(
+    scratch: &crate::scene::scratch_store::DrawingScratch,
+    slot: usize,
+) -> [u32; 3] {
     if slot == 0 {
         let from = &scratch.front_end().polygon;
         [

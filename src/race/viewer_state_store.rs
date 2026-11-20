@@ -1,14 +1,13 @@
 //! The replay writer's and the viewer's state: the padding frame, the file offset and frames in the
 //! block, the replay block and frame, the play end and the viewer's switches, then the viewer's
-//! list (`race::viewer_list`). `#[repr(C)]`, laid over the race block's bytes. The
+//! list (`race::viewer_list_store`). `#[repr(C)]`, laid over the race block's bytes. The
 //! list's rectangles, pictures and key table are the constants below.
 
 use crate::memory::cells::ZeroCells;
 
 use crate::memory::place::BytePlace;
 use crate::memory::session::{PlainDword, PlainFlag};
-use crate::race::owner_replay::Replay;
-use crate::race::viewer_list::{ITEMS, ViewerItem, ViewerList};
+use crate::race::viewer_list_store::{ITEMS, ViewerItem, ViewerList};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
@@ -165,8 +164,11 @@ impl ReplayViewBlock {
     }
 
     /// Where item `index`'s screen rectangle is.
-    pub fn item_place(replay: &Replay, index: u32) -> Result<BytePlace, crate::errors::BadInput> {
-        Self::item(replay, index)?;
+    pub fn item_place(
+        view: &ReplayViewBlock,
+        index: u32,
+    ) -> Result<BytePlace, crate::errors::BadInput> {
+        Self::item(view, index)?;
         Ok(BytePlace::Store(
             &RECTANGLES,
             ITEM_PLACES + 16 * index as usize,
@@ -175,18 +177,16 @@ impl ReplayViewBlock {
 
     /// What item `index`'s picture is.
     pub fn item_picture(
-        replay: &Replay,
+        view: &ReplayViewBlock,
         index: u32,
     ) -> Result<ViewerPicture, crate::errors::BadInput> {
-        Self::item(replay, index)?;
+        Self::item(view, index)?;
         Ok(PICTURES[index as usize])
     }
 
     /// Item `index` of the viewer's list.
-    fn item(replay: &Replay, index: u32) -> Result<&ViewerItem, crate::errors::BadInput> {
-        replay
-            .replay_view()
-            .viewer_list
+    fn item(view: &ReplayViewBlock, index: u32) -> Result<&ViewerItem, crate::errors::BadInput> {
+        view.viewer_list
             .items
             .get(index as usize)
             .ok_or(crate::errors::BadInput("a viewer item past the 26"))
@@ -201,13 +201,13 @@ mod tests {
     fn the_list_names_resolve() {
         let replay = &crate::test_support::own::race().replay;
         for k in 0..26u32 {
-            assert!(ReplayViewBlock::item_place(replay, k).is_ok());
-            match ReplayViewBlock::item_picture(replay, k).unwrap() {
+            assert!(ReplayViewBlock::item_place(replay.replay_view(), k).is_ok());
+            match ReplayViewBlock::item_picture(replay.replay_view(), k).unwrap() {
                 ViewerPicture::Rectangle(offset) => assert!(offset + 16 <= 0x668),
                 ViewerPicture::Switch(_) => {}
             }
         }
-        assert!(ReplayViewBlock::item_place(replay, 26).is_err());
+        assert!(ReplayViewBlock::item_place(replay.replay_view(), 26).is_err());
     }
 
     /// M4 for the viewer's list: the list holds 26 items; the key table

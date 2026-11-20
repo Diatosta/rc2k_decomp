@@ -2,13 +2,13 @@
 //! reference to the code that draws the effects.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::owner_groups::{Blocks, Clipping, FrameState, Kinds, Setup};
-use crate::effects::paths::Paths;
-use crate::effects::pong::Pong;
-use crate::effects::rain::Weather;
+use crate::effects::owner_groups_store::{Blocks, Clipping, FrameState, Kinds, Setup};
+use crate::effects::particles_store::Particles;
+use crate::effects::paths_store::Paths;
+use crate::effects::pong_store::Pong;
+use crate::effects::rain_store::Weather;
 use crate::effects::ring_store::Ring;
-use crate::effects::run_particles::Particles;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::BadInput;
 
@@ -50,7 +50,7 @@ impl Effects {
     }
 
     /// The race's stage tables `init_marks` was handed; refused before the first.
-    pub fn stage(&self) -> Result<&'static crate::race::stage_data::StageData, BadInput> {
+    pub fn stage(&self) -> Result<&'static crate::race::stage_data_store::StageData, BadInput> {
         self.setup
             .stage
             .get()

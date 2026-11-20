@@ -3,8 +3,9 @@
 //! coloured `HudBlock.marker_colours[0]`.
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::RectAt;
+use crate::hud::block_store::RectAt;
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads::marker_x;
 

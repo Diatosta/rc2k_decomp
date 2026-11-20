@@ -97,7 +97,7 @@ fn car_fields(car: &Car, m: &mut impl Move) {
     m.field(0x38, &car.gearbox_kind);
     m.field(0x3c, &car.steering_sensitivity);
     m.field(0x40, &car.drive_kind);
-    m.field(0x44, &car.unused_44);
+    m.field(0x44, &car.reserved_44);
     m.field(0x48, &car.part_woken);
     m.field(0x60, &car.ground_bump_scale);
     m.field(0x64, &car.impact_octant_marks);
@@ -141,7 +141,7 @@ fn car_fields(car: &Car, m: &mut impl Move) {
     m.field(0x200, &car.eased_yaw_spin);
     m.field(0x204, &car.grip_force_sum);
     m.field(0x208, &car.steer_trim);
-    m.field(0x20c, &car.unused_20c);
+    m.field(0x20c, &car.reserved_20c);
     m.field(0x210, &car.grip_forces);
     m.field(OPTION_BITS_AT, &car.option_bits);
     m.field(0x224, &car.contact_point);

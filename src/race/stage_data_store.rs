@@ -5,11 +5,11 @@
 //! through `CourseReads::stage` while the game's thread does not write.
 
 use crate::memory::owned::Owned;
-use crate::race::best_line::BestLine;
-use crate::race::course_places::CourseData;
-use crate::race::game_map::GameMap;
-use crate::scene::object_faces::ObjectFaces;
-use crate::scene::object_points::ObjectPoints;
+use crate::race::best_line_store::BestLine;
+use crate::race::course_places_store::CourseData;
+use crate::race::game_map_store::GameMap;
+use crate::scene::object_faces_store::ObjectFaces;
+use crate::scene::object_points_store::ObjectPoints;
 use std::sync::Mutex;
 
 /// The loaded stage's data.

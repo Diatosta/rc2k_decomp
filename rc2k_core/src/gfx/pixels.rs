@@ -262,9 +262,10 @@ pub fn grade(pixels: &mut [u32], key: u32, saturation: u32, table: &[u8; 0x100])
     }
 }
 
-/// Whether `halve` can do it: every pass at least one pixel wide and high.
+/// Whether `halve` can do it: every pass at least one pixel wide and high (a pass count of 32
+/// or more never, since a 32-bit shift by it would not shift).
 pub fn halvable(width: u32, height: u32, times: u32) -> bool {
-    times <= 32 && (width >> times) > 0 && (height >> times) > 0
+    times < 32 && (width >> times) > 0 && (height >> times) > 0
 }
 
 /// A texture made half as wide and high in place, `times` times: each
@@ -502,6 +503,9 @@ mod tests {
         assert_eq!(big[0] >> 24, (0xFF * 3) >> 2);
         assert_eq!(halve(&mut [0u32; 3], 2, 2, 1), None);
         assert!(!halvable(4, 1, 1));
+        assert!(halvable(4, 4, 2) && !halvable(4, 4, 3));
+        // A shift by the full width would leave the size as it is; it is refused.
+        assert!(!halvable(u32::MAX, u32::MAX, 32) && !halvable(1, 1, 33));
         let table = grades(0x100);
         assert_eq!(table[0x80], 0x80);
         let mut pixels = [0xFF10_2030u32];

@@ -1,19 +1,19 @@
 //! The effects' remaining stores in groups (owners, stage 1): what was a static of its
 //! own each is a field of one group of `effects::owner::Effects`.
 
-use crate::effects::blend_corner::BlendWork;
-use crate::effects::blocks::{CornerSlopes, MarkCorners, MarkLinks, PlacesBlock};
-use crate::effects::clip::{ClipScreen, GlowState};
-use crate::effects::emitters::EmitterVars;
-use crate::effects::frame_state::{DrawFrame, DrawWork, FlareParts, FlareScales, ViewVars};
+use crate::effects::blend_corner_store::BlendWork;
+use crate::effects::blocks_store::{CornerSlopes, MarkCorners, MarkLinks, PlacesBlock};
+use crate::effects::clip_store::{ClipScreen, GlowState};
+use crate::effects::emitters_store::EmitterVars;
+use crate::effects::frame_state_store::{DrawFrame, DrawWork, FlareParts, FlareScales, ViewVars};
 use crate::effects::kind_store::{KindExtra2, KindExtras1, QuadWork};
-use crate::effects::kind_values::MarksKind;
-use crate::effects::mark_slots::{MarkSlots, SlotTuning};
-use crate::effects::mask_constants::MaskConstants;
-use crate::effects::run_particles::{BurstColours, ParticleTuning};
-use crate::effects::setup::{ClockK, MarksClock, SettingsPointer};
-use crate::effects::tuning::{MarksFloats, MarksFrame, MarksKindFloats};
-use crate::effects::view_vectors::{KeptView, ViewSources};
+use crate::effects::kind_values_store::MarksKind;
+use crate::effects::mark_slots_store::{MarkSlots, SlotTuning};
+use crate::effects::mask_constants_store::MaskConstants;
+use crate::effects::particles_store::{BurstColours, ParticleTuning};
+use crate::effects::setup_store::{ClockK, MarksClock, SettingsPointer};
+use crate::effects::tuning_store::{MarksFloats, MarksFrame, MarksKindFloats};
+use crate::effects::view_vectors_store::{KeptView, ViewSources};
 use crate::effects::work_store::MarksWork;
 
 /// The clip screen, the glow and the corner blend's work.
@@ -130,7 +130,7 @@ pub struct Setup {
     pub car_blocks: core::cell::Cell<Option<&'static crate::race::blocks_store::CarBlocks>>,
     /// The race's stage tables, handed with `marks`: the objects' faces and points, the course
     /// info (`Effects::stage`).
-    pub stage: core::cell::Cell<Option<&'static crate::race::stage_data::StageData>>,
+    pub stage: core::cell::Cell<Option<&'static crate::race::stage_data_store::StageData>>,
     pub frame: MarksFrame,
     pub floats: MarksFloats,
     pub kind_floats: MarksKindFloats,

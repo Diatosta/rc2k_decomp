@@ -11,7 +11,7 @@
 //! Refuses, before anything, null settings and a live item of a kind past 7.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::effects::windscreen_drops::{ITEM_LEN, ITEMS};
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
@@ -59,7 +59,7 @@ fn sprite_depth(drops: &WindscreenDrops) {
 /// The six corners (the kind's offsets at `WindscreenDropWork.scaled[0]`[c] ..) into
 /// `WindscreenDropWork.corners[0]` .., the depth's inverse (left on the x87 stack, so returned).
 fn sprite_corners(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     drops: &WindscreenDrops,
     c: u32,
 ) -> bh::X {
@@ -69,7 +69,7 @@ fn sprite_corners(
 /// The centre and corners projected into the buffer at e (six vertices), drawn in by
 /// `WindscreenDropVars.scale[2]` / `E`, their depth.
 fn sprite_project(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     drops: &WindscreenDrops,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
@@ -256,7 +256,7 @@ fn sprite_depth_x87(drops: &WindscreenDrops) {
 /// placed around the item's `cell` into `corners`. Returns the inverse depth the projection
 /// takes (`view_scale / cell[2]`).
 fn sprite_corners_x87(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     drops: &WindscreenDrops,
     c: usize,
 ) -> bh::X {
@@ -277,7 +277,7 @@ fn sprite_corners_x87(
 /// vertices at `e` of the batch's records (0x20 bytes each; the depth in the third field), `inverse_depth`
 /// being `view_scale / depth`. Same order and rounding as the x87.
 fn sprite_project_x87(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     drops: &WindscreenDrops,
     gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,

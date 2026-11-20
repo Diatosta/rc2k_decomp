@@ -1,15 +1,16 @@
 //! The HUD of a split screen of three or four players: each player's part of the screen gets the
 //! one-player HUD (`hud::layout_0`), drawn as if the part were a screen of its own
-//! (`hud::owner::PartScope`): the dials, stage bar, clocks and signs keep to the part's corners and
+//! (`hud::pen::PartScope`): the dials, stage bar, clocks and signs keep to the part's corners and
 //! middle by its shape. Each player's values (`Panel::parts`) stand in the first view's slots
 //! while that player's part is drawn. The part three players leave free in the quarter layout
 //! shows the whole course's map with each car on it (`race::overview_map`; black without one).
 //! Thin black dividers lie between the parts.
 
 use crate::errors::Refused;
+use crate::hud::block_store::{RectAt, texture};
 use crate::hud::layout_common::{Keep, black_divider, keep, start_keep};
-use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::{RectAt, texture};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 use rc2k_core::race::view::{PlayerPart, Split};
 
@@ -246,7 +247,7 @@ pub fn layout_many(frame: &Frame, hud: &Hud, pen: Pen, views: u32) -> Result<(),
         crate::hud::tenths::tenths(frame, hud);
         start_keep(hud, Keep::Thirds);
         let part_pen = Pen {
-            scope: crate::hud::owner::PartScope {
+            scope: crate::hud::pen::PartScope {
                 part: Some(part),
                 icon: Some(n),
             },

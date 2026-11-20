@@ -23,7 +23,7 @@ pub fn list_cell(work: &PolygonWork, n: usize) -> &PlainDword {
     work.list
         .get(n)
         .or_else(|| work.old_list.get(after_list))
-        .or_else(|| work.unknown_2400.get(after_old))
+        .or_else(|| work.reserved_2400.get(after_old))
         .unwrap_or_else(|| {
             crate::fatal::raise::end(
                 "a polygon list cell past the lists",
@@ -122,7 +122,7 @@ pub type Listed<'w> = smallvec::SmallVec<[&'w PolygonEntry; 32]>;
 /// holds and a list entry past the table.
 pub fn listed<'w>(
     work: &'w PolygonWork,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
 ) -> Result<Listed<'w>, BadInput> {
     let count: u32 = poly.polygon_vertex_count.get();
     if count > MOST {

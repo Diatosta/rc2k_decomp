@@ -13,7 +13,7 @@
 //! The x87 blocks are plain Rust on the x87 model (`math::x87_float`), over the game's variables.
 //! Refuses null settings and a view entry past the five (the settings' `marks_layout`), before anything.
 
-use crate::effects::rain::{RainRules, RainState, Weather};
+use crate::effects::rain_store::{RainRules, RainState, Weather};
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;

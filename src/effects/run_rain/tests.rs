@@ -1,6 +1,6 @@
 use crate::effects::asm_test::Kind::*;
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
-use crate::effects::rain::tests::with_state_at;
+use crate::effects::rain_store::tests::with_state_at;
 
 #[test]
 fn box_moved_x87_matches() {

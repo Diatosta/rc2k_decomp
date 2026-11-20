@@ -40,14 +40,14 @@ impl Reading {
 /// The objects' point records (`scene::point_records`, 0x1000 + (n & 0xFFF) for a point or
 /// normal number `n`; its place, three words), the drawing part's.
 pub struct PointRecords<'a> {
-    part: &'a crate::scene::workers::PartScratch,
+    part: &'a crate::scene::scratch_store::PartScratch,
 }
 
 impl<'a> PointRecords<'a> {
     /// `part`'s records; refused when the records are not taken.
     pub fn new(
         lists: &crate::race::course_lists_store::CourseLists,
-        part: &'a crate::scene::workers::PartScratch,
+        part: &'a crate::scene::scratch_store::PartScratch,
     ) -> Result<Self, BadInput> {
         if !crate::scene::point_records::held(lists) {
             return Err(BadInput("no records for the points"));

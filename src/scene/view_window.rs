@@ -13,8 +13,6 @@ pub struct ViewWindow {
     pub view_offset: [PlainDword; 2],
     /// The zoom, a whole number (0x100; the menus set it), in the scale.
     pub view_zoom: PlainDword,
-    /// Not named: no code uses it.
-    pub unknown_104: PlainDword,
     /// The scale (`scene::set_view_window`, `scene::project_point`).
     pub view_scale: PlainFloat,
     /// The window's width and height.
@@ -50,7 +48,6 @@ impl ViewWindow {
         Self {
             view_offset: [const { PlainDword::new(0) }; 2],
             view_zoom: PlainDword::new(0),
-            unknown_104: PlainDword::new(0),
             view_scale: PlainFloat::new(0.0),
             view_size: [const { PlainDword::new(0) }; 2],
             view_middle: [const { PlainDword::new(0) }; 2],

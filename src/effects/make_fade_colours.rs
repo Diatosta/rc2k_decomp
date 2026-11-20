@@ -3,7 +3,7 @@
 //! (`SnowLight.fade_step`, a float), rounded, made a pixel (alpha 0xFF) and added to the colour (as
 //! one dword, carries crossing components), into `SnowLight.fade_colours[0]`.
 
-use crate::effects::rain::Weather;
+use crate::effects::rain_store::Weather;
 use crate::math::x87;
 const FADES: usize = 0x11;
 

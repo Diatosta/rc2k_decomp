@@ -16,8 +16,8 @@
 
 use crate::effects::mask_store::Masks;
 use crate::effects::plain::{ld_cell, ldi_cell, st_cell};
-use crate::effects::setup::MarksClock;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::setup_store::MarksClock;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;

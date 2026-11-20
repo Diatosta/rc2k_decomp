@@ -635,9 +635,15 @@ impl Texture {
     /// refuses, or when `frame` is shorter than the texture's rows.
     #[cfg_attr(handheld, allow(dead_code))] // the handheld shows frames on its framebuffer
     pub fn upload(&self, frame: &[u8], pitch: usize) -> bool {
-        if frame.len() < pitch * self.height || pitch < self.width * 4 {
+        let Some(row_bytes) = self.width.checked_mul(4) else {
             return false;
-        }
+        };
+        let (true, Ok(pitch_in_call)) = (
+            rows_fit(frame.len(), pitch, row_bytes, self.height),
+            i32::try_from(pitch),
+        ) else {
+            return false;
+        };
         // SAFETY: the texture SDL made; `frame` holds `height` rows of `pitch` bytes
         // (checked above), `width` XRGB8888 pixels in each; a null rectangle is all of it.
         unsafe {
@@ -645,7 +651,7 @@ impl Texture {
                 self.raw,
                 std::ptr::null(),
                 frame.as_ptr().cast(),
-                pitch as i32,
+                pitch_in_call,
             )
         }
     }
@@ -656,6 +662,13 @@ impl Drop for Texture {
         // SAFETY: the texture SDL made, owned by this value alone.
         unsafe { SDL_DestroyTexture(self.raw) };
     }
+}
+
+/// Whether `len` bytes hold `rows` rows of `row_bytes` bytes a `pitch` apart, the pitch being a
+/// row at least. The call that reads them takes the rows by count and pitch alone, so this is what
+/// keeps it inside the slice; no size can wrap round to a small number.
+pub(super) fn rows_fit(len: usize, pitch: usize, row_bytes: usize, rows: usize) -> bool {
+    pitch >= row_bytes && pitch.checked_mul(rows).is_some_and(|total| len >= total)
 }
 
 // ---- video ----
@@ -842,18 +855,27 @@ pub fn create_window(title: &std::ffi::CStr, width: usize, height: usize) -> Opt
 /// The window's icon (title bar, task bar, window switcher): pixels three bytes each (red,
 /// green, blue), rows without a gap. False when SDL does not take it.
 pub fn set_window_icon(window: Window, width: usize, height: usize, rgb: &[u8]) -> bool {
-    if width == 0 || height == 0 || rgb.len() < width * height * 3 {
+    let Some(pitch) = width.checked_mul(3) else {
         return false;
-    }
+    };
+    let (true, Ok(pitch), Ok(width), Ok(height)) = (
+        width != 0 && height != 0 && rows_fit(rgb.len(), pitch, pitch, height),
+        i32::try_from(pitch),
+        i32::try_from(width),
+        i32::try_from(height),
+    ) else {
+        return false;
+    };
     // SAFETY: the surface only borrows `rgb`, which outlives it (it is destroyed before this
-    // returns; SDL copies the pixels it keeps for the icon); the sizes match the slice.
+    // returns; SDL copies the pixels it keeps for the icon); the sizes match the slice
+    // (checked above).
     unsafe {
         let surface = SDL_CreateSurfaceFrom(
-            width as i32,
-            height as i32,
+            width,
+            height,
             SDL_PIXELFORMAT_RGB24,
             rgb.as_ptr() as *mut core::ffi::c_void,
-            (width * 3) as i32,
+            pitch,
         );
         if surface.is_null() {
             return false;
@@ -1424,4 +1446,23 @@ pub enum JoystickInput {
     Hat(u8, u8),
     /// A button (counted from 0) and whether it went down.
     Button(u8, bool),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rows_fit;
+
+    #[test]
+    fn rows_fit_checks_the_slice_against_the_rows_and_never_wraps() {
+        assert!(rows_fit(24, 8, 8, 3));
+        assert!(rows_fit(24, 8, 6, 3));
+        assert!(!rows_fit(23, 8, 8, 3));
+        // A pitch smaller than a row would make the call read past the next row's start.
+        assert!(!rows_fit(100, 4, 8, 3));
+        // No rows need no bytes.
+        assert!(rows_fit(0, 8, 8, 0));
+        // A product that wraps round to a small number is refused.
+        assert!(!rows_fit(16, 1 << 63, 8, 2));
+        assert!(!rows_fit(16, usize::MAX, 8, usize::MAX));
+    }
 }

@@ -466,6 +466,28 @@ pub const PAD_BUTTONS: [SDL_GamepadButton; 10] = [
     SDL_GAMEPAD_BUTTON_RIGHT_STICK,
 ];
 
+#[cfg_attr(
+    not(phone),
+    allow(dead_code, reason = "used by the phones' touch screen")
+)]
+/// The touch screen's virtual gamepad: the button a touch button presses, or the trigger for a pedal; matched
+/// to the default gamepad profile (`Profile::new` for a pad), which is what the game reads.
+pub fn touch_pad_button(
+    button: rc2k_core::input::touch::Button,
+) -> Result<SDL_GamepadButton, SDL_GamepadAxis> {
+    use rc2k_core::input::touch::Button;
+    match button {
+        Button::Throttle => Err(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER),
+        Button::Brake => Err(SDL_GAMEPAD_AXIS_LEFT_TRIGGER),
+        Button::Handbrake => Ok(SDL_GAMEPAD_BUTTON_EAST),
+        Button::GearUp => Ok(SDL_GAMEPAD_BUTTON_SOUTH),
+        Button::GearDown => Ok(SDL_GAMEPAD_BUTTON_WEST),
+        Button::Camera => Ok(SDL_GAMEPAD_BUTTON_NORTH),
+        Button::Lights => Ok(SDL_GAMEPAD_BUTTON_BACK),
+        Button::Pause => Ok(SDL_GAMEPAD_BUTTON_START),
+    }
+}
+
 /// A gamepad read as DirectInput reads an XInput pad (see the header).
 /// A stick's axis as the game should see it. SDL can report a stick that has not moved yet at
 /// the end of its range (seen on the Anbernic's pad, whose kernel says 0: until the first move
@@ -861,5 +883,54 @@ mod tests {
         assert_eq!(stick_axis(-32768, &mut moved), 0);
         assert_eq!(stick_axis(5, &mut moved), 5);
         assert_eq!(stick_axis(-32768, &mut moved), -32768);
+    }
+}
+
+#[cfg(test)]
+mod touch_pad_tests {
+    use super::*;
+    use rc2k_core::input::device_id::DeviceId;
+    use rc2k_core::input::profile::{AxisUse, Digital, Kind, Profile};
+    use rc2k_core::input::touch::{Button, PAD_NAME};
+
+    /// Each touch button presses what the default pad profile reads for its action.
+    #[test]
+    fn the_touch_buttons_press_what_the_pad_profile_reads() {
+        let id = DeviceId {
+            name: PAD_NAME.into(),
+            serial: None,
+            nth: 1,
+        };
+        let b = Profile::new(id, Kind::Pad).bindings;
+        let number = |pressed: SDL_GamepadButton| {
+            let at = PAD_BUTTONS
+                .iter()
+                .position(|p| *p == pressed)
+                .expect("a profile button");
+            Some(Digital::Button { button: at as u8 })
+        };
+        let pedal = |axis: SDL_GamepadAxis| {
+            Some(AxisUse::Pedal {
+                axis: axis.0 as u8,
+                rest_high: false,
+            })
+        };
+        for button in Button::ALL {
+            match (button, touch_pad_button(button)) {
+                (Button::Throttle, Err(axis)) => assert_eq!(b.accelerate_axis, pedal(axis)),
+                (Button::Brake, Err(axis)) => assert_eq!(b.brake_axis, pedal(axis)),
+                (Button::Handbrake, Ok(p)) => assert_eq!(b.handbrake, number(p)),
+                (Button::GearUp, Ok(p)) => assert_eq!(b.gear_up, number(p)),
+                (Button::GearDown, Ok(p)) => assert_eq!(b.gear_down, number(p)),
+                (Button::Camera, Ok(p)) => assert_eq!(b.camera, number(p)),
+                (Button::Lights, Ok(p)) => assert_eq!(b.lights, number(p)),
+                // The pause is read from Start as the menus' Escape, not from a binding.
+                (Button::Pause, Ok(p)) => assert_eq!(p.0, SDL_GAMEPAD_BUTTON_START.0),
+                (button, other) => panic!(
+                    "{button:?} presses {:?}",
+                    other.map(|p| p.0).map_err(|a| a.0)
+                ),
+            }
+        }
     }
 }

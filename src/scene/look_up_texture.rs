@@ -4,7 +4,7 @@
 
 /// Looks up the polygon's texture.
 pub fn look_up_texture(
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     scene: &crate::scene::owner::Scene,
 ) -> u32 {
     // Logic: `rc2k_core::scene::textures::look_up`.

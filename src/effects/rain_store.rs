@@ -229,11 +229,11 @@ impl RainRules {
 pub struct Weather {
     pub rain: RainState,
     pub rain_rules: RainRules,
-    pub snow: crate::effects::snow::SnowState,
-    pub snow_light: crate::effects::snow::SnowLight,
-    pub snow_curve: crate::effects::snow::SnowCurve,
-    pub snow_tables: crate::effects::snow::SnowTables,
-    pub snow_vars: crate::effects::snow::SnowCurveVars,
+    pub snow: crate::effects::snow_store::SnowState,
+    pub snow_light: crate::effects::snow_store::SnowLight,
+    pub snow_curve: crate::effects::snow_store::SnowCurve,
+    pub snow_tables: crate::effects::snow_store::SnowTables,
+    pub snow_vars: crate::effects::snow_store::SnowCurveVars,
 }
 
 impl Weather {
@@ -241,11 +241,11 @@ impl Weather {
         Weather {
             rain: RainState::new(),
             rain_rules: RainRules::new(),
-            snow: crate::effects::snow::SnowState::new(),
-            snow_light: crate::effects::snow::SnowLight::new(),
-            snow_curve: crate::effects::snow::SnowCurve::new(),
-            snow_tables: crate::effects::snow::SnowTables::new(),
-            snow_vars: crate::effects::snow::SnowCurveVars::new(),
+            snow: crate::effects::snow_store::SnowState::new(),
+            snow_light: crate::effects::snow_store::SnowLight::new(),
+            snow_curve: crate::effects::snow_store::SnowCurve::new(),
+            snow_tables: crate::effects::snow_store::SnowTables::new(),
+            snow_vars: crate::effects::snow_store::SnowCurveVars::new(),
         }
     }
 }

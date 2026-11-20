@@ -166,6 +166,9 @@ fn list_tailnet() -> Option<Vec<std::net::Ipv4Addr>> {
     Some(rc2k_core::net::tailscale::peer_addresses(&text.ok()?))
 }
 
+/// The most addresses Bonjour has heard that one search probes.
+const BONJOUR_PROBES_MOST: usize = 64;
+
 /// The sessions of application `application` heard in the last 4 s, a probe sent first (the
 /// answers to it come in meanwhile, for the next call: DirectPlay's lists done
 /// asynchronously).
@@ -224,7 +227,11 @@ pub fn find_sessions(host: &str, port: u16, application: [u8; 16]) -> Vec<(Desc,
                     let (Some(port), Some(desc)) = (r.u32(), r.desc()) else {
                         continue;
                     };
-                    let at = SocketAddr::new(from.ip(), port as u16);
+                    // A port that is none is not a session's.
+                    let Some(port) = u16::try_from(port).ok().filter(|&p| p != 0) else {
+                        continue;
+                    };
+                    let at = SocketAddr::new(from.ip(), port);
                     list.lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner)
                         .hear(Found {
@@ -251,7 +258,8 @@ pub fn find_sessions(host: &str, port: u16, application: [u8; 16]) -> Vec<(Desc,
         (Vec::new(), None, Vec::new())
     };
     let mut targets = probe_targets(host, port, &tailnet, last.as_deref());
-    for at in bonjour {
+    // Any machine of the network can announce a service: only so many are probed.
+    for at in bonjour.into_iter().take(BONJOUR_PROBES_MOST) {
         if !targets.contains(&at) {
             targets.push(at);
         }

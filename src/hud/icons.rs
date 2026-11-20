@@ -4,7 +4,8 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_icon::draw_icon;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
 /// One icon: the shift, the row and the view (`Panel::lights`).

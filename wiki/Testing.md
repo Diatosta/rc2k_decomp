@@ -149,7 +149,7 @@ tools/fuzz.sh [seconds per target] [targets]
 ```
 
 Fuzzes `rc2k_core`'s readers of outside data: packed files, PNG and PCX pictures, run-length
-data, the text tables, language files, network messages, MPEG-1 video and layer II sound
+data, the text tables, language files, network messages (a player's inbox, and the frames, requests, changes and messages another machine can send a session), the Tailscale peer listing, MPEG-1 video and layer II sound
 streams, and Indeo 4 video. The targets are in `fuzz/fuzz_targets/`. It needs a nightly toolchain and
 `cargo-fuzz`.
 

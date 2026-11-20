@@ -9,7 +9,8 @@
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::memory::owned::Owned;
-use crate::race::game_map::{GameMap, Tile};
+use crate::race::game_map_store::GameMap;
+use crate::race::game_map_store::Tile;
 use crate::race::owner_frame::Frame;
 use rc2k_core::race::map::TILE;
 

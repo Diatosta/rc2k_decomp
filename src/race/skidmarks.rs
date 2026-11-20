@@ -69,7 +69,7 @@ fn skid_vertex(
 
 /// A point as `skid_vertex` turned it, put into the vertex record `v`.
 fn put_turned(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     quad: &[crate::memory::session::PlainDword; 32],
     v: u32,
     turned: Turned,

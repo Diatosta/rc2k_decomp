@@ -577,24 +577,9 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.sound.race.spot_voices.get()),
         ),
         listed!(
-            "owners.install.run",
-            on_game_from(&o.install.run, ".same_version"),
-        ),
-        listed!("owners.install.names", on_game(&o.install.names), 0x8a7,),
-        listed!(
             "owners.install.pages",
             on_game_from(&o.install.pages, ".texts[0].dx"),
             0xa25,
-        ),
-        listed!(
-            "owners.install.paths",
-            on_game_from(&o.install.paths, ".game_dir"),
-            0x600,
-        ),
-        listed!(
-            "owners.install.palette",
-            on_game_from(&o.install.palette, ".palette"),
-            0x300,
         ),
         listed!(
             "owners.system.start.run_count",

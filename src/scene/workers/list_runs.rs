@@ -16,40 +16,16 @@
 //! What must happen in the list's order whatever the threads do (the random numbers) waits in
 //! a later run until every earlier run has ended (`memory::draw_order::list_run_index`).
 
-use super::{AsideRun, AsideStart, DrawReads, DrawingScratch, Helper, PartScratch, run_aside};
+use super::{AsideRun, AsideStart, DrawReads, Helper, run_aside};
 use crate::errors::{BadInput, Refused};
 use crate::memory::draw_order::{
     LIST_RUNS, begin_list_runs, index, list_run_ended, list_run_index, set_index,
 };
 use crate::race::view_scratch::ViewScratch;
+use crate::scene::scratch_store::{DrawingScratch, PartScratch, RunScratch};
 use std::ops::Range;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Mutex, MutexGuard, OnceLock, PoisonError};
-
-/// What a run other than its part's own draws on: a part's scratch and a copy of the view,
-/// each behind a mutex its run's thread holds while it draws (and the part's thread while it
-/// copies the view in and puts the run's work back).
-pub(super) struct RunScratch {
-    part: Mutex<PartScratch>,
-    view: Mutex<ViewScratch>,
-}
-
-impl RunScratch {
-    pub(super) const fn new() -> Self {
-        Self {
-            part: Mutex::new(PartScratch::new(false)),
-            view: Mutex::new(ViewScratch::new(0)),
-        }
-    }
-
-    fn part(&self) -> MutexGuard<'_, PartScratch> {
-        self.part.lock().unwrap_or_else(PoisonError::into_inner)
-    }
-
-    fn view(&self) -> MutexGuard<'_, ViewScratch> {
-        self.view.lock().unwrap_or_else(PoisonError::into_inner)
-    }
-}
+use std::sync::{Mutex, OnceLock, PoisonError};
 
 /// What draws a run's entries (the range of the list's) on the run's part scratch and view,
 /// reading the scope's stores: called on whichever thread draws the run.

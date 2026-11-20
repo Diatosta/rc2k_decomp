@@ -8,7 +8,7 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
-use crate::race::viewer_list::ViewerItem;
+use crate::race::viewer_list_store::ViewerItem;
 use crate::race::viewer_state_store::{ReplayViewBlock, SwitchTable, ViewerPicture};
 
 fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInput> {
@@ -30,7 +30,7 @@ pub(super) fn draw_viewer_item(
     let replay = &race.replay;
     let panel = race.viewer_panel();
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
-    let uv = match ReplayViewBlock::item_picture(replay, index)? {
+    let uv = match ReplayViewBlock::item_picture(replay.replay_view(), index)? {
         ViewerPicture::Rectangle(offset) => panel.rectangle_at(offset)?,
         ViewerPicture::Switch(SwitchTable::A) => {
             let n = camera_byte(race, replay, switch_byte(index as u8) as usize)?;
@@ -47,8 +47,8 @@ pub(super) fn draw_viewer_item(
             panel.switch_picture(SwitchTable::C.number(), camera_byte(race, replay, 4)?)?
         }
     };
-    let bytes =
-        ReplayViewBlock::item_place(replay, index)?.read_array::<16>("a viewer item's place")?;
+    let bytes = ReplayViewBlock::item_place(replay.replay_view(), index)?
+        .read_array::<16>("a viewer item's place")?;
     let place: [u32; 4] =
         std::array::from_fn(|k| u32::from_le_bytes(bytes[4 * k..4 * k + 4].try_into().unwrap()));
     let width = (uv[2] as i32).unsigned_abs();

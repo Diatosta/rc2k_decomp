@@ -4,7 +4,8 @@
 //! under its alpha; `hud::add_polygon` on four.
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::Lights;
 

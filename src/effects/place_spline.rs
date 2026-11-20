@@ -9,7 +9,7 @@
 //! Refuses null settings, a spline number of 8 or more (before anything), and its steps' refusals
 //! (all it may write is put back first).
 
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::effects::place_graded_points::place_graded_points;
 use crate::effects::splines::{SPLINE_LEN, Spline, place_shape_points as place_shape};
 use crate::errors::{BadInput, Refused};

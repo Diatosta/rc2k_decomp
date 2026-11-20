@@ -12,7 +12,7 @@ use crate::race::owner::Race;
 
 pub(super) fn mark_viewer_items(
     race: &Race,
-    list: &crate::race::viewer_list::ViewerList,
+    list: &crate::race::viewer_list_store::ViewerList,
 ) -> Result<(), crate::errors::BadInput> {
     let replay = &race.replay;
     // Logic in `rc2k_core::race::viewer::item_marks`.

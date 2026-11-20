@@ -9,7 +9,7 @@ use crate::race::error_list_store::ErrorList;
 use crate::race::frame_counter_store::FrameCounter;
 use crate::race::frame_store::FrameWork;
 use crate::race::frame_text::Credits;
-use crate::race::game_map::MapVars;
+use crate::race::game_map_store::MapVars;
 use crate::race::groups_store::{LightsAndGear, PanelAndOverlay, ViewAndRecords};
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::panel_clock_store::PanelClock;

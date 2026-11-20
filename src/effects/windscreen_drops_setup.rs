@@ -5,7 +5,7 @@
 //!
 //! The x87 run is plain Rust on the x87 model (`math::x87_float`).
 
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 

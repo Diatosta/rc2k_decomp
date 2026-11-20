@@ -11,7 +11,7 @@ use rc2k_core::install::model::List;
 /// is at most one language.
 fn language_is_settled(install: &crate::install::owner::Install) -> bool {
     rc2k_core::install::pages::language_page_skipped(
-        install.run.same_version.get() == 1,
+        install.run.same_version.get(),
         install.names.language_count.get(),
     )
 }

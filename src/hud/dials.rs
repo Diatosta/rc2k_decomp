@@ -4,8 +4,9 @@
 //! own. The layouts are the HUD's three (`Panel::players`).
 
 use crate::errors::Refused;
-use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::HudBlock;
+use crate::hud::block_store::HudBlock;
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::memory::session::PlainDword;
 use crate::memory::session::PlainFloat;
 use crate::race::owner_frame::Frame;

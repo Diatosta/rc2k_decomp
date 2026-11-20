@@ -2,7 +2,7 @@ use crate::effects::asm_layout::with_laid;
 use crate::effects::asm_test::Kind::*;
 
 use crate::effects::asm_test::{Op, Spec, recorded_writes};
-use crate::effects::snow::SnowLight;
+use crate::effects::snow_store::SnowLight;
 use crate::test_support::own::race;
 
 #[test]
