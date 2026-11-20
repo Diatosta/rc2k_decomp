@@ -96,7 +96,7 @@ pub fn emit_exhaust_smoke(
         r,
         &effects.setup.floats.over_65536,
         motion.map(f32::to_bits),
-        effects.setup.clock.frame_ticks.get() as i32,
+        effects.setup.clock.borrow().frame_ticks as i32,
         [x, y, z].map(f32::to_bits),
     );
     slot.put(|en| &mut en.place[0], moved[0])?;

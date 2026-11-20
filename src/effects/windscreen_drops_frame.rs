@@ -198,9 +198,10 @@ use crate::math::x87_float as bh;
 /// `drift_cell`: the drift at the item's cell (`curve[k / 4]`) into `drift`: x from the
 /// shape tilt's point, y its second coordinate.
 fn drift_cell_x87(drops: &WindscreenDrops, k: usize) {
-    let x = -(drops.work.curve[k / 4].ld() * drops.tilt.point[2].ld()) + drops.tilt.point[0].ld();
+    let tilt = drops.tilt.borrow();
+    let x = -(drops.work.curve[k / 4].ld() * bh::ld(tilt.point[2])) + bh::ld(tilt.point[0]);
     drops.work.drift[0].st(x);
-    let y = drops.tilt.point[1].ld();
+    let y = bh::ld(tilt.point[1]);
     drops.work.drift[1].st(y);
 }
 

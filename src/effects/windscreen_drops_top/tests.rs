@@ -63,9 +63,10 @@ fn frame_axes_x87_matches() {
                     super::frame_axes_x87(
                         &crate::test_support::own::effects().windscreen_drops,
                         m,
-                        crate::effects::asm_layout::copy_of::<
-                            crate::effects::setup_store::MarksClock,
-                        >(b[0]),
+                        &crate::effects::asm_layout::copy_of::<
+                            std::cell::RefCell<crate::effects::setup_store::MarksClock>,
+                        >(b[0])
+                        .borrow(),
                     );
                 });
             },

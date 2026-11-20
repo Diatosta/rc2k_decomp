@@ -42,7 +42,7 @@ pub fn init_marks(
         effects.setup.stage.set(Some(&race.course.stage));
         effects.setup.settings.is_set.set(1);
         effects.setup.work.seed.set(seed);
-        effects.setup.clock.started.set(0);
+        effects.setup.clock.borrow_mut().started = 0;
         crate::logfile::load_times::mark("load_kind_data");
         edges::load_kind_data(race, effects, scene, gfx, system)?;
         crate::logfile::load_times::mark("make_wave_tables");
@@ -68,9 +68,7 @@ pub fn init_marks(
         crate::logfile::load_times::mark("set_up_blocks");
         lines::set_up_blocks(course, race.faces(), paths, scene, effects)?;
         marks.fresh_marks_flags[1].set(1);
-        for r in &effects.setup.clock.settings_copies {
-            r.set(1);
-        }
+        effects.setup.clock.borrow_mut().settings_copies = [1; 2];
         crate::logfile::load_times::mark("tick_clock");
         setup::tick_clock(&race.shared, effects)?;
         effects.setup.frame.steps.set(0);

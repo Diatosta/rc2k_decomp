@@ -5,17 +5,16 @@
 
 use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::math::x87;
-use crate::memory::session::{read_bits, write_bits};
 
 pub fn tilt_shape(drops: &WindscreenDrops) {
-    let t = &drops.tilt;
-    let (s, c) = x87::sine_and_cosine(&t.tilt);
-    t.cosine.set(c);
-    t.sine.set(s);
-    let (y, z) = x87::turn_yz(&t.point[1], &t.point[2], s, c);
-    t.point[1].set(y);
-    t.point[2].set(z);
-    let (unit, length) = x87::unit_and_length(read_bits(&t.point));
-    t.length.set(length);
-    write_bits(&t.unit, unit.map(f32::to_bits));
+    let mut t = drops.tilt.borrow_mut();
+    let (s, c) = x87::sine_and_cosine(t.tilt);
+    t.cosine = c;
+    t.sine = s;
+    let (y, z) = x87::turn_yz(t.point[1], t.point[2], s, c);
+    t.point[1] = y;
+    t.point[2] = z;
+    let (unit, length) = x87::unit_and_length(t.point.map(f32::to_bits));
+    t.length = length;
+    t.unit = unit;
 }

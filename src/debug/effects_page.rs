@@ -141,11 +141,11 @@ const GROUPS: &[(&str, &[Row])] = &[
         &[
             (
                 "?world.time_abs",
-                Cell(|effects, _| effects.setup.clock.now.get().into()),
+                Cell(|effects, _| effects.setup.clock.borrow().now.into()),
             ),
             (
                 "?world.time",
-                Cell(|effects, _| effects.setup.clock.frame_ticks.get().into()),
+                Cell(|effects, _| effects.setup.clock.borrow().frame_ticks.into()),
             ),
             (
                 "clock0",

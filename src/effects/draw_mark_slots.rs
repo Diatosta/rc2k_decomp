@@ -70,7 +70,7 @@ pub fn draw_mark_slots(
         s.life.set(
             s.life
                 .get()
-                .wrapping_sub(effects.setup.clock.frame_ticks.get()),
+                .wrapping_sub(effects.setup.clock.borrow().frame_ticks),
         );
         let p = s.point.get() as usize * 3;
         // A slot's point is the first car's model, which `share_car_state` took from the 34 light

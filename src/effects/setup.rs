@@ -58,38 +58,36 @@ pub(super) fn tick_clock(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
-    let c = &setup.clock;
+    let mut c = setup.clock.borrow_mut();
     {
         let clock: u32 = shared.physics_tables.get().scene_clock.get();
-        if c.started.get() == 0 {
-            c.started.set(1);
-            for r in [&c.last, &c.now, &c.before] {
-                r.set(clock);
-            }
-            c.frame_ticks.set(0);
-            c.reciprocal
-                .set(x87::loaded(&setup.clock_k.first_reciprocal));
+        if c.started == 0 {
+            c.started = 1;
+            c.last = clock;
+            c.now = clock;
+            c.before = clock;
+            c.frame_ticks = 0;
+            c.reciprocal = x87::loaded(&setup.clock_k.first_reciprocal);
             return Ok(());
         }
-        c.now.set(clock);
-        let last = c.last.get();
-        c.before.set(last);
-        c.last.set(clock);
+        c.now = clock;
+        let last = c.last;
+        c.before = last;
+        c.last = clock;
         let marks = crate::effects::setup::effects_settings(effects)?;
         let ticks = if marks.other_marks_shown.get() == 1 {
             clock.wrapping_sub(last)
         } else {
             0
         };
-        c.frame_ticks.set(ticks);
-        c.quarter.set(ticks >> 2);
-        c.sixteenth.set(ticks >> 4);
+        c.frame_ticks = ticks;
+        c.quarter = ticks >> 2;
+        c.sixteenth = ticks >> 4;
         let (reciprocal, scaled) =
             x87::reciprocal_int_and_times(ticks as i32, &setup.floats.quarter);
-        c.reciprocal.set(reciprocal);
-        c.reciprocal_scaled.set(scaled);
-        c.ticks_scaled
-            .set(x87::mul(ticks, &setup.clock_k.ticks_scale));
+        c.reciprocal = reciprocal;
+        c.reciprocal_scaled = scaled;
+        c.ticks_scaled = x87::mul(ticks, &setup.clock_k.ticks_scale);
     }
     Ok(())
 }

@@ -297,9 +297,10 @@ fn pull_strength_x87_matches() {
                     super::pull_strength_x87(
                         e,
                         &car,
-                        crate::effects::asm_layout::copy_of::<
-                            crate::effects::setup_store::MarksClock,
-                        >(b[0]),
+                        &crate::effects::asm_layout::copy_of::<
+                            std::cell::RefCell<crate::effects::setup_store::MarksClock>,
+                        >(b[0])
+                        .borrow(),
                         f,
                         w,
                         &kinds,

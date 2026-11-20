@@ -76,7 +76,7 @@ pub fn run_splines(paths: &Paths, effects: &crate::effects::owner::Effects) -> R
         return Err(BadInput("more than 8 splines").into());
     }
     {
-        step_made(effects, paths, setup.clock.frame_ticks.get() >> 1)?;
+        step_made(effects, paths, setup.clock.borrow().frame_ticks >> 1)?;
         let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
         setup.work.seed.set(s);
         let k = paths

@@ -115,7 +115,7 @@ fn pull_strength(
     pull_strength_x87(
         en,
         car,
-        &setup.clock,
+        &setup.clock.borrow(),
         &setup.floats,
         &ring.work,
         &ring.kinds,
@@ -199,7 +199,7 @@ fn aged(
     effects: &crate::effects::owner::Effects,
 ) -> Result<bool, Refused> {
     Ok({
-        let t: u32 = effects.setup.clock.frame_ticks.get();
+        let t: u32 = effects.setup.clock.borrow().frame_ticks;
         let life = en.life;
         en.life = life.wrapping_sub(t);
         if life < t {
@@ -262,10 +262,11 @@ fn spin_and_move(
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
     {
-        let t: i32 = setup.clock.frame_ticks.get() as i32;
+        let t: i32 = setup.clock.borrow().frame_ticks as i32;
         if spin {
             let turn =
-                x87::int_times_to_int(en.angle_rate as i32, &setup.clock.ticks_scaled) as u32;
+                x87::int_times_to_int(en.angle_rate as i32, setup.clock.borrow().ticks_scaled)
+                    as u32;
             en.angle = en.angle.wrapping_add(turn) & 0xFFF;
         }
         for axis in 0..3 {
@@ -282,7 +283,7 @@ fn gain_y(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
+        let t: i32 = effects.setup.clock.borrow().frame_ticks as i32;
         en.motion[1] = x87::plus_times_int(en.motion[1], k(k_addr), t);
     }
     Ok(())
@@ -296,7 +297,7 @@ fn damp3(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
+        let t: i32 = effects.setup.clock.borrow().frame_ticks as i32;
         for (axis, kk) in ks.into_iter().enumerate() {
             let old = en.motion[axis];
             ring.work.whole.set(old.to_bits());
@@ -320,7 +321,7 @@ fn pull_size(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
+        let t: i32 = effects.setup.clock.borrow().frame_ticks as i32;
         let (w, f) = x87::approach(en.size_goal as i32, en.size, k(k_addr), t);
         ring.work.whole.set(w as u32);
         en.size = f.to_bits();
@@ -333,7 +334,7 @@ fn pull_size(
 
 fn fade(en: &mut Entry, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     {
-        let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
+        let t: i32 = effects.setup.clock.borrow().frame_ticks as i32;
         en.alpha = bh::st(bh::ld(en.alpha) - bh::ld(en.alpha_fade.to_bits()) * bh::int(t));
     }
     Ok(())
@@ -447,7 +448,7 @@ fn drift_kind(
         }
         spin_and_move(en, true, effects)?;
         gain_y(en, ks[0], effects)?;
-        let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
+        let t: i32 = effects.setup.clock.borrow().frame_ticks as i32;
         en.size = bh::to_int(bh::ld(k(ks[1])) * bh::int(t) + bh::int(en.size as i32)) as u32;
         en.alpha = x87::int_times_int_plus_int(k(ks[2]) as i32, t, en.alpha as i32) as u32;
     }
@@ -535,7 +536,7 @@ fn fading_kind(
             }
             _ => {
                 fade(en, effects)?;
-                let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
+                let t: i32 = effects.setup.clock.borrow().frame_ticks as i32;
                 en.size = x87::plus_times_int(en.size, k(c.gain()?), t).to_bits();
             }
         }
@@ -959,7 +960,7 @@ fn pull_strength_x87(
     let t7 = bh::ld(rk.near_rate);
     let t8 = t7 * w.whole.ld();
     let t9 = t6 * t8;
-    let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    let t10 = t9 * crate::math::x87_float::int(c.frame_ticks as i32);
     let t11 = t10 + bh::ld(en.size_factor);
     w.whole.set(bh::to_int(t11) as u32);
     en.size_factor = <f32 as bh::Stored>::stored(t11);

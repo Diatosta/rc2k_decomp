@@ -52,19 +52,19 @@ mod old {
         st(ring, e, t20, |en| &mut en.last_place[1]);
         st(ring, e, t29, |en| &mut en.last_place[2]);
         let t30 = ld(ring, e, |en| en.motion[0]);
-        let t31 = t30 * int(c.frame_ticks.get() as i32);
+        let t31 = t30 * int(c.frame_ticks as i32);
         let t32 = t31 + ld(ring, e, |en| en.place[0]);
         st(ring, e, t32, |en| &mut en.place[0]);
         let t33 = ld(ring, e, |en| en.motion[1]);
-        let t34 = t33 * int(c.frame_ticks.get() as i32);
+        let t34 = t33 * int(c.frame_ticks as i32);
         let t35 = t34 + ld(ring, e, |en| en.place[1]);
         st(ring, e, t35, |en| &mut en.place[1]);
         let t36 = ld(ring, e, |en| en.motion[2]);
-        let t37 = t36 * int(c.frame_ticks.get() as i32);
+        let t37 = t36 * int(c.frame_ticks as i32);
         let t38 = t37 + ld(ring, e, |en| en.place[2]);
         st(ring, e, t38, |en| &mut en.place[2]);
         let t39 = bh::ld(ribbon_a);
-        let t40 = t39 * int(c.frame_ticks.get() as i32);
+        let t40 = t39 * int(c.frame_ticks as i32);
         let t41 = t40 + ld(ring, e, |en| en.motion[1]);
         st(ring, e, t41, |en| &mut en.motion[1]);
     }
@@ -73,19 +73,19 @@ mod old {
     /// order.
     pub(super) fn move_x87(ring: &Ring, e: u32, c: &MarksClock, ribbon_b: f32) {
         let t0 = ld(ring, e, |en| en.motion[0]);
-        let t1 = t0 * int(c.frame_ticks.get() as i32);
+        let t1 = t0 * int(c.frame_ticks as i32);
         let t2 = t1 + ld(ring, e, |en| en.place[0]);
         st(ring, e, t2, |en| &mut en.place[0]);
         let t3 = ld(ring, e, |en| en.motion[1]);
-        let t4 = t3 * int(c.frame_ticks.get() as i32);
+        let t4 = t3 * int(c.frame_ticks as i32);
         let t5 = t4 + ld(ring, e, |en| en.place[1]);
         st(ring, e, t5, |en| &mut en.place[1]);
         let t6 = ld(ring, e, |en| en.motion[2]);
-        let t7 = t6 * int(c.frame_ticks.get() as i32);
+        let t7 = t6 * int(c.frame_ticks as i32);
         let t8 = t7 + ld(ring, e, |en| en.place[2]);
         st(ring, e, t8, |en| &mut en.place[2]);
         let t9 = bh::ld(ribbon_b);
-        let t10 = t9 * int(c.frame_ticks.get() as i32);
+        let t10 = t9 * int(c.frame_ticks as i32);
         let t11 = t10 + ld(ring, e, |en| en.motion[1]);
         st(ring, e, t11, |en| &mut en.motion[1]);
     }
@@ -168,7 +168,7 @@ mod same_as_old {
             .matrices
             .get()
             .view_matrix;
-        let clock = &MarksClock::new();
+        let mut clock = MarksClock::new();
         let kept_matrix: Vec<u32> = view_matrix
             .iter()
             .map(crate::memory::session::Cell32::bits)
@@ -188,7 +188,7 @@ mod same_as_old {
             for c in view_matrix {
                 c.set_bits(word(&mut state));
             }
-            clock.frame_ticks.set(next(&mut state) % 40);
+            clock.frame_ticks = next(&mut state) % 40;
             let entry = crate::effects::ring_store::Entry::from_words(std::array::from_fn(|_| {
                 word(&mut state)
             }));
@@ -201,10 +201,10 @@ mod same_as_old {
                     c.set_bits(0xAAAA_AAAA);
                 }
                 match (case % 3, which) {
-                    (0, 0) => old::first_frame_x87(view_matrix, ring, 1, clock, gain),
-                    (0, _) => first_frame_x87(view_matrix, ring, 1, clock, gain),
-                    (1, 0) => old::move_x87(ring, 1, clock, gain),
-                    (1, _) => move_x87(ring, 1, clock, gain),
+                    (0, 0) => old::first_frame_x87(view_matrix, ring, 1, &clock, gain),
+                    (0, _) => first_frame_x87(view_matrix, ring, 1, &clock, gain),
+                    (1, 0) => old::move_x87(ring, 1, &clock, gain),
+                    (1, _) => move_x87(ring, 1, &clock, gain),
                     (_, 0) => old::turn_place_x87(view_matrix, ring, 1, &effects().frame.draw_work),
                     (_, _) => turn_place_x87(view_matrix, ring, 1, &effects().frame.draw_work),
                 }
@@ -315,9 +315,10 @@ mod reference_vectors {
                         .view_matrix,
                     ring,
                     e,
-                    crate::effects::asm_layout::copy_of::<crate::effects::setup_store::MarksClock>(
-                        b[1],
-                    ),
+                    &crate::effects::asm_layout::copy_of::<
+                        std::cell::RefCell<crate::effects::setup_store::MarksClock>,
+                    >(b[1])
+                    .borrow(),
                     f32::from_bits(word(b[3] + 0x94)),
                 );
             });
@@ -362,9 +363,10 @@ mod reference_vectors {
                 super::move_x87(
                     ring,
                     e,
-                    crate::effects::asm_layout::copy_of::<crate::effects::setup_store::MarksClock>(
-                        b[0],
-                    ),
+                    &crate::effects::asm_layout::copy_of::<
+                        std::cell::RefCell<crate::effects::setup_store::MarksClock>,
+                    >(b[0])
+                    .borrow(),
                     f32::from_bits(word(b[2] + 0x98)),
                 );
             });

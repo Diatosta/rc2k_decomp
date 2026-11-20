@@ -135,7 +135,7 @@ pub(super) fn emit_twin(
         [extended(set.tuning.spread.get()), row[2], row[1], row[0]],
         effects,
     );
-    let step = effects.setup.clock.reciprocal.get();
+    let step = effects.setup.clock.borrow().reciprocal;
     for n in 0..3 {
         slot.put(
             |en| &mut en.motion[n],

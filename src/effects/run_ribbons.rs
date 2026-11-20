@@ -31,14 +31,14 @@ fn first_frame(
         view_matrix,
         ring,
         e,
-        &effects.setup.clock,
+        &effects.setup.clock.borrow(),
         ring.kinds.ribbon_a,
     );
 }
 
 /// The place moved by the motion, the motion's y by a constant.
 fn move_(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
-    move_x87(ring, e, &effects.setup.clock, ring.kinds.ribbon_b);
+    move_x87(ring, e, &effects.setup.clock.borrow(), ring.kinds.ribbon_b);
 }
 
 /// The place turned by the view into `DrawWork.turned[0]` ...
@@ -85,7 +85,7 @@ fn refusal(
         let Ok(marks) = effects.settings() else {
             return Ok(Some("no marks settings"));
         };
-        let ticks: u32 = effects.setup.clock.frame_ticks.get();
+        let ticks: u32 = effects.setup.clock.borrow().frame_ticks;
         let mut e: u32 = ring.work.cursor.get();
         let count = ring.work.count.get() as i32;
         if count > 0 && (e == 0 || entry(ring, e)?.prev == 0) {
@@ -129,7 +129,7 @@ fn streak(
     effects: &crate::effects::owner::Effects,
     fog: &crate::scene::fog::Fog,
 ) -> Result<bool, Refused> {
-    let t: u32 = effects.setup.clock.frame_ticks.get();
+    let t: u32 = effects.setup.clock.borrow().frame_ticks;
     let life = entry(ring, e)?.life;
     set(ring, e, life.wrapping_sub(t), |en| &mut en.life)?;
     if life < t {
@@ -263,7 +263,7 @@ fn first_frame_x87(
 /// places: the place gains the motion times the ticks, then the motion's y gains `y_gain` times the
 /// ticks.
 fn move_x87(ring: &Ring, e: u32, c: &MarksClock, y_gain: f32) {
-    let ticks = int(c.frame_ticks.get() as i32);
+    let ticks = int(c.frame_ticks as i32);
     for axis in 0..3 {
         st(
             ring,

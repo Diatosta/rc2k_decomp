@@ -116,7 +116,7 @@ impl Kinds {
 
 /// The marks' clock, settings pointer, tuning floats, mask constants and work piece.
 pub struct Setup {
-    pub clock: MarksClock,
+    pub clock: core::cell::RefCell<MarksClock>,
     pub clock_k: ClockK,
     pub settings: SettingsPointer,
     /// The race's settings record `init_marks` was handed, what `Effects::settings` gives.
@@ -138,7 +138,7 @@ pub struct Setup {
 impl Setup {
     pub const fn new() -> Self {
         Setup {
-            clock: MarksClock::new(),
+            clock: core::cell::RefCell::new(MarksClock::new()),
             clock_k: ClockK::new(),
             settings: SettingsPointer::new(),
             marks: core::cell::Cell::new(None),

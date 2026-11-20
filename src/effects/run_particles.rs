@@ -103,7 +103,7 @@ fn place(p: &Particle) -> [[u8; 10]; 3] {
 
 /// The update of a particle by its kind (see the header), in place; what to do after it.
 fn advance(p: &mut Particle, effects: &Effects, ring: &Ring) -> Result<Outcome, BadInput> {
-    let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
+    let t: i32 = effects.setup.clock.borrow().frame_ticks as i32;
     let tuning = &effects.kinds.particle_tuning;
     Ok(match ParticleKind::try_from(p.kind)? {
         ParticleKind::Dust => {
@@ -243,7 +243,7 @@ pub fn run_particles(
             if counter < 0 {
                 break;
             }
-            let t: u32 = effects.setup.clock.frame_ticks.get();
+            let t: u32 = effects.setup.clock.borrow().frame_ticks;
             // One lock for the particle's whole update; what reaches the ring again (the
             // callees that add particles) runs after it.
             let (next, outcome) = particles.ring.with(|r| -> Result<_, BadInput> {

@@ -7,7 +7,9 @@
 //! the runs stay as the buffer had them: nothing typed reads them. The stores are read as
 //! bytes through the field lists below (`asm_fields`), which this file owns. Test code only.
 
-use crate::effects::asm_fields::{Fields, Leaf, field_start, fields, image, put_image};
+use crate::effects::asm_fields::{
+    Fields, Leaf, field_start, fields, image, plain_fields, put_image,
+};
 use crate::effects::asm_test::Operand;
 use crate::effects::asm_test::START as BLOCK;
 
@@ -415,7 +417,7 @@ impl Laid for RingWork {
     ];
 }
 
-impl Laid for MarksClock {
+impl Laid for std::cell::RefCell<MarksClock> {
     const START: usize = 0x764FC8;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
@@ -506,7 +508,7 @@ impl Laid for SnowLight {
     ];
 }
 
-impl Laid for ShapeTilt {
+impl Laid for std::cell::RefCell<ShapeTilt> {
     const START: usize = 0x811BC3;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
@@ -896,7 +898,7 @@ fields!(RingWork {
     away,
     turned
 });
-fields!(MarksClock {
+plain_fields!(MarksClock {
     started,
     last,
     frame_ticks,
@@ -975,7 +977,7 @@ fields!(SnowLight {
     u_offset,
     v
 });
-fields!(ShapeTilt {
+plain_fields!(ShapeTilt {
     tilt,
     sine,
     cosine,
@@ -1183,12 +1185,12 @@ mod tests {
         covered::<PongRules>();
         covered::<RainState>();
         covered::<RingWork>();
-        covered::<MarksClock>();
+        covered::<std::cell::RefCell<MarksClock>>();
         covered::<SnowTables>();
         covered::<SnowState>();
         covered::<SnowCurveVars>();
         covered::<SnowLight>();
-        covered::<ShapeTilt>();
+        covered::<std::cell::RefCell<ShapeTilt>>();
         covered::<MarksFloats>();
         covered::<MarksKindFloats>();
         covered::<KeptView>();

@@ -42,7 +42,7 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
     for (k, p) in place.iter().enumerate() {
         effects.frame.draw_frame.last[k].set(rounded_value(*p));
     }
-    let ticks: i32 = effects.setup.clock.frame_ticks.get() as i32;
+    let ticks: i32 = effects.setup.clock.borrow().frame_ticks as i32;
     // A frame of no ticks (a stage's first, from `race_init`, before the clock runs) has no
     // step per tick: the step is left whole (dividing by 0 would give a slip nothing reads).
     if ticks == 0 {

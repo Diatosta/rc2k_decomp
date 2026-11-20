@@ -483,6 +483,30 @@ fn clip_to_edge(
     Ok(())
 }
 
+/// Whether the course face whose corners are `work.face_corners` .. is near the work car
+/// (`rc2k_core::race::shadow::face_near`).
+fn face_is_near(
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
+    work: &ShadowWork,
+    car: &Car,
+) -> Result<bool, BadInput> {
+    let corners = [
+        work.face_corners[0].get(),
+        work.face_corners[1].get(),
+        work.face_corners[2].get(),
+    ];
+    let trap = Trap::new();
+    let found =
+        rc2k_core::race::shadow::face_near((car.position[0].get(), car.position[2].get()), |n| {
+            point_xz(ctx.reads.course(), &ctx.part.points, corners[n]).unwrap_or_else(|e| {
+                trap.keep(e);
+                (0, 0)
+            })
+        });
+    trap.finish()?;
+    Ok(found.near)
+}
+
 /// Cuts the shadow's polygon to the course face whose corners are `work.face_corners` ..
 /// `work.face_corners[2]` (scene points): none (count 0) when a corner is more than 0x100000 off
 /// the work car in x before one within 0x100000 in z is met (or none is); else cut by its three
@@ -498,16 +522,7 @@ fn clip_shadow_to_face(
         work.face_corners[1].get(),
         work.face_corners[2].get(),
     ];
-    let trap = Trap::new();
-    let found =
-        rc2k_core::race::shadow::face_near((car.position[0].get(), car.position[2].get()), |n| {
-            point_xz(ctx.reads.course(), &ctx.part.points, corners[n]).unwrap_or_else(|e| {
-                trap.keep(e);
-                (0, 0)
-            })
-        });
-    trap.finish()?;
-    if !found.near {
+    if !face_is_near(ctx, work, car)? {
         ctx.view.polygon.polygon_vertex_count.set(0u32);
         return Ok(());
     }
@@ -569,6 +584,17 @@ fn shadow_on_face(
     let count: u32 = work.list_count.get();
     if count > 0x40 {
         return Err(BadInput("a shadow list past 0x40").into());
+    }
+    if !face_is_near(ctx, work, car)? {
+        // The face is cut away whole (`clip_shadow_to_face`), whatever the polygon holds: the
+        // polygon's list and the point marks are made afresh by the next face that is near.
+        ctx.view.polygon.polygon_vertex_count.set(0u32);
+        ctx.view.polygon.polygon_next_entry.set(0x20u32);
+        let scene_points: u32 = ctx.reads.course_work.scene_point_count.get();
+        work.next_point.set(scene_points.wrapping_add(0x30));
+        ctx.view.polygon.polygon_sides[0].set(0u32);
+        ctx.view.polygon.polygon_sides[1].set(1u32);
+        return Ok(());
     }
     let polygon = &ctx.part.polygon;
     for (k, cell) in work.list.iter().enumerate().take(count as usize) {

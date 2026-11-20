@@ -3,47 +3,46 @@
 use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The marks' clock (`effects::tick_clock`).
-#[derive(rc2k_derive::Cells)]
 pub struct MarksClock {
     /// 0 until `effects::tick_clock` has run once (`init_marks` clears it).
-    pub started: PlainDword,
+    pub started: u32,
     /// The scene clock at the last tick.
-    pub last: PlainDword,
+    pub last: u32,
     /// The clock's ticks since the last frame (0 unless the settings' `other_marks_shown` is 1).
-    pub frame_ticks: PlainDword,
+    pub frame_ticks: u32,
     /// The ticks' bits taken as a float, times a constant (a game bug, kept as is).
-    pub ticks_scaled: PlainFloat,
+    pub ticks_scaled: f32,
     /// The ticks shifted right 4.
-    pub sixteenth: PlainDword,
+    pub sixteenth: u32,
     /// The ticks shifted right 2.
-    pub quarter: PlainDword,
+    pub quarter: u32,
     /// One over the ticks; the first tick's value is a constant.
-    pub reciprocal: PlainFloat,
+    pub reciprocal: f32,
     /// `reciprocal` times a constant.
-    pub reciprocal_scaled: PlainFloat,
+    pub reciprocal_scaled: f32,
     /// The scene clock now.
-    pub now: PlainDword,
+    pub now: u32,
     /// The clock at the tick before.
-    pub before: PlainDword,
+    pub before: u32,
     /// A copy of the settings' `fresh_marks_flags[1]` (`effects::frame_marks`), 1 from
     /// `init_marks`; the second is 1 from `init_marks` (nothing reads it).
-    pub settings_copies: [PlainDword; 2],
+    pub settings_copies: [u32; 2],
 }
 
 impl MarksClock {
     pub const fn new() -> Self {
         Self {
-            started: PlainDword::new(0x0),
-            last: PlainDword::new(0x0),
-            frame_ticks: PlainDword::new(0x0),
-            ticks_scaled: PlainFloat::new(0.0),
-            sixteenth: PlainDword::new(0x0),
-            quarter: PlainDword::new(0x0),
-            reciprocal: PlainFloat::new(0.0),
-            reciprocal_scaled: PlainFloat::new(0.0),
-            now: PlainDword::new(0x0),
-            before: PlainDword::new(0x0),
-            settings_copies: [PlainDword::new(0x0), PlainDword::new(0x0)],
+            started: 0,
+            last: 0,
+            frame_ticks: 0,
+            ticks_scaled: 0.0,
+            sixteenth: 0,
+            quarter: 0,
+            reciprocal: 0.0,
+            reciprocal_scaled: 0.0,
+            now: 0,
+            before: 0,
+            settings_copies: [0, 0],
         }
     }
 }

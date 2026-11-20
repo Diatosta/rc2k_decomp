@@ -95,10 +95,7 @@ pub(super) fn load_edges(
         masks.edge_mask.mask.set(k, !(p[0] | p[1] | p[2] | p[3]));
     }
     let float = masks.kind_boxes.kind_floats[kind as usize].get();
-    drops
-        .tilt
-        .tilt
-        .set(x87::mul(float, masks.edge_settings.tilt_scale.get()));
+    drops.tilt.borrow_mut().tilt = x87::mul(float, masks.edge_settings.tilt_scale.get());
     crate::logfile::load_times::mark("edges: make_masks");
     crate::effects::masks::make_masks(&race.course, race.faces(), masks, drops, scene, effects)?;
     crate::logfile::load_times::mark("edges: windscreen drops");

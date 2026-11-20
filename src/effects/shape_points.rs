@@ -121,7 +121,7 @@ pub(super) fn turn_shape_checks(drops: &WindscreenDrops, a: u32, b: u32) -> Resu
             return Err(BadInput("a shape list of more than 0x40").into());
         }
     }
-    for t in [extended(drops.tilt.tilt.get()), extended(a), extended(b)] {
+    for t in [extended(drops.tilt.borrow().tilt), extended(a), extended(b)] {
         turnable(&t)?;
     }
     Ok(())
@@ -141,7 +141,7 @@ pub(super) fn turn_shape_points(
     use crate::math::matrix3::{multiply_matrices3, transform_int_points};
     turn_shape_checks(drops, a, b)?;
     let set = set(drops);
-    let angles = [extended(drops.tilt.tilt.get()), extended(a), extended(b)];
+    let angles = [extended(drops.tilt.borrow().tilt), extended(a), extended(b)];
     turn_matrix3(Axis::X, turn_x(drops), angles[0])?;
     drops.inputs.scratch.set(a);
     turn_matrix3(Axis::Z, turn_z(drops, 0), angles[1])?;
@@ -453,7 +453,7 @@ pub(super) fn make_shape_sets(
             t.end_a[k].bits(),
             t.end_b[k].bits(),
         ];
-        let tilt: u32 = drops.tilt.tilt.bits();
+        let tilt: u32 = drops.tilt.borrow().tilt.to_bits();
         let tilts = [tilt, tilt];
         let ends = [
             by_kind[2],

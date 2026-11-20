@@ -139,6 +139,87 @@ impl<T: Leaf, const N: usize> Leaf for [T; N] {
     }
 }
 
+/// A plain value held as bytes: a number, an array of them, or a plain record listed with
+/// `plain_fields!`. Unlike `Leaf` it is read and filled through `&mut`.
+pub trait PlainLeaf {
+    /// Its size in bytes.
+    fn byte_len(&self) -> usize;
+    /// Appends its bytes to `out`.
+    fn dump(&self, out: &mut Vec<u8>);
+    /// Takes its bytes from the front of `from`, which then starts after them.
+    fn load(&mut self, from: &mut &[u8]);
+}
+
+macro_rules! plain_leaf_of_number {
+    ($($t:ty),*) => {$(
+        impl PlainLeaf for $t {
+            fn byte_len(&self) -> usize {
+                std::mem::size_of::<$t>()
+            }
+            fn dump(&self, out: &mut Vec<u8>) {
+                out.extend_from_slice(&self.to_le_bytes());
+            }
+            fn load(&mut self, from: &mut &[u8]) {
+                *self = <$t>::from_le_bytes(take::<{ std::mem::size_of::<$t>() }>(from));
+            }
+        }
+    )*};
+}
+plain_leaf_of_number!(u8, u16, u32, i32, f32);
+
+impl<T: PlainLeaf, const N: usize> PlainLeaf for [T; N] {
+    fn byte_len(&self) -> usize {
+        self.iter().map(PlainLeaf::byte_len).sum()
+    }
+    fn dump(&self, out: &mut Vec<u8>) {
+        self.iter().for_each(|x| x.dump(out));
+    }
+    fn load(&mut self, from: &mut &[u8]) {
+        self.iter_mut().for_each(|x| x.load(from));
+    }
+}
+
+/// Lists the fields of a plain store held in a `RefCell`, in order: the cell is then a `Leaf` and
+/// `Fields` (its fields' bytes one after another). The store needs a `const fn new()`.
+macro_rules! plain_fields {
+    ($t:ident { $($f:ident),* $(,)? }) => {
+        impl crate::effects::asm_fields::Leaf for std::cell::RefCell<$t> {
+            fn byte_len(&self) -> usize {
+                let store = self.borrow();
+                0 $(+ crate::effects::asm_fields::PlainLeaf::byte_len(&store.$f))*
+            }
+            fn dump(&self, out: &mut Vec<u8>) {
+                let store = self.borrow();
+                $(crate::effects::asm_fields::PlainLeaf::dump(&store.$f, out);)*
+            }
+            fn load(&self, from: &mut &[u8]) {
+                let mut store = self.borrow_mut();
+                $(crate::effects::asm_fields::PlainLeaf::load(&mut store.$f, from);)*
+            }
+        }
+        impl crate::effects::asm_fields::Fields for std::cell::RefCell<$t> {
+            fn starts(&self) -> Vec<(&'static str, usize)> {
+                let store = self.borrow();
+                let mut at = 0;
+                let mut starts = Vec::new();
+                $(
+                    starts.push((concat!(".", stringify!($f)), at));
+                    at += crate::effects::asm_fields::PlainLeaf::byte_len(&store.$f);
+                )*
+                let _ = at;
+                starts
+            }
+            fn zeroed() -> Box<Self> {
+                let store = Box::new(std::cell::RefCell::new(<$t>::new()));
+                let zeros = vec![0u8; crate::effects::asm_fields::Leaf::byte_len(&*store)];
+                crate::effects::asm_fields::put_image(&*store, &zeros);
+                store
+            }
+        }
+    };
+}
+pub(crate) use plain_fields;
+
 /// Lists a store's fields, in order: the store is then a `Leaf` (its fields' bytes one after
 /// another) and `Fields`.
 macro_rules! fields {

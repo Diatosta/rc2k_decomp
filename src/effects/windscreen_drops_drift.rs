@@ -13,7 +13,6 @@ use crate::effects::adjugate3::adjugate3;
 use crate::effects::setup_store::MarksClock;
 use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::Refused;
-use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::{Axis, extended, turn_matrix3};
 use crate::memory::session::{PlainBytes, PlainFloat};
 use crate::race::effects_settings_store::EffectsSettings;
@@ -26,7 +25,7 @@ fn view_moved(
     m: &EffectsSettings,
     effects: &crate::effects::owner::Effects,
 ) {
-    view_moved_x87(drops, m, &effects.setup.clock);
+    view_moved_x87(drops, m, &effects.setup.clock.borrow());
 }
 
 /// The view's move kept for the next frame.
@@ -35,7 +34,7 @@ fn move_kept(
     m: &EffectsSettings,
     effects: &crate::effects::owner::Effects,
 ) {
-    move_kept_x87(drops, m, &effects.setup.clock);
+    move_kept_x87(drops, m, &effects.setup.clock.borrow());
 }
 
 pub(super) fn windscreen_drops_drift(
@@ -45,9 +44,7 @@ pub(super) fn windscreen_drops_drift(
 ) -> Result<(), Refused> {
     let m = effects.settings()?;
     let marks = effects.settings()?;
-    for item in drops.tilt.point.iter().take(3) {
-        item.set(0.0);
-    }
+    drops.tilt.borrow_mut().point = [0.0; 3];
     let first: u32 = drops.hex.started.get();
     drops.hex.started.set(1);
     if first != 0 {
@@ -92,13 +89,13 @@ use crate::math::x87_float as bh;
 fn view_moved_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
     let t1 = t0 - ld_cell(&drops.hex.kept_place[0]);
-    let t2 = t1 * c.reciprocal.ld();
+    let t2 = t1 * bh::ld(c.reciprocal);
     let t3 = ld_cell(&m.listener_car_place[1]);
     let t4 = t3 - ld_cell(&drops.hex.kept_place[1]);
-    let t5 = t4 * c.reciprocal.ld();
+    let t5 = t4 * bh::ld(c.reciprocal);
     let t6 = ld_cell(&m.listener_car_place[2]);
     let t7 = t6 - ld_cell(&drops.hex.kept_place[2]);
-    let t8 = t7 * c.reciprocal.ld();
+    let t8 = t7 * bh::ld(c.reciprocal);
     st_cell(&drops.hex.view_move[2], t8);
     st_cell(&drops.hex.view_move[1], t5);
     st_cell(&drops.hex.view_move[0], t2);
@@ -191,26 +188,26 @@ fn drift_back_x87(
     let t20 = -t19;
     st_cell(&drops.hex.drift[0], t20);
     let t21 = t20 * ld_cell(&drops.hex.result_k[0]);
-    drops.tilt.point[0].st(t21);
+    drops.tilt.borrow_mut().point[0] = f32::from_bits(bh::st(t21));
     st_cell(&drops.hex.drift[1], t18);
     let t22 = t18 * ld_cell(&drops.hex.result_k[1]);
-    drops.tilt.point[1].st(t22);
+    drops.tilt.borrow_mut().point[1] = f32::from_bits(bh::st(t22));
     st_cell(&drops.hex.drift[2], t17);
     let t23 = t17 * ld_cell(&drops.hex.result_k[2]);
-    drops.tilt.point[2].st(t23);
+    drops.tilt.borrow_mut().point[2] = f32::from_bits(bh::st(t23));
 }
 
 /// `move_kept`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn move_kept_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
     let t1 = t0 - ld_cell(&drops.hex.kept_place[0]);
-    let t2 = t1 * c.reciprocal.ld();
+    let t2 = t1 * bh::ld(c.reciprocal);
     let t3 = ld_cell(&m.listener_car_place[1]);
     let t4 = t3 - ld_cell(&drops.hex.kept_place[1]);
-    let t5 = t4 * c.reciprocal.ld();
+    let t5 = t4 * bh::ld(c.reciprocal);
     let t6 = ld_cell(&m.listener_car_place[2]);
     let t7 = t6 - ld_cell(&drops.hex.kept_place[2]);
-    let t8 = t7 * c.reciprocal.ld();
+    let t8 = t7 * bh::ld(c.reciprocal);
     st_cell(&drops.hex.kept_move[2], t8);
     st_cell(&drops.hex.kept_move[1], t5);
     st_cell(&drops.hex.kept_move[0], t2);

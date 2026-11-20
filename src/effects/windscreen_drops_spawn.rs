@@ -30,7 +30,7 @@ pub(super) fn windscreen_drops_spawn(
             .state
             .frames
             .set(drops.state.frames.get().wrapping_add(1));
-        if !crate::effects::spawn_gate::DROPS.due(setup.clock.now.get()) {
+        if !crate::effects::spawn_gate::DROPS.due(setup.clock.borrow().now) {
             return Ok(());
         }
         let old = x87::set_chop();
@@ -62,15 +62,15 @@ use crate::math::x87_float as bh;
 /// `rate`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn rate_x87(drops: &WindscreenDrops, kv: &KeptView, work: &crate::effects::work_store::MarksWork) {
     let t0 = kv.first_angle.ld();
-    let t1 = t0 + drops.tilt.tilt.ld();
+    let t1 = t0 + bh::ld(drops.tilt.borrow().tilt);
     let t2 = t1.sin();
     let t3 = t2 * drops.state.rate.ld();
     drops.state.spawn_rate.st(t3);
     let t4 = drops.state.rate.ld();
-    let t5 = t4 * drops.tilt.point[2].ld();
+    let t5 = t4 * bh::ld(drops.tilt.borrow().point[2]);
     let t6 = -t5;
     let t7 = kv.first_angle.ld();
-    let t8 = t7 + drops.tilt.tilt.ld();
+    let t8 = t7 + bh::ld(drops.tilt.borrow().tilt);
     let t9 = t8.cos();
     let t10 = t6 * t9;
     let t11 = t10 * ld_cell(&drops.hex.spawn_k[0]);

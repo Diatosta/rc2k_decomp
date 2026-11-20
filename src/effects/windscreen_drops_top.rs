@@ -36,7 +36,7 @@ fn frame_axes(
     m: &EffectsSettings,
     effects: &crate::effects::owner::Effects,
 ) {
-    frame_axes_x87(drops, m, &effects.setup.clock);
+    frame_axes_x87(drops, m, &effects.setup.clock.borrow());
 }
 
 /// The second axis from the settings, its length over its divisor into the second share.
@@ -140,7 +140,7 @@ pub fn windscreen_drops_top(
 /// `frame_axes`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_axes_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     let t0 = ld_cell(&drops.hex.top_k[0]);
-    let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    let t1 = t0 * crate::math::x87_float::int(c.frame_ticks as i32);
     st_cell(&drops.hex.ease, t1);
     let t2 = ldi_cell(&m.windscreen_drops_rate_factor);
     let t3 = t2 * ld_cell(&drops.hex.top_k[1]);

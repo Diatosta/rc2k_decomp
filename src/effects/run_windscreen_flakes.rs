@@ -71,7 +71,10 @@ fn run(
                 continue;
             }
             if setup.kind_floats.running.get() != 0 {
-                let age = item.age.get().wrapping_add(setup.clock.frame_ticks.get());
+                let age = item
+                    .age
+                    .get()
+                    .wrapping_add(setup.clock.borrow().frame_ticks);
                 item.age.set(age);
                 if age as i32 >= LIFE {
                     item.live.set(0);

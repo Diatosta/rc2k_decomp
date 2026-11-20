@@ -35,7 +35,7 @@ pub(super) fn windscreen_flakes_spawn(
     let setup = &effects.setup;
     {
         fl.timing.frames.set(fl.timing.frames.get().wrapping_add(1));
-        if !crate::effects::spawn_gate::FLAKES.due(setup.clock.now.get()) {
+        if !crate::effects::spawn_gate::FLAKES.due(setup.clock.borrow().now) {
             return Ok(());
         }
         let old = x87::set_chop();
@@ -78,15 +78,15 @@ fn rate_x87(
     work: &crate::effects::work_store::MarksWork,
 ) {
     let t0 = kv.first_angle.ld();
-    let t1 = t0 + drops.tilt.tilt.ld();
+    let t1 = t0 + bh::ld(drops.tilt.borrow().tilt);
     let t2 = t1.sin();
     let t3 = t2 * sti.rate.ld();
     sti.spawn_rate.st(t3);
     let t4 = sti.rate.ld();
-    let t5 = t4 * drops.tilt.point[2].ld();
+    let t5 = t4 * bh::ld(drops.tilt.borrow().point[2]);
     let t6 = -t5;
     let t7 = kv.first_angle.ld();
-    let t8 = t7 + drops.tilt.tilt.ld();
+    let t8 = t7 + bh::ld(drops.tilt.borrow().tilt);
     let t9 = t8.cos();
     let t10 = t6 * t9;
     let t11 = t10 * ss.rate_constants[0].ld();

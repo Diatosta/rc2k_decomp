@@ -1,43 +1,32 @@
 //! The shape tilt's work.
 
-use crate::memory::session::PlainFloat;
-
 /// The shape tilt and the first view point (`effects::tilt_shape`, `effects::copy_first_point`,
 /// `effects::edges`).
-#[derive(rc2k_derive::Cells)]
 pub struct ShapeTilt {
     /// The kind's float times 0.0175.
-    pub tilt: PlainFloat,
+    pub tilt: f32,
     /// The sine of the tilt.
-    pub sine: PlainFloat,
+    pub sine: f32,
     /// The cosine of the tilt.
-    pub cosine: PlainFloat,
+    pub cosine: f32,
     /// The point's length.
-    pub length: PlainFloat,
+    pub length: f32,
     /// The point made of length 1.
-    pub unit: [PlainFloat; 3],
+    pub unit: [f32; 3],
     /// The first kept view point (copied by `effects::copy_first_point`, turned by the tilt, then
     /// also set to 0 by `effects::windscreen_drops_drift` and moved by the drift).
-    pub point: [PlainFloat; 3],
+    pub point: [f32; 3],
 }
 
 impl ShapeTilt {
     pub const fn new() -> Self {
         ShapeTilt {
-            tilt: PlainFloat::new(0.0),
-            sine: PlainFloat::new(0.0),
-            cosine: PlainFloat::new(0.0),
-            length: PlainFloat::new(0.0),
-            unit: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.0),
-            ],
-            point: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(1.0),
-            ],
+            tilt: 0.0,
+            sine: 0.0,
+            cosine: 0.0,
+            length: 0.0,
+            unit: [0.0, 1.0, 0.0],
+            point: [0.0, 0.0, 1.0],
         }
     }
 }

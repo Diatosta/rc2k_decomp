@@ -819,10 +819,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().frame.view_sources),
         ),
         listed!(
-            "owners.effects.setup.clock",
-            on_game(&o.race.effects.get().setup.clock),
-        ),
-        listed!(
             "owners.effects.setup.frame",
             on_game(&o.race.effects.get().setup.frame),
         ),
@@ -881,10 +877,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.masks.edge_mask",
             on_game(&o.race.effects.get().masks.edge_mask),
-        ),
-        listed!(
-            "owners.effects.windscreen_drops.tilt",
-            on_game(&o.race.effects.get().windscreen_drops.tilt),
         ),
         listed!(
             "owners.effects.masks.kind_boxes",
