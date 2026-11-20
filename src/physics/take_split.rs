@@ -17,7 +17,7 @@ use rc2k_core::physics::progress::{FINISH_NOTICE, finished_at, split_due};
 // Core: `rc2k_core::physics::progress::{split_due, finished_at}`.
 pub(super) fn take_split(
     o: crate::owners::Owners<'static>,
-    split_tables: &SplitTables,
+    split_tables: &mut SplitTables,
     league: &League,
     panel_and_overlay: &PanelAndOverlay,
     shared: &RaceShared,
@@ -51,7 +51,7 @@ pub(super) fn take_split(
         .set(shared.car().splits_passed.get());
     if finished_at(
         shared.car().splits_recorded.get(),
-        split_tables.split_colour_count.get(),
+        split_tables.split_colour_count,
     ) {
         shared.car().finish_flag.set(1);
         shared.car().started_stand_timer.set(0);

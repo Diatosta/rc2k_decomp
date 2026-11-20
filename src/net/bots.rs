@@ -113,7 +113,7 @@ fn place_like_arcade(
         &checkpoints,
         count,
         shared.vars.get().checkpoint_count.get(),
-        race.physics.split_tables().split_colour_count.get(),
+        race.physics.split_tables().split_colour_count,
     );
     let c = crate::physics::step_inputs::StepInputs::of(race).reset();
     let lights = &scene.lights;

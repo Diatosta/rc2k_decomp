@@ -4,12 +4,12 @@
 //! fields. Here each store's runs of fields are listed with the address (`START` plus `at`)
 //! the assembly reads them at, so a test copies the fields in from the buffer standing for
 //! the marks' block, runs the Rust version on them, and copies them back. The bytes between
-//! the runs stay as the buffer had them: nothing typed reads them. Test code only.
+//! the runs stay as the buffer had them: nothing typed reads them. The stores are read as
+//! bytes through the field lists below (`asm_fields`), which this file owns. Test code only.
 
+use crate::effects::asm_fields::{Fields, Leaf, field_start, fields, image, put_image};
 use crate::effects::asm_test::Operand;
 use crate::effects::asm_test::START as BLOCK;
-use crate::memory::cells::Cells;
-use crate::test_support::paths::{field_range, field_start, set_field_range};
 
 /// A run of fields that were next to each other in the recorded layout.
 pub struct Run {
@@ -23,14 +23,14 @@ pub struct Run {
 }
 
 /// A store with a recorded layout.
-pub trait Laid: Cells + Sized {
+pub trait Laid: Fields {
     /// The address of the store's first byte in the recorded layout.
     const START: usize;
     /// The runs of fields, in order.
     const RUNS: &'static [Run];
 }
 
-use crate::effects::blocks_store::CornerSlopes;
+use crate::effects::blocks_store::{CornerSlopes, Slope};
 use crate::effects::frame_state_store::{DrawWork, ViewVars};
 use crate::effects::kind_store::QuadWork;
 use crate::effects::mask_store::{MaskBlocks, PictureCopy};
@@ -41,17 +41,19 @@ use crate::effects::setup_store::MarksClock;
 use crate::effects::snow_store::{SnowCurveVars, SnowLight, SnowState, SnowTables};
 use crate::effects::tilt_shape_store::ShapeTilt;
 use crate::effects::tuning_store::{MarksFloats, MarksKindFloats};
-use crate::effects::view_vectors_store::KeptView;
+use crate::effects::view_vectors_store::{KeptView, VectorSource};
 use crate::effects::windscreen_drop_state_store::{WindscreenDropState, WindscreenDropWork};
 use crate::effects::windscreen_drop_vars_store::WindscreenDropVars;
 use crate::effects::windscreen_flakes_store::{
     WindscreenFlakeState, WindscreenFlakeTables, WindscreenFlakeTiming,
 };
 
-/// A store with every cell 0.
-fn zeroed<T: Cells>() -> Box<T> {
-    // On the heap: some stores are near 100 KB, and a test thread's stack is small.
-    crate::memory::cells::boxed_zeroed_cells()
+/// Where each run of `T` begins in the store's image.
+fn run_starts<T: Laid>(store: &T) -> Vec<usize> {
+    T::RUNS
+        .iter()
+        .map(|r| field_start(store, r.field).unwrap_or_else(|| panic!("{}", r.field)))
+        .collect()
 }
 
 /// Runs `f` on a copy of the store `T` made from the bytes the test buffer `mk` (standing
@@ -64,15 +66,18 @@ pub fn with_laid<T: Laid, R>(mk: Operand, f: impl FnOnce(&T) -> R) -> R {
 /// `with_laid` for a store that has several copies in the recorded layout, the one at `start`.
 pub(super) fn with_laid_at<T: Laid, R>(mk: Operand, start: usize, f: impl FnOnce(&T) -> R) -> R {
     let place = |r: &Run| (start + r.at).wrapping_sub(BLOCK);
-    let local = zeroed::<T>();
-    for r in T::RUNS {
+    let local = T::zeroed();
+    let starts = run_starts(&*local);
+    let mut bytes = image(&*local);
+    for (r, &at) in T::RUNS.iter().zip(&starts) {
         // `read` checks that the run lies in the buffer.
-        let bytes = mk.read(place(r), r.len);
-        assert!(set_field_range(&*local, r.field, &bytes), "{}", r.field);
+        bytes[at..at + r.len].copy_from_slice(&mk.read(place(r), r.len));
     }
+    put_image(&*local, &bytes);
     let out = f(&local);
-    for r in T::RUNS {
-        mk.put(place(r), &field_range(&*local, r.field, r.len));
+    let after = image(&*local);
+    for (r, &at) in T::RUNS.iter().zip(&starts) {
+        mk.put(place(r), &after[at..at + r.len]);
     }
     out
 }
@@ -80,11 +85,14 @@ pub(super) fn with_laid_at<T: Laid, R>(mk: Operand, start: usize, f: impl FnOnce
 /// A copy of the store `T` made from the buffer as `with_laid` does, but zero where the buffer
 /// does not reach (a block reads only the fields it uses), and never put back.
 pub(super) fn copy_of<T: Laid>(mk: Operand) -> &'static T {
-    let local = zeroed::<T>();
-    for r in T::RUNS {
-        let bytes = mk.bytes_or_zero((T::START + r.at).wrapping_sub(BLOCK), r.len);
-        assert!(set_field_range(&*local, r.field, &bytes), "{}", r.field);
+    let local = T::zeroed();
+    let starts = run_starts(&*local);
+    let mut bytes = image(&*local);
+    for (r, &at) in T::RUNS.iter().zip(&starts) {
+        bytes[at..at + r.len]
+            .copy_from_slice(&mk.bytes_or_zero((T::START + r.at).wrapping_sub(BLOCK), r.len));
     }
+    put_image(&*local, &bytes);
     Box::leak(local)
 }
 
@@ -757,15 +765,399 @@ impl Laid for WindscreenFlakeState {
     ];
 }
 
+// The stores' fields in order, each once: what the runs above name, and what the tests'
+// byte images are made of.
+fields!(CornerSlopes { slopes });
+fields!(Slope { slope, values });
+fields!(QuadWork {
+    place,
+    light_turned,
+    matrix,
+    sides,
+    frame,
+    corner,
+    ratio,
+    size,
+    start,
+    step,
+    low,
+    high,
+    middle,
+    slope,
+    spread,
+    way,
+    corners
+});
+fields!(DrawWork {
+    profile_work,
+    half,
+    sprite_half,
+    ends_scale,
+    turned,
+    second,
+    sides,
+    step,
+    near,
+    uv_k,
+    z_k
+});
+fields!(ViewVars {
+    heading,
+    step,
+    facing,
+    cleared,
+    ribbon_way,
+    first_end_half_width,
+    second_end_half_width,
+    turned_points
+});
+fields!(MaskBlocks {
+    seen,
+    chosen,
+    list_a,
+    mask,
+    list_b,
+    bmask,
+    junk
+});
+fields!(PictureCopy { list, copy, paths });
+fields!(PongState {
+    box_sides,
+    ball,
+    ball_way,
+    ball_size,
+    saved_bat,
+    bat,
+    bat_size,
+    ball_centre,
+    bat_centre,
+    difference,
+    steps,
+    digit_patterns,
+    best,
+    hits,
+    digit_at
+});
+fields!(PongRules {
+    start,
+    walls,
+    centre,
+    nudge,
+    way_scale,
+    cell_step,
+    cell_size,
+    box_places,
+    near,
+    setup_places
+});
+fields!(RainState {
+    drawn,
+    drift_since,
+    drift_wait,
+    drift_target,
+    drift_pace,
+    drift_halves,
+    view_place,
+    view_matrix,
+    motion,
+    moves,
+    last_views,
+    drift,
+    drops,
+    noise,
+    kept,
+    edge_a,
+    edge_b,
+    ends,
+    depth,
+    depth_scale,
+    point_scale,
+    point,
+    view,
+    matrix_copy,
+    turned,
+    second
+});
+fields!(RingWork {
+    list,
+    cursor,
+    block,
+    top,
+    fade,
+    life,
+    extent,
+    direction,
+    strength,
+    rate,
+    facing,
+    near,
+    whole,
+    count,
+    away,
+    turned
+});
+fields!(MarksClock {
+    started,
+    last,
+    frame_ticks,
+    ticks_scaled,
+    sixteenth,
+    quarter,
+    reciprocal,
+    reciprocal_scaled,
+    now,
+    before,
+    settings_copies
+});
+fields!(SnowTables {
+    randoms,
+    remainders,
+    spreads
+});
+fields!(SnowState {
+    wide_turn,
+    cleared,
+    filled,
+    wide_focal,
+    quad_a,
+    inverses,
+    quad_b,
+    quad_c,
+    minus_ones,
+    last_clock,
+    flag,
+    view_place,
+    view_matrix,
+    fall,
+    drawn,
+    count_copy,
+    flakes,
+    depth,
+    inverse,
+    point,
+    view,
+    matrix_copy,
+    turned
+});
+fields!(SnowCurveVars {
+    curve_vars,
+    first,
+    records
+});
+fields!(SnowLight {
+    light_place,
+    light_way,
+    fade_delta,
+    fade_unit,
+    fade_index,
+    fade_colours,
+    fade_step,
+    fade_inverses,
+    fade_scaled,
+    kept,
+    dot,
+    curve_scale,
+    curve_damp,
+    smooth_weights,
+    ramp_by,
+    spread_scale,
+    spread_base,
+    divisors,
+    record_values,
+    quad_first,
+    light_source,
+    light_source_way,
+    rhw,
+    uv,
+    fall_k,
+    height,
+    side,
+    u_offset,
+    v
+});
+fields!(ShapeTilt {
+    tilt,
+    sine,
+    cosine,
+    length,
+    unit,
+    point
+});
+fields!(MarksFloats {
+    pull_limit,
+    burst_direction_k,
+    minus_eighth,
+    half,
+    twentieth,
+    fifth,
+    three_tenths,
+    one,
+    three,
+    sixteen,
+    thirty_two,
+    hundred_twenty_eight,
+    two_fifty_five,
+    two_fifty_six,
+    two_fifty_seven,
+    quarter,
+    eighth,
+    sixteenth,
+    surface_edge,
+    surface_pixel,
+    thirty_second,
+    particle_13_place_k,
+    fixed_16_scale,
+    seven_hundred,
+    hundred,
+    two_thousand,
+    over_65536,
+    spread_scale
+});
+fields!(MarksKindFloats {
+    other,
+    fading,
+    kind_floats,
+    kind_float,
+    running
+});
+fields!(KeptView {
+    first_sine_cosine,
+    first_angle,
+    second_sine_cosine,
+    second_angle,
+    pushed,
+    kept_a,
+    last,
+    kept_b,
+    kept_c,
+    step,
+    length,
+    unit,
+    vector
+});
+fields!(VectorSource {
+    factor,
+    vector,
+    scaled
+});
+fields!(WindscreenDropState {
+    live,
+    clock,
+    facing,
+    cell,
+    frames,
+    rate,
+    spawn_rate,
+    depth
+});
+fields!(WindscreenDropWork {
+    drift,
+    curve,
+    radii,
+    inverse,
+    shares,
+    place,
+    axes,
+    setup_axes,
+    screen,
+    cell,
+    corners,
+    scaled,
+    points,
+    cursor,
+    whole
+});
+fields!(WindscreenDropVars {
+    scale,
+    place,
+    started,
+    moved,
+    spare,
+    kept_place,
+    kept_move,
+    view_move,
+    move_change,
+    drift,
+    ease,
+    steps,
+    buffer,
+    windscreen_flakes_cleared,
+    items,
+    done,
+    factors,
+    curve_a,
+    curve_b,
+    step_c,
+    step_d,
+    top_k,
+    per_vertex,
+    axes_k,
+    side,
+    frame_k,
+    spawn_k,
+    share_k,
+    random,
+    turn,
+    adjugate,
+    decay,
+    angle,
+    result_k
+});
+fields!(WindscreenFlakeTiming {
+    frames,
+    rate,
+    spawn_rate
+});
+fields!(WindscreenFlakeTables {
+    curve,
+    radii,
+    inverse,
+    lengths,
+    place,
+    axes,
+    scaled_by_radius,
+    half_axes,
+    scaled_axes,
+    corners,
+    points,
+    cursor
+});
+fields!(WindscreenFlakeState {
+    unused_done,
+    curve_ends,
+    steps,
+    step_angle,
+    rate_share,
+    length_divisors,
+    share,
+    places,
+    unread_floats,
+    unread_dwords,
+    axis_factors,
+    halves,
+    unread_rhw,
+    setup_places,
+    run_places,
+    fade,
+    far,
+    tile_offset_k,
+    rate_constants,
+    share_k,
+    spawn_random,
+    pick_random,
+    scaled_setting,
+    unread_limit
+});
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     /// The runs are the whole store, in order, with nothing between them: each begins where
-    /// the last ended, at its field, and the last ends where the cells do.
+    /// the last ended, at its field, and the last ends where the store does.
     fn covered<T: Laid>() {
         let name = std::any::type_name::<T>();
-        let store = zeroed::<T>();
+        let store = T::zeroed();
         let mut next = 0;
         for r in T::RUNS {
             assert_eq!(
@@ -776,7 +1168,7 @@ mod tests {
             );
             next += r.len;
         }
-        assert_eq!(next, field_range(&*store, "", usize::MAX).len(), "{name}");
+        assert_eq!(next, image(&*store).len(), "{name}");
     }
 
     #[test]

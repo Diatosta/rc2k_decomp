@@ -202,24 +202,22 @@ pub fn listed_checkpoints(race: &Race) -> Result<Option<Vec<u32>>, Refused> {
 /// entries: the two fields end together at 0x201); such a stage is refused later by
 /// `race::init_overlay` (more than 0x40 parts).
 pub(super) fn init_checkpoints(race: &Race) -> Result<(), Refused> {
-    let tables = race.physics.split_tables();
     let Some(listed) = listed_checkpoints(race)? else {
-        tables.split_colour_count.set(0);
+        race.physics.split_tables_mut().split_colour_count = 0;
         return Ok(());
     };
+    let mut tables = race.physics.split_tables_mut();
     for (k, &n) in listed.iter().enumerate() {
-        let entry = tables
-            .checkpoints
-            .get(k)
-            .or_else(|| tables.stage_numbers.get(k - tables.checkpoints.len()));
-        entry
-            .ok_or(BadInput(
-                "a split past the split list and the stage's numbers",
-            ))?
-            .set(n);
+        let list_len = tables.checkpoints.len();
+        let entry = if k < list_len {
+            tables.checkpoints.get_mut(k)
+        } else {
+            tables.stage_numbers.get_mut(k - list_len)
+        };
+        *entry.ok_or(BadInput(
+            "a split past the split list and the stage's numbers",
+        ))? = n;
     }
-    tables
-        .split_colour_count
-        .set((listed.len() as u32).wrapping_sub(1));
+    tables.split_colour_count = (listed.len() as u32).wrapping_sub(1);
     Ok(())
 }

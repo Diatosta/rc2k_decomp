@@ -4,73 +4,64 @@
 //! values). `light_records` follows.
 //!
 
-use crate::memory::cells::ZeroCells;
-
-use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
-
 /// One car kind's figures.
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CarSpec {
     /// The car's title, padded with spaces, e.g. "00 renault maxi megane".
-    pub name: PlainBytes<24>,
+    pub name: [u8; 24],
     /// The drive kind, checked 0 ..= 3 (`physics::load_car_specs`); also the start
     /// value (`race::race_shell`).
-    pub drive_kind: PlainDword,
+    pub drive_kind: u32,
     /// The gear count by its sign, held to 3 ..= 7 (`physics::load_car_specs`).
-    pub gear_count: PlainDword,
+    pub gear_count: u32,
     /// Copied to `PhysicsTables.unused_spec_20` (`unused_spec_20`) by
     /// `physics::load_car_specs`; nothing reads that copy, so the figure is unused.
-    pub reserved_20: PlainDword,
+    pub reserved_20: u32,
     /// Copied to the physics `grip_scale`, the factor `physics::drive_grip_forces`
     /// multiplies the driving grip force by.
-    pub grip_scale: PlainFloat,
+    pub grip_scale: f32,
     /// Copied to the physics `side_grip_scale`, the factor `physics::drive_grip_forces`
     /// multiplies the sideways grip force by.
-    pub side_grip_scale: PlainFloat,
+    pub side_grip_scale: f32,
     /// Copied to the physics `spec_surface` 0, 1, 2.
-    pub surface: [PlainFloat; 3],
+    pub surface: [f32; 3],
     /// Two figures times `PhysicsTables.gravity` into `PhysicsTables.spec_drive[0]`,
     /// `PhysicsTables.spec_drive[1]`.
-    pub weights: [PlainFloat; 2],
+    pub weights: [f32; 2],
     /// Three whole figures x 65536 / `Numbers.thousand` into `PhysicsTables.spec_ints[0]` ..
     /// (kinds from 0x17 on; the others take the game's constants).
-    pub whole_figures: [PlainDword; 3],
+    pub whole_figures: [u32; 3],
     /// Not read.
-    pub reserved_4c: [PlainDword; 4],
+    pub reserved_4c: [u32; 4],
     /// Into `SceneDraw.scratch` (`scene::draw_store`'s `scratch`).
-    pub scratch_value: PlainDword,
+    pub scratch_value: u32,
     /// Into the physics `downforce_spec`.
-    pub downforce: PlainDword,
+    pub downforce: u32,
     /// Four whole figures as floats into `LightsAndGear.gear.figures[0]` .. (each at least
     /// 8.0).
-    pub figures: [PlainDword; 4],
+    pub figures: [u32; 4],
     /// The engine's top, a whole number (8500 for the first); also the start
     /// value's limit (`CarSpecs.cars[0].engine_top`, `race::race_shell`).
-    pub engine_top: PlainDword,
+    pub engine_top: u32,
     /// A whole figure divided by the top into `LightsAndGear.gear.drive_torque_figure`.
-    pub over_top: PlainDword,
+    pub over_top: u32,
     /// The torque curve, copied to the physics `spec_torque`.
-    pub torque_curve: [PlainDword; 9],
+    pub torque_curve: [u32; 9],
     /// Into the physics `ride_height_handling_scale` `physics::set_handling`
     /// multiplies the lerped ride-height handling value (`handling[4]`) by it.
-    pub ride_height_handling_scale: PlainDword,
+    pub ride_height_handling_scale: u32,
     /// The shift points (`LightsAndGear.gear.shift_up_point` ..; the first x
     /// `PhysicsTables.spec_scale_a4`, the others + `Numbers.tenths[0]`).
-    pub shift_points: [PlainFloat; 3],
+    pub shift_points: [f32; 3],
 }
 
 #[cfg(test)]
 const _: () = assert!(core::mem::size_of::<CarSpec>() == 0xB0);
 
 /// The car kinds' records.
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CarSpecs {
     pub cars: [CarSpec; 34],
 }
-
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
 
 /// The 34 records' starting values: the title, then the 38 dwords after it in the order of
 /// `CarSpec`'s fields (floats by their bits).
@@ -419,29 +410,37 @@ const SPEC_ROWS: [(&[u8; 24], [u32; 38]); 34] = [
 ];
 
 impl CarSpec {
-    /// A record from its title and the 38 dwords after it (`SPEC_ROWS`).
+    /// A record from its title and the 38 dwords after it (`SPEC_ROWS`, floats by their bits).
     const fn from_row(name: &[u8; 24], d: &[u32; 38]) -> Self {
         Self {
-            name: PlainBytes::new(*name),
-            drive_kind: PlainDword::new(d[0]),
-            gear_count: PlainDword::new(d[1]),
-            reserved_20: PlainDword::new(d[2]),
-            grip_scale: PlainFloat::from_bits(d[3]),
-            side_grip_scale: PlainFloat::from_bits(d[4]),
-            surface: PlainFloat::bits_array([d[5], d[6], d[7]]),
-            weights: PlainFloat::bits_array([d[8], d[9]]),
-            whole_figures: PlainDword::array([d[10], d[11], d[12]]),
-            reserved_4c: PlainDword::array([d[13], d[14], d[15], d[16]]),
-            scratch_value: PlainDword::new(d[17]),
-            downforce: PlainDword::new(d[18]),
-            figures: PlainDword::array([d[19], d[20], d[21], d[22]]),
-            engine_top: PlainDword::new(d[23]),
-            over_top: PlainDword::new(d[24]),
-            torque_curve: PlainDword::array([
+            name: *name,
+            drive_kind: d[0],
+            gear_count: d[1],
+            reserved_20: d[2],
+            grip_scale: f32::from_bits(d[3]),
+            side_grip_scale: f32::from_bits(d[4]),
+            surface: [
+                f32::from_bits(d[5]),
+                f32::from_bits(d[6]),
+                f32::from_bits(d[7]),
+            ],
+            weights: [f32::from_bits(d[8]), f32::from_bits(d[9])],
+            whole_figures: [d[10], d[11], d[12]],
+            reserved_4c: [d[13], d[14], d[15], d[16]],
+            scratch_value: d[17],
+            downforce: d[18],
+            figures: [d[19], d[20], d[21], d[22]],
+            engine_top: d[23],
+            over_top: d[24],
+            torque_curve: [
                 d[25], d[26], d[27], d[28], d[29], d[30], d[31], d[32], d[33],
-            ]),
-            ride_height_handling_scale: PlainDword::new(d[34]),
-            shift_points: PlainFloat::bits_array([d[35], d[36], d[37]]),
+            ],
+            ride_height_handling_scale: d[34],
+            shift_points: [
+                f32::from_bits(d[35]),
+                f32::from_bits(d[36]),
+                f32::from_bits(d[37]),
+            ],
         }
     }
 }
@@ -449,7 +448,7 @@ impl CarSpec {
 /// The piece, with the image's first values.
 impl CarSpecs {
     pub const fn new() -> Self {
-        let mut cars: [CarSpec; 34] = ZeroCells::ZERO;
+        let mut cars = [const { CarSpec::from_row(&[0; 24], &[0; 38]) }; 34];
         let mut n = 0;
         while n < 34 {
             let (name, dwords) = &SPEC_ROWS[n];
@@ -463,12 +462,33 @@ impl CarSpecs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory::cells::flatten;
+
+    /// A record's bytes in the file's order.
+    fn record_bytes(spec: &CarSpec) -> Vec<u8> {
+        let mut bytes = spec.name.to_vec();
+        let words = [spec.drive_kind, spec.gear_count, spec.reserved_20]
+            .into_iter()
+            .chain([spec.grip_scale, spec.side_grip_scale].map(f32::to_bits))
+            .chain(spec.surface.map(f32::to_bits))
+            .chain(spec.weights.map(f32::to_bits))
+            .chain(spec.whole_figures)
+            .chain(spec.reserved_4c)
+            .chain([spec.scratch_value, spec.downforce])
+            .chain(spec.figures)
+            .chain([spec.engine_top, spec.over_top])
+            .chain(spec.torque_curve)
+            .chain([spec.ride_height_handling_scale])
+            .chain(spec.shift_points.map(f32::to_bits));
+        for word in words {
+            bytes.extend(word.to_le_bytes());
+        }
+        bytes
+    }
 
     /// The records' whole bytes, as a checksum: a wrong dword in a row shows here.
     #[test]
     fn the_car_specs_keep_the_bytes_of_the_image() {
-        let bytes = flatten(&CarSpecs::new());
+        let bytes: Vec<u8> = CarSpecs::new().cars.iter().flat_map(record_bytes).collect();
         let mut hash = 0xcbf2_9ce4_8422_2325_u64;
         for byte in &bytes {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
@@ -480,13 +500,9 @@ mod tests {
     #[test]
     fn the_cars_start_as_the_games() {
         let physics = &crate::test_support::own::race().physics;
-        let title = |k: usize| {
-            (0..9)
-                .map(|i| physics.car_specs().cars[k].name.get(i))
-                .collect::<Vec<u8>>()
-        };
+        let title = |k: usize| physics.car_specs().cars[k].name[..9].to_vec();
         assert_eq!(title(0), b"00 renaul");
         assert_eq!(title(33), b"33 Renaul");
-        assert_eq!(physics.car_specs().cars[0].engine_top.get(), 8500);
+        assert_eq!(physics.car_specs().cars[0].engine_top, 8500);
     }
 }

@@ -26,6 +26,8 @@ enum Place<'a> {
     Plain(&'a crate::memory::session::PlainDword),
     /// The finish state's "no place" switch.
     Finish(&'a crate::race::owner_replay::Replay),
+    /// The split tables' arcade kind.
+    ArcadeKind(&'a crate::race::owner_physics::Physics),
 }
 
 impl Place<'_> {
@@ -34,13 +36,14 @@ impl Place<'_> {
             Place::Shared(cell) => cell.set(value),
             Place::Plain(cell) => cell.set(value),
             Place::Finish(replay) => replay.finish_mut().no_place = value,
+            Place::ArcadeKind(physics) => physics.split_tables_mut().arcade_kind = value,
         }
     }
 }
 
 fn var(race: &Race, v: Var) -> Place<'_> {
     Place::Shared(match v {
-        Var::D60101C => &race.physics.split_tables().arcade_kind,
+        Var::D60101C => return Place::ArcadeKind(&race.physics),
         Var::D621514 => return Place::Plain(&race.shared.switches.get().editor_mode),
         Var::D623854 => &race.shared.vars.get().direction,
         Var::D6235FC => &race.shared.vars.get().car_tyres[0],

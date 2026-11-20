@@ -310,7 +310,7 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     let at = |n: u32| {
         crate::race::checkpoints_store::distance_run_on(race.checkpoints(), n as usize).get()
     };
-    let from: u32 = race.physics.split_tables().checkpoints[0].get();
+    let from: u32 = race.physics.split_tables().checkpoints[0];
     let d = travelled(at(car.checkpoint.get()), at(from));
     let (unit, miles) = (
         race.course.numbers.get().k65536.get(),
@@ -504,7 +504,7 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
                 race.course.numbers.get().k65536.get(),
                 race.course.numbers.get().metres_in_mile.get(),
             );
-            let from: u32 = race.physics.split_tables().checkpoints[0].get();
+            let from: u32 = race.physics.split_tables().checkpoints[0];
             car_distances(race, players.min(4), unit, miles, from)?;
         }
     }
@@ -800,7 +800,7 @@ fn colour_buffers(frame: &Frame) -> [&'_ [PlainDword; 64]; 2] {
 
 /// `split_colours`' refusal, for both views, before anything is written.
 pub fn check_split_colours(race: &Race) -> Result<(), Refused> {
-    let fill: u32 = race.physics.split_tables().split_colour_count.get();
+    let fill: u32 = race.physics.split_tables().split_colour_count;
     for view in 0..2 {
         let n = race
             .frame
@@ -823,7 +823,7 @@ fn both_split_colours(race: &Race) -> Result<(), Refused> {
             &race.frame.cars,
             race.shared.view.get().view_number(view)?,
             buffer,
-            race.physics.split_tables().split_colour_count.get(),
+            race.physics.split_tables().split_colour_count,
         )?;
     }
     Ok(())

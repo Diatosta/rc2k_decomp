@@ -8,7 +8,6 @@ use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_store::GroundWork;
-use crate::physics::split_tables_store::SplitTables;
 use crate::physics::step_inputs::StepInputs;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::frame_store::FrameWork;
@@ -78,7 +77,8 @@ pub struct CameraInputs<'a> {
     pub numbers: &'a Numbers,
     pub tables: &'a PhysicsTables,
     pub camera: &'a CameraWork,
-    pub split_tables: &'a SplitTables,
+    /// The replay still flag (`SplitTables.still`), as it is when the inputs are built.
+    pub still: u32,
     pub race_tables: &'a RaceTables,
     pub shared: &'a RaceShared,
     pub frame_work: &'a FrameWork,
@@ -211,7 +211,7 @@ impl<'a> StepInputs<'a> {
             numbers: self.numbers,
             tables: self.tables,
             camera: self.physics.camera(),
-            split_tables: self.physics.split_tables(),
+            still: self.physics.split_tables().still,
             race_tables: self.race_tables,
             shared: self.shared,
             frame_work: self.frame.frame_work.get(),

@@ -44,7 +44,7 @@ pub(super) fn take_split_counted(
     { flag_current_car_listed(frame_work, shared.work.get(), sound) }?;
     split_by_mode(
         o,
-        physics.split_tables(),
+        &mut physics.split_tables_mut(),
         league,
         panel_and_overlay,
         shared,
@@ -55,14 +55,13 @@ pub(super) fn take_split_counted(
         shared.car().splits_recorded.get() as usize,
         shared.car().split_gaps[0].get(),
     )?;
-    if shared.car().splits_passed.get() < physics_store.split_tables().split_colour_count.get() {
+    if shared.car().splits_passed.get() < physics_store.split_tables().split_colour_count {
         shared.car().notice_id.set(SPLIT_NOTICE);
         shared.car().notice_time_b.set(0x32);
         shared.car().notice_time.set(300);
         let bonus = split_bonus(
             physics_store.split_tables().stage_numbers
-                [1 + shared.car().splits_recorded.get() as usize]
-                .get(),
+                [1 + shared.car().splits_recorded.get() as usize],
         );
         shared
             .car()
@@ -76,7 +75,7 @@ pub(super) fn take_split_counted(
         .set(shared.car().splits_passed.get());
     if finished_at(
         shared.car().splits_recorded.get(),
-        physics_store.split_tables().split_colour_count.get(),
+        physics_store.split_tables().split_colour_count,
     ) {
         shared.car().finish_flag.set(1);
         shared.car().notice_id.set(FINISH_NOTICE);

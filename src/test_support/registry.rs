@@ -645,10 +645,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "race.groups_store.PANEL_TAIL",
             on_game_from(o.race.frame.panel_and_overlay.get(), ".panel.split_6",),
         ),
-        listed!(
-            "owners.race.physics.split_tables",
-            on_game(o.race.physics.split_tables()),
-        ),
         listed!("owners.race.course.league", on_game(o.race.course.league()),),
         listed!(
             "owners.race.course.lights_data",
@@ -658,7 +654,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.course.level_paths",
             on_game(o.race.course.level_paths()),
         ),
-        listed!("owners.race.physics.pace", on_game(o.race.physics.pace()),),
         listed!(
             "owners.race.physics.ground_probe",
             on_game(o.race.physics.ground_probe.get()),
@@ -703,10 +698,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.race.course.lists",
             on_game(o.race.course.lists.get()),
-        ),
-        listed!(
-            "owners.race.physics.car_specs",
-            on_game(o.race.physics.car_specs()),
         ),
         listed!(
             "owners.race.course.course",

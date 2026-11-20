@@ -1,47 +1,50 @@
 //! The pace notes' work: the distance words, the notes' starts, ends, end codes and gaps, the
-//! groups' checkpoints and texts, and the texts' codes. Names are readings unless taken from the
-//! game's own.
+//! groups' checkpoints and texts, and the texts' codes. Plain fields, held by the race's
+//! physics owner on the game's thread only (`race::owner_physics::Physics::pace`). Names are
+//! readings unless taken from the game's own.
 
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::session::with_runs;
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PaceNotes {
     /// The distance's word by tens, the first 41 bytes used (`race::pace_notes`).
-    pub distance_words: PlainBytes<0x1034>,
+    pub distance_words: [u8; 0x1034],
     /// How many pace notes there are.
-    pub note_count: PlainDword,
+    pub note_count: u32,
     /// The pace note groups (`physics::queue_pace_note`).
-    pub group_count: PlainDword,
+    pub group_count: u32,
     /// Each note's start.
-    pub note_starts: [PlainDword; 1024],
+    pub note_starts: [u32; 1024],
     /// Each note's end.
-    pub note_ends: [PlainDword; 1024],
+    pub note_ends: [u32; 1024],
     /// Each note's end code.
-    pub note_end_codes: [PlainDword; 1024],
+    pub note_end_codes: [u32; 1024],
     /// Each note's gap.
-    pub note_gaps: [PlainDword; 1024],
+    pub note_gaps: [u32; 1024],
     /// Each group's checkpoint (`physics::queue_pace_note`).
-    pub group_checkpoints: [PlainDword; 1024],
+    pub group_checkpoints: [u32; 1024],
     /// Each group's place in `text` (`physics::queue_pace_note`).
-    pub group_texts: [PlainDword; 1024],
+    pub group_texts: [u32; 1024],
     /// The groups' codes (`physics::queue_pace_note`).
-    pub text: PlainBytes<0x4000>,
+    pub text: [u8; 0x4000],
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-
-/// The piece, with the image's first values.
+/// The piece, with the first values.
 impl PaceNotes {
     pub const fn new() -> Self {
-        use crate::memory::cells::ZeroCells;
-        use crate::memory::session::{PlainBytes, with_runs};
         Self {
-            distance_words: PlainBytes::new(with_runs::<4148>(&[(
+            distance_words: with_runs::<0x1034>(&[(
                 1,
                 b"    !!\"\"\"#####$$$$$%%%%%&&&&&''''''''''((((((((((",
-            )])),
-            ..ZeroCells::ZERO
+            )]),
+            note_count: 0,
+            group_count: 0,
+            note_starts: [0; 1024],
+            note_ends: [0; 1024],
+            note_end_codes: [0; 1024],
+            note_gaps: [0; 1024],
+            group_checkpoints: [0; 1024],
+            group_texts: [0; 1024],
+            text: [0; 0x4000],
         }
     }
 }

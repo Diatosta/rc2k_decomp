@@ -17,8 +17,8 @@
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;
-use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
+use crate::math::x87_float::{int, ld};
 use crate::physics::car_store::Car;
 use crate::physics::gear_store::GearFigures;
 use crate::physics::tables_store::PhysicsTables;
@@ -43,18 +43,18 @@ fn record<'a>(car_specs: &'a CarSpecs, car: &Car) -> &'a CarSpec {
 /// gear count (held), the words copied.
 fn words(tables: &PhysicsTables, spec: &CarSpec) {
     for (to, from) in tables.spec_torque.iter().zip(&spec.torque_curve) {
-        to.set(from.get());
+        to.set(*from);
     }
     tables
         .ride_height_handling_scale
-        .set(spec.ride_height_handling_scale.get());
-    tables.gear_count.set(gear_count(spec.gear_count.get()));
-    tables.unused_spec_20.set(spec.reserved_20.get());
-    tables.spec_surface[0].set(spec.surface[0].get());
-    tables.spec_surface[1].set(spec.surface[1].get());
-    tables.grip_scale.set(spec.grip_scale.get());
-    tables.side_grip_scale.set(spec.side_grip_scale.get());
-    tables.spec_surface[2].set(spec.surface[2].get());
+        .set(spec.ride_height_handling_scale);
+    tables.gear_count.set(gear_count(spec.gear_count));
+    tables.unused_spec_20.set(spec.reserved_20);
+    tables.spec_surface[0].set(spec.surface[0]);
+    tables.spec_surface[1].set(spec.surface[1]);
+    tables.grip_scale.set(spec.grip_scale);
+    tables.side_grip_scale.set(spec.side_grip_scale);
+    tables.spec_surface[2].set(spec.surface[2]);
 }
 
 /// The exact version, for `physics::car_physics_step` and `physics::acceleration_figures`.
@@ -67,7 +67,7 @@ pub fn load_car_specs(
 ) -> Result<(), Refused> {
     let kind = car.car_kind.get();
     let spec = record(car_specs, car);
-    let drive = check_drive(spec.drive_kind.get())?;
+    let drive = check_drive(spec.drive_kind)?;
     car.drive_kind.set(drive);
     load_figures_and_shift_points(
         car,
@@ -103,7 +103,7 @@ pub fn load_car_specs(
         .spec_wheel
         .set(physics_tables.spec_default_ba8.get());
     scale_record_grips(physics_tables, spec);
-    physics_tables.downforce_spec.set(spec.downforce.get());
+    physics_tables.downforce_spec.set(spec.downforce);
     set_rev_limits(physics_tables, course.numbers.get(), drive as usize);
     Ok(())
 }
@@ -118,32 +118,32 @@ fn load_figures_and_shift_points(
     gear_figures: &GearFigures,
     s: &CarSpec,
 ) {
-    let t0 = int(s.figures[0].get() as i32);
+    let t0 = int(s.figures[0] as i32);
     gear_figures.figures[0].st(t0);
-    let t1 = int(s.figures[1].get() as i32);
+    let t1 = int(s.figures[1] as i32);
     gear_figures.figures[1].st(t1);
-    let t2 = int(s.figures[2].get() as i32);
+    let t2 = int(s.figures[2] as i32);
     gear_figures.figures[2].st(t2);
-    let t3 = int(s.figures[3].get() as i32);
+    let t3 = int(s.figures[3] as i32);
     gear_figures.figures[3].st(t3);
-    let t4 = int(s.engine_top.get() as i32);
+    let t4 = int(s.engine_top as i32);
     car.engine_speed_limit.st(t4);
     let t5 = tables.spec_scale_1b8.ld();
     car.spec_scale_copy.st(t5);
-    let t6 = s.shift_points[0].ld();
+    let t6 = ld(s.shift_points[0]);
     gear_figures.shift_up_point.st(t6);
     let t7 = tables.spec_scale_a4.ld();
     let t8 = t6 * t7;
     gear_figures.shift_ratio_figure.st(t8);
-    let t9 = s.shift_points[1].ld();
+    let t9 = ld(s.shift_points[1]);
     let t10 = numbers.tenths[0].ld();
     let t11 = t9 + t10;
     gear_figures.shift_down_point.st(t11);
-    let t12 = s.shift_points[2].ld();
+    let t12 = ld(s.shift_points[2]);
     let t13 = numbers.tenths[0].ld();
     let t14 = t12 + t13;
     gear_figures.shift_down_clutch_point.st(t14);
-    let t15 = int(s.over_top.get() as i32);
+    let t15 = int(s.over_top as i32);
     let t16 = tables.rev_limit_scale.ld();
     let t17 = t15 * t16;
     let t18 = car.engine_speed_limit.ld();
@@ -157,19 +157,19 @@ fn load_figures_and_shift_points(
 
 /// One straight x87 run as plain Rust over `X`.
 fn scale_record_ratios(tables: &PhysicsTables, numbers: &Numbers, s: &CarSpec) {
-    let t0 = int(s.whole_figures[0].get() as i32);
+    let t0 = int(s.whole_figures[0] as i32);
     let t1 = numbers.k65536.ld();
     let t2 = t0 * t1;
     let t3 = numbers.thousand.ld();
     let t4 = t2 / t3;
     tables.spec_ints[0].set(to_int(t4) as u32);
-    let t5 = int(s.whole_figures[1].get() as i32);
+    let t5 = int(s.whole_figures[1] as i32);
     let t6 = numbers.k65536.ld();
     let t7 = t5 * t6;
     let t8 = numbers.thousand.ld();
     let t9 = t7 / t8;
     tables.spec_ints[1].set(to_int(t9) as u32);
-    let t10 = int(s.whole_figures[2].get() as i32);
+    let t10 = int(s.whole_figures[2] as i32);
     let t11 = numbers.k65536.ld();
     let t12 = t10 * t11;
     let t13 = numbers.thousand.ld();
@@ -201,11 +201,11 @@ fn scale_default_ratios(tables: &PhysicsTables, numbers: &Numbers) {
 
 /// One straight x87 run as plain Rust over `X`.
 fn scale_record_grips(tables: &PhysicsTables, s: &CarSpec) {
-    let t0 = s.weights[0].ld();
+    let t0 = ld(s.weights[0]);
     let t1 = tables.gravity.ld();
     let t2 = t0 * t1;
     tables.spec_drive[0].st(t2);
-    let t3 = s.weights[1].ld();
+    let t3 = ld(s.weights[1]);
     let t4 = tables.gravity.ld();
     let t5 = t3 * t4;
     tables.spec_drive[1].st(t5);

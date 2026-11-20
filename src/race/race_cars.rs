@@ -88,7 +88,7 @@ fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
         let cars: u32 = shared.view.get().race_cars.get();
         for n in 0..BLOCK_COUNT {
             let car = shared.race_car(n as usize)?;
-            for (field, v) in reset_block(n, cars, physics.split_tables().stage_numbers[0].get()) {
+            for (field, v) in reset_block(n, cars, physics.split_tables().stage_numbers[0]) {
                 field.set(car, v);
             }
         }
@@ -206,10 +206,10 @@ pub(super) fn read_stage_car_numbers(race: &Race) -> Result<(), Refused> {
     )?;
     let mut total = 0u32;
     for (k, &n) in found.numbers.iter().enumerate() {
-        physics.split_tables().stage_numbers[k].set(n);
+        physics.split_tables_mut().stage_numbers[k] = n;
         total = total.wrapping_add(n);
     }
-    physics.split_tables().stage_car_total.set(total);
+    physics.split_tables_mut().stage_car_total = total;
     Ok(())
 }
 
@@ -400,7 +400,7 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
     let w = |n: usize| TIME_WORDS[n];
     {
         let stage: u32 = race.shared.vars.get().stage_number.get();
-        let count: u32 = race.physics.split_tables().split_colour_count.get();
+        let count: u32 = race.physics.split_tables().split_colour_count;
         if stage < rc2k_core::race::stage::UNTIMED_STAGES
             && (count == 0 || count as usize > MOST_NUMBERS)
         {
@@ -412,7 +412,7 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         let kind = timed_kind(race.shared.vars.get().race_car_kinds[0].get() as i32);
         let factor =
             crate::math::x87::loaded(&race.shared.tables().kind_time_factors[kind as usize]);
-        race.physics.split_tables().kind_factor.set(factor);
+        race.physics.split_tables_mut().kind_factor = factor;
         let Some(rally) = rally_of(stage) else {
             return Ok(());
         };
@@ -442,29 +442,28 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         text(w(2), false);
         number(percentage, false);
         scene.drawing.scene.get().scratch.set(percentage);
-        let total: i32 = race.physics.split_tables().stage_car_total.get() as i32;
+        let total: i32 = race.physics.split_tables().stage_car_total as i32;
         let extra = bh::to_int(
             bh::int(percentage as i32) * bh::int(total) / race.course.numbers.get().hundred.ld(),
         );
-        race.physics.split_tables().extra_time.set(extra as u32);
+        race.physics.split_tables_mut().extra_time = extra as u32;
         text(w(3), false);
         number(total as u32, false);
         text(w(4), false);
         number(extra as u32, true);
-        race.physics.split_tables().stage_numbers[0].set(
-            race.physics.split_tables().stage_numbers[0]
-                .get()
-                .wrapping_add(extra as u32),
-        );
+        {
+            let mut tables = race.physics.split_tables_mut();
+            tables.stage_numbers[0] = tables.stage_numbers[0].wrapping_add(extra as u32);
+        }
         let mut k = 0u32;
         loop {
-            let at = &race.physics.split_tables().stage_numbers[k as usize];
+            let was = race.physics.split_tables().stage_numbers[k as usize];
             text(w(5), false);
             number(k, false);
             text(w(6), false);
-            number(at.get(), false);
-            let n = crate::math::x87::int_times_to_int(at.get() as i32, factor);
-            at.set(n as u32);
+            number(was, false);
+            let n = crate::math::x87::int_times_to_int(was as i32, factor);
+            race.physics.split_tables_mut().stage_numbers[k as usize] = n as u32;
             text(w(7), false);
             number(n as u32, true);
             k += 1;
@@ -533,7 +532,7 @@ pub(super) fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::cars::{
         arcade_number, arcade_start_is_last, arcade_swap_draw, arcade_type_draw,
     };
-    if arcade_start_is_last(race.physics.split_tables().arcade_kind.get(), stage_in) {
+    if arcade_start_is_last(race.physics.split_tables().arcade_kind, stage_in) {
         race.shared.tables().start_place.set(cars);
     }
     race.shared

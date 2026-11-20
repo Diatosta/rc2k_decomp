@@ -356,7 +356,7 @@ fn tidy_everything_as(
 /// tidies everything and takes the settings out.
 pub(super) fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let race = o.race;
-    race.physics.split_tables().arcade_kind.set(1);
+    race.physics.split_tables_mut().arcade_kind = 1;
     crate::logfile::write_line::state::INDENT.set(0);
     if race.shared.state.results.race_stage.get() == 0
         && race.shared.state.settings.run_kind.get() == 2

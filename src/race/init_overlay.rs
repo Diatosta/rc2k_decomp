@@ -32,7 +32,7 @@ pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> R
         // OVERLAY_CLEARED}`; the miles the x87's.
         use rc2k_core::race::panel::{OVERLAY_CLEARED, OVERLAY_SIZES, half_length, overlay_parts};
         let (found, parts) = overlay_parts(race.shared.vars.get().checkpoint_count.get(), || {
-            race.physics.split_tables().split_colour_count.get()
+            race.physics.split_tables().split_colour_count
         })?;
         if let Some(count) = found {
             race.frame
@@ -57,17 +57,14 @@ pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> R
                 // The list's entries 0 .. count (at most 0x40) were written by
                 // `race::init_checkpoints` (`split_colour_count` is their count - 1), each a
                 // checkpoint number below `last_checkpoint`, inside the distances.
-                let list = &race.physics.split_tables().checkpoints;
+                let list = race.physics.split_tables().checkpoints;
                 let distances = &race.checkpoints().distances;
                 let distance = |k: usize| -> Result<u32, crate::errors::BadInput> {
-                    let n = list
-                        .get(k)
-                        .ok_or(crate::errors::BadInput(
-                            "an overlay part past the split list",
-                        ))?
-                        .get();
+                    let n = list.get(k).ok_or(crate::errors::BadInput(
+                        "an overlay part past the split list",
+                    ))?;
                     Ok(distances
-                        .get(n as usize)
+                        .get(*n as usize)
                         .ok_or(crate::errors::BadInput(
                             "a split's checkpoint past the distances",
                         ))?

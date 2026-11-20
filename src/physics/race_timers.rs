@@ -32,7 +32,7 @@ pub(super) fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Res
     shared.physics_tables.get().weight.set(1.0f32);
     let finished = shared.car().finish_flag.get() != 0;
     let factor = if finished {
-        physics.split_tables().timer_factor.get()
+        physics.split_tables().timer_factor
     } else {
         0.0
     };
@@ -67,7 +67,7 @@ pub(super) fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Res
     } else {
         take_split(
             o,
-            physics.split_tables(),
+            &mut physics.split_tables_mut(),
             league,
             panel_and_overlay,
             shared,

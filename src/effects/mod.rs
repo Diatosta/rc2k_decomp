@@ -10,6 +10,8 @@ mod add_mark_slot;
 mod adjugate3;
 mod aim_vector;
 #[cfg(test)]
+mod asm_fields;
+#[cfg(test)]
 mod asm_layout;
 #[cfg(test)]
 mod asm_test;

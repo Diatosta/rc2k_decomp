@@ -33,7 +33,7 @@ fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(),
         negate(&c.tables.camera_frame_limit);
         let random = c.shared.random.next_random();
         x87_2(c.numbers, random, scene);
-        if c.split_tables.still.get() != 0 {
+        if c.still != 0 {
             scene.lights.state.get().camera_shake_y.set(0);
             scene.lights.state.get().camera_shake_listener.set(0.0);
         }

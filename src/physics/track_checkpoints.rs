@@ -59,15 +59,14 @@ pub fn track_checkpoints(
     }
     if !split_ahead(
         c.car.splits_passed.get(),
-        physics_store.split_tables().split_colour_count.get(),
+        physics_store.split_tables().split_colour_count,
     ) {
         return Ok(());
     }
     if !{ crate::physics::passed_split_point::passed_split_point(c) }? {
         return Ok(());
     }
-    let split =
-        physics_store.split_tables().checkpoints[1 + c.car.splits_passed.get() as usize].get();
+    let split = physics_store.split_tables().checkpoints[1 + c.car.splits_passed.get() as usize];
     c.car.reset_checkpoint.set(split);
     c.car.checkpoint.set(split);
     c.car

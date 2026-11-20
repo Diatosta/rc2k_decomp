@@ -37,9 +37,9 @@ pub fn queue_pace_note(
 ) -> Result<(), Refused> {
     let physics_store = physics;
     use crate::logfile::log_int::log_int;
-    let groups = physics_store.pace().group_count.get();
+    let groups = physics_store.pace().group_count;
     let found = find_group(groups, checkpoint, |n| {
-        physics_store.pace().group_checkpoints[n as usize].get()
+        physics_store.pace().group_checkpoints[n as usize]
     })?;
     if groups == 0 {
         return Ok(());
@@ -47,10 +47,10 @@ pub fn queue_pace_note(
     let Some(group) = found else {
         return Ok(());
     };
-    let mut at = physics_store.pace().group_texts[group as usize].get();
+    let mut at = physics_store.pace().group_texts[group as usize];
     crate::remote::pace_call(work.current_car.get(), checkpoint, group);
     loop {
-        let byte = physics_store.pace().text.get(text_place(at)? as usize) as u32;
+        let byte = physics_store.pace().text[text_place(at)? as usize] as u32;
         match code(byte as u8) {
             Code::End => return Ok(()),
             Code::Bad => {

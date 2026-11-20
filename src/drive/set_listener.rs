@@ -205,7 +205,7 @@ pub fn set_listener(
     race.effects_settings()
         .engine_speed_scaled_copy
         .set(x87::loaded(&car.engine_speed_scaled));
-    if physics.split_tables().still.get() != 0 {
+    if physics.split_tables().still != 0 {
         race.effects_settings().spline_handbrake.set(0);
         race.effects_settings().spline_gear_changed.set(0);
     }

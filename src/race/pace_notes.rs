@@ -24,6 +24,7 @@
 //! image's load and store.
 
 use crate::errors::{BadInput, Refused};
+use crate::physics::pace_store::PaceNotes;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Stage};
@@ -80,7 +81,7 @@ impl Stage for GameStage<'_> {
         self.race.shared.physics_tables.get().pace_slot_offsets[slot as usize].get()
     }
     fn word(&self, tens: u32) -> u8 {
-        self.race.physics.pace().distance_words.get(tens as usize)
+        self.race.physics.pace().distance_words[tens as usize]
     }
     fn face_byte(&self, at: u32) -> u8 {
         // The core asks only inside the course's window; a refusal here is kept for `Machine::init`
@@ -128,43 +129,56 @@ const _: () = assert!(IMAGE_LEN == 8 + 6 * 4096 + 0x4000);
 fn image(physics: &Physics) -> Vec<u8> {
     let pace = physics.pace();
     let mut image = Vec::with_capacity(IMAGE_LEN);
-    image.extend(pace.note_count.get().to_le_bytes());
-    image.extend(pace.group_count.get().to_le_bytes());
-    for table in tables(pace) {
+    image.extend(pace.note_count.to_le_bytes());
+    image.extend(pace.group_count.to_le_bytes());
+    for table in tables(&pace) {
         for dword in table {
-            image.extend(dword.get().to_le_bytes());
+            image.extend(dword.to_le_bytes());
         }
     }
-    image.extend(pace.text.read());
+    image.extend(pace.text);
     image
 }
 
 /// The image put back in the fields it was read from.
 fn put_image(physics: &Physics, image: &[u8]) {
-    let pace = physics.pace();
-    let (dwords, text) = image.split_at(IMAGE_LEN - pace.text.cells().len());
+    let mut pace = physics.pace_mut();
+    let (dwords, text) = image.split_at(IMAGE_LEN - pace.text.len());
     let mut words = dwords
         .as_chunks::<4>()
         .0
         .iter()
         .map(|w| u32::from_le_bytes(*w));
     let mut next = || words.next().expect("the image holds every table");
-    pace.note_count.set(next());
-    pace.group_count.set(next());
-    for table in tables(pace) {
+    pace.note_count = next();
+    pace.group_count = next();
+    let PaceNotes {
+        note_starts,
+        note_ends,
+        note_end_codes,
+        note_gaps,
+        group_checkpoints,
+        group_texts,
+        text: pace_text,
+        ..
+    } = &mut *pace;
+    for table in [
+        note_starts,
+        note_ends,
+        note_end_codes,
+        note_gaps,
+        group_checkpoints,
+        group_texts,
+    ] {
         for dword in table {
-            dword.set(next());
+            *dword = next();
         }
     }
-    for (at, &byte) in text.iter().enumerate() {
-        pace.text.set(at, byte);
-    }
+    pace_text.copy_from_slice(text);
 }
 
 /// The six dword tables in the image's order.
-fn tables(
-    pace: &crate::physics::pace_store::PaceNotes,
-) -> [&[crate::memory::session::PlainDword; 1024]; 6] {
+fn tables(pace: &PaceNotes) -> [&[u32; 1024]; 6] {
     [
         &pace.note_starts,
         &pace.note_ends,

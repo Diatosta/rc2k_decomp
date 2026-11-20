@@ -117,7 +117,7 @@ pub fn copy_league_table(
 fn start_value(physics: &Physics, kind: u32) -> u32 {
     use rc2k_core::race::cars::{start_record, start_state_value};
     let record = &physics.car_specs().cars[start_record(kind) as usize];
-    start_state_value(record.engine_top.get(), || record.drive_kind.get())
+    start_state_value(record.engine_top, || record.drive_kind)
 }
 
 /// Whether a kind is one with its flag (`kind_has_views`) set (below 0x22).
@@ -215,7 +215,7 @@ pub(super) fn store_results_by_mode(race: &Race) {
             shared.state.results.results[1]
                 .time
                 .set(race.car_blocks().cars[1].stage_time.get());
-            let total = physics.split_tables().stage_car_total.get();
+            let total = physics.split_tables().stage_car_total;
             shared.state.results.results[0]
                 .word
                 .set(margin(total, race.car_blocks().cars[0].stage_time.get()));

@@ -60,8 +60,7 @@ fn point(
     car: &Car,
 ) -> Result<(u32, u32), Refused> {
     let split = car.splits_passed.get();
-    let cp =
-        progress::check_split_point(split, || split_tables.checkpoints[1 + split as usize].get())?;
+    let cp = progress::check_split_point(split, || split_tables.checkpoints[1 + split as usize])?;
     let face = crate::race::checkpoints_store::face_run_on(checkpoints, cp as usize).get();
     if !progress::face_known(face, course.course.get().course_face_count.get()) {
         return Err(FatalError {
@@ -87,7 +86,7 @@ pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
     if c.no_place != 0 {
         return Ok(false);
     }
-    let (cp, pt) = point(c.physics.split_tables(), c.course, c.checkpoints, c.car)?;
+    let (cp, pt) = point(&c.physics.split_tables(), c.course, c.checkpoints, c.car)?;
     // The point read from `race::scene_points`; the x87 runs read a copy.
     let pt = crate::race::scene_points::point_number(
         c.course.reads(),

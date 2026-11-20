@@ -11,6 +11,7 @@ use crate::physics::pace_store::PaceNotes;
 use crate::physics::split_tables_store::SplitTables;
 use crate::physics::store::DamageModel;
 use crate::race::car_specs_store::CarSpecs;
+use std::cell::{Ref, RefCell, RefMut};
 
 /// What only the game's thread reaches: the camera, the ground, the pace notes, the split
 /// tables, the damage model and the car specs (no drawing part, audio, key or network thread
@@ -18,8 +19,8 @@ use crate::race::car_specs_store::CarSpecs;
 struct PhysicsMain {
     pub camera: CameraWork,
     pub ground: GroundWork,
-    pub pace: PaceNotes,
-    pub split_tables: SplitTables,
+    pub pace: RefCell<PaceNotes>,
+    pub split_tables: RefCell<SplitTables>,
     pub damage: DamageModel,
     pub car_specs: CarSpecs,
 }
@@ -29,8 +30,8 @@ impl PhysicsMain {
         PhysicsMain {
             camera: CameraWork::new(),
             ground: GroundWork::new(),
-            pace: PaceNotes::new(),
-            split_tables: SplitTables::new(),
+            pace: RefCell::new(PaceNotes::new()),
+            split_tables: RefCell::new(SplitTables::new()),
             damage: DamageModel::new(),
             car_specs: CarSpecs::new(),
         }
@@ -65,12 +66,24 @@ impl Physics {
         &self.main.get().ground
     }
 
-    pub fn pace(&self) -> &PaceNotes {
-        &self.main.get().pace
+    /// The pace notes, read: no write borrow may be held.
+    pub fn pace(&self) -> Ref<'_, PaceNotes> {
+        self.main.get().pace.borrow()
     }
 
-    pub fn split_tables(&self) -> &SplitTables {
-        &self.main.get().split_tables
+    /// The pace notes, to write: no other borrow may be held.
+    pub fn pace_mut(&self) -> RefMut<'_, PaceNotes> {
+        self.main.get().pace.borrow_mut()
+    }
+
+    /// The split tables, read: no write borrow may be held.
+    pub fn split_tables(&self) -> Ref<'_, SplitTables> {
+        self.main.get().split_tables.borrow()
+    }
+
+    /// The split tables, to write: no other borrow may be held.
+    pub fn split_tables_mut(&self) -> RefMut<'_, SplitTables> {
+        self.main.get().split_tables.borrow_mut()
     }
 
     pub fn damage(&self) -> &DamageModel {

@@ -820,13 +820,13 @@ fn rivals(so: crate::strings::append_string_by_id::StringOwners<'_>, physics: &P
         let mut name = Vec::new();
         let _ = crate::strings::append_string_by_id::append_string_by_id(
             so,
-            physics.split_tables().rival_names[n].get().to_file(),
+            physics.split_tables().rival_names[n].to_file(),
             &mut |run| name.extend_from_slice(run),
         );
         ui.text(name.iter().map(|&b| char::from(b)).collect::<String>());
         ui.table_next_column();
-        ui.text(time(physics.split_tables().rival_scaled[n].get()));
+        ui.text(time(physics.split_tables().rival_scaled[n]));
         ui.table_next_column();
-        ui.text(time(physics.split_tables().rival_times[n].get()));
+        ui.text(time(physics.split_tables().rival_times[n]));
     }
 }

@@ -516,9 +516,26 @@ fn run_recorded<R: std::fmt::Debug>(
 
 // ---- the sparse vectors: only the listed writes are recorded ----
 
-/// Race-block places the blocks read or write, as the typed cells that hold them (what the
-/// Rust versions read), by the place's offset in the race block.
-fn race_cell(off: usize) -> &'static dyn crate::memory::session::Cell32 {
+/// A race-block place as the test sees it: its four bytes read and written where the Rust
+/// version keeps them.
+struct RacePlace {
+    bits: Box<dyn Fn() -> u32>,
+    set_bits: Box<dyn Fn(u32)>,
+}
+
+impl RacePlace {
+    /// A place held in a cell.
+    fn in_cell(cell: &'static dyn crate::memory::session::Cell32) -> Self {
+        Self {
+            bits: Box::new(|| cell.bits()),
+            set_bits: Box::new(|bits| cell.set_bits(bits)),
+        }
+    }
+}
+
+/// Race-block places the blocks read or write, as where the Rust versions hold them, by the
+/// place's offset in the race block.
+fn race_cell(off: usize) -> RacePlace {
     let w = &crate::owners::Owners::the()
         .scene
         .scratch
@@ -526,13 +543,33 @@ fn race_cell(off: usize) -> &'static dyn crate::memory::session::Cell32 {
         .window;
     let m = &crate::test_support::own::race().frame.matrices.get();
     match off {
-        0x224088 => &w.view_scale,
-        0x22409C => &w.view_centre[0],
-        0x2240A0 => &w.view_centre[1],
-        0x2241C8 => &w.farthest,
-        0x31C814 => &crate::test_support::own::effects().setup.work.fpu_status,
-        0x1EA2CC..0x1EA30C if off.is_multiple_of(4) => &m.view_matrix[(off - 0x1EA2CC) / 4],
-        0x1EA3CC..0x1EA40C if off.is_multiple_of(4) => &m.view_place[(off - 0x1EA3CC) / 4],
+        0x224088 => RacePlace::in_cell(&w.view_scale),
+        0x22409C => RacePlace::in_cell(&w.view_centre[0]),
+        0x2240A0 => RacePlace::in_cell(&w.view_centre[1]),
+        0x2241C8 => RacePlace::in_cell(&w.farthest),
+        // The status word of the effects' x87 blocks, where the test finds it.
+        0x31C814 => RacePlace {
+            bits: Box::new(|| {
+                crate::test_support::own::effects()
+                    .setup
+                    .work
+                    .fpu_status
+                    .bits()
+            }),
+            set_bits: Box::new(|bits| {
+                crate::test_support::own::effects()
+                    .setup
+                    .work
+                    .fpu_status
+                    .set_bits(bits);
+            }),
+        },
+        0x1EA2CC..0x1EA30C if off.is_multiple_of(4) => {
+            RacePlace::in_cell(&m.view_matrix[(off - 0x1EA2CC) / 4])
+        }
+        0x1EA3CC..0x1EA40C if off.is_multiple_of(4) => {
+            RacePlace::in_cell(&m.view_place[(off - 0x1EA3CC) / 4])
+        }
         _ => panic!("race block place {off:#X} has no typed cell in the effects tests"),
     }
 }
@@ -540,16 +577,16 @@ fn race_cell(off: usize) -> &'static dyn crate::memory::session::Cell32 {
 fn lay_race_place(off: usize, bytes: &[u8]) {
     let c = race_cell(off);
     match bytes.len() {
-        4 => c.set_bits(u32::from_le_bytes(bytes.try_into().unwrap())),
-        2 => c.set_bits(
-            (c.bits() & 0xFFFF_0000) | u32::from(u16::from_le_bytes(bytes.try_into().unwrap())),
+        4 => (c.set_bits)(u32::from_le_bytes(bytes.try_into().unwrap())),
+        2 => (c.set_bits)(
+            ((c.bits)() & 0xFFFF_0000) | u32::from(u16::from_le_bytes(bytes.try_into().unwrap())),
         ),
         n => panic!("race block place of {n} bytes"),
     }
 }
 
 fn read_race_place(off: usize, len: usize) -> Vec<u8> {
-    let bits = race_cell(off).bits();
+    let bits = (race_cell(off).bits)();
     bits.to_le_bytes()[..len].to_vec()
 }
 
@@ -561,7 +598,7 @@ struct CellsBack(Vec<(usize, u32)>);
 impl Drop for CellsBack {
     fn drop(&mut self) {
         for &(off, bits) in &self.0 {
-            race_cell(off).set_bits(bits);
+            (race_cell(off).set_bits)(bits);
         }
     }
 }
@@ -612,7 +649,7 @@ fn run_writes<R: std::fmt::Debug>(
             places.extend(reads.iter().chain(writes.iter()).map(|&(o, _)| o));
         }
     }
-    let _back = CellsBack(places.iter().map(|&o| (o, race_cell(o).bits())).collect());
+    let _back = CellsBack(places.iter().map(|&o| (o, (race_cell(o).bits)())).collect());
     for cw in [0x027F, 0x0E7F] {
         x87::set_control_word(cw);
         for case in 0..3000 {
