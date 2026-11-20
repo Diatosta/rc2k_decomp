@@ -61,6 +61,12 @@ makes a test depend on the machine.
    counted apart (`up-owner`, 447) from one that calls code (`up`, 612): the first is cured by passing
    a narrower value, the second by moving code.
 
+5. **Game code does not name a target.** What a system can do is a constant in `platform::caps`
+   (`NETWORK`, `STEAM`, `FOLDERS`, `CAMERA`, `SHARE_SHEET`, `OPENGL_CHOICE`) and how the player points is
+   `platform::pointer` (`is_touch()`, `by_style(pointer, touch)`); pages ask those, and the branch of a
+   missing capability folds away. A `cfg` stays only where the code needs a library that only some
+   builds have (the touch menu, Steam's library, the camera, mdns discovery).
+
 ## What is deliberately not a rule
 
 - Same-layer uses (race <-> drive, menu <-> screens, physics <-> scene): allowed. Cycles inside a

@@ -82,7 +82,7 @@ pub fn point_number(contact: &ContactWork) -> Result<usize, Refused> {
 
 // Core: `rc2k_core::physics::contacts::{touches, normal_offsets, check_body_point}`
 // (the x87 steps stay).
-fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     c.car.contact_found.set(0);
     { lowest_body_point(c.car, c.numbers, c.contact) }?;
     let depth = c.contact.lowest_depth.get();
@@ -116,14 +116,7 @@ fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
         &c.contact.contact_normal,
     )));
     x87_1(c.contact, c.tables, c.numbers);
-    contact_force(
-        c.contact,
-        c.numbers,
-        c.tables,
-        c.car,
-        &c.tables.forces[21],
-        scene,
-    );
+    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.forces[21]);
     { place_sound_e5(&c.sound) }?;
     for k in 0..3 {
         c.contact.ground_force[k].set_float(c.tables.forces[21].force[k].get());
@@ -138,11 +131,8 @@ fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
     Ok(())
 }
 
-pub fn crash_contact(
-    c: &ContactInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    steps(c, scene)
+pub fn crash_contact(c: &ContactInputs<'_>) -> Result<(), Refused> {
+    steps(c)
 }
 
 // ---- the x87 arithmetic ----

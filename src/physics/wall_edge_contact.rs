@@ -45,9 +45,7 @@ pub fn edge_normal(
     physics_tables: &PhysicsTables,
     first: u32,
     second: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
     let rd = |n: u32, k: u32| {
         crate::race::scene_points::point_word(
             course.reads(),
@@ -67,13 +65,8 @@ pub fn edge_normal(
         .get()
         .wrapping_sub(physics_tables.edge_points[1].get());
     let d = [dx, dz];
-    x87_1(course.numbers.get(), d, scene);
-    drawing
-        .scene
-        .get()
-        .scratch
-        .set(drawing.scene.get().scratch.get() & 0xFFFF);
-    let heading = (drawing.scene.get().scratch.get() << 16).wrapping_add(0x4000_0000);
+    let turns = x87_1(course.numbers.get(), d) & 0xFFFF;
+    let heading = (turns << 16).wrapping_add(0x4000_0000);
     physics_tables.wall_heading.set(heading);
     let (out, _) = rotate_float_point_about_y(
         engine_tables,
@@ -109,7 +102,6 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
         c.tables,
         to,
         from,
-        scene,
     )?;
     copy_cells(&c.contact.contact_car_speed, &c.car.velocity);
     copy_cells(&c.contact.contact_turn_speed, &c.car.spin);
@@ -119,14 +111,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     c.contact.contact_point[2].set(c.contact.probe_turned_z[n].get());
     c.contact.contact_point[1].set(mul(&c.contact.contact_point[1], &c.numbers.tenth));
     c.contact.contact_slide_limit.set(0.0);
-    contact_force(
-        c.contact,
-        c.numbers,
-        c.tables,
-        c.car,
-        &c.tables.contacts[4],
-        scene,
-    );
+    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[4]);
     { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
     Ok(())
 }
@@ -136,7 +121,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [scratch] = (atan2(int [d + 0], int [d + 4]) * [one_over_two_pi]) * [k65536]`
-fn x87_1(numbers: &Numbers, d: [u32; 2], scene: &crate::scene::owner::Scene) {
+fn x87_1(numbers: &Numbers, d: [u32; 2]) -> u32 {
     let t0 = int(d[0] as i32);
     let t1 = int(d[1] as i32);
     let t2 = t0.atan2(t1);
@@ -144,7 +129,7 @@ fn x87_1(numbers: &Numbers, d: [u32; 2], scene: &crate::scene::owner::Scene) {
     let t4 = t2 * t3;
     let t5 = numbers.k65536.ld();
     let t6 = t4 * t5;
-    scene.drawing.scene.get().scratch.set(to_int(t6) as u32);
+    to_int(t6) as u32
 }
 
 #[cfg(test)]
@@ -169,11 +154,13 @@ mod reference_vectors {
             ],
             ulps: 0,
             plain: |a| {
-                x87_1(
-                    race().course.numbers.get(),
-                    *view(a[0], 0),
-                    crate::test_support::own::scene(),
-                );
+                let turns = x87_1(race().course.numbers.get(), *view(a[0], 0));
+                crate::test_support::own::scene()
+                    .drawing
+                    .scene
+                    .get()
+                    .scratch
+                    .set(turns);
             },
         }]
     }

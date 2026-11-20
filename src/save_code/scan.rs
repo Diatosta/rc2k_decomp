@@ -5,6 +5,7 @@
 
 use crate::owners::Owners;
 use crate::platform::ffi::sdl_camera::{self, Camera, Frame, Permission};
+use crate::platform::pointer;
 use crate::save_code::page_draw as draw;
 use rc2k_core::saves::code::parts::{self, Assembly, Part, Taken};
 use rc2k_core::saves::code::{START, qr};
@@ -75,6 +76,9 @@ fn camera_name(n: usize) -> String {
 pub fn available() -> bool {
     if crate::remote::fake_camera() {
         return true;
+    }
+    if !crate::platform::caps::CAMERA {
+        return false;
     }
     static SEEN: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *SEEN.get_or_init(|| sdl_camera::init() && !sdl_camera::devices().is_empty())
@@ -346,7 +350,7 @@ fn draw_scan(
     );
     if count > 1 {
         // On a touch screen the page's sideways slides give Left and Right (`save_code::page`).
-        let switch_hint = if cfg!(touch_screen) {
+        let switch_hint = if pointer::is_touch() {
             id::SAVE_CODE_CAMERA_SWITCH_TOUCH
         } else {
             id::SAVE_CODE_CAMERA_SWITCH

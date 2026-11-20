@@ -11,15 +11,12 @@ use crate::physics::step_families::CameraInputs;
 use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for `physics::update_camera`.
-pub fn ease_view_blend(
-    c: &CameraInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), crate::errors::BadInput> {
+pub fn ease_view_blend(c: &CameraInputs<'_>) -> Result<(), crate::errors::BadInput> {
     let esi = record(c.view_records, c.car)?;
     if esi.blend.get() == 0 || esi.change_time.get() == 0 {
         return Ok(());
     }
-    share_done(c.shared, esi, scene);
+    share_done(c.shared, esi);
     if (esi.blend.get() as i32) < 0 {
         x87_1(c.shared);
     }

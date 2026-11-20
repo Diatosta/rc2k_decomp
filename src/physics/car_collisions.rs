@@ -21,10 +21,7 @@ fn cars(view: &RaceView) -> u32 {
     view.race_cars.get().max(1)
 }
 
-pub fn car_collisions(
-    c: &CollisionInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
     let (physics, work, car_now) = (c.contact.contact, c.contact.work, c.contact.car);
     if !matches!(c.vars.run_kind.get(), 0 | 2) {
         return Ok(());
@@ -55,8 +52,6 @@ pub fn car_collisions(
                     .wrapping_sub(block.position[k].get())
             });
             set_place(&c.matrices.placed_matrix, place);
-            // `scene::set_place` leaves the z in the scene's scratch cell.
-            scene.drawing.scene.get().scratch.set(place[2]);
             multiply_matrices(
                 &car_now.crash_matrix,
                 &c.matrices.placed_matrix,
@@ -71,7 +66,7 @@ pub fn car_collisions(
                 physics.corner_in[0].set(physics.corner_x[k].get());
                 physics.corner_in[1].set(physics.corner_y[k].get());
                 physics.corner_in[2].set(physics.corner_z[k].get());
-                { corner_hits_car(&c.contact, block, scene) }?;
+                { corner_hits_car(&c.contact, block) }?;
             }
         }
         Ok(())

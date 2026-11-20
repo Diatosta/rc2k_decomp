@@ -23,11 +23,7 @@ pub fn record<'a>(
 }
 
 /// The share done (the time held).
-pub fn share_done(
-    shared: &RaceShared,
-    record: &ViewRecord,
-    scene: &crate::scene::owner::Scene,
-) -> u32 {
+pub fn share_done(shared: &RaceShared, record: &ViewRecord) -> u32 {
     let mut eax = shared
         .car()
         .step_clock
@@ -40,8 +36,7 @@ pub fn share_done(
     if eax >= change_time {
         eax = change_time;
     }
-    scene.drawing.scene.get().scratch.set(eax);
-    x87_1(shared, change_time, scene);
+    x87_1(shared, eax, change_time);
     eax
 }
 
@@ -49,9 +44,10 @@ pub fn share_done(
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[view_share] = int [scratch] / int [change_time]` (the record's `change_time`, passed by value)
-fn x87_1(shared: &RaceShared, change_time: u32, scene: &crate::scene::owner::Scene) {
-    let t0 = int(scene.drawing.scene.get().scratch.get() as i32);
+/// `[view_share] = int [done] / int [change_time]` (the share done and the record's `change_time`,
+/// passed by value)
+fn x87_1(shared: &RaceShared, done: u32, change_time: u32) {
+    let t0 = int(done as i32);
     let t1 = int(change_time as i32);
     let t2 = t0 / t1;
     shared.tables().view_share.st(t2);
@@ -80,8 +76,13 @@ mod reference_vectors {
             plain: |a| {
                 x87_1(
                     &race().shared,
+                    crate::test_support::own::scene()
+                        .drawing
+                        .scene
+                        .get()
+                        .scratch
+                        .get(),
                     crate::math::x87_mem::Base::dword(a[1], 0x3C),
-                    crate::test_support::own::scene(),
                 );
             },
         }]

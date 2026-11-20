@@ -1,14 +1,15 @@
 //! `menu::run_event_races`: an event's races. The computer drivers' times are made
-//! (`menu::calc_cpu_times`); eight drivers picked by lot (of the first 0xB2) get 0x4844 plus a
-//! random number under 3000 added to their +0xC and +0x10, and one to four drivers by lot still
-//! running (+0x24 1) drop out (+0x24 4, +0xC and +0x10 0x36EE8A). With `reset_times` set the
-//! players' times are reset; otherwise standings table A is built from the drivers, sorted by time,
-//! and the summary kept. Then by the event mode (`event_kind`): 9 / 0xE one race, 0xA / 0xF the
-//! same with the kept value, 0xB .. 0x12 each player taking part races in turn; a result of -1 ends
-//! the event, -2 resets the players' times and sets the front end up again. Last, the players'
-//! +0x288 is cleared (`menu::clear_service_spent`).
+//! (`menu::calc_cpu_times`); eight drivers picked by lot among the event's drivers (the first
+//! 178) have a fixed amount plus a random number under 3000 added to both their time fields, and
+//! one to four drivers by lot that are still running drop out (their state set to dropped out and
+//! both time fields to the drop-out time). With `reset_times` set the players' times are reset;
+//! otherwise standings table A is built from the drivers, sorted by time, and the summary kept.
+//! Then by the event mode (`event_kind`): modes 9 and 14 run one race, 10 and 15 the same with
+//! the kept value, 11 to 18 have each player taking part race in turn; a result of -1 ends
+//! the event, -2 resets the players' times and sets the front end up again. Last, each player's
+//! service time spent is cleared (`menu::clear_service_spent`).
 //!
-//! Refuses fewer than 0xB2 drivers or fewer than four still running among them (the drop-out draw
+//! Refuses fewer than 178 drivers or fewer than four still running among them (the drop-out draw
 //! would never end), a missing player for the mode, and what the steps refuse, before anything.
 
 use crate::errors::Fault;
@@ -177,7 +178,7 @@ pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
             .count()
             < 4;
     if few_running {
-        return Err(BadInput("fewer than 0xB2 drivers, or fewer than four still running").into());
+        return Err(BadInput("fewer than 178 drivers, or fewer than four still running").into());
     }
     let mode: u32 = screens.event.event_kind.get();
     if let Some((n, _)) = races::players_of(mode)

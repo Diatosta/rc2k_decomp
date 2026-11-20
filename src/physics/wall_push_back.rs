@@ -30,14 +30,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     copy_cells(&c.contact.contact_turn_speed, &c.car.spin);
     fill_cells(&c.contact.contact_point, 0.0);
     c.contact.contact_slide_limit.set(0.0);
-    contact_force(
-        c.contact,
-        c.numbers,
-        c.tables,
-        c.car,
-        &c.tables.contacts[4],
-        scene,
-    );
+    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[4]);
     { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
     c.tables.wall_heading.set(u32::MAX);
     Ok(())

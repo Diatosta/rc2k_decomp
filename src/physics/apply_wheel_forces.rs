@@ -7,10 +7,6 @@ use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 const COUNT: usize = 0x17;
 
-pub fn apply_wheel_forces(
-    car: &Car,
-    tables: &PhysicsTables,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    apply_forces(car, tables, &tables.forces[..COUNT], scene)
+pub fn apply_wheel_forces(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
+    apply_forces(car, tables, &tables.forces[..COUNT])
 }

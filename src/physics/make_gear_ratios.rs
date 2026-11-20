@@ -24,7 +24,6 @@ pub fn make_gear_ratios(
     tables: &PhysicsTables,
     numbers: &Numbers,
     gear_figures: &GearFigures,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<u32, Refused> {
     let n = tables.gear_count.get();
     if n > 7 {
@@ -68,13 +67,6 @@ pub fn make_gear_ratios(
         acc = ext_add(acc, step);
     }
     ratio(7).set(rounded_value(acc));
-    // The step's bits are left in the scene's scratch dword.
-    scene
-        .drawing
-        .scene
-        .get()
-        .scratch
-        .set(rounded_value(step).to_bits());
     ratio(-1).set(x87::negated(ratio(1).get()));
     ratio(0).set(x87::loaded(tables.gear_ratio_step.get()));
     Ok(n)

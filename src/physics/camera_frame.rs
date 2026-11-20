@@ -31,13 +31,8 @@ fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(),
             &c.tables.camera_frame_limit,
         );
         negate(&c.tables.camera_frame_limit);
-        scene
-            .drawing
-            .scene
-            .get()
-            .scratch
-            .set(c.shared.random.next_random());
-        x87_2(c.numbers, scene);
+        let random = c.shared.random.next_random();
+        x87_2(c.numbers, random, scene);
         if c.split_tables.still.get() != 0 {
             scene.lights.state.get().camera_shake_y.set(0);
             scene.lights.state.get().camera_shake_listener.set(0.0);
@@ -67,10 +62,10 @@ fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[camera_shake_listener] = (((int [scratch] / [k65536]) / [k4096]) * [three]) *
+/// `[camera_shake_listener] = (((int [random] / [k65536]) / [k4096]) * [three]) *
 ///  [camera_shake_y]`
-fn x87_2(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
-    let t0 = int(scene.drawing.scene.get().scratch.get() as i32);
+fn x87_2(numbers: &Numbers, random: u32, scene: &crate::scene::owner::Scene) {
+    let t0 = int(random as i32);
     let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
     let t3 = numbers.k4096.ld();
@@ -113,9 +108,11 @@ mod reference_vectors {
                 }],
                 ulps: 0,
                 plain: |_| {
+                    let scene = crate::test_support::own::scene();
                     x87_2(
                         crate::test_support::own::race().course.numbers.get(),
-                        crate::test_support::own::scene(),
+                        scene.drawing.scene.get().scratch.get(),
+                        scene,
                     );
                 },
             },

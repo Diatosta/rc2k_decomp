@@ -46,7 +46,6 @@ pub fn wheel_springs(
         drawing.scene.get().work_dword.set(old.to_bits());
         c.wheel_squeeze_last[k].set(old);
         let eax = contact.probe_height[k].get().wrapping_neg();
-        drawing.scene.get().scratch.set(eax);
         q.set(ext_div2(
             int_80(eax as i32, false),
             &numbers.k65536,

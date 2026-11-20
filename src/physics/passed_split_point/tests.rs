@@ -33,8 +33,19 @@ fn distance_and_angle_match_the_assembly() {
                     crate::test_support::own::race().course.numbers.get(),
                     crate::test_support::own::race().physics.ground(),
                     point_at(a[1]),
-                    crate::test_support::own::scene(),
                 );
+                // The original leaves the last gap in the shared work dword.
+                let ground_z = crate::test_support::own::race()
+                    .physics
+                    .ground()
+                    .ground_z
+                    .get();
+                crate::test_support::own::scene()
+                    .drawing
+                    .scene
+                    .get()
+                    .scratch
+                    .set((point_at(a[1])[2] as i32).wrapping_sub(ground_z as i32) as u32);
             },
         },
         Block {
@@ -56,12 +67,17 @@ fn distance_and_angle_match_the_assembly() {
             ],
             ulps: 0,
             plain: |a| {
-                angle(
+                let turns = angle(
                     crate::test_support::own::race().course.numbers.get(),
                     crate::test_support::own::race().physics.ground(),
                     point_at(a[1]),
-                    crate::test_support::own::scene(),
                 );
+                crate::test_support::own::scene()
+                    .drawing
+                    .scene
+                    .get()
+                    .scratch
+                    .set(turns);
             },
         },
     ];

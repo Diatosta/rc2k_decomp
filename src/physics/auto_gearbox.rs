@@ -56,29 +56,18 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
 }
 
 /// The automatic's tests.
-fn tests(
-    car: &Car,
-    tables: &PhysicsTables,
-    gear_figures: &GearFigures,
-    scene: &crate::scene::owner::Scene,
-) -> Result<Shift, Refused> {
-    let drawing = &scene.drawing;
+fn tests(car: &Car, tables: &PhysicsTables, gear_figures: &GearFigures) -> Result<Shift, Refused> {
     // `revs_from_speed` leaves the gear it reads in the same place.
     let gear = car.gear.get();
     let kept = car.engine_speed.get();
     revs_speed(car, tables)?;
-    drawing.scene.get().scratch.set(over_top(car).to_bits());
+    let over = over_top(car).to_bits();
     car.engine_speed.set(kept);
     shifts::auto_tests(
         gear,
         || car.all_wheels_off.get() != 0,
         || car.brake.get() != 0,
-        || {
-            !below(
-                drawing.scene.get().scratch.get(),
-                gear_figures.shift_up_point.get(),
-            )
-        },
+        || !below(over, gear_figures.shift_up_point.get()),
         || {
             !below(
                 car.local_velocity[2].get(),
@@ -86,19 +75,12 @@ fn tests(
             )
         },
         || {
-            drawing.scene.get().scratch.set(over_top(car).to_bits());
+            let over = over_top(car).to_bits();
             if !shifts::above_first(gear) {
                 return Ok(false);
             }
             let (rb, rl) = (ratio(tables, gear)?, ratio(tables, gear.wrapping_sub(1))?);
-            if mul_div_status(
-                drawing.scene.get().scratch.get(),
-                rb,
-                rl,
-                &gear_figures.shift_ratio_figure,
-            ) & 0x100
-                == 0
-            {
+            if mul_div_status(over, rb, rl, &gear_figures.shift_ratio_figure) & 0x100 == 0 {
                 return Ok(false);
             }
             let point = if shifts::down_point_clutch(car.brake.get()) {
@@ -106,7 +88,7 @@ fn tests(
             } else {
                 gear_figures.shift_down_point.get()
             };
-            Ok(below(drawing.scene.get().scratch.get(), point))
+            Ok(below(over, point))
         },
         || below(car.local_velocity[2].get(), tables.auto_gear_speed_up.get()),
     )
@@ -119,7 +101,6 @@ pub fn auto_gearbox(
     tables: &PhysicsTables,
     numbers: &Numbers,
     gear_figures: &GearFigures,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     car.gear_changed.set(0);
     let mut to = 'first: {
@@ -156,7 +137,7 @@ pub fn auto_gearbox(
         if car.gear_change_blocked.get() != 0 {
             return Ok(());
         }
-        tests(car, tables, gear_figures, scene)?
+        tests(car, tables, gear_figures)?
     };
     loop {
         to = match to {

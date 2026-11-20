@@ -26,11 +26,11 @@ fn word(course: &Course, face: u32) -> Result<u32, Refused> {
     )?))
 }
 
-fn after(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn after(c: &ContactInputs<'_>) -> Result<(), Refused> {
     c.car.contact_flag.set(1);
     c.car.wall_hit_timer.set(0x32);
     { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
-    crate::physics::feel_ground::feel_ground(&c.ground, scene)
+    crate::physics::feel_ground::feel_ground(&c.ground)
 }
 
 /// The steps, not guarded (`check` before).
@@ -69,7 +69,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
             ) {
                 c.car.contact_depth.set(hit);
             }
-            after(c, scene)
+            after(c)
         }
         walls::Walk::Clear { bits } => {
             contact.wall_face_now.set(contact.wall_face_before.get());
@@ -81,7 +81,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
             c.car.contact_point[1].set(c.car.local_velocity[1].get());
             c.car.contact_point[2].set(c.car.local_velocity[2].get());
             crate::physics::wall_push_back::steps(c, scene)?;
-            after(c, scene)
+            after(c)
         }
     }
 }

@@ -8,7 +8,7 @@ use crate::physics::move_slot::move_slot;
 use crate::physics::step_families::SlotInputs;
 
 /// The eight slots, those in use moved, `slot_count` the number done so far.
-pub fn move_slots(c: &SlotInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn move_slots(c: &SlotInputs<'_>) -> Result<(), Refused> {
     let work = c.work;
     let slots = &work.race_slots;
     let mut n = 0u32;
@@ -16,7 +16,7 @@ pub fn move_slots(c: &SlotInputs<'_>, scene: &crate::scene::owner::Scene) -> Res
         if slot.part.get() != 0 {
             n += 1;
             work.slot_count.set(n);
-            move_slot(c, slot, number, scene)?;
+            move_slot(c, slot, number)?;
         }
     }
     work.slot_count.set(n);

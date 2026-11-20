@@ -25,8 +25,8 @@ pub static ITEM_SPRITES: [[u32; 5]; 16] = [
 
 pub use rc2k_core::menu::tables::ItemSprite;
 
-/// A list kept in a `SpriteCell`: `LIST_TAG | n` (the numbers the game keeps there are
-/// 0 .. 2 and 0xFFFFFFA9; one in the tag's range is refused when set).
+/// A list kept in a `SpriteCell`: `LIST_TAG | n` (the plain numbers kept there are small or
+/// a few below zero; one in the tag's range is refused when set).
 const LIST_TAG: u32 = 0x7FFF_FFF0;
 
 /// What is drawn behind a menu item, as it changes in play.

@@ -22,7 +22,6 @@ pub fn spin_matrix(
     matrices: &SceneMatrices,
     physics_tables: &PhysicsTables,
     car: &Car,
-    scene: &crate::scene::owner::Scene,
 ) {
     car.spin_length.set(rounded_value(vector_length(&car.spin)));
     // Tested as a dword: any bit set (a NaN too) means a spin.
@@ -41,8 +40,5 @@ pub fn spin_matrix(
             car.crash_matrix[k].set(matrices.turned_matrix[k].get());
         }
     }
-    // `scene::square_matrix` leaves its last length in the scene's scratch cell (the ones before
-    // are written over by it).
-    let length = square_matrix(course.reads(), &car.crash_matrix);
-    scene.drawing.scene.get().scratch.set(length);
+    square_matrix(course.reads(), &car.crash_matrix);
 }

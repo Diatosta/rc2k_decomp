@@ -17,7 +17,7 @@
 //! Takes: the record the force goes to (`contact_record`, set by each caller just before).
 
 use crate::math::cell_x87::CellX87;
-use crate::math::matrix3::{extended, rounded, rounded_value};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87::{compare_80, neg_rounded};
 use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
@@ -59,9 +59,9 @@ pub fn contact_force(
     physics_tables: &PhysicsTables,
     car: &Car,
     record: &ForceRecord,
-    scene: &crate::scene::owner::Scene,
 ) {
-    let drawing = &scene.drawing;
+    // The work value the first and the sliding steps pass through; each is stored before it is read.
+    let scratch = crate::memory::session::PlainDword::new(0);
     cross_product(
         &contact.contact_turn_speed,
         &contact.contact_point,
@@ -80,8 +80,8 @@ pub fn contact_force(
         ))
         .to_bits(),
     );
-    x87_2(contact, numbers, scene);
-    hold_low(&contact.contact_depth, &drawing.scene.get().scratch);
+    x87_2(contact, numbers, &scratch);
+    hold_low(&contact.contact_depth, &scratch);
     // The push the turn would give.
     cross_product(
         &contact.contact_point,
@@ -113,11 +113,9 @@ pub fn contact_force(
     copy3(&contact.contact_normal_push, &contact.contact_normal);
     let factor = extended(contact.contact_factor.get());
     scale_vector(&contact.contact_normal_push, factor);
-    drawing.scene.get().scratch.set(rounded(factor));
     let along = { dot_product(&contact.contact_point_speed, &contact.contact_normal) };
     copy3(&contact.contact_normal_speed, &contact.contact_normal);
     scale_vector(&contact.contact_normal_speed, along);
-    drawing.scene.get().scratch.set(rounded(along));
     copy3(&contact.contact_side_speed, &contact.contact_point_speed);
     x87_4(contact);
     contact
@@ -132,7 +130,6 @@ pub fn contact_force(
         copy3(&contact.contact_extra, &contact.contact_normal);
         let part = x87_5(contact, physics_tables);
         scale_vector(&contact.contact_extra, part);
-        drawing.scene.get().scratch.set(rounded(part));
     }
     x87_1(
         &contact.contact_normal_push,
@@ -151,9 +148,9 @@ pub fn contact_force(
     if compare_80(vector_length(&contact.contact_slide), ZERO) & 0x4000 != 0 {
         fill3(&contact.contact_slide, 0);
     }
-    let status = x87_6(contact, scene);
+    let status = x87_6(contact, &scratch);
     if status & 0x4100 == 0 {
-        x87_7(contact, scene);
+        x87_7(contact, &scratch);
     }
     // The sum into the record.
     x87_1(
@@ -180,14 +177,14 @@ fn x87_1(a: &[PlainFloat; 3], b: &[PlainFloat; 3], out: &[PlainFloat; 3]) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_2(contact: &ContactWork, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
+fn x87_2(contact: &ContactWork, numbers: &Numbers, scratch: &crate::memory::session::PlainDword) {
     let t0 = X(1.0);
     let t1 = contact.contact_normal[1].ld();
     let t2 = t1.abs();
     let t3 = t0 - t2;
     let t4 = numbers.hundredth_a.ld();
     let t5 = t3 + t4;
-    scene.drawing.scene.get().scratch.st(t5);
+    scratch.st(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -236,7 +233,7 @@ fn x87_5(contact: &ContactWork, tables: &PhysicsTables) -> [u8; 10] {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_6(contact: &ContactWork, scene: &crate::scene::owner::Scene) -> u16 {
+fn x87_6(contact: &ContactWork, scratch: &crate::memory::session::PlainDword) -> u16 {
     let t0 = contact.contact_slide[0].ld();
     let t1 = t0 * t0;
     let t2 = contact.contact_slide[1].ld();
@@ -246,16 +243,15 @@ fn x87_6(contact: &ContactWork, scene: &crate::scene::owner::Scene) -> u16 {
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    scene.drawing.scene.get().scratch.st(t8);
+    scratch.st(t8);
     let t9 = contact.contact_slide_limit_held.ld();
     compare(t8, t9)
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_7(contact: &ContactWork, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
+fn x87_7(contact: &ContactWork, scratch: &crate::memory::session::PlainDword) {
     let t0 = contact.contact_slide_limit_held.ld();
-    let t1 = drawing.scene.get().scratch.ld();
+    let t1 = scratch.ld();
     let t2 = t0 / t1;
     let t3 = contact.contact_slide[0].ld();
     let t4 = t3 * t2;
@@ -266,7 +262,7 @@ fn x87_7(contact: &ContactWork, scene: &crate::scene::owner::Scene) {
     let t7 = contact.contact_slide[2].ld();
     let t8 = t7 * t2;
     contact.contact_slide[2].st(t8);
-    drawing.scene.get().scratch.st(t2);
+    scratch.st(t2);
 }
 
 /// One straight x87 run as plain Rust over `X`.

@@ -266,7 +266,11 @@ fn blocks() -> Vec<Block> {
                     race().shared.car(),
                     race().shared.physics_tables.get(),
                     race().course.numbers.get(),
-                    crate::test_support::own::scene(),
+                    &crate::test_support::own::scene()
+                        .drawing
+                        .scene
+                        .get()
+                        .scratch,
                 );
             },
         },
@@ -441,7 +445,11 @@ fn blocks() -> Vec<Block> {
                     race().shared.car(),
                     race().shared.physics_tables.get(),
                     race().course.numbers.get(),
-                    crate::test_support::own::scene(),
+                    &crate::test_support::own::scene()
+                        .drawing
+                        .scene
+                        .get()
+                        .scratch,
                 );
             },
         },
@@ -488,7 +496,11 @@ fn blocks() -> Vec<Block> {
                     speed_over_ground(
                         race().shared.car(),
                         race().shared.physics_tables.get(),
-                        crate::test_support::own::scene(),
+                        &crate::test_support::own::scene()
+                            .drawing
+                            .scene
+                            .get()
+                            .scratch,
                     ),
                 );
             },
@@ -509,7 +521,11 @@ fn blocks() -> Vec<Block> {
                 rolling_drag_forces(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    crate::test_support::own::scene(),
+                    &crate::test_support::own::scene()
+                        .drawing
+                        .scene
+                        .get()
+                        .scratch,
                 );
             },
         },

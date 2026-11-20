@@ -8,9 +8,9 @@ use crate::race::owner_course::Course;
 use rc2k_core::physics::motion::angles_wanted as wanted;
 
 // Core: `rc2k_core::physics::motion::angles_wanted`.
-pub fn update_car_angles(course: &Course, car: &Car, scene: &crate::scene::owner::Scene) {
+pub fn update_car_angles(course: &Course, car: &Car) {
     let (force, hold) = (car.camera_mode_is_2_or_3.get(), car.all_wheels_off.get());
     if wanted(force, hold) {
-        car_angles(course, car, scene);
+        car_angles(course, car);
     }
 }

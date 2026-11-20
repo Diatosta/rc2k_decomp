@@ -34,7 +34,7 @@ const NO_CLASS: FatalError = FatalError {
 };
 
 /// From a table's first entry on, the first entry `wanted` takes (a copy); at the end mark
-/// `none` (converted: `rc2k_core::menu::standings::search`).
+/// `none` (the rule is `rc2k_core::menu::standings::search`).
 fn search<T: Walked + Copy + Default>(
     t: &Table<T>,
     wanted: impl Fn(&T) -> bool,

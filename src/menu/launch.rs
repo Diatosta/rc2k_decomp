@@ -31,6 +31,7 @@ use crate::menu::lists_store::CarListParts;
 use crate::menu::name_lists::NAME_LEN;
 use crate::menu::player::player;
 use crate::owners::Owners;
+use crate::platform::caps;
 use crate::records::stages_store::TrackField;
 use rc2k_core::menu::flow::CarList;
 use rc2k_core::menu::launch::{
@@ -207,16 +208,12 @@ fn padded<const N: usize>(text: &str) -> [u8; N] {
 /// The network game the launch asked for: the settings set, the host or join item's own
 /// function run, the settings put back; after it the main menu goes on, or the program ends.
 fn run_net(o: Owners<'static>, launch: &NetLaunch) -> Result<(), Refused> {
-    #[cfg(web)]
-    {
-        let _ = (o, launch);
-        return Err(BadInput("the web build has no network play").into());
+    if !caps::NETWORK {
+        return Err(BadInput("this build has no network play").into());
     }
-    #[cfg(not(web))]
     run_net_game(o, launch)
 }
 
-#[cfg(not(web))]
 fn run_net_game(o: Owners<'static>, launch: &NetLaunch) -> Result<(), Refused> {
     crate::program_log::log(&format!("menu::launch: {launch:?}"));
     let kept = Kept::take(o)?;

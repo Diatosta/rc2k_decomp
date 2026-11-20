@@ -30,7 +30,6 @@ pub fn lever_pushes(
     switches: &FrameSwitches,
     physics_tables: &PhysicsTables,
     car: &Car,
-    scene: &crate::scene::owner::Scene,
 ) {
     physics_tables.lever_pushes[0].set(0);
     physics_tables.lever_pushes[1].set(0);
@@ -63,10 +62,10 @@ pub fn lever_pushes(
     physics_tables
         .lever_share_left
         .set(x87::loaded(&physics_tables.lever_share_start));
-    lever_push(car, physics_tables, numbers, scene);
+    lever_push(car, physics_tables, numbers);
     physics_tables.lever_push_vector[2].set(x87::loaded(&car.probe_point_z[0]).to_bits());
     physics_tables
         .lever_share_left
         .set(one_less(&physics_tables.lever_share_left));
-    lever_push(car, physics_tables, numbers, scene);
+    lever_push(car, physics_tables, numbers);
 }

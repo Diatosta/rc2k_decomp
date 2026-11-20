@@ -6,19 +6,12 @@
 use crate::math::x87;
 use crate::math::x87::mul2_plus;
 use crate::physics::car_store::Car;
-use crate::physics::flow::FloatView;
 use crate::physics::tables_store::PhysicsTables;
 
 /// The forces' step.
-pub fn add_drive_forces(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
+pub fn add_drive_forces(car: &Car, tables: &PhysicsTables) {
     let mut factor = tables.drive_force_factor[0].get();
     if car.drive_kind.get() != 0 {
-        scene
-            .drawing
-            .scene
-            .get()
-            .scratch
-            .set_float(x87::loaded(factor));
         factor = tables.drive_force_factor[1].get();
     }
     let loads = &tables.wheel_loads;

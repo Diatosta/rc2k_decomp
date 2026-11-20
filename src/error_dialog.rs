@@ -17,6 +17,7 @@ pub mod recover;
 
 use crate::gfx::typefaces::fonts;
 use crate::owners::Owners;
+use crate::platform::pointer;
 use crate::text::draw_text::{GameCanvas, draw_text_at};
 use std::cell::Cell;
 use std::sync::Mutex;
@@ -265,10 +266,10 @@ const LINE_H: i32 = 30;
 /// A way's row: its button's height and the row's pitch. On a touch screen the buttons are
 /// taller (1.6 lines) with a gap of half a button between them, so a finger does not hit the
 /// next one.
-const WAY_BUTTON_H: i32 = if cfg!(touch_screen) { 48 } else { 34 };
-const WAY_H: i32 = if cfg!(touch_screen) { 72 } else { 40 };
+const WAY_BUTTON_H: i32 = pointer::by_style(34, 48);
+const WAY_H: i32 = pointer::by_style(40, 72);
 const _: () = assert!(
-    !cfg!(touch_screen)
+    !pointer::is_touch()
         || (WAY_BUTTON_H * 2 >= LINE_H * 3 && (WAY_H - WAY_BUTTON_H) * 2 >= WAY_BUTTON_H)
 );
 /// The font's own top offset puts its letters a little below the y they are given.
@@ -341,7 +342,7 @@ fn run(
     };
     let keys_line = own(
         o,
-        if cfg!(touch_screen) {
+        if pointer::is_touch() {
             rc2k_core::strings::own::id::DIALOG_KEYS_TOUCH
         } else {
             rc2k_core::strings::own::id::DIALOG_KEYS

@@ -36,7 +36,6 @@ fn place(
     numbers: &Numbers,
     frame_work: &FrameWork,
     shared: &RaceShared,
-    scene: &crate::scene::owner::Scene,
 ) {
     crate::physics::place_camera::place_camera(
         camera,
@@ -45,7 +44,6 @@ fn place(
         numbers,
         frame_work,
         shared,
-        scene,
     );
 }
 
@@ -55,7 +53,6 @@ fn face_checkpoint(
     course: &Course,
     shared: &RaceShared,
     back: u32,
-    scene: &crate::scene::owner::Scene,
 ) -> bool {
     let Some(checkpoint) = camera_ground::back_checkpoint(shared.car().checkpoint.get(), back)
     else {
@@ -76,8 +73,6 @@ fn face_checkpoint(
     let first = shared.car().position[0].get().wrapping_sub(coordinate(0));
     let second = shared.car().position[2].get().wrapping_sub(coordinate(2));
     let angle = crate::scene::angle_between::angle_of(course, first, second);
-    // `scene::angle_between` leaves the angle in the scene's scratch cell.
-    scene.drawing.scene.get().scratch.set(angle);
     shared.car().camera_heading.set(angle << 16);
     true
 }
@@ -119,7 +114,6 @@ fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
                 c.numbers,
                 c.frame_work,
                 c.shared,
-                scene,
             );
             if camera_over_ground(&c.shared.buffers.reads.get().engine_tables, &c.ground)? {
                 continue;
@@ -147,7 +141,7 @@ fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
 // next_turn_step}`.
 pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    crate::physics::ease_view_turn::ease_view_turn(c.camera, c.replay_frames, c.car, scene);
+    crate::physics::ease_view_turn::ease_view_turn(c.camera, c.replay_frames, c.car);
     c.race_tables.camera_ground_flag.set(0);
     c.race_tables.camera_turn_step.set(u32::MAX);
     drawing
@@ -162,7 +156,6 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         c.numbers,
         c.frame_work,
         c.shared,
-        scene,
     );
     if record(c.view_records, c.car)?.halve_tilt.get() == 0 {
         return Ok(());
@@ -170,7 +163,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     if !camera_over_ground(&c.shared.buffers.reads.get().engine_tables, &c.ground)? {
         let mut found = false;
         for back in [1, 2] {
-            if !face_checkpoint(c.checkpoints, c.course, c.shared, back, scene) {
+            if !face_checkpoint(c.checkpoints, c.course, c.shared, back) {
                 break;
             }
             place(
@@ -180,7 +173,6 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
                 c.numbers,
                 c.frame_work,
                 c.shared,
-                scene,
             );
             if camera_over_ground(&c.shared.buffers.reads.get().engine_tables, &c.ground)? {
                 found = true;
@@ -204,7 +196,6 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         c.numbers,
         c.frame_work,
         c.shared,
-        scene,
     );
     if camera_clear_of_ground(&c.ground)? {
         return Ok(());
@@ -229,7 +220,6 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
             c.numbers,
             c.frame_work,
             c.shared,
-            scene,
         );
         up = !camera_clear_of_ground(&c.ground)?;
     }

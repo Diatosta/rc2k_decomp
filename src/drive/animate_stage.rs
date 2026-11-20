@@ -9,9 +9,6 @@ use crate::race::owner::Race;
 
 pub fn animate_stage(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     animate_lit_faces(race, scene)?;
-    move_slots(
-        &crate::physics::step_inputs::StepInputs::of(race).slots(),
-        scene,
-    )?;
+    move_slots(&crate::physics::step_inputs::StepInputs::of(race).slots())?;
     Ok(())
 }

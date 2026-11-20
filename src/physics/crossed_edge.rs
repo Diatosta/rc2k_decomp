@@ -13,7 +13,7 @@ use crate::physics::step_families::ContactInputs;
 
 /// The steps, not guarded (the probe checked before).
 // Core: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
-pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     let contact = c.contact;
     let n = contact.crossed_probe.get();
     if n == rc2k_core::physics::walls::NONE_CROSSED {
@@ -24,7 +24,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     c.car.contact_point[1].set(c.car.probe_point_y[k].get());
     c.car.contact_point[2].set(c.car.probe_point_z[k].get());
     { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
-    crate::physics::crossed_edge_contact::steps(c, scene)?;
+    crate::physics::crossed_edge_contact::steps(c)?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         contact.contact_speed_length.get(),
         c.car.contact_depth.get(),
@@ -33,7 +33,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     }
     c.car.contact_flag.set(1);
     c.car.wall_hit_timer.set(0x32);
-    crate::physics::feel_ground::feel_ground(&c.ground, scene)
+    crate::physics::feel_ground::feel_ground(&c.ground)
 }
 
 /// The probe checked (-1 is none).
@@ -44,10 +44,7 @@ pub fn check(contact: &ContactWork) -> Result<(), Refused> {
     check_probe(contact)
 }
 
-pub fn crossed_edge(
-    c: &ContactInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn crossed_edge(c: &ContactInputs<'_>) -> Result<(), Refused> {
     check(c.contact)?;
-    steps(c, scene)
+    steps(c)
 }

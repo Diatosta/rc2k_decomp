@@ -6,18 +6,12 @@
 use crate::math::x87;
 use crate::math::x87::{compare_full, toward_one};
 use crate::physics::car_store::Car;
-use crate::physics::flow::{FloatView, ZERO_BITS as ZERO};
+use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 /// The blend of this step.
-pub fn blend_wheel_load(
-    car: &Car,
-    tables: &PhysicsTables,
-    numbers: &Numbers,
-    scene: &crate::scene::owner::Scene,
-) {
+pub fn blend_wheel_load(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let depth = &car.contact_depth;
-    let share = &scene.drawing.scene.get().scratch;
     let less = |a: f32, b: f32| compare_full(a, b) & 0x100 != 0;
     if less(depth.get(), tables.wheel_load_limit.get()) {
         return;
@@ -30,13 +24,13 @@ pub fn blend_wheel_load(
             slot += add;
         }
     }
-    share.set_float(x87::div(depth.get(), &numbers.sixty_four));
-    if less(share.float(), zero) {
-        share.set_float(x87::loaded(zero));
+    let mut share = x87::div(depth.get(), &numbers.sixty_four);
+    if less(share, zero) {
+        share = x87::loaded(zero);
     }
-    if !less(share.float(), one) {
-        share.set_float(x87::loaded(one));
+    if !less(share, one) {
+        share = x87::loaded(one);
     }
     let mark = &car.impact_octant_marks[slot];
-    mark.set(toward_one(mark.get(), share.float()));
+    mark.set(toward_one(mark.get(), share));
 }

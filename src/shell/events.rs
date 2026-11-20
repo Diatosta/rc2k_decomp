@@ -95,7 +95,9 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     {
         crate::platform::ffi::web::run_queued_calls();
         crate::platform::web_pads::poll();
-        crate::platform::ffi::web::follow_full_screen();
+        if crate::platform::ffi::web::left_full_screen() {
+            crate::platform::window_mode::set(crate::platform::window_mode::WindowMode::Window);
+        }
     }
     while let Some(event) =
         crate::platform::event::next(|event| crate::debug::imgui_sdl::event(event.as_sdl()))

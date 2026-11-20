@@ -3,7 +3,7 @@
 //!
 //! The frame callback of `menu::championship_welcome` and `menu::a8_welcome` (handed to
 //! `screens::run_frame`). The steps are the game's (the surface, the 3D scene and the showing are
-//! the platform's), through an `Env` (`picture_frame` and `fade_frame` alike).
+//! the platform's), through the owners (`picture_frame` and `fade_frame` alike).
 
 use crate::errors::Refused;
 

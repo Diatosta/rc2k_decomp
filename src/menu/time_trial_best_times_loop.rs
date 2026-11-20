@@ -1,4 +1,4 @@
-//! The best times screen of the time trial, by its title "BEST TIMES" and its callers.
+//! The best times screen of the time trial, by its title "BEST TIMES".
 //! Screen-specific part of `menu::screen_loop`: background `btimes.png`; leaving is asked about;
 //! left without the question, the highlight is not saved; its own 3D scene list is set before the
 //! first frame only.

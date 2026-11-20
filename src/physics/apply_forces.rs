@@ -14,10 +14,9 @@ pub fn apply_forces(
     car: &Car,
     tables: &PhysicsTables,
     records: &[ForceRecord],
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     for rec in records {
-        apply_force(car, tables, rec, scene);
+        apply_force(car, tables, rec);
     }
     Ok(())
 }

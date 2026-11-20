@@ -20,10 +20,16 @@ pub const CONNECTION_NAME: &[u8] = b"Steam (friends and lobbies)\0";
 #[cfg(any(test, steam_support))]
 #[cfg_attr(not(steam_support), allow(dead_code))]
 mod callbacks;
-#[cfg(any(test, steam_support))]
+// What a lobby's data says (no Steam library needed): the invitation of a launch argument is
+// read through it whether or not this build has Steam.
+#[cfg_attr(
+    not(steam_support),
+    allow(dead_code, reason = "only Steam's lobbies read and write the rest")
+)]
 mod lobby_data;
+pub use lobby_data::{connect_lobby_argument, lobby_instance};
 #[cfg(steam_support)]
-pub use lobby_data::*;
+pub use lobby_data::{desc_from_data, desc_to_data, instance_lobby, keys};
 
 #[cfg(steam_support)]
 mod flat;

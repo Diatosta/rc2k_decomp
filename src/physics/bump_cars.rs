@@ -19,7 +19,7 @@ use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::step_families::ContactInputs;
 use crate::race::numbers_store::Numbers;
 
-use crate::math::matrix3::{extended, rounded, rounded_value};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87::loaded;
 use crate::math::x87_float::int;
 use crate::memory::session::{DwordLike, FloatLike};
@@ -38,11 +38,7 @@ fn turn_speed(block: &Car) {
     }
 }
 
-fn steps(
-    c: &ContactInputs<'_>,
-    other_car: &Car,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+fn steps(c: &ContactInputs<'_>, other_car: &Car) -> Result<(), Refused> {
     for k in 0..3 {
         c.contact.contact_point[k].set(loaded(&c.contact.corner_turned[k]));
     }
@@ -75,7 +71,6 @@ fn steps(
     push_apart(c.car, c.contact, c.numbers, &other_car.position);
     let factor = extended(c.numbers.three.get());
     scale_vector(&c.contact.bump_push, factor);
-    scene.drawing.scene.get().scratch.set(rounded(factor));
     add_push(c.car, c.contact, &other_car.velocity);
     turn_speed(other_car);
     turn_speed(c.car);
@@ -84,15 +79,11 @@ fn steps(
 }
 
 /// `other_car` the other car's block.
-pub fn bump_cars(
-    c: &ContactInputs<'_>,
-    other_car: &Car,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn bump_cars(c: &ContactInputs<'_>, other_car: &Car) -> Result<(), Refused> {
     if c.contact.other_car_block.get() == 0 {
         return Err(BadInput("a null car block").into());
     }
-    steps(c, other_car, scene)
+    steps(c, other_car)
 }
 
 // ---- the x87 arithmetic ----

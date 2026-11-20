@@ -9,7 +9,7 @@
 
 use crate::logfile::log_float::log_float;
 use crate::math::cell_x87::CellX87;
-use crate::math::matrix3::{rounded, rounded_value};
+use crate::math::matrix3::rounded_value;
 use crate::math::x87_float::compare;
 use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
@@ -70,7 +70,6 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
         let factor = crate::math::x87::div_80(top, length);
         scale_vector(&car.velocity, factor);
         scale_vector(&car.local_velocity, factor);
-        drawing.scene.get().scratch.set(rounded(factor));
     }
 }
 

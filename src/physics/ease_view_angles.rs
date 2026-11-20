@@ -16,19 +16,16 @@ pub fn ease_view_angles(
     numbers: &Numbers,
     shared: &RaceShared,
     view_records: &ViewAndRecords,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     let esi = record(view_records, shared.car())?;
     if esi.change_time.get() == 0 {
         return Ok(());
     }
-    share_done(shared, esi, scene);
+    share_done(shared, esi);
+    let scratch = crate::memory::session::PlainDword::new(0);
     for (to, rate) in shared.car().camera_offset_turns.iter().zip(&esi.turn_rates) {
-        x87_1(numbers, shared.tables(), rate.get(), scene);
-        to.set(
-            to.get()
-                .wrapping_add(scene.drawing.scene.get().scratch.get() << 16),
-        );
+        x87_1(numbers, shared.tables(), rate.get(), &scratch);
+        to.set(to.get().wrapping_add(scratch.get() << 16));
     }
     Ok(())
 }
@@ -39,13 +36,18 @@ pub fn ease_view_angles(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [scratch] = ([s + 0] * [view_share]) * [k65536]` (`[s + 0]` a record's turn rate, passed by
 ///  value)
-fn x87_1(numbers: &Numbers, tables: &RaceTables, rate: u32, scene: &crate::scene::owner::Scene) {
+fn x87_1(
+    numbers: &Numbers,
+    tables: &RaceTables,
+    rate: u32,
+    scratch: &crate::memory::session::PlainDword,
+) {
     let t0 = ld(rate);
     let t1 = tables.view_share.ld();
     let t2 = t0 * t1;
     let t3 = numbers.k65536.ld();
     let t4 = t2 * t3;
-    scene.drawing.scene.get().scratch.set(to_int(t4) as u32);
+    scratch.set(to_int(t4) as u32);
 }
 
 #[cfg(test)]
@@ -73,7 +75,11 @@ mod reference_vectors {
                     race().course.numbers.get(),
                     race().shared.tables(),
                     crate::math::x87_mem::Base::dword(a[0], 0),
-                    crate::test_support::own::scene(),
+                    &crate::test_support::own::scene()
+                        .drawing
+                        .scene
+                        .get()
+                        .scratch,
                 );
             },
         }]

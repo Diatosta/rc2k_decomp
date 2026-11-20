@@ -17,20 +17,18 @@ pub fn set_wheel_weights(
     tables: &PhysicsTables,
     contact: &ContactWork,
     numbers: &Numbers,
-    scene: &crate::scene::owner::Scene,
 ) {
-    let scratch = &scene.drawing.scene.get().scratch;
     let one = numbers.one.get();
     let high = numbers.five.get();
     let k = numbers.quarter.get();
-    scratch.set(x87::loaded(&contact.wheel_share).to_bits());
-    if compare_full(scratch.get(), one) & 0x100 != 0 {
-        scratch.set(x87::loaded(one).to_bits());
+    let mut share = x87::loaded(&contact.wheel_share).to_bits();
+    if compare_full(share, one) & 0x100 != 0 {
+        share = x87::loaded(one).to_bits();
     }
-    if compare_full(scratch.get(), high) & 0x100 == 0 {
-        scratch.set(x87::loaded(high).to_bits());
+    if compare_full(share, high) & 0x100 == 0 {
+        share = x87::loaded(high).to_bits();
     }
-    let f = weight_force(scratch.get(), one, k, &tables.gravity, &tables.weight);
+    let f = weight_force(share, one, k, &tables.gravity, &tables.weight);
     let wheels = &tables.forces[..4];
     for w in wheels {
         w.force[1].set(f);

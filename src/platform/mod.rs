@@ -26,6 +26,7 @@
 
 #[cfg(target_os = "android")]
 pub mod android;
+pub mod caps;
 pub mod event;
 pub mod ffi;
 #[cfg(handheld)]
@@ -34,6 +35,7 @@ pub mod icon;
 pub mod input;
 pub mod os;
 pub mod pacing;
+pub mod pointer;
 pub mod pool;
 pub mod safe_area;
 pub mod sound;

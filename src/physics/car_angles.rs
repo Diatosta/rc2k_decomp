@@ -12,8 +12,8 @@ use crate::race::owner_course::Course;
 
 /// `matrix_angles` of the crash matrix, each angle scaled to the car's whole-number angle (pitch,
 /// heading, roll).
-pub fn car_angles(course: &Course, car: &Car, scene: &crate::scene::owner::Scene) {
-    matrix_angles(course, &car.crash_matrix, scene);
+pub fn car_angles(course: &Course, car: &Car) {
+    matrix_angles(course, &car.crash_matrix);
     let scale = |a: u32| {
         mul3_to_int(
             a,

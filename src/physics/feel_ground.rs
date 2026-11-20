@@ -14,15 +14,12 @@ use crate::physics::step_families::GroundInputs;
 use rc2k_core::physics::walls::WheelsOff;
 
 // Core: `rc2k_core::physics::walls::WheelsOff`.
-pub fn feel_ground(
-    c: &GroundInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn feel_ground(c: &GroundInputs<'_>) -> Result<(), Refused> {
     if c.car.probe_count.get() > rc2k_core::physics::walls::PROBE_ROOM {
         return Err(BadInput("more than 0x40 probe points").into());
     }
     crate::physics::note_surface_mode::note_surface_mode(c.car);
-    crate::physics::probe_ground::probe_ground(c, c.car, scene)?;
+    crate::physics::probe_ground::probe_ground(c, c.car)?;
     crate::physics::lowest_body_point::lowest_body_point(c.car, c.numbers, c.contact)?;
     let off = WheelsOff::of([
         c.car.wheel_squeeze[0].bits(),

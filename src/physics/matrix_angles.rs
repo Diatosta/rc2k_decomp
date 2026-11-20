@@ -21,29 +21,16 @@ fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&PlainFloat; 3], unit: [f32; 3
 }
 
 /// On the matrix `m`; the angles go into the course lists (`car_heading`, `car_pitch`, `car_roll`).
-pub fn matrix_angles(
-    course: &Course,
-    m: &(impl Cells + ?Sized),
-    scene: &crate::scene::owner::Scene,
-) {
-    let drawing = &scene.drawing;
+pub fn matrix_angles(course: &Course, m: &(impl Cells + ?Sized)) {
     let l = course.lists.get();
     let turned = [&l.turned_x, &l.turned_y, &l.turned_z];
     turn_unit(m, &turned, [0.0, 0.0, 1.0]);
     l.car_heading.set(patan(&l.turned_x, &l.turned_z));
     turn_unit(m, &turned, [0.0, 0.0, 1.0]);
-    let pitch = clamped_asin_at(
-        extended(l.turned_y.get()),
-        &drawing.scene.get().scratch,
-        &course.numbers.get().one,
-    );
+    let pitch = clamped_asin_at(extended(l.turned_y.get()), &course.numbers.get().one);
     l.car_pitch.set(neg_rounded(pitch));
     turn_unit(m, &turned, [1.0, 0.0, 0.0]);
     let sine = over_cos_80(&l.turned_y, &l.car_pitch);
-    let roll = clamped_asin_at(
-        sine,
-        &drawing.scene.get().scratch,
-        &course.numbers.get().one,
-    );
+    let roll = clamped_asin_at(sine, &course.numbers.get().one);
     l.car_roll.set(rounded_value(roll));
 }

@@ -10,7 +10,7 @@
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::{lerp_table, trunc_mul_to_int};
-use crate::physics::flow::{FloatView, ZERO_BITS as ZERO};
+use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use std::cmp::Ordering;
@@ -32,7 +32,6 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
         &shared_store.car().engine_speed,
         &shared_store.car().engine_speed_limit,
     );
-    drawing.scene.get().scratch.set_float(s);
     if below(s, course.numbers.get().one.get()) && !below(s, ZERO) {
         let i = trunc_mul_to_int(s, course.numbers.get().eight.get()) as u32;
         drawing.scene.get().work_dword.set(i);

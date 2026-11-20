@@ -1,9 +1,8 @@
-//! Each menu item names its neighbours by number at +0x24, +0x28, +0x2C and +0x30 (which key
-//! goes with which is in `Direction`). A link of 0x6F means there is none, and 0xFFFFFC1A
-//! means "ask the item": its callback for that direction (+0x34 .. +0x40) is called instead.
-//! Every move plays the click, `sound::play_menu_sound` with sound 1. The two vertical moves go
-//! on along the same link until they reach an item whose +0x48 is 0xFFFFFC1B, so items that
-//! cannot be chosen are stepped over. The two horizontal ones take one step and, while
+//! Each menu item names its four neighbours by number (which key goes with which is in
+//! `Direction`). A link of `NO_LINK` means there is none, and `ASK_ITEM` means "ask the item":
+//! its callback for that direction is called instead. Every move plays the click,
+//! `sound::play_menu_sound` with sound 1. The two vertical moves go on along the same link
+//! until they reach an item marked choosable, so items that cannot be chosen are stepped over. The two horizontal ones take one step and, while
 //! `flow.turning` is 1, first turn a counter: the object in front goes round the objects, and
 //! the turn direction and the angle are left at 1 and 0 (right) or -1 and -1 (left). They click
 //! only if `flow.quiet` is not 1.
@@ -93,15 +92,18 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
     Ok(())
 }
 
-/// The item a sideways move lands on: the one its link names, but the web build's hidden
-/// item is passed by along the same link (`None`: nothing beyond it).
-#[cfg(web)]
+/// The item a sideways move lands on: the one its link names, but an item hidden in this build
+/// (the network item without network play) is passed by along the same link (`None`: nothing
+/// beyond it).
 fn passing_hidden(
     menus: &crate::menu::owner::Menus,
     n: u32,
     way: usize,
 ) -> Result<Option<u32>, Refused> {
     use rc2k_core::menu::navigation::{Link, link};
+    if crate::platform::caps::NETWORK {
+        return Ok(Some(n));
+    }
     let it = item_at(menus, n)?;
     if !crate::menu::web_limits::hidden(it.fixed()) {
         return Ok(Some(n));
@@ -110,14 +112,4 @@ fn passing_hidden(
         Link::To(over) => Some(over),
         _ => None,
     })
-}
-
-#[cfg(not(web))]
-#[allow(clippy::unnecessary_wraps)] // the web build's version looks the item up and can refuse
-fn passing_hidden(
-    _menus: &crate::menu::owner::Menus,
-    n: u32,
-    _way: usize,
-) -> Result<Option<u32>, Refused> {
-    Ok(Some(n))
 }

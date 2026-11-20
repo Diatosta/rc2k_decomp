@@ -37,7 +37,6 @@ fn place_with(
     shared: &RaceShared,
     turns: Turns,
     second: &dyn Fn() -> [i32; 3],
-    scene: &crate::scene::owner::Scene,
 ) {
     let figures = if shared.vars.get().split.get() == SECOND_RECORD_MODE {
         &lights_data.place_second
@@ -120,7 +119,6 @@ fn place_with(
     shared.car().camera_position[2].set(z);
     // The second offset, turned with the car.
     let whole = second();
-    scene.drawing.scene.get().scratch.set(whole[2] as u32);
     let car = [
         frame_work.camera_car[0].get(),
         frame_work.camera_car[1].get(),
@@ -145,7 +143,6 @@ pub fn place_camera(
     numbers: &Numbers,
     frame_work: &FrameWork,
     shared: &RaceShared,
-    scene: &crate::scene::owner::Scene,
 ) {
     use crate::math::{rotate_point_about_y, rotate_point_about_y_ebx, rotate_point_about_y_ecx};
     let second = || {
@@ -172,7 +169,6 @@ pub fn place_camera(
             rotate_point_about_y::rotate_point_about_y,
         ),
         &second,
-        scene,
     );
 }
 

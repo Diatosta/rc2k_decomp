@@ -1,8 +1,8 @@
 //! Adds a received or own message to the lobby chat (eight lines): "name> text" is cut into
 //! lines no wider than the chat's width, each entering at the bottom while the top one drops.
 //! Does nothing for an empty message. A character wider than a whole line, or a chat text with
-//! no line end, is refused (the cutting would never end). Callers hold the received messages'
-//! lock.
+//! no line end, is refused (the cutting would never end). The received messages' lock is held
+//! while it runs.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::Gfx;

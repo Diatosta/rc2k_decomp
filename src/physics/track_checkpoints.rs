@@ -63,7 +63,7 @@ pub fn track_checkpoints(
     ) {
         return Ok(());
     }
-    if !{ crate::physics::passed_split_point::passed_split_point(c, scene) }? {
+    if !{ crate::physics::passed_split_point::passed_split_point(c) }? {
         return Ok(());
     }
     let split =

@@ -21,7 +21,6 @@ pub fn gearbox_step(
     numbers: &Numbers,
     shared: &RaceShared,
     gear_figures: &crate::physics::gear_store::GearFigures,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
     let turn = gearbox_turn(
@@ -39,7 +38,6 @@ pub fn gearbox_step(
             shared.physics_tables.get(),
             numbers,
             gear_figures,
-            scene,
         )?,
         GearboxTurn::Asked => {
             { take_asked_gear(numbers, shared) }?;
@@ -50,7 +48,6 @@ pub fn gearbox_step(
             shared.physics_tables.get(),
             numbers,
             gear_figures,
-            scene,
         )?,
     }
     if shared.car().gear_changed.get() == 1 {

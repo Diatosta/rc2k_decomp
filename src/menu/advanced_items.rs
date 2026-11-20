@@ -8,14 +8,12 @@
 
 use crate::errors::Refused;
 use crate::owners::Owners;
+use crate::platform::caps;
 use rc2k_core::options::advanced::{
     Kind, ROWS, Renderer, Values, When, flag_number, flag_shown, set_key,
 };
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
-
-/// Whether the page has the row that shares the log (phones with Android's share sheet).
-pub const PHONE: bool = cfg!(target_os = "android");
 
 /// The part of the page shown: 0 the first `PAGE_ROWS` rows, 1 the rest.
 static PAGE: AtomicUsize = AtomicUsize::new(0);
@@ -121,7 +119,8 @@ pub fn shown(o: Owners<'static>) -> Values {
 
 /// The item slot `row` of the part shown, stepped one: the part's rows start at its first.
 pub fn step(o: Owners<'static>, row: u8, up: bool) -> Result<(), Refused> {
-    let row = rc2k_core::options::advanced::rows_on_page(page(), PHONE).start as u8 + row;
+    let row =
+        rc2k_core::options::advanced::rows_on_page(page(), caps::SHARE_SHEET).start as u8 + row;
     if usize::from(row) >= ROWS.len() {
         return Ok(());
     }
@@ -136,10 +135,9 @@ pub fn step(o: Owners<'static>, row: u8, up: bool) -> Result<(), Refused> {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(state) = guard.as_mut() {
         let most = crate::scene::workers::most_threads() as u32;
-        // OpenGL alone is a desktop choice: the handheld's GPU renderer is GL ES already, and a
-        // phone's one window is the GPU renderer's.
-        let gl = cfg!(not(any(handheld, target_os = "android")));
-        state.shown.step(usize::from(row), up, most, gl);
+        state
+            .shown
+            .step(usize::from(row), up, most, caps::OPENGL_CHOICE);
     }
     Ok(())
 }
@@ -147,7 +145,8 @@ pub fn step(o: Owners<'static>, row: u8, up: bool) -> Result<(), Refused> {
 /// Enter on a row of the part shown: the last row (the deletion of all saved data) asks
 /// and deletes; the settings' rows are stepped with the left and right keys, so nothing here.
 pub fn delete_saved_data(o: Owners<'static>) -> Result<(), Refused> {
-    let row = rc2k_core::options::advanced::rows_on_page(page(), PHONE).start + DELETE_SLOT;
+    let row =
+        rc2k_core::options::advanced::rows_on_page(page(), caps::SHARE_SHEET).start + DELETE_SLOT;
     if !matches!(ROWS.get(row).map(|r| r.kind), Some(Kind::DeleteData)) {
         return Ok(());
     }

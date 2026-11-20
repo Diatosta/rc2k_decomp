@@ -63,31 +63,17 @@ pub fn engine_sound(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     shared: &RaceShared,
-    scene: &crate::scene::owner::Scene,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
     if shared.view.get().players.get() == 1 && shared.view_car(0).is_none() {
         return Err(crate::errors::BadInput("a null view block").into());
     }
     run(shared.car(), numbers);
-    drawing
-        .scene
-        .get()
-        .scratch
-        .set(x87::loaded(&shared.car().engine_speed).to_bits());
+    let speed = x87::loaded(&shared.car().engine_speed);
     let floor = shared.physics_tables.get().idle_engine_speed.get();
-    let held = hold_low(f32::from_bits(drawing.scene.get().scratch.get()), floor);
-    drawing.scene.get().scratch.set(held.to_bits());
-    drawing
-        .scene
-        .get()
-        .scratch
-        .set(ext_to_int(extended(drawing.scene.get().scratch.get())) as u32);
-    let (revs, _) = ease_revs(
-        shared.car().engine_sound_revs.get(),
-        drawing.scene.get().scratch.get(),
-    );
+    let held = hold_low(speed, floor);
+    let whole = ext_to_int(extended(held.to_bits())) as u32;
+    let (revs, _) = ease_revs(shared.car().engine_sound_revs.get(), whole);
     shared.car().engine_sound_revs.set(revs);
     { car_sound_state(numbers, matrices, shared, sound) }?;
     gear_change_sound(shared.car(), sound, shared.work.get())

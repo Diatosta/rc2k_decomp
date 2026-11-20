@@ -49,7 +49,7 @@ fn side(contact: &ContactWork, probe: &GroundProbe, x: u32, z: u32) -> bool {
 
 /// The steps, not guarded (the probe checked before).
 // Core: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
-pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     let n = c.contact.crossed_probe.get();
     c.contact.probe_index.set(n);
     let k = n as usize;
@@ -99,7 +99,6 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
         c.tables,
         from,
         to,
-        scene,
     )?;
     c.contact.crossed_heading.set(c.tables.wall_heading.get());
     copy3(&c.contact.contact_car_speed, &c.car.velocity);
@@ -109,14 +108,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     c.contact.contact_point[2].set(c.contact.probe_turned_z[k].get());
     c.contact.contact_point[1].set(mul(&c.contact.contact_point[1], &c.numbers.tenth));
     c.contact.contact_slide_limit.set(0.0);
-    contact_force(
-        c.contact,
-        c.numbers,
-        c.tables,
-        c.car,
-        &c.tables.contacts[1],
-        scene,
-    );
+    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[1]);
     { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
     Ok(())
 }

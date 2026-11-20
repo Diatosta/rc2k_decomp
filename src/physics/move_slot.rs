@@ -23,7 +23,7 @@ use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::rounded_value;
 use crate::math::x87;
-use crate::math::x87::{abs_compare, abs_of, mul, mul2_to_int, negated};
+use crate::math::x87::{abs_compare, mul, mul2_to_int, negated};
 use crate::math::x87_float as bh;
 use crate::memory::session::{FloatLike, PlainDword, PlainFloat};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
@@ -78,13 +78,7 @@ fn spin_axis(work: &RaceWork, number: usize) -> SpinAxis {
 }
 
 /// The slot `s`, number `number` of the table.
-pub fn move_slot(
-    c: &SlotInputs<'_>,
-    s: &RaceSlot,
-    number: usize,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
+pub fn move_slot(c: &SlotInputs<'_>, s: &RaceSlot, number: usize) -> Result<(), Refused> {
     let dt = c.tables.step_time.get();
     let k65536 = c.numbers.k65536.get();
     copy_place(&s.place, &c.work.slot_place);
@@ -112,7 +106,6 @@ pub fn move_slot(
     }
     for k in [1, 0, 2] {
         let d = mul2_to_int(&s.motion[k], dt, k65536) as u32;
-        drawing.scene.get().scratch.set(d);
         s.place[k].set(s.place[k].get().wrapping_add(d));
     }
     s.motion[1].st(-(c.tables.gravity.ld() * bh::ld(dt)) + s.motion[1].ld());
@@ -150,11 +143,6 @@ pub fn move_slot(
             return Ok(());
         }
     }
-    drawing
-        .scene
-        .get()
-        .scratch
-        .set(abs_of(&s.motion[1]).to_bits());
     Ok(())
 }
 

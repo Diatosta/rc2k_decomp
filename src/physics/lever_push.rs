@@ -5,7 +5,7 @@
 //! z times 65536 and the step (`step_time`), rounded, go into `lever_pushes` and are added to the
 //! car's x and z.
 
-use crate::math::matrix3::{extended, rounded};
+use crate::math::matrix3::extended;
 use crate::math::x87::mul2_to_int;
 use crate::physics::car_store::Car;
 use crate::physics::scale_vector::scale_vector;
@@ -15,12 +15,7 @@ use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::race::numbers_store::Numbers;
 use crate::scene::view_matrix::cross_product;
 
-pub fn lever_push(
-    car: &Car,
-    tables: &PhysicsTables,
-    numbers: &Numbers,
-    scene: &crate::scene::owner::Scene,
-) {
+pub fn lever_push(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     for k in 0..3 {
         tables.lever_push_place[k].set(car.spin[k].get());
     }
@@ -34,7 +29,6 @@ pub fn lever_push(
     for factor in [&tables.lever_share_left, &tables.lever_share] {
         let f = extended(factor.get());
         scale_vector(&tables.lever_push_turned, f);
-        scene.drawing.scene.get().scratch.set(rounded(f));
     }
     for (from, int, place) in [
         (

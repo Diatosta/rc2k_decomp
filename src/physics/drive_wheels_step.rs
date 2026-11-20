@@ -108,6 +108,8 @@ fn steps(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
+    // The work value the drive steps pass through; each is stored before it is read.
+    let scratch = crate::memory::session::PlainDword::new(0);
     let gear = car.gear.get();
     one_less_abs(
         course,
@@ -130,7 +132,7 @@ fn steps(
         if gear == 0 {
             physics_tables.drive_torque.set(0.0);
         }
-        crate::physics::cap_drive_speed::cap_drive_speed(car, physics_tables, scene);
+        crate::physics::cap_drive_speed::cap_drive_speed(car, physics_tables);
         physics_tables.wheels_driven.set(0);
         // the grips of `wheel_grips`, or, braking, `wheel_grips_b`
         let mut grips = &physics_tables.wheel_grips;
@@ -139,16 +141,9 @@ fn steps(
             physics_tables.wheels_driven.set(1);
         }
         drive_forces_from_grips(car, physics_tables, grips);
-        drawing
-            .scene
-            .get()
-            .scratch
-            .set(car.throttle.get().wrapping_add(0x100));
-        throttle_drive_limit(car, physics_tables, course.numbers.get(), scene);
-        hold_high(
-            &physics_tables.drive_limits[1],
-            &drawing.scene.get().scratch,
-        );
+        scratch.set(car.throttle.get().wrapping_add(0x100));
+        throttle_drive_limit(car, physics_tables, course.numbers.get(), &scratch);
+        hold_high(&physics_tables.drive_limits[1], &scratch);
         let pick = if abs_below(
             &physics_tables.drive_limits[1],
             &physics_tables.drive_limits[0],
@@ -191,7 +186,7 @@ fn steps(
             physics_tables,
             course.numbers.get(),
         );
-        crate::physics::add_drive_forces::add_drive_forces(car, physics_tables, scene);
+        crate::physics::add_drive_forces::add_drive_forces(car, physics_tables);
         crate::physics::ease_low_speed_forces::ease_low_speed_forces(car, physics_tables);
 
         scale_axle_forces(physics_tables);
@@ -246,16 +241,9 @@ fn steps(
             },
         );
         // The car-frame side speed eased by the side grip.
-        drawing
-            .scene
-            .get()
-            .scratch
-            .set_float(car.local_velocity[0].get());
-        ease_zero(
-            &drawing.scene.get().scratch,
-            &physics_tables.drive_limits[2],
-        );
-        side_slip_forces(car, physics_tables, course.numbers.get(), scene);
+        scratch.set_float(car.local_velocity[0].get());
+        ease_zero(&scratch, &physics_tables.drive_limits[2]);
+        side_slip_forces(car, physics_tables, course.numbers.get(), &scratch);
         store_loaded(&physics_tables.slip_limit, &physics_tables.drive_limits[0]);
         store_loaded(
             &physics_tables.wheel_spin_push[0],
@@ -269,9 +257,9 @@ fn steps(
         physics_tables.forces[10].force[0].set(0.0);
         physics_tables.forces[10].force[2].set(0.0);
         // The rolling drag against the motion.
-        let status = speed_over_ground(car, physics_tables, scene);
+        let status = speed_over_ground(car, physics_tables, &scratch);
         if status_above(status) {
-            rolling_drag_forces(car, physics_tables, scene);
+            rolling_drag_forces(car, physics_tables, &scratch);
         }
         if vars.run_kind.get() != 1 && (car.run_ticks.get().wrapping_sub(0x320) as i32) < 0 {
             car.drive_speed_a.set(0.0);
@@ -451,10 +439,9 @@ fn throttle_drive_limit(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
-    scene: &crate::scene::owner::Scene,
+    scratch: &crate::memory::session::PlainDword,
 ) {
-    let drawing = &scene.drawing;
-    let t0 = int(drawing.scene.get().scratch.get() as i32);
+    let t0 = int(scratch.get() as i32);
     let t1 = numbers.k256.ld();
     let t2 = t0 / t1;
     let t3 = car.local_velocity[0].ld();
@@ -468,7 +455,7 @@ fn throttle_drive_limit(
     let t10 = tables.drive_limits[0].ld();
     let t11 = tables.drive_speed_scale.ld();
     let t12 = t10 * t11;
-    drawing.scene.get().scratch.st(t12);
+    scratch.st(t12);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -620,9 +607,9 @@ fn side_slip_forces(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
-    scene: &crate::scene::owner::Scene,
+    scratch: &crate::memory::session::PlainDword,
 ) {
-    let t0 = scene.drawing.scene.get().scratch.ld();
+    let t0 = scratch.ld();
     let t1 = car.local_velocity[0].ld();
     let t2 = t0 - t1;
     tables.drive_slip[0].st(t2);
@@ -665,30 +652,37 @@ fn spin_push_b(tables: &PhysicsTables) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn speed_over_ground(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) -> u16 {
+fn speed_over_ground(
+    car: &Car,
+    tables: &PhysicsTables,
+    scratch: &crate::memory::session::PlainDword,
+) -> u16 {
     let t0 = car.local_velocity[0].ld();
     let t1 = t0 * t0;
     let t2 = car.local_velocity[2].ld();
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
-    scene.drawing.scene.get().scratch.st(t5);
+    scratch.st(t5);
     let t6 = tables.wheel_drag[1].ld();
     compare(t5, t6)
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn rolling_drag_forces(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
+fn rolling_drag_forces(
+    car: &Car,
+    tables: &PhysicsTables,
+    scratch: &crate::memory::session::PlainDword,
+) {
     let t0 = tables.wheel_drag[0].ld();
-    let t1 = drawing.scene.get().scratch.ld();
+    let t1 = scratch.ld();
     let t2 = t0 / t1;
     let t3 = car.local_velocity[0].ld();
     let t4 = t2 * t3;
     let t5 = -t4;
     tables.forces[10].force[0].st(t5);
     let t6 = tables.wheel_drag[0].ld();
-    let t7 = drawing.scene.get().scratch.ld();
+    let t7 = scratch.ld();
     let t8 = t6 / t7;
     let t9 = car.local_velocity[2].ld();
     let t10 = t8 * t9;

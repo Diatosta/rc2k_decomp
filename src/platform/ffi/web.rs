@@ -117,20 +117,18 @@ pub fn is_full_screen() -> bool {
     unsafe { rc2k_web_is_full_screen() != 0 }
 }
 
-/// The window mode kept follows the browser's full screen: when the player leaves it with Esc
-/// or F11 the setting goes back to a window, as the graphics page then shows. Asks the page
-/// once in 30 calls (the events' pump runs for every frame).
-pub fn follow_full_screen() {
+/// Whether the player has just left the browser's full screen (with Esc or F11): the window
+/// mode kept then goes back to a window, as the graphics page shows. Asks the page once in 30
+/// calls (the events' pump runs for every frame).
+pub fn left_full_screen() -> bool {
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
     static CALLS: AtomicU32 = AtomicU32::new(0);
     static WAS_FULL: AtomicBool = AtomicBool::new(false);
     if CALLS.fetch_add(1, Relaxed) % 30 != 0 {
-        return;
+        return false;
     }
     let now = is_full_screen();
-    if WAS_FULL.swap(now, Relaxed) && !now {
-        super::window_mode::set(super::window_mode::WindowMode::Window);
-    }
+    WAS_FULL.swap(now, Relaxed) && !now
 }
 
 /// `bytes` handed to the browser as a download named `name` (a file's last part: folders are

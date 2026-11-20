@@ -186,7 +186,7 @@ pub fn find_game_data(given: Option<&str>) {
     if crate::files::redirect::active() {
         return;
     }
-    if cfg!(web) || kind_of(Path::new(".")) != Kind::Nothing {
+    if !crate::platform::caps::FOLDERS || kind_of(Path::new(".")) != Kind::Nothing {
         return;
     }
     // The app's folder held a zip of the game's folder: the game is the folder just inside.

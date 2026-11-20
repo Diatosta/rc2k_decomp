@@ -14,13 +14,8 @@ use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
 
 /// The exact version, for `physics::camera_avoid_ground`.
-pub fn ease_view_turn(
-    camera: &CameraWork,
-    replay_frames: &ReplayFrames,
-    car: &Car,
-    scene: &crate::scene::owner::Scene,
-) {
-    let drawing = &scene.drawing;
+pub fn ease_view_turn(camera: &CameraWork, replay_frames: &ReplayFrames, car: &Car) {
+    let scratch = crate::memory::session::PlainDword::new(0);
     if replay_frames.step_first.get() != 0 {
         for share in [
             &camera.view_share_pitch,
@@ -47,13 +42,9 @@ pub fn ease_view_turn(
             &camera.view_share_roll,
         ),
     ] {
-        drawing
-            .scene
-            .get()
-            .scratch
-            .set(target.get().wrapping_sub(turn.get()));
-        x87_1(share, scene);
-        turn.set(turn.get().wrapping_add(drawing.scene.get().scratch.get()));
+        scratch.set(target.get().wrapping_sub(turn.get()));
+        x87_1(share, &scratch);
+        turn.set(turn.get().wrapping_add(scratch.get()));
     }
 }
 
@@ -62,12 +53,11 @@ pub fn ease_view_turn(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [scratch] = int [scratch] * [s + 0]`
-fn x87_1(s: &impl Cell32, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
-    let t0 = int(drawing.scene.get().scratch.get() as i32);
+fn x87_1(s: &impl Cell32, scratch: &crate::memory::session::PlainDword) {
+    let t0 = int(scratch.get() as i32);
     let t1 = s.ld();
     let t2 = t0 * t1;
-    drawing.scene.get().scratch.set(to_int(t2) as u32);
+    scratch.set(to_int(t2) as u32);
 }
 
 #[cfg(test)]
@@ -90,7 +80,16 @@ mod reference_vectors {
                 },
             ],
             ulps: 0,
-            plain: |a| x87_1(&HostCell(a[1]), crate::test_support::own::scene()),
+            plain: |a| {
+                x87_1(
+                    &HostCell(a[1]),
+                    &crate::test_support::own::scene()
+                        .drawing
+                        .scene
+                        .get()
+                        .scratch,
+                );
+            },
         }]
     }
 

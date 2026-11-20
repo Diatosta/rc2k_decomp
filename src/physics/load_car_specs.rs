@@ -64,7 +64,6 @@ pub fn load_car_specs(
     physics_tables: &PhysicsTables,
     car: &Car,
     gear_figures: &GearFigures,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let kind = car.car_kind.get();
     let spec = record(car_specs, car);
@@ -104,12 +103,6 @@ pub fn load_car_specs(
         .spec_wheel
         .set(physics_tables.spec_default_ba8.get());
     scale_record_grips(physics_tables, spec);
-    scene
-        .drawing
-        .scene
-        .get()
-        .scratch
-        .set(spec.scratch_value.get());
     physics_tables.downforce_spec.set(spec.downforce.get());
     set_rev_limits(physics_tables, course.numbers.get(), drive as usize);
     Ok(())

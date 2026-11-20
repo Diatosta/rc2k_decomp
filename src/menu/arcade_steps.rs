@@ -1,4 +1,4 @@
-//! The arcade event's small steps (`menu::arcade_event` and its callers): plain stores on the
+//! The arcade event's small steps (`menu::arcade_event` uses them): plain stores on the
 //! arcade's level (1 .. 5), stage (0 .. 6), the stage's record (0xA4 bytes; its +0x3C is the
 //! course), the course's ten best times (entries of 0x9C), the level's ten best scores (entries
 //! of 0x50) and the current player.

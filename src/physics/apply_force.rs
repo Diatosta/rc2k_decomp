@@ -2,7 +2,7 @@
 //! physics step, turned into the world by the crash matrix and added to the car's motion; the
 //! motion is then turned by the car's inverse matrix into the car-frame speed.
 
-use crate::math::matrix3::{extended, rounded, rounded_value};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::physics::flow::FloatView;
@@ -13,19 +13,13 @@ use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::scene::rotate_point::rotate_point;
 
 /// The exact version, for `physics::apply_forces`: `rec` on the car block `car`.
-pub fn apply_force(
-    car: &Car,
-    tables: &PhysicsTables,
-    rec: &ForceRecord,
-    scene: &crate::scene::owner::Scene,
-) {
+pub fn apply_force(car: &Car, tables: &PhysicsTables, rec: &ForceRecord) {
     let work = &tables.push_record;
     for (k, w) in work[..3].iter().enumerate() {
         w.set_float(rec.force[k].get());
     }
     let dt = extended(tables.step_time.get());
     scale_vector(work, dt);
-    scene.drawing.scene.get().scratch.set(rounded(dt));
     // The work car's crash matrix, whichever block it is.
     turn_by_car_matrix(car, work);
     for (v, w) in car.velocity.iter().zip(work) {

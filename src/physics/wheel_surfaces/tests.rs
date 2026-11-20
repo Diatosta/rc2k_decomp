@@ -32,12 +32,17 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                x87_1(
+                let whole = x87_1(
                     &crate::test_support::own::race().course,
                     view(a[0], 0),
                     a[1],
-                    crate::test_support::own::scene(),
                 );
+                crate::test_support::own::scene()
+                    .drawing
+                    .scene
+                    .get()
+                    .scratch
+                    .set(whole);
             },
         },
         Block {
@@ -55,12 +60,17 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                x87_1(
+                let whole = x87_1(
                     &crate::test_support::own::race().course,
                     view(a[0], 0),
                     a[1],
-                    crate::test_support::own::scene(),
                 );
+                crate::test_support::own::scene()
+                    .drawing
+                    .scene
+                    .get()
+                    .scratch
+                    .set(whole);
             },
         },
         Block {
@@ -78,12 +88,17 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                x87_1(
+                let whole = x87_1(
                     &crate::test_support::own::race().course,
                     view(a[0], 0),
                     a[1],
-                    crate::test_support::own::scene(),
                 );
+                crate::test_support::own::scene()
+                    .drawing
+                    .scene
+                    .get()
+                    .scratch
+                    .set(whole);
             },
         },
         Block {

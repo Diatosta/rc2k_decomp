@@ -20,7 +20,7 @@ pub fn object_turn_matrix(
     matrices: &SceneMatrices,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let (drawing, work) = (&scene.drawing, scene.object_work());
+    let work = scene.object_work();
     let object = contact.face_object.get();
     if object > 0xFF {
         return Err(BadInput("an object past 0xFF").into());
@@ -64,9 +64,7 @@ pub fn object_turn_matrix(
         multiply_matrices(&turned, &turn_y, &out);
     }
     let figure = work.size.get();
-    drawing.scene.get().scratch.set(figure);
     let share = ext_div2(int_80(figure as i32, false), 16.0f32, 1.0f32);
-    drawing.scene.get().scratch.set(share.to_bits());
     for cell in out {
         cell.set(x87::mul(cell, share));
     }

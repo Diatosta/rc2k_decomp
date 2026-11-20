@@ -9,10 +9,7 @@ use crate::physics::probe_ground::probe_ground_at;
 use crate::physics::step_families::GroundInputs;
 
 /// The steps.
-pub fn probe_and_keep_at(
-    c: &GroundInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn probe_and_keep_at(c: &GroundInputs<'_>) -> Result<(), Refused> {
     let contact = c.contact;
     probe_ground_at(
         &crate::physics::probe_ground::ProbeInputs::of_ground(c),
@@ -24,7 +21,6 @@ pub fn probe_and_keep_at(
             &crate::race::scene_points::no_own(),
         ),
         c.contact,
-        &scene.drawing.scene.get().scratch,
     )?;
     for k in 0..64 {
         contact.saved_probe_x[k].set(contact.probe_x[k].get());
@@ -41,9 +37,6 @@ pub fn probe_and_keep_at(
     Ok(())
 }
 
-pub fn probe_and_keep(
-    c: &GroundInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    probe_and_keep_at(c, scene)
+pub fn probe_and_keep(c: &GroundInputs<'_>) -> Result<(), Refused> {
+    probe_and_keep_at(c)
 }

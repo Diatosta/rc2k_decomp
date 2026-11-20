@@ -1,5 +1,5 @@
-//! The length of the motion kept by `physics::keep_motion` (`physics::vector_length`, rounded into
-//! `scratch`); when not 0, `stall_figure` = the motion dot it (`physics::dot_product`) over the
+//! The length of the motion kept by `physics::keep_motion` (`physics::vector_length`, rounded); when
+//! not 0, `stall_figure` = the motion dot it (`physics::dot_product`) over the
 //! length twice. Then, unless the length's size is below `stall_speed`, with `stall_figure` below
 //! `stall_share` and `no_auto_neutral` 0: gear 0 and both drive speeds 0. Probably the engine
 //! stalling when the car is stopped or turned back on itself: the motion's dot product against its
@@ -13,11 +13,9 @@ use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
 
-pub fn stall_when_still(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
+pub fn stall_when_still(car: &Car, tables: &PhysicsTables) {
     let kept = &tables.kept_motion;
-    // The length goes through the scene's scratch dword (a float's bits).
     let length = rounded_value(vector_length(kept));
-    scene.drawing.scene.get().scratch.set(length.to_bits());
     if compare_full(length, ZERO) & 0x4000 == 0 {
         tables.stall_figure.set(ext_div2(
             dot_product(&car.local_velocity, kept),

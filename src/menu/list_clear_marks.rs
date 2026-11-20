@@ -2,8 +2,8 @@
 //! its items (16 bytes from +0x18) has its first byte masked with 0x3F, and for an item of
 //! kind 2 (low nibble) its choices (2 bytes each from the choice table's second byte) too.
 //!
-//! A list of no items goes round 2^32 times, and a kind 2 of no choices 256 times (the callers'
-//! lists have items). The installer's lists pass the installer; the replay viewer's pass none (its
+//! A list of no items goes round 2^32 times, and a kind 2 of no choices 256 times (the lists passed
+//! have items). The installer's lists pass the installer; the replay viewer's pass none (its
 //! items have no choices, which are refused).
 
 use crate::memory::list_handle::ListMenu;

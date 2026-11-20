@@ -34,7 +34,6 @@ const ONE_F32: u32 = 0x3F80_0000;
 // Core: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
 pub fn pace_notes_step(
     c: &CheckpointInputs<'_>,
-    scene: &crate::scene::owner::Scene,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
@@ -55,7 +54,6 @@ pub fn pace_notes_step(
         &numbers.eight,
         ONE_F32,
     );
-    scene.drawing.scene.get().scratch.set(ahead as u32);
     let target = call_target(
         car.reset_checkpoint.get(),
         ahead,

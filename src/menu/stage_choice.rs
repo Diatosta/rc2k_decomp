@@ -18,9 +18,9 @@ const NO_MAP: FatalError = FatalError {
 /// `menu::draw_stage_map`: the stage by `ChampView.stage_mode` (2: the arcade level's
 /// `Arcade.stage`th; 3: `records::find_record` of the record table with `section` and
 /// `index`; else the choice's group, sub and `number`th), its overlay
-/// `MenuLists.map_overlays[0][+0x3C]`; `ukmap.png` loaded with it (a failed load: fatal error
-/// 0x80712345), converted, the picture flags = the screen mode flags & 0xFFF, made the
-/// surface, sprite 0xA0 at (0, 0). Refuses a choice without its tables.
+/// `MenuLists.map_overlays[0][+0x3C]`; `ukmap.png` is loaded with it (a failed load: fatal error
+/// 0x80712345), the picture flags are the screen mode flags & 0xFFF, and the picture is made the
+/// surface, then sprite 160 is drawn at (0, 0). Refuses a choice without its tables.
 pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
     let (menus, system, gfx) = (o.menus, o.system, o.gfx);
     use crate::gfx::blit_glyph::blit_glyph_on_surface;
@@ -83,7 +83,7 @@ pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
 
 /// How a setting draws the map: the game's drawing, or a counter in the tests.
 pub type Draw<'a> = &'a mut dyn FnMut() -> Result<(), Refused>;
-/// The choice's settings (converted: `rc2k_core::menu::steps::stage_sub` and
+/// The choice's settings (the rules are `rc2k_core::menu::steps::stage_sub` and
 /// `stage_number`): the variable stepped, then the map drawn again (`draw`). When the map
 /// refuses, the variable is put back first.
 fn step(cell: &PlainDword, next: impl Fn(u32) -> u32, draw: Draw) -> Result<(), Refused> {

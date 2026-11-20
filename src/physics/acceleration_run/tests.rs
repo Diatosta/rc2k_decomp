@@ -42,12 +42,18 @@ fn blocks() -> Vec<Block> {
             }],
             ulps: 0,
             plain: |_| {
-                x87_2(
+                let drag = x87_2(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
                     race().course.numbers.get(),
-                    crate::test_support::own::scene(),
                 );
+                // The original keeps the drag, stored as a float, in the shared work dword.
+                crate::test_support::own::scene()
+                    .drawing
+                    .scene
+                    .get()
+                    .scratch
+                    .st(drag);
             },
         },
         Block {

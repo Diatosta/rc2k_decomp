@@ -69,13 +69,11 @@ impl<'a> ProbeInputs<'a> {
 /// The steps.
 // Core: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the turns and the
 // bump's scaling stay x87).
-/// `scratch` is the dword the work values are spilled to (the scene's scratch cell).
 pub fn probe_ground_at(
     c: &ProbeInputs<'_>,
     car: &Car<impl CellKind>,
     q: &GroundQuery<'_>,
     contact: &ContactWork,
-    scratch: &crate::memory::session::PlainDword,
 ) -> Result<(), Refused> {
     let n = car.probe_count.get();
     if n < 1 {
@@ -85,7 +83,7 @@ pub fn probe_ground_at(
         return Err(BadInput("more than 0x40 probe points (the lists' room)").into());
     }
 
-    probe_points(c, car, n, q, contact, scratch)
+    probe_points(c, car, n, q, contact)
 }
 
 fn probe_points(
@@ -94,8 +92,9 @@ fn probe_points(
     n: u32,
     q: &GroundQuery<'_>,
     contact: &ContactWork,
-    scratch: &crate::memory::session::PlainDword,
 ) -> Result<(), Refused> {
+    // The work values the point's steps spill through (each is stored before it is read).
+    let scratch = crate::memory::session::PlainDword::new(0);
     let k65536 = c.numbers.k65536.get();
     contact.crossed_probe.set(u32::MAX);
     for b in 0..n {
@@ -205,11 +204,7 @@ fn probe_points(
 
 /// `car` is the work car in the race's ticks (the view's copy of its car in the drawing,
 /// `probe_ground_in_view`).
-pub fn probe_ground(
-    c: &GroundInputs<'_>,
-    car: &Car,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn probe_ground(c: &GroundInputs<'_>, car: &Car) -> Result<(), Refused> {
     probe_ground_at(
         &ProbeInputs::of_ground(c),
         car,
@@ -220,7 +215,6 @@ pub fn probe_ground(
             &crate::race::scene_points::no_own(),
         ),
         c.contact,
-        &scene.drawing.scene.get().scratch,
     )
 }
 
@@ -233,11 +227,5 @@ pub fn probe_ground_in_view(
     points: &crate::race::scene_points::OwnPoints,
 ) -> Result<(), Refused> {
     let ground = crate::physics::ground_query::GroundCells::new();
-    probe_ground_at(
-        c,
-        car,
-        &ground.query(points),
-        &ContactWork::new(),
-        &crate::memory::session::PlainDword::new(0),
-    )
+    probe_ground_at(c, car, &ground.query(points), &ContactWork::new())
 }

@@ -15,7 +15,7 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 
-/// The switches and the scratch: the game's or a test's.
+/// The switches: the game's or a test's.
 #[derive(Clone, Copy)]
 pub struct SettlePlaces<'a> {
     /// `front_wheels_off`: settle the first driven speed (in neutral).
@@ -24,17 +24,14 @@ pub struct SettlePlaces<'a> {
     pub second: &'a PlainDword,
     /// `brake`: the big step.
     pub fast: &'a PlainDword,
-    /// `scratch`: the step is stored there (a dword holding the float's bits).
-    pub scratch: &'a crate::memory::session::PlainDword,
 }
 
 impl<'a> SettlePlaces<'a> {
-    pub fn game(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Self {
+    pub fn game(shared: &'a RaceShared) -> Self {
         Self {
             first: &shared.car().front_wheels_off,
             second: &shared.car().rear_wheels_off,
             fast: &shared.car().brake,
-            scratch: &scene.drawing.scene.get().scratch,
         }
     }
 }
@@ -80,12 +77,10 @@ pub fn settle_drive_speeds_at(
     };
     if s.first.is_set() && gear == 0 {
         let step = step();
-        s.scratch.set(step.to_bits());
         settle(g.drive_speed, step);
     }
     if s.second.is_set() {
         let step = step();
-        s.scratch.set(step.to_bits());
         settle(g.drive_speed_b, step);
     }
     if gear != 0 {
@@ -95,15 +90,11 @@ pub fn settle_drive_speeds_at(
 }
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn settle_drive_speeds(
-    numbers: &Numbers,
-    shared: &RaceShared,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn settle_drive_speeds(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     settle_drive_speeds_at(
         shared.physics_tables.get(),
         numbers,
         &GearPlaces::game(shared.car(), shared.physics_tables.get()),
-        &SettlePlaces::game(shared, scene),
+        &SettlePlaces::game(shared),
     )
 }

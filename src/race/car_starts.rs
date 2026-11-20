@@ -52,7 +52,7 @@ fn matrix_and_wheels(
     scene: &crate::scene::owner::Scene,
 ) -> Result<[u32; 4], Refused> {
     crate::race::stage_prefs::get_mat_crash(engine_tables, matrices, ground.car, scene);
-    crate::physics::probe_ground::probe_ground(ground, ground.car, scene)?;
+    crate::physics::probe_ground::probe_ground(ground, ground.car)?;
     Ok(wheels(ground.contact))
 }
 

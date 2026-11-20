@@ -9,6 +9,7 @@
 use crate::gfx::typefaces::fonts;
 use crate::input::osk_draw::fill;
 use crate::owners::Owners;
+use crate::platform::pointer;
 use crate::text::draw_text::{GameCanvas, draw_text_at};
 use rc2k_core::race::render_dialog::{Quality, VideoEncoder};
 use rc2k_core::strings::own::id;
@@ -399,7 +400,7 @@ fn draw(
     let panel_w = (w - 40).min(720);
     let inner = panel_w - 2 * MARGIN;
     // The cancel button: taller on a touch screen, for a finger.
-    let cancel_h = if cfg!(touch_screen) { 50 } else { row_h - 6 };
+    let cancel_h = if pointer::is_touch() { 50 } else { row_h - 6 };
     let panel_h = MARGIN * 2 + line_h * 2 + line_h * 2 + row_h + line_h * 2 + cancel_h + 6;
     let panel = view.panel(panel_w, panel_h);
     let (left, top) = panel.origin();

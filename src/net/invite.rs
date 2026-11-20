@@ -34,9 +34,12 @@ pub fn offer(invite: Invite) {
     waiting().offer(invite);
 }
 
-/// The invitation of the program's launch argument, noted once when the menus first ask.
-#[cfg(steam_support)]
+/// The invitation of the program's launch argument, noted once when the menus first ask (only a
+/// build with Steam has one).
 fn note_launch_argument() {
+    if !crate::platform::caps::STEAM {
+        return;
+    }
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
         if let Some(lobby) =
@@ -52,7 +55,6 @@ fn note_launch_argument() {
 
 /// The invitation waiting for the menus, if there is one (it no longer waits).
 pub fn take_in_menus() -> Option<Invite> {
-    #[cfg(steam_support)]
     note_launch_argument();
     waiting().take(Place::Menus)
 }

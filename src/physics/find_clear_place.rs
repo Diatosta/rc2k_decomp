@@ -13,7 +13,7 @@
 //! Refuses (before anything) a probe count of 0 or past 0x40; what its calls refuse.
 
 use crate::errors::Refused;
-use crate::math::matrix3::{extended, rounded};
+use crate::math::matrix3::extended;
 use crate::physics::step_families::ClearPlaceInputs;
 use rc2k_core::physics::clear_place;
 
@@ -23,12 +23,12 @@ const PORKY: &std::ffi::CStr = c"porky";
 /// One try's calls.
 fn try_place(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let contact = &c.collisions.contact;
-    { crate::physics::probe_ground::probe_ground(&c.reset.ground, c.reset.car, scene) }?;
+    { crate::physics::probe_ground::probe_ground(&c.reset.ground, c.reset.car) }?;
     crate::physics::crossed_edge::check(contact.contact)?;
-    crate::physics::crossed_edge::steps(contact, scene)?;
+    crate::physics::crossed_edge::steps(contact)?;
     crate::physics::wall_contacts::check(c.reset.car)?;
     crate::physics::wall_contacts::steps(contact, scene)?;
-    { crate::physics::car_collisions::car_collisions(&c.collisions, scene) }?;
+    { crate::physics::car_collisions::car_collisions(&c.collisions) }?;
     crate::physics::face_contacts_around::face_contacts_around(contact, scene)
 }
 
@@ -40,7 +40,6 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     tables.clear_place_mark.set(clear_place::TRY_MARK);
     let factor = extended(tables.clear_place_share.get());
     crate::physics::scale_vector::scale_vector(&car.velocity, factor);
-    scene.drawing.scene.get().scratch.set(rounded(factor));
     { crate::physics::restore_saved_car::restore_saved_car(car, tables, contact) }?;
     { crate::physics::lowest_body_point::lowest_body_point(car, numbers, contact) }?;
     tables.clear_place_face.set(contact.lowest_depth.get());

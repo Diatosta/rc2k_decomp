@@ -44,11 +44,7 @@ use crate::memory::session::PlainFloat;
 use rc2k_core::physics::camera_view;
 
 /// The fixed camera: `second` picks the second tables.
-fn fixed_camera(
-    c: &CameraInputs<'_>,
-    second: bool,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), crate::errors::BadInput> {
+fn fixed_camera(c: &CameraInputs<'_>, second: bool) -> Result<(), crate::errors::BadInput> {
     let (nearest, replay) = if second {
         (
             &c.checkpoints.nearest_camera_2,
@@ -85,12 +81,7 @@ fn fixed_camera(
             .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e)),
         );
     }
-    crate::physics::camera_height_bias::camera_height_bias(
-        c.numbers,
-        c.view_records,
-        c.car,
-        scene,
-    )?;
+    crate::physics::camera_height_bias::camera_height_bias(c.numbers, c.view_records, c.car)?;
     let d = |k: usize| {
         c.car.position[k]
             .get()
@@ -105,7 +96,6 @@ fn fixed_camera(
         .set((c.car.camera_pitch.get() << 4).wrapping_neg());
     let w = [dx, dy, dz];
     x87_2(c.numbers, c.view_records, w);
-    scene.drawing.scene.get().scratch.set(dz);
     c.view_records.view_vars.camera_distance.set(rounded_value({
         crate::physics::vector_length::vector_length(&c.view_records.view_vars.camera_vector)
     }));
@@ -152,7 +142,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     if c.car.camera_switch_active.get() == 0
         && let Some(second) = camera_view::fixed_camera(c.car.camera_view.get())
     {
-        fixed_camera(c, second, scene)?;
+        fixed_camera(c, second)?;
         return Ok(());
     }
     // The camera at the car, the views blended.
@@ -280,8 +270,8 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         &c.car.camera_zoom,
         &c.view_records.view_vars.camera_zoom_hold,
     );
-    crate::physics::ease_view_angles::ease_view_angles(c.numbers, c.shared, c.view_records, scene)?;
-    crate::physics::ease_view_blend::ease_view_blend(c, scene)?;
+    crate::physics::ease_view_angles::ease_view_angles(c.numbers, c.shared, c.view_records)?;
+    crate::physics::ease_view_blend::ease_view_blend(c)?;
     crate::physics::camera_avoid_ground::steps(c, scene)?;
     x87_9(c.camera, c.course.course.get());
     c.course

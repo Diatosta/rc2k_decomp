@@ -10,6 +10,7 @@
 use crate::gfx::typefaces::fonts;
 use crate::input::osk_draw::fill;
 use crate::owners::Owners;
+use crate::platform::pointer;
 use crate::text::draw_text::{GameCanvas, draw_text_at};
 use rc2k_core::race::render_dialog::{Dialog, Key, Outcome, Part, Row, Settings};
 use rc2k_core::strings::own::id;
@@ -239,14 +240,14 @@ fn draw(
     let compact = h < 560;
     let (line_h, row_h) = if compact {
         (26, 32)
-    } else if cfg!(touch_screen) {
+    } else if pointer::is_touch() {
         // Taller rows for a finger.
         (30, 46)
     } else {
         (30, 38)
     };
     // The buttons' height (more than a row's on a touch screen); the space around them.
-    let button_h = if cfg!(touch_screen) && !compact {
+    let button_h = if pointer::is_touch() && !compact {
         56
     } else {
         row_h - 6
@@ -365,7 +366,7 @@ fn draw(
     }
     // The buttons share the line under the rows.
     let by = top + panel_h - MARGIN - line_h * keys_lines.len() as i32 - button_h - 6;
-    let gap = if cfg!(touch_screen) { 24 } else { 10 };
+    let gap = pointer::by_style(10, 24);
     let half = (inner - gap) / 2;
     for (n, (row, label)) in [
         (Row::Render, id::RENDER_GO),

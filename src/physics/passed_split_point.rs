@@ -27,49 +27,29 @@ use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
 /// The distance from `point`: the whole-number gaps (`GroundWork.ground_x` and `ground_z` less the
-/// point's x and z; the last one is left in the scratch dword), their squares added, square-rooted,
+/// point's x and z), their squares added, square-rooted,
 /// x `one_over_65536`, into the split point distance.
-fn distance(
-    tables: &PhysicsTables,
-    numbers: &Numbers,
-    ground: &GroundWork,
-    point: [u32; 3],
-    scene: &crate::scene::owner::Scene,
-) {
-    let drawing = &scene.drawing;
+fn distance(tables: &PhysicsTables, numbers: &Numbers, ground: &GroundWork, point: [u32; 3]) {
     let word = |k: usize| point[k] as i32;
     let dx = word(0).wrapping_sub(ground.ground_x.get() as i32);
-    drawing.scene.get().scratch.set(dx as u32);
     let first = int(dx);
     let dz = word(2).wrapping_sub(ground.ground_z.get() as i32);
-    drawing.scene.get().scratch.set(dz as u32);
     let second = int(dz);
     tables
         .split_point_distance
         .st((first * first + second * second).sqrt() * numbers.one_over_65536.ld());
 }
 
-/// The angle from `point` to the car, into `scratch`: the gaps (the car's x and z less the point's,
-/// through the scratch dword), the arctangent, over pi, x `half` x `k65536`, rounded into the
-/// scratch, its low 16 bits.
-fn angle(
-    numbers: &Numbers,
-    ground: &GroundWork,
-    point: [u32; 3],
-    scene: &crate::scene::owner::Scene,
-) {
-    let drawing = &scene.drawing;
+/// The angle from `point` to the car: the gaps (the car's x and z less the point's), the
+/// arctangent, over pi, x `half` x `k65536`, rounded; its low 16 bits.
+fn angle(numbers: &Numbers, ground: &GroundWork, point: [u32; 3]) -> u32 {
     let word = |k: usize| point[k] as i32;
     let dx = (ground.ground_x.get() as i32).wrapping_sub(word(0));
-    drawing.scene.get().scratch.set(dx as u32);
     let y = int(dx);
     let dz = (ground.ground_z.get() as i32).wrapping_sub(word(2));
-    drawing.scene.get().scratch.set(dz as u32);
     let x = int(dz);
     let turns = y.atan2_over_pi(x) * numbers.half.ld() * numbers.k65536.ld();
-    let turns = to_int(turns) as u32;
-    drawing.scene.get().scratch.set(turns);
-    drawing.scene.get().scratch.set(turns & 0xFFFF);
+    to_int(turns) as u32 & 0xFFFF
 }
 
 /// The split's checkpoint and its face's first point's number, refused or fatal as said.
@@ -103,10 +83,7 @@ fn point(
 /// Whether the car has passed the split's point.
 // Core: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}` (the distance
 // and the angle stay x87).
-pub fn passed_split_point(
-    c: &CheckpointInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<bool, Refused> {
+pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
     if c.finish.no_place.get() != 0 {
         return Ok(false);
     }
@@ -119,7 +96,7 @@ pub fn passed_split_point(
     )?;
     c.physics.ground().ground_x.set(c.car.position[0].get());
     c.physics.ground().ground_z.set(c.car.position[2].get());
-    distance(c.tables, c.numbers, c.physics.ground(), pt, scene);
+    distance(c.tables, c.numbers, c.physics.ground(), pt);
     let within = !matches!(
         c.tables
             .split_point_distance
@@ -130,8 +107,7 @@ pub fn passed_split_point(
     if !within {
         return Ok(false);
     }
-    angle(c.numbers, c.physics.ground(), pt, scene);
-    let car_angle = scene.drawing.scene.get().scratch.get() << 16;
+    let car_angle = angle(c.numbers, c.physics.ground(), pt) << 16;
     c.tables.split_word.set(car_angle);
     let heading = crate::race::checkpoints_store::angle_run_on(c.checkpoints, cp as usize).get();
     c.tables.split_heading.set(heading);

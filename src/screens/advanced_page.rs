@@ -62,7 +62,7 @@ pub fn draw_advanced(
     let values = advanced_items::shown(o);
     let mut texts = Vec::new();
     let page = advanced_items::page();
-    let shown_rows = rows_on_page(page, advanced_items::PHONE);
+    let shown_rows = rows_on_page(page, crate::platform::caps::SHARE_SHEET);
     // The rows of the part shown take the row items in order; the rest are hidden.
     for slot in 0..ROW_SLOTS {
         let row = shown_rows.start + slot;

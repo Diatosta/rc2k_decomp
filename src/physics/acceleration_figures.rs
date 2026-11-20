@@ -25,14 +25,12 @@ pub fn acceleration_figures(
         shared.physics_tables.get(),
         shared.car(),
         gear,
-        scene,
     )?;
     crate::physics::make_gear_ratios::make_gear_ratios(
         shared.car(),
         shared.physics_tables.get(),
         course.numbers.get(),
         gear,
-        scene,
     )?;
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the
     // engine, the gearbox kind.

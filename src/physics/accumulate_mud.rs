@@ -23,38 +23,22 @@ fn below(s: u32, zero: u32) -> bool {
 }
 
 /// One half: `speed` (None with the switch set) held, scaled, added to the four at `to`.
-fn add_mud(
-    speed: Option<u32>,
-    f1: &PlainFloat,
-    f2: &PlainFloat,
-    to: &[PlainFloat; 4],
-    scene: &crate::scene::owner::Scene,
-) {
-    let drawing = &scene.drawing;
-    drawing.scene.get().scratch.set(0);
+fn add_mud(speed: Option<u32>, f1: &PlainFloat, f2: &PlainFloat, to: &[PlainFloat; 4]) {
+    let mut held = 0;
     if let Some(s) = speed {
-        drawing.scene.get().scratch.set(s);
-        if below(drawing.scene.get().scratch.get(), ZERO) {
-            drawing.scene.get().scratch.set(x87::loaded(ZERO).to_bits());
+        held = s;
+        if below(held, ZERO) {
+            held = x87::loaded(ZERO).to_bits();
         }
     }
-    drawing
-        .scene
-        .get()
-        .scratch
-        .set(x87::mul2(drawing.scene.get().scratch.get(), f1, f2).to_bits());
+    let scaled = x87::mul2(held, f1, f2).to_bits();
     for cell in to {
-        cell.set(x87::add(cell, drawing.scene.get().scratch.get()));
+        cell.set(x87::add(cell, scaled));
     }
 }
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn accumulate_mud(
-    car: &Car,
-    vars: &RaceVars,
-    kinds: &KindTables,
-    scene: &crate::scene::owner::Scene,
-) {
+pub fn accumulate_mud(car: &Car, vars: &RaceVars, kinds: &KindTables) {
     let kind = car.car_kind.get();
     if kind >= 0x22 || kinds.kind_gets_mud[kind as usize].get() == 0 {
         return;
@@ -67,7 +51,6 @@ pub fn accumulate_mud(
         &v.mud_scale_a[0],
         &v.mud_scale_b[0],
         &v.mud_thrown_in,
-        scene,
     );
     let slip = || x87::sub(&car.drive_speed_a, &car.local_velocity[2]).to_bits();
     add_mud(
@@ -75,6 +58,5 @@ pub fn accumulate_mud(
         &v.mud_scale_a[1],
         &v.mud_scale_b[1],
         &v.mud_splashes_in,
-        scene,
     );
 }

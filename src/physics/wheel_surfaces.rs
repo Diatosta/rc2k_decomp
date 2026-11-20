@@ -51,15 +51,9 @@ fn info_byte(
     )?))
 }
 
-/// `v[c]` x 65536 rounded through `scratch` (`v` one of the probe shares).
-fn share_bit(
-    course: &Course,
-    v: &[PlainFloat; 64],
-    c: u32,
-    scene: &crate::scene::owner::Scene,
-) -> u32 {
-    x87_1(course, v, c as usize, scene);
-    scene.drawing.scene.get().scratch.get()
+/// `v[c]` x 65536 rounded to a whole number (`v` one of the probe shares).
+fn share_bit(course: &Course, v: &[PlainFloat; 64], c: u32) -> u32 {
+    x87_1(course, v, c as usize)
 }
 
 /// Everything the function reads that the checks need, refused as said.
@@ -90,8 +84,8 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             )?))
         };
         let t1 = face_byte(1)?;
-        let mut edx = share_bit(c.course, &contact.probe_share_v, point, scene);
-        let mut ebx = share_bit(c.course, &contact.probe_share_u, point, scene);
+        let mut edx = share_bit(c.course, &contact.probe_share_v, point);
+        let mut ebx = share_bit(c.course, &contact.probe_share_u, point);
         edx = (edx >> 15) & 1;
         ebx = (ebx >> 15) & 1;
         if contact.probe_face_flip[cc].get() == 1 {
@@ -241,12 +235,12 @@ pub fn wheel_surfaces(
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [scratch] = [t + c * 4] * [k65536]`
-fn x87_1(course: &Course, t: &[PlainFloat; 64], c: usize, scene: &crate::scene::owner::Scene) {
+/// `int [result] = [t + c * 4] * [k65536]`
+fn x87_1(course: &Course, t: &[PlainFloat; 64], c: usize) -> u32 {
     let t0 = t[c].ld();
     let t1 = course.numbers.get().k65536.ld();
     let t2 = t0 * t1;
-    scene.drawing.scene.get().scratch.set(to_int(t2) as u32);
+    to_int(t2) as u32
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables named below (`[name]`: a

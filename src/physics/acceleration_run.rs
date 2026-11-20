@@ -2,7 +2,7 @@
 //! engine 0, `gearbox_kind` 1), 5000 steps of the engine and gearbox alone (the car's speed is the
 //! drive speed; `physics::count_down_timers`, `physics::gearbox_step`, `physics::engine_torque`,
 //! the drive force `engine_force` x `drive_torque_figure` / the gear's ratio / `k10000` into
-//! `drive_torque`, `physics::drive_torque_share`, the drag (through `scratch`) and the drive force
+//! `drive_torque`, `physics::drive_torque_share`, the drag and the drive force
 //! step the drive speeds, `physics::revs_from_wheels`); the steps at which the speed first reaches
 //! `test_limits` and `LightsAndGear.gear.test_limits[1]` go into `test_marks` and
 //! `LightsAndGear.gear.test_marks[1]`; every twentieth step the speed x `two_and_a_quarter` and the
@@ -35,7 +35,7 @@ fn step(
 ) -> Result<(), Refused> {
     shared.car().local_velocity[2].set(crate::math::x87::loaded(&shared.car().drive_speed_a));
     crate::physics::count_down_timers::count_down_timers(shared.car(), shared.vars.get());
-    crate::physics::gearbox_step::gearbox_step(course.numbers.get(), shared, figures, scene)?;
+    crate::physics::gearbox_step::gearbox_step(course.numbers.get(), shared, figures)?;
     crate::physics::engine_torque::engine_torque(course, shared, scene);
     let gear = shared.car().gear.get();
     if !(-1..=7).contains(&gear) {
@@ -57,7 +57,6 @@ fn step(
         shared.car(),
         shared.physics_tables.get(),
         course.numbers.get(),
-        scene,
     );
     {
         crate::physics::revs_from_wheels::revs_from_wheels(
@@ -135,9 +134,10 @@ fn x87_1(tables: &PhysicsTables, figures: &GearFigures, numbers: &Numbers, r: &P
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[scratch] = -(((([drive_speed_a] * [drive_speed_a]) * [air_drag]) / [k10000]) +
+/// The drag (`[drag]`, the value the test compares) is returned.
+/// `[drag] = -(((([drive_speed_a] * [drive_speed_a]) * [air_drag]) / [k10000]) +
 ///  [rolling_drag])` (a long formula: checked by the tests' `reference_vectors`)
-fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
+fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> crate::math::x87_float::X {
     let t0 = car.drive_speed_a.ld();
     let t1 = t0 * t0;
     let t2 = tables.air_drag.ld();
@@ -147,7 +147,6 @@ fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers, scene: &crate::sc
     let t6 = tables.rolling_drag.ld();
     let t7 = t5 + t6;
     let t8 = -t7;
-    scene.drawing.scene.get().scratch.st(t8);
     let t9 = tables.drive_torque.ld();
     let t10 = t8 + t9;
     let t11 = tables.step_time.ld();
@@ -156,6 +155,7 @@ fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers, scene: &crate::sc
     let t14 = t12 + t13;
     car.drive_speed_a.st(t14);
     car.drive_speed_b.st(t14);
+    t8
 }
 
 /// One straight x87 run as plain Rust over `X`.

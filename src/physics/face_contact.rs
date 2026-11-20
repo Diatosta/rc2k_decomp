@@ -137,7 +137,6 @@ pub fn steps(
         .wrapping_add(face_dword(0x38)?)
         .wrapping_sub(c.car.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
-        scene.drawing.scene.get().scratch.set(distance);
         let (reach, _) = contacts::reach(
             scene.objects.slots.get().radii[c.contact.face_object.get() as usize].get(),
             scene.object_work().size.get(),
@@ -162,7 +161,7 @@ pub fn steps(
         Inside::Nothing => return Ok(()),
     }
     { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
-    { crate::physics::feel_ground::feel_ground(&c.ground, scene) }?;
+    { crate::physics::feel_ground::feel_ground(&c.ground) }?;
     touch(c, scene)?;
     // Pushed back against the motion, level.
     copy_cells(&c.scratch.work_vector, &c.car.velocity);
@@ -180,14 +179,7 @@ pub fn steps(
     copy_cells(&c.contact.contact_point, &c.contact.object_point_scaled);
     c.contact.contact_point[1].set(0.0);
     c.contact.contact_slide_limit.set(0.0);
-    contact_force(
-        c.contact,
-        c.numbers,
-        c.tables,
-        c.car,
-        &c.tables.contacts[0],
-        scene,
-    );
+    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[0]);
     Ok(())
 }
 

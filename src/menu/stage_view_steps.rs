@@ -118,8 +118,8 @@ pub fn play_rally_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
     Ok(())
 }
 
-/// `menu::load_welcome_picture`: the section's welcome picture under the title bar,
-/// converted; not loaded: the fatal error 0x80712345.
+/// `menu::load_welcome_picture`: the section's welcome picture under the title bar;
+/// not loaded: the fatal error 0x80712345.
 pub fn load_welcome_picture(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let section = small_section(menus)?;

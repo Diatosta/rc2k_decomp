@@ -61,8 +61,7 @@ pub fn list_players(net: &Net) -> Result<bool, Refused> {
 }
 
 /// `net::list_players` with its result dropped, so a failed listing is never reported to the
-/// callers (kept as is). Callers: `net::lets_rally`,
-/// `net::race_wait`, `net::race_over`, `net::lobby_loop`.
+/// caller (as the game does).
 pub fn list_players_regs(net: &Net) -> Result<(), Refused> {
     list_players(net)?;
     Ok(())

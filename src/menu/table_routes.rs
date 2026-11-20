@@ -30,7 +30,6 @@ use crate::menu::item_actions;
 use crate::menu::load_championship_loop;
 use crate::menu::load_championship_table_loop;
 use crate::menu::lower_sensitivity;
-#[cfg(not(web))]
 use crate::menu::network_rally_loop;
 use crate::menu::new_simulation_loop;
 use crate::menu::next_stage_loop;
@@ -72,11 +71,10 @@ use crate::menu::view_best_times_loop;
 use crate::menu::view_courses_loop;
 use crate::menu::visual_options_loop;
 use crate::menu::visual_preferences_loop;
-#[cfg(not(web))]
 use crate::net::settings_loop;
-#[cfg(not(web))]
 use crate::net::start_link;
 use crate::owners::Owners;
+use crate::platform::caps;
 use crate::saves::load_savegame;
 use crate::scene::draw_car_object;
 use crate::scene::draw_highlighted_object;
@@ -391,14 +389,16 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
         }
         ItemFn::NextStageLoop => next_stage_loop::run(o),
         ItemFn::StartRallyLoop => start_rally_loop::run(o),
-        // The web build has no network play: its items are not shown, and a way in that is
-        // still found does nothing.
-        #[cfg(web)]
+        // Without network play the items are not shown, and a way in that is still found does
+        // nothing.
         ItemFn::NetworkRallyLoop
         | ItemFn::NetworkSettingsItem
         | ItemFn::JoinNetworkGame
-        | ItemFn::HostNetworkGame => Ok(()),
-        #[cfg(not(web))]
+        | ItemFn::HostNetworkGame
+            if !caps::NETWORK =>
+        {
+            Ok(())
+        }
         ItemFn::NetworkRallyLoop => network_rally_loop::run(o),
         ItemFn::ChampionshipNewSimulationLoop => championship_new_simulation_loop::run(o),
         ItemFn::AudioSetupLoop => audio_setup_loop::run(o),
@@ -504,11 +504,8 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
         ),
         ItemFn::NewSimulationIfUnlocked => item_actions::new_simulation_if_unlocked(o),
         ItemFn::NewSimulationLoop => new_simulation_loop::run(o),
-        #[cfg(not(web))]
         ItemFn::NetworkSettingsItem => settings_loop::settings_loop(o),
-        #[cfg(not(web))]
         ItemFn::JoinNetworkGame => start_link::start_link(o, 2),
-        #[cfg(not(web))]
         ItemFn::HostNetworkGame => start_link::start_link(o, 1),
     }
 }
