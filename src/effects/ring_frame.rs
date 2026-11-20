@@ -47,7 +47,7 @@ pub(super) fn ring_frame(
         crate::scene::depth_test_off::depth_test_off(part);
         // SurfaceTables.lives_by_level[8]: the ninth of `lives_by_level`.
         // The ring's colour: the first car record's tag.
-        masks.surface.lives_by_level[8].set(marks.cars[0].tag.get() & 0xFF_FFFF);
+        masks.surface.borrow_mut().lives_by_level[8] = marks.cars[0].tag.get() & 0xFF_FFFF;
         particles.kind1_choice.choice.set(weather.rain.drops.get());
         crate::effects::run_ring::run_ring(buffer, masks, ring, scene, effects, view)?;
         set_render_state(part, 2, 0x14);

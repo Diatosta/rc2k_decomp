@@ -8,7 +8,6 @@ use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner_shared::RaceShared;
 const WAVE_LEVELS: u32 = 0x11;
-pub const SINES: u32 = 0x140;
 
 /// `effects::seed_noise`: 0x100 steps of the marks' seed (times 0x9D plus 0x47), each giving
 /// entry 0xFF .. 0 of the three noise tables its low 18 bits, its low 18 bits turned right
@@ -26,32 +25,18 @@ pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
     weather.rain.drawn.set(0);
 }
 
-/// `effects::make_wave_tables`: once: the 0x11 levels, whole numbers,
-/// become floats (over `WaveState.scale`, less `WaveState.less`), the 0x140 sines of 0,
-/// step, 2 step .. (`math::x87::sine_table`); then the done flag is set. Done before:
-/// nothing.
+/// `effects::make_wave_tables`: once: the 0x11 levels, whole numbers, become floats (over 256,
+/// less 1). Done before: nothing.
 pub(super) fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
-    if paths.wave.done.is_set() {
+    let mut waves = paths.wave_levels.borrow_mut();
+    if waves.made {
         return Ok(());
     }
-    let (scale, less) = (paths.wave.scale.get(), paths.wave.less.get());
-    for level in paths
-        .wave_levels
-        .levels
-        .iter()
-        .take(WAVE_LEVELS as usize)
-        .rev()
-    {
-        level.set(bh::st(
-            bh::int(level.get() as i32) / bh::ld(scale) - bh::ld(less),
-        ));
+    let (scale, less) = (256.0f32, 1.0f32);
+    for level in waves.levels.iter_mut().take(WAVE_LEVELS as usize).rev() {
+        *level = bh::st(bh::int(*level as i32) / bh::ld(scale) - bh::ld(less));
     }
-    let mut sines = vec![0f32; SINES as usize];
-    x87::sine_table(&paths.wave.sine_step, &mut sines);
-    for (cell, &v) in paths.sines.table.iter().zip(&sines) {
-        cell.set(v);
-    }
-    paths.wave.done.set(true);
+    waves.made = true;
     Ok(())
 }
 

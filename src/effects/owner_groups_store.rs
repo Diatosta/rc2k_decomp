@@ -1,13 +1,11 @@
 //! The effects' remaining stores in groups (owners, stage 1): what was a static of its
 //! own each is a field of one group of `effects::owner::Effects`.
 
-use crate::effects::blend_corner_store::BlendWork;
 use crate::effects::blocks_store::{CornerSlopes, MarkCorners, MarkLinks, PlacesBlock};
 use crate::effects::clip_store::{ClipScreen, GlowState};
 use crate::effects::emitters_store::EmitterVars;
 use crate::effects::frame_state_store::{DrawFrame, DrawWork, FlareParts, FlareScales, ViewVars};
 use crate::effects::kind_store::{KindExtra2, KindExtras1, QuadWork};
-use crate::effects::kind_values_store::MarksKind;
 use crate::effects::mark_slots_store::{MarkSlots, SlotTuning};
 use crate::effects::mask_constants_store::MaskConstants;
 use crate::effects::particles_store::{BurstColours, ParticleTuning};
@@ -20,7 +18,6 @@ use crate::effects::work_store::MarksWork;
 pub struct Clipping {
     pub clip: ClipScreen,
     pub glow: GlowState,
-    pub blend_work: BlendWork,
     /// Set while a part of a split screen of three or four players draws its effects: the quads
     /// are cut to the part's rectangle on all four sides.
     pub cut_to_part: std::sync::atomic::AtomicBool,
@@ -31,7 +28,6 @@ impl Clipping {
         Clipping {
             clip: ClipScreen::new(),
             glow: GlowState::new(),
-            blend_work: BlendWork::new(),
             cut_to_part: std::sync::atomic::AtomicBool::new(false),
         }
     }
@@ -90,7 +86,8 @@ impl FrameState {
 /// car's ground shadow's (`effects::draw_shadow`) and the plane's (`effects::draw_plane`);
 /// `overlay_extras` / `shadow_extra` hold the lift of the first two along the up vector.
 pub struct Kinds {
-    pub marks_kind: MarksKind,
+    /// The kind of the marks (the surface / weather: 0 .. 0x21), set at `effects::init_marks`.
+    pub marks_kind: core::cell::Cell<u32>,
     pub overlay_quad: QuadWork,
     pub shadow_quad: QuadWork,
     pub plane_quad: QuadWork,
@@ -104,7 +101,7 @@ pub struct Kinds {
 impl Kinds {
     pub const fn new() -> Self {
         Kinds {
-            marks_kind: MarksKind::new(),
+            marks_kind: core::cell::Cell::new(0),
             overlay_quad: QuadWork::new_1(),
             shadow_quad: QuadWork::new_2(),
             plane_quad: QuadWork::new_3(),

@@ -1,5 +1,5 @@
 //! `effects::blend_corner`: one point blended: its factor the car's `factors` entry picked by
-//! the source point's three sign bits (x the highest; kept in `BlendWork.factor`), each of
+//! the source point's three sign bits (x the highest), each of
 //! x, y, z base + (source - base) by it, rounded.
 
 use crate::errors::Refused;
@@ -20,7 +20,6 @@ pub(super) fn blend_corner(
         let src = effects.stage()?.object_points.point(from)?;
         let signs = src.iter().fold(0, |b, &v| (b << 1) | (v >> 31));
         let f = x87::loaded(&block.factors[signs as usize]);
-        effects.clipping.blend_work.factor.set(f);
         for (c, &s) in src.iter().enumerate() {
             let v = x87::int_lerp_to_int(s as i32, base[c] as i32, f);
             let c = 4 * c as u32;

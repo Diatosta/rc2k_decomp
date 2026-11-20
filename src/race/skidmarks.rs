@@ -213,7 +213,7 @@ fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Re
             ctx.part,
             &ctx.view.polygon,
             ctx.reads.course(),
-            ctx.reads.draw_switches,
+            &ctx.reads.draw_switches,
             ctx.far_clip,
             ctx.view,
         )?;

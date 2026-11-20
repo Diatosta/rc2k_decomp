@@ -58,7 +58,7 @@ pub(super) fn load_edges(
     }
     let marks = effects.settings()?;
     marks.light_point_a_negated[0].set(SETTING_VALUE);
-    let kind = clamped(effects.kinds.marks_kind.kind.get());
+    let kind = clamped(effects.kinds.marks_kind.get());
     masks
         .edge_settings
         .path
@@ -125,7 +125,7 @@ pub(super) fn load_kind_data(
     {
         let marks = effects.settings()?;
         let kind = marks.mark_car_file_number.get();
-        effects.kinds.marks_kind.kind.set(kind);
+        effects.kinds.marks_kind.set(kind);
         crate::logfile::load_times::mark("edges: scale kinds");
         load_edges(race, masks, drops, scene, gfx, effects, system)?;
         crate::logfile::load_times::mark("splines");

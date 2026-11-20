@@ -100,7 +100,7 @@ pub fn draw_clipped_polygon_in_game(
                     ctx.part,
                     poly,
                     ctx.reads.course(),
-                    ctx.reads.draw_switches,
+                    &ctx.reads.draw_switches,
                     ctx.far_clip,
                     ctx.view,
                 )?;

@@ -1,80 +1,22 @@
-//! The marks' wave tables: `MarksSines`, `WaveLevels` (the lens flare's parts' levels) and
-//! `WaveState` (the made-once flag and constants).
+//! The lens flare's parts' levels, made once from their whole-number first values.
 
-use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
-
-/// The marks' sine table.
-#[derive(rc2k_derive::Cells)]
-pub struct MarksSines {
-    /// 0x140 sines of 0, step, 2 step .. (`effects::make_wave_tables`; nothing reads them).
-    pub table: [PlainFloat; 320],
-}
-
-impl MarksSines {
-    /// The values the game starts with.
-    pub const fn new() -> Self {
-        MarksSines {
-            table: [const { PlainFloat::new(0.0) }; 320],
-        }
-    }
-}
-
-/// The wave levels.
-#[derive(rc2k_derive::Cells)]
+/// The lens flare's 17 levels: whole numbers at first, floats once `made` (`effects::make_wave_tables`).
 pub struct WaveLevels {
-    /// The lens flare's parts' places along the line: whole numbers at first, floats once
-    /// `effects::make_wave_tables` has run (as bits).
-    pub levels: [PlainDword; 17],
+    /// Whether the levels have been made into floats.
+    pub made: bool,
+    /// The levels.
+    pub levels: [u32; 17],
 }
 
 impl WaveLevels {
-    /// The values the game starts with.
+    /// The levels' first values.
     pub const fn new() -> Self {
         WaveLevels {
+            made: false,
             levels: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x9),
-                PlainDword::new(0x2B),
-                PlainDword::new(0x62),
-                PlainDword::new(0xB4),
-                PlainDword::new(0xBF),
-                PlainDword::new(0xC6),
-                PlainDword::new(0xE7),
-                PlainDword::new(0x109),
-                PlainDword::new(0x139),
-                PlainDword::new(0x151),
-                PlainDword::new(0x15C),
-                PlainDword::new(0x15E),
-                PlainDword::new(0x17A),
-                PlainDword::new(0x181),
-                PlainDword::new(0x1B2),
-                PlainDword::new(0x200),
+                0x0, 0x9, 0x2B, 0x62, 0xB4, 0xBF, 0xC6, 0xE7, 0x109, 0x139, 0x151, 0x15C, 0x15E,
+                0x17A, 0x181, 0x1B2, 0x200,
             ],
-        }
-    }
-}
-
-/// The wave tables' flag and constants.
-#[derive(rc2k_derive::Cells)]
-pub struct WaveState {
-    /// Set once the tables are made.
-    pub done: PlainFlag,
-    /// 256.0, what a level is divided by.
-    pub scale: PlainFloat,
-    /// 1.0, taken off the quotient.
-    pub less: PlainFloat,
-    /// Pi / 128, the sine table's step.
-    pub sine_step: PlainFloat,
-}
-
-impl WaveState {
-    /// The values the game starts with.
-    pub const fn new() -> Self {
-        WaveState {
-            done: PlainFlag::new(false),
-            scale: PlainFloat::new(256.0),
-            less: PlainFloat::new(1.0),
-            sine_step: PlainFloat::new(0.024543693),
         }
     }
 }

@@ -470,7 +470,7 @@ pub fn draw_polygon(
 
     // The mode, with its fallbacks.
     let mut mode: u32 = face.polygon_mode.get();
-    if mode == 3 && reads.draw_switches.clears_switch.get() != 0 {
+    if mode == 3 && reads.draw_switches.clears_switch != 0 {
         clear_a_switch(&reads.buffers.polygon_tables, poly, face, &entries)?;
     }
     if matches!(mode, 3..=5) {

@@ -317,16 +317,11 @@ fn init_marks_and_lights(
     s.indent(3);
     level::reset_refresh(&scene.scratch);
     let flags: u32 = race.course.stage_prefs.get().refresh_flags_a.get();
-    scene.lights.work.get().marks_mask.set((flags & 2) >> 1);
+    scene.light_work_mut().marks_mask = (flags & 2) >> 1;
     for car in &race.car_blocks().cars[..8] {
         car.lights_on.set(flags & 1);
     }
-    scene
-        .lights
-        .work
-        .get()
-        .lamps_mask
-        .set(race.course.stage_prefs.get().refresh_flags_b.get() & 1);
+    scene.light_work_mut().lamps_mask = race.course.stage_prefs.get().refresh_flags_b.get() & 1;
     s.indent(-3);
     s.step(
         Word::SkidmarksInit,

@@ -95,9 +95,10 @@ pub struct Lent<'s> {
     light_tables:
         crate::memory::session::PhaseRead<'s, crate::scene::light_tables_store::LightTables>,
     // The scene's other drawing stores.
-    light_work: crate::memory::session::PhaseRead<'s, crate::scene::light_work_store::LightWork>,
-    draw_switches:
-        crate::memory::session::PhaseRead<'s, crate::scene::draw_switches_store::DrawSwitches>,
+    /// The lights' work variables as the scope opened.
+    light_work: crate::scene::light_work_store::LightWork,
+    /// The draw switches as the scope opened.
+    draw_switches: crate::scene::draw_switches_store::DrawSwitches,
     object_tables:
         crate::memory::session::PhaseRead<'s, crate::scene::object_tables_store::ObjectTables>,
     object_slots:
@@ -166,8 +167,8 @@ impl<'s> Lent<'s> {
             scratch: &scene.scratch,
             light_tables: PhaseRead::lend(&scene.light_tables, scope),
             // The scene's other drawing stores.
-            light_work: PhaseRead::lend(&scene.lights.work, scope),
-            draw_switches: PhaseRead::lend(&scene.draw_switches, scope),
+            light_work: *scene.light_work(),
+            draw_switches: *scene.draw_switches(),
             object_tables: PhaseRead::lend(&scene.objects.tables, scope),
             object_slots: PhaseRead::lend(&scene.objects.slots, scope),
             kind_textures: PhaseRead::lend(&scene.textures.kinds, scope),
@@ -216,8 +217,8 @@ impl<'s> Lent<'s> {
         DrawReads {
             light_tables: &self.light_tables,
             // The scene's other drawing stores.
-            light_work: &self.light_work,
-            draw_switches: &self.draw_switches,
+            light_work: self.light_work,
+            draw_switches: self.draw_switches,
             object_tables: &self.object_tables,
             object_slots: &self.object_slots,
             kind_textures: &self.kind_textures,
@@ -271,9 +272,9 @@ pub struct DrawReads<'a> {
     pub light_tables: &'a crate::scene::light_tables_store::LightTables,
     // The scene's other drawing stores.
     /// The lights' work variables (`scene::owner::Lights::work`).
-    pub light_work: &'a crate::scene::light_work_store::LightWork,
-    /// The draw switches (`scene::owner::Scene::draw_switches`).
-    pub draw_switches: &'a crate::scene::draw_switches_store::DrawSwitches,
+    pub light_work: crate::scene::light_work_store::LightWork,
+    /// The draw switches (`scene::owner::Scene::draw_switches`), as they were when the reads were made.
+    pub draw_switches: crate::scene::draw_switches_store::DrawSwitches,
     /// The object tables (`scene::owner::Objects::tables`).
     pub object_tables: &'a crate::scene::object_tables_store::ObjectTables,
     /// The object slots (`scene::owner::Objects::slots`).
@@ -389,8 +390,8 @@ impl<'a> DrawReads<'a> {
         Self {
             light_tables: scene.light_tables.get(),
             // The scene's other drawing stores.
-            light_work: scene.lights.work.get(),
-            draw_switches: scene.draw_switches.get(),
+            light_work: *scene.light_work(),
+            draw_switches: *scene.draw_switches(),
             object_tables: scene.objects.tables.get(),
             object_slots: scene.objects.slots.get(),
             kind_textures: scene.textures.kinds.get(),

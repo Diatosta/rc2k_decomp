@@ -60,7 +60,7 @@ pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {
         if let Some(points) = paths.block_points.get(n as usize) {
             points.give_back();
         }
-        car.point_block.set(paths.morph_work.taken.get());
+        car.point_block.set(paths.morph_taken.get());
     }
     for list in lists(effects) {
         free_list(list)?;

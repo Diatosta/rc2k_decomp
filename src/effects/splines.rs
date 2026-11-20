@@ -644,7 +644,7 @@ pub(super) fn load_splines(
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let kind: u32 = effects.kinds.marks_kind.kind.get();
+    let kind: u32 = effects.kinds.marks_kind.get();
     if kind >= KINDS {
         return Err(BadInput("a marks' kind of 0x22 or more").into());
     }

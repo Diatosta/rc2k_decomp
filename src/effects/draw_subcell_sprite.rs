@@ -83,8 +83,15 @@ pub(super) fn draw_subcell_sprite(
     }
     effects.frame.draw_work.half[0].set(f32::from_bits(size));
     let at = subcell << 4;
-    let place =
-        |n: usize| f32::from_bits(masks.surface.places.get_u32(0x400 + at as usize + 4 * n));
+    let place = |n: usize| {
+        f32::from_bits(
+            masks
+                .surface
+                .borrow()
+                .places
+                .get_u32(0x400 + at as usize + 4 * n),
+        )
+    };
     let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
     for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
         .into_iter()

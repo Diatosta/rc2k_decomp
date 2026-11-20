@@ -564,18 +564,9 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     ] {
         slot.cars.cars_drawn.set(0);
     }
-    scene
-        .lights
-        .work
-        .get()
-        .marks_mask
-        .set((race.course.stage_prefs.get().refresh_flags_a.get() & 2) >> 1);
-    scene
-        .lights
-        .work
-        .get()
-        .lamps_mask
-        .set(race.course.stage_prefs.get().refresh_flags_b.get() & 1);
+    scene.light_work_mut().marks_mask =
+        (race.course.stage_prefs.get().refresh_flags_a.get() & 2) >> 1;
+    scene.light_work_mut().lamps_mask = race.course.stage_prefs.get().refresh_flags_b.get() & 1;
     race.frame
         .panel_and_overlay
         .get()

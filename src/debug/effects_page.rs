@@ -274,7 +274,7 @@ fn cracks(ui: &Ui, effects: &Effects) {
     if ui.collapsing_header("Cracks", TreeNodeFlags::DEFAULT_OPEN) {
         ui.text(format!(
             "?crack.flag: {}",
-            shown(Some(effects.paths.lines_work.any.get().into()))
+            shown(Some(effects.paths.lines_work.borrow().any.into()))
         ));
         for (set, figure) in CRACK_SETS.iter().enumerate() {
             let figures: Vec<String> = (0..6)

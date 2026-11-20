@@ -171,7 +171,7 @@ pub(super) fn draw_shadow_with(
         vertex.u.set(x87::int_times(word(u) as i32, uv_k));
         vertex.v.set(x87::int_times(word(v) as i32, uv_k));
     }
-    let mut c = masks.surface.lives_by_level[8].get() | 0xFF00_0000;
+    let mut c = masks.surface.borrow().lives_by_level[8] | 0xFF00_0000;
     let half = |shift: u32| ((!(c >> shift) & 0xFF) >> 1) << shift;
     let (r, gr, bl) = (half(16), half(8), half(0));
     c = c.wrapping_add(r).wrapping_add(gr).wrapping_add(bl);

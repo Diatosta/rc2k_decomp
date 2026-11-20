@@ -39,7 +39,6 @@ pub fn car_lighting(
         .get()
         .light_kept
         .set(c.car.light_level.get());
-    scene.lights.work.get().lamp_a_colour.set(0);
     c.course
         .course
         .get()
@@ -58,18 +57,6 @@ pub fn car_lighting(
         c.ground.share_s.set(s);
         c.ground.share_t.set(t);
     }
-    scene
-        .lights
-        .work
-        .get()
-        .ground_texture_s
-        .set(c.ground.share_s.get());
-    scene
-        .lights
-        .work
-        .get()
-        .ground_texture_t
-        .set(c.ground.share_t.get());
     let face_byte = |offset| -> Result<u32, BadInput> {
         Ok(u32::from(crate::race::course_places::face_field::<u8>(
             c.course.reads(),
@@ -106,17 +93,9 @@ pub fn car_lighting(
     if face_byte(2)? & 4 == 0 {
         return Ok(());
     }
-    for (first, table, to) in [
-        (
-            0x28u32,
-            &scene.light_tables.get().lamp_table_a,
-            &scene.lights.work.get().lamp_a_colour,
-        ),
-        (
-            0x2C,
-            &scene.light_tables.get().lamp_table_b,
-            &scene.lights.work.get().lamp_b_colour,
-        ),
+    for (first, table) in [
+        (0x28u32, &scene.light_tables.get().lamp_table_a),
+        (0x2C, &scene.light_tables.get().lamp_table_b),
     ] {
         for k in 0..4u32 {
             c.course.course.get().face_light_bytes[k as usize].set(face_byte(first + k)?);
@@ -126,7 +105,6 @@ pub fn car_lighting(
             return Err(BadInput("a colour index past 0xFF").into());
         }
         let colour = table[i as usize].get();
-        to.set(colour);
         c.car
             .light_colour
             .set(lighting::add_colour(colour, c.car.light_colour.get()));

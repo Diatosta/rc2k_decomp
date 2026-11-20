@@ -77,7 +77,7 @@ pub fn second(effects: &Effects) -> KindSet<'_> {
 
 /// The kind's values of one set. Refuses a kind past the tables (0x22).
 pub(super) fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), Refused> {
-    let kind: u32 = effects.kinds.marks_kind.kind.get();
+    let kind: u32 = effects.kinds.marks_kind.get();
     if kind >= KINDS {
         return Err(BadInput("the marks' kind is past the tables (0x22)").into());
     }

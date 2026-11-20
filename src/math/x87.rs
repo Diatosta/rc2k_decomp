@@ -316,6 +316,7 @@ pub fn int_times_to_int(a: i32, b: impl Flt) -> i32 {
 
 /// `out.len()` sines of an angle that starts at 0 and grows by `step` each time (the angle
 /// kept as a double, never rounded to a float), one dword each.
+#[cfg(test)]
 pub fn sine_table(step: impl Flt, out: &mut [impl Slot]) {
     let step = step.value();
     let step = bh::ld(step);

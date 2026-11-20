@@ -20,13 +20,12 @@ pub fn spread_point(
 
     let first = paths
         .spread_random
-        .random
         .get()
         .wrapping_mul(0x9D)
         .wrapping_add(0x47);
     let second = first.rotate_right(12);
     let third = second.rotate_right(12);
-    paths.spread_random.random.set(third);
+    paths.spread_random.set(third);
     let k = setup.floats.spread_scale[0].get() as u64
         | (setup.floats.spread_scale[1].get() as u64) << 32;
     let d = x87::grown(third as i32, k, d, spread);

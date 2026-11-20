@@ -59,10 +59,10 @@ pub fn emit(
 ) -> Result<(), Refused> {
     let (masks, particles, ring) = (&effects.masks, &effects.particles, &effects.ring);
     match kind {
-        1 if table == Table::Body => emit_body_contact_particles::emit_body_contact_particles(
-            masks, ring, wheel, object, effects,
-        ),
-        1 => emit_rolling_dust::emit_rolling_dust(masks, particles, ring, wheel, object, effects),
+        1 if table == Table::Body => {
+            emit_body_contact_particles::emit_body_contact_particles(ring, wheel, object, effects)
+        }
+        1 => emit_rolling_dust::emit_rolling_dust(particles, ring, wheel, object, effects),
         3 if table == Table::Wheel => {
             emit_bursts_kind_3::emit_bursts_kind_3(effects, wheel, object)?;
             emit_wheel_dust_cloud::emit_wheel_dust_cloud(

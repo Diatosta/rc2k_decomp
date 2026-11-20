@@ -21,14 +21,8 @@ const _: () = assert!(crate::race::effects_settings_store::CAR_BLOCK + 0x60 == c
 /// The lines of two faces (`from`, `to`): for each of `from`'s points (the point numbers in the
 /// 0x10-byte entries after the face's header) the length to `to`'s, added to the whole number at
 /// `sum`.
-fn lines(
-    course: &Course,
-    paths: &Paths,
-    from: u32,
-    to: u32,
-    sum: &PlainDword,
-) -> Result<(), Refused> {
-    lines_with(course, paths, from, to, sum, x87_length)?;
+fn lines(course: &Course, from: u32, to: u32, sum: &PlainDword) -> Result<(), Refused> {
+    lines_with(course, from, to, sum, x87_length)?;
     Ok(())
 }
 
@@ -40,7 +34,6 @@ fn x87_length(d: [i32; 3], sum: i32) -> i32 {
 /// `lines` with the length worked out by `length`.
 fn lines_with(
     course: &Course,
-    paths: &Paths,
     from: u32,
     to: u32,
     sum: &PlainDword,
@@ -61,9 +54,6 @@ fn lines_with(
                 course.stage.object_points.point(p)?,
                 course.stage.object_points.point(q)?,
             );
-            for (cell, v) in paths.lines_work.difference.iter().zip(d) {
-                cell.set(v);
-            }
             sum.set(length(d.map(|v| v as i32), sum.get() as i32) as u32);
             n += 1;
         }
@@ -76,7 +66,6 @@ fn lines_with(
 /// lines into the slot's sum (`slot_sums`). The x87's, for `measure_lines`.
 fn measure_slot_lines(
     course: &Course,
-    paths: &Paths,
     from: u32,
     to: u32,
     block: &CarEffects,
@@ -87,14 +76,7 @@ fn measure_slot_lines(
                 block.slot_kinds[k as usize].get(),
                 course.stage.object_faces.byte(from + 7)?,
             ) {
-                lines_with(
-                    course,
-                    paths,
-                    from,
-                    to,
-                    &block.slot_sums[k as usize],
-                    x87_length,
-                )?;
+                lines_with(course, from, to, &block.slot_sums[k as usize], x87_length)?;
             }
         }
     }
@@ -107,7 +89,6 @@ fn measure_slot_lines(
 /// `measure_lines`.
 fn measure_kind_lines(
     course: &Course,
-    paths: &Paths,
     from: u32,
     to: u32,
     block: &CarEffects,
@@ -125,14 +106,7 @@ fn measure_kind_lines(
                         .get()
                         .wrapping_add(course.stage.object_faces.word(from)?),
                 );
-                lines_with(
-                    course,
-                    paths,
-                    from,
-                    to,
-                    &block.kind_sums[k as usize],
-                    x87_length,
-                )?;
+                lines_with(course, from, to, &block.kind_sums[k as usize], x87_length)?;
             }
         }
     }
@@ -218,9 +192,9 @@ pub fn measure_lines(
 ) -> Result<(), Refused> {
     {
         let marks = effects.settings()?;
-        let every = paths.lines_work.every.get() == 1;
+        let every = paths.lines_work.borrow().every == 1;
         let blocks = measured(scene, effects, every)?;
-        paths.lines_work.any.set(0u32);
+        paths.lines_work.borrow_mut().any = 0u32;
         let count = marks.cars_copy.get() as i32;
         let mut todo = blocks.into_iter().peekable();
         for k in (0..count.max(0) as u32).rev() {
@@ -233,7 +207,7 @@ pub fn measure_lines(
             let block = &marks.cars[k as usize];
             todo.next();
             if !every {
-                paths.lines_work.any.set(1u32);
+                paths.lines_work.borrow_mut().any = 1u32;
             }
             for cell in &block.face_sums {
                 cell.set(0);
@@ -253,13 +227,13 @@ pub fn measure_lines(
                 if course.stage.object_faces.byte(from + 6)? == 0x1C {
                     let kind = course.stage.object_faces.byte(from + 0xB)? as u32;
                     if (1..=6).contains(&kind) {
-                        lines(course, paths, from, to, &block.face_sums[kind as usize - 1])?;
+                        lines(course, from, to, &block.face_sums[kind as usize - 1])?;
                     }
                 }
-                measure_slot_lines(course, paths, from, to, block)?;
-                measure_kind_lines(course, paths, from, to, block)?;
+                measure_slot_lines(course, from, to, block)?;
+                measure_kind_lines(course, from, to, block)?;
             }
-            if paths.lines_work.shares.get() == 1 {
+            if paths.lines_work.borrow().shares == 1 {
                 let hundred = effects.setup.floats.hundred.get();
                 let share = |at: &PlainDword, of: &PlainDword| {
                     // A share of nothing (no line of that kind measured) is the x87's
@@ -302,8 +276,8 @@ fn measure_starting_sums(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     measured(scene, effects, true)?;
-    paths.lines_work.every.set(1u32);
-    paths.lines_work.shares.set(0u32);
+    paths.lines_work.borrow_mut().every = 1u32;
+    paths.lines_work.borrow_mut().shares = 0u32;
     measure_lines(course, faces_table, paths, scene, effects)?;
     let marks = effects.settings()?;
     let count = marks.cars_copy.get() as i32;
@@ -325,14 +299,14 @@ fn measure_starting_sums(
             }
         }
     }
-    paths.lines_work.every.set(0u32);
-    paths.lines_work.shares.set(1u32);
+    paths.lines_work.borrow_mut().every = 0u32;
+    paths.lines_work.borrow_mut().shares = 1u32;
     Ok(())
 }
 
 /// The settings blocks' base points (each block's `point_block`): 12 bytes a point of the
 /// block's object, counted on the block's `points_list`. A block's `point_block` (and
-/// `MorphWork.taken`)
+/// `Paths::morph_taken`)
 /// holds its table's number + 1; `effects::tidy_marks` gives them back with the lists.
 /// (`Paths::block_points`.)
 ///
@@ -418,12 +392,15 @@ pub(super) fn set_up_blocks(
             .ok_or(BadInput("more than 8 settings blocks"))?;
         table.take(&block.points_list, bytes, vec![[0; 3]; points as usize])?;
         let taken = k + 1;
-        paths.morph_work.taken.set(taken);
+        paths.morph_taken.set(taken);
         block.point_block.set(taken);
         copy_block_points(course, paths, block, scene)?;
-        for n in 0..8 {
-            let v = x87::loaded(&paths.lines_work.block_start[n]);
-            block.factors[n].set(v);
+        for (factor, start) in block
+            .factors
+            .iter()
+            .zip(crate::effects::lines_store::BLOCK_START)
+        {
+            factor.set(x87::loaded(start));
         }
     }
     Ok(())

@@ -1,6 +1,6 @@
 //! `effects::morph_object_points`: for each car (the settings' `cars_copy`, the last first), when
 //! its eight `factors` differ from the `kept_factors`: `morph_kept` -1 (the start `morph_start`
-//! is copied into it first), the factors kept (also in `MorphWork.kept[0]` ..), and for each of
+//! is copied into it first), the factors kept, and for each of
 //! its first object's points the matching point of the second object blended toward from the
 //! base list (`point_block`) by `effects::blend_corner`, where the base and the second
 //! object's point differ. Then `effects::measure_lines`.
@@ -134,7 +134,6 @@ pub fn morph_object_points(
             for k in 0..8 {
                 let v = b.factors[k].get();
                 b.kept_factors[k].set(v);
-                paths.morph_work.kept[k].set(v);
             }
             let (a, c, n) = points(course, scene, b)?;
             let points = b.point_block.get();

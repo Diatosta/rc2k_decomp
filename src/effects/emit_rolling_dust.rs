@@ -21,7 +21,6 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
-use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
 use crate::effects::particles_store::Particles;
 use crate::errors::{BadInput, Refused};
@@ -108,7 +107,6 @@ fn refusal(
 
 /// The kind 1 emitter proper (see the header).
 fn emit_particle_1(
-    masks: &Masks,
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
@@ -120,7 +118,6 @@ fn emit_particle_1(
             return Err(BadInput(why).into());
         }
         let flags = wheel.flags.get();
-        masks.surface.wheel_flags.set(flags);
         let p = pace(effects, wheel)?;
         ring.work.whole.set(p.grown.0 as u32);
         wheel.pace.set(p.grown.1.to_bits());
@@ -220,7 +217,6 @@ fn emit_particle_1(
 }
 
 pub fn emit_rolling_dust(
-    masks: &Masks,
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
@@ -230,6 +226,6 @@ pub fn emit_rolling_dust(
     if particles.kind1_choice.choice.get() != 0 {
         emit_rolling_particles_rated(particles, ring, wheel, object, effects)
     } else {
-        emit_particle_1(masks, particles, ring, wheel, object, effects)
+        emit_particle_1(particles, ring, wheel, object, effects)
     }
 }

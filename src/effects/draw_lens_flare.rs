@@ -61,7 +61,7 @@ pub fn draw_lens_flare(
     let alpha = (product as u32) >> 8;
     let size_k = effects.frame.flare_scales.size_k.get();
     for k in (0..PARTS as usize).rev() {
-        let level: u32 = paths.wave_levels.levels[k].get();
+        let level: u32 = paths.wave_levels.borrow().levels[k];
         let y = x87::times_plus_80(dy, level, cy, false);
         let x = x87::times_plus_80(dx, level, cx, true);
         draw_flare_part(

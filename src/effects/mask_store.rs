@@ -94,7 +94,7 @@ pub struct Masks {
     /// The masks' work block.
     pub work: crate::memory::owned::Owned<Vec<u32>>,
     pub list: MaskList,
-    pub surface: crate::effects::surface_store::SurfaceTables,
+    pub surface: core::cell::RefCell<crate::effects::surface_store::SurfaceTables>,
     pub edge_settings: EdgeSettings,
     pub edge_mask: EdgeMask,
     pub kind_boxes: KindBoxes,
@@ -111,7 +111,7 @@ impl Masks {
             picture_copy: PictureCopy::new(),
             work: crate::memory::owned::Owned::new("no mask work"),
             list: MaskList::new(),
-            surface: crate::effects::surface_store::SurfaceTables::new(),
+            surface: core::cell::RefCell::new(crate::effects::surface_store::SurfaceTables::new()),
             edge_settings: EdgeSettings::new(),
             edge_mask: EdgeMask::new(),
             kind_boxes: KindBoxes::new(),

@@ -37,9 +37,9 @@ pub fn fill_light_tables(
         });
     // The plain colours are two (the light and the dark); the stage's are two (the dark one
     // and the lit).
-    let p = &scene.lights.work.get().plain_light_colours;
+    let p = &crate::scene::light_work_store::PLAIN_LIGHT_COLOURS;
     let ramp: [u32; 6] = if plain {
-        std::array::from_fn(|k| p[k].get())
+        std::array::from_fn(|k| p[k])
     } else {
         prefs_dwords(course, offset_of!(StagePrefs, dark_colour))?
     };
@@ -53,7 +53,7 @@ pub fn fill_light_tables(
     ];
     for (table, colour) in lamps {
         let colour = if plain {
-            [p[0].get(), p[1].get(), p[2].get()]
+            [p[0], p[1], p[2]]
         } else {
             prefs_dwords(course, colour)?
         };

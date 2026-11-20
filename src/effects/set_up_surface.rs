@@ -122,20 +122,19 @@ pub(super) fn set_up_surface(
         setup.floats.surface_pixel.get(),
         setup.floats.thirty_second.get(),
     ];
-    let places = &masks.surface.places;
-    let end = size_of_val(places);
+    let end = masks.surface.borrow().places.len();
     let put = |at: u32, v: u32| {
         if at as usize + 4 > end {
             return Err(BadInput("a write past the surface places"));
         }
-        places.set_u32(at as usize, v);
+        masks.surface.borrow_mut().places.set_u32(at as usize, v);
         Ok(())
     };
     let get = |at: u32| {
         if at as usize + 4 > end {
             return Err(BadInput("a read past the surface places"));
         }
-        Ok(places.get_u32(at as usize))
+        Ok(masks.surface.borrow().places.get_u32(at as usize))
     };
     let cells = 0u32;
     for k in (0..CELLS).rev() {

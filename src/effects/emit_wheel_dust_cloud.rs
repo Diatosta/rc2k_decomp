@@ -99,7 +99,6 @@ pub(super) fn emit_wheel_dust_cloud(
             return Err(BadInput(why).into());
         }
         let flags = wheel.flags.get();
-        masks.surface.wheel_flags.set(flags);
         if flags & 0xC0 == 0 {
             return Ok(());
         }
@@ -179,7 +178,7 @@ pub(super) fn emit_wheel_dust_cloud(
             |en| &mut en.size,
             x87::from_int(((s & 0x3FFF) + 0x4000) as i32).to_bits(),
         )?;
-        let life: u32 = masks.surface.lives_by_flags[(flags >> 6) as usize].get();
+        let life: u32 = masks.surface.borrow().lives_by_flags[(flags >> 6) as usize];
         slot.put(|en| &mut en.life, life)?;
         slot.put(
             |en| &mut en.alpha_fade,

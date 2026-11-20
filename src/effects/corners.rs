@@ -96,7 +96,7 @@ pub(super) fn make_corners(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let kind: u32 = effects.kinds.marks_kind.kind.get();
+        let kind: u32 = effects.kinds.marks_kind.get();
         if kind >= 0x22 {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }

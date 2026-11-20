@@ -103,7 +103,6 @@ pub(super) fn emit_twin(
     if (r.rotate_right(16) & 7) as i32 >= level as i32 {
         return Ok(());
     }
-    masks.surface.wheel_flags.set(set.flags);
     let motion: [u32; 3] = crate::memory::session::read_bits(&object.motion);
     crate::memory::session::write_bits(&particles.twin_state.motion, motion);
     if next_entry(ring)?.is_none() {
@@ -155,7 +154,7 @@ pub(super) fn emit_twin(
     let size = (r.rotate_right(0x14) & 0x4000) + 0x4000;
     ring.work.whole.set(size);
     slot.put(|en| &mut en.size, x87::from_int(size as i32).to_bits())?;
-    let life: u32 = masks.surface.lives_by_level[level as usize].get();
+    let life: u32 = masks.surface.borrow().lives_by_level[level as usize];
     slot.put(|en| &mut en.life, life)?;
     slot.put(
         |en| &mut en.alpha_fade,

@@ -48,7 +48,7 @@ pub fn init_marks(
         crate::logfile::load_times::mark("make_wave_tables");
         setup::make_wave_tables(paths)?;
         crate::logfile::load_times::mark("make_profiles");
-        profiles::make_profiles(paths, scene, effects)?;
+        profiles::make_profiles(scene, effects)?;
         crate::logfile::load_times::mark("seed_noise");
         setup::seed_noise(weather, effects);
         crate::logfile::load_times::mark("make_noise_curve");
@@ -87,7 +87,7 @@ pub fn init_marks(
             effects.clipping.clip.edges[2 * n].set(x87::from_int(half as i32));
             effects.clipping.clip.edges[2 * n + 1].set(x87::int_less(half as i32, less));
         }
-        let kind: u32 = effects.kinds.marks_kind.kind.get();
+        let kind: u32 = effects.kinds.marks_kind.get();
         // Kinds 0x17 .. 0x21 are past the table and get `KIND_FLOAT_PAST` (wiki/Fixed-bugs.md:
         // "Some cars' marks lose their depth bias").
         let float = if kind < KIND_FLOATS {

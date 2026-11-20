@@ -1,97 +1,25 @@
-//! The scene's light and object-drawing work: the object being drawn, the lamp tint and the point's
-//! place, the light-dot inputs, the light's colour and kind, the lamp and ground colours the car
-//! lighting keeps, the plain light colours, the material phases' lengths and clock, and the count
-//! of listed faces.
+//! The scene's light work: the two masks the car's parts are switched by. A plain, `Copy` record:
+//! held by the scene owner (`scene::owner::Lights::work`) and copied into the drawing parts'
+//! reads when a drawing scope opens.
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainDword, PlainFloat};
+/// The plain light colours, two colours of three channels (`scene::fill_light_tables`).
+pub const PLAIN_LIGHT_COLOURS: [u32; 8] = [0, 0, 0, 0xFF, 0xFF, 0xFF, 0, 0];
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(Clone, Copy, Default)]
 pub struct LightWork {
-    /// The object being drawn. Unused: each view has its own in `scene::object_place`.
-    pub drawing_object: PlainDword,
-    /// The lamp's tint taken from its entry (`scene::add_point_lights`, `race::frame_draw`).
-    /// Unused: each view has its own in `scene::object_light`.
-    pub lamp_tint: PlainDword,
-    /// The point's place (`scene::draw_object_face`). Unused: each view has its own in
-    /// `scene::object_light`.
-    pub point_place: [PlainFloat; 3],
-    /// Float work of the lighting (written and read in the object drawing code only).
-    pub light_work_floats: [PlainFloat; 4],
-    /// The point of `scene::light_dot`'s inputs (floats). Unused: each view has its own in
-    /// `scene::object_light`.
-    pub light_dot_point: [PlainFloat; 3],
-    /// The light's direction vector, the second input of `scene::light_dot`. Unused: each view
-    /// has its own in `scene::object_light`.
-    pub light_dot_light: [PlainFloat; 3],
-    /// The factor in `scene::light_dot`'s inputs. Unused: each view has its own in
-    /// `scene::object_light`.
-    pub light_dot_factor: PlainFloat,
-    /// The light's colour (`scene::vertex_light`, `scene::add_point_lights`,
-    /// `race::course_faces`, `race::frame_draw`). Unused: each view has its own in
-    /// `scene::object_light`.
-    pub light_colour: PlainDword,
     /// The lamp parts' mask (`race::car_parts`, `race::draw_race_scene`, `race::loadlevel`).
-    pub lamps_mask: PlainDword,
+    pub lamps_mask: u32,
     /// The lone-group switch / marks mask (`race::car_parts`, `physics::drop_broken_parts`,
     /// `scene::list_object_face`, `race::draw_race_scene`, `race::loadlevel`).
-    pub marks_mask: PlainDword,
-    /// The base light colour of the view or car. Unused: each view has its own in
-    /// `scene::object_light::ObjectLight::car_light`.
-    pub view_light_base: PlainDword,
-    /// 16 bytes nothing reads (a fill pattern of the 1999 program's SSE path).
-    pub sse_fill: [PlainDword; 4],
-    /// The fog's step; never read, no longer written (`scene::fog`).
-    pub fog_step: PlainDword,
-    /// The kind of light being set (`scene::set_object_light`, `scene::vertex_light`,
-    /// `race::car_draw`, `scene::draw_described_object`, `scene::draw_menu_object`,
-    /// `race::frame_draw`). Unused: each view has its own in `scene::object_light`.
-    pub light_kind: PlainDword,
-    /// Set along with the light kind, 0 for a car (`race::car_draw`); no reader shows what it
-    /// selects. Unused: each view has its own in `scene::object_light`.
-    pub light_kind_extra: PlainDword,
-    /// First lamp table's colour (`physics::car_lighting`).
-    pub lamp_a_colour: PlainDword,
-    /// Second lamp table's colour (`physics::car_lighting`).
-    pub lamp_b_colour: PlainDword,
-    /// The ground's texture s kept (`physics::car_lighting`).
-    pub ground_texture_s: PlainDword,
-    /// The ground's texture t kept (`physics::car_lighting`).
-    pub ground_texture_t: PlainDword,
-    /// The plain light tables' colours, two colours (`scene::fill_light_tables`).
-    pub plain_light_colours: [PlainDword; 8],
-    /// The material phases' four bases, four random parts and a 0 (200, 400, 200, 400, 400,
-    /// 400, 400, 400, 0); nothing reads them and nothing writes them (0 from the start).
-    pub phase_lengths: [PlainDword; 9],
-    /// Faces in the list (`scene::list_object_face`, `scene::draw_object_faces`,
-    /// `scene::sort_listed_faces`).
-    pub listed_face_count: PlainDword,
+    pub marks_mask: u32,
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-
 impl LightWork {
-    /// The store with its first values (every field not named here starts at zero).
+    /// The store with its first values (both masks start at zero).
     pub const fn new() -> Self {
         Self {
-            sse_fill: [
-                PlainDword::new(0xFFFFFFFF),
-                PlainDword::new(0xFFFFFFFF),
-                PlainDword::new(0xFFFFFFFF),
-                PlainDword::new(0xFFFFFFFF),
-            ],
-            plain_light_colours: [
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0xFF),
-                PlainDword::new(0xFF),
-                PlainDword::new(0xFF),
-                PlainDword::new(0),
-                PlainDword::new(0),
-            ],
-            ..ZeroCells::ZERO
+            lamps_mask: 0,
+            marks_mask: 0,
         }
     }
 }

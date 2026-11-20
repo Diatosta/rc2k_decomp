@@ -424,8 +424,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     ctx.view.light.other_light.set(0x0060_6060u32);
     let pair = |at: u32, left: u32, right: u32| light_pair(ctx, car, record, at, left, right);
     pair(0xA4, 0xAC0, 0xAC1)?;
-    if ctx.reads.light_work.marks_mask.get() != 0 && ctx.view.cars.parts_present.get() >> 9 & 1 != 0
-    {
+    if ctx.reads.light_work.marks_mask != 0 && ctx.view.cars.parts_present.get() >> 9 & 1 != 0 {
         pair(0xB0, 0xACA, 0xACB)?;
         pair(0xBC, 0xACC, 0xACD)?;
         pair(0xC8, 0xACE, 0xACF)?;

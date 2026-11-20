@@ -795,14 +795,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.shared.switches.get()),
         ),
         listed!(
-            "owners.scene.draw_switches",
-            on_game(o.scene.draw_switches.get()),
-        ),
-        listed!(
-            "owners.scene.lights.work",
-            on_game(o.scene.lights.work.get()),
-        ),
-        listed!(
             "owners.race.physics.ground",
             on_game(o.race.physics.ground()),
         ),
@@ -866,10 +858,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.pong.rules",
             on_game(&o.race.effects.get().pong.rules),
-        ),
-        listed!(
-            "owners.effects.kinds.marks_kind",
-            on_game(&o.race.effects.get().kinds.marks_kind),
         ),
         listed!(
             "owners.effects.frame.kept_view",
@@ -992,14 +980,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().blocks.places),
         ),
         listed!(
-            "owners.effects.paths.profile_rings",
-            on_game(&o.race.effects.get().paths.profile_rings),
-        ),
-        listed!(
-            "owners.effects.paths.profile_tables",
-            on_game(&o.race.effects.get().paths.profile_tables),
-        ),
-        listed!(
             "owners.effects.frame.draw_work",
             on_game(&o.race.effects.get().frame.draw_work),
         ),
@@ -1016,20 +996,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().frame.draw_frame),
         ),
         listed!(
-            "owners.effects.paths.sines",
-            on_game(&o.race.effects.get().paths.sines),
-        ),
-        listed!(
             "owners.effects.frame.flare_parts",
             on_game(&o.race.effects.get().frame.flare_parts),
-        ),
-        listed!(
-            "owners.effects.paths.wave_levels",
-            on_game(&o.race.effects.get().paths.wave_levels),
-        ),
-        listed!(
-            "owners.effects.paths.wave",
-            on_game(&o.race.effects.get().paths.wave),
         ),
         listed!(
             "owners.effects.frame.flare_scales",
@@ -1042,10 +1010,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.blocks.corner_slopes",
             on_game(&o.race.effects.get().blocks.corner_slopes),
-        ),
-        listed!(
-            "owners.effects.paths.spread_random",
-            on_game(&o.race.effects.get().paths.spread_random),
         ),
         listed!(
             "owners.effects.kinds.overlay_quad",
@@ -1099,10 +1063,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.ring.names",
             on_game(&o.race.effects.get().ring.names),
-        ),
-        listed!(
-            "owners.effects.masks.surface",
-            on_game(&o.race.effects.get().masks.surface),
         ),
         listed!(
             "owners.effects.particles.twin_state",
@@ -1171,18 +1131,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.kinds.particle_tuning",
             on_game(&o.race.effects.get().kinds.particle_tuning),
-        ),
-        listed!(
-            "owners.effects.clipping.blend_work",
-            on_game(&o.race.effects.get().clipping.blend_work),
-        ),
-        listed!(
-            "owners.effects.paths.morph_work",
-            on_game(&o.race.effects.get().paths.morph_work),
-        ),
-        listed!(
-            "owners.effects.paths.lines_work",
-            on_game(&o.race.effects.get().paths.lines_work),
         ),
         listed!(
             "owners.effects.setup.clock_k",

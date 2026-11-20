@@ -1,7 +1,7 @@
 //! Emits: the coarse grit and speckle (dust grains, snow) a wheel throws up in bursts.
 //!
 //! `effects::emit_wheel_grit_bursts`: two bursts of ring entries from a wheel (kinds 0x11 and
-//! 0x10), when the wheel's second flags (`flags2`, kept as `wheel_flags2`) >> 6 are not 0.
+//! 0x10), when the wheel's second flags (`flags2`) >> 6 are not 0.
 //!
 //! Each half has a strength (the first the wheel's `local_velocity_x` times a factor; the second a
 //! blend of `driven_speed` and `local_velocity_z`) and a rate; when the half's random's bits 16 ..
@@ -170,13 +170,12 @@ pub(super) fn emit_bursts_with(
     wheel: &MarkRecord,
     object: &CarEffects,
 ) -> Result<(), Refused> {
-    let (paths, masks, ring) = (&effects.paths, &effects.masks, &effects.ring);
+    let (paths, ring) = (&effects.paths, &effects.ring);
     {
         if let Some(why) = refusal(effects, set, wheel)? {
             return Err(BadInput(why).into());
         }
         let flags2 = wheel.flags2.get();
-        masks.surface.wheel_flags2.set(flags2);
         if flags2 >> 6 == 0 {
             return Ok(());
         }

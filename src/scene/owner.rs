@@ -20,9 +20,6 @@ use std::cell::{Ref, RefCell, RefMut};
 pub struct Scene {
     /// Written between frames, read by the drawing parts through their reads
     /// (`scene::workers::DrawReads`).
-    pub draw_switches: DrawShared<DrawSwitches>,
-    /// Written between frames, read by the drawing parts through their reads
-    /// (`scene::workers::DrawReads`).
     pub light_tables: DrawShared<LightTables>,
     pub drawing: Drawing,
     /// The scratch every drawing part and view works on (`scene::scratch_store::DrawingScratch`).
@@ -41,6 +38,12 @@ struct SceneMain {
     /// The scene objects' work variables: borrowed for one statement at a time (`Scene::object_work`,
     /// `Scene::object_work_mut`); `Scene` is shared by reference, so the writes go through the cell.
     object_work: RefCell<ObjectWork>,
+    /// The draw switches: borrowed for one statement at a time (`Scene::draw_switches`); the
+    /// drawing parts read the copy their scope was opened with.
+    draw_switches: RefCell<DrawSwitches>,
+    /// The lights' work variables: borrowed for one statement at a time (`Scene::light_work`); the
+    /// drawing parts read the copy their scope was opened with.
+    light_work: RefCell<LightWork>,
 }
 
 impl Scene {
@@ -58,6 +61,26 @@ impl Scene {
     /// reads and writes borrows the store itself.
     pub fn path_text(&self, from: usize) -> PathText<'_> {
         PathText::new(&self.main.get().file_numbers, from)
+    }
+
+    /// The draw switches, read: no write borrow may be held.
+    pub fn draw_switches(&self) -> Ref<'_, DrawSwitches> {
+        self.main.get().draw_switches.borrow()
+    }
+
+    /// The draw switches, to write: no other borrow may be held.
+    pub fn draw_switches_mut(&self) -> RefMut<'_, DrawSwitches> {
+        self.main.get().draw_switches.borrow_mut()
+    }
+
+    /// The lights' work variables, read: no write borrow may be held.
+    pub fn light_work(&self) -> Ref<'_, LightWork> {
+        self.main.get().light_work.borrow()
+    }
+
+    /// The lights' work variables, to write: no other borrow may be held.
+    pub fn light_work_mut(&self) -> RefMut<'_, LightWork> {
+        self.main.get().light_work.borrow_mut()
     }
 
     /// The scene objects' work variables, read: no write borrow may be held.
@@ -84,9 +107,6 @@ pub struct Lights {
     /// The light state (`LIGHT_STATE`): written between frames, read by the drawing parts
     /// through their reads (`scene::workers::DrawReads`).
     pub state: DrawShared<LightState>,
-    /// The lights' work variables (`LIGHT_WORK`): written between frames, read by the drawing
-    /// parts through their reads (`scene::workers::DrawReads`).
-    pub work: DrawShared<LightWork>,
 }
 
 /// The object tables: the slots and the kinds' tables.
@@ -113,7 +133,6 @@ impl Scene {
     /// The state at start-up: every store in its first state.
     pub const fn new() -> Self {
         Self {
-            draw_switches: DrawShared::new(DrawSwitches::new()),
             light_tables: DrawShared::new(LightTables::new()),
             scratch: crate::scene::scratch_store::DrawingScratch::new(),
             drawing: Drawing {
@@ -121,7 +140,6 @@ impl Scene {
             },
             lights: Lights {
                 state: DrawShared::new(LightState::new()),
-                work: DrawShared::new(LightWork::new()),
             },
             objects: Objects {
                 slots: DrawShared::new(ObjectSlots::new()),
@@ -134,6 +152,8 @@ impl Scene {
             main: GameThread::new(SceneMain {
                 file_numbers: RefCell::new(ObjectFileNumbers::new()),
                 object_work: RefCell::new(ObjectWork::new()),
+                draw_switches: RefCell::new(DrawSwitches::new()),
+                light_work: RefCell::new(LightWork::new()),
             }),
         }
     }

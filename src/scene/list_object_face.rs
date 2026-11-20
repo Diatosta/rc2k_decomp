@@ -92,20 +92,13 @@ impl FaceWorld for GameFace<'_> {
         self.7.switches.mask_kind.get()
     }
     fn group_table(&self, group: u32) -> u32 {
-        let draw_switches = self.7.draw_switches;
+        let draw_switches = &self.7.draw_switches;
         // The table is the group word and the 71 cells after it (the developers' front end's
         // switches); a face's group is its byte & 0x1F.
-        let cell = match group.checked_sub(1) {
-            None => Some(&draw_switches.group_table),
-            Some(k) => draw_switches.reserved_38.get(k as usize),
-        };
-        self.1
-            .keep(
-                cell.map(crate::memory::session::PlainDword::get)
-                    .ok_or(crate::errors::BadInput(
-                        "a face's group past the groups' table",
-                    )),
-            )
+        let word = draw_switches.group_table.get(group as usize).copied();
+        self.1.keep(word.ok_or(crate::errors::BadInput(
+            "a face's group past the groups' table",
+        )))
     }
     fn no_second_mask(&self) -> u32 {
         self.5.camera_switch_active.get()
@@ -117,7 +110,7 @@ impl FaceWorld for GameFace<'_> {
         self.4.group_masks[17].get()
     }
     fn lone_group_on(&self) -> u32 {
-        self.7.light_work.marks_mask.get()
+        self.7.light_work.marks_mask
     }
     fn groups_which(&self) -> u32 {
         self.4.groups_which.get()

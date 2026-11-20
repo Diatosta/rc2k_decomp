@@ -69,7 +69,7 @@ fn colour_at(
     effects: &crate::effects::owner::Effects,
 ) -> u32 {
     if effects.setup.kind_floats.other.get() != 0 {
-        masks.surface.colours[i].get()
+        masks.surface.borrow().colours[i]
     } else {
         ring.colours.colours[i]
     }

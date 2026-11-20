@@ -124,14 +124,9 @@ static SUN: AtomicBool = AtomicBool::new(false);
 /// The last place kept.
 static KEPT: Mutex<usize> = Mutex::new(0);
 
-/// The game's own cell of group `g`'s entry in the car's face table (the first of a table the
-/// face code indexes by group, on past its one named cell).
-fn group_cell(scene: &Scene, g: usize) -> &crate::memory::session::PlainDword {
-    let switches = scene.draw_switches.get();
-    match g.checked_sub(1) {
-        None => &switches.group_table,
-        Some(k) => &switches.reserved_38[k],
-    }
+/// Group `g`'s entry in the car's face table, to write in the scene's draw switches.
+fn set_group(scene: &Scene, g: usize, value: u32) {
+    scene.draw_switches_mut().group_table[g] = value;
 }
 
 /// The error list's dword `offset` bytes into entry `n`.
@@ -215,20 +210,19 @@ fn mode_choice(shared: &RaceShared, ui: &Ui) {
 fn groups(scene: &Scene, ui: &Ui) {
     ui.text_disabled("Takes effect with the game's mode at 5; all start unticked (no car)");
     if ui.button("Tick all") {
-        (0..GROUP_COUNT).for_each(|g| group_cell(scene, g).set(1));
+        (0..GROUP_COUNT).for_each(|g| set_group(scene, g, 1));
     }
     ui.same_line();
     if ui.button("Untick all") {
-        (0..GROUP_COUNT).for_each(|g| group_cell(scene, g).set(0));
+        (0..GROUP_COUNT).for_each(|g| set_group(scene, g, 0));
     }
     for g in 0..GROUP_COUNT {
         if g % 8 != 0 {
             ui.same_line();
         }
-        let cell = group_cell(scene, g);
-        let mut on = cell.get() != 0;
+        let mut on = scene.draw_switches().group_table[g] != 0;
         if ui.checkbox(format!("{g:2}"), &mut on) {
-            cell.set(u32::from(on));
+            set_group(scene, g, u32::from(on));
         }
     }
 }

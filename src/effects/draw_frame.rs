@@ -66,7 +66,7 @@ pub fn draw_frame(
             word.set(u16::from_le_bytes(*pair));
         }
     }
-    let source: u32 = scene.draw_switches.get().marks_source.get();
+    let source: u32 = scene.draw_switches().marks_source;
     if source != effects.frame.draw_frame.last_source.get() {
         effects
             .frame

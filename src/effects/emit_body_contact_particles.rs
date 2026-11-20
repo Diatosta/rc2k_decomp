@@ -15,7 +15,6 @@
 
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
-use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::errors::Refused;
 use crate::math::matrix3::{extended, rounded_value};
@@ -46,15 +45,12 @@ fn count(
 }
 
 pub fn emit_body_contact_particles(
-    masks: &Masks,
     ring: &Ring,
     record: &MarkRecord,
     object: &CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let flags = record.flags.get();
-        masks.surface.wheel_flags.set(flags);
         let (count, n) = count(effects, record)?;
         ring.work.whole.set(n as u32);
         ring.work.whole.set(count as u32);

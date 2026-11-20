@@ -33,7 +33,7 @@ pub fn clip_polygon_by_depth(
             Edge::Depth(NEAREST),
             true,
         )?;
-        let far = far_clip && view.face.no_far_clip.get() == 0 && switches.far_on.get() != 0;
+        let far = far_clip && view.face.no_far_clip.get() == 0 && switches.far_on != 0;
         if far && (poly.polygon_vertex_count.get() as i32).wrapping_sub(3) >= 0 {
             let farthest = view.polygon.window.clip_farthest.get() as i32;
             poly.clip_plane.set(farthest as u32);
