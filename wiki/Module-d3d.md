@@ -35,7 +35,7 @@ A small flat folder, one function per file, plus the stores named above.
 ## Calls and callers
 
 Called by [`scene`](Module-scene), [`effects`](Module-effects), [`race`](Module-race) and
-[`hud`](Module-hud). It calls `platform::direct3d`, which builds the command list that
+[`hud`](Module-hud). It calls `d3d::device`, which builds the command list that
 [`render`](Module-render) draws.
 
 ## Related pages

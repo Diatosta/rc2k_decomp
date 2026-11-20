@@ -25,7 +25,7 @@ pub fn race_frame_over(
 ) -> Result<u32, Refused> {
     let system = o.system;
     let mut eax = eax;
-    crate::platform::pump_messages_now(o);
+    crate::shell::frame::pump_messages_now(o);
     if system.session.flags.quitting.is_set() {
         // The game is closing. In the game its shutdown thread (`threading::request_quit`)
         // ends the program meanwhile; the standalone, which has none, ends it here.

@@ -114,7 +114,7 @@ fn draw_probes(race: &Race, system: &crate::system::owner::System, ui: &Ui) {
         return;
     };
     let [w, h] = ui.io().display_size();
-    let (width, height) = crate::platform::screen_size(system);
+    let (width, height) = crate::shell::frame::screen_size(system);
     let (sx, sy) = (w / width.max(1) as f32, h / height.max(1) as f32);
     let place = |[x, y, z]: [i32; 3]| {
         let [x, y, z] = [f64::from(x), f64::from(y), f64::from(z)];
@@ -486,7 +486,7 @@ const HISTORY: usize = 240;
 fn take_readings(system: &crate::system::owner::System, t: &mut Timings) {
     let now = Counts {
         at: std::time::Instant::now(),
-        frame: crate::platform::frame_counters(),
+        frame: crate::shell::frame::frame_counters(),
         stages: crate::debug::timing::counts(),
         ticks: crate::debug::timing::ticks(),
     };
@@ -497,7 +497,7 @@ fn take_readings(system: &crate::system::owner::System, t: &mut Timings) {
         let ms = now.at.duration_since(then.at).as_secs_f32() * 1000.0;
         push(&mut t.frames, ms);
         let ease = |shown: &mut f32, new: f32| *shown += (new - *shown) * SMOOTHING;
-        let screen = crate::platform::screen_pixels(system).max(1) as f32;
+        let screen = crate::shell::frame::screen_pixels(system).max(1) as f32;
         for (n, shown) in t.frame.iter_mut().enumerate() {
             let d = now.frame[n].wrapping_sub(then.frame[n]) as f32;
             ease(

@@ -38,6 +38,7 @@ makes a test depend on the machine.
 - `crate::fatal::raise` from any layer: ending the program with a reason.
 - `crate::system::pause` from any layer: a pause pumps the window's events and ends on a key, so
   it needs the owners; it stays in `system` and is reached from below by name.
+- `crate::shell::frame::*`: showing a frame and pumping the window's events (`show_frame_now`, `run_frame_now`, `pump_messages_now`) need every owner and are called by the menus, the screens and the race loops.
 - `crate::debug::{timing, imgui_sdl, switches}` and `crate::remote::*`: the tools' doors.
   `remote` is always compiled and is one door: `src/remote/mod.rs` picks `driver.rs` (the test
   driver, with the `remote` feature) or `off.rs` (constants and no-ops with the same signatures),
@@ -47,13 +48,13 @@ makes a test depend on the machine.
 ## Further rules the script checks
 
 1. **System crates** (`sdl3_sys`, `libc`, `windows_sys`, `dear_imgui_*`, `mdns_sd`) are named only
-   under `src/platform/` (and `src/shell/events.rs`, which decodes SDL's event structs into the game's events). At the start (2026-11-19): 29 lines in 23 files outside it (`render/gpu*` for the SDL GPU API,
+   under `src/platform/` (SDL's events are decoded in `platform::event`). At the start (2026-11-19): 29 lines in 23 files outside it (`render/gpu*` for the SDL GPU API,
    `debug/*` for Dear ImGui, `net/bonjour.rs`, `net/steam/flat.rs`, `first_run.rs`, `remote/driver.rs`,
    `bin/rc2k.rs`). A `use sdl3_sys::..` line counts once, so `render/gpu.rs` (84 `SDL_` mentions)
    shows as one line.Open: either `render/gpu*` and `debug/imgui_sdl.rs` become allowed
    homes (they ARE back ends), or their SDL calls move behind `platform::ffi::sdl_gpu` / `ffi::imgui`,
    which already exist.
-2. **`platform::ffi` looks at nothing above it** (8 uses at the start: `ffi -> platform::{web, arch, vibrate}`).
+2. **`platform::ffi` looks at nothing above it** (clean: `web`, `arch`, `vibrate` and `process` live in `ffi`; the program's `finish` and fault report reach the signal handlers through `ffi::process::set_handlers`).
 3. **`rc2k_core` does no I/O**: no files, sockets, threads, clock reads, environment or process.
    Value types under those paths (`std::time::Duration`, `std::net::Ipv4Addr`) are allowed.
 4. An upward use that only **names an owner type** (`crate::menu::owner::Menus` as a parameter) is

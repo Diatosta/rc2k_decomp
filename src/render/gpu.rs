@@ -826,7 +826,7 @@ impl Gpu {
             return Ok((false, false));
         };
         let bytes = self.width as usize * self.height as usize * 4;
-        let buffers = crate::platform::direct3d::handles().pictures;
+        let buffers = crate::d3d::device::handles().pictures;
         if check::wanted() {
             *picture_copy = match &pending {
                 Pending::Buffer { handle, .. } => {
@@ -1583,7 +1583,7 @@ mod comparison {
         }
         let levels: Vec<_> = bytes
             .iter()
-            .map(|b| crate::platform::direct3d::test_level(b.clone()))
+            .map(|b| crate::d3d::device::test_level(b.clone()))
             .collect();
         let note = |n: usize| {
             let (width, height, pitch, bytes, masks, len) = notes[n];

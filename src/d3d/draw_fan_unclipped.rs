@@ -1,7 +1,7 @@
 //! `d3d::draw_fan_unclipped`: draws the polygon in the vertex buffer: a triangle fan of transformed
 //! and lit vertices, not to be clipped, lit or measured. The polygon vertex buffer is the drawing
 //! part's (`scene::workers::PartScratch`), the number of vertices the polygon's vertex count. The
-//! fan is only noted and the rasteriser draws it (`platform::direct3d::draw_fan`); the result is 0.
+//! fan is only noted and the rasteriser draws it (`d3d::device::draw_fan`); the result is 0.
 
 use crate::d3d::Vertex;
 use crate::d3d::vertices_store::PolygonVertices;
@@ -43,5 +43,5 @@ pub fn draw_fan_unclipped(
     poly: &crate::scene::polygon_work::PolygonWork,
     buffer: &PolygonVertices,
 ) {
-    crate::platform::direct3d::draw_fan(part, &polygon(poly, buffer));
+    crate::d3d::device::draw_fan(part, &polygon(poly, buffer));
 }

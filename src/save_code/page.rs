@@ -334,7 +334,7 @@ fn draw_page(o: Owners<'static>, page: &Page) {
 
 /// One frame: drawn on the locked screen and shown. False when the window is gone.
 fn frame(o: Owners<'static>, draw_it: impl FnOnce()) -> bool {
-    crate::platform::pump_messages_now(o);
+    crate::shell::frame::pump_messages_now(o);
     if o.system.session.flags.quitting.is_set() {
         return false;
     }
@@ -346,7 +346,7 @@ fn frame(o: Owners<'static>, draw_it: impl FnOnce()) -> bool {
     }
     draw_it();
     crate::platform::unlock_surface(o.gfx);
-    crate::platform::show_frame_now(o)
+    crate::shell::frame::show_frame_now(o)
 }
 
 fn take_key(o: Owners<'static>) -> u8 {

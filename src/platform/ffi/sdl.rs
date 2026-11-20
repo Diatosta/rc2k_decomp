@@ -249,7 +249,7 @@ impl Window {
         // would take only the window's canvas, leaving the GL's out: a black picture).
         #[cfg(web)]
         {
-            crate::platform::web::set_full_screen(how != FullScreen::Off)
+            crate::platform::ffi::web::set_full_screen(how != FullScreen::Off)
         }
         #[cfg(not(web))]
         {
@@ -289,7 +289,7 @@ impl Window {
     pub fn is_full_screen(self) -> bool {
         #[cfg(web)]
         {
-            crate::platform::web::is_full_screen()
+            crate::platform::ffi::web::is_full_screen()
         }
         #[cfg(not(web))]
         {
@@ -303,7 +303,7 @@ impl Window {
         // The browser's display is not SDL's to know: the page measures its frames.
         #[cfg(web)]
         {
-            crate::platform::web::display_refresh()
+            crate::platform::ffi::web::display_refresh()
         }
         #[cfg(not(web))]
         {

@@ -16,7 +16,7 @@ pub fn unlock_texture(gfx: &crate::gfx::owner::Gfx, texture: u32) -> Result<(), 
     match unlock(texture, surface, || r.map_or(0, RecordCell::locked)).map_err(BadInput::from)? {
         Unlock::Nothing => {}
         Unlock::Unlock => {
-            if crate::platform::direct3d::unlock_surface(surface) != 0 {
+            if crate::d3d::device::unlock_surface(surface) != 0 {
                 return Err(fatal(UNLOCK_FAILED).into());
             }
             // Only a texture in the pool gets here.

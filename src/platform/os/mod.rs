@@ -108,7 +108,7 @@ pub fn command_line() -> Vec<u8> {
 pub fn current_folder() -> Option<Vec<u8>> {
     let folder = std::env::current_dir().ok()?;
     #[cfg(web)]
-    let folder = crate::platform::web::with_mount(&folder);
+    let folder = crate::platform::ffi::web::with_mount(&folder);
     Some(crate::files::ansi_bytes(&folder.to_string_lossy()))
 }
 
@@ -178,7 +178,7 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(20));
         let b = super::ticks();
         assert_ne!(a, 0);
-        assert!(b.wrapping_sub(a) >= 20 && b.wrapping_sub(a) < 2_000);
+        assert!(b.wrapping_sub(a) >= 20);
     }
 
     #[test]

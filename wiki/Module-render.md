@@ -43,7 +43,7 @@ because it works on the GL thread's own state.
 
 ## Calls and callers
 
-It is fed by `platform::direct3d` and uses [`gfx`](Module-gfx) for pixel formats and the 2D
+It is fed by `d3d::device` and uses [`gfx`](Module-gfx) for pixel formats and the 2D
 picture. Nothing in the game's logic calls it directly.
 
 ## Related pages

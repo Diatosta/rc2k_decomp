@@ -12,7 +12,8 @@
 use crate::errors::Refused;
 use crate::menu::fn_list::ListCell;
 use crate::owners::Owners;
-use crate::platform::{lock_surface, show_frame_now, unlock_surface};
+use crate::platform::{lock_surface, unlock_surface};
+use crate::shell::frame::show_frame_now;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::menu::notice;
 

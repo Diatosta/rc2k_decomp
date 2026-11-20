@@ -1,4 +1,4 @@
-//! The 3D cards' and the Direct3D device's state (`platform::direct3d`,
+//! The 3D cards' and the Direct3D device's state (`d3d::device`,
 //! `d3d::set_render_state`, `d3d::set_texture`, the 3D switches of `var\ral.cfg`). A `#[repr(C)]`
 //! struct of plain cells (the game's thread alone reaches it: `D3d::cards`), first values the
 //! image's (`tests`).

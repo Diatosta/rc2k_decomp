@@ -32,6 +32,6 @@ pub fn show_background(o: crate::owners::Owners<'static>) -> Result<(), Refused>
         gfx,
     )?;
     copy_picture(gfx, system)?;
-    crate::platform::show_frame_now(o);
+    crate::shell::frame::show_frame_now(o);
     Ok(())
 }

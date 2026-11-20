@@ -661,7 +661,7 @@ mod dump_breaks {
             let (data, rest) = r.0.split_at(len);
             r.0 = rest;
             notes.push(TextureNote {
-                pixels: crate::platform::direct3d::test_level(data.to_vec()),
+                pixels: crate::d3d::device::test_level(data.to_vec()),
                 len,
                 width: w,
                 height: h,

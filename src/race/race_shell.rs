@@ -55,7 +55,7 @@ use crate::memory::session::PlainDword;
 
 /// Releases the stage's textures (`gfx::release_all_textures`).
 pub fn release_stage_textures(gfx: &crate::gfx::owner::Gfx) {
-    crate::platform::direct3d::release_all_textures(gfx);
+    crate::d3d::device::release_all_textures(gfx);
 }
 
 /// Seals the stage time: the first block's time (`stage_time`, held to 0x22550FF unsigned; its

@@ -120,7 +120,7 @@ pub fn hash_if_asked(list: &CommandList, in_race: bool) {
         let mut th = crate::math::check_hash::CheckHasher::default();
         // SAFETY: as `noted_bytes`': the dump is made inside the noted drawing, before any write
         // to or letting go of a level it reads (each flushes it first).
-        unsafe { crate::platform::direct3d::level_bytes(t.pixels) }
+        unsafe { crate::d3d::device::level_bytes(t.pixels) }
             .map(|b| &b[..t.len.min(b.len())])
             .hash(&mut th);
         let v = th.finish();

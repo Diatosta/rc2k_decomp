@@ -408,7 +408,7 @@ pub fn wanted() -> bool {
     config().quads
         && crate::render::gpu_running()
         && crate::render::frame_on_gpu()
-        && !crate::platform::direct3d::game_scratch()
+        && !crate::d3d::device::game_scratch()
             .is_some_and(|scratch| crate::scene::workers::in_race(scratch.game_scratch()))
 }
 

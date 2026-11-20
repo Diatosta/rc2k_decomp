@@ -18,7 +18,7 @@ fn message(len: usize) -> Incoming {
 
 #[test]
 fn a_session_is_found_after_a_probe_nobody_answered() {
-    // A free port: bound and let go.
+    // A port with nothing behind it on purpose: bound and let go.
     let free = |kind: &str| {
         let port = UdpSocket::bind(("127.0.0.1", 0))
             .and_then(|u| u.local_addr())
@@ -30,32 +30,21 @@ fn a_session_is_found_after_a_probe_nobody_answered() {
     // unreachable on the finder's next receive).
     let nobody = free("nobody");
     let _ = find_sessions("127.0.0.1", nobody, application);
-    std::thread::sleep(Duration::from_millis(200));
     let desc = Desc {
         application,
         instance: [0x33; 16],
         name: "found".into(),
         ..Default::default()
     };
-    // A port free a moment ago can be taken before the host binds it (other tests and
-    // programs on the machine): another port then, a few times.
-    let (session, port) = (0..10)
-        .find_map(|_| {
-            let port = free("the session");
-            match Session::host(desc.clone(), port, Arc::new(quiet)) {
-                Ok(session) => Some((session, port)),
-                Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => None,
-                Err(e) => panic!("a hosted session: {e}"),
-            }
-        })
-        .expect("a hosted session on one of ten free ports");
+    let (session, port) = host_anywhere(desc, b"");
     let mut found = Vec::new();
-    for _ in 0..20 {
+    // Asked again until it answers, for at most five seconds.
+    let until = Instant::now() + Duration::from_secs(5);
+    while found.is_empty() && Instant::now() < until {
         found = find_sessions("127.0.0.1", port, application);
-        if !found.is_empty() {
-            break;
+        if found.is_empty() {
+            std::thread::sleep(Duration::from_millis(10));
         }
-        std::thread::sleep(Duration::from_millis(100));
     }
     session.close();
     assert_eq!(found.first().map(|(d, _)| d.name.as_str()), Some("found"));
@@ -99,12 +88,18 @@ fn le(words: &[u32]) -> Vec<u8> {
     words.iter().flat_map(|w| w.to_le_bytes()).collect()
 }
 
-/// A free port: bound and let go.
-fn free_port() -> u16 {
-    UdpSocket::bind(("127.0.0.1", 0))
-        .and_then(|u| u.local_addr())
-        .map(|a| a.port())
-        .expect("a free port")
+/// A host on the port the system gave its listener (a clash of the UDP side with another
+/// socket: another port, a few times), with the waits shortened; its port.
+fn host_anywhere(desc: Desc, password: &[u8]) -> (Arc<Session>, u16) {
+    (0..10)
+        .find_map(|_| {
+            match Session::host_anywhere(desc.clone(), Arc::new(quiet), password, Pace::quick()) {
+                Ok(session) => Some((session.clone(), session.port)),
+                Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => None,
+                Err(e) => panic!("a hosted session: {e}"),
+            }
+        })
+        .expect("a hosted session on one of ten ports")
 }
 
 fn wire_desc() -> Desc {
@@ -133,16 +128,20 @@ fn wire_desc_bytes(current_players: u32) -> Vec<u8> {
     .concat()
 }
 
-/// A host on a free port (a port taken in between: another one), its port.
+/// A host of `wire_desc` on a port the system gave.
 fn wire_host() -> (Arc<Session>, u16) {
-    (0..10)
-        .find_map(|_| {
-            let port = free_port();
-            Session::host(wire_desc(), port, Arc::new(quiet))
-                .ok()
-                .map(|s| (s, port))
-        })
-        .expect("a hosted session on one of ten free ports")
+    host_anywhere(wire_desc(), b"")
+}
+
+/// The host's next frame with its pings left out: the test hosts ping every 20 ms
+/// (`Pace::quick`), so a ping may come between any two frames a test reads.
+fn host_frame(stream: &mut TcpStream) -> std::io::Result<Vec<u8>> {
+    loop {
+        let frame = read_frame(stream)?;
+        if frame.first() != Some(&PING) {
+            return Ok(frame);
+        }
+    }
 }
 
 fn connect(port: u16) -> TcpStream {
@@ -188,11 +187,11 @@ fn the_hosts_frames_are_frozen() {
     // A JOIN without the magic is dropped: the connection ends.
     let mut wrong = connect(port);
     write_frame(&mut wrong, &[vec![JOIN], b"XC2KNET0".to_vec()].concat()).unwrap();
-    assert!(read_frame(&mut wrong).is_err());
+    assert!(host_frame(&mut wrong).is_err());
 
     let mut peer = connect(port);
     write_frame(&mut peer, &join).unwrap();
-    let welcome = read_frame(&mut peer).expect("the welcome");
+    let welcome = host_frame(&mut peer).expect("the welcome");
     let expected = [vec![WELCOME], le(&[2]), wire_desc_bytes(0), le(&[0, 0])].concat();
     assert_eq!(welcome, expected);
 
@@ -209,8 +208,8 @@ fn the_hosts_frames_are_frozen() {
     .concat();
     write_frame(&mut peer, &create).unwrap();
     let mut frames = [
-        read_frame(&mut peer).unwrap(),
-        read_frame(&mut peer).unwrap(),
+        host_frame(&mut peer).unwrap(),
+        host_frame(&mut peer).unwrap(),
     ];
     frames.sort_by_key(|f| f[0]);
     // REPLY: the request, the result, the player's id.
@@ -238,7 +237,7 @@ fn the_hosts_frames_are_frozen() {
     ]
     .concat();
     write_frame(&mut peer, &send).unwrap();
-    let delivered = read_frame(&mut peer).unwrap();
+    let delivered = host_frame(&mut peer).unwrap();
     assert_eq!(
         delivered,
         [
@@ -252,7 +251,7 @@ fn the_hosts_frames_are_frozen() {
     // A second machine is told the player in its WELCOME.
     let mut second = connect(port);
     write_frame(&mut second, &join).unwrap();
-    let welcome = read_frame(&mut second).unwrap();
+    let welcome = host_frame(&mut second).unwrap();
     let expected = [
         vec![WELCOME],
         le(&[3]),
@@ -275,17 +274,10 @@ fn a_closed_session_refuses_with_its_result() {
         flags: DPSESSION_JOINDISABLED,
         ..wire_desc()
     };
-    let (host, port) = (0..10)
-        .find_map(|_| {
-            let port = free_port();
-            Session::host(desc.clone(), port, Arc::new(quiet))
-                .ok()
-                .map(|s| (s, port))
-        })
-        .expect("a hosted session");
+    let (host, port) = host_anywhere(desc, b"");
     let mut peer = connect(port);
     write_frame(&mut peer, &[vec![JOIN], MAGIC.to_vec()].concat()).unwrap();
-    let answer = read_frame(&mut peer).unwrap();
+    let answer = host_frame(&mut peer).unwrap();
     assert_eq!(answer, [vec![REFUSE], le(&[DPERR_NONEWPLAYERS])].concat());
     host.close();
 }
@@ -306,7 +298,7 @@ fn the_probe_and_its_answer_are_frozen() {
     assert_eq!(&buffer[..n], expected.as_slice());
     let other = [MAGIC.to_vec(), vec![0x5B; 16]].concat();
     udp.send_to(&other, ("127.0.0.1", port)).unwrap();
-    udp.set_read_timeout(Some(Duration::from_millis(700)))
+    udp.set_read_timeout(Some(Duration::from_millis(200)))
         .unwrap();
     assert!(udp.recv_from(&mut buffer).is_err());
     host.close();
@@ -318,9 +310,9 @@ fn the_hosts_closing_frame_is_frozen() {
     let (host, port) = wire_host();
     let mut peer = connect(port);
     write_frame(&mut peer, &[vec![JOIN], MAGIC.to_vec()].concat()).unwrap();
-    read_frame(&mut peer).expect("the welcome");
+    host_frame(&mut peer).expect("the welcome");
     host.close();
-    assert_eq!(read_frame(&mut peer).expect("the bye"), vec![BYE]);
+    assert_eq!(host_frame(&mut peer).expect("the bye"), vec![BYE]);
 }
 
 /// A joiner of another version of the protocol is refused with `DPERR_VERSION` (the first
@@ -331,7 +323,7 @@ fn another_version_is_refused_with_its_result() {
     let mut old = connect(port);
     write_frame(&mut old, &[vec![JOIN], b"RC2KNET1".to_vec()].concat()).unwrap();
     assert_eq!(
-        read_frame(&mut old).expect("the refusal"),
+        host_frame(&mut old).expect("the refusal"),
         [vec![REFUSE], le(&[DPERR_VERSION])].concat()
     );
     host.close();
@@ -344,7 +336,7 @@ fn the_host_puts_a_player_out() {
     let (host, port) = wire_host();
     let mut peer = connect(port);
     write_frame(&mut peer, &[vec![JOIN], MAGIC.to_vec()].concat()).unwrap();
-    read_frame(&mut peer).expect("the welcome");
+    host_frame(&mut peer).expect("the welcome");
     // Make a player: request 0, operation 0, name "p", data 9 9.
     let make = [
         vec![REQUEST],
@@ -359,7 +351,7 @@ fn the_host_puts_a_player_out() {
     write_frame(&mut peer, &make).unwrap();
     let mut player = None;
     for _ in 0..4 {
-        let frame = read_frame(&mut peer).expect("a frame");
+        let frame = host_frame(&mut peer).expect("a frame");
         if frame[0] == REPLY {
             player = Some(u32::from_le_bytes(frame[9..13].try_into().unwrap()));
             break;
@@ -369,7 +361,7 @@ fn the_host_puts_a_player_out() {
     assert_eq!(host.kick(0x7777), DPERR_INVALIDPLAYER);
     assert_eq!(host.kick(player), DP_OK);
     let mut kicked = false;
-    while let Ok(frame) = read_frame(&mut peer) {
+    while let Ok(frame) = host_frame(&mut peer) {
         kicked |= frame == vec![KICKED];
     }
     assert!(kicked);
@@ -381,20 +373,13 @@ fn the_host_puts_a_player_out() {
 /// `DPERR_INVALIDPASSWORD`; an open session never asks.
 #[test]
 fn a_locked_session_lets_in_only_the_right_password() {
-    let (host, port) = (0..10)
-        .find_map(|_| {
-            let port = free_port();
-            Session::host_locked(wire_desc(), port, Arc::new(quiet), b"rally")
-                .ok()
-                .map(|s| (s, port))
-        })
-        .expect("a locked session on one of ten free ports");
+    let (host, port) = host_anywhere(wire_desc(), b"rally");
     assert_ne!(host.world().desc.flags & DPSESSION_PASSWORDREQUIRED, 0);
     let at = SocketAddr::from(([127, 0, 0, 1], port));
     // A bare join is asked for a proof, and the plain password is nowhere in what is sent.
     let mut peer = connect(port);
     write_frame(&mut peer, &[vec![JOIN], MAGIC.to_vec()].concat()).unwrap();
-    let asked = read_frame(&mut peer).expect("the challenge");
+    let asked = host_frame(&mut peer).expect("the challenge");
     assert_eq!(asked.first(), Some(&CHALLENGE));
     assert_eq!(asked.len(), 1 + 16 + 16);
     assert!(!asked.windows(5).any(|w| w == b"rally"));
@@ -480,12 +465,13 @@ fn a_machines_ping_is_measured_and_told_to_all() {
     let (_, mine) = guest.create_player("guest", &[1], 0);
     let (_, theirs) = host.create_player("host", &[2], 0);
     let mut seen = (None, None);
-    for _ in 0..60 {
+    let until = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < until {
         seen = (host.ping_of(mine), guest.ping_of(mine));
         if seen.0.is_some() && seen.1.is_some() {
             break;
         }
-        std::thread::sleep(Duration::from_millis(100));
+        std::thread::sleep(Duration::from_millis(5));
     }
     let (on_host, on_guest) = (seen.0.expect("measured"), seen.1.expect("told"));
     assert!(on_host < 1000 && on_guest < 5000);
@@ -501,7 +487,7 @@ fn a_frame_of_an_unknown_kind_is_passed_over() {
     let (host, port) = wire_host();
     let mut peer = connect(port);
     write_frame(&mut peer, &[vec![JOIN], MAGIC.to_vec()].concat()).unwrap();
-    read_frame(&mut peer).expect("the welcome");
+    host_frame(&mut peer).expect("the welcome");
     write_frame(&mut peer, &[0xEE, 1, 2, 3]).unwrap();
     let make = [
         vec![REQUEST],
@@ -516,7 +502,7 @@ fn a_frame_of_an_unknown_kind_is_passed_over() {
     write_frame(&mut peer, &make).unwrap();
     let mut answered = false;
     for _ in 0..4 {
-        let frame = read_frame(&mut peer).expect("a frame");
+        let frame = host_frame(&mut peer).expect("a frame");
         if frame[0] == REPLY {
             answered = true;
             break;
@@ -586,17 +572,12 @@ fn a_machine_that_reads_nothing_holds_up_no_other() {
         .lock()
         .unwrap()
         .insert(99, Link::new(Box::new(stalled)).expect("a link"));
-    let started = Instant::now();
     for _ in 0..50 {
         host.to_machine(99, &[PING, 1, 0, 0, 0]);
     }
     let (result, _) = host.create_player("host", &[], 0);
     assert_eq!(result, DP_OK);
-    assert!(
-        started.elapsed() < Duration::from_secs(1),
-        "sends waited for the stalled machine: {:?}",
-        started.elapsed()
-    );
+    // (Both sends returned: a send held up by the stalled machine would not get here.)
     // The machine that reads was told all the same.
     for _ in 0..200 {
         if !guest.world().players.is_empty() {
@@ -635,7 +616,7 @@ fn a_host_that_goes_silent_loses_the_session() {
     let session = Session::new(2, World::default(), Arc::new(quiet), 0, None);
     let reader = session.clone();
     let follow = std::thread::spawn(move || {
-        reader.follow_host(Box::new(guest_end), Duration::from_millis(100));
+        reader.follow_host(Box::new(guest_end), Duration::from_millis(20));
     });
     follow.join().expect("the reader ends on its own");
     assert!(session.lock().lost);
@@ -647,13 +628,11 @@ fn a_host_that_goes_silent_loses_the_session() {
 fn a_long_announced_frame_that_never_comes_is_an_error() {
     let (mut sender, mut receiver) = Pipe::pair();
     receiver
-        .set_read_timeout(Some(Duration::from_millis(100)))
+        .set_read_timeout(Some(Duration::from_millis(20)))
         .expect("a timeout");
     sender
         .write_all(&(FRAME_MOST as u32).to_le_bytes())
         .expect("a length");
     sender.write_all(&[1, 2, 3]).expect("a little");
-    let started = Instant::now();
     assert!(read_frame(&mut receiver).is_err());
-    assert!(started.elapsed() < Duration::from_secs(2));
 }

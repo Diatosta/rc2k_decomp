@@ -31,7 +31,7 @@ impl Parts for Game {
     }
 
     fn pump_messages(&mut self) {
-        crate::platform::pump_messages_now(self.o);
+        crate::shell::frame::pump_messages_now(self.o);
     }
 
     fn quitting(&mut self) -> bool {

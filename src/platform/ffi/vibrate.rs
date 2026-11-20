@@ -18,7 +18,7 @@ static LAST_PULSE: Mutex<Option<Instant>> = Mutex::new(None);
 pub fn rumble(heavy: u16, light: u16) {
     let Some(pulse) = phone_pulse(heavy, light) else {
         if heavy == 0 && light == 0 {
-            crate::platform::ffi::phone_vibrator::stop();
+            super::phone_vibrator::stop();
         }
         return;
     };
@@ -30,5 +30,5 @@ pub fn rumble(heavy: u16, light: u16) {
         return;
     }
     *last = Some(now);
-    crate::platform::ffi::phone_vibrator::pulse(pulse.strength, pulse.ms);
+    super::phone_vibrator::pulse(pulse.strength, pulse.ms);
 }

@@ -8,7 +8,7 @@ parts (menus, text, the HUD) come in, and how views are drawn on several threads
 
 The game side is `src/scene/` (objects, polygons, textures, lighting), `src/race/frame_draw/`
 and `src/race/draw_race_scene.rs` (what a race draws), `src/effects/` and `src/hud/`. The thin
-layer between game and renderer is `src/d3d/` and `src/platform/direct3d.rs`. The renderers
+layer between game and renderer is `src/d3d/` and `src/d3d/device.rs`. The renderers
 are in `src/render/`.
 
 ## The idea in one paragraph
@@ -105,7 +105,7 @@ the depth buffer. A **render state** is a numbered setting: depth test on or off
 see-through pixel blends, fog on or off, texture filtering.
 
 In this program these calls draw nothing. They **note** what was asked
-(`src/d3d/recorder.rs`, `src/platform/direct3d.rs`) as a list of commands.
+(`src/d3d/recorder.rs`, `src/d3d/device.rs`) as a list of commands.
 
 ## The command list
 
@@ -150,7 +150,7 @@ screen's pixel format (always 32 bits a pixel, XRGB):
 - text: `src/text/` draws strings glyph by glyph (`gfx::blit_glyph`; see [Fonts](Fonts));
 - boxes and bars: `gfx::rect` and the bar blitters.
 
-`src/platform/mod.rs` holds that picture (`Screen`) and puts it on the window when the game
+`src/platform/mod.rs` holds that picture (`Screen`) and `src/shell/frame.rs` puts it on the window when the game
 shows a frame.
 
 On the GPU renderers, 2D and 3D have to be combined, because the 3D is on the GPU and the 2D

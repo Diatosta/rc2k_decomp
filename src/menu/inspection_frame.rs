@@ -11,7 +11,8 @@
 use crate::errors::Refused;
 use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed, run_listed};
 use crate::owners::Owners;
-use crate::platform::{show_frame_now, unlock_surface};
+use crate::platform::unlock_surface;
+use crate::shell::frame::show_frame_now;
 
 /// Whether the frame of `menu` was made.
 pub fn inspection_frame(

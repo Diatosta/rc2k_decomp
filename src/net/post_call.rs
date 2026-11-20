@@ -39,7 +39,7 @@ pub fn post_call(o: crate::owners::Owners<'static>, code: PostedCall) -> u32 {
                 break;
             }
             crate::clock::sleep::sleep(POLL_MS);
-            crate::platform::pump_messages_now(o);
+            crate::shell::frame::pump_messages_now(o);
             if o.system.session.flags.quitting.is_set() {
                 break;
             }

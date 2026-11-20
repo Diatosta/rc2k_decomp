@@ -17,7 +17,8 @@
 
 use crate::errors::Refused;
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
-use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
+use crate::platform::{lock_surface, unlock_surface};
+use crate::shell::frame::{pump_messages_now, show_frame_now};
 use rc2k_core::gfx::picture_size as sizes;
 
 const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LOADING;

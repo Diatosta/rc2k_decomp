@@ -189,7 +189,7 @@ starts. More in [Drawing a frame](Drawing-a-frame).
 ## The platform layer
 
 `src/platform/` is everything between the game and the computer: the window and its events
-(`mod.rs`), the 3D layer's hand-over to the backends (`direct3d.rs`), sound output
+(`mod.rs`), the frame's end (`shell/frame.rs`) and the 3D layer's hand-over to the backends (`d3d/device.rs`), sound output
 (`sound.rs`), controllers (`input.rs`), threads and locks (`sync.rs`),
 operating-system facts (`os/`), and bindings to C libraries (`ffi/`). It is built on SDL3. The
 game's own code does not call SDL or the operating system directly; if you are porting to a new

@@ -151,7 +151,7 @@ pub struct Drawing {
     pub blit: Blitter,
     pub bar: BarVars,
     /// The surface the screen is drawn on: atomic cells, which the drawing threads read through
-    /// `platform::direct3d::Handles` while the game's thread waits.
+    /// `d3d::device::Handles` while the game's thread waits.
     pub draw_surface: DrawSurface,
     pub surfaces: Surfaces,
     /// Each row of a picture (602 of them), zero at the start: its offset in the decoded buffer.
@@ -181,7 +181,7 @@ impl Drawing {
 pub struct Card3d {
     pub upload: Upload,
     /// The card's tables: atomic cells, which the drawing threads read through
-    /// `platform::direct3d::Handles` while the game's thread waits.
+    /// `d3d::device::Handles` while the game's thread waits.
     pub texture_tables: Textures,
     pub windscreen_drop_batch: WindscreenDrops,
 }

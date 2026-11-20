@@ -95,6 +95,6 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     piece(screens::LEFT_END, screens::END_WIDTH)?;
     draw_centred_item(o, net, 0x16F, 6, text_x, 0x21D)?;
     crate::platform::unlock_surface(o.gfx);
-    crate::platform::show_frame_now(o);
+    crate::shell::frame::show_frame_now(o);
     Ok(())
 }

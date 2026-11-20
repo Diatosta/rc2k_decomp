@@ -1,144 +1,10 @@
 //! SDL's events under the game: closing the window sets the quit switch, and the keys and
 //! buttons the menus know become the game's pending key.
 
+use crate::platform::event::{Event, JoystickId, PadButton, StickAxis, scancode};
 use crate::platform::ffi::sdl;
 use crate::program_log::log;
 use rc2k_core::input::profile::MenuControl;
-use sdl3_sys::everything::*;
-
-/// An SDL event the program looks at.
-enum Event {
-    Quit,
-    Focus(bool),
-    /// A window's size changed.
-    Resized,
-    Key {
-        scancode: i32,
-        down: bool,
-    },
-    Pad {
-        id: SDL_JoystickID,
-        button: SDL_GamepadButton,
-        down: bool,
-    },
-    Stick {
-        axis: crate::input::menu_pad::StickAxis,
-        value: i32,
-    },
-    /// The right stick's vertical axis (a page that scrolls reads it).
-    ScrollStick(i32),
-    /// A joystick that is not a gamepad (a wheel): its hat, buttons and first axis.
-    Joystick {
-        id: SDL_JoystickID,
-        input: sdl::JoystickInput,
-    },
-    /// Typed text (UTF-8).
-    Text(String),
-    /// A finger on the touch screen.
-    #[cfg(touch_screen)]
-    Finger {
-        id: u64,
-        phase: rc2k_core::input::menu_touch::Phase,
-        x: f32,
-        y: f32,
-    },
-    Other,
-}
-
-/// A finger's change as an event (touch screens only).
-#[cfg(touch_screen)]
-fn finger_event(event: &sdl::PolledEvent) -> Option<Event> {
-    let (id, phase, x, y) = event.finger()?;
-    Some(Event::Finger { id, phase, x, y })
-}
-
-#[cfg(not(touch_screen))]
-fn finger_event(_: &sdl::PolledEvent) -> Option<Event> {
-    None
-}
-
-/// SDL's next event, if there is one.
-fn next_event() -> Option<Event> {
-    let event = sdl::poll_event()?;
-    // Ctrl+F11, in the race and in the menus (which never run `input::update`), and
-    // whatever has the UI's keyboard.
-    if event.is_fresh_ctrl_key_down(SDL_SCANCODE_F11) {
-        crate::debug::overlay::toggle_ui();
-        return Some(Event::Other);
-    }
-    // Alt+Enter: the window to full screen and back (the graphics page's "screen" row).
-    if event.is_fresh_alt_key_down(SDL_SCANCODE_RETURN) {
-        crate::platform::window_mode::set(crate::platform::window_mode::toggled());
-        crate::platform::apply_window_mode();
-        return Some(Event::Other);
-    }
-    // The debug UI's first (`debug::imgui_sdl`): what it takes the game does not see.
-    if crate::debug::imgui_sdl::event(event.as_sdl()) {
-        return Some(Event::Other);
-    }
-    let kind = event.kind();
-    // A window's close button: the OpenGL backend's window may be the only one shown, and SDL
-    // sends its quit only when the last of all its windows closes.
-    Some(
-        if kind == SDL_EVENT_QUIT || kind == SDL_EVENT_WINDOW_CLOSE_REQUESTED {
-            Event::Quit
-        } else if kind == SDL_EVENT_WINDOW_RESIZED {
-            Event::Resized
-        } else if kind == SDL_EVENT_WINDOW_FOCUS_GAINED {
-            Event::Focus(true)
-        } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST || kind == SDL_EVENT_WILL_ENTER_BACKGROUND {
-            // A phone's app sent to the background (the system takes the GPU from it).
-            Event::Focus(false)
-        } else if kind == SDL_EVENT_DID_ENTER_FOREGROUND {
-            Event::Focus(true)
-        } else if kind == SDL_EVENT_JOYSTICK_ADDED {
-            #[cfg(phone)]
-            crate::platform::touch::pad_added(event.joystick_id());
-            crate::platform::input::pad_added(event.joystick_id());
-            Event::Other
-        } else if kind == SDL_EVENT_JOYSTICK_REMOVED {
-            #[cfg(phone)]
-            crate::platform::touch::pad_removed(event.joystick_id());
-            crate::platform::input::pad_removed(event.joystick_id());
-            Event::Other
-        } else if let Some(finger) = finger_event(&event) {
-            finger
-        } else if let Some((id, button, down)) = event.gamepad_button() {
-            #[cfg(phone)]
-            if down {
-                crate::platform::touch::pad_used(id);
-            }
-            Event::Pad { id, button, down }
-        } else if let Some((axis, value)) = event.gamepad_axis() {
-            // A stick pushed well off its rest, or a trigger pressed, is the controller used.
-            #[cfg(phone)]
-            if value.unsigned_abs() > 16000
-                && let Some(id) = event.gamepad_axis_joystick()
-            {
-                crate::platform::touch::pad_used(id);
-            }
-            use crate::input::menu_pad::StickAxis;
-            let axis = match axis {
-                SDL_GAMEPAD_AXIS_LEFTX => StickAxis::X,
-                SDL_GAMEPAD_AXIS_LEFTY => StickAxis::Y,
-                SDL_GAMEPAD_AXIS_RIGHTY => return Some(Event::ScrollStick(value.into())),
-                _ => return Some(Event::Other),
-            };
-            Event::Stick {
-                axis,
-                value: value.into(),
-            }
-        } else if let Some((id, input)) = event.joystick_input() {
-            Event::Joystick { id, input }
-        } else if let Some(text) = event.text() {
-            Event::Text(text)
-        } else if let Some((scancode, down)) = event.key() {
-            Event::Key { scancode, down }
-        } else {
-            Event::Other
-        },
-    )
-}
 
 /// Set by `restore_window` (any thread): the window is restored at the next pump, on the
 /// thread that made it.
@@ -227,11 +93,13 @@ pub fn pump(o: crate::owners::Owners<'static>) {
     // The browser's gamepads copied into SDL's virtual ones (the page's API is not on this thread).
     #[cfg(web)]
     {
-        crate::platform::web::run_queued_calls();
+        crate::platform::ffi::web::run_queued_calls();
         crate::platform::web_pads::poll();
-        crate::platform::web::follow_full_screen();
+        crate::platform::ffi::web::follow_full_screen();
     }
-    while let Some(event) = next_event() {
+    while let Some(event) =
+        crate::platform::event::next(|event| crate::debug::imgui_sdl::event(event.as_sdl()))
+    {
         match event {
             Event::Quit if HOLD_QUIT.load(std::sync::atomic::Ordering::Relaxed) => {
                 log("platform: the window was closed during the copy: quitting at its end");
@@ -255,6 +123,7 @@ pub fn pump(o: crate::owners::Owners<'static>) {
                 #[cfg(touch_screen)]
                 crate::shell::touch_menu::release_all();
             }
+            Event::ToggleDebugUi => crate::debug::overlay::toggle_ui(),
             Event::Text(text) => crate::input::typed_text::typed_by_keyboard(&text),
             Event::Key { scancode, down } => {
                 if down && matches!(scancode, 40 | 88) {
@@ -283,6 +152,10 @@ pub fn pump(o: crate::owners::Owners<'static>) {
             // replay viewer take it.
             Event::ScrollStick(value) => input.note_scroll_stick(value),
             Event::Stick { axis, value } => {
+                let axis = match axis {
+                    StickAxis::X => crate::input::menu_pad::StickAxis::X,
+                    StickAxis::Y => crate::input::menu_pad::StickAxis::Y,
+                };
                 if !driving(o.race) {
                     let now = u64::from(crate::platform::os::ticks());
                     if let Some(action) = lock_menu_pad().stick(axis, value, now) {
@@ -414,8 +287,8 @@ fn pad_button(
     driving: bool,
     input: &crate::input::owner::Input,
     system: &crate::system::owner::System,
-    pad: SDL_JoystickID,
-    button: SDL_GamepadButton,
+    pad: JoystickId,
+    button: PadButton,
     down: bool,
 ) {
     use crate::input::menu_pad::PadButton as B;
@@ -424,9 +297,9 @@ fn pad_button(
     {
         use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
         static GUIDE: AtomicBool = AtomicBool::new(false);
-        if button == SDL_GAMEPAD_BUTTON_GUIDE {
+        if button == PadButton::Guide {
             GUIDE.store(down, Relaxed);
-        } else if button == SDL_GAMEPAD_BUTTON_START && down && GUIDE.load(Relaxed) {
+        } else if button == PadButton::Start && down && GUIDE.load(Relaxed) {
             log("platform: MENU + START: the quit switch is set");
             system.session.flags.quitting.set(true);
             end_if_not_left();
@@ -435,10 +308,10 @@ fn pad_button(
     }
     // The on-screen keyboard's own buttons: Start is done, Back cancels.
     if down
-        && (button == SDL_GAMEPAD_BUTTON_START || button == SDL_GAMEPAD_BUTTON_BACK)
+        && (button == PadButton::Start || button == PadButton::Back)
         && crate::input::typed_text::osk().is_some()
     {
-        let asks = if button == SDL_GAMEPAD_BUTTON_START {
+        let asks = if button == PadButton::Start {
             crate::input::typed_text::Asks::Done
         } else {
             crate::input::typed_text::Asks::Cancel
@@ -447,17 +320,17 @@ fn pad_button(
         return;
     }
     let button = match button {
-        SDL_GAMEPAD_BUTTON_DPAD_UP => B::DpadUp,
-        SDL_GAMEPAD_BUTTON_DPAD_DOWN => B::DpadDown,
-        SDL_GAMEPAD_BUTTON_DPAD_LEFT => B::DpadLeft,
-        SDL_GAMEPAD_BUTTON_DPAD_RIGHT => B::DpadRight,
-        SDL_GAMEPAD_BUTTON_SOUTH => B::South,
-        SDL_GAMEPAD_BUTTON_EAST => B::East,
-        SDL_GAMEPAD_BUTTON_WEST => B::West,
-        SDL_GAMEPAD_BUTTON_START => B::Start,
+        PadButton::DpadUp => B::DpadUp,
+        PadButton::DpadDown => B::DpadDown,
+        PadButton::DpadLeft => B::DpadLeft,
+        PadButton::DpadRight => B::DpadRight,
+        PadButton::South => B::South,
+        PadButton::East => B::East,
+        PadButton::West => B::West,
+        PadButton::Start => B::Start,
         // In a race the shoulders may be bound to the car's controls.
-        SDL_GAMEPAD_BUTTON_LEFT_SHOULDER if !driving => B::LeftShoulder,
-        SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER if !driving => B::RightShoulder,
+        PadButton::LeftShoulder if !driving => B::LeftShoulder,
+        PadButton::RightShoulder if !driving => B::RightShoulder,
         _ => return,
     };
     // A control the pad's profile binds is taken from its bound button instead.
@@ -489,7 +362,7 @@ fn pad_button(
 /// wheel whose buttons are numbered otherwise can be told.
 fn joystick_in_menus(
     input: &crate::input::owner::Input,
-    id: SDL_JoystickID,
+    id: JoystickId,
     what: sdl::JoystickInput,
     in_race: bool,
 ) {
@@ -538,7 +411,7 @@ fn joystick_in_menus(
 /// The menu bindings of the controller `id` (see `input::profiles::menu_map_of`).
 fn menu_map(
     input: &crate::input::owner::Input,
-    id: SDL_JoystickID,
+    id: JoystickId,
 ) -> Option<rc2k_core::input::profile::MenuMap> {
     let name = crate::platform::ffi::sdl_input::joystick_name_for_id(id, "");
     crate::input::profiles::menu_map_of(input, &name)
@@ -566,19 +439,18 @@ fn menu_control_of(button: crate::input::menu_pad::PadButton) -> Option<MenuCont
 /// number (which differs by model: a DualSense's L3 / R3 among them) would miss.
 fn pad_bound_controls(
     input: &crate::input::owner::Input,
-    id: SDL_JoystickID,
-    button: SDL_GamepadButton,
+    id: JoystickId,
+    button: PadButton,
     down: bool,
     in_race: bool,
 ) {
     use std::collections::HashMap;
-    static CROSS: std::sync::Mutex<Option<HashMap<SDL_JoystickID, u8>>> =
-        std::sync::Mutex::new(None);
+    static CROSS: std::sync::Mutex<Option<HashMap<JoystickId, u8>>> = std::sync::Mutex::new(None);
     let bit = match button {
-        SDL_GAMEPAD_BUTTON_DPAD_UP => 1,
-        SDL_GAMEPAD_BUTTON_DPAD_RIGHT => 2,
-        SDL_GAMEPAD_BUTTON_DPAD_DOWN => 4,
-        SDL_GAMEPAD_BUTTON_DPAD_LEFT => 8,
+        PadButton::DpadUp => 1,
+        PadButton::DpadRight => 2,
+        PadButton::DpadDown => 4,
+        PadButton::DpadLeft => 8,
         _ => 0,
     };
     let what = if bit != 0 {
@@ -596,11 +468,8 @@ fn pad_bound_controls(
         }
         sdl::JoystickInput::Hat(0, *bits)
     } else {
-        match crate::platform::input::PAD_BUTTONS
-            .iter()
-            .position(|&b| b == button)
-        {
-            Some(n) => sdl::JoystickInput::Button(n as u8, down),
+        match button.profile_number() {
+            Some(n) => sdl::JoystickInput::Button(n, down),
             None => return,
         }
     };
@@ -611,7 +480,7 @@ fn pad_bound_controls(
 /// the pad's button that stands for it.
 fn bound_menu_controls(
     input: &crate::input::owner::Input,
-    id: SDL_JoystickID,
+    id: JoystickId,
     what: sdl::JoystickInput,
     in_race: bool,
 ) {
@@ -702,17 +571,17 @@ pub(crate) fn menu_action(
         crate::input::typed_text::note_confirm(true);
     }
     let scancode = match action {
-        A::Up => SDL_SCANCODE_UP,
-        A::Down => SDL_SCANCODE_DOWN,
-        A::Left => SDL_SCANCODE_LEFT,
-        A::Right => SDL_SCANCODE_RIGHT,
+        A::Up => scancode::UP,
+        A::Down => scancode::DOWN,
+        A::Left => scancode::LEFT,
+        A::Right => scancode::RIGHT,
         A::Enter => {
             note_answer(input, YES);
-            SDL_SCANCODE_RETURN
+            scancode::RETURN
         }
         A::Back => {
             note_answer(input, NO);
-            SDL_SCANCODE_ESCAPE
+            scancode::ESCAPE
         }
         A::Third => {
             note_answer(input, THIRD);
@@ -724,16 +593,16 @@ pub(crate) fn menu_action(
             );
             return;
         }
-        A::Tab => SDL_SCANCODE_TAB,
+        A::Tab => scancode::TAB,
         A::LeaveRace | A::LeaveRaceEnd => {
             let state = if action == A::LeaveRace { 0xFF } else { 0 };
             input
                 .devices
-                .set_key_state(game_key(SDL_SCANCODE_ESCAPE.0), state);
+                .set_key_state(game_key(scancode::ESCAPE), state);
             return;
         }
     };
-    let key = game_key(scancode.0);
+    let key = game_key(scancode);
     crate::input::take_key::pending_key(input).store(key, std::sync::atomic::Ordering::SeqCst);
 }
 

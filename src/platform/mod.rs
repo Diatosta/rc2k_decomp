@@ -3,22 +3,21 @@
 //! Each function takes the place of a piece of the game's platform (the screen, the window or
 //! the message pump), keeps what that piece means to the game's own code (the variables it
 //! leaves, the flags it returns with) and does the rest with SDL.
-//! Beside this file: `direct3d` (the 3D layer), `sound`, `input` (joysticks and wheels), `events`,
-//! `timing`, `film`, `handheld` (the Anbernic), `web` (the browser), `os` (system services), `ffi`
-//! (the C libraries) and `sync` (threads and events), `arch` (processor differences).
+//! Beside this file: `sound`, `input` (joysticks and wheels), `event` (SDL's events decoded),
+//! `pacing`, `timing`, `handheld` (the Anbernic), `os` (system services), `ffi` (the C
+//! libraries, with `web`, `arch` and `process` among them) and `sync` (threads and events).
 //!
 //! The screen: the game draws into a locked surface in the screen mode's own pixel
 //! layout. Here that surface is memory of ours (`Screen::pixels`, rows without a gap),
-//! and `show_frame` copies it to the window (the screen is XRGB8888, as the window takes it).
+//! and `shell::frame` shows it on the window (the screen is XRGB8888, as the window takes it).
 //!
 //! - `gfx::choose_screen_modes`: the kept modes are taken as they are, 800 x 600 in 32 bits
 //!   when there is none.
 //! - `gfx::set_screen_mode`: the mode's size and pixel kind looked up and its variables set; the
-//!   surface made; its pixel format described; the texture formats too (`platform::direct3d.rs`).
+//!   surface made; its pixel format described; the texture formats too (`d3d::device.rs`).
 //!   `gfx::set_menu_screen_mode` is it with the menus' mode.
-//! - `gfx::lock_surface`, `gfx::unlock_surface`, `gfx::show_frame`.
-//! - `screens::run_frame` (given the frame's function) and `system::pump_messages`: SDL's events
-//!   (`shell::events`).
+//! - `gfx::lock_surface`, `gfx::unlock_surface`; the frame's end and the window's events are
+//!   `shell::frame` and `shell::events`.
 //!
 //! Where the time goes: `platform::timing`.
 
@@ -27,8 +26,7 @@
 
 #[cfg(target_os = "android")]
 pub mod android;
-pub mod arch;
-pub mod direct3d;
+pub mod event;
 pub mod ffi;
 #[cfg(handheld)]
 pub mod handheld;
@@ -43,10 +41,6 @@ pub mod sync;
 pub mod timing;
 #[cfg(phone)]
 pub mod touch;
-#[cfg(phone)]
-pub mod vibrate;
-#[cfg(web)]
-pub mod web;
 #[cfg(web)]
 pub mod web_pads;
 pub mod window_mode;
@@ -56,7 +50,7 @@ use crate::gfx::set_clip::set_clip;
 use crate::platform::ffi::sdl;
 use crate::program_log::log;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::AtomicU32;
 
 // ---- game data ----
 
@@ -67,10 +61,10 @@ pub(crate) struct Screen {
     pub(crate) window: sdl::Window,
     /// The window's renderer (`SDL_Renderer`: the frame goes up as a texture, the
     /// debug UI drawn over it) and the frame's texture (XRGB8888, the screen's size).
-    renderer: sdl::Renderer,
+    pub(crate) renderer: sdl::Renderer,
     #[cfg_attr(handheld, allow(dead_code))]
     // the handheld shows frames on its framebuffer
-    texture: sdl::Texture,
+    pub(crate) texture: sdl::Texture,
     /// The frame's size: what the game draws on (800 x 600 in the menus, the race's mode in a race).
     pub(crate) width: usize,
     pub(crate) height: usize,
@@ -81,10 +75,58 @@ pub(crate) struct Screen {
     #[cfg_attr(handheld, allow(dead_code))]
     // the handheld's panel is the frame's own size
     pub(crate) menu: bool,
-    bits: u32,
+    pub(crate) bits: u32,
     /// The pixels the game draws on, named by `locked_pixels::SCREEN` while the screen lives.
-    pixels: std::sync::Arc<crate::platform::pool::PoolBytes>,
+    pub(crate) pixels: std::sync::Arc<crate::platform::pool::PoolBytes>,
 }
+
+impl Screen {
+    /// Runs `show` on the frame, XRGB8888.
+    pub(crate) fn with_frame<R>(&self, show: impl FnOnce(&[u8]) -> R) -> R {
+        // SAFETY: `PoolBytes::slice`'s promise: the screen's pixels are reached from the game's
+        // thread only (the backends' calls and the frame's showing run on it; the drawing threads
+        // they lend the rows to are joined before `Backend::draw` returns), and nothing on it writes
+        // them while `show` runs: the GPU's canvas writes (`render::finish_frame`, `bring_back`,
+        // `show_on_panel`) come before the frame is taken, and `show` only reads it. The slice
+        // borrows `self`, which keeps the pixels.
+        let pixels = unsafe { self.pixels.slice() };
+        show(pixels)
+    }
+}
+
+/// The GPU's colour target as a texture of the window's renderer: made once for a set of
+/// targets (`targets_made`, their number), in `GPU_VIEW`.
+#[cfg(not(handheld))]
+pub(crate) fn make_view(
+    renderer: sdl::Renderer,
+    (colour, targets_made, (width, height)): (
+        *mut sdl3_sys::everything::SDL_GPUTexture,
+        u64,
+        (u32, u32),
+    ),
+) {
+    let mut view = GPU_VIEW.lock().unwrap();
+    if view.0 != targets_made {
+        // The old view is destroyed (dropped) when the new one is made.
+        let Some(made) = renderer.create_gpu_view(colour, width as usize, height as usize) else {
+            crate::fatal::raise::end(
+                "platform::view_of",
+                crate::errors::BadInput("SDL makes no texture of the GPU's picture"),
+            );
+        };
+        *view = (targets_made, Some(made), (width, height));
+    }
+}
+
+/// The number of the targets' set the view was made for (none yet: 0), and the view.
+#[cfg(not(handheld))]
+pub(crate) static GPU_VIEW: Mutex<(u64, Option<sdl::Texture>, (u32, u32))> =
+    Mutex::new((0, None, (0, 0)));
+
+/// The wash texture of the menu's background (its version, the texture), kept while the
+/// background and the window's size stay the same.
+#[cfg(not(handheld))]
+pub(crate) static WASH_TEXTURE: Mutex<Option<(u64, sdl::Texture)>> = Mutex::new(None);
 
 pub(crate) static SCREEN: Mutex<Option<Screen>> = Mutex::new(None);
 /// Frames shown, and after how many the program ends itself (0: never): for trying it
@@ -207,7 +249,7 @@ pub fn monitor_modes() -> sdl::DisplayModes {
     }
     // The browser: its window's size (the picture fills it) and its screen's (the full screen).
     #[cfg(web)]
-    if let Some(sizes) = web::sizes() {
+    if let Some(sizes) = ffi::web::sizes() {
         let modes = vec![
             (sizes.window.0, sizes.window.1, 60.0),
             (sizes.screen.0, sizes.screen.1, 60.0),
@@ -266,11 +308,11 @@ fn set_screen_mode(
     let bytes = bits >> 3;
     // Every texture is given back before the screen changes; the game loads again what it needs (a
     // trial's 0x40 more found the pool full).
-    crate::platform::direct3d::release_all_textures(gfx);
+    crate::d3d::device::release_all_textures(gfx);
     system.session.screen.get().width.set(width);
     system.session.screen.get().height.set(height);
     system.session.screen.get().bits.set(bits);
-    if let Some(scratch) = crate::platform::direct3d::game_scratch() {
+    if let Some(scratch) = crate::d3d::device::game_scratch() {
         crate::scene::workers::set_game_part_screen(scratch, width, height, bits);
     }
     system.session.screen.get().bytes.set(bytes);
@@ -452,7 +494,7 @@ fn set_screen_mode(
         pixels,
     });
     gfx.display.mode.mode_set.set(mode);
-    crate::platform::direct3d::describe_texture_formats(gfx);
+    crate::d3d::device::describe_texture_formats(gfx);
     log(&format!(
         "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"
     ));
@@ -660,10 +702,10 @@ pub fn swap_renderer(
         "render: swapping the renderer {before:?} -> {wish:?}"
     ));
     // Whatever was noted is drawn first.
-    crate::platform::direct3d::flush();
+    crate::d3d::device::flush();
     let screen_now = o.system.session.screen.get();
     let size = (screen_now.width.get(), screen_now.height.get());
-    let target = crate::platform::direct3d::screen(screen_now);
+    let target = crate::d3d::device::screen(screen_now);
     rebuild_renderer(wish, target.as_ref(), size)?;
     let running = crate::render::running_wish();
     if running == wish {
@@ -675,7 +717,7 @@ pub fn swap_renderer(
     ));
     if running != before {
         // The renderer that ran before, again.
-        let target = crate::platform::direct3d::screen(screen_now);
+        let target = crate::d3d::device::screen(screen_now);
         match rebuild_renderer(before, target.as_ref(), size) {
             Ok(()) => log(&format!(
                 "render: the old renderer is back, now {:?}",
@@ -775,7 +817,7 @@ pub fn set_mode_now(
     system: &crate::system::owner::System,
 ) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
-    crate::platform::direct3d::flush();
+    crate::d3d::device::flush();
     let done = set_screen_mode(mode, Purpose::Race, gfx, system);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
@@ -792,7 +834,7 @@ pub fn set_menu_mode_now(
     system: &crate::system::owner::System,
 ) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
-    crate::platform::direct3d::flush();
+    crate::d3d::device::flush();
     // The menus' frame is always 800 x 600 (the kind of pixel the race's): what the options
     // keep as the menus' mode no longer changes it.
     #[cfg(not(handheld))]
@@ -812,7 +854,7 @@ pub fn set_menu_mode_now(
 /// screen); the locked flag is 1 after it.
 pub fn lock_surface(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) -> u32 {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
-    crate::platform::direct3d::flush();
+    crate::d3d::device::flush();
     let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
     if !system.session.flags.quitting.is_set() && have {
         gfx.locked.surface.set(1);
@@ -851,391 +893,6 @@ pub fn unlock_surface(gfx: &crate::gfx::owner::Gfx) -> u32 {
     locked
 }
 
-// ---- gfx::show_frame ----
-
-/// The GPU's colour target as a texture of the window's renderer: made once for a set of
-/// targets (`targets_made`, their number), in `GPU_VIEW`.
-#[cfg(not(handheld))]
-fn make_view(
-    renderer: sdl::Renderer,
-    (colour, targets_made, (width, height)): (
-        *mut sdl3_sys::everything::SDL_GPUTexture,
-        u64,
-        (u32, u32),
-    ),
-) {
-    let mut view = GPU_VIEW.lock().unwrap();
-    if view.0 != targets_made {
-        // The old view is destroyed (dropped) when the new one is made.
-        let Some(made) = renderer.create_gpu_view(colour, width as usize, height as usize) else {
-            crate::fatal::raise::end(
-                "platform::view_of",
-                crate::errors::BadInput("SDL makes no texture of the GPU's picture"),
-            );
-        };
-        *view = (targets_made, Some(made), (width, height));
-    }
-}
-
-/// The number of the targets' set the view was made for (none yet: 0), and the view.
-#[cfg(not(handheld))]
-static GPU_VIEW: Mutex<(u64, Option<sdl::Texture>, (u32, u32))> = Mutex::new((0, None, (0, 0)));
-
-/// `show` on the frame, XRGB8888.
-fn with_frame<R>(screen: &Screen, show: impl FnOnce(&[u8]) -> R) -> R {
-    // SAFETY: `PoolBytes::slice`'s promise: the screen's pixels are reached from the game's
-    // thread only (the backends' calls and the frame's showing run on it; the drawing threads
-    // they lend the rows to are joined before `Backend::draw` returns), and nothing on it writes
-    // them while `show` runs: the GPU's canvas writes (`render::finish_frame`, `bring_back`,
-    // `show_on_panel`) come before the frame is taken, and `show` only reads it. The slice
-    // borrows `screen`, which keeps the pixels.
-    let pixels = unsafe { screen.pixels.slice() };
-    show(pixels)
-}
-
-fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(), &'static str> {
-    let race = o.race;
-    let racing = race.course.numbers.get().in_race.is_set();
-    // The frame's length (`with_frame`), checked before anything is shown.
-    if screen.pixels.len() < screen.width * screen.height * 4 {
-        return Err("the frame is smaller than the screen");
-    }
-    #[cfg(handheld)]
-    {
-        // The framebuffer's mode first, its memory then the GPU's or ours.
-        crate::platform::handheld::open_screen()?;
-        if let Some(target) = crate::platform::direct3d::screen(o.system.session.screen.get())
-            && crate::render::show_on_panel(
-                racing,
-                &target,
-                |show| with_frame(screen, show),
-                screen.width,
-                screen.height,
-            )
-        {
-            return Ok(());
-        }
-        with_frame(screen, |frame| {
-            crate::platform::handheld::present(frame, screen.width, screen.height)
-        })
-    }
-    #[cfg(not(handheld))]
-    {
-        // The OpenGL backend's own window shows its frames itself (the debug UI, drawn through
-        // SDL's renderer, is not over them).
-        if let Some(target) = crate::platform::direct3d::screen(o.system.session.screen.get())
-            && crate::render::show_on_gl_window(
-                racing,
-                &target,
-                |show| with_frame(screen, show),
-                screen.width,
-                screen.height,
-                screen.menu,
-            )
-        {
-            return Ok(());
-        }
-        let renderer = screen.renderer;
-        // A race on the GPU: its picture, the canvas's written pixels over it.
-        let finishing = std::time::Instant::now();
-        let gpu_view = crate::platform::direct3d::screen(o.system.session.screen.get())
-            .and_then(|target| crate::render::finish_frame(racing, &target))
-            .map(|colour| make_view(renderer, colour))
-            .is_some();
-        crate::platform::timing::note_span(
-            &crate::platform::timing::FINISH_MICROS,
-            &crate::platform::timing::FINISH_MAX,
-            finishing.elapsed().as_micros() as u64,
-        );
-        if !gpu_view
-            && !with_frame(screen, |frame| {
-                screen.texture.upload(frame, screen.width * 4)
-            })
-        {
-            return Err("SDL cannot take the frame into its texture");
-        }
-        // `make_view` has just made the GPU's view.
-        let view = GPU_VIEW.lock().unwrap();
-        let texture = view
-            .1
-            .as_ref()
-            .filter(|_| gpu_view)
-            .unwrap_or(&screen.texture);
-        let shown = if gpu_view {
-            view.2
-        } else {
-            (screen.width as u32, screen.height as u32)
-        };
-        show_fitted(renderer, texture, shown, screen);
-        drop(view);
-        // The race's touch controls.
-        #[cfg(touch_screen)]
-        if crate::shell::events::touch_controls_live(o.race) {
-            #[cfg(phone)]
-            crate::platform::touch::draw(
-                renderer,
-                input_window(screen.window),
-                u64::from(crate::platform::os::ticks()),
-            );
-        }
-        // The pause's and the question's answer buttons.
-        #[cfg(phone)]
-        if let Some(asked) = crate::shell::events::touch_asked(o.race) {
-            crate::platform::touch::draw_answers(
-                renderer,
-                input_window(screen.window),
-                asked,
-                &answer_labels(*o, asked),
-            );
-        }
-        // The debug UI over the frame.
-        crate::debug::imgui_sdl::draw(o, renderer, screen.window);
-        crate::remote::window_shot_taken(renderer);
-        let presenting = std::time::Instant::now();
-        renderer.present();
-        crate::platform::timing::note_span(
-            &crate::platform::timing::PRESENT_MICROS,
-            &crate::platform::timing::PRESENT_MAX,
-            presenting.elapsed().as_micros() as u64,
-        );
-        Ok(())
-    }
-}
-
-/// The frame's texture drawn on the window: the frame keeps its shape and is centred, magnified
-/// with a linear filter (none for a whole factor, which stays sharp). The window's rest is black
-/// in a race; beside a menu's frame it shows the menu's background picture, covering the
-/// window, blurred and darkened (`render::wash`), black while no background has been noted.
-#[cfg(not(handheld))]
-fn show_fitted(
-    renderer: sdl::Renderer,
-    texture: &sdl::Texture,
-    shown: (u32, u32),
-    screen: &Screen,
-) {
-    let (frame_width, frame_height) = (screen.width as u32, screen.height as u32);
-    let window = renderer
-        .window_pixels()
-        .unwrap_or((screen.window_size.0 as u32, screen.window_size.1 as u32));
-    // A phone's race frame covers the whole screen and its menu page is centred across the part
-    // clear of the notch, the rounded corners and the home indicator (`safe_area`).
-    #[cfg(target_os = "ios")]
-    if let Some(safe) = screen.window.safe_area_pixels() {
-        safe_area::set(safe, window);
-    }
-    let fit = safe_area::frame_fit((frame_width, frame_height), window, screen.menu);
-    // A frame drawn larger than the frame (a menu's 3D at the window's size) is shown with the
-    // filter unless it is the very size it is shown at.
-    texture.set_sharp(if shown == (frame_width, frame_height) {
-        fit.sharp
-    } else {
-        shown == (fit.width, fit.height)
-    });
-    // The menus' 3D of the next frames is drawn at the size this frame's place has in the window,
-    // times the 3D's share.
-    crate::render::set_menu_high(if screen.menu {
-        let enlarged = u64::from(fit.width) * 100 / u64::from(frame_width.max(1));
-        let share = u64::from(crate::render::render_scale());
-        (enlarged * share / 100).min(400) as u32
-    } else {
-        0
-    });
-    renderer.clear_black();
-    if fit.is_whole(window) {
-        renderer.draw_whole(texture);
-        return;
-    }
-    if screen.menu {
-        draw_wash(renderer, window);
-    }
-    renderer.draw_part(texture, None, [fit.x, fit.y, fit.width, fit.height]);
-}
-
-/// The wash texture of the menu's background (its version, the texture), kept while the
-/// background and the window's size stay the same.
-#[cfg(not(handheld))]
-static WASH_TEXTURE: Mutex<Option<(u64, sdl::Texture)>> = Mutex::new(None);
-
-/// The wash drawn over the whole window, magnified with a linear filter.
-#[cfg(not(handheld))]
-fn draw_wash(renderer: sdl::Renderer, window: (u32, u32)) {
-    let Some(image) = crate::render::wash::image_for(window) else {
-        return;
-    };
-    let mut kept = WASH_TEXTURE.lock().unwrap();
-    if kept
-        .as_ref()
-        .is_none_or(|(version, _)| *version != image.version)
-    {
-        let wash = &image.wash;
-        let made = renderer
-            .create_frame_texture(wash.width as usize, wash.height as usize)
-            .filter(|texture| texture.upload(&wash.pixels, wash.width as usize * 4));
-        *kept = made.map(|texture| {
-            texture.set_sharp(false);
-            (image.version, texture)
-        });
-    }
-    if let Some((_, texture)) = kept.as_ref() {
-        renderer.draw_whole(texture);
-    }
-}
-
-/// The frames' running counters, for the debug UI's profiler: microseconds in the
-/// rasteriser, noting the triangles and showing the frame; triangle fans; pixels drawn.
-#[cfg(debug_ui)]
-pub fn frame_counters() -> [u64; 5] {
-    use std::sync::atomic::Ordering::Relaxed;
-    [
-        crate::render::RASTER_MICROS.load(Relaxed),
-        crate::platform::direct3d::NOTE_MICROS.load(Relaxed),
-        crate::platform::timing::SHOW_MICROS.load(Relaxed),
-        crate::render::FANS.load(Relaxed),
-        crate::render::PIXELS.load(Relaxed),
-    ]
-}
-
-/// The screen's width and height.
-#[cfg(debug_ui)]
-pub fn screen_size(system: &crate::system::owner::System) -> (u32, u32) {
-    (
-        system.session.screen.get().width.get(),
-        system.session.screen.get().height.get(),
-    )
-}
-
-/// The screen's pixels (its width times its height).
-#[cfg(debug_ui)]
-pub fn screen_pixels(system: &crate::system::owner::System) -> u64 {
-    u64::from(system.session.screen.get().width.get())
-        * u64::from(system.session.screen.get().height.get())
-}
-
-/// `gfx::show_frame`: the frame drawn shown, at the display's pace (`pacing`); false while
-/// quitting (nothing shown).
-pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
-    crate::input::osk_draw::draw(o);
-    let drawing = &o.gfx.drawing;
-    // The 3D drawing noted so far, before the screen is shown, written or changed.
-    crate::platform::direct3d::flush();
-    crate::gfx::draw2d::check::end_frame(o.gfx, o.menus.screens.loop_flags.menu.get().ok());
-    {
-        if o.system.session.flags.quitting.is_set() {
-            return false;
-        }
-        let shot_wanted = crate::remote::shot_wanted();
-        let video_wanted = crate::video::frame_wanted();
-        // The video's frames come back from the GPU a frame late, while the next one is drawn
-        // (a screenshot wants the picture at once, and any other renderer brings it back now).
-        let mut queued = crate::render::VideoRead {
-            previous: None,
-            started: false,
-        };
-        let screen_target = (shot_wanted || video_wanted)
-            .then(|| crate::platform::direct3d::screen(o.system.session.screen.get()))
-            .flatten();
-        if let Some(target) = &screen_target {
-            let began = std::time::Instant::now();
-            if video_wanted && !shot_wanted {
-                queued = crate::render::video_read_next(
-                    target,
-                    crate::video::spare_buffer(),
-                    crate::video::nv12(),
-                );
-            }
-            if !queued.started {
-                crate::render::bring_back(target);
-            }
-            if video_wanted {
-                crate::video::note_stage(crate::video::Stage::ReadBack, began.elapsed());
-            }
-        }
-        if let Ok(screen) = SCREEN.lock()
-            && let Some(screen) = screen.as_ref()
-        {
-            // Before it is shown: on the GPU's path showing clears the canvas.
-            let shot = crate::remote::shot_wanted().then(|| screen.pixels.to_vec());
-            let video_frame = (video_wanted && !queued.started).then(|| {
-                let began = std::time::Instant::now();
-                let pixels = with_frame(screen, crate::video::copy_frame);
-                crate::video::note_stage(crate::video::Stage::Copy, began.elapsed());
-                pixels
-            });
-            let showing = std::time::Instant::now();
-            let shown_ok = show_frame(&o, screen);
-            let shown_micros = showing.elapsed().as_micros() as u64;
-            crate::platform::timing::SHOW_MICROS
-                .fetch_add(shown_micros, std::sync::atomic::Ordering::Relaxed);
-            crate::platform::timing::SHOW_MAX
-                .fetch_max(shown_micros, std::sync::atomic::Ordering::Relaxed);
-            if let Err(why) = shown_ok {
-                log(&format!("platform: no frame shown: {why}"));
-            }
-            drawing
-                .draw_surface
-                .flipped
-                .set(drawing.draw_surface.flipped.get() ^ 1);
-            drawing
-                .draw_surface
-                .frames
-                .set(drawing.draw_surface.frames.get().wrapping_add(1));
-            if let Some(pixels) = shot {
-                crate::remote::frame(&pixels, screen.width as u32, screen.height as u32);
-            }
-            if video_wanted {
-                crate::video::frame_taken(screen.width as u32, screen.height as u32);
-                // In the order the frames were drawn: the one queued before, then this one.
-                for pixels in queued.previous.into_iter().chain(video_frame) {
-                    crate::video::send(pixels);
-                }
-                let began = std::time::Instant::now();
-                crate::video::sound_turn(o.audio);
-                crate::video::note_stage(crate::video::Stage::Sound, began.elapsed());
-                crate::video::note_progress(crate::race::render_row::fraction(o.race));
-            }
-            crate::platform::timing::note_frame_shown();
-            let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
-            let wanted = FRAMES_TO_SHOW.load(Ordering::SeqCst);
-            if wanted != 0 && shown == wanted {
-                if let Some(target) =
-                    crate::platform::direct3d::screen(o.system.session.screen.get())
-                {
-                    crate::render::bring_back(&target);
-                }
-                let _ = std::fs::write("rc2k_frame.raw", screen.pixels.to_vec());
-                log(&format!(
-                    "platform: {shown} frames shown; the last is in rc2k_frame.raw ({} x {}, {} bits); quitting",
-                    screen.width, screen.height, screen.bits
-                ));
-                o.system.session.flags.quitting.set(true);
-            }
-        }
-        crate::platform::timing::start_sampler();
-        crate::shell::timing_report::report_timing(o.system);
-        // The next frame waits for its turn on the display.
-        crate::platform::pacing::frame_shown();
-    }
-    true
-}
-
-// ---- system::pump_messages, screens::run_frame ----
-
-/// `system::pump_messages`: the window's events (SDL's).
-pub fn pump_messages_now(o: crate::owners::Owners<'static>) {
-    crate::shell::events::pump(o);
-}
-
-/// `screens::run_frame` for Rust callers with a frame of their own (the screen loops): the
-/// messages, then the frame unless quitting (None then).
-pub fn run_frame_now<T>(o: crate::owners::Owners<'static>, frame: impl FnOnce() -> T) -> Option<T> {
-    crate::shell::events::pump(o);
-    if o.system.session.flags.quitting.is_set() {
-        None
-    } else {
-        Some(frame())
-    }
-}
-
 /// A file of ours next to the log (the current folder can change: the installer).
 #[cfg_attr(
     not(debug_ui),
@@ -1245,36 +902,6 @@ pub fn beside_log(name: &str) -> std::path::PathBuf {
     match crate::program_log::LOG_PATH.get().and_then(|p| p.parent()) {
         Some(folder) => folder.join(name),
         None => name.into(),
-    }
-}
-
-/// The words on the answer buttons in the game's language (its own yes and no, "continue" for
-/// the plain pause), in capitals, drawn in the game's notice font as pixel runs; the plain text
-/// where the font cannot draw them.
-#[cfg(phone)]
-fn answer_labels(
-    o: crate::owners::Owners<'static>,
-    asked: rc2k_core::input::touch::Asked,
-) -> Vec<touch::Label> {
-    use rc2k_core::strings::own::id;
-    let word = |id| {
-        // Windows-1252 text: the Latin-1 small letters (but the division sign) have capitals 32 less.
-        let mut bytes = crate::strings::append_string_by_id::own_text(o.strings, id);
-        for b in &mut bytes {
-            *b = match *b {
-                b'a'..=b'z' | 0xE0..=0xF6 | 0xF8..=0xFE => *b - 32,
-                other => other,
-            };
-        }
-        let plain = bytes.iter().map(|&b| char::from(b)).collect::<String>();
-        touch::Label {
-            runs: crate::gfx::notice_text::runs(o, &bytes),
-            plain,
-        }
-    };
-    match asked {
-        rc2k_core::input::touch::Asked::Resume => vec![word(id::DIALOG_CONTINUE)],
-        rc2k_core::input::touch::Asked::YesNo => vec![word(id::HINTS), word(id::HINTS + 1)],
     }
 }
 

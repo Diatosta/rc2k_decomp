@@ -210,7 +210,7 @@ pub fn run(o: Owners<'static>) -> Result<Option<String>, u32> {
     let mut held = Assembly::default();
     let mut note = None;
     loop {
-        crate::platform::pump_messages_now(o);
+        crate::shell::frame::pump_messages_now(o);
         if o.system.session.flags.quitting.is_set() {
             return Ok(None);
         }
@@ -240,7 +240,7 @@ pub fn run(o: Owners<'static>) -> Result<Option<String>, u32> {
         let camera = (source.number(), count);
         draw_scan(o, last.as_ref(), &held, note, camera);
         crate::platform::unlock_surface(o.gfx);
-        if !crate::platform::show_frame_now(o) {
+        if !crate::shell::frame::show_frame_now(o) {
             return Ok(None);
         }
         crate::input::menu_pad::take_answer(o.input);

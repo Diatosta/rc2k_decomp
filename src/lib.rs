@@ -51,7 +51,7 @@ mod test_support;
 mod text;
 mod threading;
 mod video;
-#[cfg(target_os = "android")]
-pub use platform::android;
 #[cfg(web)]
-pub use platform::web;
+pub use platform::ffi::web;
+#[cfg(target_os = "android")]
+pub use shell::android;

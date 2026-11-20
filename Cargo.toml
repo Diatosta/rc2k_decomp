@@ -109,3 +109,12 @@ codegen-units = 1
 # and the tests compare NaN results by class, not payload (LLVM folds NaN payloads freely).
 [profile.test]
 opt-level = 1
+
+# The libraries the slowest tests spend their time in (the QR reader and the vectors' inflater)
+# are fully optimised: the tests' own code stays at level 1.
+[profile.test.package.rqrr]
+opt-level = 3
+[profile.test.package.qrcode]
+opt-level = 3
+[profile.test.package.miniz_oxide]
+opt-level = 3

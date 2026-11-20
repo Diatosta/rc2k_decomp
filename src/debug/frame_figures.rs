@@ -31,7 +31,7 @@ static LAST: Mutex<Option<(u64, u32, u32)>> = Mutex::new(None);
 
 /// The last frame's counts (the running counters' differences since the last UI frame).
 pub fn take() {
-    let fans = crate::platform::frame_counters()[3];
+    let fans = crate::shell::frame::frame_counters()[3];
     let (searches, found) = crate::debug::timing::ground_searches();
     let mut last = LAST
         .lock()

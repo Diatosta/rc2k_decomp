@@ -39,7 +39,7 @@ pub fn string_frame_locked(
         gfx,
     )?;
     crate::platform::unlock_surface(gfx);
-    crate::platform::show_frame_now(o);
+    crate::shell::frame::show_frame_now(o);
     Ok(())
 }
 /// A frame with a text built by the caller where the messages are, centred as they are.
@@ -57,7 +57,7 @@ pub fn text_frame(o: crate::owners::Owners<'static>, text: &[u8]) -> Result<(), 
         &mut crate::text::draw_text::GameCanvas::new(o.gfx),
     )?;
     crate::platform::unlock_surface(o.gfx);
-    crate::platform::show_frame_now(o);
+    crate::shell::frame::show_frame_now(o);
     Ok(())
 }
 

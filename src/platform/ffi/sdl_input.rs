@@ -300,7 +300,7 @@ pub fn attach_virtual_gamepad(
         vendor_id: vendor,
         product_id: product,
         name: name.as_ptr(),
-        // The game's rumble for this pad goes to the phone's motor (`platform::vibrate`).
+        // The game's rumble for this pad goes to the phone's motor (`platform::ffi::vibrate`).
         Rumble: Some(phone_rumble),
         ..SDL_VirtualJoystickDesc::default()
     };
@@ -313,7 +313,7 @@ pub fn attach_virtual_gamepad(
 /// player has switched that on.
 #[cfg(phone)]
 unsafe extern "C" fn phone_rumble(_: *mut std::ffi::c_void, low: u16, high: u16) -> bool {
-    crate::platform::vibrate::rumble(low, high);
+    crate::platform::ffi::vibrate::rumble(low, high);
     true
 }
 

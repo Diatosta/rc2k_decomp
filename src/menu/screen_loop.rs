@@ -1001,7 +1001,7 @@ fn run_frame(o: Owners<'static>, callback: FrameRoutine, menu: MenuId) -> Result
         FrameRoutine::Menu => crate::menu::frame_callback::frame_callback(o, menu),
         FrameRoutine::Inspection => crate::menu::inspection_frame::inspection_frame(o, menu),
     };
-    match crate::platform::run_frame_now(o, frame) {
+    match crate::shell::frame::run_frame_now(o, frame) {
         Some(made) => made.map(|_| ()),
         None => Ok(()),
     }

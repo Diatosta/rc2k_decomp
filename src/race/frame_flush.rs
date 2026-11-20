@@ -29,7 +29,7 @@ pub fn plain(frame: &Frame) -> Batch<'_> {
         count: &frame.draw_batches().plain_count,
         word: &frame.draw_batches().plain_word,
         draw: |part, frame, vertices, indices| {
-            crate::platform::direct3d::draw_indexed(
+            crate::d3d::device::draw_indexed(
                 part,
                 &frame.draw_batches().plain_vertices,
                 vertices,
@@ -49,7 +49,7 @@ pub fn textured(frame: &Frame) -> Batch<'_> {
         count: &frame.draw_batches().textured_count,
         word: &frame.draw_batches().textured_word,
         draw: |part, frame, vertices, indices| {
-            crate::platform::direct3d::draw_indexed(
+            crate::d3d::device::draw_indexed(
                 part,
                 &frame.draw_batches().textured_vertices,
                 vertices,

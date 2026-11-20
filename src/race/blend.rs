@@ -17,7 +17,7 @@ use crate::race::blocks_store::BLOCK_COUNT;
 use crate::race::owner::Race;
 use rc2k_core::race::blend as core;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
+use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
 /// What moves with the car: its place and turn, the wheels.
 #[derive(Clone, Copy, PartialEq)]
@@ -195,19 +195,14 @@ pub fn note_tick(race: &Race) {
 }
 
 /// Whether frames between ticks are blended (the advanced page's "smooth"); off, a frame shows
-/// the last tick as it is.
-static SMOOTH: AtomicBool = AtomicBool::new(true);
-
+/// the last tick as it is. Held by the pacing, which sets the frame period from it.
 pub fn smooth_on() -> bool {
-    SMOOTH.load(Relaxed)
+    crate::platform::pacing::smooth_on()
 }
 
 pub fn set_smooth(on: bool) {
-    SMOOTH.store(on, Relaxed);
+    crate::platform::pacing::set_smooth(on);
 }
-
-/// A race's loop is running: the frames are blended ones (`blends_frames`).
-static RACING: AtomicBool = AtomicBool::new(false);
 
 /// The race's loop runs while this lives.
 pub struct Racing;
@@ -215,21 +210,15 @@ pub struct Racing;
 impl Racing {
     pub fn begin() -> Self {
         reset();
-        RACING.store(true, Relaxed);
+        crate::platform::pacing::set_blending(true);
         Racing
     }
 }
 
 impl Drop for Racing {
     fn drop(&mut self) {
-        RACING.store(false, Relaxed);
+        crate::platform::pacing::set_blending(false);
     }
-}
-
-/// Whether the frames now shown are blended between the ticks: the smooth choice is on and a race
-/// is running (the menus' frames are at most a hundred a second).
-pub fn blends_frames() -> bool {
-    smooth_on() && RACING.load(Relaxed)
 }
 
 /// Where the next frame is between the ticks (`rc2k_core::race::blend::alpha`, as float

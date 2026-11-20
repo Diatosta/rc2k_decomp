@@ -111,7 +111,7 @@ pub fn rescale_to_surface(
             .on_picture
             .load(std::sync::atomic::Ordering::Relaxed)
             == 0
-        && crate::platform::direct3d::screen(system.session.screen.get()).is_some_and(|screen| {
+        && crate::d3d::device::screen(system.session.screen.get()).is_some_and(|screen| {
             screen.width == width as usize
                 && screen.height == height as usize
                 && crate::render::background::defer_pixels(&screen, made.generation, &made.pixels)

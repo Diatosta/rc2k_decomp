@@ -245,6 +245,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "slow (about 10 s): the 1080p tests cover the same reader; run with `cargo test -p rc2k_core -- --ignored`"]
     fn dense_parts_are_read_from_a_4k_camera_picture_from_afar() {
         use super::super::qr_frames::View;
         let mut view = View::plain(3840, 2160, 35);

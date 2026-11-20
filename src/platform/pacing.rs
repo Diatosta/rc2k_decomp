@@ -55,6 +55,34 @@ static SHOWING_WAITS: AtomicBool = AtomicBool::new(false);
 /// known).
 static REFRESH_BITS: AtomicU64 = AtomicU64::new(0);
 
+/// Whether frames between ticks are blended (the advanced page's "smooth"); off, a frame shows
+/// the last tick as it is.
+static SMOOTH: AtomicBool = AtomicBool::new(true);
+
+/// A race's loop is running: its frames are blended ones (`blends_frames`).
+static BLENDING: AtomicBool = AtomicBool::new(false);
+
+/// Whether frames between ticks are blended (the advanced page's "smooth").
+pub fn smooth_on() -> bool {
+    SMOOTH.load(Relaxed)
+}
+
+/// Sets the smooth choice.
+pub fn set_smooth(on: bool) {
+    SMOOTH.store(on, Relaxed);
+}
+
+/// A race's loop begins or ends.
+pub fn set_blending(running: bool) {
+    BLENDING.store(running, Relaxed);
+}
+
+/// Whether the frames now shown are blended between the ticks: the smooth choice is on and a race
+/// is running (the menus' frames are at most a hundred a second).
+pub fn blends_frames() -> bool {
+    smooth_on() && BLENDING.load(Relaxed)
+}
+
 /// The display's refreshes a second, if it named them.
 pub fn display_refresh() -> Option<f64> {
     let bits = REFRESH_BITS.load(Relaxed);
@@ -69,7 +97,7 @@ pub fn set_display(refresh: Option<f64>, showing_waits: bool) {
     // A scripted run can stand in a display's refresh rate (`RC2K_FAKE_REFRESH`).
     let refresh = crate::remote::refresh_rate(refresh);
     REFRESH_BITS.store(refresh.map_or(0, f64::to_bits), Relaxed);
-    let period = frame_period(refresh, crate::race::blend::smooth_on());
+    let period = frame_period(refresh, smooth_on());
     let before = PERIOD_NANOS.swap(period.as_nanos() as u64, Relaxed);
     let waited = SHOWING_WAITS.swap(showing_waits, Relaxed);
     let changed = before != period.as_nanos() as u64 || waited != showing_waits;
@@ -118,13 +146,15 @@ pub fn set_frame_limit(limit: FrameLimit) {
 
 /// The frame limit one choice on (`up`) or back, among what the display offers.
 pub fn step_frame_limit(up: bool) {
-    set_frame_limit(frame_limit().step(display_refresh(), crate::race::blend::smooth_on(), up));
+    set_frame_limit(frame_limit().step(display_refresh(), smooth_on(), up));
 }
 
 /// A frame was shown: waits until the next is due, by the frame limit chosen.
-pub fn frame_shown() {
-    // A video is made as fast as the frames can be drawn.
-    if crate::video::active() {
+///
+/// `video_made`: a replay is being rendered to a video, which is made as fast as the frames can
+/// be drawn.
+pub fn frame_shown(video_made: bool) {
+    if video_made {
         return;
     }
     let mut pacer = PACER
@@ -142,7 +172,7 @@ pub fn frame_shown() {
             return;
         }
         FrameLimit::Display | FrameLimit::Rate(_) => limit
-            .period(display_refresh(), crate::race::blend::blends_frames())
+            .period(display_refresh(), blends_frames())
             .unwrap_or(Duration::from_nanos(PERIOD_NANOS.load(Relaxed))),
     };
     // A scripted run at a faster clock shows its frames as much faster.

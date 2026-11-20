@@ -48,7 +48,7 @@ fn frame(o: crate::owners::Owners<'static>, question: u32) -> Result<(), Refused
         &mut GameCanvas::new(o.gfx),
     )?;
     crate::platform::unlock_surface(o.gfx);
-    crate::platform::show_frame_now(o);
+    crate::shell::frame::show_frame_now(o);
     Ok(())
 }
 

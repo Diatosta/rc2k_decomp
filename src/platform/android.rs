@@ -25,13 +25,14 @@ fn storage() -> Option<PathBuf> {
     android::internal_storage().or_else(android::external_storage)
 }
 
-/// The program, from the activity's call: enters the game's folder and runs the game, which
-/// ends the process when the game ends.
-pub fn main() -> i32 {
+/// The program's first steps, from the activity's call: the standard streams, the program's
+/// words, the game's folder entered, the home for the program's own files. The code to end with
+/// when one fails.
+pub fn prepare() -> Result<(), i32> {
     android::forward_standard_streams();
     let Some(storage) = storage() else {
         eprintln!("rc2k: the app has no storage folder");
-        return 1;
+        return Err(1);
     };
     let mut words = vec!["rc2k".to_string()];
     if let Ok(text) = std::fs::read_to_string(storage.join("rc2k_args.txt")) {
@@ -44,7 +45,7 @@ pub fn main() -> i32 {
             "rc2k: the game's folder {} cannot be entered: {e}",
             game.display()
         );
-        return 1;
+        return Err(1);
     }
     eprintln!("rc2k: the game's folder is {}", game.display());
     // The home the program keeps its own files under, where it looks for one.
@@ -52,10 +53,5 @@ pub fn main() -> i32 {
     unsafe {
         std::env::set_var("HOME", &storage);
     }
-    let args = &crate::platform::os::program_args()[1..];
-    if let Some(code) = crate::standalone::answer_command_line(args) {
-        return code;
-    }
-    let log = rc2k_core::menu::launch::log_path(args).unwrap_or_else(|| "rc2k.log".into());
-    crate::standalone::run(std::path::Path::new(&log), 0)
+    Ok(())
 }

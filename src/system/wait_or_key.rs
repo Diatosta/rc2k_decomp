@@ -14,7 +14,7 @@ pub fn wait_or_key(o: crate::owners::Owners<'static>, milliseconds: u32) -> u8 {
     loop {
         crate::clock::sleep::sleep(10);
         // The window's events are pumped here: the window waits on this thread.
-        crate::platform::pump_messages_now(o);
+        crate::shell::frame::pump_messages_now(o);
         let key = crate::input::take_key::take_key(input);
         if key != 0 {
             return key;

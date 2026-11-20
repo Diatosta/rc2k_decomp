@@ -57,7 +57,7 @@ pub fn list_frame(
         )?;
     }
     crate::platform::unlock_surface(gfx);
-    crate::platform::show_frame_now(o);
+    crate::shell::frame::show_frame_now(o);
     Ok(())
 }
 pub fn connections_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {

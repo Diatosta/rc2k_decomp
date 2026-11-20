@@ -87,6 +87,7 @@ pub fn deterministic() -> bool {
 
 /// Records whether a race is loaded; a race starts a fresh count.
 pub fn set_racing(racing: bool) {
+    crate::platform::sound::set_silent_for_mix_check(asked() && racing);
     if RACING.swap(racing, Relaxed) != racing {
         TURN_TAKEN.store(false, Relaxed);
         if let Ok(mut turns) = TURNS.lock() {

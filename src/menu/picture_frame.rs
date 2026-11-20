@@ -20,5 +20,5 @@ pub fn picture_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused>
         )
     }?;
     crate::platform::unlock_surface(gfx);
-    Ok(crate::platform::show_frame_now(o))
+    Ok(crate::shell::frame::show_frame_now(o))
 }

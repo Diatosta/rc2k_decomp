@@ -1,6 +1,6 @@
 //! `d3d::draw_vertex_strip`: draws a triangle strip of the given transformed and lit vertices, not
 //! clipped, with no lighting and no extents. The strip is only noted (`d3d::recorder`) and the
-//! rasteriser draws it (`platform::direct3d::draw_strip`); the result is 0.
+//! rasteriser draws it (`d3d::device::draw_strip`); the result is 0.
 
 use crate::d3d::recorder::{Call, note};
 use crate::d3d::{VERTEX_LEN, Vertex};
@@ -34,7 +34,7 @@ pub fn draw_vertex_strip(
     let vertices = vertices(at, count)?;
     let swallowed = note(|| Call::Fan(vertices.clone()));
     if !swallowed {
-        crate::platform::direct3d::draw_strip(part, &vertices);
+        crate::d3d::device::draw_strip(part, &vertices);
     }
     Ok(())
 }

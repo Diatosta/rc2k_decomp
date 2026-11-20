@@ -196,7 +196,7 @@ pub unsafe fn discard_pages(_at: *mut u8, _len: usize) -> bool {
 pub fn exit_now(code: u32) -> ! {
     // The browser's page is told (its `onExit`): `_exit` would leave it with the last frame.
     #[cfg(web)]
-    crate::platform::web::end_program(code);
+    crate::platform::ffi::web::end_program(code);
     #[cfg(not(web))]
     // SAFETY: ends the process.
     unsafe {
@@ -234,7 +234,7 @@ pub fn with_module_of_address<T>(address: usize, f: impl FnOnce(&[u8], usize) ->
     }
 }
 
-/// The signal handler (SA_SIGINFO): hands the fault's places to `standalone::report_fault`,
+/// The signal handler (SA_SIGINFO): hands the fault's places to `process::report_fault`,
 /// which ends the program. Reads the system's records only; what the report calls is listed
 /// at `report_fault`.
 ///
@@ -250,7 +250,7 @@ unsafe extern "C" fn on_signal(
     unsafe {
         let data = (*info).si_addr().expose_provenance();
         let (ip, write, sp) = fault_registers(context.cast::<libc::ucontext_t>());
-        crate::standalone::report_fault(ip, data, write, sp)
+        crate::platform::ffi::process::report_fault(ip, data, write, sp)
     }
 }
 

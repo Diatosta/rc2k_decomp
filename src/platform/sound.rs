@@ -637,6 +637,24 @@ const GLOBAL_FOCUS: u32 = 0x8000;
 /// Whether the audio callback has panicked: it gives silence from then on.
 static FEED_PANICKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+/// Whether the device's callback plays silence because the sound is taken another way: the
+/// audio thread mixes for a hash check (`set_silent_device`, first), or a render to a video takes
+/// the sound frame by frame (second).
+static SILENT_FOR_MIX_CHECK: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+static SILENT_FOR_VIDEO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The device's callback plays silence while the audio thread mixes for the mix-hash check.
+#[cfg(feature = "remote")]
+pub fn set_silent_for_mix_check(silent: bool) {
+    SILENT_FOR_MIX_CHECK.store(silent, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The device's callback plays silence while a render to a video takes the sound frame by frame.
+pub fn set_silent_for_video(silent: bool) {
+    SILENT_FOR_VIDEO.store(silent, std::sync::atomic::Ordering::Relaxed);
+}
+
 /// SDL's audio callback: the playing buffers mixed into what the stream wants (none when it
 /// wants less than a frame).
 fn feed(wanted: i32) -> Option<Vec<i16>> {
@@ -645,12 +663,9 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
     if frames == 0 {
         return None;
     }
-    // The mix-hash check mixes on the audio thread instead (`audio::mix_hash`).
-    if crate::remote::mix_deterministic() {
-        return Some(vec![0i16; frames * 2]);
-    }
-    // A render to a video takes its sound frame by frame (`video::sound_turn`).
-    if crate::video::sound_taken_by_frames() {
+    // The mix-hash check mixes on the audio thread instead, and a render to a video takes its
+    // sound frame by frame.
+    if SILENT_FOR_MIX_CHECK.load(Relaxed) || SILENT_FOR_VIDEO.load(Relaxed) {
         return Some(vec![0i16; frames * 2]);
     }
     // A panic must not unwind into SDL (it would end the program, unreported).

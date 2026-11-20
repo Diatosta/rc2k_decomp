@@ -4,13 +4,18 @@
 //!
 //! - `events`: SDL's events pumped into the quit switch, the pending key, the pads and the
 //!   fingers.
+//! - `android`: the Android build's entry.
+//! - `frame`: a frame's end shown, and the window's events pumped for any loop that waits.
 //! - `film`: the films' players, their picture and sound.
 //! - `touch_menu`: the touch screen's gestures as the keys the menus take.
 //! - `window_follow`: a resized window followed by the next race's size.
 //! - `timing_report`: the log's periodic line on where the time goes.
 
+#[cfg(target_os = "android")]
+pub mod android;
 pub mod events;
 pub mod film;
+pub mod frame;
 pub mod timing_report;
 #[cfg(touch_screen)]
 pub mod touch_menu;

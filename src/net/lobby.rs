@@ -113,13 +113,13 @@ pub fn co_create(class: &[u8; 16], interface: &[u8; 16], out: &Dword) -> u32 {
     }
 }
 
-/// `screens::run_frame` with the frame `frame` (`platform::run_frame_now`: the window's
+/// `screens::run_frame` with the frame `frame` (`shell::frame::run_frame_now`: the window's
 /// messages, then the frame unless the game is quitting).
 pub fn run_frame<T>(
     o: crate::owners::Owners<'static>,
     frame: impl FnOnce() -> Result<T, Refused>,
 ) -> Result<(), Refused> {
-    match crate::platform::run_frame_now(o, frame) {
+    match crate::shell::frame::run_frame_now(o, frame) {
         Some(done) => done.map(|_| ()),
         None => Ok(()),
     }

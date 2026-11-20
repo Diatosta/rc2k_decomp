@@ -43,9 +43,8 @@ pub fn try_screen_mode(
         if display.mode.mode_flags.get() & 0x10_0000 == 0 {
             return Ok(Ok(mode));
         }
-        let (video, _) =
-            crate::platform::direct3d::allocate_textures_now(0x40, 0x40, 1, 2, 0, gfx, d3d)?;
-        crate::platform::direct3d::release_all_textures(gfx);
+        let (video, _) = crate::d3d::device::allocate_textures_now(0x40, 0x40, 1, 2, 0, gfx, d3d)?;
+        crate::d3d::device::release_all_textures(gfx);
         Ok(Ok(video))
     })()?;
     gfx.card.upload.trying.set(0);

@@ -968,11 +968,6 @@ pub fn note_sound_peak(pcm: &[i16]) {
     }
 }
 
-/// Whether the device callback plays silence because the audio thread mixes for the mix hash.
-pub fn mix_deterministic() -> bool {
-    crate::audio::mix_hash::deterministic()
-}
-
 /// A race is loaded or not (the mix hash starts a fresh count with each race).
 pub fn note_racing(racing: bool) {
     crate::audio::mix_hash::set_racing(racing);

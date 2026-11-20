@@ -24,5 +24,5 @@ pub fn clear_depth_buffer(
     );
     let own = &polygons.cleared_rectangle;
     crate::memory::session::write_bits(own, [0, 0, width, height]);
-    crate::platform::direct3d::clear_viewport(part, own);
+    crate::d3d::device::clear_viewport(part, own);
 }

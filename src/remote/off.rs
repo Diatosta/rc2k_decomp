@@ -124,11 +124,6 @@ pub fn mangled(data: &[u8]) -> Cow<'_, [u8]> {
 pub fn note_sound_peak(_pcm: &[i16]) {}
 
 #[inline(always)]
-pub fn mix_deterministic() -> bool {
-    false
-}
-
-#[inline(always)]
 pub fn note_racing(_racing: bool) {}
 
 #[inline(always)]

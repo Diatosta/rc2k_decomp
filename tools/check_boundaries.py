@@ -45,7 +45,8 @@ LAYER_NAMES = ["foundation", "platform", "engine", "simulation", "front end", "r
 DOORS = {
     "owners": None,                    # the owners' types are passed down everywhere
     "fatal": {"raise"},                # ending the program with a reason
-    "system": {"pause"},   # the pause pumps events and takes keys, a root service used from below
+    "system": {"pause"},
+    "shell": {"frame"},    # the frame's end and the window's events: they need every owner   # the pause pumps events and takes keys, a root service used from below
 }
 TOOL_DOORS = {
     "debug": {"timing", "imgui_sdl", "switches"},
@@ -54,7 +55,7 @@ TOOL_DOORS = {
         "BUILT", "audio_turn_done", "autodrive", "autodrive_keys", "count_sound",
         "course_hashes", "fake_camera", "fake_camera_count", "fake_camera_frame", "fold_pixel",
         "frame", "held_clock", "held_race", "hold_loading_frame", "lose_this_frame", "mangled",
-        "mask_hashes", "mix_deterministic", "note_open", "note_racing", "note_shake",
+        "mask_hashes", "note_open", "note_racing", "note_shake",
         "note_sound_peak", "pace_call", "poll", "race_loading", "race_loop_begins",
         "refresh_rate", "renderer_step_fails", "replay_tick", "reset_texture_hash",
         "scaled_millis", "shot_frame_drawn", "shot_wanted", "shots_loading", "shots_on",
@@ -65,9 +66,8 @@ TOOL_DOORS = {
 }
 TOOLS = {"debug", "remote"}
 EXTERN = ["sdl3_sys", "libc", "windows_sys", "dear_imgui_rs", "dear_imgui_sys", "mdns_sd"]
-# shell/events.rs decodes SDL's event structs into the game's events: the one file outside the platform
-# that names SDL's constants.
-EXTERN_HOMES = ("src/platform/", "src/shell/events.rs")
+# Only the platform names the system crates.
+EXTERN_HOMES = ("src/platform/",)
 CORE_BANNED = ["std::fs", "std::net", "std::thread", "std::time", "std::env", "std::process",
                "std::io::stdin", "std::io::stdout", "Instant::", "SystemTime::"]
 # Value types under those paths that do no I/O: a duration, an address.

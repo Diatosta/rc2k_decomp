@@ -25,7 +25,7 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         crate::gfx::clear_back_surface::clear_back_surface(gfx, system)?;
     }
     // Beginning the scene cannot fail.
-    crate::platform::direct3d::begin_layer(&o.gfx.d3d, o.scene.scratch.game_scratch());
+    crate::d3d::device::begin_layer(&o.gfx.d3d, o.scene.scratch.game_scratch());
     if !race.shared.replay_file().replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
         crate::race::show_replay_still::show_replay_still(race, o)?;
@@ -33,21 +33,21 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
     if replay.replay_view().snapshot_asked.get() == 1 {
         replay.replay_view().snapshot_asked.set(0);
         // Nor can ending it.
-        crate::platform::direct3d::end_layer(&o.gfx.d3d);
+        crate::d3d::device::end_layer(&o.gfx.d3d);
         crate::race::viewer_snapshot::viewer_snapshot(replay, gfx, o.system)?;
     } else {
         let stopped_now = race.shared.replay_file().viewer_stopped.is_set();
         if stopped_now {
             stopped(race, o)?;
         }
-        crate::platform::direct3d::end_layer(&o.gfx.d3d);
+        crate::d3d::device::end_layer(&o.gfx.d3d);
         // The highlighted button's name goes over the finished frame; a render has none.
         if stopped_now && !crate::video::active() {
             crate::race::viewer_tip::draw(o)?;
         }
     }
     // Not shown: the frame is lost.
-    Ok(!crate::platform::show_frame_now(o))
+    Ok(!crate::shell::frame::show_frame_now(o))
 }
 
 /// The list, the bar and the panel (stopped).

@@ -13,7 +13,7 @@ pub fn set_render_state(part: &crate::scene::workers::PartScratch, value: u32, s
         crate::d3d::run_states::note_set(part, state as usize);
         if crate::d3d::render_cache::kept(part, state as usize) != value {
             crate::d3d::render_cache::set_kept(part, state as usize, value);
-            crate::platform::direct3d::forget_states(part);
+            crate::d3d::device::forget_states(part);
         }
     }
 }

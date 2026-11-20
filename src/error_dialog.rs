@@ -365,7 +365,7 @@ fn run(
     // What the player is given when the window closes or the screen goes: the last way.
     let gone = |drawn: bool| drawn.then(|| ways[ways.len() - 1]);
     loop {
-        crate::platform::pump_messages_now(o);
+        crate::shell::frame::pump_messages_now(o);
         if o.system.session.flags.quitting.is_set() {
             return gone(drawn);
         }
@@ -400,7 +400,7 @@ fn run(
             return None;
         }
         drawn = true;
-        if !crate::platform::show_frame_now(o) {
+        if !crate::shell::frame::show_frame_now(o) {
             return gone(drawn);
         }
         crate::input::menu_pad::take_answer(o.input);

@@ -16,7 +16,7 @@ pub fn begin_scene(
     d3d: &crate::d3d::owner::D3d,
     part: &crate::scene::workers::PartScratch,
 ) {
-    crate::platform::direct3d::begin_layer(d3d, part);
+    crate::d3d::device::begin_layer(d3d, part);
     set_filters(race, part);
     for (value, state) in STATES {
         set_render_state(part, value, state);

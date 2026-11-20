@@ -358,7 +358,7 @@ fn stand_in(what: &str, variable: &crate::memory::session::Dword, value: u32) {
 fn start(o: Owners<'static>) {
     // The fatal-error reporter finds the owners here from any thread.
     crate::threading::thread_slot::publish(SlotOwners::of(o));
-    crate::platform::direct3d::set_handles(o.gfx);
+    crate::d3d::device::set_handles(o.gfx);
     set_up_fixed_objects(o.gfx, o.menus);
     seed_clock_and_random(o.system, &o.race.shared.random);
     check_machine(o.system);
@@ -676,6 +676,10 @@ fn refuse_second_copy(why: &str) -> ! {
 /// directory has to be the game's. Does not come back.
 /// `frames`, if not 0: the program ends itself after that many frames were shown.
 pub fn run(log_file: &Path, frames: u32) -> ! {
+    crate::platform::ffi::process::set_handlers(crate::platform::ffi::process::Handlers {
+        finish,
+        report_fault,
+    });
     crate::memory::session::set_game_thread();
     crate::platform::FRAMES_TO_SHOW.store(frames, Ordering::SeqCst);
     crate::platform::timing::start_threads();
@@ -769,7 +773,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     // SAFETY: once, here, on the main thread.
     let owners = Owners::build();
     crate::error_dialog::publish(owners);
-    crate::platform::direct3d::register_game_scratch(&owners.scene.scratch);
+    crate::d3d::device::register_game_scratch(&owners.scene.scratch);
     start(owners);
     finish("start came to its end", 0)
 }

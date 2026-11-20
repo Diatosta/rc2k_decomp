@@ -70,14 +70,19 @@ owners, so that `platform/` itself names no game type.
 
 | Item | File | What it does |
 | --- | --- | --- |
-| `pump` | `src/shell/events.rs` | SDL's events: the window's closing (the quit switch), focus, keys and pad buttons as the pending key, fingers, typed text. |
+| `show_frame_now`, `run_frame_now`, `pump_messages_now` | `src/shell/frame.rs` | The frame's end: the game's drawing handed to the renderer, the video's and screenshots' copies, the touch controls and debug window over it, the display's pace. |
+| `pump` | `src/shell/events.rs` | The window's, pads', keys' and fingers' events (decoded by `platform::event`) as the quit switch, focus, the pending key, the menus' keys and typed text. |
+| `main` | `src/shell/android.rs` | The Android activity's entry: prepares the folder (`platform::android::prepare`) and runs the game. |
 | `play_film` | `src/shell/film.rs` | Plays a film (the AVI and MPEG readers, the picture, the sound). |
 | `finger`, `tick`, `take_installer_tap` | `src/shell/touch_menu.rs` | A touch screen's gestures as the keys the menus take (touch builds). |
 | `follow`, `note_resize` | `src/shell/window_follow.rs` | A window the player resized is taken as the next race's size. |
 | `report_timing` | `src/shell/timing_report.rs` | The log's line every five seconds on where the time went. |
 
-Still reaching the game from `platform/` (the later half of the split): `show_frame` and `run_frame_now`
-in `mod.rs`, `direct3d.rs`, the pacing and sound values and the foreign-call callbacks into `standalone`.
+What `platform/` still reaches up to: the screen-mode and renderer-switching code in `mod.rs` (`choose_screen_modes`,
+`set_screen_mode`, the renderer swaps: they read the game's graphics owner and the renderers) and a few single uses
+(`input::di_objects`, `gfx::notice_text`, `install::mac_bundle`). The program's ending and fault report are
+reached from below through handlers registered at start (`platform::ffi::process`), and the 3D layer's recorder is
+`d3d::device`.
 
 ## `threading`: the game's threads
 

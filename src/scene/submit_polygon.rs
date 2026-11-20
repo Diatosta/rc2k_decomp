@@ -88,7 +88,7 @@ impl Outside for Game<'_> {
         crate::d3d::set_texture::set_texture(self.0, texture);
     }
     fn draw_fan(&mut self, vertices: &[Vertex]) {
-        crate::platform::direct3d::draw_fan(self.0, vertices);
+        crate::d3d::device::draw_fan(self.0, vertices);
     }
     fn bad_vertex(&mut self, buffer: &PolygonVertices, screen: &Screen) {
         crate::logfile::log_write::log_nul(&ERROR_TEXT, true, 1);

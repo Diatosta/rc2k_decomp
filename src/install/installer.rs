@@ -247,11 +247,11 @@ pub fn unlock(gfx: &crate::gfx::owner::Gfx) {
 
 /// Whether it was shown.
 pub fn show(o: crate::owners::Owners<'static>) -> bool {
-    crate::platform::show_frame_now(o)
+    crate::shell::frame::show_frame_now(o)
 }
 
 pub fn pump(o: crate::owners::Owners<'static>) {
-    crate::platform::pump_messages_now(o);
+    crate::shell::frame::pump_messages_now(o);
 }
 
 /// A frame of the installer's for `screens::run_frame`; true when it failed.
@@ -263,7 +263,7 @@ pub fn run_frame(
     frame: Option<Frame<'_>>,
 ) -> Result<bool, Refused> {
     // The platform's run_frame with no frame of its own: the window's messages only.
-    crate::platform::run_frame_now(o, || ());
+    crate::shell::frame::run_frame_now(o, || ());
     match frame {
         Some(frame) if !o.system.session.flags.quitting.is_set() => frame(),
         _ => Ok(false),

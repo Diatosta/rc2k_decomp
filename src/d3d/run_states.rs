@@ -58,7 +58,7 @@ impl Default for OwnRun {
 pub fn begin_run(part: &PartScratch, start: &crate::d3d::render_cache::Cache) {
     crate::d3d::render_cache::begin(part, start);
     let run = &part.run;
-    run.base.set(crate::platform::direct3d::noted_len(part));
+    run.base.set(crate::d3d::device::noted_len(part));
     for f in &run.first_set {
         f.set(usize::MAX);
     }
@@ -90,7 +90,7 @@ pub fn note_set(part: &PartScratch, state: usize) {
     let run = &part.run;
     if run.on.get() && state < STATES && run.first_set[state].get() == usize::MAX {
         run.first_set[state]
-            .set(crate::platform::direct3d::noted_len(part).saturating_sub(run.base.get()));
+            .set(crate::d3d::device::noted_len(part).saturating_sub(run.base.get()));
     }
 }
 
@@ -99,7 +99,7 @@ pub fn note_texture_set(part: &PartScratch) {
     let run = &part.run;
     if run.on.get() && run.texture_set.get() == usize::MAX {
         run.texture_set
-            .set(crate::platform::direct3d::noted_len(part).saturating_sub(run.base.get()));
+            .set(crate::d3d::device::noted_len(part).saturating_sub(run.base.get()));
     }
 }
 

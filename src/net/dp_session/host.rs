@@ -4,10 +4,16 @@
 use super::*;
 
 impl Session {
-    /// The host's session made, at `port` (its TCP connections and its UDP answers).
+    /// A host's session on a port the system picks (the TCP listener's own: nothing is bound
+    /// and let go), the pings and the wait on a wrong guess as `pace` says.
     #[cfg(test)]
-    pub fn host(desc: Desc, port: u16, signal: Signal) -> std::io::Result<Arc<Session>> {
-        Session::host_locked(desc, port, signal, b"")
+    pub(super) fn host_anywhere(
+        desc: Desc,
+        signal: Signal,
+        password: &[u8],
+        pace: Pace,
+    ) -> std::io::Result<Arc<Session>> {
+        Session::host_bound(desc, 0, signal, password, pace)
     }
 
     /// The host's session made, locked by `password` unless it is empty: joiners must prove they
@@ -18,10 +24,23 @@ impl Session {
         signal: Signal,
         password: &[u8],
     ) -> std::io::Result<Arc<Session>> {
+        Session::host_bound(desc, port, signal, password, Pace::default())
+    }
+
+    /// `host_locked` at `port`, or at the TCP port the system gives when it is 0 (the UDP
+    /// answers then use that number too).
+    fn host_bound(
+        desc: Desc,
+        port: u16,
+        signal: Signal,
+        password: &[u8],
+        pace: Pace,
+    ) -> std::io::Result<Arc<Session>> {
         let listener = TcpListener::bind(("0.0.0.0", port))?;
+        let port = listener.local_addr()?.port();
         let udp = UdpSocket::bind(("0.0.0.0", port))?;
         udp.set_read_timeout(Some(Duration::from_millis(300)))?;
-        let session = Session::host_over(desc, port, signal, password);
+        let session = Session::host_over_paced(desc, port, signal, password, pace);
         *session
             .listener_at
             .lock()
@@ -36,7 +55,17 @@ impl Session {
 
     /// The host's session made with no listener of its own: machines come through connections
     /// handed to `serve_wire` (a kind of connection that finds its own machines).
-    pub fn host_over(mut desc: Desc, port: u16, signal: Signal, password: &[u8]) -> Arc<Session> {
+    pub fn host_over(desc: Desc, port: u16, signal: Signal, password: &[u8]) -> Arc<Session> {
+        Session::host_over_paced(desc, port, signal, password, Pace::default())
+    }
+
+    fn host_over_paced(
+        mut desc: Desc,
+        port: u16,
+        signal: Signal,
+        password: &[u8],
+        pace: Pace,
+    ) -> Arc<Session> {
         desc.current_players = 0;
         let lock = if password.is_empty() {
             desc.flags &= !DPSESSION_PASSWORDREQUIRED;
@@ -49,7 +78,7 @@ impl Session {
                 key: rc2k_core::net::password::key(&salt, password),
             })
         };
-        let session = Session::new(
+        let session = Session::new_paced(
             1,
             World {
                 desc,
@@ -58,10 +87,11 @@ impl Session {
             signal,
             port,
             lock,
+            pace,
         );
         let weak = Arc::downgrade(&session);
         let stop = session.stop.clone();
-        std::thread::spawn(move || ping_machines(&weak, &stop));
+        std::thread::spawn(move || ping_machines(&weak, &stop, pace.ping_every));
         session
     }
 
@@ -139,7 +169,7 @@ impl Session {
             && !self.proves_password(&mut *stream, lock)
         {
             // A wrong guess waits before it is answered: guesses cost a second each.
-            std::thread::sleep(Duration::from_secs(1));
+            std::thread::sleep(self.pace.wrong_guess);
             let _ = write_frame(
                 &mut stream,
                 &W::default().u8(REFUSE).u32(DPERR_INVALIDPASSWORD).0,
@@ -500,13 +530,10 @@ impl Session {
     }
 }
 
-/// How often the host measures the round trip to each machine.
-const PING_EVERY: Duration = Duration::from_secs(1);
-
-/// The host's thread that pings every machine once a second until the session closes or goes.
-fn ping_machines(session: &std::sync::Weak<Session>, stop: &Closing) {
+/// The host's thread that pings every machine every `every` until the session closes or goes.
+fn ping_machines(session: &std::sync::Weak<Session>, stop: &Closing, every: Duration) {
     // A closing ends the wait at once; a session dropped unclosed is noticed at the next ping.
-    while !stop.wait(PING_EVERY) {
+    while !stop.wait(every) {
         let Some(s) = session.upgrade() else { return };
         let ping = W::default().u8(PING).u32(s.clock_ms()).0;
         let machines: Vec<u32> = s

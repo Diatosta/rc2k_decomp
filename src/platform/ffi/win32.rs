@@ -525,15 +525,15 @@ impl SampledThread {
                 return None;
             }
             let mut context: CONTEXT = std::mem::zeroed();
-            context.ContextFlags = crate::platform::arch::CONTEXT_CONTROL;
+            context.ContextFlags = crate::platform::ffi::arch::CONTEXT_CONTROL;
             let got = GetThreadContext(thread, &raw mut context) != 0;
             ResumeThread(thread);
-            got.then(|| crate::platform::arch::ip(&context))
+            got.then(|| crate::platform::ffi::arch::ip(&context))
         }
     }
 }
 
-/// The unhandled-exception filter: reports an access violation (`standalone::report_fault`,
+/// The unhandled-exception filter: reports an access violation (`process::report_fault`,
 /// which ends the program) and passes every other exception on. Reads the system's records
 /// only; what the report calls is listed at `report_fault`.
 ///
@@ -551,11 +551,11 @@ unsafe extern "system" fn on_exception(
         if record.ExceptionCode != windows_sys::Win32::Foundation::EXCEPTION_ACCESS_VIOLATION {
             return CONTINUE_SEARCH;
         }
-        crate::standalone::report_fault(
+        crate::platform::ffi::process::report_fault(
             record.ExceptionAddress.expose_provenance(),
             record.ExceptionInformation[1],
             record.ExceptionInformation[0] != 0,
-            crate::platform::arch::sp(context),
+            crate::platform::ffi::arch::sp(context),
         )
     }
 }

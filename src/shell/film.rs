@@ -520,7 +520,7 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
         let Some(next) = queue.pop_front() else {
             break 0;
         };
-        crate::platform::pump_messages_now(o);
+        crate::shell::frame::pump_messages_now(o);
         // The window closed: the film ends (fixed bug: "Closing the window leaves the game
         // running").
         if system.session.flags.quitting.is_set() {
@@ -546,7 +546,7 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
             crate::platform::unlock_surface(gfx);
         }
         last = Some(next);
-        crate::platform::show_frame_now(o);
+        crate::shell::frame::show_frame_now(o);
         clock.begin();
         let key = crate::input::take_key::take_key(input);
         if key != 0 {

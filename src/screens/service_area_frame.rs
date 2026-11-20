@@ -5,7 +5,8 @@
 
 use crate::errors::Refused;
 use crate::owners::Owners;
-use crate::platform::{lock_surface, show_frame_now, unlock_surface};
+use crate::platform::{lock_surface, unlock_surface};
+use crate::shell::frame::show_frame_now;
 
 pub fn service_area_frame(o: Owners<'static>) -> Result<(), Refused> {
     use crate::screens::{draw_service_area, draw_service_boxes};

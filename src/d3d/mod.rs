@@ -7,6 +7,7 @@
 pub mod cards_store;
 pub mod copy_screen_to_texture;
 pub mod copy_to_device_texture;
+pub mod device;
 pub mod draw_fan;
 pub mod draw_fan_unclipped;
 pub mod draw_hud_batch;

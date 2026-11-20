@@ -34,7 +34,7 @@ fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 fn machine_cpuid(leaf: u32) -> (u32, u32, u32, u32) {
-    let r = crate::platform::arch::__cpuid(leaf);
+    let r = crate::platform::ffi::arch::__cpuid(leaf);
     (r.eax, r.ebx, r.ecx, r.edx)
 }
 

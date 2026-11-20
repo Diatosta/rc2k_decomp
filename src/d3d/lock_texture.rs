@@ -18,7 +18,7 @@ pub fn lock_texture_in(gfx: &crate::gfx::owner::Gfx, texture: u32) -> Result<boo
         Lock::Nothing => {}
         Lock::Twice => return Err(fatal(LOCKED_TWICE).into()),
         Lock::Lock => {
-            if crate::platform::direct3d::lock_surface(surface, &gfx.card.upload.description) != 0 {
+            if crate::d3d::device::lock_surface(surface, &gfx.card.upload.description) != 0 {
                 return Err(fatal(LOCK_FAILED).into());
             }
             // Only a texture in the pool gets here.

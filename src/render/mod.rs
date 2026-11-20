@@ -1,4 +1,4 @@
-//! The renderer's boundary: the frame's 3D as commands the game's Direct3D layer (`platform::direct3d`)
+//! The renderer's boundary: the frame's 3D as commands the game's Direct3D layer (`d3d::device`)
 //! notes, and a `Backend` that draws them. Everything the backends must agree on is here; each
 //! one's own way of drawing is in its file.
 
@@ -57,7 +57,7 @@ impl std::hash::Hasher for TextureIdHasher {
     }
 }
 
-/// A texture level of the Direct3D layer (`platform::direct3d`): the number of its surface and a
+/// A texture level of the Direct3D layer (`d3d::device`): the number of its surface and a
 /// serial no other level, past or present, has. A level let go and made again under the same
 /// surface number is another id, so what a cache holds under the old one is never taken for it.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -69,7 +69,7 @@ pub struct TextureId {
 /// A texture's first level as noted: which it is and how it is laid out.
 #[derive(Clone, Copy)]
 pub struct TextureNote {
-    /// The level, whose `len` bytes `platform::direct3d::level_bytes` hands out.
+    /// The level, whose `len` bytes `d3d::device::level_bytes` hands out.
     pub pixels: TextureId,
     pub len: usize,
     pub width: usize,
@@ -864,14 +864,14 @@ pub(crate) fn take_changed_textures() -> TextureChanges {
 /// ends the program.
 pub(crate) fn noted_bytes<'a>(note: &TextureNote) -> &'a [u8] {
     // SAFETY: `level_bytes`' promise. The noted fans are drawn (the rasteriser's tiles, the
-    // GPU's uploads, the dumps) only inside `platform::direct3d::flush`'s drawing, on the game's thread
+    // GPU's uploads, the dumps) only inside `d3d::device::flush`'s drawing, on the game's thread
     // with its drawing threads joined before it returns, and the slices are dropped with that
     // drawing (`'a` does not bind them: the callers' discipline). Every write to a level's
     // pixels and every letting go of one flushes the noted drawing that reads it first
     // (`lock_surface`, `hold_texture`, `copy_screen_to_system_texture`, `allocate_textures_now`
     // before `make_texture` replaces a level, `release_all_textures`), so neither meets a
     // slice that is still drawn from.
-    unsafe { crate::platform::direct3d::level_bytes(note.pixels) }.unwrap_or_else(|| {
+    unsafe { crate::d3d::device::level_bytes(note.pixels) }.unwrap_or_else(|| {
         crate::fatal::raise::end(
             "a texture's pixels",
             crate::errors::BadInput("a noted texture's level is gone"),
@@ -1164,7 +1164,7 @@ mod tests {
     }
 
     /// A scene noted in one list and the same scene noted by parts and joined in their order
-    /// (`platform::direct3d::put_noted`) read back as the scene, and give the same batches, plain and
+    /// (`d3d::device::put_noted`) read back as the scene, and give the same batches, plain and
     /// with second passes joined: the fans' vertices in their list draw what each fan's own did.
     #[test]
     fn a_scene_noted_whole_or_by_parts_reads_back_and_batches_the_same() {
@@ -1263,7 +1263,7 @@ mod tests {
                     (state >> 24) as u8
                 })
                 .collect();
-            let id = crate::platform::direct3d::test_level(raw.clone());
+            let id = crate::d3d::device::test_level(raw.clone());
             let note = super::TextureNote {
                 pixels: id,
                 len: raw.len(),
@@ -1362,18 +1362,15 @@ mod tests {
 
     #[test]
     fn a_level_made_again_under_a_surface_is_another_id() {
-        let first = crate::platform::direct3d::test_level(vec![1; 4]);
+        let first = crate::d3d::device::test_level(vec![1; 4]);
         let second = TextureId {
             serial: first.serial.wrapping_add(1_000_000),
             ..first
         };
         // SAFETY: nothing writes the test level.
         unsafe {
-            assert_eq!(
-                crate::platform::direct3d::level_bytes(first),
-                Some(&[1u8; 4][..])
-            );
-            assert_eq!(crate::platform::direct3d::level_bytes(second), None);
+            assert_eq!(crate::d3d::device::level_bytes(first), Some(&[1u8; 4][..]));
+            assert_eq!(crate::d3d::device::level_bytes(second), None);
         }
     }
 }

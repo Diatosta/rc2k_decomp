@@ -302,7 +302,7 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
         Ended::Stopped
     };
     loop {
-        crate::platform::pump_messages_now(o);
+        crate::shell::frame::pump_messages_now(o);
         if o.system.session.flags.quitting.is_set() {
             return stop(&mut child);
         }
@@ -332,7 +332,7 @@ fn watch(o: Owners<'static>, render: &Render, mut child: Child) -> Ended {
         }
         let (button, panel) = draw(o, render, progress, &pace);
         crate::platform::unlock_surface(o.gfx);
-        if !crate::platform::show_frame_now(o) {
+        if !crate::shell::frame::show_frame_now(o) {
             return stop(&mut child);
         }
         crate::input::menu_pad::take_answer(o.input);

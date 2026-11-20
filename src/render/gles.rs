@@ -2135,7 +2135,7 @@ impl Front {
             pending,
             &mut self.background_held,
             bytes,
-            crate::platform::direct3d::handles().pictures,
+            crate::d3d::device::handles().pictures,
             |rows| {
                 picture = Some(rows.to_vec());
                 Ok(())

@@ -58,17 +58,17 @@ pub struct PartScratch {
     pub cache: crate::d3d::render_cache::OwnCache,
     /// Where such a part first set each state (`d3d::run_states::OwnRun`).
     pub run: crate::d3d::run_states::OwnRun,
-    /// The drawing it has noted (`platform::direct3d::Noted`): the first part's what the game's
+    /// The drawing it has noted (`d3d::device::Noted`): the first part's what the game's
     /// thread flushes, the others' put after it at their runs' ends. Behind a mutex: it is
-    /// reached by the game's thread (`platform::direct3d::game_part`) as well as by the part's own.
-    pub noted: crate::platform::direct3d::Noted,
+    /// reached by the game's thread (`d3d::device::game_part`) as well as by the part's own.
+    pub noted: crate::d3d::device::Noted,
     /// Whether a race is on (`race::numbers_store::Numbers::in_race`) as the parts of a
     /// drawing scope read it, set from the store before the scope opens (`draw_parts`): the
     /// GPU draws only then. Read through `in_race`.
     pub in_race: crate::memory::session::PlainFlag,
     /// The screen's width, height and bits per pixel (`session::Screen`) as the parts of a
     /// drawing scope read them for the noted drawing, set from the store before the scope
-    /// opens (`draw_parts`), as `in_race` is. Read by `platform::direct3d`.
+    /// opens (`draw_parts`), as `in_race` is. Read by `d3d::device`.
     pub screen_size: [crate::memory::session::PlainDword; 3],
 }
 
@@ -90,7 +90,7 @@ impl PartScratch {
                 crate::d3d::render_cache::OwnCache::new()
             },
             run: crate::d3d::run_states::OwnRun::new(),
-            noted: crate::platform::direct3d::Noted::new(),
+            noted: crate::d3d::device::Noted::new(),
             in_race: crate::memory::session::PlainFlag::new(false),
             screen_size: [const { crate::memory::session::PlainDword::new(0) }; 3],
         }
@@ -912,7 +912,7 @@ fn draw_parts(
         let columns = crate::scene::view_matrices::end_part(scratch).unwrap_or(columns_start);
         ended(n);
         scratch.points.end_run();
-        let noted = crate::platform::direct3d::take_noted(scratch);
+        let noted = crate::d3d::device::take_noted(scratch);
         set_index(0);
         OtherRun {
             result,
@@ -987,17 +987,17 @@ fn draw_parts(
         // Its fans before it set a state draw with what the earlier runs left.
         let carried = crate::d3d::run_states::carried(first_cache);
         crate::d3d::run_states::patch(&mut run.noted.commands, &run.states, &carried);
-        crate::platform::direct3d::put_noted(scratch_owner.game_scratch(), run.noted);
+        crate::d3d::device::put_noted(scratch_owner.game_scratch(), run.noted);
         crate::d3d::run_states::carry(first_cache, &run.states, &cache_start);
         crate::scene::view_matrices::merge_columns(matrices.get(), &columns_start, &run.columns);
         if result.is_ok() {
             // What it draws takes the merged states.
-            crate::platform::direct3d::forget_states(scratch_owner.game_scratch());
+            crate::d3d::device::forget_states(scratch_owner.game_scratch());
             result = after(n + 1);
         }
     }
     // The game's thread drew run 0 with its own states: the next fan takes the merged ones.
-    crate::platform::direct3d::forget_states(scratch_owner.game_scratch());
+    crate::d3d::device::forget_states(scratch_owner.game_scratch());
     result
 }
 
@@ -1100,7 +1100,7 @@ fn run_aside(
     let states = crate::d3d::run_states::end_run(scratch);
     crate::scene::view_matrices::end_part(scratch);
     scratch.points.end_run();
-    let noted = crate::platform::direct3d::take_noted(scratch);
+    let noted = crate::d3d::device::take_noted(scratch);
     AsideRun {
         result,
         noted,
@@ -1169,7 +1169,7 @@ impl Aside<'_> {
             std::ptr::eq(self.part, self.scratch.game_scratch()),
             "a piece drawn aside of a part other than the first"
         );
-        crate::platform::direct3d::put_noted(self.part, run.noted);
+        crate::d3d::device::put_noted(self.part, run.noted);
         crate::d3d::run_states::carry_set(&self.part.cache, &run.states);
         // The point records it wrote, as the part would have them after it; the piece's own
         // set back to 0 for the next piece.
@@ -1178,7 +1178,7 @@ impl Aside<'_> {
             crate::scene::point_records::put_written(&scratch, self.part);
             crate::scene::point_records::clear_written(&scratch);
         }
-        crate::platform::direct3d::forget_states(self.part);
+        crate::d3d::device::forget_states(self.part);
         run.result
     }
 

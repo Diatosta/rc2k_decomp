@@ -1,7 +1,7 @@
 //! The 3D layer the game's 3D code stands on: textures of our own, the
-//! scene's beginning and end, the depth buffer's clearing. As in `platform/mod.rs`, each function takes
-//! the place of a piece of the game's 3D layer, keeps what that piece leaves for the game's own
-//! code, and does the rest itself.
+//! scene's beginning and end, the depth buffer's clearing. Each function takes the place of a piece of
+//! the game's 3D layer, keeps what that piece leaves for the game's own code, and does the rest
+//! itself.
 //!
 //! The textures. The game keeps two pools of records, up to 0x140 each: system textures, into which
 //! pictures are put, and video textures, which are drawn with. A record (`TextureRecord`) holds its

@@ -432,7 +432,7 @@ pub fn over_picture(
         return;
     }
     let [w, h] = ui.io().display_size();
-    let (width, height) = crate::platform::screen_size(system);
+    let (width, height) = crate::shell::frame::screen_size(system);
     let at = [
         scene.scratch.main_view(0).polygon.sun.hit[0].get() as i32 as f32 * w / width.max(1) as f32,
         scene.scratch.main_view(0).polygon.sun.hit[1].get() as i32 as f32 * h

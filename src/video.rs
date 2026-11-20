@@ -151,16 +151,12 @@ fn frames_to_ms(n: u64, fps: u32) -> u64 {
     n * 1000 / u64::from(fps)
 }
 
-/// The video's clock runs (the race's loop has begun): the device's audio callback then gives
+/// The race's loop is about to run: the clock starts, and the device's audio callback gives
 /// silence, since the sound is taken frame by frame instead (`sound_turn`).
-pub fn sound_taken_by_frames() -> bool {
-    active() && FRAMES.load(Relaxed) != 0
-}
-
-/// The race's loop is about to run: the clock starts.
 pub fn race_loop_begins() {
     if active() {
         FRAMES.store(1, Relaxed);
+        crate::platform::sound::set_silent_for_video(true);
     }
 }
 

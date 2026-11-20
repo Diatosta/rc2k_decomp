@@ -243,7 +243,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         );
     }
     crate::platform::unlock_surface(o.gfx);
-    crate::platform::show_frame_now(o);
+    crate::shell::frame::show_frame_now(o);
     Ok(())
 }
 

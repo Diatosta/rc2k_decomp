@@ -415,7 +415,7 @@ impl flow::Game for Game<'_> {
             C::RunFrame => {
                 // `screens::run_frame` with `menu::picture_frame` (whether the frame was
                 // made is not looked at).
-                if let Some(made) = crate::platform::run_frame_now(self.owners, || {
+                if let Some(made) = crate::shell::frame::run_frame_now(self.owners, || {
                     m::picture_frame::picture_frame(self.owners)
                 }) {
                     made?;
@@ -468,7 +468,7 @@ impl flow::Game for Game<'_> {
         self.fault.check()?;
         // The welcome polls this until a key comes: the window goes on meanwhile.
         crate::clock::sleep::sleep(10);
-        crate::platform::pump_messages_now(self.owners);
+        crate::shell::frame::pump_messages_now(self.owners);
         let (playing, _) = crate::sound::stream_playing::stream_playing(self.owners.audio);
         Ok(playing)
     }

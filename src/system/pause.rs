@@ -27,7 +27,7 @@ fn wait(o: Owners<'static>, milliseconds: u32, key: Key) {
     let clock = &o.system.session.picture_clock;
     let end = wait_end(tick_count(clock), milliseconds);
     loop {
-        crate::platform::pump_messages_now(o);
+        crate::shell::frame::pump_messages_now(o);
         let ended = match key {
             Key::Taken => take_key(o.input) != 0,
             Key::Kept => pending_key(o.input).load(Ordering::SeqCst) != 0,

@@ -7,6 +7,7 @@
 pub mod android;
 #[cfg(target_os = "android")]
 pub mod android_java;
+pub mod arch;
 #[cfg(target_os = "ios")]
 pub mod dns_sd;
 pub mod gl;
@@ -19,6 +20,7 @@ pub mod pgo;
 #[cfg(phone)]
 pub mod phone_vibrator;
 pub mod photo_library;
+pub mod process;
 pub mod sdl;
 pub mod sdl_camera;
 pub mod sdl_clipboard;
@@ -27,5 +29,9 @@ pub mod sdl_gpu;
 pub mod sdl_input;
 #[cfg(unix)]
 pub mod unix;
+#[cfg(phone)]
+pub mod vibrate;
+#[cfg(web)]
+pub mod web;
 #[cfg(windows)]
 pub mod win32;

@@ -128,7 +128,7 @@ pub fn try_allocate_textures_in_game(
             Call::Allocate(ask) => {
                 // A failure of the allocation raises its fatal error; it never comes back
                 // as a refusal.
-                let (video, system) = crate::platform::direct3d::allocate_textures_for(
+                let (video, system) = crate::d3d::device::allocate_textures_for(
                     ask.video as u32,
                     !ask.video as u32,
                     ask.level,

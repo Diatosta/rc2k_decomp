@@ -151,7 +151,7 @@ pub fn report_timing(system: &System) {
                 static LAST_N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
                 let sh = SHOW_MICROS.load(Relaxed);
                 let ds = sh - LAST_S.swap(sh, Relaxed);
-                let no = crate::platform::direct3d::NOTE_MICROS.load(Relaxed);
+                let no = crate::d3d::device::NOTE_MICROS.load(Relaxed);
                 let dn = no - LAST_N.swap(no, Relaxed);
                 log(&format!(
                     "platform: the rasteriser's parallel part {:.0} ms, the threads in its tiles {:.0} ms ({:.1} threads busy on average); showing the frames {:.0} ms; noting the fans {:.0} ms",

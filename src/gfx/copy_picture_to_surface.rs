@@ -71,7 +71,7 @@ impl PictureSurface for GameSurface<'_> {
         &self.0.pictures
     }
     fn note_wash(&mut self, rows: u32, row_bytes: usize) {
-        let Some(target) = crate::platform::direct3d::screen(self.1.session.screen.get()) else {
+        let Some(target) = crate::d3d::device::screen(self.1.session.screen.get()) else {
             return;
         };
         if self.pixels() == target.pixels
@@ -88,7 +88,7 @@ impl PictureSurface for GameSurface<'_> {
         }
     }
     fn defer_background(&mut self) -> bool {
-        let Some(target) = crate::platform::direct3d::screen(self.1.session.screen.get()) else {
+        let Some(target) = crate::d3d::device::screen(self.1.session.screen.get()) else {
             return false;
         };
         let whole_rows = self.row_gap() == 0 && self.row_dwords() as usize * 4 == target.pitch;

@@ -142,7 +142,7 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
     #[cfg(touch_screen)]
     let _taps = crate::shell::touch_menu::InstallerPage::begin();
     loop {
-        crate::platform::pump_messages_now(o);
+        crate::shell::frame::pump_messages_now(o);
         if o.system.session.flags.quitting.is_set() {
             return None;
         }
@@ -154,7 +154,7 @@ pub fn ask(o: Owners<'static>, marks: bool, target: &Target) -> Option<Settings>
         }
         let (places, panel) = draw(o, &dialog, encoder, target);
         crate::platform::unlock_surface(o.gfx);
-        if !crate::platform::show_frame_now(o) {
+        if !crate::shell::frame::show_frame_now(o) {
             return None;
         }
         crate::input::menu_pad::take_answer(o.input);

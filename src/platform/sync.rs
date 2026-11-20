@@ -222,7 +222,7 @@ pub fn spawn(name: &str, id: u32, routine: impl FnOnce() + Send + 'static) -> Op
             if let Err(payload) = ended
                 && !payload.is::<ThreadExit>()
             {
-                crate::standalone::finish(
+                crate::platform::ffi::process::finish(
                     &format!(
                         "sync: the thread {id} ({:?}) panicked",
                         std::thread::current().name()
@@ -239,7 +239,10 @@ pub fn spawn(name: &str, id: u32, routine: impl FnOnce() + Send + 'static) -> Op
 /// unwinds to the thread's start. On another thread it ends the program.
 pub fn exit_thread() -> ! {
     if !SPAWNED.with(std::cell::Cell::get) {
-        crate::standalone::finish("sync: a thread not started here was to end itself", 1);
+        crate::platform::ffi::process::finish(
+            "sync: a thread not started here was to end itself",
+            1,
+        );
     }
     std::panic::resume_unwind(Box::new(ThreadExit))
 }

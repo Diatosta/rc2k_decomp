@@ -686,7 +686,7 @@ pub fn clear_viewport_unless_held(
     own: &[crate::memory::session::PlainDword; 4],
 ) {
     if draw.v3_driver_fix.get() == 0 {
-        crate::platform::direct3d::clear_viewport(part, own);
+        crate::d3d::device::clear_viewport(part, own);
     }
 }
 

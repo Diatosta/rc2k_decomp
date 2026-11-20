@@ -123,6 +123,8 @@ impl Shared {
 
 pub struct Session {
     me: u32,
+    /// The host's waits (pings, a wrong password's answer).
+    pace: Pace,
     shared: Mutex<Shared>,
     answered: Condvar,
     signal: Signal,
@@ -143,6 +145,35 @@ pub struct Session {
     /// What the connection's kind keeps while the session is open (the Steam lobby and its
     /// listening socket); dropped when the session closes.
     held: Mutex<Option<Box<dyn std::any::Any + Send>>>,
+}
+
+/// The host's own waits, which the tests shorten.
+#[derive(Clone, Copy)]
+struct Pace {
+    /// How often the host measures the round trip to each machine.
+    ping_every: Duration,
+    /// How long a wrong password waits before it is answered: guesses cost this each.
+    wrong_guess: Duration,
+}
+
+impl Default for Pace {
+    fn default() -> Self {
+        Pace {
+            ping_every: Duration::from_secs(1),
+            wrong_guess: Duration::from_secs(1),
+        }
+    }
+}
+
+#[cfg(test)]
+impl Pace {
+    /// Waits of a few milliseconds.
+    fn quick() -> Self {
+        Pace {
+            ping_every: Duration::from_millis(20),
+            wrong_guess: Duration::from_millis(5),
+        }
+    }
 }
 
 /// Whether a session has closed, and a wait that a closing cuts short.
@@ -190,7 +221,19 @@ struct Lock {
 
 impl Session {
     fn new(me: u32, world: World, signal: Signal, port: u16, lock: Option<Lock>) -> Arc<Session> {
+        Session::new_paced(me, world, signal, port, lock, Pace::default())
+    }
+
+    fn new_paced(
+        me: u32,
+        world: World,
+        signal: Signal,
+        port: u16,
+        lock: Option<Lock>,
+        pace: Pace,
+    ) -> Arc<Session> {
         Arc::new(Session {
+            pace,
             me,
             shared: Mutex::new(Shared {
                 world,

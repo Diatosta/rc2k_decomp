@@ -266,7 +266,8 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
     }
     loop {
         // `screens::run_frame` with `race::viewer_frame`.
-        if let Some(lost) = crate::platform::run_frame_now(o, || viewer_frame::viewer_frame(o)) {
+        if let Some(lost) = crate::shell::frame::run_frame_now(o, || viewer_frame::viewer_frame(o))
+        {
             lost?;
         }
         list_state.frame_clock.set(session.key_clock.ticks.get());

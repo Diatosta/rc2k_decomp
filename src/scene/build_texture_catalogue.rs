@@ -146,7 +146,7 @@ pub fn build_texture_catalogue_in_game(
                     raise_texture_needs(level, tag, scene);
                 }
                 Call::Try => return Ok(try_allocate_textures_in_game(shared, scene, gfx, d3d)?),
-                Call::Release => crate::platform::direct3d::release_all_textures(gfx),
+                Call::Release => crate::d3d::device::release_all_textures(gfx),
                 Call::CountNeeds => {
                     count_texture_needs_in_game(scene)?;
                 }
