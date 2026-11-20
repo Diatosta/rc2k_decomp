@@ -18,10 +18,10 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::logfile::log_int::log_int;
-use crate::scene::count_texture_needs::count_texture_needs_in_game;
+use crate::scene::count_texture_needs::count_texture_needs;
 use crate::scene::raise_texture_needs::raise_texture_needs;
 use crate::scene::texture_steps::{DONE, FAILED, STEPS};
-use crate::scene::try_allocate_textures::try_allocate_textures_in_game;
+use crate::scene::try_allocate_textures::try_allocate_textures;
 use std::ffi::CStr;
 
 // ---- game data ----
@@ -145,10 +145,10 @@ pub fn build_texture_catalogue_in_game(
                 Call::Raise { level, tag } => {
                     raise_texture_needs(level, tag, scene);
                 }
-                Call::Try => return Ok(try_allocate_textures_in_game(shared, scene, gfx, d3d)?),
+                Call::Try => return Ok(try_allocate_textures(shared, scene, gfx, d3d)?),
                 Call::Release => crate::d3d::device::release_all_textures(gfx),
                 Call::CountNeeds => {
-                    count_texture_needs_in_game(scene)?;
+                    count_texture_needs(scene)?;
                 }
             }
             Ok(false)

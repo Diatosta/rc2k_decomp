@@ -773,7 +773,7 @@ impl Callee {
             }
             Self::StopMusic => crate::sound::stop_music::stop_music(entry.owners),
             Self::StepCarStream => {
-                crate::sound::step_car_stream::step_car_stream_in_game(entry.owners)?;
+                crate::sound::step_car_stream::step_car_stream(entry.owners)?;
             }
             Self::PlayCarStream => crate::sound::play_car_stream::play_car_stream(
                 &mut |name, volume| {

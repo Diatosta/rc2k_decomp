@@ -13,7 +13,7 @@ pub fn arcade_level(o: Owners<'static>, level: u32) -> Result<(), Refused> {
         play.arcade.opened(level as usize - 1)
     });
     if !open {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(
+        crate::sound::play_menu_sound::play_menu_sound(
             o.sound,
             o.audio,
             o.menus,

@@ -18,20 +18,20 @@ pub fn camera_height_bias(
     car: &Car,
 ) -> Result<(), crate::errors::BadInput> {
     let scratch = crate::memory::session::PlainDword::new(0);
-    let esi = record(view_records, car)?;
-    if esi.height_bias.get() == 0 {
+    let view_record = record(view_records, car)?;
+    if view_record.height_bias.get() == 0 {
         return Ok(());
     }
     x87_1(view_records, &scratch);
     hold_low_bits(&scratch, ZERO);
     hold_high(&scratch, &numbers.one);
-    if (esi.height_bias.get() as i32) < 0 {
+    if (view_record.height_bias.get() as i32) < 0 {
         x87_2(&scratch);
     }
     x87_3(numbers, view_records, &scratch);
-    let eax = scratch.get();
-    view_records.view_vars.camera_height_bias.set(eax);
-    car.camera_position[1].set(car.camera_position[1].get().wrapping_add(eax));
+    let bias = scratch.get();
+    view_records.view_vars.camera_height_bias.set(bias);
+    car.camera_position[1].set(car.camera_position[1].get().wrapping_add(bias));
     Ok(())
 }
 

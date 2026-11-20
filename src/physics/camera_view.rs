@@ -24,20 +24,20 @@ pub fn record<'a>(
 
 /// The share done (the time held).
 pub fn share_done(shared: &RaceShared, record: &ViewRecord) -> u32 {
-    let mut eax = shared
+    let mut time_held = shared
         .car()
         .step_clock
         .get()
         .wrapping_sub(shared.car().camera_switch_clock.get());
-    if (eax as i32) < 0 {
-        eax = 0;
+    if (time_held as i32) < 0 {
+        time_held = 0;
     }
     let change_time = record.change_time.get();
-    if eax >= change_time {
-        eax = change_time;
+    if time_held >= change_time {
+        time_held = change_time;
     }
-    x87_1(shared, eax, change_time);
-    eax
+    x87_1(shared, time_held, change_time);
+    time_held
 }
 
 // ---- the x87 arithmetic ----

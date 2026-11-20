@@ -201,9 +201,19 @@ pub struct SettingsHead {
     pub headlights: PlainDword,
 }
 
+/// The visual options the player chose on the options pages.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct VisualOptions {
+    pub lens_flare: u32,
+    pub reflections: u32,
+    pub car_shadows: u32,
+    pub car_detail: u32,
+    pub headlights: u32,
+}
+
 impl SettingsHead {
     /// Takes the visual options the player chose on the options pages.
-    pub fn set_visual_options(&self, options: &crate::menu::options_store::OptionsSnapshot) {
+    pub fn set_visual_options(&self, options: &VisualOptions) {
         self.lens_flare.set(options.lens_flare);
         self.reflections.set(options.reflections);
         self.car_shadows.set(options.car_shadows);

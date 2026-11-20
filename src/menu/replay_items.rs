@@ -18,7 +18,7 @@ pub(super) fn replay_item_a(
         return crate::race::replay_mode::replay_mode(race, o, Mode::LastRace).map(|_| ());
     }
     crate::system::pause::pause_keeping_key(o, 500);
-    crate::sound::play_menu_sound::play_menu_sound_in_game(
+    crate::sound::play_menu_sound::play_menu_sound(
         o.sound,
         o.audio,
         o.menus,

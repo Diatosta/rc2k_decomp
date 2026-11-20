@@ -30,14 +30,10 @@ use crate::scene::vertex_light::plus;
 pub static CLEAR_KIND_2_STRENGTH: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
-/// `gather`: what stands for `scene::add_car_lights` and `scene::add_point_lights`.
 // Logic: `rc2k_core::scene::lamps::object_light`
-pub fn set_object_light(
-    gather: &mut dyn FnMut() -> Result<(), Refused>,
-    light: &crate::scene::object_light::ObjectLight,
-    object: &crate::scene::object_place::ObjectPlace,
-    vars: &crate::race::view_vars_store::ViewVarsCopy,
-) -> Result<(), Refused> {
+pub fn set_object_light(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+    let race = ctx.race;
+    let (light, object, vars) = (&ctx.view.light, &ctx.view.object, &ctx.view.vars);
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
     light.light_added.set(0u32);
     let (clear_strength, own_car) = match object_light(light.light_kind.get(), || {
@@ -64,7 +60,23 @@ pub fn set_object_light(
         light.drawn_car_light.set(vars.drawn_car.get());
     }
     light.light_colour.set(0u32);
-    gather()?;
+    add_car_lights(
+        ctx.reads,
+        ctx.reads.net_race.get(),
+        ctx.view.light.drawn_car_light.get(),
+        ctx.view.drawn_view(race),
+        &mut |car, marks| {
+            add_car_light(
+                ctx.reads.course(),
+                car,
+                marks,
+                ctx.reads.light_tables,
+                &ctx.view.light,
+            );
+            Ok(())
+        },
+    )?;
+    add_point_lights(ctx)?;
     if own_car {
         light.drawn_car_light.set(u32::MAX);
     }
@@ -72,35 +84,4 @@ pub fn set_object_light(
         .light_added
         .set(plus(light.light_colour.get(), light.other_light.get()));
     Ok(())
-}
-
-pub fn set_object_light_in_game(
-    ctx: &crate::race::view_scratch::DrawCtx<'_>,
-) -> Result<(), Refused> {
-    let race = ctx.race;
-    set_object_light(
-        &mut || {
-            add_car_lights(
-                ctx.reads,
-                ctx.reads.net_race.get(),
-                ctx.view.light.drawn_car_light.get(),
-                ctx.view.drawn_view(race),
-                &mut |car, marks| {
-                    add_car_light(
-                        ctx.reads.course(),
-                        car,
-                        marks,
-                        ctx.reads.light_tables,
-                        &ctx.view.light,
-                    );
-                    Ok(())
-                },
-            )?;
-            add_point_lights(ctx)?;
-            Ok(())
-        },
-        &ctx.view.light,
-        &ctx.view.object,
-        &ctx.view.vars,
-    )
 }

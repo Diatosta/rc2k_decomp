@@ -58,14 +58,14 @@ fn angle_and_place(y: f32, x: f32, per_angle: f32, centre: f32) -> (u32, u32) {
     (out[0], out[1])
 }
 
-/// Plays the request's sound at its place around the listener; `mode` is the sound mode.
+/// Plays the request's sound at its place around the listener, in the audio's sound mode.
 /// Outside the 3D modes the place sent on is the pan worked out here.
 pub(super) fn play_placed_sound(
     request: &SoundRequest,
-    mode: u32,
     owner: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
+    let mode = audio.state.sound_mode.get();
     // The logic is `rc2k_core::sound::placed` (`played`, `sample_of`, `volume`, `place`); the
     // products and the angle are x87-precision.
     let sound = request.sound.get();
@@ -112,15 +112,6 @@ pub(super) fn play_placed_sound(
         [pan, place_b, place_c],
     );
     Ok(())
-}
-
-/// In the game.
-pub(super) fn play_placed_sound_in_game(
-    request: &SoundRequest,
-    sound: &crate::sound::owner::Sound,
-    audio: &crate::audio::owner::Audio,
-) -> Result<(), BadInput> {
-    play_placed_sound(request, audio.state.sound_mode.get(), sound, audio)
 }
 
 // ---- the x87-precision arithmetic ----

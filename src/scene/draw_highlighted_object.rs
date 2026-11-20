@@ -23,7 +23,7 @@ use crate::scene::assign_menu_textures::assign_menu_textures;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
 use crate::scene::draw_carousel_entry::{ENTRIES, OWN, find_object_of_kind, own_place};
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
-use crate::scene::load_slot_textures::load_slot_textures_in_game;
+use crate::scene::load_slot_textures::load_slot_textures;
 use crate::scene::map_texture_places::map_texture_places;
 
 // ---- game data ----
@@ -80,7 +80,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
     assign_kind_textures(scene)?;
     assign_menu_textures(&menus.screens.carousel, scene)?;
     map_texture_places(scene);
-    load_slot_textures_in_game(&race.frame, scene)?;
+    load_slot_textures(&race.frame, scene)?;
     scene.lights.state.get().draw_mode.set(0u32);
     // The front end's 3D draws on a slot of its own.
     let ctx = crate::race::view_scratch::DrawCtx::new(

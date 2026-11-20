@@ -234,13 +234,13 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
         let lead_checkpoint = lead.checkpoint.get();
         // The carried gap: the lead's `checkpoint_offset[1]` for the first car, then the gap the
         // first car's note left (read again for the second car).
-        let mut edx = lead.checkpoint_offset[1].get();
+        let mut carried_gap = lead.checkpoint_offset[1].get();
         for slot in [&lead.pace_cars[1], &lead.pace_cars[0]] {
             let b = car(&race.shared, slot.get())?;
-            let is_ahead = ahead_of_lead(lead_checkpoint, b.checkpoint.get(), edx, || {
+            let is_ahead = ahead_of_lead(lead_checkpoint, b.checkpoint.get(), carried_gap, || {
                 b.checkpoint_offset[1].get()
             });
-            edx = if is_ahead {
+            carried_gap = if is_ahead {
                 crate::drive::note_gap_ahead::note_gap_ahead(race, b)
             } else {
                 behind = behind.wrapping_sub(1);

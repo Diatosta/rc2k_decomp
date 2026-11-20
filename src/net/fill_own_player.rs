@@ -90,7 +90,10 @@ pub fn fill_own_player(
         to.set(from(&player));
     }
     race.shared.state.results.hud_bits_current.set(u32::MAX);
-    race.shared.state.settings.set_visual_options(options);
+    race.shared
+        .state
+        .settings
+        .set_visual_options(&options.visual());
     race.shared.state.results.finished.set(0);
     Ok(())
 }

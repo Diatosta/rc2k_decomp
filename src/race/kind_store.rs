@@ -1,8 +1,8 @@
 //! The known-kind tables: the per-kind tables of 34 known cars (pictures, object kinds, file and
 //! icon numbers, view, wheel, hit and part flags). The fields keep a fixed layout.
 
+use crate::memory::first_cells::dwords;
 use crate::memory::session::Dword;
-use crate::race::first_cells::dwords;
 
 #[derive(rc2k_derive::Cells)]
 pub struct KindTables {

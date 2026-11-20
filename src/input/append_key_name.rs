@@ -26,8 +26,9 @@ pub fn append_key_name(
     let mut out = Vec::new();
     match name {
         rc2k_core::input::keyboard::KeyName::String(id) => {
-            let eax = append_string_by_id(so, id, &mut |bytes| out.extend_from_slice(bytes))?;
-            Ok((out, eax))
+            let after_text =
+                append_string_by_id(so, id, &mut |bytes| out.extend_from_slice(bytes))?;
+            Ok((out, after_text))
         }
         rc2k_core::input::keyboard::KeyName::Hex(key) => {
             out.extend_from_slice(b"0x");

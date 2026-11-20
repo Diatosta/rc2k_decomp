@@ -64,12 +64,12 @@ fn square(
 fn place(weather: &Weather, k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
     {
         let t = &weather.snow_tables;
-        let mut eax = t.randoms[0][k as usize].get();
-        let mut ebx = t.randoms[1][k as usize]
+        let mut x = t.randoms[0][k as usize].get();
+        let mut y = t.randoms[1][k as usize]
             .get()
             .wrapping_add(weather.snow.fall.get());
-        let mut ecx = t.randoms[2][k as usize].get();
-        let f = (ebx & 0xF_FFFF) >> 11;
+        let mut z = t.randoms[2][k as usize].get();
+        let f = (y & 0xF_FFFF) >> 11;
         let ix = f.wrapping_add(t.remainders[0][k as usize].get());
         let iz = f.wrapping_add(t.remainders[1][k as usize].get());
         let shift: [u32; 3] = weather
@@ -84,11 +84,11 @@ fn place(weather: &Weather, k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
                 0
             }
         };
-        eax = eax.wrapping_add(curve(ix)).wrapping_add(shift[0]);
-        ecx = ecx.wrapping_add(curve(iz)).wrapping_add(shift[2]);
-        ebx = ebx.wrapping_add(shift[1]);
+        x = x.wrapping_add(curve(ix)).wrapping_add(shift[0]);
+        z = z.wrapping_add(curve(iz)).wrapping_add(shift[2]);
+        y = y.wrapping_add(shift[1]);
         let wrap = |v: u32| (v & 0xF_FFFF).wrapping_sub(0x7_FFFF);
-        ([wrap(eax), wrap(ebx), wrap(ecx)], [ix, iz], shift)
+        ([wrap(x), wrap(y), wrap(z)], [ix, iz], shift)
     }
 }
 

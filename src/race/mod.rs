@@ -38,7 +38,6 @@ mod error_list_store;
 mod face_runs;
 pub(crate) mod face_work;
 pub(crate) mod find_present_courses;
-mod first_cells;
 mod flares_store;
 pub(crate) mod frame;
 mod frame_counter_store;

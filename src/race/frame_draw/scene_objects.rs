@@ -714,17 +714,17 @@ pub fn draw_flare(
 /// `marker_object`; `view_kind` 2, `place_object_matrix`, `light_kind` 0
 /// and the drawing.
 fn draw_lamp_flare(ctx: &crate::race::view_scratch::DrawCtx<'_>, lamp: u32) -> Result<(), Refused> {
-    let edi = lights::own_lamp(&ctx.view.lamps, lamp)?;
+    let lamp_record = lights::own_lamp(&ctx.view.lamps, lamp)?;
     let [x, y, z] = crate::race::scene_points::point_number(
         ctx.reads.course(),
         &ctx.part.points,
-        edi[0].get(),
+        lamp_record[0].get(),
     )?;
     ctx.view.object.place[0].set(x);
     ctx.view.object.place[1].set(y);
     ctx.view.object.place[2].set(z);
-    ctx.view.object.size.set(edi[1].get() << 3);
-    ctx.view.light.other_light.set(edi[2].get());
+    ctx.view.object.size.set(lamp_record[1].get() << 3);
+    ctx.view.light.other_light.set(lamp_record[2].get());
     ctx.view
         .cars
         .object_number

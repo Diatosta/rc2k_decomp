@@ -58,7 +58,7 @@ pub fn block_number(handle: u32) -> Option<usize> {
     }
     match known_block(handle) {
         Some(n) => Some(n),
-        None => crate::fatal::raise::end(
+        None => crate::memory::host_hooks::end(
             "race::blocks_store::block_of",
             crate::errors::BadInput("a car block's handle that names none"),
         ),
@@ -84,7 +84,9 @@ impl CarBlocks {
         match known_block(handle) {
             Some(n) => Ok(&self.cars[n]),
             None => {
-                crate::program_log::log(&format!("trap: {handle:#x} is no car block's place"));
+                crate::memory::host_hooks::log(&format!(
+                    "trap: {handle:#x} is no car block's place"
+                ));
                 Err(crate::errors::BadInput("a car block at no car's place"))
             }
         }
@@ -94,7 +96,7 @@ impl CarBlocks {
     pub fn handle_of(&self, car: &Car) -> u32 {
         match self.cars.iter().position(|c| core::ptr::eq(c, car)) {
             Some(n) => BLOCK_TAG | n as u32,
-            None => crate::fatal::raise::end(
+            None => crate::memory::host_hooks::end(
                 "race::blocks_store::handle_of_car",
                 crate::errors::BadInput("a car that is none of the blocks"),
             ),
@@ -115,7 +117,7 @@ impl CarBlocks {
         }
         Ok(self
             .named(handle)
-            .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e)))
+            .unwrap_or_else(|e| crate::memory::host_hooks::end("physics::Car::at", e)))
     }
 }
 

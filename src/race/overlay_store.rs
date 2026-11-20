@@ -2,8 +2,8 @@
 //! tables), the start lights, the countdown sounds and the position labels with their kept copies.
 
 use crate::memory::cells::ZeroCells;
+use crate::memory::first_cells::{plain_dwords, plain_dwords_of_text};
 use crate::memory::session::{PlainDword, PlainFloat};
-use crate::race::first_cells::{plain_dwords, plain_dwords_of_text};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct OverlayBlock {

@@ -51,8 +51,8 @@ pub fn step_camera(race: &Race, step: i8) -> Result<(), Refused> {
         race.replay_work().header_one_player.get() == 1,
         race.replay_work().header_kind_0.get(),
     );
-    let dl = step_camera(old, step > 0, every, |n| camera_skipped(name_of(race, n)))?;
-    at.write(race, dl, "a replay camera byte")?;
+    let new_camera = step_camera(old, step > 0, every, |n| camera_skipped(name_of(race, n)))?;
+    at.write(race, new_camera, "a replay camera byte")?;
     let spread = crate::race::spread_camera::spread_camera(race, at, old);
     if spread.is_err() {
         // A refusal comes before anything is written: nothing is left written.

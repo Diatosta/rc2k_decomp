@@ -101,45 +101,36 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     }
 }
 
-/// Whether all the memory was had.
+/// Whether all the memory was had, with the game's log and the game's allocation.
 // Logic: `rc2k_core::scene::textures::try_allocate`
 pub fn try_allocate_textures(
-    shared: &RaceShared,
-    scene: &Scene,
-    call: &mut dyn FnMut(Call) -> Option<u32>,
-) -> Result<bool, BadInput> {
-    Ok(rc2k_core::scene::textures::try_allocate(
-        &mut GameMemory { shared, scene },
-        &mut |c| call(c),
-    )?)
-}
-
-/// With the game's log and the game's allocation.
-pub fn try_allocate_textures_in_game(
     shared: &RaceShared,
     scene: &Scene,
     gfx: &crate::gfx::owner::Gfx,
     d3d: &crate::d3d::owner::D3d,
 ) -> Result<bool, BadInput> {
-    try_allocate_textures(shared, scene, &mut |call| {
-        match call {
-            Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
-            Call::Number(number) => log_int(number as i32, false, 1),
-            Call::Allocate(ask) => {
-                // A failure of the allocation raises its fatal error; it never comes back
-                // as a refusal.
-                let (video, system) = crate::d3d::device::allocate_textures_for(
-                    ask.video as u32,
-                    !ask.video as u32,
-                    ask.level,
-                    ask.pixel_kind,
-                    ask.mips,
-                    gfx,
-                    d3d,
-                );
-                return Some(if ask.video { video } else { system });
+    Ok(rc2k_core::scene::textures::try_allocate(
+        &mut GameMemory { shared, scene },
+        &mut |call| {
+            match call {
+                Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
+                Call::Number(number) => log_int(number as i32, false, 1),
+                Call::Allocate(ask) => {
+                    // A failure of the allocation raises its fatal error; it never comes back
+                    // as a refusal.
+                    let (video, system) = crate::d3d::device::allocate_textures_for(
+                        ask.video as u32,
+                        !ask.video as u32,
+                        ask.level,
+                        ask.pixel_kind,
+                        ask.mips,
+                        gfx,
+                        d3d,
+                    );
+                    return Some(if ask.video { video } else { system });
+                }
             }
-        }
-        Some(0)
-    })
+            Some(0)
+        },
+    )?)
 }

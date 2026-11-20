@@ -320,7 +320,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
         // The menu sound asked for.
         let sound = race.shared.replay_file().viewer_sound.get();
         race.shared.replay_file().viewer_sound.set(0);
-        crate::sound::play_menu_sound::play_menu_sound_in_game(
+        crate::sound::play_menu_sound::play_menu_sound(
             o.sound,
             o.audio,
             o.menus,

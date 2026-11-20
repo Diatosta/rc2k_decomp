@@ -44,8 +44,8 @@ pub fn drive_torque_share(
     }
     // The gears left go through the cell as a whole number, then their share of the count
     // replaces it.
-    let eax = count.get().wrapping_sub(car.gear_ratio_setting.get());
-    gears_share.set(x87::int_ratio(eax as i32, count.get() as i32));
+    let gears_left = count.get().wrapping_sub(car.gear_ratio_setting.get());
+    gears_share.set(x87::int_ratio(gears_left as i32, count.get() as i32));
     tables
         .torque_share
         .set(toward_one(gears_share.get(), speed_share.get()));
@@ -53,5 +53,5 @@ pub fn drive_torque_share(
         tables.drive_torque.get(),
         tables.torque_share.get(),
     ));
-    eax
+    gears_left
 }

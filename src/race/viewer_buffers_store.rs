@@ -115,7 +115,7 @@ impl ViewerBuffers {
         match offset.checked_add(data.len()) {
             Some(end) if end <= len => {}
             _ => {
-                crate::program_log::log(&format!(
+                crate::memory::host_hooks::log(&format!(
                     "replay block: {what}: {:#x} bytes at {offset:#x} of {len:#x}",
                     data.len()
                 ));

@@ -10,7 +10,6 @@
 //! the second palette, which `game_fonts[3 ..= 5]` get with the same table.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::gfx::build_glyphs::SheetVars;
 use crate::gfx::build_glyphs::build_glyphs;
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::glyph_builder::{RUN_LENGTHS, WITH_ALPHA};
@@ -53,15 +52,15 @@ fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }
 
-/// `pixels_b` is where the place of the second palette's pixels is read from when they are made. (A
-/// failed allocation cannot come: the allocator reports its own error.)
+/// The second palette's pixels are made where the third font's palette is. (A failed allocation
+/// cannot come: the allocator reports its own error.)
 pub fn build_game_fonts(
-    vars: &SheetVars,
-    pixels_b: &crate::memory::session::PlainDword,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
     strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
+    let vars = &gfx.sheet;
+    let pixels_b = &gfx.fonts.font_block.game_fonts[3].palette;
     let list = &gfx.fonts.game_fonts_memory.memory;
     let bytes = gfx
         .fonts
@@ -146,19 +145,4 @@ pub fn build_game_fonts(
         });
     }
     Ok(())
-}
-
-/// With the third font's palette's place, as the stage's loading calls it.
-pub fn build_game_fonts_in_game(
-    gfx: &crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
-    strings: &crate::strings::owner::Strings,
-) -> Result<(), Refused> {
-    build_game_fonts(
-        &gfx.sheet,
-        &gfx.fonts.font_block.game_fonts[3].palette,
-        gfx,
-        system,
-        strings,
-    )
 }

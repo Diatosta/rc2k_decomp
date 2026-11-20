@@ -96,7 +96,7 @@ fn option_item(o: Owners<'static>, item: Item) -> Result<(), Refused> {
         Kind::SwitchModes { other } => {
             set(&o, v, steps::flip(get(&o, v) as u32) as i32);
             set(&o, other, steps::flip(get(&o, other) as u32) as i32);
-            // `gfx::screen_mode_choices` makes the list again; its flags are read by no caller.
+            // `gfx::screen_mode_choices` makes the list again; its answer is not needed here.
             crate::gfx::screen_mode_choices::screen_mode_choices(
                 o.gfx, &o.gfx.d3d, o.system, false,
             )?;
@@ -116,7 +116,7 @@ fn option_item(o: Owners<'static>, item: Item) -> Result<(), Refused> {
                 Then::Send => crate::sound::send_command_8::send_command_8(o.audio, value as u32),
                 Then::Store(other) => set(&o, other, value),
                 Then::Sound(sound) => {
-                    crate::sound::play_menu_sound::play_menu_sound_in_game(
+                    crate::sound::play_menu_sound::play_menu_sound(
                         o.sound,
                         o.audio,
                         o.menus,

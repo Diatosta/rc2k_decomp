@@ -17,7 +17,7 @@ pub(super) fn run_step(step: Step, o: Owners<'static>) -> Result<(), crate::erro
         Step::StopMusic => crate::sound::stop_music::stop_music(o),
         Step::Send(command) => crate::sound::senders::send(o.audio, command),
         Step::LoadRaceSounds => {
-            crate::sound::load_race_sounds::load_race_sounds_in_game(o.race, o.sound, o.audio)?;
+            crate::sound::load_race_sounds::load_race_sounds(o.race, o.sound, o.audio)?;
         }
         Step::Wait => crate::sound::wait_for_commands::wait_in_game(o),
     }

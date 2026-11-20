@@ -2,8 +2,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 pub fn race_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    crate::drive::race_frame::race_frame(race, o, 0)?;
-    Ok(())
+    crate::drive::race_frame::race_frame(race, o)
 }
 
 pub fn restart_clock(race: &Race, picture_clock: &crate::clock::tick_count::PictureClock) {

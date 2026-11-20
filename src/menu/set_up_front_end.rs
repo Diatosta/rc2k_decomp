@@ -44,7 +44,7 @@ pub(super) fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), 
     }
     crate::menu::link_player_names::link_player_names(menus)?;
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
-    crate::gfx::build_menu_sprites::build_menu_sprites_in_game(gfx, system, menus, o.strings)?;
+    crate::gfx::build_menu_sprites::build_menu_sprites(gfx, system, menus, o.strings)?;
     crate::menu::fit_player_names::fit_player_names(menus, o.gfx)?;
     // The two dwords: the music volumes, then the tables' copies.
     sound

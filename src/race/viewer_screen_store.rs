@@ -4,8 +4,8 @@
 //! text strings (left as unknown bytes), the view marks' state and the listener place and turn.
 
 use crate::memory::cells::ZeroCells;
+use crate::memory::first_cells::{plain_dwords, plain_dwords_of_text};
 use crate::memory::session::{PlainDword, PlainFloat};
-use crate::race::first_cells::{plain_dwords, plain_dwords_of_text};
 #[cfg(test)]
 use crate::test_support::own::race;
 
@@ -283,7 +283,7 @@ impl ViewerPanelBlock {
     pub fn camera_name(&self, camera: usize) -> u16 {
         // The names are the block's first bytes.
         crate::memory::cells::load_value::<u16>(self, 2 * camera)
-            .unwrap_or_else(|e| crate::fatal::raise::end("a camera's name", e))
+            .unwrap_or_else(|e| crate::memory::host_hooks::end("a camera's name", e))
     }
 
     /// The rectangle of the picture `n` in switch table `table` (0 `switch_pictures_a`, 1

@@ -13,21 +13,25 @@ use crate::clock::tick_count::tick_count;
 use crate::menu::owner::Menus;
 use crate::sound::owner::Sound;
 
-/// `sound` the menu's sound (0: none); `now` is asked for the clock.
+/// Plays the menu's sound `sound` (0: none), the gap since the last one taken from the picture
+/// clock.
 pub fn play_menu_sound(
-    sound: u32,
-    now: &mut dyn FnMut() -> u32,
     sounds: &Sound,
     audio: &Audio,
     menus: &Menus,
+    picture_clock: &crate::clock::tick_count::PictureClock,
+    sound: u32,
 ) {
     // The logic is `rc2k_core::sound::senders::menu_sound`.
     use rc2k_core::sound::senders::{MenuVolume, menu_sound};
     if sound == 0 {
         return;
     }
-    let Some((next, pick)) = menu_sound(sound, now(), sounds.menu.next_sound_time.get().get())
-    else {
+    let Some((next, pick)) = menu_sound(
+        sound,
+        tick_count(picture_clock),
+        sounds.menu.next_sound_time.get().get(),
+    ) else {
         return;
     };
     sounds.menu.next_sound_time.get().set(next);
@@ -40,21 +44,4 @@ pub fn play_menu_sound(
         MenuVolume::C => menus.options.snapshot().menu_effects_volume,
     };
     crate::sound::play_sound::play_sound_in(audio, sound, volume, 0xFFFF_FF91, [0; 3]);
-}
-
-/// With the game's clock: what other Rust code calls.
-pub fn play_menu_sound_in_game(
-    sounds: &Sound,
-    audio: &Audio,
-    menus: &Menus,
-    picture_clock: &crate::clock::tick_count::PictureClock,
-    sound: u32,
-) {
-    play_menu_sound(
-        sound,
-        &mut || tick_count(picture_clock),
-        sounds,
-        audio,
-        menus,
-    );
 }

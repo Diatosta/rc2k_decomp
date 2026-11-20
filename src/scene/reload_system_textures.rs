@@ -16,7 +16,7 @@
 //! The kinds' pictures and the read sizes are in the core crate (`rc2k_core::scene::pictures`).
 
 use crate::errors::{BadInput, Refused};
-use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
+use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture};
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
 use crate::scene::textures::KINDS;
 use rc2k_core::scene::pictures::{kind_picture, read_size};
@@ -68,7 +68,7 @@ pub fn reload_system_textures(
         let grading = &gfx_grading;
         grading.scale.set(scale);
         grading.saturation.set(saturation);
-        load_changed_texture_picture_in_game(race, gfx, texture, scene, system)?;
+        load_changed_texture_picture(race, gfx, texture, scene, system)?;
         progress.textures_done(textures, texture)?;
     }
     let grading = &gfx_grading;

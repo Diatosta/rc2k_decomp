@@ -57,16 +57,18 @@ fn lengths(names: &SampleNames, first: u32) -> Result<Vec<u32>, BadInput> {
     Ok(lengths)
 }
 
-/// `send` gets each command 3's list (by handle: the audio thread resolves it). The variables
+/// Each command 3's list is sent to the audio thread (by handle: it resolves it). The variables
 /// (`sound::owner::Sound::race`'s `sounds`): `RaceSounds.player_cars` the two cars' numbers,
 /// `RaceSounds.one_player` and `RaceSounds.count` the counts, `RaceSounds.objects` the eight sound
 /// objects; `RaceState.results.finished` the replay switch.
 pub fn load_race_sounds(
-    send: &mut dyn FnMut(SoundList),
     race: &Race,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
+    let send = |list: SoundList| {
+        crate::sound::senders::send(audio, Command::Load(Some(list)));
+    };
     let r = sound.race.sounds.get();
     let object = |number: &PlainDword| -> Result<u32, BadInput> {
         let number = number.get();
@@ -205,18 +207,4 @@ pub fn load_race_sounds(
         }
     }
     Ok(())
-}
-
-/// In the game: each list sent as command 3.
-pub(super) fn load_race_sounds_in_game(
-    race: &Race,
-    sound: &crate::sound::owner::Sound,
-    audio: &crate::audio::owner::Audio,
-) -> Result<(), BadInput> {
-    load_race_sounds(
-        &mut |list| crate::sound::senders::send(audio, Command::Load(Some(list))),
-        race,
-        sound,
-        audio,
-    )
 }

@@ -12,7 +12,7 @@ use crate::scene::list_object_face::list_object_face;
 use crate::scene::list_object_faces::list_object_faces;
 use crate::scene::place_object_points::place_object_points;
 use crate::scene::set_object_fade::set_object_fade;
-use crate::scene::set_object_light::set_object_light_in_game;
+use crate::scene::set_object_light::set_object_light;
 use crate::scene::set_object_material::set_object_material;
 use crate::scene::sort_listed_faces::sort_listed_faces;
 
@@ -53,7 +53,7 @@ pub fn draw_object_in_game(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     let mut faces = crate::scene::face_list::FaceList::new();
     draw_object(&mut |step| {
         match step {
-            Step::Light => set_object_light_in_game(ctx)?,
+            Step::Light => set_object_light(ctx)?,
             Step::Material => set_object_material(ctx)?,
             Step::Fade => set_object_fade(ctx)?,
             Step::Points => place_object_points(ctx)?,

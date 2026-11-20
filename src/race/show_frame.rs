@@ -7,18 +7,13 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// What `show_frame` leaves: a leftover value the caller passes on. A frame that could not be
-/// locked or presented is simply not shown.
-pub struct Shown {
-    pub eax: u32,
-}
-
-pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Shown, Refused> {
+/// Shows the frame; a frame that could not be locked or presented is simply not shown.
+pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (system, scene) = (o.system, o.scene);
     let frame = &race.frame;
-    let (locked, kept) = crate::scene::lock_frame::lock_frame(race, o.gfx, o.system);
+    let locked = crate::scene::lock_frame::lock_frame(race, o.gfx, o.system);
     if locked < 1 || lose_this_frame() {
-        return Ok(Shown { eax: kept });
+        return Ok(());
     }
     if race.shared.work.get().in_credits.is_set() {
         crate::race::frame_text::roll_credits(
@@ -41,10 +36,9 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
     }?;
     crate::race::part_notices::draw(race, o)?;
     crate::net::left::draw(o)?;
-    // The leftover value after the unlock is 0.
     crate::scene::unlock_frame::unlock_frame(&race.frame, o.gfx);
     if !crate::scene::present_frame::present_frame(o) {
-        return Ok(Shown { eax: 0 });
+        return Ok(());
     }
     let clock = crate::scene::restart_clock::restart_clock(
         &race.shared,
@@ -52,10 +46,8 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
     );
     let time = clock.wrapping_sub(race.shared.view.get().clock_base.get());
     race.shared.view.get().frame_time.set(time);
-    // The measuring leaves the counter's low half as the leftover value on the 16th call, else as
-    // it was.
-    let eax = { crate::race::measure_frame_rate::measure_frame_rate(race, scene) }.unwrap_or(time);
-    Ok(Shown { eax })
+    crate::race::measure_frame_rate::measure_frame_rate(race, scene);
+    Ok(())
 }
 
 /// Test switch (remote builds): `RC2K_LOSE_FRAMES=n` treats every n-th race frame's lock as

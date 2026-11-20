@@ -15,7 +15,7 @@ pub(super) fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<()
     let replay = &race.replay;
     // The camera bytes of the following blocks, 8 bytes apart (a stride over bytes).
     let at = |n: u32| byte.blocks_on(n);
-    let dl = byte.read(race, "a replay camera byte")?;
+    let new_camera = byte.read(race, "a replay camera byte")?;
     let count = race
         .shared
         .replay_file()
@@ -30,7 +30,7 @@ pub(super) fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<()
     })?;
     trap.finish()?;
     for n in 1..=s.taken {
-        at(n).write(race, dl, "a replay camera byte")?;
+        at(n).write(race, new_camera, "a replay camera byte")?;
     }
     Ok(())
 }

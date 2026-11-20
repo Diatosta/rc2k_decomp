@@ -3,7 +3,7 @@
 //! `scene::draw_carousel`.
 
 use crate::errors::Refused;
-use crate::scene::draw_carousel::draw_carousel_in_game;
+use crate::scene::draw_carousel::draw_carousel;
 
 // ---- game data ----
 
@@ -15,5 +15,5 @@ pub fn draw_main_menu_carousel(
 ) -> Result<(), Refused> {
     let scene = ctx.scene;
     scene.lights.state.get().draw_mode.set(0u32);
-    draw_carousel_in_game(menus, ctx, lone_row)
+    draw_carousel(menus, ctx, lone_row)
 }

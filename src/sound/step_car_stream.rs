@@ -7,24 +7,17 @@
 //! car specification, the slideshow, two stage screens).
 
 use crate::errors::BadInput;
-use crate::menu::champ_store::ChampView;
-use crate::menu::options_store::MenuOptions;
 
 // ---- game data ----
 
 // `sound::stream_playing`
 
-/// `playing` stands for `sound::stream_playing`, `start` for `sound::start_stream` (the part, the
-/// volume).
-pub fn step_car_stream(
-    playing: &mut dyn FnMut() -> bool,
-    start: &mut dyn FnMut(u32, u32),
-    champ: &ChampView,
-    options: &MenuOptions,
-    texts: &crate::menu::texts_store::MenuTexts,
-    sound: &crate::sound::owner::Sound,
-    names: &crate::audio::names_store::SampleNames,
-) -> Result<(), BadInput> {
+/// With the game's stream flag and `sound::start_stream`.
+pub fn step_car_stream(o: crate::owners::Owners<'static>) -> Result<(), BadInput> {
+    let (menus, sound, audio) = (o.menus, o.sound, o.audio);
+    let (champ, options, texts) = (&menus.play.champ_view, &menus.options, &menus.texts);
+    let names = &audio.sample_names;
+    let playing = || audio.state.sound_stream.get().playing == 1;
     // The logic is `rc2k_core::sound::race::stream_step`.
     use rc2k_core::sound::race::{StreamStep, stream_step};
     let list: u32 = sound.race.car_stream.get().stream.get();
@@ -54,22 +47,6 @@ pub fn step_car_stream(
         StreamStep::Start { place, part } => (place, part),
     };
     sound.race.car_stream.get().place.set(place);
-    start(part, options.snapshot().menu_voices_volume);
+    crate::sound::start_stream::start_stream(o, part, options.snapshot().menu_voices_volume);
     Ok(())
-}
-
-/// With the game's stream flag and `sound::start_stream`.
-pub fn step_car_stream_in_game(o: crate::owners::Owners<'static>) -> Result<(), BadInput> {
-    let (menus, sound, audio) = (o.menus, o.sound, o.audio);
-    step_car_stream(
-        &mut || audio.state.sound_stream.get().playing == 1,
-        &mut |name, volume| {
-            crate::sound::start_stream::start_stream(o, name, volume);
-        },
-        &menus.play.champ_view,
-        &menus.options,
-        &menus.texts,
-        sound,
-        &audio.sample_names,
-    )
 }

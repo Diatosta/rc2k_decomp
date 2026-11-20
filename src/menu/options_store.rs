@@ -73,6 +73,19 @@ pub struct OptionsSnapshot {
     pub menu_voices_volume: u32,
 }
 
+impl OptionsSnapshot {
+    /// The visual options, as the race takes them.
+    pub fn visual(&self) -> crate::race::state_store::VisualOptions {
+        crate::race::state_store::VisualOptions {
+            lens_flare: self.lens_flare,
+            reflections: self.reflections,
+            car_shadows: self.car_shadows,
+            car_detail: self.car_detail,
+            headlights: self.headlights,
+        }
+    }
+}
+
 impl MenuOptions {
     /// The values the race, the network and the sound read.
     pub fn snapshot(&self) -> OptionsSnapshot {

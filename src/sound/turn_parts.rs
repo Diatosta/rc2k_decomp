@@ -27,7 +27,7 @@ pub fn stop(request: &SoundRequest, audio: &Audio) -> Result<(), Refused> {
 
 /// `sound::play_placed_sound` with the request.
 pub fn placed(request: &SoundRequest, sound: &Sound, audio: &Audio) -> Result<(), Refused> {
-    Ok(crate::sound::play_placed_sound::play_placed_sound_in_game(
+    Ok(crate::sound::play_placed_sound::play_placed_sound(
         request, sound, audio,
     )?)
 }

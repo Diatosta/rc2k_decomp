@@ -65,7 +65,7 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
     if action == Action::Enter {
         menus.screens.entry.set_sound(keys::MenuSound::Enter);
         menus.play.champ_view.key_clock.last_key_time.set(clock);
-        crate::sound::play_menu_sound::play_menu_sound_in_game(
+        crate::sound::play_menu_sound::play_menu_sound(
             o.sound,
             o.audio,
             o.menus,

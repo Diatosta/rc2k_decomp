@@ -240,7 +240,7 @@ fn copy_mirror_picture(
     // The surfaces' pixels by handle (kept, never read back).
     let from_pixels = crate::gfx::surface::handle(gfx)?;
     frame.frame_work.get().view_kept[0].set(from_pixels);
-    let ebp = gfx_drawing.draw_surface.pitch.get();
+    let from_pitch = gfx_drawing.draw_surface.pitch.get();
     if lock_texture_in(gfx, to)? {
         let to_pixels = crate::gfx::surface::handle(gfx)?;
         frame.frame_work.get().view_kept[1].set(to_pixels);
@@ -254,7 +254,7 @@ fn copy_mirror_picture(
         let copy = PictureCopy {
             width: gfx_drawing.draw_surface.width.get(),
             height: gfx_drawing.draw_surface.height.get(),
-            from_pitch: ebp,
+            from_pitch,
             to_pitch: gfx_drawing.draw_surface.pitch.get(),
             to_16_bit: gfx_drawing.draw_surface.bits_per_pixel.get() == 0x10,
         };

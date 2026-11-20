@@ -45,9 +45,9 @@ pub fn wheel_springs(
         let old = x87::loaded(q);
         drawing.scene.get().work_dword.set(old.to_bits());
         c.wheel_squeeze_last[k].set(old);
-        let eax = contact.probe_height[k].get().wrapping_neg();
+        let squeeze_distance = contact.probe_height[k].get().wrapping_neg();
         q.set(ext_div2(
-            int_80(eax as i32, false),
+            int_80(squeeze_distance as i32, false),
             &numbers.k65536,
             &ph.handling[3],
         ));

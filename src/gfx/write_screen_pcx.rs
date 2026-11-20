@@ -83,7 +83,7 @@ fn picture(
 ) -> Result<Option<Vec<u8>>, Refused> {
     let rows = crate::gfx::rows::Rows::surface(gfx)?;
     // The running value the conversion carries from pixel to pixel.
-    let mut eax: u32 = 0x80;
+    let mut carried: u32 = 0x80;
     let mut rgb = Vec::new();
     let width = gfx.drawing.draw_surface.width.get();
     let mut y = 0u32;
@@ -97,12 +97,12 @@ fn picture(
             0x20 => rows.read(y, 0, 4 * width as usize, "the surface")?,
             _ => Vec::new(),
         };
-        let planes = rc2k_core::gfx::pcx::screen_planes(width, &mut eax, &mut |x, eax| {
+        let planes = rc2k_core::gfx::pcx::screen_planes(width, &mut carried, &mut |x, carried| {
             let x = x as usize;
             match bits {
                 0x10 => crate::gfx::pixel_to_components::pixel_to_components(
                     &format,
-                    eax & 0xFFFF_0000
+                    carried & 0xFFFF_0000
                         | u16::from_le_bytes([pixels[2 * x], pixels[2 * x + 1]]) as u32,
                 ),
                 0x20 => crate::gfx::pixel_to_components::pixel_to_components(
@@ -114,7 +114,7 @@ fn picture(
                         pixels[4 * x + 3],
                     ]),
                 ),
-                _ => eax,
+                _ => carried,
             }
         });
         let w = width as usize;

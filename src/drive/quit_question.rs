@@ -50,11 +50,9 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
     // A button from before the question answers nothing.
     crate::input::menu_pad::take_answer(input);
     shared.vars.get().scene_switch.set(1);
-    // The carried value: the best frame, then each key's answer, then what the frame leaves; it goes
-    // into `input::yes_no_key` (the key given, when one is).
-    let (mut eax, _) = race_ticks::best_frame(race.car_blocks().cars[0].step_clock.get());
-    if race_ticks::keeps_frame(eax, replay.replay_frames().last_kept.get()) {
-        replay.replay_frames().last_kept.set(eax);
+    let (best_frame, _) = race_ticks::best_frame(race.car_blocks().cars[0].step_clock.get());
+    if race_ticks::keeps_frame(best_frame, replay.replay_frames().last_kept.get()) {
+        replay.replay_frames().last_kept.set(best_frame);
     }
     let kind = race_ticks::quit_notice(shared.vars.get().no_replay.get() != 0);
     // With pictures for the answers the question is drawn here, over the frame, with them in the
@@ -74,18 +72,17 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
     }
     let answer = loop {
         // A gamepad's button answers directly: this question has no items on screen to choose from.
-        eax = match crate::input::menu_pad::take_answer(input) {
+        let key_answer = match crate::input::menu_pad::take_answer(input) {
             Some(answer) => answer,
             None => {
                 crate::input::yes_no_key::yes_no_key(
                     crate::strings::append_string_by_id::StringOwners::of(o),
-                    eax,
                     input,
                 )
             }?,
         };
         match race_ticks::quit_answer(
-            eax,
+            key_answer,
             shared.vars.get().run_kind.get(),
             shared.vars.get().no_replay.get() != 0,
         ) {
@@ -95,7 +92,7 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
                 if crate::drive::race_loop::net_goes_on_paused(o) {
                     crate::drive::race_loop::step_while_paused(race, o)?;
                 }
-                eax = crate::drive::race_frame::race_frame_over(race, o, eax, &|| match &inline {
+                crate::drive::race_frame::race_frame_over(race, o, &|| match &inline {
                     Some(inline) => inline.draw(o),
                     None => answer_hint(o),
                 })?;

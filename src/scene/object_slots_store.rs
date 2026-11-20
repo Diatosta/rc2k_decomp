@@ -73,7 +73,7 @@ impl ObjectTables {
             &self.radii,
         ];
         crate::memory::session::read_runs(&tables[table as usize..], slot, "an object slot")
-            .unwrap_or_else(|e| crate::fatal::raise::end("an object slot", e))
+            .unwrap_or_else(|e| crate::memory::host_hooks::end("an object slot", e))
     }
 }
 

@@ -4,6 +4,7 @@
 
 pub(crate) mod cells;
 pub(crate) mod draw_order;
+pub(crate) mod first_cells;
 pub(crate) mod free_list;
 pub(crate) mod host_hooks;
 pub(crate) mod list_handle;

@@ -325,15 +325,15 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
             and(!ctx.view.cars.group_masks[11].get());
         }
     }
-    let mut ecx = 0x60u32.wrapping_add(near_size(&ctx.view.cars));
-    ctx.view.cars.car_draw_word.set(ecx);
+    let mut fade_alpha = 0x60u32.wrapping_add(near_size(&ctx.view.cars));
+    ctx.view.cars.car_draw_word.set(fade_alpha);
     if state & 0x100 != 0 {
         if state & 6 == 0 {
             and(with_bit(field(0x40)?, bit));
         }
-        ecx = 0xF0;
+        fade_alpha = 0xF0;
     }
-    ctx.view.face.fade_alpha.set(ecx);
+    ctx.view.face.fade_alpha.set(fade_alpha);
     // The car's block does not keep the group mask: nothing reads it.
     let view_car = ctx.reads.view.drawn_view_car(ctx.view.drawn_view(race))?;
     if view_car == ctx.view.state.drawn_car.get()
@@ -457,14 +457,14 @@ pub(super) fn draw_car_shined(
     car: usize,
 ) -> Result<(), Refused> {
     let shine: u32 = ctx.view.course.shine.get();
-    let mut eax = 0x3_FCE0u32.wrapping_sub(ctx.reads.vars.mud_thrown_counts[0].get());
-    if (eax as i32) < 0 {
-        eax = 0;
+    let mut shine_level = 0x3_FCE0u32.wrapping_sub(ctx.reads.vars.mud_thrown_counts[0].get());
+    if (shine_level as i32) < 0 {
+        shine_level = 0;
     }
-    if !below(eax, 0x4_0000) {
-        eax = 0x4_0000;
+    if !below(shine_level, 0x4_0000) {
+        shine_level = 0x4_0000;
     }
-    let product = eax as u64 * ctx.reads.stage_prefs.shine_scale.get() as u64;
+    let product = shine_level as u64 * ctx.reads.stage_prefs.shine_scale.get() as u64;
     ctx.view.course.shine.set((product as u32) >> 18);
     let done = draw_car(ctx, car);
     ctx.view.course.shine.set(shine);

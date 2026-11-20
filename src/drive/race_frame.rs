@@ -5,14 +5,8 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// Takes and returns the value the frame's calls leave on; only `drive::quit_question` reads
-/// it.
-pub fn race_frame(
-    race: &Race,
-    o: crate::owners::Owners<'static>,
-    eax: u32,
-) -> Result<u32, Refused> {
-    race_frame_over(race, o, eax, &|| {})
+pub fn race_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    race_frame_over(race, o, &|| {})
 }
 
 /// `race_frame`, with `over` run after the scene is drawn and before the frame is shown: what it
@@ -20,11 +14,9 @@ pub fn race_frame(
 pub(super) fn race_frame_over(
     race: &Race,
     o: crate::owners::Owners<'static>,
-    eax: u32,
     over: &dyn Fn(),
-) -> Result<u32, Refused> {
+) -> Result<(), Refused> {
     let system = o.system;
-    let mut eax = eax;
     crate::shell::frame::pump_messages_now(o);
     if system.session.flags.quitting.is_set() {
         // The game is closing. In the game its shutdown thread (`threading::request_quit`)
@@ -45,10 +37,9 @@ pub(super) fn race_frame_over(
         crate::logfile::load_times::first_frame();
         crate::remote::shot_frame_drawn(race, &o.system.session.picture_clock);
         crate::video::frame_drawn();
-        let shown = { crate::race::show_frame::show_frame(race, o) }?;
-        eax = shown.eax;
+        { crate::race::show_frame::show_frame(race, o) }?;
     }
     // A frame that could not be drawn or shown is skipped: the race goes on and the next frame
     // tries again (the race's results never depend on what was drawn).
-    Ok(eax)
+    Ok(())
 }

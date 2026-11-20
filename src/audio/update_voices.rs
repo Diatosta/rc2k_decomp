@@ -28,7 +28,7 @@ pub(super) fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
     let mode = audio.state.sound_mode.get();
     if mode & crate::audio::make_buffer::MODE_OWN_BUFFERS == 0 {
         if mode & MODE_MIXER != 0 {
-            crate::audio::update_mixer_voices::update_mixer_voices_in_game(audio)?;
+            crate::audio::update_mixer_voices::update_mixer_voices(audio)?;
         }
         return Ok(());
     }

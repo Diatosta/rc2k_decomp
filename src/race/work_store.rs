@@ -209,7 +209,7 @@ impl RaceWork {
             return handle;
         }
         self.past_the_eight(n - self.car_blocks.len())
-            .unwrap_or_else(|e| crate::fatal::raise::end("a car block's pointer", e))
+            .unwrap_or_else(|e| crate::memory::host_hooks::end("a car block's pointer", e))
     }
 
     /// The dword `k` places after the table of car blocks, which is what `car_blocks[8 + k]`

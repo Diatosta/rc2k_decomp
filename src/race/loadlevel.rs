@@ -280,7 +280,7 @@ fn load_objects_and_map(
     s.indent(-3);
     s.step(
         Word::LoadGameFonts,
-        &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(gfx, system, o.strings),
+        &mut || crate::gfx::build_game_fonts::build_game_fonts(gfx, system, o.strings),
         Some(0x5C),
     )?;
     Ok(())

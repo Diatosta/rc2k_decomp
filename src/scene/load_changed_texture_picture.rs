@@ -16,13 +16,14 @@ use crate::scene::load_texture_picture::load_texture_picture;
 
 pub const TEXTURES: u32 = 0x400;
 
-/// `load`: what stands for `scene::load_texture_picture`, given the picture and the
-/// texture.
+/// The picture wanted for `texture`, loaded and uploaded when it is not the one in place.
 // Logic: `rc2k_core::scene::pictures::changed_picture`
 pub fn load_changed_texture_picture(
+    race: &'static crate::race::owner::Race,
+    gfx: &crate::gfx::owner::Gfx,
     texture: u32,
-    load: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let textures = &scene.textures;
     if texture >= TEXTURES {
@@ -35,24 +36,8 @@ pub fn load_changed_texture_picture(
     ) else {
         return Ok(());
     };
-    load(wanted, texture)?;
+    let loaded = load_texture_picture(race, gfx, wanted, texture, scene, system)?;
+    upload_picture(&loaded, gfx)?;
     textures.places.get().loaded_pictures[at].set(wanted);
     Ok(())
-}
-
-pub fn load_changed_texture_picture_in_game(
-    race: &'static crate::race::owner::Race,
-    gfx: &crate::gfx::owner::Gfx,
-    texture: u32,
-    scene: &crate::scene::owner::Scene,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
-    load_changed_texture_picture(
-        texture,
-        &mut |picture, texture| {
-            let loaded = load_texture_picture(race, gfx, picture, texture, scene, system)?;
-            upload_picture(&loaded, gfx)
-        },
-        scene,
-    )
 }

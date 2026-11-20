@@ -148,8 +148,8 @@ pub(super) fn load_level(race: &Race) -> Result<(), Refused> {
     load_log(0);
     let mut data = vec![0u8; FIRST_PART];
     crate::logfile::load_times::mark("read_level_file");
-    let out = read_level_file::read_level_file(&course.level_paths().cdat_src.text(), &mut data)?;
-    if out.carry {
+    let read = read_level_file::read_level_file(&course.level_paths().cdat_src.text(), &mut data)?;
+    if read.is_none() {
         // The path named, for the reports.
         crate::program_log::log(&format!(
             "race::load_level: the course data \"{}\" could not be read",

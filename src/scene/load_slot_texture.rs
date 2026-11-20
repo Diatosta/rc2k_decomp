@@ -7,12 +7,10 @@
 
 use crate::errors::BadInput;
 
-/// `load`: what stands for `scene::load_texture`, given the texture and the slot.
 // Logic: `rc2k_core::scene::textures::slot_load`
 pub fn load_slot_texture(
     frame: &crate::race::owner_frame::Frame,
     slot: u32,
-    load: &mut dyn FnMut(u32, u32),
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     let textures = &scene.textures;
@@ -24,7 +22,7 @@ pub fn load_slot_texture(
     else {
         return Ok(());
     };
-    load(wanted, slot);
+    crate::d3d::device::load_texture(wanted, slot);
     frame.frame_work.get().kind_textures_done.set(
         frame
             .frame_work
@@ -35,13 +33,4 @@ pub fn load_slot_texture(
     );
     textures.places.get().slot_loaded[slot as usize].set(wanted);
     Ok(())
-}
-
-/// With the game's loading (`scene::load_texture`, the platform's).
-pub fn load_slot_texture_in_game(
-    frame: &crate::race::owner_frame::Frame,
-    slot: u32,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
-    load_slot_texture(frame, slot, &mut crate::d3d::device::load_texture, scene)
 }

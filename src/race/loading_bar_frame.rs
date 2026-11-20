@@ -159,7 +159,7 @@ fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
         shared.switches.get().editor_mode.set(framed);
         crate::race::loading_bar_quad::loading_bar_quad(race, system, scene, o.net, share)?;
         end_scene::end_scene(d3d);
-        if lock_frame::lock_frame(race, gfx, system).0 < 1 {
+        if lock_frame::lock_frame(race, gfx, system) < 1 {
             break 'frame;
         }
         // The other players' loads, as 2D text over the frame.

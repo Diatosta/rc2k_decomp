@@ -40,14 +40,14 @@ pub fn splash_mud(
     }
     // The pattern value carries from texel to texel: `mud_texel` and `put_mud_texel` hand it back
     // when they skip a place.
-    let mut eax = splash_pattern(shared.random.next_drawing());
-    let mut colours = (eax >> 2) as usize; // the pattern's place: whole dwords
+    let mut pattern = splash_pattern(shared.random.next_drawing());
+    let mut colours = (pattern >> 2) as usize; // the pattern's place: whole dwords
     shared.vars.get().mud_row.set(0u32);
     for row in 0..SPLASH_SIDE {
         shared.vars.get().mud_column.set(0u32);
         for column in 0..SPLASH_SIDE {
-            eax = mud_texel(eax, x, y, scene, gfx, system)?;
-            if muddy(eax) {
+            pattern = mud_texel(pattern, x, y, scene, gfx, system)?;
+            if muddy(pattern) {
                 // The pattern's place is 16 x (0 .. 15) and the splash steps it 16 times:
                 // at most 0xFF, inside the 256 colours.
                 let colour = shared
@@ -57,8 +57,8 @@ pub fn splash_mud(
                     .get(colours)
                     .ok_or(BadInput("a mud colour past the 256"))?
                     .get();
-                let faded = fade_colour(eax, colour, colour >> 24);
-                eax = put_mud_texel(faded | MUD_TOP, x, y, scene, gfx, system)?;
+                let faded = fade_colour(pattern, colour, colour >> 24);
+                pattern = put_mud_texel(faded | MUD_TOP, x, y, scene, gfx, system)?;
             }
             colours += 1;
             x = x.wrapping_add(1);

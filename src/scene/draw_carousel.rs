@@ -13,38 +13,17 @@ use crate::scene::draw_menu_object::draw_menu_object_in_game;
 
 // ---- game data ----
 
-/// `entry`: what stands for `scene::draw_carousel_entry`, given the entry and its row
-/// place. `lone_row`: the row place a lone entry is drawn at.
+/// The visible entries drawn; `lone_row` is the row place a lone entry is drawn at.
 // Logic: `rc2k_core::scene::carousel::drawn`
 pub fn draw_carousel(
-    carousel: &Carousel,
-    lone_row: u32,
-    entry: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    use rc2k_core::scene::carousel::{Drawn, drawn};
-    {
-        let count: u32 = carousel.count.get();
-        match drawn(count, || carousel.front.get(), || carousel.angle.get() != 0) {
-            Drawn::Nothing => Ok(()),
-            Drawn::Lone => entry(0, lone_row),
-            Drawn::Row(entries) => {
-                for (e, place) in entries {
-                    entry(e, place)?;
-                }
-                Ok(())
-            }
-        }
-    }
-}
-
-/// With the Rust versions of what it calls.
-pub fn draw_carousel_in_game(
     menus: &Menus,
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     lone_row: u32,
 ) -> Result<(), Refused> {
+    use rc2k_core::scene::carousel::{Drawn, drawn};
     let race = ctx.race;
-    draw_carousel(&menus.screens.carousel, lone_row, &mut |e, place| {
+    let carousel: &Carousel = &menus.screens.carousel;
+    let entry = |e: u32, place: u32| {
         draw_carousel_entry(
             &race.shared,
             ctx.view,
@@ -54,5 +33,16 @@ pub fn draw_carousel_in_game(
             place,
             &mut || draw_menu_object_in_game(ctx),
         )
-    })
+    };
+    let count: u32 = carousel.count.get();
+    match drawn(count, || carousel.front.get(), || carousel.angle.get() != 0) {
+        Drawn::Nothing => Ok(()),
+        Drawn::Lone => entry(0, lone_row),
+        Drawn::Row(entries) => {
+            for (e, place) in entries {
+                entry(e, place)?;
+            }
+            Ok(())
+        }
+    }
 }

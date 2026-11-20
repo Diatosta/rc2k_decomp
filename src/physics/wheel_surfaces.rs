@@ -84,17 +84,17 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             )?))
         };
         let t1 = face_byte(1)?;
-        let mut edx = share_bit(c.course, &contact.probe_share_v, point);
-        let mut ebx = share_bit(c.course, &contact.probe_share_u, point);
-        edx = (edx >> 15) & 1;
-        ebx = (ebx >> 15) & 1;
+        let mut share_v = share_bit(c.course, &contact.probe_share_v, point);
+        let mut share_u = share_bit(c.course, &contact.probe_share_u, point);
+        share_v = (share_v >> 15) & 1;
+        share_u = (share_u >> 15) & 1;
         if contact.probe_face_flip[cc].get() == 1 {
-            edx ^= 1;
-            ebx ^= 1;
+            share_v ^= 1;
+            share_u ^= 1;
         }
-        let (_, _, d1) = flip_cell_index(face_byte(0)?, ebx, edx);
+        let (_, _, d1) = flip_cell_index(face_byte(0)?, share_u, share_v);
         c.tables.surface_firsts[cc].set(d1);
-        let (_, _, d2) = flip_cell_index(face_byte(0x20)?, ebx, edx);
+        let (_, _, d2) = flip_cell_index(face_byte(0x20)?, share_u, share_v);
         c.tables.surface_seconds[cc].set(d2);
         {
             let e = c.tables.surface_firsts[cc].get();

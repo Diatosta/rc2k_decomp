@@ -655,7 +655,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     crate::scene::assign_kind_textures::assign_kind_textures(scene)?;
     assign_light_textures(race, scene)?;
     crate::scene::map_texture_places::map_texture_places(scene);
-    crate::scene::load_slot_textures::load_slot_textures_in_game(&race.frame, scene)?;
+    crate::scene::load_slot_textures::load_slot_textures(&race.frame, scene)?;
     if race.replay.finish.get().no_place.get() == 0 {
         crate::race::frame_draw::set_up_panel(race)?;
     }

@@ -25,7 +25,6 @@
 //! would read that far past the list).
 
 use crate::d3d::owner::D3d;
-use crate::errors::CarryZeroFlags;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::modes::Modes;
 use crate::gfx::owner::{Display, Gfx};
@@ -106,21 +105,17 @@ fn modes_of(display: &Display, kind: u32) -> Option<Vec<usize>> {
     Some(found)
 }
 
-/// With `try_choice` (true) the choice tried, else the list made again; the flags it leaves (see
-/// the header).
+/// With `try_choice` (true) the choice tried, else the list made again. True when the choice was taken
+/// or the list made, false when the choice was not possible or did not work (the list is not
+/// made without modes).
 pub fn screen_mode_choices(
     gfx: &Gfx,
     d3d: &D3d,
     system: &crate::system::owner::System,
     try_choice: bool,
-) -> Result<CarryZeroFlags, Refused> {
+) -> Result<bool, Refused> {
     let display = &gfx.display;
-    let failed = || {
-        Ok(CarryZeroFlags {
-            carry: true,
-            zero: false,
-        })
-    };
+    let failed = || Ok(false);
     let made = display.choices.made.get() == 1;
     // The way taken and what decides it, before anything is written.
     let kind = if made {
@@ -163,8 +158,8 @@ pub fn screen_mode_choices(
                 display.modes.third_bits[third as usize].get(),
             );
             let tried = crate::gfx::try_screen_mode::try_screen_mode(gfx, system, d3d, mode)?;
-            let worked = !tried.carry
-                && mc::kept(display.choices.mipmapping.get(), d3d.cards.get().mips.get());
+            let worked =
+                tried && mc::kept(display.choices.mipmapping.get(), d3d.cards.get().mips.get());
             if worked {
                 crate::gfx::keep_race_screen_mode::keep_race_screen_mode(gfx, system, d3d, mode)?;
                 // A size chosen from the list is no longer the window's own.
@@ -178,11 +173,7 @@ pub fn screen_mode_choices(
             if !worked {
                 return failed();
             }
-            // The mode the three calls leave (they keep it).
-            return Ok(CarryZeroFlags {
-                carry: false,
-                zero: mode == 0,
-            });
+            return Ok(true);
         }
         return rebuild(display, d3d, current, modes);
     }
@@ -199,14 +190,11 @@ fn rebuild(
     d3d: &D3d,
     current: u32,
     modes: Option<Vec<usize>>,
-) -> Result<CarryZeroFlags, Refused> {
+) -> Result<bool, Refused> {
     display.choices.listed.set(0);
     display.choices.resolutions.set(0);
     let Some(modes) = modes else {
-        return Ok(CarryZeroFlags {
-            carry: true,
-            zero: false,
-        });
+        return Ok(false);
     };
     let mut all = Vec::new();
     for &at in &modes {
@@ -355,8 +343,5 @@ fn rebuild(
     );
     display.choices.mipmapping.set(figure);
     display.choices.made.set(1);
-    Ok(CarryZeroFlags {
-        carry: false,
-        zero: figure == 0,
-    })
+    Ok(true)
 }

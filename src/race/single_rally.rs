@@ -423,7 +423,7 @@ fn single_rally(
     // The entry's temperature and wind into the race variables.
     settings.track_1c.set(entry.temperature.get());
     settings.track_20.set(entry.wind.get());
-    settings.set_visual_options(&menus.options.snapshot());
+    settings.set_visual_options(&menus.options.snapshot().visual());
     let first = player(menus, 1)?.get();
     take_controls(&first, &first_side.car.controls);
     take_keys(&first, &first_side.car.controls.keys);

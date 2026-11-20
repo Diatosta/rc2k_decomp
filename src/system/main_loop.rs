@@ -23,7 +23,16 @@ fn quit_and_leave(owners: SlotOwners<'static>) -> Result<(), Refused> {
     log_line(c"Leaving main loop...");
     Ok(())
 }
+/// The main loop, logged on the way in and out.
 pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
+    log("system::main_loop: runs");
+    run(o)?;
+    log("system::main_loop: has come back");
+    Ok(())
+}
+
+/// The loop itself: the wait for the window, the set-up, the front end, the way out.
+fn run(o: Owners<'static>) -> Result<(), Refused> {
     let session = &o.system.session;
     let saves = o.saves;
     let gfx = o.gfx;
@@ -46,7 +55,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     }
     crate::platform::set_menu_mode_now(gfx, o.system);
     crate::sound::apply_settings::apply_settings(o)?;
-    crate::gfx::load_jade::load_jade_in_game(gfx, o.system)?;
+    crate::gfx::load_jade::load_jade(gfx, o.system)?;
     crate::menu::build_notice::build_notice(menus, o.strings);
     // A program in the download folder installs from it (`install::record`); and with
     // `-u` (`flags.updating`) it uninstalls where it is: its record is in the installed folder, so
@@ -77,12 +86,4 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     crate::saves::save_game_data::save_in_game(o, saves)?;
     crate::saves::free_best_times::free_in_game(saves)?;
     quit_and_leave(SlotOwners::of(o))
-}
-
-/// The main loop, logged on the way in and out.
-pub fn main_loop_in_game(o: Owners<'static>) -> Result<(), Refused> {
-    log("system::main_loop: runs");
-    main_loop(o)?;
-    log("system::main_loop: has come back");
-    Ok(())
 }

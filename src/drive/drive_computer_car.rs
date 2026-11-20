@@ -149,7 +149,7 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     ) as u32)
         << 1;
     race.shared.work.get().driver_speed.set(speed);
-    let edx = race.shared.work.get().driver_slot.get();
+    let driver_slot = race.shared.work.get().driver_slot.get();
     let (first, second, ahead) = driver::lookahead(
         race.shared.work.get().driver_lookahead.get() == 1,
         race.shared.car().wheel_surface_a[0].get(),
@@ -179,16 +179,19 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         let to = n.wrapping_add(ahead);
         if driver::bigger_bend(
             turn,
-            race.shared.work.get().driver_bend_turn[edx as usize].get(),
+            race.shared.work.get().driver_bend_turn[driver_slot as usize].get(),
         ) {
-            race.shared.work.get().driver_bend_turn[edx as usize].set(turn);
-            race.shared.work.get().driver_bend_to[edx as usize].set(to);
+            race.shared.work.get().driver_bend_turn[driver_slot as usize].set(turn);
+            race.shared.work.get().driver_bend_to[driver_slot as usize].set(to);
         }
     }
-    let edx = race.shared.work.get().driver_slot.get();
-    if driver::bend_passed(n, race.shared.work.get().driver_bend_to[edx as usize].get()) {
-        race.shared.work.get().driver_bend_to[edx as usize].set(0);
-        race.shared.work.get().driver_bend_turn[edx as usize].set(0);
+    let driver_slot = race.shared.work.get().driver_slot.get();
+    if driver::bend_passed(
+        n,
+        race.shared.work.get().driver_bend_to[driver_slot as usize].get(),
+    ) {
+        race.shared.work.get().driver_bend_to[driver_slot as usize].set(0);
+        race.shared.work.get().driver_bend_turn[driver_slot as usize].set(0);
     }
     let bend = driver::table_entry(
         held(

@@ -100,7 +100,7 @@ fn run_on_from<'a>(
         let offset = (first * 4).wrapping_add((n as u32).wrapping_mul(4) as usize);
         let index = offset / 4;
         record_cell(table, index).unwrap_or_else(|| {
-            crate::fatal::raise::end(
+            crate::memory::host_hooks::end(
                 "a cell past a table",
                 crate::errors::BadInput("a cell past the tables of its record"),
             )
@@ -126,7 +126,7 @@ macro_rules! checkpoint_cell {
 /// one of the tables. A number past the table ends the program.
 fn in_table(table: &[PlainDword], n: usize) -> &PlainDword {
     table.get(n).unwrap_or_else(|| {
-        crate::fatal::raise::end(
+        crate::memory::host_hooks::end(
             "a checkpoint number past its table",
             crate::errors::BadInput("a checkpoint number past its table"),
         )

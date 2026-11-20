@@ -116,7 +116,7 @@ fn load_tail(race: &crate::race::owner::Race) {
     let mut v2 = race.replay.v2().lock();
     let mask = v2.state_mask();
     v2.tail = Tail::from_bytes(&bytes[EXTENDED_FRAME_BYTES..], &head, mask).unwrap_or_else(|| {
-        crate::program_log::log("replay: a block's tail is damaged and is not played");
+        crate::memory::host_hooks::log("replay: a block's tail is damaged and is not played");
         Tail::new()
     });
 }
@@ -150,7 +150,7 @@ fn store_tail(race: &crate::race::owner::Race) {
         race.viewer_buffers()
             .put_in_block(EXTENDED_FRAME_BYTES, &bytes, "the replay's tail")
     {
-        crate::program_log::log(&format!("replay: the tail is not kept: {why:?}"));
+        crate::memory::host_hooks::log(&format!("replay: the tail is not kept: {why:?}"));
     }
 }
 

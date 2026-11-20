@@ -218,10 +218,10 @@ fn cycle_byte(race: &Race, byte: usize) -> Result<(), Refused> {
             v2.ext.as_ref().map(|ext| ext.next_layout(old))
         })
         .flatten();
-    let dl = own_layout.unwrap_or_else(|| {
+    let new_camera = own_layout.unwrap_or_else(|| {
         rc2k_core::race::viewer::next_byte(byte as u32, old, whole_cycle, extra_cars)
     });
-    at.write(race, dl, "a replay block's camera byte")?;
+    at.write(race, new_camera, "a replay block's camera byte")?;
     crate::race::spread_camera::spread_camera(race, at, old)
 }
 

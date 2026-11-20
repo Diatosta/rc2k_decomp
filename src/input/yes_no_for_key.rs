@@ -1,5 +1,4 @@
-//! `yes_no_key` for a key the caller already has: `yes_no_key_given` is 1 around the call, then
-//! put back.
+//! `yes_no_key` for a key the caller already has.
 
 use crate::input::key_to_char::has_layout;
 use crate::input::yes_no_key::answer_for_key;

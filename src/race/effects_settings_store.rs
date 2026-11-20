@@ -6,9 +6,9 @@
 
 use crate::errors::BadInput;
 use crate::memory::cells::ZeroCells;
+use crate::memory::first_cells::plain_dwords;
 use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 use crate::race::blocks_store::CarBlocks;
-use crate::race::first_cells::plain_dwords;
 #[cfg(test)]
 use crate::test_support::own::race;
 
@@ -362,7 +362,7 @@ impl EffectsSettings {
         let n = (handle ^ CAR_TAG) as usize;
         match self.cars.get(n) {
             Some(car) if handle & !0xFF == CAR_TAG => car,
-            _ => crate::fatal::raise::end(
+            _ => crate::memory::host_hooks::end(
                 "race::effects_settings_store::car",
                 crate::errors::BadInput("a car record's handle that names none"),
             ),

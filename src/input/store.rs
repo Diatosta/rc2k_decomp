@@ -273,11 +273,9 @@ pub(super) fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> 
 
 // ---- the keyboard ----
 
-/// The yes/no key, the built-in layout and the dead keys.
+/// The built-in layout and the dead keys.
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Keyboard {
-    /// 1 = the key comes from the caller.
-    pub yes_no_key_given: PlainDword,
     /// One bit per key; the keys set type nothing.
     pub silent_keys: [PlainDword; 4],
     /// The dead keys' list {dead key, base, plain result, shifted result}.

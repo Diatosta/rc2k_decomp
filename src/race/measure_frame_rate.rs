@@ -20,14 +20,14 @@ fn nanos() -> u64 {
     FIRST.get_or_init(Instant::now).elapsed().as_nanos() as u64
 }
 
-pub fn measure_frame_rate(race: &Race, scene: &crate::scene::owner::Scene) -> Option<u32> {
+pub fn measure_frame_rate(race: &Race, scene: &crate::scene::owner::Scene) {
     let shared = &race.shared;
     // Logic in `rc2k_core::race::frame_rate::{count_frame, nanos_since, frame_rate}`.
     use rc2k_core::race::frame_rate::{count_frame, frame_rate, nanos_since};
     let (count, due) = count_frame(shared.physics_tables.get().frame_rate_count.get());
     shared.physics_tables.get().frame_rate_count.set(count);
     if !due {
-        return None;
+        return;
     }
     let whole = nanos();
     let now = whole as u32;
@@ -39,5 +39,4 @@ pub fn measure_frame_rate(race: &Race, scene: &crate::scene::owner::Scene) -> Op
         shared.switches.get().frame_rate.set(rate);
     }
     shared.switches.get().frame_last.set(now);
-    Some(now)
 }

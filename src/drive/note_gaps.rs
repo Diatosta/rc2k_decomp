@@ -12,9 +12,9 @@ pub(super) fn note_gap_at(car: &Car, lead: &PlainDword, best: &PlainDword, behin
     let theirs: u32 = lead.get();
     let was: u32 = best.get();
     let mut now = was;
-    let edx = rc2k_core::drive::places::note_gap(mine, theirs, behind, &mut now);
+    let gap = rc2k_core::drive::places::note_gap(mine, theirs, behind, &mut now);
     if now != was {
         best.set(now);
     }
-    edx
+    gap
 }

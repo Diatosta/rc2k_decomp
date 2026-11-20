@@ -17,13 +17,18 @@ pub fn ease_view_angles(
     shared: &RaceShared,
     view_records: &ViewAndRecords,
 ) -> Result<(), crate::errors::BadInput> {
-    let esi = record(view_records, shared.car())?;
-    if esi.change_time.get() == 0 {
+    let view_record = record(view_records, shared.car())?;
+    if view_record.change_time.get() == 0 {
         return Ok(());
     }
-    share_done(shared, esi);
+    share_done(shared, view_record);
     let scratch = crate::memory::session::PlainDword::new(0);
-    for (to, rate) in shared.car().camera_offset_turns.iter().zip(&esi.turn_rates) {
+    for (to, rate) in shared
+        .car()
+        .camera_offset_turns
+        .iter()
+        .zip(&view_record.turn_rates)
+    {
         x87_1(numbers, shared.tables(), rate.get(), &scratch);
         to.set(to.get().wrapping_add(scratch.get() << 16));
     }

@@ -80,7 +80,7 @@ impl ObjectTables {
             object as usize,
             "an object's kind",
         )
-        .unwrap_or_else(|e| crate::fatal::raise::end("an object's kind", e))
+        .unwrap_or_else(|e| crate::memory::host_hooks::end("an object's kind", e))
     }
 }
 

@@ -59,7 +59,7 @@ pub fn new_simulation_if_unlocked(o: crate::owners::Owners<'static>) -> Result<(
         // items do.)
         crate::menu::new_simulation_loop::run(o)?;
     } else {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(
+        crate::sound::play_menu_sound::play_menu_sound(
             o.sound,
             o.audio,
             o.menus,

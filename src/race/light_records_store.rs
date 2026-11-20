@@ -5,8 +5,8 @@
 //! by the drawing parts.
 
 use crate::memory::cells::ZeroCells;
+use crate::memory::first_cells::plain_dwords;
 use crate::memory::session::PlainDword;
-use crate::race::first_cells::plain_dwords;
 #[cfg(test)]
 use crate::test_support::own::race;
 
