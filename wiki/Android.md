@@ -56,10 +56,11 @@ tapped together, or Android's back button go back. The text fields use the syste
 
 ## Building
 
-Everything the build needs lives in one folder (`/mnt/discoIII/android` here; set
-`RC2K_ANDROID_HOME`): the SDK's command-line tools, platform tools, the NDK, a platform and its
+Everything the build needs lives in one folder (named by `RC2K_ANDROID_HOME`, for example
+`~/android`): the SDK's command-line tools, platform tools, the NDK, a platform and its
 build tools, the emulator and a system image (installed with `sdkmanager`), and the Rust targets
-`aarch64-linux-android` and `x86_64-linux-android`. `tools/android/` has the scripts:
+`aarch64-linux-android` and `x86_64-linux-android`. Besides: a JDK, CMake, and Python 3 with
+Pillow (the app's icons are drawn by `tools/android/make_icon.py`). `tools/android/` has the scripts:
 
 ```
 tools/android/build.sh x86_64 arm64      # dist/android/rc2k-x86_64.apk, rc2k-arm64.apk

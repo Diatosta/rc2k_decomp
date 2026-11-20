@@ -202,8 +202,9 @@ jobs:
         run: |
           rustup toolchain install "$NIGHTLY" --profile minimal --component rust-src \
             --target wasm32-unknown-emscripten
-          # The build script runs `cargo +nightly`: that name for the pinned one.
-          rustup toolchain link nightly "$(rustup run "$NIGHTLY" rustc --print sysroot)"
+          # The build script's toolchain (`cargo +$RC2K_NIGHTLY`; rustup no longer lets a pinned
+          # toolchain be linked under the name `nightly`).
+          echo "RC2K_NIGHTLY=$NIGHTLY" >> "$GITHUB_ENV"
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -332,7 +333,7 @@ jobs:
       - name: Android SDK and NDK
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build
+          sudo apt-get install -y cmake ninja-build python3-pil
           mkdir -p "$RC2K_ANDROID_HOME"
           ln -sfn "$ANDROID_SDK_ROOT" "$RC2K_ANDROID_HOME/sdk"
           source tools/android/env.sh

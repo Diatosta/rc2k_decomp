@@ -3,7 +3,8 @@
 # Emscripten, its threads on the browser's workers. Needs the Emscripten SDK in ~/emsdk and the
 # nightly toolchain with `wasm32-unknown-emscripten` and `rust-src` (std is rebuilt with atomics:
 # the threads share one memory). Output: target/web/wasm32-unknown-emscripten/release/rc2k.{js,wasm}
-# (`--debug` first: an unoptimised build, in .../debug). `./build.sh web` runs this and gathers
+# (`--debug` first: an unoptimised build, in .../debug); RC2K_NIGHTLY names another toolchain than
+# `nightly` (the automatic builds pin one). `./build.sh web` runs this and gathers
 # the page's files in dist/web/.
 set -e
 cd "$(dirname "$0")/../.."
@@ -33,5 +34,5 @@ link=(
 )
 flags="-C target-feature=+atomics,+bulk-memory,+mutable-globals"
 for a in "${link[@]}"; do flags="$flags -C link-arg=$a"; done
-RUSTFLAGS="$flags" CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target/web}" nice cargo +nightly build $profile \
+RUSTFLAGS="$flags" CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target/web}" nice cargo "+${RC2K_NIGHTLY:-nightly}" build $profile \
   -Zbuild-std=std,panic_abort --target wasm32-unknown-emscripten --bin rc2k "$@"
