@@ -2,8 +2,8 @@
 //! its sample record: sound 0x1C4 keeps only the halvings (low four bits); groups 1 and 2 at least
 //! one halving, group 3 at least two. Refuses a sound of 0x1CD or more.
 
+use crate::audio::sample_records::SampleRecords;
 use crate::audio::samples::sample_mode;
-use crate::audio::store::SampleRecords;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 

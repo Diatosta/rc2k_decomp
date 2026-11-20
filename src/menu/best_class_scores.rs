@@ -1,6 +1,6 @@
 //! `menu::best_class_scores`: each class's (0 .. `CLASSES`) new best scores. Each
 //! counted
-//! player of the class whose score (+0xB0) is not below the class's tenth is entered
+//! player of the class whose score (`stage_points` total) is not below the class's tenth is entered
 //! (`menu::enter_best_score`); with one entered, `event.shown.class` is set to the class and its
 //! page
 //! shown (`menu::best_class_scores_loop`), stopping when leaving is answered yes.

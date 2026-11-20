@@ -1,6 +1,6 @@
 //! `menu::standings_a_from_all`: standings table A filled from the drivers
 //! (`menu::standings_from_drivers`: emptied, each driver with its name), then each group's
-//! (+0x90, 0 .. 3) counted players into the entries from 89, 139, 169 and 179 down
+//! (`class`, 0 .. 3) counted players into the entries from 89, 139, 169 and 179 down
 //! (`menu::copy_standing_entry`).
 //!
 //! Refuses a player count of 0 or past 4, a player missing or without a name, and what the drivers'

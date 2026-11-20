@@ -1,5 +1,5 @@
 //! `menu::ready_players`: each counted player (0 .. `event.player_count`) taking part again:
-//! +0xD0 1, +0x88 0, +0x94 0.
+//! `entry` `TAKES_PART`, `time` 0, `figure` 0.
 //!
 //! Refuses (before anything) a player count of 0 or past 4 or a player missing.
 

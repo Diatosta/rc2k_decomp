@@ -8,8 +8,8 @@ use crate::menu::owner::{Play, Screens};
 use crate::menu::standings::*;
 use rc2k_core::menu::standings::Numbering;
 
-/// Gives every entry of `table` a figure of 0 (table A, entry +0x44) or a position of 0
-/// (table B, +0x70).
+/// Gives every entry of `table` a figure of 0 (table A, `figure`) or a position of 0
+/// (table B, `position`).
 pub(super) fn clear_standings(
     table: Which,
     tables: &crate::saves::best_times::BestTables,

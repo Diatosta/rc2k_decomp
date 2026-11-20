@@ -8,21 +8,21 @@ use crate::memory::session::{CellKind, PlainCells};
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Vertex<K: CellKind = PlainCells> {
-    /// +0x0: the screen x.
+    /// The screen x.
     pub x: K::Float,
-    /// +0x4: the screen y.
+    /// The screen y.
     pub y: K::Float,
-    /// +0x8: the depth.
+    /// The depth.
     pub z: K::Float,
-    /// +0xC: the reciprocal of the homogeneous w.
+    /// The reciprocal of the homogeneous w.
     pub rhw: K::Float,
-    /// +0x10: the colour (ARGB).
+    /// The colour (ARGB).
     pub colour: K::Dword,
-    /// +0x14: the specular colour (its top byte the fog).
+    /// The specular colour (its top byte the fog).
     pub specular: K::Dword,
-    /// +0x18: the texture u.
+    /// The texture u.
     pub u: K::Float,
-    /// +0x1C: the texture v.
+    /// The texture v.
     pub v: K::Float,
 }
 

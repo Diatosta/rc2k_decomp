@@ -15,18 +15,18 @@ pub const PARTS: usize = 14;
 /// The limit a part gets when its fitting is not all there or a switch says so.
 pub(crate) const SHORT_LIMIT: u32 = 0xA;
 
-/// The bits of the player's +0x278 parts 1 and 13 need for the table's limit.
+/// The bits of the player's `state_flags` parts 1 and 13 need for the table's limit.
 pub(crate) const PART_1_FITTED: u32 = 0x1E0;
 pub(crate) const PART_13_FITTED: u32 = 0x1E;
 
-/// What is read from the car's table (`CarTable.cars[0]`, entry `car`'s +0x74).
+/// What is read from the car's table (`CarTable.cars[0]`, entry `car`'s row).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Table {
-    /// Each part's (low, high): at +8 (k / 2), +0x38 for odd k.
+    /// Each part's (low, high): the pairs in the row's first half for even k, in the second for odd k (`pair_at`).
     pub pairs: [(u32, u32); PARTS],
-    /// +0x78 + 4k.
+    /// Each part's limit.
     pub limits: [u32; PARTS],
-    /// +0x30, +0x68, +0x70, +0x74.
+    /// Four more figures of the row.
     pub extra: [u32; 4],
 }
 
@@ -49,11 +49,11 @@ impl Table {
 /// What is read from the player's record.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Car {
-    /// +0xD4 + 4k.
+    /// Each part's wear (the player's `damage`).
     pub wear: [u32; PARTS],
-    /// +0x278.
+    /// The car's state bits (`state_flags`).
     pub fitted: u32,
-    /// +0x114, +0x118.
+    /// The ride height and the suspension stiffness.
     pub setup: [u32; 2],
 }
 
@@ -81,7 +81,7 @@ pub struct Logged {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Figures {
     /// The fourteen values, then (over 12 and 13 and past them) the
-    /// table's +0x30, +0x68, +0x70, +0x74.
+    /// table's four extra figures.
     pub values: [u32; 16],
     /// Each part's high end.
     pub highs: [u32; PARTS],
@@ -93,8 +93,8 @@ pub struct Figures {
     pub penalties: [Option<u32>; PARTS],
     /// The inspected parts' high ends added.
     pub total: u32,
-    /// `Service::setups[2].chosen`, `ACAC`, `ACB4`, `ACB8`: the player's +0x114
-    /// twice, +0x118 twice.
+    /// `Service::setups[2].chosen`, `ACAC`, `ACB4`, `ACB8`: the player's ride
+    /// height twice, suspension stiffness twice.
     pub kept: [u32; 4],
     /// The last step's figure.
     pub figure: u32,

@@ -6,7 +6,7 @@ use rc2k_core::menu::items::{
     HIDDEN, IN_GAME_OPTIONS, Look, hidden_in_game_options, shown_in_game_option,
 };
 
-/// Item `n` given its look: +0x14, +0x48, +0x1C.
+/// Item `n` given its look: its string, its state (skip mark) and what is behind its text.
 pub fn set(tables: &Tables, n: u32, look: Look) -> Result<(), crate::errors::BadInput> {
     let item = tables
         .menus

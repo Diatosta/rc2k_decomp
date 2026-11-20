@@ -10,12 +10,12 @@ use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct TextState {
-    /// +0x0: the debug drawing colour number; `race::draw_frame_rate` sets it to 2 before the
+    /// The debug drawing colour number; `race::draw_frame_rate` sets it to 2 before the
     /// frame-rate text. Nothing reads it.
     pub text_mode: PlainDword,
-    /// +0x4: the debug font's colour made a 16-bit pixel (`debug::draw`).
+    /// The debug font's colour made a 16-bit pixel (`debug::draw`).
     pub debug_pixel_16: PlainDword,
-    /// +0x8: the same, 32-bit.
+    /// The same, 32-bit.
     pub debug_pixel_32: PlainDword,
 }
 

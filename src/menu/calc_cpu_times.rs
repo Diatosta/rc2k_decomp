@@ -4,9 +4,8 @@
 //! goes into `track_length[0]` and that x 100 / 0x96A into `track_length[1]`. Then for each class
 //! and each driver of it: half the class's time / its driver count is the gap, a random number
 //! under 3000 (plus, when `service.spread_first` is not 1, one under 1000 times
-//! `service.spread_step`) is added, and a driver whose +0x24 is 1 gets the class's time plus the
-//! gaps so far into its +0xC,
-//! added to its +0x10.
+//! `service.spread_step`) is added, and a driver still in the event gets the class's time plus the
+//! gaps so far as its stage `time`, added to its event `total`.
 //!
 //! The random numbers are `Randoms::random_below`'s. Fatal error 0x80701010 for a hundredfold of 0
 //! or a half time of 0 (before anything); refuses a record past the table, a class count of 0

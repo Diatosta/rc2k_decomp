@@ -2,7 +2,7 @@
 //! room needed, the destination checked (bad name, room, folders made, source a CD), then the
 //! folders made and the files copied one by one with a frame after each and Escape watched, the
 //! record written, the readme and manual copied if a language is set, and finally the status set to
-//! installed and the lobby, shortcuts and registration done. How it ended is returned
+//! installed and the shortcuts asked for. How it ended is returned
 //! (`flow::Copied`): a folder that cannot be used, too little room, or the copy stopped with its
 //! error / cancel message shown. Always the full installation.
 
@@ -106,7 +106,7 @@ pub(super) fn install_files(
     use crate::install as i;
     crate::install::installer::set_full_installation();
     install.names.status.set(0x80);
-    i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;
+    i::record::write_installed(install);
     normalise(&install.paths.game_dir, &install.paths.game_dir)?;
     i::run_script::run_script(
         install,
@@ -259,16 +259,8 @@ pub(super) fn install_files(
         }
     }
     install.names.source_size.set(n);
-    i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;
-    i::register_lobby::register_lobby(
-        install,
-        &mut crate::install::portable::Portable::default(),
-        o.strings,
-    )?;
+    i::record::write_installed(install);
     install.run.add_items.set(1);
     install.flags.installing.set(true);
-    if install.flags.offer_registration.get() {
-        install.run.run_registration.set(1);
-    }
     Ok(Copied::Installed)
 }

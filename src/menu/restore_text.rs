@@ -1,5 +1,5 @@
 //! `menu::restore_text`: copies the text entry's backup back into a text field and
-//! ends it with a NUL: 0x1F bytes, then a 0 at +0x1F.
+//! ends it with a NUL: 0x1F bytes, then a 0 after them.
 
 use crate::menu::text_entry::{TEXT_LEN, entry as text_entry};
 

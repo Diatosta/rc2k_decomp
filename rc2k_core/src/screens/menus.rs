@@ -81,7 +81,7 @@ pub struct Item<F> {
     /// +8, +0xC: the text's place otherwise.
     pub text_x: u32,
     pub text_y: u32,
-    /// +0x10: highlighted when it is the current item.
+    /// Highlighted when it is the current item.
     pub kind: u32,
     /// The item's text string.
     pub id: u32,

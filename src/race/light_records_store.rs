@@ -14,16 +14,16 @@ use crate::test_support::own::race;
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct LightRecord {
-    /// +0x0: eleven dwords (read at +0xC, +0x10 ..= +0x28 by `physics::update_camera`,
+    /// Eleven dwords (read at +0xC, +0x10 ..= +0x28 by `physics::update_camera`,
     /// `race::car_draw` and `drive::share_car_state`).
     pub head: [PlainDword; 11],
-    /// +0x2C: the five axle values (`race::car_parts`) and, from +0x40, the six listener figures
+    /// The five axle values (`race::car_parts`) and, from +0x40, the six listener figures
     /// (`drive::set_listener`).
     pub axles: [PlainDword; 11],
-    /// +0x58: the group numbers of the model's parts (`scene::load_object`,
+    /// The group numbers of the model's parts (`scene::load_object`,
     /// `scene::list_object_face`, `effects::init_mark_step`, `race::car_draw`).
     pub groups: [PlainDword; 19],
-    /// +0xA4: 0x90 bytes of the lights' data (`race::copy_lights_data`, `race::frame_draw`).
+    /// 0x90 bytes of the lights' data (`race::copy_lights_data`, `race::frame_draw`).
     pub lights: [PlainDword; 36],
 }
 

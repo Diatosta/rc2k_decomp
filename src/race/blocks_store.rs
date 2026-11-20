@@ -8,7 +8,7 @@ use crate::test_support::own::race;
 
 #[derive(rc2k_derive::Cells)]
 pub struct CarBlocks {
-    /// +0x0: the blocks.
+    /// The blocks.
     pub cars: [Car; BLOCK_COUNT],
 }
 

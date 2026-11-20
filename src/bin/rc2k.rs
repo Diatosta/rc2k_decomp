@@ -1,7 +1,7 @@
 //! The game's program: runs the game (`standalone.rs`) on SDL (`platform/mod.rs`).
 //!
 //! Started in the game's folder: `rc2k [log] [switches]`; the log is `rc2k.log` there unless
-//! another is named. The game's own switches (`-a`, `-c`, `-p`, ..) are read off the command
+//! another is named. The game's own switches (`-a`, `-c`, `-u`, ..) are read off the command
 //! line by the game itself (`system::read_command_line`); a word naming a `.exe` is passed
 //! over. With the environment variable `RC2K_FRAMES` set to a number it ends itself after that
 //! many frames and leaves the last one in `rc2k_frame.raw`. `--stage` and its kin start a race

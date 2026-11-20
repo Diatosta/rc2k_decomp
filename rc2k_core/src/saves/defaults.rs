@@ -73,15 +73,15 @@ pub trait Source {
 /// A championship record (164 bytes) as these functions read it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Record {
-    /// +0: 0 a stage, 3 or 4 a rally's end.
+    /// 0 a stage, 3 or 4 a rally's end.
     pub tag: u32,
-    /// +4: the stage's track.
+    /// The stage's track.
     pub track: u32,
-    /// +0x18: the stage's time (or length).
+    /// The stage's time (or length).
     pub length: u32,
     /// +0x24
     pub time: u32,
-    /// +0x3C: which ten entries of a stage table.
+    /// Which ten entries of a stage table.
     pub picked: u32,
 }
 

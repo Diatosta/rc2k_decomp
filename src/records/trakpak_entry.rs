@@ -52,17 +52,17 @@ impl Track {
         }
     }
 
-    /// +0x00: the track's name (a string id).
+    /// The track's name (a string id).
     pub fn name(self, stages: &StageTables) -> Result<u32, BadInput> {
         self.get(stages, TrackField::Name)
     }
 
-    /// +0x0C: the stage's length.
+    /// The stage's length.
     pub fn length(self, stages: &StageTables) -> Result<u32, BadInput> {
         self.get(stages, TrackField::Length)
     }
 
-    /// +0x34: the stage number.
+    /// The stage number.
     pub fn stage(self, stages: &StageTables) -> Result<u32, BadInput> {
         self.get(stages, TrackField::Stage)
     }

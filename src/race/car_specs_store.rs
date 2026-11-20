@@ -12,50 +12,50 @@ use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CarSpec {
-    /// +0x0: the car's title, padded with spaces, e.g. "00 renault maxi megane".
+    /// The car's title, padded with spaces, e.g. "00 renault maxi megane".
     pub name: PlainBytes<24>,
-    /// +0x18: the drive kind, checked 0 ..= 3 (`physics::load_car_specs`); also the start
+    /// The drive kind, checked 0 ..= 3 (`physics::load_car_specs`); also the start
     /// value (`race::race_shell`).
     pub drive_kind: PlainDword,
-    /// +0x1C: the gear count by its sign, held to 3 ..= 7 (`physics::load_car_specs`).
+    /// The gear count by its sign, held to 3 ..= 7 (`physics::load_car_specs`).
     pub gear_count: PlainDword,
-    /// +0x20: copied to `PhysicsTables.unused_spec_20` (`unused_spec_20`) by
+    /// Copied to `PhysicsTables.unused_spec_20` (`unused_spec_20`) by
     /// `physics::load_car_specs`; nothing reads that copy, so the figure is unused.
     pub unused_20: PlainDword,
-    /// +0x24: copied to the physics `grip_scale`, the factor `physics::drive_grip_forces`
+    /// Copied to the physics `grip_scale`, the factor `physics::drive_grip_forces`
     /// multiplies the driving grip force by.
     pub grip_scale: PlainFloat,
-    /// +0x28: copied to the physics `side_grip_scale`, the factor `physics::drive_grip_forces`
+    /// Copied to the physics `side_grip_scale`, the factor `physics::drive_grip_forces`
     /// multiplies the sideways grip force by.
     pub side_grip_scale: PlainFloat,
-    /// +0x2C .. +0x34: copied to the physics `spec_surface` 0, 1, 2 (+0x2C, +0x30, +0x34).
+    /// Copied to the physics `spec_surface` 0, 1, 2 (+0x2C, +0x30, +0x34).
     pub surface: [PlainFloat; 3],
     /// +0x38, +0x3C: two figures times `PhysicsTables.gravity` into `PhysicsTables.spec_drive[0]`,
     /// `PhysicsTables.spec_drive[1]`.
     pub weights: [PlainFloat; 2],
-    /// +0x40: three whole figures x 65536 / `Numbers.thousand` into `PhysicsTables.spec_ints[0]` ..
+    /// Three whole figures x 65536 / `Numbers.thousand` into `PhysicsTables.spec_ints[0]` ..
     /// (kinds from 0x17 on; the others take the game's constants).
     pub whole_figures: [PlainDword; 3],
-    /// +0x4C: not read.
+    /// Not read.
     pub unused_4c: [PlainDword; 4],
-    /// +0x5C: into `SceneDraw.scratch` (`scene::draw_store`'s `scratch`).
+    /// Into `SceneDraw.scratch` (`scene::draw_store`'s `scratch`).
     pub scratch_value: PlainDword,
-    /// +0x60: into the physics `downforce_spec`.
+    /// Into the physics `downforce_spec`.
     pub downforce: PlainDword,
-    /// +0x64: four whole figures as floats into `LightsAndGear.gear.figures[0]` .. (each at least
+    /// Four whole figures as floats into `LightsAndGear.gear.figures[0]` .. (each at least
     /// 8.0).
     pub figures: [PlainDword; 4],
-    /// +0x74: the engine's top, a whole number (8500 for the first); also the start
+    /// The engine's top, a whole number (8500 for the first); also the start
     /// value's limit (`CarSpecs.cars[0].engine_top`, `race::race_shell`).
     pub engine_top: PlainDword,
-    /// +0x78: a whole figure divided by the top into `LightsAndGear.gear.drive_torque_figure`.
+    /// A whole figure divided by the top into `LightsAndGear.gear.drive_torque_figure`.
     pub over_top: PlainDword,
-    /// +0x7C: the torque curve, copied to the physics `spec_torque`.
+    /// The torque curve, copied to the physics `spec_torque`.
     pub torque_curve: [PlainDword; 9],
-    /// +0xA0: into the physics `ride_height_handling_scale` `physics::set_handling`
+    /// Into the physics `ride_height_handling_scale` `physics::set_handling`
     /// multiplies the lerped ride-height handling value (`handling[4]`) by it.
     pub ride_height_handling_scale: PlainDword,
-    /// +0xA4: the shift points (`LightsAndGear.gear.shift_up_point` ..; the first x
+    /// The shift points (`LightsAndGear.gear.shift_up_point` ..; the first x
     /// `PhysicsTables.spec_scale_a4`, the others + `Numbers.tenths[0]`).
     pub shift_points: [PlainFloat; 3],
 }

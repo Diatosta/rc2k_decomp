@@ -1,4 +1,4 @@
-//! `menu::first_player_unplaced`: the first player's entry with a group (+0x10 not 0) in
+//! `menu::first_player_unplaced`: the first player's entry that has a group (`group` not 0) in
 //! standings table B, counting the computer drivers with a group before it; none: the fatal
 //! error 0x8070A0AE "Unable to locate player (find1stplayerinochamp)".
 //!

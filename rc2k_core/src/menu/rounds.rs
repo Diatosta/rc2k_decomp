@@ -6,7 +6,7 @@ use super::flow::{Call, CarList, Game, Var};
 use super::leaving::Switch;
 use crate::Invalid;
 
-/// Players 2 and 3's times (+0x88) in the time trial (3 597 928 and 3 602 000 ms).
+/// Players 2 and 3's times in the time trial (3 597 928 and 3 602 000 ms).
 pub(crate) const TIME_2: u32 = 0x36F268;
 pub(crate) const TIME_3: u32 = 0x36F650;
 
@@ -473,7 +473,7 @@ pub fn time_trial_one<G: Game>(e: &mut G) -> Result<(), G::Error> {
 }
 
 /// The time trial's start for two to four players: event mode 3, the event begun, the players'
-/// +0x284 cleared, player 1's units.
+/// `hud_bits` cleared, player 1's units.
 fn time_trial_start<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.set(Var::Mode, 3);
     e.run(Call::BeginEvent)?;

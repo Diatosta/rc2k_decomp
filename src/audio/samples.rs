@@ -144,9 +144,9 @@ pub fn fill_voice(
         shared,
         &from_file,
         sound_mode & 0x1_0000 != 0,
-        // The record's level (`audio::store::VolumeLevel`).
+        // The record's level (`audio::sample_records::VolumeLevel`).
         |factor| {
-            crate::audio::store::volume_level(audio, factor).unwrap_or_else(|e| {
+            crate::audio::sample_records::volume_level(audio, factor).unwrap_or_else(|e| {
                 failed.set(failed.get().or(Some(e)));
                 0
             })

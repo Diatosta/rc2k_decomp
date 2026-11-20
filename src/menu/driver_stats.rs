@@ -52,7 +52,7 @@ fn player_and_table<'a>(
     Ok((p, car_table(menus, p)?))
 }
 
-/// The player `p`'s car's table (the car table's row for the car, +0x74; car 0x21 as 0x17).
+/// The player `p`'s car's table (the car table's row for the car; car 0x21 as 0x17).
 pub fn car_table(
     menus: &Menus,
     p: PlayerCell,

@@ -15,7 +15,7 @@ use crate::system::owner::System;
 fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let menus = set_up.menus;
     let screens = &menus.screens;
-    // The current player's +0x30 (its car).
+    // The current player's gearing, shown first.
     let current: u32 = screens.event.current_player.get();
     let Some(player) = crate::menu::player::player(menus, current) else {
         return Err(crate::errors::BadInput("a current player past the four").into());

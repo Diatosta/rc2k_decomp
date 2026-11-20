@@ -55,7 +55,8 @@ pub fn play_spot_voices(
                 if sound >= RECORDS {
                     return Err(BadInput("a sound past the sample records").into());
                 }
-                let looping = crate::audio::store::SAMPLE_CONSTANTS[sound as usize].voice_kind;
+                let looping =
+                    crate::audio::sample_records::SAMPLE_CONSTANTS[sound as usize].voice_kind;
                 request.sound.set(going_on(request.sound.get(), looping));
             }
         }

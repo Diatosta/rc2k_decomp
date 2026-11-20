@@ -147,7 +147,7 @@ pub struct MixerChannel {
     pub step_fraction: u32,
     pub left: i32,
     pub right: i32,
-    /// +0x44 .. +0x58: five dwords nothing reads (cleared when the channel is released).
+    /// Five dwords nothing reads (cleared when the channel is released).
     pub unused_44: [u32; 5],
 }
 

@@ -9,37 +9,37 @@ use crate::test_support::own::race;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Checkpoints {
-    /// +0x0: each checkpoint's face number (`race::best_line`, `race::level_init`,
+    /// Each checkpoint's face number (`race::best_line`, `race::level_init`,
     /// `physics::passed_split_point`, `drive::drive_computer_car`).
     pub checkpoint_faces: [PlainDword; 5146],
-    /// +0x5068: how many faces each checkpoint's kind has (`race::best_line`,
+    /// How many faces each checkpoint's kind has (`race::best_line`,
     /// `physics::track_checkpoints`).
     pub check_counts: [PlainDword; 5144],
-    /// +0xA0C8: each link's angle, from +4 (the third): `race::best_line`, `race::pace_notes`,
+    /// Each link's angle, from +4 (the third): `race::best_line`, `race::pace_notes`,
     /// `physics::passed_split_point`.
     pub angles: [PlainDword; 5146],
-    /// +0xF130: nothing reads or writes it (the gap between the angles and the distances).
+    /// Nothing reads or writes it (the gap between the angles and the distances).
     pub unused_f130: [PlainDword; 5148],
-    /// +0x14178: each checkpoint's distance along the line (`race::best_line`, `race::pace_notes`,
+    /// Each checkpoint's distance along the line (`race::best_line`, `race::pace_notes`,
     /// `race::frame_draw`, `race::init_overlay`).
     pub distances: [PlainDword; 5146],
-    /// +0x191e8: the map's x of each checkpoint (`race::best_line`, `race::map_scroll`).
+    /// The map's x of each checkpoint (`race::best_line`, `race::map_scroll`).
     pub map_x: [PlainDword; 5146],
-    /// +0x1e250: the map's y of each checkpoint (`race::best_line`, `race::map_scroll`).
+    /// The map's y of each checkpoint (`race::best_line`, `race::map_scroll`).
     pub map_y: [PlainDword; 5146],
-    /// +0x232b8: each checkpoint's nearest replay camera of the first set
+    /// Each checkpoint's nearest replay camera of the first set
     /// (`physics::update_camera`, `race::best_line`).
     pub nearest_camera_1: [PlainDword; 5146],
-    /// +0x28320: each checkpoint's nearest camera of the second set (stage file section
+    /// Each checkpoint's nearest camera of the second set (stage file section
     /// "replaycam2", entry kind 0x38; used by camera modes 0x2A ..= 0x2D, 9, 10:
     /// `rc2k_core::physics::camera_view::fixed_camera` true). The first set is the section
     /// "replaycam1" (kind 0x3C; modes 0x2E ..= 0x31, 7, 8).
     pub nearest_camera_2: [PlainDword; 5146],
-    /// +0x2d388: the line's length (`race::best_line`).
+    /// The line's length (`race::best_line`).
     pub line_length: PlainDword,
-    /// +0x2d38c: the first set's faces, 0x400 (`physics::update_camera`, `race::best_line`).
+    /// The first set's faces, 0x400 (`physics::update_camera`, `race::best_line`).
     pub replay_cameras_1: [PlainDword; 1024],
-    /// +0x2e38c: the second set's faces, 0x400 (section "replaycam2"; see `nearest_camera_2`).
+    /// The second set's faces, 0x400 (section "replaycam2"; see `nearest_camera_2`).
     pub replay_cameras_2: [PlainDword; 1024],
 }
 

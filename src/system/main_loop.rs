@@ -51,11 +51,11 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     crate::sound::apply_settings::apply_settings(o)?;
     crate::gfx::load_jade::load_jade_in_game(gfx, o.system)?;
     crate::menu::build_notice::build_notice(menus, o.strings);
-    // A program in the download folder installs from it (`install::portable`); and with
+    // A program in the download folder installs from it (`install::record`); and with
     // `-u` (`flags.updating`) it uninstalls where it is: its record is in the installed folder, so
     // the uninstall runs from there.
     if install.pages.main_menu.items[1].text.get() == INSTALLER_MARK
-        || crate::install::portable::is_source_folder()
+        || crate::install::record::is_source_folder()
         || install.flags.updating.get()
     {
         crate::install::run_installer::run_installer(install, o)?;
@@ -64,10 +64,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     if !install.flags.installing.get() {
         crate::install::runs_from_source::source_against_directory(
             install,
-            &mut crate::install::outside::Game {
-                install,
-                system: o.system,
-            },
+            &mut crate::install::outside::Game { install },
         )?;
     }
     install.flags.clear_command();

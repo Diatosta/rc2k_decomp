@@ -1,7 +1,7 @@
 //! `menu::keep_record_best`: the current record (the record table, `section`,
-//! `index`) takes each counted player's (`event.player_count`) score (+0x94) while it beats the
-//! record's (+0x30, signed), with the player's +4 / +8 (+0x74 / +0x78) and name (0x20
-//! bytes to +0x54); it stops at the first that does not. `event.current_player` the player looked
+//! `index`) takes each counted player's (`event.player_count`) `figure` while it beats the
+//! record's `fastest_speed` (signed), with the player's nationality and car number (the
+//! record's `fastest_nation` / `fastest_car`) and name (0x20 bytes into `fastest_name`); it stops at the first that does not. `event.current_player` the player looked
 //! at last.
 //!
 //! Refuses a record past the table, a player count of 0 or past 4, a missing player or name, before

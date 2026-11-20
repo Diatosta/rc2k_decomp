@@ -15,32 +15,32 @@ pub(crate) const NAME_MOVED: usize = 0x1F;
 /// The head of a best entry (0x50 bytes).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Entry {
-    /// +0: -1 ends a list.
+    /// -1 ends a list.
     pub first: u32,
-    /// +4: the player (1 .. 4); 0 for a made-up entry.
+    /// The player (1 .. 4); 0 for a made-up entry.
     pub player: u32,
-    /// +8: the nationality.
+    /// The nationality.
     pub nation: u32,
-    /// +0xC: the name's string id (made up), or the player's name pointer (entered).
+    /// The name's string id (made up), or the player's name pointer (entered).
     pub name_id: u32,
-    /// +0x10: the car.
+    /// The car.
     pub car: u32,
-    /// +0x14: what ranks it: the time or the score.
+    /// What ranks it: the time or the score.
     pub key: u32,
-    /// +0x18: a rally's table keeps its time here.
+    /// A rally's table keeps its time here.
     pub rally_time: u32,
-    /// +0x1C: the group.
+    /// The group.
     pub group: u32,
-    /// +0x20: the name; a made-up entry's has no NUL, an entered one the player's first 0x1F
+    /// The name; a made-up entry's has no NUL, an entered one the player's first 0x1F
     /// bytes.
     pub name: [u8; NAME_ROOM],
-    /// +0x40: 1 for the entry just made.
+    /// 1 for the entry just made.
     pub mark: u32,
     /// +0x44.
     pub figure: u32,
-    /// +0x48: the name's tail (`name_text` reads on into it).
+    /// The name's tail (`name_text` reads on into it).
     pub unread_48: u32,
-    /// +0x4C: the records' taking part.
+    /// The records' taking part.
     pub entered: u32,
 }
 
@@ -309,11 +309,11 @@ pub fn fill_made_up(t: &mut LevelScores, entries: &[(u32, crate::saves::defaults
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct BestTime {
     pub head: Entry,
-    /// +0x50: the cheats on when it was driven (a made-up time has 0xB).
+    /// The cheats on when it was driven (a made-up time has 0xB).
     pub cheats: u32,
     /// +0x54, +0x58: the sealed time.
     pub sealed: [u32; 2],
-    /// +0x5C: the checkpoint times (the player's line).
+    /// The checkpoint times (the player's line).
     pub checkpoints: [u32; CHECKPOINTS],
 }
 

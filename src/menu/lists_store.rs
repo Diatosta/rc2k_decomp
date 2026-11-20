@@ -76,7 +76,7 @@ pub struct MenuLists {
     pub welcome_championship: [PlainDword; 6],
     /// The same for the other modes (the A8 game).
     pub welcome_other: [PlainDword; 6],
-    /// The map's overlays, by the stage's +0x3C (`menu::stage_choice`).
+    /// The map's overlays, by the stage's `event_slot` (`menu::stage_choice`).
     pub map_overlays: [PlainDword; 36],
     pub _gap_75993e: PlainBytes<4>,
     /// The first of the four lists of paths a car page cycles through

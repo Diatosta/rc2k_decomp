@@ -392,7 +392,9 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - The installer takes the game from the folder it is started in, in place of asking for the CD,
   and copies it in seconds (the original's copy was slow here). It has no page for the kind of
   installation (always the full one), no DirectX set-up and no registration; it makes ordinary
-  shortcuts. It does not copy the CD's `ral.exe`.
+  shortcuts. It does not copy the CD's `ral.exe`. The original's other ways in are gone too:
+  the update copied from the Clio's disc (the Clio's car is still offered when its file is
+  among the game's files) and the `-i` and `-p` switches that installed without the pages.
 - "Uninstall Rally" runs the installed program itself (`rc2k -u`). More on [Installing the
   game](Installing-the-game).
 

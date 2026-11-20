@@ -8,7 +8,8 @@
 //! 0x20 restart.
 
 use crate::audio::own::{AudioOwn, AudioThread};
-use crate::audio::store::{AudioShared, SampleRecords};
+use crate::audio::sample_records::SampleRecords;
+use crate::audio::store::AudioShared;
 use crate::memory::session::{Plain, Shared};
 
 pub use rc2k_core::audio::voices::{SAMPLES, VOICES};

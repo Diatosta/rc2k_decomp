@@ -1,7 +1,7 @@
 //! The first run: the program's folder holds no game data. A page asks for the folder or the
 //! zip the data is in (picked on disk, dropped on the page, or named by `--game-data`); then
 //! by what it holds the program goes on in it: an installed game's folder is the game's folder
-//! as it is, the download / CD layout is the installer's source (`install::portable`), and a
+//! as it is, the download / CD layout is the installer's source (`install::record`), and a
 //! zip is unpacked into a folder of its own beside the program's data first. Not the web
 //! build, whose page does this in the browser (`tools/web/`).
 

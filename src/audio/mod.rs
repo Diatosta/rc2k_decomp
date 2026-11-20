@@ -33,6 +33,8 @@ mod release_voice;
 mod release_voice_manager;
 mod sample_data;
 mod sample_mode;
+pub(crate) mod sample_records;
+pub(crate) mod sample_table;
 mod samples;
 mod set_buffer_min_distance;
 mod set_eax_room;

@@ -1,6 +1,6 @@
 //! `menu::beat_target_time`: `event.trial.qualifies` 1 when the current player's
-//! (`event.current_player`) time (+0x88) is at most the current event's target (its +0x57C +
-//! 0x14; signed), else 0.
+//! (`event.current_player`) `time` is at most the current event's target (the key of the tenth
+//! entry of its record entries; signed), else 0.
 //!
 //! Refuses a record past the table, no events table, or a current player past
 //! 3 or missing, before anything.

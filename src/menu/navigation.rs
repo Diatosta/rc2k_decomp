@@ -26,7 +26,7 @@ pub enum Direction {
 
 impl Direction {
     /// (the link's place in an item, the callback's)
-    /// The item's link (+0x24 ..) and key function (+0x34 ..) this move reads.
+    /// Which of the item's four links and four key functions this move reads.
     fn slot(self) -> usize {
         match self {
             Self::Up => 0,

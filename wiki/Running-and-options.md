@@ -346,7 +346,6 @@ characters.
 | `-v` | Shows the version in a box and ends. |
 | `-a` | No sound. |
 | `-u` | Uninstalls the game in this folder ([Installing the game](Installing-the-game)). |
-| `-p`, `-i` | Start an installation without the installer's pages; the installer's own way of calling the program. Not meant for use by hand. |
 | `-c 1`, `-c 2` | In 1999, told the game to pass over the second or the first 3D card. Still read, but today's renderers do not choose between cards. |
 
 ## Options

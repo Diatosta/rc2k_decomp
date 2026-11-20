@@ -112,9 +112,9 @@ pub struct PlayerRecord {
     /// colours, +3 the nationality, +4 the stage, +5 its direction, +6 the race number, +7 a
     /// random number.
     pub head: Bytes<8>,
-    /// +8: the race's time.
+    /// The race's time.
     pub race_time: Dword,
-    /// +0xC: the total.
+    /// The total.
     pub total: Dword,
 }
 

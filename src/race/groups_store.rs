@@ -28,11 +28,11 @@ use crate::race::viewer_screen_store::ViewerPanelBlock;
 /// The viewer's panel, the bytes after it and the kinds' tables.
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerAndKinds {
-    /// +0x0: `race::viewer_screen_store`.
+    /// `race::viewer_screen_store`.
     pub viewer_panel: GameThread<ViewerPanelBlock>,
-    /// +0x668: `race::effects_settings_store`.
+    /// `race::effects_settings_store`.
     pub marks_settings: GameThread<EffectsSettings>,
-    /// +0x2DD0: `race::kind_store`.
+    /// `race::kind_store`.
     pub kind_tables: KindTables,
 }
 
@@ -41,11 +41,11 @@ pub struct ViewerAndKinds {
 /// only by reading on past the records, on the physics' cells.
 #[derive(rc2k_derive::Cells)]
 pub struct LightsAndGear {
-    /// +0x0: `race::light_records_store`.
+    /// `race::light_records_store`.
     pub light_records: LightRecords,
-    /// +0x28E8: a dword between them, by game address.
+    /// A dword between them, by game address.
     pub between: PlainDword,
-    /// +0x28EC: `physics::gear_store`.
+    /// `physics::gear_store`.
     pub gear: GearFigures,
 }
 
@@ -54,16 +54,16 @@ pub struct LightsAndGear {
 pub struct PanelAndOverlay {
     /// Two lead bytes before the panel.
     pub lead: PlainBytes<2>,
-    /// +0x0: `race::panel_store`.
+    /// `race::panel_store`.
     pub panel: Panel,
-    /// +0x10E: `race::overlay_store`.
+    /// `race::overlay_store`.
     pub overlay: OverlayBlock,
 }
 
 /// The view variables and the 52 view records after them.
 #[derive(rc2k_derive::Cells)]
 pub struct ViewAndRecords {
-    /// +0x0: `race::view_vars_store`.
+    /// `race::view_vars_store`.
     pub view_vars: ViewVars,
     /// The 52 view records, after the view variables (named through `ViewerAndKinds` handles).
     pub records: [ViewRecord; 52],

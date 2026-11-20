@@ -20,49 +20,49 @@ use crate::screens::game_screen::Held;
 /// welcome (`tag`), with its two record holders.
 #[derive(rc2k_derive::Cells)]
 pub struct Record {
-    /// +0: 0 a stage, 1 a service area, 3 or 4 a rally's end, 5 a welcome, -1 a table's end.
+    /// 0 a stage, 1 a service area, 3 or 4 a rally's end, 5 a welcome, -1 a table's end.
     pub tag: PlainDword,
-    /// +4: the track's entry in the track pack (`records::trakpak_entry`).
+    /// The track's entry in the track pack (`records::trakpak_entry`).
     pub track: PlainDword,
-    /// +8: the track pack's id.
+    /// The track pack's id.
     pub pack_id: PlainDword,
-    /// +0x0C: what a service area hands its step (`Var::ServiceRecordC`); 1 on a stage.
+    /// What a service area hands its step (`Var::ServiceRecordC`); 1 on a stage.
     pub service_figure: PlainDword,
-    /// +0x10: the time of day it starts at (hhmm).
+    /// The time of day it starts at (hhmm).
     pub hhmm: PlainDword,
-    /// +0x14: a service area's time (`Var::ServiceTime`); a small number on a stage.
+    /// A service area's time (`Var::ServiceTime`); a small number on a stage.
     pub service_time: PlainDword,
-    /// +0x18 .. +0x24: the four classes' times (`menu::calc_cpu_times`; the made-up times
+    /// The four classes' times (`menu::calc_cpu_times`; the made-up times
     /// read the first and last, `saves::default_times`).
     pub class_times: [PlainDword; 4],
-    /// +0x28: read by no code by name (a read on through the tables reaches it).
+    /// Read by no code by name (a read on through the tables reaches it).
     pub unread_28: PlainDword,
-    /// +0x2C: the time trial's record holder's top speed (or figure).
+    /// The time trial's record holder's top speed (or figure).
     pub time_trial_speed: PlainDword,
-    /// +0x30: the fastest record holder's speed (or figure, signed: `menu::bests::takes_record`).
+    /// The fastest record holder's speed (or figure, signed: `menu::bests::takes_record`).
     pub fastest_speed: PlainDword,
-    /// +0x34: the race's stage (`RACE_STATE.settings.stage`), the time a bonus counts from.
+    /// The race's stage (`RACE_STATE.settings.stage`), the time a bonus counts from.
     pub race_stage: PlainDword,
-    /// +0x38: the stage's name string.
+    /// The stage's name string.
     pub name: PlainDword,
-    /// +0x3C: which ten entries of a stage table are the stage's best times.
+    /// Which ten entries of a stage table are the stage's best times.
     pub event_slot: PlainDword,
-    /// +0x40: the stage's number.
+    /// The stage's number.
     pub number: PlainDword,
-    /// +0x44 .. +0x50: the two points on the map its markers go at, (x, y) each
+    /// The two points on the map its markers go at, (x, y) each
     /// (`gfx::blit_marker_pair`).
     pub markers: [[PlainInt; 2]; 2],
-    /// +0x54: the fastest record holder's name (no NUL when it fills its bytes).
+    /// The fastest record holder's name (no NUL when it fills its bytes).
     pub fastest_name: PlainBytes<HOLDER_NAME_LEN>,
-    /// +0x74: the fastest record holder's nationality.
+    /// The fastest record holder's nationality.
     pub fastest_nation: PlainDword,
-    /// +0x78: the fastest record holder's car.
+    /// The fastest record holder's car.
     pub fastest_car: PlainDword,
-    /// +0x7C: the time trial's record holder's name (set by `menu::keep_stage_best`).
+    /// The time trial's record holder's name (set by `menu::keep_stage_best`).
     pub time_trial_name: PlainBytes<HOLDER_NAME_LEN>,
-    /// +0x9C: the time trial's record holder's nationality.
+    /// The time trial's record holder's nationality.
     pub time_trial_nation: PlainDword,
-    /// +0xA0: the time trial's record holder's car.
+    /// The time trial's record holder's car.
     pub time_trial_car: PlainDword,
 }
 
@@ -125,47 +125,47 @@ impl Record {
     /// The dwords a record has.
     pub const WORDS: usize = 41;
 
-    /// +0: the tag.
+    /// The tag.
     pub fn tag(&self) -> u32 {
         self.tag.get()
     }
 
-    /// +4: the track's entry in the track pack.
+    /// The track's entry in the track pack.
     pub fn track(&self) -> u32 {
         self.track.get()
     }
 
-    /// +8: the track pack's id.
+    /// The track pack's id.
     pub fn pack_id(&self) -> u32 {
         self.pack_id.get()
     }
 
-    /// +0x10: the time of day it starts at (hhmm).
+    /// The time of day it starts at (hhmm).
     pub fn hhmm(&self) -> u32 {
         self.hhmm.get()
     }
 
-    /// +0x18 .. +0x24: the four classes' times.
+    /// The four classes' times.
     pub fn class_times(&self) -> [u32; 4] {
         self.class_times.each_ref().map(PlainDword::get)
     }
 
-    /// +0x34: the race's stage.
+    /// The race's stage.
     pub fn race_stage(&self) -> u32 {
         self.race_stage.get()
     }
 
-    /// +0x38: the stage's name string.
+    /// The stage's name string.
     pub fn name(&self) -> u32 {
         self.name.get()
     }
 
-    /// +0x3C: which ten entries of a stage table are the stage's best times.
+    /// Which ten entries of a stage table are the stage's best times.
     pub fn event_slot(&self) -> u32 {
         self.event_slot.get()
     }
 
-    /// +0x40: the stage's number.
+    /// The stage's number.
     pub fn number(&self) -> u32 {
         self.number.get()
     }
@@ -225,7 +225,7 @@ impl Record {
         }
     }
 
-    /// +0x44 .. +0x50: the two points on the map its markers go at (`gfx::blit_marker_pair`).
+    /// The two points on the map its markers go at (`gfx::blit_marker_pair`).
     pub fn markers(&self) -> [(i32, i32); 2] {
         self.markers.each_ref().map(|[x, y]| (x.get(), y.get()))
     }
@@ -391,34 +391,34 @@ impl Run for EventRecords {
 /// `race::single_rally`).
 #[derive(rc2k_derive::Cells)]
 pub struct TrackEntry {
-    /// +0x00: the track's name (a string id; also the first word `race::single_rally`
+    /// The track's name (a string id; also the first word `race::single_rally`
     /// checks for the pack's closing -1).
     pub name: PlainDword,
-    /// +0x04: 0 in all 36 entries and read by no code (probably a spare word between the
+    /// 0 in all 36 entries and read by no code (probably a spare word between the
     /// name and the duration).
     pub unread_zero_04: PlainDword,
-    /// +0x08: the index into `MenuLists::durations`.
+    /// The index into `MenuLists::durations`.
     pub duration: PlainDword,
-    /// +0x0C: the stage's length.
+    /// The stage's length.
     pub length: PlainDword,
-    /// +0x10: the description's string id.
+    /// The description's string id.
     pub description: PlainDword,
-    /// +0x14: the weather.
+    /// The weather.
     pub weather: PlainDword,
-    /// +0x18: 1 in all 36 entries and read by no code (probably a spare word after the
+    /// 1 in all 36 entries and read by no code (probably a spare word after the
     /// weather).
     pub unread_one_18: PlainDword,
-    /// +0x1C: the temperature (signed on the panel, a plain dword in the race's settings).
+    /// The temperature (signed on the panel, a plain dword in the race's settings).
     pub temperature: PlainDword,
-    /// +0x20: the wind.
+    /// The wind.
     pub wind: PlainDword,
-    /// +0x24 .. +0x30: the four surfaces.
+    /// The four surfaces.
     pub surfaces: [PlainDword; 4],
-    /// +0x34: the stage number (what `race::single_rally` looks the entry up by).
+    /// The stage number (what `race::single_rally` looks the entry up by).
     pub stage: PlainDword,
-    /// +0x38: the stage's number on the panel.
+    /// The stage's number on the panel.
     pub number: PlainDword,
-    /// +0x3C: 1 when the number's label is the singular.
+    /// 1 when the number's label is the singular.
     pub number_label_one: PlainDword,
 }
 

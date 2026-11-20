@@ -1,5 +1,5 @@
-//! `menu::clear_score_marks`: the 50 best-score entries (`BestTables::scores`) given `new`
-//! (+0x14) 0 and `player` (+4) 0.
+//! `menu::clear_score_marks`: the 50 best-score entries (`BestTables::scores`) given a `mark`
+//! of 0 and a `player` of 0.
 //!
 //! Refuses a null table, before anything.
 

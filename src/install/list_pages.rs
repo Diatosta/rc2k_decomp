@@ -18,15 +18,15 @@ use crate::memory::session::{PlainByte, PlainDword, PlainWord};
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct EditRecord {
     pub flags: PlainByte,
-    /// +1: the most characters.
+    /// The most characters.
     pub most: PlainByte,
-    /// +2: the default text.
+    /// The default text.
     pub default_text: PlainWord,
-    /// +4: the font's kind.
+    /// The font's kind.
     pub font_kind: PlainByte,
-    /// +5: nothing reads it.
+    /// Nothing reads it.
     pub unused_05: PlainByte,
-    /// +6: the width.
+    /// The width.
     pub width: PlainWord,
 }
 
@@ -105,7 +105,7 @@ impl ListMenu {
         Self { header, items }
     }
 
-    /// +0x10: the neighbours table for `menu::list_step` (None for none). No list holds one
+    /// The neighbours table for `menu::list_step` (None for none). No list holds one
     /// that a link could name: a list that has one is refused.
     pub fn neighbours(self) -> Option<BytePlace> {
         let link = PageLink::from_raw(self.header.neighbours.get());
@@ -159,7 +159,7 @@ impl ListItem {
         Self(&install.pages.title)
     }
 
-    /// +4: the box the item's pieces are placed in (none: the title's).
+    /// The box the item's pieces are placed in (none: the title's).
     pub fn box_link(self) -> PageLink {
         PageLink::from_raw(self.0.box_link.get())
     }
@@ -302,7 +302,7 @@ mod tests {
     fn held(list: ListId) -> u32 {
         match list {
             ListId::Language | ListId::Drives8 => 10,
-            ListId::Main => 5,
+            ListId::Main => 4,
             ListId::Drives16 => 18,
             ListId::DrivesMore => 26,
             ListId::Folder => 6,

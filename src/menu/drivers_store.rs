@@ -6,8 +6,8 @@
 //! `records_from_bytes` (the fields' dwords in declaration order, which the test pins to the
 //! file's offsets). The event code works on the records by field (`menu::standings::drivers`
 //! walks them).
-//! The fields' meanings are readings (`nationality`, `car` and `flag` at +8, +0x14 and +0x18:
-//! the time entries and the section screen say class, nationality and car).
+//! The fields' meanings are readings (`class`, `nation` and `car`: the time entries and the
+//! section screen say class, nationality and car).
 
 use crate::memory::session::PlainDword;
 use crate::menu::owner::Cars;
@@ -15,34 +15,34 @@ use crate::menu::owner::Cars;
 /// A driver's record (0x94 bytes).
 #[derive(rc2k_derive::Cells)]
 pub struct Driver {
-    /// +0: the name entry, also the computer team's number (`menu::find_cpu_team`).
+    /// The name entry, also the computer team's number (`menu::find_cpu_team`).
     pub name_entry: PlainDword,
-    /// +4: 1 in all 180 shipped records; read by no code (saved with the record).
+    /// 1 in all 180 shipped records; read by no code (saved with the record).
     pub unknown_04: PlainDword,
-    /// +8: the class (a time entry's group, +0x1C).
+    /// The class (the `group` of a time entry).
     pub class: PlainDword,
-    /// +0xC: the stage's time (`menu::calc_cpu_times`; a time entry's time).
+    /// The stage's time (`menu::calc_cpu_times`; a time entry's time).
     pub time: PlainDword,
-    /// +0x10: the event's total time, each stage's added.
+    /// The event's total time, each stage's added.
     pub total: PlainDword,
-    /// +0x14: the nationality (a time entry's +8, the flag's sprite; `var\name.cfg`'s first
+    /// The nationality (a time entry's `nation`, the flag's sprite; `var\name.cfg`'s first
     /// number).
     pub nation: PlainDword,
-    /// +0x18: the car (a time entry's +0x10; `name.cfg`'s second number).
+    /// The car (a time entry's `car`; `name.cfg`'s second number).
     pub car: PlainDword,
-    /// +0x1C: 0 in all 180 shipped records; read by no code (saved with the record).
+    /// 0 in all 180 shipped records; read by no code (saved with the record).
     pub unknown_1c: PlainDword,
-    /// +0x20: 0 in all 180 shipped records and put back to 0 at an event's start (`begin`); read by
+    /// 0 in all 180 shipped records and put back to 0 at an event's start (`begin`); read by
     /// no code (saved with the record).
     pub unread_zero_20: PlainDword,
-    /// +0x24: 1 while in the event (`IN_EVENT`), 4 once dropped out
+    /// 1 while in the event (`IN_EVENT`), 4 once dropped out
     /// (`rc2k_core::menu::event_races::DROPPED`).
     pub in_event: PlainDword,
-    /// +0x28: 0 in all 180 shipped records; read by no code (saved with the record).
+    /// 0 in all 180 shipped records; read by no code (saved with the record).
     pub unknown_28: PlainDword,
-    /// +0x2C: twelve figures set to 100 at an event's start (the car's condition).
+    /// Twelve figures set to 100 at an event's start (the car's condition).
     pub condition: [PlainDword; 12],
-    /// +0x5C: the result slots: six sections' overall points and their total, then six
+    /// The result slots: six sections' overall points and their total, then six
     /// sections' stage points and their total (`menu::clear_result_slots`,
     /// `menu::award_overall_points`, `menu::award_stage_points`).
     pub results: [PlainDword; 14],
@@ -128,7 +128,7 @@ pub fn records_from_bytes(records: &[Driver], bytes: &[u8]) -> Result<(), crate:
     Ok(())
 }
 
-/// A driver's +0x24 while in the event.
+/// A driver's `in_event` while in the event.
 pub(super) const IN_EVENT: u32 = 1;
 
 impl Driver {
@@ -139,8 +139,8 @@ impl Driver {
         self.total.set(0);
     }
 
-    /// An event's start (`menu::begin_event`, `menu::reset_single_event`): no times, +0x20
-    /// 0, in the event.
+    /// An event's start (`menu::begin_event`, `menu::reset_single_event`): no times, the
+    /// unread field 0, in the event.
     pub fn begin(&self) {
         self.reset();
         self.unread_zero_20.set(0);
@@ -214,8 +214,8 @@ pub struct DriverTable {
 }
 
 /// The columns of the 180 driver records that differ from driver to driver, one row a
-/// driver (the row number is the driver's number and its name entry): class (+8), nation
-/// (+0x14), car (+0x18). Every other field is the same in all 180 (`Driver::new`).
+/// driver (the row number is the driver's number and its name entry): class, nation
+/// and car. Every other field is the same in all 180 (`Driver::new`).
 #[rustfmt::skip]
 const DRIVER_ROWS: [[u32; 3]; 180] = [
     [0, 0, 4], // 0
@@ -401,8 +401,8 @@ const DRIVER_ROWS: [[u32; 3]; 180] = [
 ];
 
 /// The columns of the 180 name entries that differ, one row an entry (the row number is
-/// the entry's number): the dwords at +4, +8 and +0xC. The string id (+0) is `0x5A5 +
-/// number` and the dword at +0x10 is 100 in all 180 (`DriverName::new`).
+/// the entry's number): the second to fourth dwords. The string id (the first) is
+/// `0x5A5 + number` and the fifth dword is 100 in all 180 (`DriverName::new`).
 #[rustfmt::skip]
 const NAME_ROWS: [[u32; 3]; 180] = [
     [0, 9, 10], // 0

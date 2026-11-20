@@ -1,5 +1,5 @@
-//! `menu::sealed_player_time`: the current player's (`event.current_player`) time (+0x88)
-//! sealed (`records::seal_time`) with the player's +8, the run kind and a byte given by the
+//! `menu::sealed_player_time`: the current player's (`event.current_player`) `time`
+//! sealed (`records::seal_time`) with the player's car number, the run kind and a byte given by the
 //! caller.
 //!
 //! Refuses a current player past 3 or missing, before anything.

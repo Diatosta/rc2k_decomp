@@ -1,10 +1,11 @@
 //! `menu::award_overall_points`: the stage's overall championship points. The
-//! points start at 0x14 (`seconds`); each entry of standings table B whose +0x10 is not 0,
-//! in the table's order, gets them into its +0x38 + 4 * `section` and they go down by one
-//! (not below 0); a computer's driver (+4 0, `menu::find_cpu_team` by its +0) also into
-//! its +0x5C + 4 * `section`, a player (+4 the player + 1) into its +0xB4 + 4 * `section`.
-//! Then each entry's total of its six (+0x38 .., the negative ones left out) into its
-//! +0x50 and its driver's +0x74 or player's +0xCC.
+//! points start at 20 (`seconds`); each entry of standings table B that has a group, in the
+//! table's order, gets them into its `overall` slot of `section` and they go down by one (not
+//! below 0); a computer's entry (`player` 0, its driver found by `menu::find_cpu_team` from the
+//! entry's `first`) also into the driver's overall points of that section, a player's entry
+//! (`player` the player + 1) into the player's `overall_points` of that section.
+//! Then each entry's total of its six (the negative ones left out) goes into its own total slot
+//! and into its driver's or player's total.
 //!
 //! Refuses no table, one without its end
 //! entry, a section past 5, a player past 4 or missing, before anything; a driver not found is the

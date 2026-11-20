@@ -1,5 +1,5 @@
 //! `menu::sort_standings_b_by_score`: standings table B's first 0xB4 entries sorted going down by
-//! their +0x50, as `menu::standings::sort_table_b`.
+//! their score (the total of the overall points), as `menu::standings::sort_table_b`.
 //!
 //! Refuses a null table, before anything.
 use crate::errors::Refused;

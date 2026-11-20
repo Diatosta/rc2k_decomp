@@ -11,38 +11,38 @@ use rc2k_core::race::replay_v2::{BLOCK_BYTES as V2_BLOCK_BYTES, MOST_BLOCKS, TAI
 
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerBuffers {
-    /// +0x0: 256 colours the panel fonts' palettes point at (`race::viewer_palettes`).
+    /// 256 colours the panel fonts' palettes point at (`race::viewer_palettes`).
     pub colours: [PlainDword; 256],
-    /// +0x400: the bytes of the block filled, where the next frame goes (`race::replay`,
+    /// The bytes of the block filled, where the next frame goes (`race::replay`,
     /// `drive::write_replay_frames`, `race::open_viewed_replay`). An offset into the block.
     pub block_used: PlainDword,
-    /// +0x404: the block read, 0x2810 bytes (the frame at its head: `drive::read_replay_frame`,
+    /// The block read, 0x2810 bytes (the frame at its head: `drive::read_replay_frame`,
     /// `drive::flush_replay`, `drive::replay_frame_marks`, `race::replay`).
     pub block: [PlainDword; 0xA04],
-    /// +0x2C14: 8 bytes a block, 0x708 blocks (`drive::replay_frame_marks`, `race::edit_camera`,
+    /// 8 bytes a block, 0x708 blocks (`drive::replay_frame_marks`, `race::edit_camera`,
     /// `race::viewer`).
     pub block_cameras: PlainBytes<{ 8 * MOST_BLOCKS as usize }>,
-    /// +0x6454: blocks to undo, 0 = nothing (`race::viewer`).
+    /// Blocks to undo, 0 = nothing (`race::viewer`).
     pub undo_blocks: PlainDword,
-    /// +0x6458: the block places of the undo, 0x3840 bytes (`race::keep_undo`, `race::undo_edit`).
+    /// The block places of the undo, 0x3840 bytes (`race::keep_undo`, `race::undo_edit`).
     pub undo_places: [PlainDword; 2 * MOST_BLOCKS as usize],
-    /// +0x9C98: the undo's cameras, 0x3840 bytes.
+    /// The undo's cameras, 0x3840 bytes.
     pub undo_cameras: [PlainDword; 2 * MOST_BLOCKS as usize],
-    /// +0xD4D8: the first block marked.
+    /// The first block marked.
     pub mark_in: PlainDword,
-    /// +0xD4DC: the last block marked.
+    /// The last block marked.
     pub mark_out: PlainDword,
-    /// +0xD4E0: 0, or the camera (1, 2) being edited.
+    /// 0, or the camera (1, 2) being edited.
     pub camera_edit: PlainDword,
-    /// +0xD4E4: blocks on the clipboard.
+    /// Blocks on the clipboard.
     pub clip_blocks: PlainDword,
-    /// +0xD4E8: the clipboard's block places, 0x3840 bytes.
+    /// The clipboard's block places, 0x3840 bytes.
     pub clip_places: [PlainDword; 2 * MOST_BLOCKS as usize],
-    /// +0x10D28: the clipboard's cameras, 0x3840 bytes.
+    /// The clipboard's cameras, 0x3840 bytes.
     pub clip_cameras: [PlainDword; 2 * MOST_BLOCKS as usize],
-    /// +0x14568: the race's file, opened to read (`race::save_viewed_replay`).
+    /// The race's file, opened to read (`race::save_viewed_replay`).
     pub from_file: PlainDword,
-    /// +0x1456c: the slot's file, made (`race::save_viewed_replay`).
+    /// The slot's file, made (`race::save_viewed_replay`).
     pub to_file: PlainDword,
     /// What follows the block's plain frame in a replay with the extra tape: the inputs of cars
     /// 2 and 3 (`EXTRA_TAPE_BYTES`). Past the original's record, so it is not a place the

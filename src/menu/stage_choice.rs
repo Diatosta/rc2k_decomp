@@ -18,7 +18,7 @@ const NO_MAP: FatalError = FatalError {
 /// `menu::draw_stage_map`: the stage by `ChampView.stage_mode` (2: the arcade level's
 /// `Arcade.stage`th; 3: `records::find_record` of the record table with `section` and
 /// `index`; else the choice's group, sub and `number`th), its overlay
-/// `MenuLists.map_overlays[0][+0x3C]`; `ukmap.png` is loaded with it (a failed load: fatal error
+/// `MenuLists.map_overlays[0]` at the record's `event_slot`; `ukmap.png` is loaded with it (a failed load: fatal error
 /// 0x80712345), the picture flags are the screen mode flags & 0xFFF, and the picture is made the
 /// surface, then sprite 160 is drawn at (0, 0). Refuses a choice without its tables.
 pub(super) fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {

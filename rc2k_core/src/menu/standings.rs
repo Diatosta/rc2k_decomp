@@ -257,22 +257,22 @@ pub fn number(groups: &[u32], which: Numbering) -> Vec<Option<u32>> {
 pub struct PlayerA {
     /// The player's index (0 .. 3).
     pub index: u32,
-    /// The stage time (+0x88), the group (+0x90), the total (+0x8C).
+    /// The stage time, the group (the class), the total.
     pub time: u32,
     pub group: u32,
     pub total: u32,
-    /// The name's pointer (+0x18) and its first 0x20 bytes.
+    /// The name's pointer and its first 0x20 bytes.
     pub name_at: u32,
     pub name: [u8; 0x20],
-    /// The nationality (+4), the car's number (+8), the taking part (+0xD0).
+    /// The nationality, the car's number, the taking part (`entry`).
     pub nationality: u32,
     pub car: u32,
     pub entered: u32,
 }
 
-/// A table A entry filled from a player: +4 the index + 1, +0x14 the time, +0x1C the
-/// group, +0x18 the total, +0xC the name's pointer and +0x20 the name, +8 the nationality,
-/// +0x10 the car, +0x4C the taking part.
+/// A table A entry filled from a player: `player` the index + 1, `key` the time, `group`,
+/// `rally_time` the total, `name_id` the name's pointer and `name` the name, `nation`, `car` and
+/// `entered` the taking part.
 #[cfg(test)]
 pub fn fill_a(t: &mut Entries, n: usize, p: &PlayerA) {
     t.store(
@@ -295,19 +295,18 @@ pub struct PlayerB {
     pub index: u32,
     /// The name's first 0x20 bytes.
     pub name: [u8; 0x20],
-    /// The nationality (+4), the car's number (+8), the group (+0x90), the total (+0x8C).
+    /// The nationality, the car's number, the group (the class), the total.
     pub nationality: u32,
     pub car: u32,
     pub group: u32,
     pub total: u32,
-    /// The seven dwords at +0xB4 and the seven at +0x98.
+    /// The seven overall points (six sections and their total) and the seven stage points.
     pub b4: [u32; 7],
     pub slots: [u32; 7],
 }
 
-/// A table B entry filled from a player: +4 the index + 1, +0x14 the name, +8 / +0xC /
-/// +0x10 the nationality, car and group, +0x34 the total, +0x38 .. +0x50 its +0xB4 ..,
-/// +0x54 .. +0x6C its +0x98 ...
+/// A table B entry filled from a player: `player` the index + 1, `name`, `nation`, `car` and
+/// `group`, `total`, `overall` the overall points, `stage` the stage points.
 #[cfg(test)]
 pub fn fill_b(t: &mut Entries, n: usize, p: &PlayerB) {
     t.set(n, 4, p.index.wrapping_add(1));
@@ -328,8 +327,9 @@ pub fn fill_b(t: &mut Entries, n: usize, p: &PlayerB) {
 }
 
 /// Table A's entry `n` filled from driver `d` of `drivers` (`menu::standings_from_drivers`):
-/// +0x14 / +0x1C / +0x18 / +8 / +0x10 / +0 / +0x4C its +0xC / +8 / +0x10 / +0x14 / +0x18 /
-/// +0 / +0x24, +4 0, +0xC its name's string number and +0x20 the text (with its NUL).
+/// `key` / `group` / `rally_time` / `nation` / `car` / `first` / `entered` its `time` / `class` /
+/// `total` / `nation` / `car` / `name_entry` / `in_event`, `player` 0, `name_id` its name's
+/// string number and `name` the text (with its NUL).
 #[cfg(test)]
 pub fn fill_a_from_driver(
     t: &mut Entries,
@@ -357,9 +357,9 @@ pub fn fill_a_from_driver(
     t.set_bytes(n, 0x20, text);
 }
 
-/// Table B's entry `n` filled from driver `d` (`menu::standings_b_from_all`): +4 0, +0x10 /
-/// +8 / +0xC / +0 / +0x34 its +8 / +0x14 / +0x18 / +0 / +0x10, +0x38 .. +0x6C its +0x5C ..
-/// +0x90, +0x14 the text of its name (with its NUL).
+/// Table B's entry `n` filled from driver `d` (`menu::standings_b_from_all`): `player` 0,
+/// `group` / `nation` / `car` / `first` / `total` its `class` / `nation` / `car` / `name_entry` /
+/// `total`, `overall` and `stage` its results, `name` the text of its name (with its NUL).
 #[cfg(test)]
 pub fn fill_b_from_driver(t: &mut Entries, n: usize, drivers: &Entries, d: usize, text: &[u8]) {
     let f = |at| drivers.get(d, at);
@@ -406,8 +406,8 @@ pub const B_GROUP_FIRSTS: [usize; 4] = [89, 119, 169, 179];
 #[cfg(test)]
 pub(crate) const SUMMARY_ROWS: usize = 0x5A;
 
-/// The summary's rows (+0, +4, +8, +0xC of each: the entry's +0xC, +8, +0x10, +0x14) from table A's
-/// first `SUMMARY_ROWS` entries with a group (+0x1C not 0; `grouped`) or without. None when the
+/// The summary's rows (each the entry's name, nationality, car and time) from table A's
+/// first `SUMMARY_ROWS` entries with a group (`group` not 0; `grouped`) or without. None when the
 /// table runs out first.
 #[cfg(test)]
 pub fn summary_rows(t: &Entries, grouped: bool) -> Option<Vec<[u32; 4]>> {

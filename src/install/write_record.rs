@@ -3,7 +3,7 @@
 //! ended CR LF. `install::read_record` reads it back.
 
 use crate::errors::Refused;
-use crate::install::installer::media_mode;
+use crate::install::installer::FULL_INSTALLATION;
 
 /// The record written; whether the write worked (`install_files` reads it).
 pub(super) fn write_record(
@@ -18,7 +18,7 @@ pub(super) fn write_record(
         &crate::memory::place::BytePlace::from(&install.paths.game_dir)
             .text("the game's folder")?,
         locale.as_deref(),
-        media_mode(),
+        FULL_INSTALLATION,
     );
     start.write(&text, "the install record's text")?;
     // files::write_file

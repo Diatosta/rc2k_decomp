@@ -1,7 +1,7 @@
 //! The passes over the players after a stage (the inspection and the service area): who is looked
 //! at, when the event is over, the service's minutes and money, and the pauses between the screens.
 
-/// A player's +0xD0: taking part, and out (failed the inspection).
+/// A player's `entry`: taking part, and out (failed the inspection).
 pub(crate) const TAKING_PART: u32 = 1;
 pub const OUT: u32 = 2;
 
@@ -38,7 +38,7 @@ pub fn more_minutes(minutes: u32) -> u32 {
     minutes.wrapping_add(SERVICE_MINUTES)
 }
 
-/// A serviced player's +0x288: the money spent times 100.
+/// A serviced player's `service_spent`: the money spent times 100.
 pub fn spent(money: u32) -> u32 {
     money.wrapping_mul(100)
 }

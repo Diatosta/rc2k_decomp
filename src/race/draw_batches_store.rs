@@ -10,30 +10,30 @@ use crate::memory::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct DrawBatches {
-    /// +0x0: the scene batch's vertices.
+    /// The scene batch's vertices.
     pub scene_vertices: PlainBytes<0x4000>,
-    /// +0x4000: the scene batch's indices.
+    /// The scene batch's indices.
     pub scene_indices: PlainBytes<0x1800>,
-    /// +0x5800: the plain batch's vertices (`race::frame_flush::plain`).
+    /// The plain batch's vertices (`race::frame_flush::plain`).
     pub plain_vertices: PlainBytes<0x8000>,
-    /// +0xd800: the plain batch's indices.
+    /// The plain batch's indices.
     pub plain_indices: PlainBytes<0x3000>,
-    /// +0x10800: the plain batch's triangle count (`race::frame_flush::plain`,
+    /// The plain batch's triangle count (`race::frame_flush::plain`,
     /// `race::draw_race_scene`).
     pub plain_count: PlainDword,
-    /// +0x10804: the plain batch's first word.
+    /// The plain batch's first word.
     pub plain_word: PlainDword,
-    /// +0x10808: the textured batch's vertices (`race::frame_flush::textured`).
+    /// The textured batch's vertices (`race::frame_flush::textured`).
     pub textured_vertices: PlainBytes<0x8200>,
-    /// +0x18a08: the textured batch's indices (lies inside, at +0x1860).
+    /// The textured batch's indices (lies inside, at +0x1860).
     pub textured_indices: PlainBytes<0x30C0>,
-    /// +0x1bac8: the textured batch's triangle count.
+    /// The textured batch's triangle count.
     pub textured_count: PlainDword,
-    /// +0x1bacc: the textured batch's first word.
+    /// The textured batch's first word.
     pub textured_word: PlainDword,
-    /// +0x1bad0: the plain batch's count, kept when it is flushed.
+    /// The plain batch's count, kept when it is flushed.
     pub plain_kept: PlainDword,
-    /// +0x1bad4: the textured batch's count, kept when it is flushed.
+    /// The textured batch's count, kept when it is flushed.
     pub textured_kept: PlainDword,
 }
 

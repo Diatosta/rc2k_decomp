@@ -34,14 +34,8 @@ pub type Mark = (u32, u8, u8);
 pub(crate) const UPDATE_TITLE: u16 = 0xBD;
 
 /// The main page's marks: not this version, "play" (+0x28) unusable; no installation, "uninstall"
-/// (+0x38) unusable; registration not offered, its item (+0x48) hidden; for the update script,
-/// "play" usable again and the other two hidden.
-pub fn main_page_marks(
-    same_version: bool,
-    installed: bool,
-    offer_registration: bool,
-    title: u16,
-) -> Vec<Mark> {
+/// (+0x38) unusable; for the update script, "play" usable again and "uninstall" hidden.
+pub fn main_page_marks(same_version: bool, installed: bool, title: u16) -> Vec<Mark> {
     let mut marks = Vec::new();
     if !same_version {
         marks.push((0x28, UNUSABLE, 0xFF));
@@ -49,15 +43,8 @@ pub fn main_page_marks(
     if !installed {
         marks.push((0x38, UNUSABLE, 0xFF));
     }
-    if !offer_registration {
-        marks.push((0x48, HIDDEN, 0xFF));
-    }
     if title == UPDATE_TITLE {
-        marks.extend([
-            (0x28, 0, !UNUSABLE),
-            (0x38, HIDDEN, 0xFF),
-            (0x48, HIDDEN, 0xFF),
-        ]);
+        marks.extend([(0x28, 0, !UNUSABLE), (0x38, HIDDEN, 0xFF)]);
     }
     marks
 }
@@ -122,16 +109,10 @@ mod tests {
         assert_eq!(When::of(0), When::Start);
         assert_eq!(When::of(u32::MAX), When::End);
         assert_eq!(When::of(3), When::Other);
-        assert_eq!(main_page_marks(true, true, true, 0), vec![]);
+        assert_eq!(main_page_marks(true, true, 0), vec![]);
         assert_eq!(
-            main_page_marks(false, true, false, UPDATE_TITLE),
-            vec![
-                (0x28, 0x80, 0xFF),
-                (0x48, 0x40, 0xFF),
-                (0x28, 0, 0x7F),
-                (0x38, 0x40, 0xFF),
-                (0x48, 0x40, 0xFF)
-            ]
+            main_page_marks(false, true, UPDATE_TITLE),
+            vec![(0x28, 0x80, 0xFF), (0x28, 0, 0x7F), (0x38, 0x40, 0xFF)]
         );
         let letters = |n: u32| b"cdf".get(n as usize).copied().unwrap_or(0);
         assert_eq!(drive_highlight(b'd', letters, 10), (1, Some(3)));

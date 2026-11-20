@@ -1,6 +1,6 @@
 //! `menu::take_player1_units`: the game's units from player 1's.
 //!
-//! The game's units setting (`strings::units::set_units`) = player 1's `metric_units` (+0x178):
+//! The game's units setting (`strings::units::set_units`) = player 1's `metric_units`:
 //! 1 for metric. Called at the start of each kind of event (`menu::single_rally` and more).
 
 use crate::errors::Refused;

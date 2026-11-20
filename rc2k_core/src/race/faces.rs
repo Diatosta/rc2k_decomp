@@ -128,7 +128,7 @@ pub fn switches(textures: [u32; 2]) -> [u32; 2] {
 /// A triangle's texture as `texture_coordinates` reads it (its 0x40-byte record).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TextureInfo {
-    /// +0x20: the size word.
+    /// The size word.
     pub size: u32,
     /// +0x2D, signed: 0 plain, above 0 mapped from the scene's x and z.
     pub mapping: i8,
@@ -390,17 +390,17 @@ impl Face {
             .map_or(0, |b| u32::from_le_bytes(*b))
     }
 
-    /// +0: the kind and flags (`LIT_KIND` for the lit faces and the cameras).
+    /// The kind and flags (`LIT_KIND` for the lit faces and the cameras).
     pub fn kind(&self) -> u8 {
         self.0[0]
     }
 
-    /// +1: the object.
+    /// The object.
     pub fn object(&self) -> u8 {
         self.0[1]
     }
 
-    /// +2: the switches word (`REPEATED`, `EXTRA_LIGHTS`, 0x1000 for a wheel's surface 5).
+    /// The switches word (`REPEATED`, `EXTRA_LIGHTS`, 0x1000 for a wheel's surface 5).
     pub fn switches(&self) -> u16 {
         self.word(2)
     }
@@ -446,7 +446,7 @@ impl Face {
         self.0[0x12] = angle;
     }
 
-    /// +0x11: the mark a touch leaves (0 untouched).
+    /// The mark a touch leaves (0 untouched).
     pub fn mark(&self) -> u8 {
         self.0[0x11]
     }
@@ -475,12 +475,12 @@ impl Face {
         self.0[0x2C + (k & 3)]
     }
 
-    /// +0x20: the second triangle's kind and flags (as +0 for the first).
+    /// The second triangle's kind and flags (as +0 for the first).
     pub fn second_kind(&self) -> u8 {
         self.0[0x20]
     }
 
-    /// +0x21: the second triangle's object.
+    /// The second triangle's object.
     pub fn second_object(&self) -> u8 {
         self.0[0x21]
     }
@@ -515,13 +515,13 @@ impl Default for Record {
 }
 
 impl Record {
-    /// +0: the first dword (its low four bits and bits 11 .. 14 the kind the records are
+    /// The first dword (its low four bits and bits 11 .. 14 the kind the records are
     /// grouped by).
     pub fn head(&self) -> u32 {
         u32::from_le_bytes(self.0[0..4].try_into().unwrap_or_default())
     }
 
-    /// +4: a scene point record's point number.
+    /// A scene point record's point number.
     pub fn number(&self) -> u32 {
         u32::from_le_bytes(self.0[4..8].try_into().unwrap_or_default())
     }

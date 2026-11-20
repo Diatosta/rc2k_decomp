@@ -47,7 +47,7 @@ fn lengths(names: &SampleNames, first: u32) -> Result<Vec<u32>, BadInput> {
     let mut key = first;
     let mut lengths = Vec::with_capacity(NAMES);
     for _ in 0..NAMES {
-        let length = crate::audio::store::name_in(names, key)?.len();
+        let length = crate::audio::sample_records::name_in(names, key)?.len();
         if length >= 0x100 {
             return Err(BadInput("a speech file's name without its end"));
         }

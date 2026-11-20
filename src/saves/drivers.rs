@@ -24,7 +24,7 @@ impl<'a> Driver<'a> {
     }
 
     /// The dword at `offset` of the record.
-    /// +8: the class.
+    /// The class.
     pub fn class(&self) -> u32 {
         self.0.class.get()
     }

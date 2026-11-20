@@ -1,5 +1,5 @@
 //! The inspection after a stage: which inspected parts of a player's car are at or past their
-//! limits, and the verdict. A part's index is its place in the player's +0xD4 .. +0x108 and in the
+//! limits, and the verdict. A part's index is its place in the player's `damage` and in the
 //! limits and penalties, fourteen each.
 
 use crate::menu::player::entry_kind;
@@ -13,7 +13,7 @@ pub fn faults(past: impl Fn(usize) -> bool) -> [u32; 13] {
     INSPECTED.map(|k| past(k) as u32)
 }
 
-/// The verdict: the penalties summed, the score and the player's entry kind (+0xD0).
+/// The verdict: the penalties summed, the score and the player's entry kind (`entry`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Verdict {
     pub penalties: u32,

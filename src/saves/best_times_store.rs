@@ -54,36 +54,36 @@ impl BestTimes {
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct TimeEntry {
-    /// +0: read by no code.
+    /// Read by no code.
     pub unread_0: PlainDword,
-    /// +4: the player (1 .. 4), 0 for a computer driver.
+    /// The player (1 .. 4), 0 for a computer driver.
     pub player: PlainDword,
-    /// +8: the nationality (the driver's +0x14).
+    /// The nationality (the driver's +0x14).
     pub nation: PlainDword,
-    /// +0xC: the name's string id.
+    /// The name's string id.
     pub name_id: PlainDword,
-    /// +0x10: the car (the driver's +0x18).
+    /// The car (the driver's +0x18).
     pub car: PlainDword,
-    /// +0x14: the time in a stage's table.
+    /// The time in a stage's table.
     pub stage_time: PlainDword,
-    /// +0x18: the time in a rally's table.
+    /// The time in a rally's table.
     pub rally_time: PlainDword,
-    /// +0x1C: the group (the driver's class).
+    /// The group (the driver's class).
     pub group: PlainDword,
-    /// +0x20: the name, NUL-ended.
+    /// The name, NUL-ended.
     pub name: PlainBytes<0x20>,
-    /// +0x40: 1 for a player's time.
+    /// 1 for a player's time.
     pub is_player: PlainDword,
-    /// +0x44: a figure.
+    /// A figure.
     pub figure: PlainDword,
-    /// +0x48 .. +0x50: read by no code but as the name's tail (a name without a NUL reads on into
+    /// Read by no code but as the name's tail (a name without a NUL reads on into
     /// it); 0 in the shipped data.
     pub unread_48: [PlainDword; 2],
-    /// +0x50: read by no code (0xB in a made-up entry).
+    /// Read by no code (0xB in a made-up entry).
     pub unread_50: PlainDword,
     /// +0x54, +0x58: read by no code.
     pub unread_54: [PlainDword; 2],
-    /// +0x5C: the checkpoints' times.
+    /// The checkpoints' times.
     pub checkpoints: [PlainDword; 16],
 }
 

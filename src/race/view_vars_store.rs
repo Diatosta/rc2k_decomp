@@ -12,65 +12,65 @@ use crate::race::groups_store::ViewAndRecords;
 /// (`ViewVarsCopy`), which only the view's drawing part reaches.
 #[derive(rc2k_derive::Cells)]
 pub struct ViewVars<K: CellKind = PlainCells> {
-    /// +0x0: the car block's `camera_switch_share` copied at the frame start (`race::frame_draw`);
+    /// The car block's `camera_switch_share` copied at the frame start (`race::frame_draw`);
     /// `race::car_draw` tests it against the drawn car, so it marks which car the view follows.
     pub view_car_flag_a: K::Float,
-    /// +0x4: the car block's `camera_view` copied at the frame start; the car's index into the
+    /// The car block's `camera_view` copied at the frame start; the car's index into the
     /// stage records (`race::car_draw`, `race::frame_draw`).
     pub view_car_stage: K::Dword,
-    /// +0x8: the car block's `camera_mode_is_2_or_3` copied at the frame start
+    /// The car block's `camera_mode_is_2_or_3` copied at the frame start
     /// (`race::frame_draw`); read by `camera_view` and written by `race::car_light_modes`.
     pub view_car_flag_b: K::Dword,
-    /// +0xc: copied to `view_scale` by `race::frame_draw` (the view's size scale).
+    /// Copied to `view_scale` by `race::frame_draw` (the view's size scale).
     pub view_scale_kept: K::Float,
-    /// +0x10: the car being drawn (`race::car_draw`, `scene::set_object_light`,
+    /// The car being drawn (`race::car_draw`, `scene::set_object_light`,
     /// `scene::list_object_face`).
     pub drawn_car: K::Dword,
-    /// +0x14: face group mask for the drawn car; the drawing's is the view's
+    /// Face group mask for the drawn car; the drawing's is the view's
     /// (`race::car_draw_state`), this one not used.
     pub group_mask: K::Dword,
-    /// +0x18: the car's fade alpha, now the view's (`race::face_work`); no longer reached.
+    /// The car's fade alpha, now the view's (`race::face_work`); no longer reached.
     pub fade_alpha_moved: K::Dword,
-    /// +0x1c: camera height bias (`physics::camera_height_bias`).
+    /// Camera height bias (`physics::camera_height_bias`).
     pub camera_height_bias: K::Dword,
-    /// +0x20: the camera height bias's scale (`physics::camera_height_bias`).
+    /// The camera height bias's scale (`physics::camera_height_bias`).
     pub camera_bias_scale: K::Float,
-    /// +0x24: held to 0 ..= 1 (`physics::camera_height_bias`).
+    /// Held to 0 ..= 1 (`physics::camera_height_bias`).
     pub camera_bias_limit: K::Float,
-    /// +0x28: a float, the far/scale (`scene::set_view_window`, `race::draw_mirror_view`,
+    /// A float, the far/scale (`scene::set_view_window`, `race::draw_mirror_view`,
     /// `race::race_end`).
     pub view_scale: K::Float,
-    /// +0x2c: `view_place`: the view place x, y, z (`scene::view_matrix`, `race::frame_draw`,
+    /// `view_place`: the view place x, y, z (`scene::view_matrix`, `race::frame_draw`,
     /// `drive::set_listener`). The three are written as a run.
     pub view_place: [K::Dword; 3],
-    /// +0x38: the place as floats (`race::course_faces`, `race::frame_draw`).
+    /// The place as floats (`race::course_faces`, `race::frame_draw`).
     pub view_place_f: [K::Float; 3],
-    /// +0x44: view x (`race::frame_draw`).
+    /// View x (`race::frame_draw`).
     pub view_x: K::Dword,
-    /// +0x48: view z (`race::frame_draw`).
+    /// View z (`race::frame_draw`).
     pub view_z: K::Dword,
-    /// +0x4c: `view_angles`: y, x, z then a second triple (`scene::view_matrix`,
+    /// `view_angles`: y, x, z then a second triple (`scene::view_matrix`,
     /// `race::frame_draw`).
     pub view_angles: [K::Dword; 6],
-    /// +0x64: the camera's zoom hold (`physics::update_camera`).
+    /// The camera's zoom hold (`physics::update_camera`).
     pub camera_zoom_hold: K::Float,
-    /// +0x68: unused; it only keeps the layout.
+    /// Unused; it only keeps the layout.
     pub unused_68: K::Dword,
-    /// +0x6c: the camera vector (three floats) whose length `physics::update_camera` takes.
+    /// The camera vector (three floats) whose length `physics::update_camera` takes.
     pub camera_vector: [K::Float; 3],
-    /// +0x78: unused.
+    /// Unused.
     pub unknown_78: [K::Dword; 14],
-    /// +0xb0: held to 0 ..= 1 (`physics::camera_height_bias`, `physics::update_camera`).
+    /// Held to 0 ..= 1 (`physics::camera_height_bias`, `physics::update_camera`).
     pub camera_distance: K::Float,
-    /// +0xb4: 0x34 pointers to view records (`physics::camera_view`, `drive::pick_replay_camera`,
+    /// 0x34 pointers to view records (`physics::camera_view`, `drive::pick_replay_camera`,
     /// `effects::stage_record`, `race::car_draw`).
     pub view_records: [K::Dword; 52],
-    /// +0x184: the view kind, the camera mode number (`drive::set_camera_view`;
+    /// The view kind, the camera mode number (`drive::set_camera_view`;
     /// `race::frame_draw::scene_objects` and `car_draw` branch on it).
     pub view_kind: K::Dword,
-    /// +0x188: unused; it only keeps the layout.
+    /// Unused; it only keeps the layout.
     pub unused_188: [K::Dword; 33],
-    /// +0x20c: the table of which views hide what, by camera view (`race::frame_draw`): 0 for
+    /// The table of which views hide what, by camera view (`race::frame_draw`): 0 for
     /// the views near the car (the faces its ground marks are hidden), 1 for the others.
     pub view_hides: [K::Dword; 52],
 }
@@ -81,35 +81,35 @@ pub struct ViewVars<K: CellKind = PlainCells> {
 /// placed by `physics::place_camera`, 6 by the finish camera too.
 #[derive(rc2k_derive::Cells)]
 pub struct ViewRecord {
-    /// +0x0: the mode's kind (what a replay camera wish stops at: `drive::pick_replay_camera`).
+    /// The mode's kind (what a replay camera wish stops at: `drive::pick_replay_camera`).
     pub kind: PlainDword,
-    /// +0x4: `xoff`, `yoff`, `zoff`: the camera's offset (floats; `take_first_view` /
+    /// `xoff`, `yoff`, `zoff`: the camera's offset (floats; `take_first_view` /
     /// `take_second_view` add the camera frame to it).
     pub offset: [PlainDword; 3],
-    /// +0x10: `xfoc`, `yfoc`, `zfoc`: the focus (floats). +0x10 .. +0x38 are the eleven figures the
+    /// `xfoc`, `yfoc`, `zfoc`: the focus (floats). +0x10 .. +0x38 are the eleven figures the
     /// views take whole (`take_first_view` / `take_second_view`).
     pub focus: [PlainDword; 3],
-    /// +0x1C: `xang`, `yang`, `zang`: the angles.
+    /// `xang`, `yang`, `zang`: the angles.
     pub angles: [PlainDword; 3],
-    /// +0x28: `mspx`, `mspy`, `mspz` (floats; the views' shares).
+    /// `mspx`, `mspy`, `mspz` (floats; the views' shares).
     pub speeds: [PlainDword; 3],
-    /// +0x34: the record's dword before `fish`; copied with the rest of the record and never
+    /// The record's dword before `fish`; copied with the rest of the record and never
     /// used otherwise.
     pub unknown_34: PlainDword,
-    /// +0x38: `fish` (a whole number).
+    /// `fish` (a whole number).
     pub fish: PlainDword,
-    /// +0x3C: how long a change into this mode takes (ticks; `physics::camera_view::share_done`).
+    /// How long a change into this mode takes (ticks; `physics::camera_view::share_done`).
     pub change_time: PlainDword,
-    /// +0x40: the three turn figures eased in over a change (floats; `ease_view_angles`).
+    /// The three turn figures eased in over a change (floats; `ease_view_angles`).
     pub turn_rates: [PlainDword; 3],
-    /// +0x4C: nonzero: the car's pitch and roll halved and the camera kept off the ground
+    /// Nonzero: the car's pitch and roll halved and the camera kept off the ground
     /// (`take_first_view`, `camera_avoid_ground`).
     pub halve_tilt: PlainDword,
-    /// +0x50: nonzero: the zoom held at 0x180 (`physics::update_camera`).
+    /// Nonzero: the zoom held at 0x180 (`physics::update_camera`).
     pub fixed_zoom: PlainDword,
-    /// +0x54: the height bias's figure (`camera_height_bias`; sign read).
+    /// The height bias's figure (`camera_height_bias`; sign read).
     pub height_bias: PlainDword,
-    /// +0x58: the blend's figure (`ease_view_blend`; sign read).
+    /// The blend's figure (`ease_view_blend`; sign read).
     pub blend: PlainDword,
 }
 

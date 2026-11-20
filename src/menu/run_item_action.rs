@@ -1,8 +1,8 @@
 //! `menu::run_item_action`: calls the action of the highlighted item of a menu.
 //!
 //! It goes through the menu's items (0x5C bytes each after a 4-byte head, ended by -1) until
-//! one's type (+0x10) is the highlighted item `loop_flags.item`. For that one it stores the
-//! item's dword at +0x54 in `draw_work.action_mode`, calls the item's action (+0x44) with that
+//! one's type (its first field) is the highlighted item `loop_flags.item`. For that one it stores the
+//! item's action value in `draw_work.action_mode`, calls the item's action with that
 //! value, and then sets `loop_flags.item` to the item's type again, whatever the action did to
 //! it. No item is found: nothing happens. The first item is looked at without being checked
 //! for the end mark. Refuses a menu without an end in its first 256 items.

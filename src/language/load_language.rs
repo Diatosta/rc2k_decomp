@@ -21,8 +21,6 @@
 //! - `strings::correct_lexicon`: four corrections in the lexicon itself: in string 0x6CA the word
 //!   "Bowland" loses its `w`, in 0x6AB "Laukennen" becomes "Laukkanen", and in 0x23B the word
 //!   "A7" or "(A7)" is replaced by string 0x23A's "A8" or "(A8)";
-//! - `offer_registration` = 1 if the notice kind is 2, string 0x57C is not empty and the file
-//!   `;4ereg\eregip.exe` is there, else 0.
 //!
 //! Refuses a string 2 of odd length and one of the four corrections meeting its word where the
 //! string is that word alone.
@@ -92,7 +90,7 @@ pub fn load_language(
     o: crate::owners::Owners<'static>,
     compile: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let (strings, install) = (o.strings, o.install);
+    let strings = o.strings;
     compile()?;
     o.input.layouts().use_built_in(o.input);
 
@@ -141,7 +139,5 @@ pub fn load_language(
 
     correct_lexicon(strings)?;
 
-    install.flags.offer_registration.set(false);
-    // The standalone offers no registration.
     Ok(())
 }

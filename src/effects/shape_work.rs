@@ -5,31 +5,31 @@ use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 /// A shape set (0xAB8 bytes): the working block and each set copied from it.
 #[derive(rc2k_derive::Cells)]
 pub struct MarkShapes {
-    /// +0x0: list A's farthest pair (inner, outer)
+    /// List A's farthest pair (inner, outer)
     pub farthest_a: [PlainDword; 2],
-    /// +0x8: list B's farthest pair
+    /// List B's farthest pair
     pub farthest_b: [PlainDword; 2],
-    /// +0x10: a, b, c, d scaled, two zeros, the two tilts
+    /// A, b, c, d scaled, two zeros, the two tilts
     pub steps: [PlainDword; 8],
-    /// +0x38: list A's point count
+    /// List A's point count
     pub count_a: PlainDword,
-    /// +0x3C: list B's point count
+    /// List B's point count
     pub count_b: PlainDword,
-    /// +0x40: list A's point ids (then pointers into the object's points)
+    /// List A's point ids (then pointers into the object's points)
     pub ids_a: [PlainDword; 64],
-    /// +0x140: list B's point ids
+    /// List B's point ids
     pub ids_b: [PlainDword; 64],
-    /// +0x240: the face of each point of list A
+    /// The face of each point of list A
     pub faces_a: [PlainDword; 64],
-    /// +0x340: the face of each point of list B
+    /// The face of each point of list B
     pub faces_b: [PlainDword; 64],
-    /// +0x440: 64 points of 12 bytes, turned
+    /// 64 points of 12 bytes, turned
     pub turned_a: PlainBytes<768>,
-    /// +0x740: list B's turned points
+    /// List B's turned points
     pub turned_b: PlainBytes<768>,
-    /// +0xA40: list A's lowest point
+    /// List A's lowest point
     pub low_a: [PlainDword; 3],
-    /// +0xA4C: list B's lowest point
+    /// List B's lowest point
     pub low_b: [PlainDword; 3],
     /// 0xA58: list A's 3 x 3 turn (X times Z)
     pub matrix_a: [PlainFloat; 9],

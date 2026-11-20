@@ -1,5 +1,5 @@
-//! `menu::reset_player_times`: the four players' +0x88 3600000 (an hour in
-//! milliseconds: no time yet) and +0xD0 6; `event.event_goes_on` 0.
+//! `menu::reset_player_times`: the four players' `time` 3600000 (an hour in
+//! milliseconds: no time yet) and `entry` 6 (out); `event.event_goes_on` 0.
 //!
 //! Refuses a missing player, before anything.
 use crate::errors::Refused;

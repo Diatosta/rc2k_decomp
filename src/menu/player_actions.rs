@@ -1,7 +1,7 @@
 //! More menu item actions (found by surveying the menu and draw-list tables):
-//! - the current player's settings: keep the key copy (0x2C bytes to +0x50), lower the dead
-//!   zones (+0x40, +0x44), step the strength (+0x48, by ten, 0 .. 100), turn the mode's bit 0
-//!   (+0x3C);
+//! - the current player's settings: keep the key copy (the bindings), lower the dead
+//!   zones (`end_zone_pct`, `centre_dead_zone_pct`), step the `strength` (by ten, 0 .. 100), turn
+//!   the `controller_mode`'s bit 0;
 //! - the best scores' page (`pages.scores_page`, 0 .. 10) and the replays' range
 //!   (`pages.replay_page`, 0 .. 4) one more or less, wrapping, then the replays' caption;
 //! - `menu::player_N_car_specs`: `menu::show_car_specs` for player N (0 .. 3);

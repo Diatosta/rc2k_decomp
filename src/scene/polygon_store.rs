@@ -9,31 +9,31 @@ use crate::memory::session::{PlainByte, PlainBytes, PlainDword};
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonEntry {
-    /// +0x0: the scene point's number.
+    /// The scene point's number.
     pub point: PlainDword,
-    /// +0x4: the point record (`PointRecord`) of its projection.
+    /// The point record (`PointRecord`) of its projection.
     pub record: PlainDword,
-    /// +0x8: the texture u.
+    /// The texture u.
     pub u: PlainDword,
-    /// +0xC: the texture v.
+    /// The texture v.
     pub v: PlainDword,
-    /// +0x10: the second texture u.
+    /// The second texture u.
     pub u2: PlainDword,
-    /// +0x14: the second texture v.
+    /// The second texture v.
     pub v2: PlainDword,
-    /// +0x18: the light (colour).
+    /// The light (colour).
     pub light: PlainDword,
-    /// +0x1C: the lamp light, added to the light before drawing (`race::course_faces`: a
+    /// The lamp light, added to the light before drawing (`race::course_faces`: a
     /// corner's; 0 for skidmarks and tinted quads). A reading.
     pub lamp_light: PlainDword,
-    /// +0x20: the fog byte.
+    /// The fog byte.
     pub fog: PlainByte,
-    /// +0x21: the amount (alpha) byte.
+    /// The amount (alpha) byte.
     pub amount: PlainByte,
-    /// +0x22: the two top bytes of the dword holding `fog` and `amount`; copied along with the
+    /// The two top bytes of the dword holding `fog` and `amount`; copied along with the
     /// entry, never given a meaning (padding).
     pub pad_22: PlainBytes<2>,
-    /// +0x24: work space of the clip (`scene::clip`).
+    /// Work space of the clip (`scene::clip`).
     pub work: PlainBytes<32>,
 }
 

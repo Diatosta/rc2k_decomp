@@ -18,15 +18,15 @@ owner (`src/install/owner.rs`).
 
 Start-up reads two things in `read_command_line_and_install_state` (`src/standalone.rs`): the
 command line (`system::read_command_line`) and whatever record of an installation exists
-(`src/install/read_record.rs`, `src/install/portable.rs`).
+(`src/install/read_record.rs`, `src/install/record.rs`).
 
 `system::main_loop` then runs the installer instead of the front end if any of these holds:
 
 | Condition | Meaning | Checked by |
 | --- | --- | --- |
-| The folder has the game's data but no installation record | The program was started in the CD's files (or a copy of them). | `install::portable::is_source_folder` |
+| The folder has the game's data but no installation record | The program was started in the CD's files (or a copy of them). | `install::record::is_source_folder` |
 | The command line has `-u` | Uninstall the installation in this folder. | `install.flags.updating` |
-| The installer was set up by start-up | The original's other routes in (`-i`, special discs). | `src/install/check_at_start.rs` |
+| The installer was set up by start-up | The original's route in for an update. | `src/install/check_at_start.rs` |
 
 "The CD's files" means a folder holding the disc's contents, with its `FILES` folder. It does
 not have to be a CD: a copy on the hard disk works the same, and that is the expected way to
@@ -65,17 +65,17 @@ when it closes; those are the `..._page.rs` files, called by name from `run_page
 
 | Page | File | What it does |
 | --- | --- | --- |
-| Main | `mark_main_page.rs` | Install, play the installed copy (or copy an update from its disc), uninstall. Items that do not apply cannot be chosen. |
+| Main | `mark_main_page.rs` | Install, play the installed copy, uninstall. Items that do not apply cannot be chosen. |
 | Language | `language_page.rs` | Choose the game's language. Not shown if the CD has only one, or if this build is installed already. The choice is loaded at once, so the following pages are in that language. |
 | Drive | `drive_page.rs` | Windows only: choose the drive. On systems without drive letters the page is not part of the flow. |
 | Folder | `folder_page.rs` | Type or accept the folder. A bad name shows why (`check_folder_name.rs`). |
-| Not enough room | `room_page.rs` | Shown if the disk is too small; the player may go on anyway (`ignore_room.rs`). |
+| Not enough room | `room_page.rs` | Shown if the disk is too small; the player may go on anyway (the action is in `room_page.rs`). |
 | Removal | `removal_page.rs` | For an uninstall: remove everything, keep the saves and settings, or go back. |
 
 Between pages the installer does work that shows no page of its own: copying the files
 (`install_files.rs`, with the progress display of `install_frames.rs`; Escape cancels),
 removing the installation (`uninstall.rs`), making the installed copy the one that runs
-(`open_installed.rs`), copying an update from its disc (`install_clio.rs`).
+(`open_installed.rs`).
 
 ### The flow
 
@@ -105,8 +105,9 @@ until one leads nowhere.
 | | back | Main, or the installer ends when it began here |
 
 The original also had a page for the kind of installation (how much to copy to the hard disk
-and how much to leave on the CD), a DirectX set-up page and a registration page. None of them
-exists here: the installation is always the full one. The game itself still reads the kind
+and how much to leave on the CD), a DirectX set-up page, a registration page, an update copied
+from the Clio's disc and the `-i` and `-p` switches that installed without the pages. None of
+them exists here: the installation is always the full one. The game itself still reads the kind
 from an installation's record, so an installation the 1999 installer made with files left on
 the CD is still understood ([Install records](Install-records)).
 
@@ -133,7 +134,7 @@ After the program has closed, the installed copy is started.
 ## The installation record
 
 The original recorded an installation in the Windows registry. This program writes a small
-file instead, `var/install.cfg` inside the installed folder (`src/install/portable.rs`). The
+file instead, `var/install.cfg` inside the installed folder (`src/install/record.rs`). The
 folder is therefore self-contained: it can be moved, copied to another machine, or put on a
 handheld, and is still a valid installation. On reading, "where the game is installed" is
 always the folder the program is running in.
@@ -193,6 +194,7 @@ removed after the program ends.
 | Records the installation in the registry | `var/install.cfg` in the installed folder. |
 | Asks for the kind of installation | Always the full installation. |
 | Offers DirectX set-up and registration | Neither. |
+| Copies an update from the Clio's disc; installs without pages with `-i` and `-p` | Neither: the Clio's car is offered when its file is among the game's files, and the installer always shows its pages. |
 | Adds Start menu items through the Windows shell's old program-group interface | Ordinary shortcuts (or the system's equivalent). |
 | "Uninstall" runs the program from the CD | Runs the installed program with `-u`. |
 | Registers the game for network lobbies | Not done; network play uses its own protocol ([Network play](Network-play)). |
@@ -209,7 +211,7 @@ environment variable `RC2K_DOWNLOAD`. See [Testing](Testing).
 
 | To change or understand | Start in |
 | --- | --- |
-| When the installer runs | `src/system/main_loop.rs`, `src/install/portable.rs` |
+| When the installer runs | `src/system/main_loop.rs`, `src/install/record.rs` |
 | The installer's outline | `src/install/run_installer.rs`, `run_pages.rs`, `rc2k_core/src/install/flow.rs` |
 | How a page works | `src/install/run_page.rs`, `page_key.rs`, `src/memory/list_handle.rs`, `src/install/list_pages.rs` |
 | The pages' lists, pieces and links | `src/install/vars.rs`, `page_records.rs`, `page_links.rs` |

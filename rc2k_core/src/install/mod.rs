@@ -7,7 +7,6 @@ pub mod edits;
 pub mod flow;
 pub mod items;
 pub mod layout;
-pub mod lobby;
 pub mod pages;
 pub mod paths;
 pub mod pieces;

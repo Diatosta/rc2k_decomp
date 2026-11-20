@@ -14,23 +14,23 @@ pub(crate) const NAME_MOVED: usize = 0x1F;
 /// One best score (0x3C bytes).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ScoreEntry {
-    /// +0: where the player's name was (a game address), written when entered and never moved by a
+    /// Where the player's name was (a game address), written when entered and never moved by a
     /// ranking. -1 ends a list.
     pub name_ref: u32,
-    /// +4: the player (1 .. 4); 0 for a made-up entry, cleared after the pages.
+    /// The player (1 .. 4); 0 for a made-up entry, cleared after the pages.
     pub player: u32,
-    /// +8: the nationality.
+    /// The nationality.
     pub nation: u32,
-    /// +0xC: the car.
+    /// The car.
     pub car: u32,
-    /// +0x10: the group (the player's class).
+    /// The group (the player's class).
     pub group: u32,
-    /// +0x14: 1 for an entry made in this event, cleared after the pages.
+    /// 1 for an entry made in this event, cleared after the pages.
     pub new: u32,
-    /// +0x18: the name; a made-up entry's has no NUL, an entered one the player's first 0x1F
+    /// The name; a made-up entry's has no NUL, an entered one the player's first 0x1F
     /// bytes.
     pub name: [u8; NAME_ROOM],
-    /// +0x38: the score.
+    /// The score.
     pub score: u32,
 }
 

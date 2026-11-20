@@ -1,5 +1,5 @@
 //! `menu::reset_single_event`: `champ_view.services` / `event.stages_done` 0; every
-//! driver's +0x10 / +0xC / +0x20 0 and +0x24 1; `event.event_goes_on` 1, `event.event_out` 0; the
+//! driver's times 0 and in the event (`Driver::begin`); `event.event_goes_on` 1, `event.event_out` 0; the
 //! four players' `total` and `unread_84` 0 and `entry` 1 (`Player::begin`; a single event's
 //! start).
 //!

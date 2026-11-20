@@ -169,7 +169,7 @@ pub(super) fn step_stage_page(o: Owners<'static>, up: bool) -> Result<(), Refuse
     play_stage_speech(o)
 }
 
-/// The stage item's two looks: (+0x1C, +0x20, +0x50).
+/// The stage item's two looks: what is behind its text, its sprite and its highlight font.
 pub(super) fn style_stage_item(menus: &Menus, b: bool) -> Result<(), Refused> {
     use crate::menu::item_sprites_store::ItemSprite;
     let item = crate::menu::item_at::item_at(menus, 1)?;

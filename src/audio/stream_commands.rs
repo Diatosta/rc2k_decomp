@@ -111,7 +111,10 @@ pub fn stream_command(
 ) -> Result<(), Refused> {
     let text = match name {
         0 => None,
-        _ => Some(crate::audio::store::name_in(&audio.sample_names, name)?),
+        _ => Some(crate::audio::sample_records::name_in(
+            &audio.sample_names,
+            name,
+        )?),
     };
     let path = text.as_deref().map(StreamPath::Name);
     let mut p = GamePlayer {

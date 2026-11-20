@@ -68,7 +68,7 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
                 .record(at.sound)
                 .expect("a sound inside the records"),
             &mut |p| {
-                let name = crate::audio::store::name_in(&self.audio.sample_names, p)?;
+                let name = crate::audio::sample_records::name_in(&self.audio.sample_names, p)?;
                 let problem = match samples::read_sample_in_game(&self.audio.state, &name) {
                     // A file that is not a sound the game can use stays silent, with one notice.
                     Err(Refused::BadInput(why)) => why.0,

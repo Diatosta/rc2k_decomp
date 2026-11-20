@@ -1,7 +1,7 @@
 //! `menu::inspection_verdict`: the current player's (`event.current_player`) inspection
 //! verdict. The penalties (the penalties ..) of its inspected parts at or past their
 //! limits whose flag in the service box flags (index + 2) is 0 added up; 100
-//! less that into the inspection score; the player's +0xD0 1 when that is at least 100 (no
+//! less that into the inspection score; the player's `entry` 1 when that is at least 100 (no
 //! penalty), else 2.
 //!
 //! Refuses a current player past 3 or missing, before anything.

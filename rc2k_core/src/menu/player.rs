@@ -10,7 +10,7 @@ pub const PLAYERS: u32 = 4;
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct Player {
-    /// Record +0x00: nothing reads or writes it (the saved games carry it as it is).
+    /// Nothing reads or writes it (the saved games carry it as it is).
     pub unused_0: u32,
     /// The player's nationality (0 Great Britain, 1 Argentina, ..; `CaptionTables.nationalities[0]`
     /// has their strings, the flag is sprite 0x1C + it).
@@ -39,31 +39,31 @@ pub struct Player {
     /// The controller's sensitivity, 0 .. 3 (string 0x3A1 + it on the controller page;
     /// the bindings' texts go by it, `screens::controls::Binding::kind`).
     pub sensitivity_level: u32,
-    /// The learned pedals' axes (+0x3A the second pedal's, +0x3B the first's;
+    /// The learned pedals' axes (the second pedal's byte is the third, the first's the fourth;
     /// `screens::learning::pedal`), handed to the device's set-up as one dword.
     pub axis_codes: [u8; 4],
     /// Kept as the old record has it so a saved file round-trips; nothing reads it now (the H
     /// shifter switch is the controller profile's `shifter`).
     pub controller_mode: u32,
-    /// +0x40: the stick's end zone in percent of its travel (0 at start): the share at the
+    /// The stick's end zone in percent of its travel (0 at start): the share at the
     /// far end that counts as full. The controller page's first slider; with the centre dead
     /// zone it leaves the rest of 100 (`lower_end_zone`, `raise_dead_zone`).
-    /// `input::set_up_device` copies it to the device's `end_zone` (+0x14). Sure: the
+    /// `input::set_up_device` copies it to the device's `end_zone`. Sure: the
     /// device fields' names and the defaults (0 here, 10 below).
     pub end_zone_pct: u32,
-    /// +0x44: the stick's centre dead zone in percent (10 at start): the share around the
-    /// middle that reads as 0. The second slider; copied to the device's `dead_zone` (+0x18).
+    /// The stick's centre dead zone in percent (10 at start): the share around the
+    /// middle that reads as 0. The second slider; copied to the device's `dead_zone`.
     pub centre_dead_zone_pct: u32,
     /// The device's strength, 0 .. 100 in tens (`step_strength`;
     /// shown for a device that has it).
     pub strength: u32,
-    /// Record +0x4C: the word between `strength` and the bindings; no page or race
+    /// The word between `strength` and the bindings; no page or race
     /// copy reads it (the device set-up reads the car's copy of it as a gap).
     pub unused_4c: u32,
     /// The controller's bindings (`ControlsBlock`), which the controller pages copy out
     /// (`screens::pick_player_n`) and back (`menu::keep_player_keys`).
     pub bindings: ControlsBlock,
-    /// Record +0x7C .. +0x84: nothing reads or writes it.
+    /// Nothing reads or writes it.
     pub unused_7c: [u8; 8],
     /// Zeroed for each player by `menu::begin_event` and `menu::reset_single_event`; nothing
     /// reads it.
@@ -72,7 +72,7 @@ pub struct Player {
     pub time: u32,
     /// The event's total time (`menu::reset_player_totals`; 0 at `menu::begin_event`).
     pub total: u32,
-    /// The car's class, 0 .. 3 (its description's +8, `menu::take_shown_car`; the
+    /// The car's class, 0 .. 3 (its description's class, `menu::take_shown_car`; the
     /// standings' group).
     pub class: u32,
     /// The stage's figure (the time trial's; 0 at `menu::ready_players`).
@@ -132,9 +132,9 @@ pub struct Player {
     /// The car's eight impact marks (`impact_octant_marks`, 0 .. 1 floats' bits, one per
     /// octant of a hit's direction), carried from stage to stage; a body repair zeroes them.
     pub impact_marks: [u32; 8],
-    /// Record +0x26C .. +0x274: nothing reads or writes it.
+    /// Nothing reads or writes it.
     pub unused_26c: [u8; 8],
-    /// +0x274: the A8 championship's start section, 0 .. 6 (`SCREEN_FLOW.start_section_a8`;
+    /// The A8 championship's start section, 0 .. 6 (`SCREEN_FLOW.start_section_a8`;
     /// player 0's, kept in the saved game).
     pub saved_start_section_a8: u32,
     /// The car's state bits (the tyres' and the body's are set by a repair, `workshop`; -1
@@ -217,7 +217,7 @@ impl Player {
 }
 
 /// The controller's bindings: 0x2C bytes, 11 little-endian dwords, kept in the player's record
-/// (+0x50), in the keys' table and in the controller pages' copy.
+/// (`bindings`), in the keys' table and in the controller pages' copy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ControlsBlock([u8; CONTROLS_LEN]);
 
@@ -435,14 +435,14 @@ impl Player {
         }
     }
 
-    /// `menu::take_shown_car`: the car of a car list's entry (its +0 the car's number, +8
-    /// its class) given to the player.
+    /// `menu::take_shown_car`: the car of a car list's entry (its car number and its
+    /// class) given to the player.
     pub fn take_car(&mut self, number: u32, class: u32) {
         self.car_number = number;
         self.class = class;
     }
 
-    /// Binding `k` (0 .. 10; +0x50 + 4 k).
+    /// Binding `k` (0 .. 10).
     pub fn binding(&self, k: usize) -> u32 {
         self.bindings.word(k)
     }
@@ -576,7 +576,7 @@ impl Player {
     }
 }
 
-/// `menu::set_player_entry_kind`: the current player's +0xD0 for a score: 1 at 100 or more
+/// `menu::set_player_entry_kind`: the current player's `entry` for a score: 1 at 100 or more
 /// (signed), else 2.
 pub fn entry_kind(score: i32) -> u32 {
     if score >= 100 { 1 } else { 2 }

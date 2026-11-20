@@ -168,23 +168,23 @@ impl WindscreenFlakeTables {
 /// `expire_windscreen_flakes`, `run_windscreen_flakes`).
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeItem {
-    /// +0: 1 while the flake lives, 0 for a free item.
+    /// 1 while the flake lives, 0 for a free item.
     pub live: PlainDword,
-    /// +4: the scene clock when it was made.
+    /// The scene clock when it was made.
     pub born: PlainDword,
-    /// +8: its age in frame ticks.
+    /// Its age in frame ticks.
     pub age: PlainDword,
-    /// +0xC: the flake's texture u offset: its kind (0 .. 7) / 16 + 1/512, the tile across the
+    /// The flake's texture u offset: its kind (0 .. 7) / 16 + 1/512, the tile across the
     /// sheet (set at spawn, added to the four vertices' u by `run_windscreen_flakes`).
     pub texture_u: PlainFloat,
-    /// +0x10: the flake's texture v offset: 0 (from the third constant of `tile_offset_k`), added
+    /// The flake's texture v offset: 0 (from the third constant of `tile_offset_k`), added
     /// to the four vertices' v.
     pub texture_v: PlainFloat,
-    /// +0x14: three dwords, always 0 (nothing read them, so they are no longer written).
+    /// Three dwords, always 0 (nothing read them, so they are no longer written).
     pub spare_14: [PlainDword; 3],
     /// +0x20, +0x24: its place (x, z) as floats.
     pub place: [PlainFloat; 2],
-    /// +0x28: five dwords, always 0 (nothing read them, so they are no longer written).
+    /// Five dwords, always 0 (nothing read them, so they are no longer written).
     pub spare_28: [PlainDword; 5],
 }
 

@@ -1,5 +1,5 @@
 //! What the four redefine keys pages share ("REDEFINE KEYBOARD", `defkeys.png`): the twelve
-//! keys a player drives with (`Player::keys`, +0x1C), a copy of them the page works on, and the
+//! keys a player drives with (`Player::keys`), a copy of them the page works on, and the
 //! key being redefined.
 //!
 //! An item's action (`menu::choose_key_0` .. `_11`) sets the redefining key to 1 and the

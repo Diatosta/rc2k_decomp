@@ -1,5 +1,5 @@
-//! `menu::reset_driver_condition`: every driver's twelve figures
-//! +0x2C .. +0x58 set to 100 (a reading: the cars' condition at an event's start).
+//! `menu::reset_driver_condition`: every driver's twelve `condition` figures
+//! set to 100 (a reading: the cars' condition at an event's start).
 //!
 //! Refuses a table without its end entry, before anything.
 use crate::errors::Refused;

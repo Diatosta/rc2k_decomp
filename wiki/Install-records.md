@@ -114,7 +114,7 @@ sku=dvd:2:1.4
 
 Without the file, or without the key, the game keeps its built-in edition.
 
-Code: `src/install/portable.rs` (`var/install.cfg`, and the test for a download folder),
+Code: `src/install/record.rs` (`var/install.cfg`, and the test for a download folder),
 `src/install/read_record.rs`, `src/install/write_record.rs`, `src/install/read_languages.rs`,
 `src/install/read_sku.rs`, `rc2k_core/src/install/config.rs` (the rules of the three older
 files, with tests).

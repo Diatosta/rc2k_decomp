@@ -23,7 +23,7 @@ pub enum Var {
     SetUpDriver,
     SetUpDriver2,
     SetUpSection,
-    /// The chosen player's race number (+0x28) and car (+8).
+    /// The chosen player's race number and car number.
     RacerNumber,
     RacerCar,
 }

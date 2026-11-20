@@ -23,21 +23,21 @@ const ITEM: u32 = 0x10;
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView, rc2k_derive::ZeroCells)]
 pub struct ListHeader {
-    /// +0: the flags.
+    /// The flags.
     pub flags: PlainByte,
-    /// +1: the number of items.
+    /// The number of items.
     pub count: PlainByte,
-    /// +2: the title's string.
+    /// The title's string.
     pub title_text: PlainWord,
-    /// +4: the item highlighted.
+    /// The item highlighted.
     pub highlight: PlainDword,
-    /// +8: nothing reads it (what a page does is `install::run_page`'s to know).
+    /// Nothing reads it (what a page does is `install::run_page`'s to know).
     pub action: PlainDword,
-    /// +0xC: nothing reads it.
+    /// Nothing reads it.
     pub unused_0c: PlainDword,
-    /// +0x10: the link to the neighbours table (0 for none).
+    /// The link to the neighbours table (0 for none).
     pub neighbours: PlainDword,
-    /// +0x14: nothing reads it.
+    /// Nothing reads it.
     pub key_action: PlainDword,
 }
 
@@ -71,17 +71,17 @@ impl ListHeader {
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView, rc2k_derive::ZeroCells)]
 pub struct Item {
-    /// +0: the kind (low nibble) and marks (high bits).
+    /// The kind (low nibble) and marks (high bits).
     pub first: PlainByte,
-    /// +1: the next list or the number of choices.
+    /// The next list or the number of choices.
     pub count: PlainByte,
-    /// +2: the item's text (a string id).
+    /// The item's text (a string id).
     pub text: PlainWord,
-    /// +4: the link to the item's box.
+    /// The link to the item's box.
     pub box_link: PlainDword,
-    /// +8: the link or action, or where the item's value or text is.
+    /// The link or action, or where the item's value or text is.
     pub target: PlainDword,
-    /// +0xC: the choices, the edit record or the text action.
+    /// The choices, the edit record or the text action.
     pub data: PlainDword,
 }
 
@@ -129,7 +129,6 @@ macro_rules! list_data {
 list_data! {
     ListData3: 3,
     ListData4: 4,
-    ListData5: 5,
     ListData6: 6,
     ListData10: 10,
     ListData18: 18,
@@ -167,12 +166,12 @@ impl ListMenu {
         }
     }
 
-    /// +0: the flags (bit 4 the page stays on Escape, bits 6 and 7 the page hidden).
+    /// The flags (bit 4 the page stays on Escape, bits 6 and 7 the page hidden).
     pub fn flags(self) -> u8 {
         self.header.flags.get()
     }
 
-    /// +1: the number of items.
+    /// The number of items.
     pub fn count(self) -> u8 {
         self.header.count.get()
     }
@@ -181,12 +180,12 @@ impl ListMenu {
         self.header.count.set(count);
     }
 
-    /// +2: the title's string.
+    /// The title's string.
     pub fn title_text(self) -> u16 {
         self.header.title_text.get()
     }
 
-    /// +4: the item highlighted.
+    /// The item highlighted.
     pub fn highlight(self) -> u32 {
         self.header.highlight.get()
     }
@@ -240,7 +239,7 @@ impl PartialEq for ListItem {
 impl Eq for ListItem {}
 
 impl ListItem {
-    /// +0: the kind (low nibble) and marks (high bits), whole.
+    /// The kind (low nibble) and marks (high bits), whole.
     pub fn first(self) -> u8 {
         self.0.first.get()
     }
@@ -254,12 +253,12 @@ impl ListItem {
         self.first() & 0xF
     }
 
-    /// +1: the next list (a link) or the number of choices.
+    /// The next list (a link) or the number of choices.
     pub fn count(self) -> u8 {
         self.0.count.get()
     }
 
-    /// +2: the item's text (a string id).
+    /// The item's text (a string id).
     pub fn text_id(self) -> u16 {
         self.0.text.get()
     }
@@ -274,12 +273,12 @@ impl ListItem {
         self.count()
     }
 
-    /// +8: the link's or action's address, or where the item's value or text is.
+    /// The link's or action's address, or where the item's value or text is.
     pub fn target(self) -> u32 {
         self.0.target.get()
     }
 
-    /// +0xC: the pointer to the choices, the edit record or the text action.
+    /// The pointer to the choices, the edit record or the text action.
     pub fn data(self) -> u32 {
         self.0.data.get()
     }
@@ -289,7 +288,7 @@ impl ListItem {
         self.0.data.get().to_le_bytes()[0]
     }
 
-    /// +0xD: the most value (a value item).
+    /// The most value (a value item).
     pub fn value_most(self) -> u8 {
         self.0.data.get().to_le_bytes()[1]
     }

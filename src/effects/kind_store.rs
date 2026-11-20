@@ -16,43 +16,43 @@ use crate::memory::session::{PlainDword, PlainFloat};
 /// offsets are from its start.
 #[derive(rc2k_derive::Cells)]
 pub struct QuadWork {
-    /// +0x0: the quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two
+    /// The quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two
     /// triples blended
     pub place: [PlainFloat; 3],
-    /// +0x10: the light's way turned by the matrix (`draw_shadow`), a reading
+    /// The light's way turned by the matrix (`draw_shadow`), a reading
     pub light_turned: [PlainFloat; 3],
-    /// +0x1C: the matrix turned about z by the angle (`turn_matrix3`); its rows are made the
+    /// The matrix turned about z by the angle (`turn_matrix3`); its rows are made the
     /// frame's
     pub matrix: [PlainFloat; 9],
-    /// +0x4C: the quad's two sides: the kind's triple (`copied`), then (0, difference y, minus
+    /// The quad's two sides: the kind's triple (`copied`), then (0, difference y, minus
     /// difference x)
     pub sides: [[PlainFloat; 3]; 2],
-    /// +0x70: the sides made one long and square (`normalise_vector3`, `cross_product3`); the light
+    /// The sides made one long and square (`normalise_vector3`, `cross_product3`); the light
     /// turned is stored in the third
     pub frame: [[PlainFloat; 3]; 3],
-    /// +0x94: the corner of the mark corners table (-1: none), the kind's `count`
+    /// The corner of the mark corners table (-1: none), the kind's `count`
     pub corner: PlainDword,
-    /// +0x98: the kind's size over its divisor (`kind_values`)
+    /// The kind's size over its divisor (`kind_values`)
     pub ratio: PlainFloat,
-    /// +0x9C: the kind's size times its constant (`kind_values`)
+    /// The kind's size times its constant (`kind_values`)
     pub size: PlainFloat,
-    /// +0xA0: the kind's start times its constant
+    /// The kind's start times its constant
     pub start: PlainFloat,
-    /// +0xA4: the angle line below the split: the factor
+    /// The angle line below the split: the factor
     pub step: PlainFloat,
-    /// +0xA8: the split of the angle's two lines: the kind's `low` (signed compare of the bits)
+    /// The split of the angle's two lines: the kind's `low` (signed compare of the bits)
     pub low: PlainFloat,
-    /// +0xAC: the kind's `high`
+    /// The kind's `high`
     pub high: PlainFloat,
-    /// +0xB0: the angle line above the split: its base
+    /// The angle line above the split: its base
     pub middle: PlainFloat,
-    /// +0xB4: the angle line above the split: its factor
+    /// The angle line above the split: its factor
     pub slope: PlainFloat,
-    /// +0xB8: the factor the quad is drawn in by (`corners_in`)
+    /// The factor the quad is drawn in by (`corners_in`)
     pub spread: PlainFloat,
-    /// +0xBC: the way between two corners, made one long (`normalise_vector3`)
+    /// The way between two corners, made one long (`normalise_vector3`)
     pub way: [PlainFloat; 3],
-    /// +0xC8: the quad's four corners (z, y, x), turned to the view then projected
+    /// The quad's four corners (z, y, x), turned to the view then projected
     pub corners: [[PlainFloat; 3]; 4],
 }
 
@@ -502,9 +502,9 @@ pub(super) static TABLES_2: KindTables = KindTables {
 /// Set 1's two outs after its quad.
 #[derive(rc2k_derive::Cells)]
 pub struct KindExtras1 {
-    /// +0x0: the kind's `extra` times `extra_k`, the lift along the up
+    /// The kind's `extra` times `extra_k`, the lift along the up
     pub extra: PlainFloat,
-    /// +4: `divisor` copied (the first set only)
+    /// `divisor` copied (the first set only)
     pub divisor_copy: PlainFloat,
 }
 
@@ -521,7 +521,7 @@ impl KindExtras1 {
 /// Set 2's out after its quad.
 #[derive(rc2k_derive::Cells)]
 pub struct KindExtra2 {
-    /// +0x0: the kind's `extra` times `extra_k`, the lift along the up
+    /// The kind's `extra` times `extra_k`, the lift along the up
     pub extra: PlainFloat,
 }
 
@@ -536,27 +536,27 @@ impl KindExtra2 {
 
 /// A set's constants and light (0x54 bytes). The offsets are from its start.
 pub struct KindConsts {
-    /// +0x0: the kind's size is multiplied by it (`kind_values` c0)
+    /// The kind's size is multiplied by it (`kind_values` c0)
     pub size_k: f32,
-    /// +0x4: the kind's `start` is multiplied by it (c1)
+    /// The kind's `start` is multiplied by it (c1)
     pub start_k: f32,
-    /// +0x8: the step's last factor (c2)
+    /// The step's last factor (c2)
     pub step_k: f32,
-    /// +0xC: the kind's `middle` is multiplied by it (c3)
+    /// The kind's `middle` is multiplied by it (c3)
     pub middle_k: f32,
-    /// +0x10: the slope's last factor (c4)
+    /// The slope's last factor (c4)
     pub slope_k: f32,
-    /// +0x14: the kind's `spread` is multiplied by it (c5)
+    /// The kind's `spread` is multiplied by it (c5)
     pub spread_k: f32,
-    /// +0x18: the kind's `extra` is multiplied by it (c6)
+    /// The kind's `extra` is multiplied by it (c6)
     pub extra_k: f32,
-    /// +0x1C: the place's blends: for each of the triple's three parts, two factors (c7 .. c12)
+    /// The place's blends: for each of the triple's three parts, two factors (c7 .. c12)
     pub place_k: [f32; 6],
-    /// +0x34: what the y part is taken from after the blend (c13)
+    /// What the y part is taken from after the blend (c13)
     pub place_less: f32,
-    /// +0x38: the light's way, turned by the matrix into `light_turned` (`draw_shadow`)
+    /// The light's way, turned by the matrix into `light_turned` (`draw_shadow`)
     pub light: [f32; 3],
-    /// +0x44: what each corner's depth is lowered by (`draw_shadow`)
+    /// What each corner's depth is lowered by (`draw_shadow`)
     pub lifts: [f32; 4],
 }
 

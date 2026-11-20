@@ -5,7 +5,7 @@
 //! (`menu::driver_stats`), the service flag cleared, the service page
 //! (`service::service_area_loop`; a yes to leaving ends it all), the repairs
 //! (`service::apply_repairs`), the entry kind (`menu::set_player_entry_kind`); a player now out
-//! (+0xD0 2) gets the faults (`menu::inspection_faults`) and the inspection page
+//! (`entry` 2) gets the faults (`menu::inspection_faults`) and the inspection page
 //! (`menu::inspection_area_loop`; a yes ends it all) and is counted in `event_out`. When every
 //! player is out, `event_goes_on` is cleared. At the end `service_due` is cleared.
 //!

@@ -4,7 +4,8 @@
 
 use crate::audio::levels::Levels;
 use crate::audio::names_store::SampleNames;
-use crate::audio::store::{AudioShared, SampleRecords};
+use crate::audio::sample_records::SampleRecords;
+use crate::audio::store::AudioShared;
 use rc2k_core::audio::commands::Queue;
 use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::{Condvar, Mutex};

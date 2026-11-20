@@ -1,11 +1,11 @@
 //! `menu::begin_event`: the drivers and the four players made ready for a new event.
 //!
 //! `champ_view.services` and `event.stages_done` 0; every driver (`standings::drivers`'s walk) gets
-//! +0x10, +0xC, +0x20 = 0 and +0x24 = 1 (`Driver::begin`); `event.event_goes_on` 1,
+//! no times, in the event (`Driver::begin`); `event.event_goes_on` 1,
 //! `event.event_out` 0; then for each player n (the current player `event.current_player` = n, left
 //! at 3): `total` and `unread_84` 0, `entry` 1 (`Player::begin`), `service::repair_car`, and unless
 //! the event mode is 3 the setup's defaults: gear ratio 2, brake balance 0x32, tyre 3, ride height
-//! 0x46, suspension 0x1E, steering sensitivity = the controller's (+0x280). Refuses drivers without
+//! 0x46, suspension 0x1E, steering sensitivity = the controller's `controller_sensitivity`. Refuses drivers without
 //! their end entry, a missing player.
 
 use crate::errors::Refused;

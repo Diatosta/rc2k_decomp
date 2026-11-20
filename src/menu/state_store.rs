@@ -33,7 +33,7 @@ pub struct MenuVariables {
     pub skip_edit_values: PlainFlag,
     /// The class times (`menu::calc_cpu_times`), by class.
     pub class_times: [PlainDword; 4],
-    /// The track entry's +0xC and its hundredfold / 0x96A.
+    /// The track entry's length and its hundredfold / 0x96A.
     pub track_length: [PlainDword; 2],
     /// 0 first, 1 when going to the rally's results.
     pub rally_done: PlainFlag,
@@ -80,7 +80,7 @@ pub struct DriverStats {
     pub score: PlainDword,
     /// The high ends' total but part 4's.
     pub total: PlainDword,
-    /// The money (times 100 into the player's +0x288).
+    /// The money (times 100 into the player's `service_spent`).
     pub money: PlainDword,
     /// Part 4's switch (`menu::driver_stats`).
     pub switch_a: PlainDword,

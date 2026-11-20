@@ -1,10 +1,10 @@
 //! `menu::enter_time_trial_best`: the current player's time put in the tenth of the chosen
 //! stage's best times and moved up to its place. the
-//! tenth entry's +0x14 is the player's time (+0x88), +0x1C its +0x90, +8 the nationality (+4),
-//! +0xC and +0x20 the name pointer (+0x18), +0x10 the car (+8), +4 1, +0x40 1 (the new entry's
-//! mark), +0x50 the cheats, +0x54 / +0x58 the sealed time (`menu::sealed_player_time` for the
-//! stage's +0x3C), the 0x40 bytes at the player's +0x20C at +0x5C, the name's first 31 bytes at
-//! +0x20; then `menu::rank_time_trial_best`.
+//! tenth entry's `key` is the player's `time`, `group` its `class`, `nation` the nationality,
+//! `name_id` the name pointer, `car` the car number, `player` 1, `mark` 1 (the new entry's
+//! mark), `cheats` the cheats, `sealed` the sealed time (`menu::sealed_player_time` for the
+//! stage's `event_slot`), `checkpoints` the player's `best_line` and `name` the name's first 31
+//! bytes; then `menu::rank_time_trial_best`.
 //!
 //! Refuses (before anything) a current player past the four or missing, a stage the tables do not
 //! give, or a name pointer of 0.

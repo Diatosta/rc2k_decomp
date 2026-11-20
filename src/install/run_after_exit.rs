@@ -1,15 +1,12 @@
 //! What the installer's pages asked to be done once the game has closed (not after a fatal
-//! error): the Start menu items added or removed (shell shortcuts, `install::shortcuts`); then
-//! the first of: the registration program run; or, when installing, the
-//! installed folder made current, from the CD the program copied to `.\ral.exe` after a
-//! second's sleep, and run. A folder that cannot be made current ends it.
+//! error): the Start menu items added or removed (shell shortcuts, `install::shortcuts`); then,
+//! when installing, the installed folder made current, from the CD the program copied to
+//! `.\ral.exe` after a second's sleep, and run. A folder that cannot be made current ends it.
 //!
-//! Refuses (before anything, where the way could lead there) a game folder too long for "ereg\" in
-//! its 0x100 bytes, and a command line's program of 0x100 bytes or more.
+//! Refuses (before anything, where the way could lead there) a command line's program of 0x100
+//! bytes or more.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::runs_from_source::{scratch_put, scratch_text};
-use rc2k_core::files::paths;
 
 const ROOM: u32 = 0x100;
 
@@ -42,24 +39,12 @@ pub fn run_after_exit(
     let add_items = run_vars.add_items.get() == 1;
     let remove_items = run_vars.remove_items.get() == 1;
     let installing = install.flags.installing.get();
-    let run_registration = run_vars.run_registration.get() == 1;
     if crate::fatal::state::REPORTED.get() == 1 {
         return Ok(());
     }
-    // The refusals, before anything.
-    let game_dir = install.paths.game_dir.text();
-    let game_dir_len = game_dir.len() as u32;
-    if run_registration && game_dir_len + 5 + 1 > ROOM {
-        return Err(
-            BadInput("the game's folder too long for \"ereg\\\" in its 0x100 bytes").into(),
-        );
-    }
+    // The refusal, before anything.
     let from_cd = install.vars.running_from_cd.get();
-    if !run_registration
-        && installing
-        && from_cd == 1
-        && system.start().command_line.program_len.get() >= ROOM
-    {
+    if installing && from_cd == 1 && system.start().command_line.program_len.get() >= ROOM {
         return Err(BadInput("a command line's program of 0x100 bytes or more").into());
     }
     // The Start menu items: the program's shell shortcuts.
@@ -70,25 +55,6 @@ pub fn run_after_exit(
     }
     if remove_items {
         crate::install::shortcuts::remove_start_menu_items();
-    }
-    if run_registration {
-        // "ereg\eregip.exe" (the script's text after its count): its folder after the
-        // game's, its name into the program's name buffer.
-        let ereg = install.run.ereg.read();
-        let ereg = &ereg[2..];
-        let ereg = &ereg[..ereg.iter().position(|&c| c == 0).unwrap_or(ereg.len())];
-        let folder = paths::directory(ereg).unwrap_or(&[]);
-        let at = game_dir_len as usize;
-        install
-            .paths
-            .game_dir
-            .write_at(at, &[folder, &[0]].concat(), "the installer's path")?;
-        scratch_put(0, &[paths::file_name(ereg), &[0]].concat())?;
-        if !set_cd(&install.paths.game_dir.text()) {
-            return Ok(());
-        }
-        run(&scratch_text()?);
-        return Ok(());
     }
     if !installing {
         return Ok(());

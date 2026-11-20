@@ -1,13 +1,11 @@
 //! Takes the switches off the command line: the first word is the program (its length goes to
 //! `COMMAND_LINE`); of the words after it only those of two characters or more count, by their
-//! first two. `-v` shows a message box with the version and leaves; `-u` and `-p` are returned in
-//! the `Command`, `-a` sets `no_audio`; `-i` takes the next two words as the game and installed
-//! folder paths and the two after as the display mode and language; `-c` takes its word and
-//! does nothing. Refuses a word for `-i` of
-//! 0x100 bytes or more. The `-v` part cannot be run in a test.
+//! first two. `-v` shows a message box with the version and leaves; `-u` is returned in the
+//! `Command`, `-a` sets `no_audio`; `-c` takes its word and does nothing. The `-v` part cannot be
+//! run in a test.
 
 use crate::errors::BadInput;
-use crate::install::run_flags::{Command, GivenInstall};
+use crate::install::run_flags::Command;
 use crate::memory::session::PlainDword;
 use crate::system::owner::Start;
 
@@ -34,12 +32,10 @@ fn show_version_and_leave(start: &Start) -> ! {
     crate::standalone::finish("the version was shown", 0)
 }
 
-/// Reads a command line (its text with the NUL), keeps the program word's length, sets the
-/// audio switch and copies the `-i` paths into the installer's folders;
-/// returns what else it asked for.
+/// Reads a command line (its text with the NUL), keeps the program word's length and sets the
+/// audio switch; returns what else it asked for.
 pub fn read_command_line(
     start: &Start,
-    install: &crate::install::owner::Install,
     audio: &crate::audio::owner::Audio,
     line: &[u8],
 ) -> Result<Command, BadInput> {
@@ -48,27 +44,9 @@ pub fn read_command_line(
     if sw.no_audio {
         audio.state.no_audio.set(1);
     }
-    let mut given = None;
-    for i in &sw.install {
-        for (place, (start, len)) in [&install.paths.game_dir, &install.paths.installed]
-            .into_iter()
-            .zip(i.words)
-        {
-            let word = line
-                .get(start..start + len)
-                .ok_or(BadInput("a word past the command line"))?;
-            place.write_at(0, word, "an installer path")?;
-        }
-        given = Some(GivenInstall {
-            mode: i.digits[0] as i32,
-            language: i.digits[1] as i32,
-        });
-    }
     Ok(Command {
         show_version: sw.version,
         updating: sw.u,
-        installing: sw.installing,
-        given,
     })
 }
 
@@ -78,7 +56,7 @@ pub fn read_own_command_line(o: crate::owners::Owners<'static>) -> Result<(), Ba
     let mut line = crate::platform::os::command_line();
     line.push(0);
     let start = o.system.start();
-    let command = read_command_line(start, o.install, o.audio, &line)?;
+    let command = read_command_line(start, o.audio, &line)?;
     o.install.flags.begin(&command);
     if command.show_version {
         show_version_and_leave(start);

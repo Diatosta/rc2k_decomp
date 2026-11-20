@@ -9,21 +9,21 @@ use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ClockTicks {
-    /// +0x0: the text "demof\\build" (12 bytes) and the bytes after it up to +0x18: not read.
+    /// The text "demof\\build" (12 bytes) and the bytes after it up to +0x18: not read.
     pub unused_text: [PlainDword; 6],
-    /// +0x18: 0x20 dwords set to -1 by `drive::race_loop` and `drive::finish_run`.
+    /// 0x20 dwords set to -1 by `drive::race_loop` and `drive::finish_run`.
     pub marks: [PlainDword; 32],
-    /// +0x98: unused; it only keeps the image's layout.
+    /// Unused; it only keeps the image's layout.
     pub unused_98: [PlainDword; 96],
-    /// +0x218: the scene clock at the last race-sound tick (`sound::race_sound_tick`,
+    /// The scene clock at the last race-sound tick (`sound::race_sound_tick`,
     /// `drive::race_loop`, `drive::finish_run`).
     pub sound_tick_last: PlainDword,
-    /// +0x21c: set to the scene clock at the race's start (`drive::race_loop`,
+    /// Set to the scene clock at the race's start (`drive::race_loop`,
     /// `drive::finish_run`).
     pub clock_a: PlainDword,
-    /// +0x220: the ticks counted (`sound::race_sound_tick`, `race::stage_loading`).
+    /// The ticks counted (`sound::race_sound_tick`, `race::stage_loading`).
     pub sound_ticks: PlainDword,
-    /// +0x224: the scene clock when the stage was loaded (`race::stage_loading`).
+    /// The scene clock when the stage was loaded (`race::stage_loading`).
     pub clock_b: PlainDword,
 }
 

@@ -1,7 +1,7 @@
 //! `menu::inspection_pass`: the inspection after a stage. `event.event_goes_on` 1;
 //! for each counted player (`event.current_player` 0 .. `event.player_count`) taking part
-//! (+0xD0 1): its figures (`menu::driver_stats`), the verdict (`menu::inspection_verdict`) and
-//! the faults (`menu::inspection_faults`); one that fails (+0xD0 now 2) counts in
+//! (`entry` is `TAKES_PART`): its figures (`menu::driver_stats`), the verdict (`menu::inspection_verdict`) and
+//! the faults (`menu::inspection_faults`); one that fails (`entry` now 2) counts in
 //! `event.event_out` and is shown the inspection: its screen (`menu::inspection_screen`), a
 //! second's pause (a key ends it), the fade in, the inspection page (`menu::inspection_area_loop`; a yes to
 //! leaving ends it all), the fade out, a pause of 1250 ms (a key ends it). When every player has failed

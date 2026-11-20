@@ -1,4 +1,4 @@
-//! `menu::set_player_entry_kind`: the current player's (`event.current_player`) +0xD0
+//! `menu::set_player_entry_kind`: the current player's (`event.current_player`) `entry`
 //! 1 when the inspection score is 100 or more (signed), else 2.
 //!
 //! Refuses a current player past 3 or missing, before

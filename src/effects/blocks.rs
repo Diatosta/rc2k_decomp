@@ -230,9 +230,9 @@ impl MarkLinks {
 /// `effects::set_quad_uvs` reads record 0x58's eight values as four texture places).
 #[derive(rc2k_derive::Cells)]
 pub struct Slope {
-    /// +0: |+0xA - +2| over |+4 - +0| of the corner record, as a float.
+    /// |+0xA - +2| over |+4 - +0| of the corner record, as a float.
     pub slope: PlainFloat,
-    /// +4: the corner's four word pairs times `DrawWork::uv_k`.
+    /// The corner's four word pairs times `DrawWork::uv_k`.
     pub values: [PlainFloat; 8],
 }
 

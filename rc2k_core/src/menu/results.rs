@@ -49,7 +49,7 @@ pub struct Score {
 }
 
 /// A player's score from the total before, the place's points, the time and the stage's,
-/// and the player's +0x94.
+/// and the player's `figure`.
 pub fn score(before: u32, points: u32, time: u32, target: u32, extra: u32) -> Score {
     let bonus = bonus(time, target);
     let sum = points.wrapping_add(bonus).wrapping_add(extra);

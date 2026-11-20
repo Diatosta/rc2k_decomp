@@ -1,6 +1,6 @@
 //! `menu::copy_standings_summary`: 0x5A entries of standings table A copied, in order, into the
-//! summary table (0x50 each: +0 / +4 / +8 / +0xC from the entry's +0xC / +8 / +0x10 / +0x14):
-//! with `state.menus.class_mode` 2 the entries with a group (+0x1C not 0), else those without.
+//! summary table (0x50 bytes each: the entry's name, nationality, car and time): with
+//! `state.menus.class_mode` 2 the entries that have a group, else those without.
 //!
 //! Refuses null tables and a table A that runs out (no end entry), before anything.
 use crate::errors::{BadInput, Refused};

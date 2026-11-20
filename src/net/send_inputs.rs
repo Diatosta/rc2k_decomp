@@ -91,7 +91,7 @@ const POSITION_FIELDS: [Field; 40] = [
     (|c| &c.position_message_word, Free),
 ];
 
-/// +0x64 .. +0x84: the eight gauges and the lights.
+/// The eight gauges and the lights.
 const EXTRA_FIELDS: [Field; 9] = [
     (|c| &c.impact_octant_marks[0], Gauge),
     (|c| &c.impact_octant_marks[1], Gauge),

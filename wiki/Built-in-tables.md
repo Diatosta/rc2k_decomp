@@ -67,7 +67,7 @@ The texts themselves are not built in: they come from the language's file (see
 | Data | Where |
 | --- | --- |
 | The sound files' names, in five lists: effects, the two co-drivers, the menus' speech | `src/audio/names_store.rs` |
-| The sample records: for each sound number its file, volume, looping, copies | `src/audio/voices.rs`, `src/audio/store.rs` |
+| The sample records: for each sound number its file, volume, looping, copies | `src/audio/voices.rs`, `src/audio/sample_records.rs`, `src/audio/sample_table.rs` |
 | The sets of sounds a race loads, the surfaces' sounds, the car sound kinds | `src/sound/sets_store.rs` |
 | Which tune follows which | `rc2k_core/src/sound/senders.rs` |
 | The cars' and stages' announcer lines | `src/menu/texts_store.rs` |

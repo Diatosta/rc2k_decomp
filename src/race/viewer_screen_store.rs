@@ -12,99 +12,99 @@ use crate::test_support::own::race;
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct ViewerPanelBlock {
-    /// +0x0: 16-bit text ids of the camera names, read and written by `race::draw_viewer_panel`
+    /// 16-bit text ids of the camera names, read and written by `race::draw_viewer_panel`
     /// and the camera actions; reached through `camera_name`, not by this field.
     pub camera_name_ids: [PlainDword; 24],
-    /// +0x60: rectangle (0,0,800,32) of the viewer
+    /// Rectangle (0,0,800,32) of the viewer
     /// bar's frame (`race::viewer_frame`).
     pub bar_frame_rect: [PlainDword; 4],
-    /// +0x70: first button rectangle
+    /// First button rectangle
     /// (`race::viewer_frame`).
     pub button_rect_a: [PlainDword; 4],
-    /// +0x80: second button rectangle
+    /// Second button rectangle
     /// (`race::viewer_frame`).
     pub button_rect_b: [PlainDword; 4],
-    /// +0x90: third button rectangle
+    /// Third button rectangle
     /// (`race::viewer_frame`).
     pub button_rect_c: [PlainDword; 4],
-    /// +0xa0: fourth button rectangle
+    /// Fourth button rectangle
     /// (`race::viewer_frame`).
     pub button_rect_d: [PlainDword; 4],
-    /// +0xb0: the bar's rectangle (x, y, w at +8, h)
+    /// The bar's rectangle (x, y, w at +8, h)
     /// (`race::viewer_frame`).
     pub bar_rect: [PlainDword; 4],
-    /// +0xc0: a mark's rectangle, x written each frame
+    /// A mark's rectangle, x written each frame
     /// (`race::viewer_frame`).
     pub mark_rect: [PlainDword; 4],
-    /// +0xd0: the place marker's rectangle, x written
+    /// The place marker's rectangle, x written
     /// each frame (`race::viewer_frame`).
     pub place_rect: [PlainDword; 4],
-    /// +0xe0: the item quad's place, zero at the start
+    /// The item quad's place, zero at the start
     /// (`race::draw_viewer_item`).
     pub item_place: [PlainDword; 4],
-    /// +0xf0: the quad's screen rectangle, scratch,
+    /// The quad's screen rectangle, scratch,
     /// zero at the start (`race::draw_viewer_panel`, `drive::tyre_screen_parts`).
     pub screen_rect: [PlainDword; 4],
-    /// +0x100: the quad's texture rectangle,
+    /// The quad's texture rectangle,
     /// scratch, zero at the start (`race::draw_viewer_panel`, `drive::tyre_screen_parts`,
     /// `race::draw_tyre_change`).
     pub texture_rect: [PlainDword; 4],
-    /// +0x110: texture rectangles the viewer list's items point to; never read by name.
+    /// Texture rectangles the viewer list's items point to; never read by name.
     pub viewer_item_rects_a: [PlainDword; 40],
-    /// +0x1b0: texture rectangle (249,0,7,29)
+    /// Texture rectangle (249,0,7,29)
     /// of a mark (`race::viewer_frame`).
     pub mark_picture_rect: [PlainDword; 4],
-    /// +0x1c0: a rectangle the viewer list points to; never read by name.
+    /// A rectangle the viewer list points to; never read by name.
     pub viewer_item_rect_b: [PlainDword; 4],
-    /// +0x1d0: texture rectangle (48,48,48,48)
+    /// Texture rectangle (48,48,48,48)
     /// of the place marker (`race::viewer_frame`).
     pub place_picture_rect: [PlainDword; 4],
-    /// +0x1e0: texture rectangles the viewer list's items point to; never read by name.
+    /// Texture rectangles the viewer list's items point to; never read by name.
     pub viewer_item_rects_c: [PlainDword; 76],
-    /// +0x310: texture rectangle
+    /// Texture rectangle
     /// (0,240,16,16) of a button end (`race::viewer_frame`).
     pub button_picture_rect: [PlainDword; 4],
-    /// +0x320: texture rectangle (15,240,241,16)
+    /// Texture rectangle (15,240,241,16)
     /// of a button body (`race::viewer_frame`).
     pub button_body_rect: [PlainDword; 4],
-    /// +0x330: the bar frame's texture rectangle (1,241,14,14), 20 bytes: plus 0.5f as its fifth
+    /// The bar frame's texture rectangle (1,241,14,14), 20 bytes: plus 0.5f as its fifth
     /// dword (`race::viewer_frame`).
     pub frame_picture_rect: [PlainDword; 5],
-    /// +0x344: the constant 1.0 (`race::tyre_change_gauge`).
+    /// The constant 1.0 (`race::tyre_change_gauge`).
     pub one: PlainFloat,
-    /// +0x348: the texel scale, 1/256 (`drive::tyre_quad`, `drive::tyre_turned_quad`).
+    /// The texel scale, 1/256 (`drive::tyre_quad`, `drive::tyre_turned_quad`).
     pub texel_scale: PlainFloat,
-    /// +0x34c: 0.00125 = 1/800, what the screen's width is multiplied by to scale the tyre quad's
+    /// 0.00125 = 1/800, what the screen's width is multiplied by to scale the tyre quad's
     /// x (`drive::tyre_quad`, `drive::tyre_turned_quad`).
     pub reciprocal_width_800: PlainFloat,
-    /// +0x350: 0.00167 = 1/600, what the screen's height is multiplied by to scale the tyre
+    /// 0.00167 = 1/600, what the screen's height is multiplied by to scale the tyre
     /// quad's y (`drive::tyre_quad`, `drive::tyre_turned_quad`).
     pub reciprocal_height_600: PlainFloat,
-    /// +0x354: two names of texture rectangles; a camera byte 2 or 3 picks one
+    /// Two names of texture rectangles; a camera byte 2 or 3 picks one
     /// (`race::draw_viewer_item`).
     pub switch_pictures_a: [PlainDword; 2],
-    /// +0x35c: four names of texture rectangles, by camera byte 5 (`race::draw_viewer_item`).
+    /// Four names of texture rectangles, by camera byte 5 (`race::draw_viewer_item`).
     pub switch_pictures_b: [PlainDword; 4],
-    /// +0x36c: three names of texture rectangles, by camera byte 4 (`race::draw_viewer_item`).
+    /// Three names of texture rectangles, by camera byte 4 (`race::draw_viewer_item`).
     pub switch_pictures_c: [PlainDword; 3],
-    /// +0x378: whether the replay's physics patches are in force (`race::replay_patches`).
+    /// Whether the replay's physics patches are in force (`race::replay_patches`).
     pub patches_in_force: PlainDword,
-    /// +0x37c: the 13 patch switches kept while a replay's are in force (`race::replay_patches`).
+    /// The 13 patch switches kept while a replay's are in force (`race::replay_patches`).
     pub kept_patch_switches: [PlainDword; 13],
-    /// +0x3b0: the frames are saved as pictures (`race::viewer`, `race::replay_screenshot`).
+    /// The frames are saved as pictures (`race::viewer`, `race::replay_screenshot`).
     pub replay_recording: PlainDword,
-    /// +0x3b4: the picture clock, moved to `clock::tick_count::PICTURE_CLOCK.clock`; the bytes
+    /// The picture clock, moved to `clock::tick_count::PICTURE_CLOCK.clock`; the bytes
     /// stay, unused.
     pub picture_clock_unused: PlainDword,
-    /// +0x3b8: whether the pictures have started, moved to
+    /// Whether the pictures have started, moved to
     /// `clock::tick_count::PICTURE_CLOCK.started`; the bytes stay, unused.
     pub pictures_started_unused: PlainDword,
-    /// +0x3bc: the pictures' folder: the text rpl and a NUL (`race::start_frame_pictures`).
+    /// The pictures' folder: the text rpl and a NUL (`race::start_frame_pictures`).
     pub picture_folder: PlainDword,
-    /// +0x3c0: the 15-byte picture name rpl\000000.png, taken in place; the last 3 bytes
+    /// The 15-byte picture name rpl\000000.png, taken in place; the last 3 bytes
     /// are not a whole dword (`race::replay_screenshot`).
     pub picture_name: [PlainDword; 3],
-    /// +0x3cc: the untyped tail: the viewer's texts and unaligned values, reached through `text`
+    /// The untyped tail: the viewer's texts and unaligned values, reached through `text`
     /// and the unaligned readers below.
     pub untyped_tail: [PlainDword; 167],
 }

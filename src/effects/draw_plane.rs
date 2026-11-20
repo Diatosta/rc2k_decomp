@@ -30,15 +30,15 @@ const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
 /// The plane's constants. The offsets are from its start.
 struct PlaneTuning {
-    /// +0x0: what the settings' rate is multiplied by into the first axis' scale
+    /// What the settings' rate is multiplied by into the first axis' scale
     pub rate_k: f32,
-    /// +0x4: what the two axes' lengths are divided by
+    /// What the two axes' lengths are divided by
     pub shares: [f32; 2],
-    /// +0xC: the four corners' texture places (u, v)
+    /// The four corners' texture places (u, v)
     pub places: [[f32; 2]; 4],
-    /// +0x2C: what each corner's depth is raised by
+    /// What each corner's depth is raised by
     pub lifts: [f32; 4],
-    /// +0x3C: what one over each corner's depth is multiplied by
+    /// What one over each corner's depth is multiplied by
     pub rhw_k: [f32; 4],
 }
 

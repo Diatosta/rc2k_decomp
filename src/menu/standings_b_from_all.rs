@@ -1,8 +1,8 @@
 //! `menu::standings_b_from_all`: standings table B emptied
-//! (`menu::init_standings_b`) and filled from the drivers in order: +4 0, +0x10 / +8 /
-//! +0xC / +0 / +0x34 the driver's +8 / +0x14 / +0x18 / +0 / +0x10, +0x38 .. +0x6C its
-//! +0x5C .. +0x90, +0x14 the text of its name (the driver names, 0x14 each, by its +0);
-//! then each group's (+0x90, 0 .. 3) counted players into the entries from 89, 119, 169
+//! (`menu::init_standings_b`) and filled from the drivers in order: `player` 0, `group` / `nation` / `car` / `first` / `total`
+//! the driver's `class` / `nation` / `car` / `name_entry` / `total`, `overall` and `stage` its
+//! `results`, `name` the text of its name (the driver names, 0x14 each, by its `name_entry`);
+//! then each group's (the class, 0 .. 3) counted players into the entries from 89, 119, 169
 //! and 179 down (`menu::player_to_standing_b`).
 //!
 //! The names come from `strings::append_string_by_id`. Refuses no table, more drivers than its 200

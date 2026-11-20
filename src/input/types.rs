@@ -10,21 +10,21 @@ pub type Guid = [u8; 16];
 /// A listed joystick, one of 16 (`input::joystick_found`).
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Controller {
-    /// +0: DIDEVCAPS' flags: 1 attached, 0x100 force feedback.
+    /// DIDEVCAPS' flags: 1 attached, 0x100 force feedback.
     pub caps_flags: Dword,
-    /// +4: the device's type (DIDEVICEINSTANCEA's).
+    /// The device's type (DIDEVICEINSTANCEA's).
     pub dev_type: Dword,
     pub axes: Dword,
     pub buttons: Dword,
     pub hats: Dword,
-    /// +0x14: which axes it has: 1 x, 2 y, 4 z, 8 rx, 0x10 ry, 0x20 rz (`input::axis_found`).
+    /// Which axes it has: 1 x, 2 y, 4 z, 8 rx, 0x10 ry, 0x20 rz (`input::axis_found`).
     pub axis_bits: Dword,
     pub attached: Dword,
-    /// +0x1C: 1 with force feedback.
+    /// 1 with force feedback.
     pub force_feedback: Dword,
-    /// +0x20: the device's instance GUID.
+    /// The device's instance GUID.
     pub instance: Bytes<16>,
-    /// +0x30: "(n) name".
+    /// "(n) name".
     pub name: Bytes<32>,
 }
 
@@ -181,31 +181,31 @@ impl DiEffect {
 pub struct ForceEffect {
     /// Which of the six change functions is its own (`effect_changes::effect_change`'s number).
     pub change: Dword,
-    /// +4: the kind wanted: 1 constant, 2 ramp, 3 periodic, 4 condition.
+    /// The kind wanted: 1 constant, 2 ramp, 3 periodic, 4 condition.
     pub kind: Dword,
-    /// +8: the GUID wanted (by handle: `guids::EffectGuid`).
+    /// The GUID wanted (by handle: `guids::EffectGuid`).
     pub wanted: Dword,
-    /// +0xC: 1 when the device listed one of its kind (`input::effect_found`).
+    /// 1 when the device listed one of its kind (`input::effect_found`).
     pub found: Dword,
-    /// +0x10: the GUID the device listed.
+    /// The GUID the device listed.
     pub guid: Bytes<16>,
     /// +0x20, +0x24, +0x28: what the device listed (`DIEFFECTINFOA`).
     pub eff_type: Dword,
     pub static_params: Dword,
     pub dynamic_params: Dword,
-    /// +0x2C: a change waiting for the input thread (`input::set_effect`).
+    /// A change waiting for the input thread (`input::set_effect`).
     pub pending: Dword,
-    /// +0x30: its `IDirectInputEffect`.
+    /// Its `IDirectInputEffect`.
     pub object: Dword,
-    /// +0x34: the `DIEFFECT` handed to DirectInput.
+    /// The `DIEFFECT` handed to DirectInput.
     pub effect: DiEffect,
-    /// +0x68: the type-specific parameters.
+    /// The type-specific parameters.
     pub type_specific: [Dword; 6],
-    /// +0x80: the axes (the `DIEFFECT` points at them).
+    /// The axes (the `DIEFFECT` points at them).
     pub axes: [Dword; 2],
-    /// +0x88: the directions.
+    /// The directions.
     pub directions: [Dword; 2],
-    /// +0x90: the envelope.
+    /// The envelope.
     pub envelope: DiEnvelope,
 }
 
@@ -296,38 +296,38 @@ impl Binding {
 /// A player's input device, one of two (`input/devices.rs`).
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct InputDevice {
-    /// +0: the controller's number in the controllers' table.
+    /// The controller's number in the controllers' table.
     pub controller: Dword,
-    /// +4: its `IDirectInputDevice2A` (0: none).
+    /// Its `IDirectInputDevice2A` (0: none).
     pub device: Dword,
-    /// +8: 1 digital, 2 one axis for throttle and brake, 3 an axis each.
+    /// 1 digital, 2 one axis for throttle and brake, 3 an axis each.
     pub kind: Dword,
-    /// +0xC: the force feedback's strength (0 .. 100).
+    /// The force feedback's strength (0 .. 100).
     pub strength: Dword,
     pub dead_zone: Dword,
     pub end_zone: Dword,
-    /// +0x18: which state dwords the axes are, a byte each (+0x1A, +0x1B the second and
+    /// Which state dwords the axes are, a byte each (+0x1A, +0x1B the second and
     /// third).
     pub axis_code: Dword,
-    /// +0x1C: the axes for the ranges and dead zones, a byte each (+0x1C, +0x1D).
+    /// The axes for the ranges and dead zones, a byte each (+0x1C, +0x1D).
     pub axis_pick: Dword,
     pub sensitivity: Dword,
-    /// +0x24: 1 while acquired.
+    /// 1 while acquired.
     pub acquired: Dword,
-    /// +0x28: 1 while its effects run.
+    /// 1 while its effects run.
     pub effects_on: Dword,
-    /// +0x2C: the three axes, copied from the device's state at each poll.
+    /// The three axes, copied from the device's state at each poll.
     pub axes: [Dword; 3],
-    /// +0x38: its buttons (bits).
+    /// Its buttons (bits).
     pub buttons: Dword,
-    /// +0x3C: the six effects.
+    /// The six effects.
     pub effects: [ForceEffect; 6],
-    /// +0x414: 1 while it is read.
+    /// 1 while it is read.
     pub reading: Dword,
     pub hat_kind: Dword,
-    /// +0x41C: the twelve bindings.
+    /// The twelve bindings.
     pub bindings: [Binding; 12],
-    /// +0x4DC: steering, brake, throttle (`drive::device_axes`).
+    /// Steering, brake, throttle (`drive::device_axes`).
     pub readings: [Dword; 3],
     pub bits: Dword,
     /// +0x4EC, +0x4F0, +0x4F4: the tyre change's gauge, stage and clock

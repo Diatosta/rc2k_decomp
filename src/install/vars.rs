@@ -1,5 +1,5 @@
 //! The installer's variables: the flags and counters of its run, the folder and file lists, the
-//! registry names and scripts, the language list, and the pages' tables.
+//! installed record, scripts, the language list, and the pages' tables.
 //!
 //! Structs of cells, with the old layout's fields in its order and its gaps. The pages' tables
 //! hold handles (`install::page_links`). The pages' lists,
@@ -11,8 +11,7 @@ use crate::install::installer::{END_TEXT_LINE, GO_ON_ANYWAY};
 use crate::install::list_pages::{BoxRect, EditRecord};
 use crate::install::page_links::{LinkCell, PageLink};
 use crate::memory::list_handle::{
-    Item, ListData3, ListData4, ListData5, ListData6, ListData10, ListData18, ListData26,
-    ListHeader,
+    Item, ListData3, ListData4, ListData6, ListData10, ListData18, ListData26, ListHeader,
 };
 use crate::memory::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 
@@ -27,11 +26,6 @@ pub struct InstallerRun {
     pub add_items: PlainDword,
     /// The shortcuts are removed (`install::uninstall`).
     pub remove_items: PlainDword,
-    /// The registration program is run at the end.
-    pub run_registration: PlainDword,
-    /// The registration program's script: a count, "ereg\eregip.exe" from +2
-    /// (`install::run_after_exit`).
-    pub ereg: PlainBytes<20>,
     /// 1 a bad folder, 2 no room.
     pub path_problem: PlainDword,
     /// 26 of (found, free KB), by drive letter.
@@ -70,8 +64,6 @@ pub struct InstallerRun {
     pub dir_cursor: PlainDword,
     /// The files' table's end (its bytes).
     pub file_cursor: PlainDword,
-    /// The open registry key.
-    pub reg_key: PlainDword,
 }
 
 impl InstallerRun {
@@ -81,8 +73,6 @@ impl InstallerRun {
             same_version: PlainDword::new(0x0),
             add_items: PlainDword::new(0x0),
             remove_items: PlainDword::new(0x0),
-            run_registration: PlainDword::new(0x0),
-            ereg: PlainBytes::new(with_runs::<20>(&[(0, b";4ereg\\eregip.exe")])),
             path_problem: PlainDword::new(0x0),
             drives: [const { PlainDword::new(0x0) }; 52],
             drive_count: PlainDword::new(0x0),
@@ -101,28 +91,19 @@ impl InstallerRun {
             dir_scan: PlainDword::new(0x0),
             dir_cursor: PlainDword::new(0x0),
             file_cursor: PlainDword::new(0x0),
-            reg_key: PlainDword::new(0x0),
         }
     }
 }
 
-/// The registry names, the installed record, the scripts and file names, and the languages.
+/// The installed record, the scripts and file names, and the languages.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerNames {
-    /// "SOFTWARE\Magnetic Fields\RC99".
-    pub key_name: PlainBytes<30>,
-    /// "status".
-    pub status_name: PlainBytes<7>,
-    /// "source".
-    pub source_name: PlainBytes<7>,
     /// The installed status byte (`install::check_installed_version`).
     pub status: PlainByte,
     /// The folder installed from (0xFF bytes used).
     pub source: PlainBytes<259>,
     /// The size of the source folder's name.
     pub source_size: PlainDword,
-    /// The registry value's type.
-    pub reg_type: PlainDword,
     /// A gap of 176 byte(s): nothing reads it.
     pub _gap_51bc98: PlainBytes<176>,
     /// The count script (`install::install_files`).
@@ -166,13 +147,9 @@ pub struct InstallerNames {
 impl InstallerNames {
     pub const fn new() -> Self {
         InstallerNames {
-    key_name: PlainBytes::new(with_runs::<30>(&[(0, b"SOFTWARE\\Magnetic Fields\\RC99")])),
-    status_name: PlainBytes::new(with_runs::<7>(&[(0, b"status")])),
-    source_name: PlainBytes::new(with_runs::<7>(&[(0, b"source")])),
     status: PlainByte::new(0x0),
     source: PlainBytes::new([0; 259]),
     source_size: PlainDword::new(0x0),
-    reg_type: PlainDword::new(0x0),
     _gap_51bc98: PlainBytes::new(with_runs::<176>(&[(20, b"\x18"), (44, b"PROGMAN\x00[CreateGroup(Rally Championship)]\x00[DeleteGroup(Rally Championship)]\x00[AddItem(\x00,Rally)]\x00,Uninstall Rally)]\x00,View Readme)]")])),
     script_count: PlainBytes::new(with_runs::<200>(&[(0, b"\x03ral.exe\x03*.txt\x03*.pdf\x08\x02\x01files\x04a\x04b\x04d\x08\x03\x04fmv\t\x01g\x04frnt\x04graphics\x08\x03\x04slides\t\x02\x04levels\x04%locale\x04m\x04maps\x08\x03\x04music\t\x04replay\x04s\x01%speech\x04m\x04f\x08\x03\x04cars\x04rally\t\x02\x02\t\x01savedata\x01carsetup\x02\x01replay\x02\x01savegame\x02\x01snapshot\x02\x02\x01var\x03ral.cfg\x02\x06\x05")])),
     script: PlainBytes::new(with_runs::<{ SCRIPT_MARK + 1 + 30 }>(&[(0, b"\x03*.*\x01files\x02\x04files"), (SCRIPT_MARK, b"\x01"), (SCRIPT_MARK + 1, b"savedata\x02\x04savedata\x01var\x02\x04var\x05.\\")])),
@@ -280,10 +257,10 @@ pub struct InstallerPages {
     pub kind_fonts: PlainBytes<108>,
     /// `language_page`'s list: the nine languages and cancel.
     pub language_menu: ListData10,
-    /// `mark_main_page`'s list: play, uninstall, registration and the rest of the main page. The
+    /// `mark_main_page`'s list: install, play, uninstall and back. The
     /// first item's kind, marks and text and the second item's text are set by
     /// `install::check_at_start::set_script_entry`.
-    pub main_menu: ListData5,
+    pub main_menu: ListData4,
     /// `install::drive_page`'s list when there are 8 or fewer drives (`install::list_drives` sets
     /// the item count).
     pub drive_menu_8: ListData10,
@@ -359,11 +336,10 @@ impl InstallerPages {
                 Item::new(0x01, 0x09, 0x1033, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x00, 0x0099, 0x0, 0x0, 0x0),
             ]),
-            main_menu: ListData5::new(ListHeader::new(0x00, 0x05, 0x0095, 0x0, 0x0, 0x0, 0x0, 0x0), [
+            main_menu: ListData4::new(ListHeader::new(0x00, 0x04, 0x0095, 0x0, 0x0, 0x0, 0x0, 0x0), [
                 Item::new(0x01, 0x01, 0x0096, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x02, 0x0097, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x03, 0x0098, 0x0, 0x0, 0x0),
-                Item::new(0x01, 0x04, 0x057C, 0x0, 0x0, 0x0),
                 Item::new(0x01, 0x00, 0x0099, 0x0, 0x0, 0x0),
             ]),
             drive_menu_8: ListData10::new(ListHeader::new(0x00, 0x0A, 0x009A, 0x2, 0x0, 0x0, 0x0, 0x0), [
@@ -487,10 +463,10 @@ impl InstallerPages {
 pub struct InstallerPaths {
     /// Padding that keeps every field its alignment (the struct is 16-byte aligned).
     pub _lead: PlainBytes<8>,
-    /// The folder installed from: the CD or the download folder (also the first of `-i`'s
-    /// paths). The install record's `cdrom=` line holds it.
+    /// The folder installed from: the CD or the download folder. The install record's `cdrom=`
+    /// line holds it.
     pub game_dir: PlainBytes<256>,
-    /// The folder installed into (also `-i`'s second path).
+    /// The folder installed into.
     pub installed: PlainBytes<256>,
     /// A path being built.
     pub path_a: PlainBytes<256>,

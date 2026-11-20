@@ -6,7 +6,7 @@ use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameCounter {
-    /// +0x0: the `framecounter` setting (`race::draw_frame_rate`).
+    /// The `framecounter` setting (`race::draw_frame_rate`).
     pub show: PlainDword,
 }
 

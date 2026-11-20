@@ -10,7 +10,7 @@ sample files, feeds the music streams and mixes the channels the game mixes itse
 ## State
 
 The owner is `Audio` (`src/audio/owner.rs`). What the audio thread shares with the game thread
-is `AudioShared` in `src/audio/store.rs`, which also holds the sample records. The bytes of the
+is `AudioShared` in `src/audio/store.rs`; the sample records are in `src/audio/sample_records.rs` (their starting table in `sample_table.rs`). The bytes of the
 loaded samples are kept by `src/audio/sample_data.rs`.
 
 ## Main entry points

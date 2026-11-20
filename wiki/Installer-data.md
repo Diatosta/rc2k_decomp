@@ -100,5 +100,5 @@ what to remove (everything, or everything but `savedata` and `var`).
 `src/install/open_installer.rs` (loading the three files), `src/install/install_frames.rs`
 (the progress bar), `rc2k_core/src/install/script.rs` (the list's coding),
 `src/install/run_script.rs`, `src/install/list_files.rs`, `src/install/install_files.rs`
-(copying), `src/install/portable.rs` (recognising a source folder), `src/install/vars.rs`
+(copying), `src/install/record.rs` (recognising a source folder), `src/install/vars.rs`
 (the built-in lists and file names).

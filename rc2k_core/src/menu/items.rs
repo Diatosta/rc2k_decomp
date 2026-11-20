@@ -8,7 +8,7 @@ use std::ops::Range;
 /// An item's bytes; a menu has a 4-byte head before its items.
 pub const ITEM_LEN: u32 = 0x5C;
 pub const MENU_HEAD_LEN: u32 = 4;
-/// An item's +0x48 when the moves up and down pass over it (greyed or hidden).
+/// An item's state when the moves up and down pass over it (greyed or hidden).
 pub(crate) const PASSED_OVER: u32 = 0xFFFF_FC1C;
 
 /// Where item `number` (from 1) of the current menu lies (`menu` gives the menu, asked only for an
@@ -31,7 +31,7 @@ pub enum Font {
     Grey,
 }
 
-/// `menu::enable_item` (true) / `disable_item`: the item's +0x48 and its font (+0x18).
+/// `menu::enable_item` (true) / `disable_item`: the item's state and its font.
 pub fn choosable(on: bool) -> (u32, Font) {
     if on {
         (CAN_BE_CHOSEN, Font::Plain)
@@ -40,7 +40,7 @@ pub fn choosable(on: bool) -> (u32, Font) {
     }
 }
 
-/// An item's string (+0x14), state (+0x48) and what is behind its text (+0x1C).
+/// An item's string, state and what is behind its text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Look {
     pub string: u32,

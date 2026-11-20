@@ -1,16 +1,16 @@
 //! The arcade event's small steps (`menu::arcade_event` uses them): plain stores on the
-//! arcade's level (1 .. 5), stage (0 .. 6), the stage's record (0xA4 bytes; its +0x3C is the
+//! arcade's level (1 .. 5), stage (0 .. 6), the stage's record (0xA4 bytes; its `event_slot` picks the
 //! course), the course's ten best times (entries of 0x9C), the level's ten best scores (entries
 //! of 0x50) and the current player.
-//! - keep / take the stage best: the record's best (+0x30) and its setup bytes.
+//! - keep / take the stage best: the record's best (`fastest_speed`) and its setup bytes.
 //! - check the level score / stage time: set the time-qualifies flag when the figure beats the
-//!   tenth entry's +0x14 (signed).
+//!   tenth entry's `key` (signed).
 //! - enter a stage time / level score: the player's figures go into the tenth entry, then the
 //!   entries are sorted (an exchange sort from the tenth up; the lower figure moves up, ties
 //!   move too; names exchanged through the kept player name).
 //! - `menu::score_arcade_stage`: total before, bonus, places' points
 //!   ((places ranked - place + 1) x 1000) and their sum with the time bonus.
-//! - clear the score / time marks (+0x40 of the ten entries); add / remove the shown car in the
+//! - clear the score / time marks (the `mark` of the ten entries); add / remove the shown car in the
 //!   car list (the added car gets no new end mark, kept as is); `secret_car_list`.
 //!
 //! The entries' logic is `rc2k_core::menu::bests` and `rc2k_core::menu::standings`; this file
@@ -133,8 +133,8 @@ pub(super) fn check_arcade_stage_time(
     Ok(())
 }
 
-/// The player's new entry (player 1): +0x1C, +8, +0xC, +0x10 and the name from its
-/// record.
+/// The player's new entry (player 1): group, nationality, name and car number from the
+/// player's record, and the name's bytes.
 fn new_best(
     menus: &Menus,
     player: crate::menu::standings::PlayerCell,

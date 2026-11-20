@@ -16,27 +16,27 @@ pub const COUNT: usize = 63;
 /// A font object (0x20 bytes, `rc2k_core::strings::text::Font`), its fields as cells.
 #[derive(rc2k_derive::Cells)]
 pub struct FontObject {
-    /// +0x00: the character drawn with glyph 0.
+    /// The character drawn with glyph 0.
     pub first_char: PlainByte,
-    /// +0x01: the last character with a glyph.
+    /// The last character with a glyph.
     pub last_char: PlainByte,
-    /// +0x02: how it draws (`rc2k_core::strings::text::MODE_*`).
+    /// How it draws (`rc2k_core::strings::text::MODE_*`).
     pub mode: PlainByte,
-    /// +0x03: `FLAG_*` bits.
+    /// `FLAG_*` bits.
     pub flags: PlainByte,
-    /// +0x04: pixels added after every normal glyph.
+    /// Pixels added after every normal glyph.
     pub spacing: PlainDword,
-    /// +0x08: pixels from one line to the next.
+    /// Pixels from one line to the next.
     pub line_height: PlainDword,
-    /// +0x0C: added to y once.
+    /// Added to y once.
     pub y_offset: PlainDword,
-    /// +0x10: pixels added after every extended glyph.
+    /// Pixels added after every extended glyph.
     pub extended_spacing: PlainDword,
-    /// +0x14: the palette (a counter in the measuring mode).
+    /// The palette (a counter in the measuring mode).
     pub palette: PlainDword,
-    /// +0x18: the glyph table.
+    /// The glyph table.
     pub glyph_table: PlainDword,
-    /// +0x1C: the box width lines are aligned in (the widest line's width, measuring).
+    /// The box width lines are aligned in (the widest line's width, measuring).
     pub box_width: PlainDword,
 }
 

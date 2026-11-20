@@ -9,16 +9,16 @@ pub(crate) const ADDED_FROM: u32 = 0x4844;
 pub(crate) const ADDED_BELOW: u32 = 3000;
 /// How many drivers by lot get time added.
 pub(crate) const SLOWED: u32 = 8;
-/// A driver still running (+0x24) and one dropped out, with its times (+0xC, +0x10).
+/// A driver still running (`in_event`) and one dropped out, with its times (`time`, `total`).
 pub const RUNNING: u32 = 1;
 pub const DROPPED: u32 = 4;
 pub const DROPPED_TIME: u32 = 0x36EE8A;
 /// The race's results: none, and left.
 pub const NONE: u32 = u32::MAX;
 pub const QUIT: u32 = 0xFFFF_FFFE;
-/// Player +0xD0's value for one taking part.
+/// A player's `entry` for one taking part.
 pub const TAKES_PART: u32 = 1;
-/// The fourth player's time and +0xD0 when all four dropped in mode 0xD.
+/// The fourth player's time and `entry` when all four dropped in mode 0xD.
 pub const FOURTH_TIME: u32 = 0x36EE80;
 pub const FOURTH_ENTRY: u32 = 6;
 /// The cheat that keeps the race's switch on: bit 0x12.
@@ -62,7 +62,7 @@ pub enum Step {
     SortByTime,
     CopySummary,
     /// `RaceState.settings.rivals` the summary table, `RaceState.settings.stage` the track pack
-    /// entry's +0x34.
+    /// entry's stage figure.
     RaceInfo,
     /// `race::single_rally_race` (kind 1); `next` when another player's race follows
     /// (1 from `menu::player_entered`; 0 otherwise).

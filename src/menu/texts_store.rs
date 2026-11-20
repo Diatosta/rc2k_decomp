@@ -2179,7 +2179,7 @@ pub fn speech_entry(
     if entry == SPEECH_END || entry == 0 {
         return Ok(entry);
     }
-    crate::audio::store::name_in(names, entry)?;
+    crate::audio::sample_records::name_in(names, entry)?;
     Ok(entry)
 }
 

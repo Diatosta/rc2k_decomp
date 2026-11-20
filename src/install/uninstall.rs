@@ -41,7 +41,7 @@ fn whole_folder(install: &crate::install::owner::Install) -> Option<std::path::P
     if !record.ends_with(b"\\") {
         record.push(b'\\');
     }
-    record.extend(crate::install::portable::FILE.as_bytes());
+    record.extend(crate::install::record::FILE.as_bytes());
     let folder = std::path::absolute(crate::files::host_path(text)).ok()?;
     let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
         .and_then(|h| std::path::absolute(h).ok());
@@ -88,7 +88,7 @@ pub fn uninstall(
         return Ok(());
     }
     install.names.status.set(0x80);
-    i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;
+    i::record::write_installed(install);
     // the "removing" frame
     run_frame(o, None)?;
     if lock(gfx, system) {
@@ -138,11 +138,7 @@ pub fn uninstall(
     pause(o, 1000);
     install.names.status.set(0);
     wb(&install.names.source, 0);
-    i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;
-    i::unregister_lobby::unregister_lobby(
-        install,
-        &mut crate::install::portable::Portable::default(),
-    );
+    i::record::write_installed(install);
     install.run.remove_items.set(1);
     install.flags.installing.set(false);
     Ok(())

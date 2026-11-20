@@ -275,13 +275,13 @@ pub struct TextureInfo {
     pub first: [u32; 4],
     /// +0x10, +0x14, +0x18: the course record's +0x20, +0x10, +0x14.
     pub values: [u32; 3],
-    /// +0x1C: the course record's byte +0x18.
+    /// The course record's byte +0x18.
     pub byte: u8,
-    /// +0x20: the kind >> 4.
+    /// The kind >> 4.
     pub group: u32,
-    /// +0x24: the kind & 0xF.
+    /// The kind & 0xF.
     pub row: u32,
-    /// +0x28: the group with bit 31 set.
+    /// The group with bit 31 set.
     pub marked: u32,
     /// +0x2C ..= +0x2E: the course record's bytes +0x24 ..= +0x26.
     pub bytes: [u8; 3],

@@ -1,6 +1,6 @@
 //! `menu::time_trial_qualifies`: whether the current player's time makes the chosen stage's best
-//! times: `event.trial.qualifies` is set to 0; when the player's time (+0x88) is not above (signed)
-//! the tenth entry's +0x14, `event.trial.qualifies` and `event.trial.any_qualified` become 1.
+//! times: `event.trial.qualifies` is set to 0; when the player's `time` is not above (signed)
+//! the tenth entry's `key`, `event.trial.qualifies` and `event.trial.any_qualified` become 1.
 //!
 //! Refuses (before anything) a current player past the four or missing, a stage kind past the table
 //! or a null pointer to the stage's records or times (`event_flow::stage_times`).

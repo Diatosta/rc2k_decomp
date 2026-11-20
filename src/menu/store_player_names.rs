@@ -1,7 +1,7 @@
 //! `menu::store_player_names`: copies each player's name into that player's car
 //! and writes it to the game's log.
 //!
-//! For each of the four players: the 0x20 bytes of the player's name to its +0x124, and that copy
+//! For each of the four players: the 0x20 bytes of the player's name to its `name_copy`, and that copy
 //! as a line of the log (`logfile::log_write_l1_nl`). A name that fills its 0x20 bytes is logged
 //! with what follows it in the player. Refuses a missing player.
 

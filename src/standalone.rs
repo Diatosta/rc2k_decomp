@@ -430,7 +430,7 @@ fn read_settings_and_start_log(o: Owners<'static>) {
 /// from the installer's script): made here when missing, in the game's folder, as the game's
 /// path templates name them; not in the download folder, where the program is the installer.
 fn make_save_folders() {
-    let folders: &[&str] = if crate::install::portable::is_source_folder() {
+    let folders: &[&str] = if crate::install::record::is_source_folder() {
         &[]
     } else {
         &[
@@ -465,13 +465,10 @@ fn read_command_line_and_install_state(o: Owners<'static>) {
     if let Err(why) = crate::system::read_command_line::read_own_command_line(o) {
         refused("system::read_command_line", why.into());
     }
-    let mut outside = Outside {
-        install: o.install,
-        system,
-    };
-    rust("install::check_clio_disc");
-    if let Err(e) = crate::install::check_clio_disc::check_clio_disc(o.install, &mut outside) {
-        refused("install::check_clio_disc", e);
+    let mut outside = Outside { install: o.install };
+    rust("install::find_clio");
+    if let Err(e) = crate::install::find_clio::find_clio(o.install, &mut outside) {
+        refused("install::find_clio", e);
     }
     rust("install::check_at_start");
     let no_audio = &o.audio.state.no_audio;

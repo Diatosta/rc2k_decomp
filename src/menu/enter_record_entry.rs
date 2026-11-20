@@ -1,8 +1,9 @@
 //! `menu::enter_record_entry`: the current player (`event.current_player`) entered as
-//! the current record's event's tenth record entry (its +0x57C): +0x14 the time (+0x88),
-//! +0x1C its +0x90, +8 its +4, +0xC its name pointer (+0x18), +0x10 its +8, +0x4C its
-//! +0xD0, +0x50 the cheats, +0x54 / +0x58 the sealed time (`menu::sealed_player_time` with
-//! the event's number), +4 the player + 1, +0x40 1, +0x20 the name's 0x1F bytes; then moved up
+//! the current record's event's tenth record entry: its `key` the player's `time`, `group` the
+//! player's `class`, `nation` the nationality, `name_id` the name's id, `car` the car number,
+//! `entered` the player's `entry`, `cheats` the cheats, `sealed` the sealed time
+//! (`menu::sealed_player_time` with the event's number), `player` the player + 1, `mark` 1 and
+//! `name` the name's 0x1F bytes; then moved up
 //! (`menu::rank_record_entry`).
 //!
 //! Refuses a record past the table, no events table, a current player past 3 or missing, or no

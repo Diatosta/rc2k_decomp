@@ -4,8 +4,8 @@
 //! the one source of the menus' items (their places, links, functions and starting values).
 //!
 //! What the game changes in play is kept here, per item (`MenuItem`, 566 of them in one
-//! array, the menus' in `MENUS`' order): the string id (+0x14), the font (+0x18), +0x1C, the
-//! sprite (+0x20), the font a highlighted item pulses in (+0x50) and the skip mark (+0x48),
+//! array, the menus' in `MENUS`' order): the string id, the font, what is behind the text, the
+//! sprite, the font a highlighted item pulses in and the skip mark,
 //! each starting as the table has it. Nothing else of an item is written anywhere (the
 //! compiler says so: the rest is read from `MenuItem::fixed`). Menus are named for the screen
 //! that shows them (`menu::screen_loop`'s `Screen::menu`), the ones no screen names by their
@@ -23,7 +23,7 @@ pub struct MenuLabel {
     pub y: PlainDword,
     /// The font.
     pub font: FontCell,
-    /// The string id (+0x14).
+    /// The string id.
     pub string: PlainDword,
 }
 
@@ -507,18 +507,18 @@ pub struct MenuItem {
     /// the states are built at compile time points at a copy of the table, not at `MENUS`).
     menu: u16,
     item: u16,
-    /// The string id (+0x14).
+    /// The string id.
     pub string: PlainDword,
-    /// The font (+0x18; `menu::disable_item` / `enable_item`).
+    /// The font ( `menu::disable_item` / `enable_item`).
     pub font: FontCell,
-    /// +0x1C.
+    /// What is behind the item's text.
     pub behind: PlainDword,
-    /// +0x20: the sprite behind it, or a button's sprite list (`menu::stage_view_steps::
+    /// The sprite behind it, or a button's sprite list (`menu::stage_view_steps::
     /// style_stage_item`).
     pub sprites: SpriteCell,
-    /// +0x48: passed over when the moves up and down meet it.
+    /// Passed over when the moves up and down meet it.
     pub skip_mark: PlainDword,
-    /// +0x50: the font a highlighted item pulses in (`style_stage_item`).
+    /// The font a highlighted item pulses in (`style_stage_item`).
     pub highlight_font: FontCell,
     /// How many pixels a page has moved the item up from its table place (0 for nearly every
     /// item; the axes list packs its rows).

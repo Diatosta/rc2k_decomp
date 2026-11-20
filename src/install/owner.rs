@@ -4,7 +4,7 @@ use crate::install::installer::InstallTexts;
 use crate::install::name_tables::NameTable;
 use crate::install::read_sku::Sku;
 use crate::install::run_flags::RunFlags;
-use crate::install::store::{DriveRows, InstallVars, LobbyKeys};
+use crate::install::store::{DriveRows, InstallVars};
 use crate::install::vars::{
     InstallerNames, InstallerPages, InstallerPalette, InstallerPaths, InstallerRun,
 };
@@ -25,8 +25,6 @@ pub struct Install {
     pub pieces: RefCell<Vec<crate::install::page_records::Piece>>,
     pub paths: InstallerPaths,
     pub palette: InstallerPalette,
-    /// The lobby's registry key and value names (read-only texts).
-    pub lobby_keys: LobbyKeys,
     /// The folders' names (0x10100 bytes) the installer's scans and script collect.
     pub folders: Owned<NameTable>,
     /// The files' names (0x40100 bytes) the same collect.
@@ -48,7 +46,6 @@ impl Install {
             pieces: RefCell::new(Vec::new()),
             paths: InstallerPaths::new(),
             palette: InstallerPalette::new(),
-            lobby_keys: LobbyKeys::new(),
             folders: Owned::new("no installer folders table"),
             files: Owned::new("no installer files table"),
         }

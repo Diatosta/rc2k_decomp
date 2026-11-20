@@ -5,17 +5,17 @@
 /// A car block's view fields (block offsets +0x684 .. +0x69C).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CameraView {
-    /// +0x684: the view shown.
+    /// The view shown.
     pub view: u32,
-    /// +0x688: the view wanted.
+    /// The view wanted.
     pub wanted: u32,
-    /// +0x690: the step count when it was taken.
+    /// The step count when it was taken.
     pub taken_at: u32,
-    /// +0x694: held (no change).
+    /// Held (no change).
     pub held: u32,
-    /// +0x698: not known; cleared when a view is taken.
+    /// Not known; cleared when a view is taken.
     pub w698: u32,
-    /// +0x69C: the share of the switch to the view made (a float).
+    /// The share of the switch to the view made (a float).
     pub switch_share: f32,
 }
 

@@ -4,11 +4,12 @@
 //! - 2: pop a level (refused with nothing pushed);
 //! - 3 n: read a name and add the matching files, path unchanged;
 //! - 4 n: read a name and add the folder tree;
-//! - 8 n: if the media mode is below n, skip to the matching 9 (they nest);
+//! - 8 n: if the installation kind (always the full one, 3) is below n, skip to the matching 9
+//!   (they nest);
 //! - 9, 6: nothing; any other byte (0): the end. An unbalanced stack is fatal error 0x80AF3011.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::installer::{fatal, media_mode, rb, wb};
+use crate::install::installer::{FULL_INSTALLATION, fatal, rb, wb};
 use crate::memory::place::BytePlace;
 use rc2k_core::install::script::{self, Op};
 
@@ -25,7 +26,8 @@ pub(super) fn run_script(
     let mut end = BytePlace::from(&install.paths.script_path);
     wb(end, 0);
     let mut stack: Vec<BytePlace> = Vec::new();
-    let media = media_mode() as u8;
+    // Every installation is a full one: no part of a script is left out.
+    let media = FULL_INSTALLATION as u8;
     let mut guard = 0usize;
     loop {
         guard += 1;

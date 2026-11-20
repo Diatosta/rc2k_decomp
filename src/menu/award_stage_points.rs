@@ -2,12 +2,13 @@
 //! (`event.shown.class`, 0 .. `CLASSES`) the points start at 0x14 (`seconds`); each
 //! entry
 //! of standings table B in that class, in the table's order, is logged ("Status of
-//! driver" and its +0x74), gets the points into its +0x54 + 4 * `section` and the points
-//! go down by one (not below 0). A computer's driver (+4 0, `menu::find_cpu_team` by its
-//! +0) keeps them in its +0x78 + 4 * `section` when its +0x24 is 1, a player (+4 the
-//! player + 1) in its +0x98 + 4 * `section` when its +0xD0 is 1; otherwise both are 0.
-//! Then each entry's total of its six stage points (+0x54 .., the negative ones left out)
-//! into its +0x6C and its driver's +0x90 or player's +0xB0.
+//! driver" and its `status`), gets the points into its `stage` slot of `section` and the points
+//! go down by one (not below 0). A computer's entry (`player` 0, its driver found by
+//! `menu::find_cpu_team` from the entry's `first`) keeps them in the driver's results when the
+//! driver is still in the event, a player's entry (`player` the player + 1) in the player's
+//! `stage_points` when the player takes part; otherwise both are 0.
+//! Then each entry's total of its six stage points (the negative ones left out) goes into its
+//! own total slot and into its driver's or player's total.
 //!
 //! It logs through `logfile::log_write` and `log_int` (level 1). Refuses no table, one without its
 //! end entry, a section past 5, a player past 4 or missing,

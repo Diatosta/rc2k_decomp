@@ -24,28 +24,28 @@ use crate::strings::bytes::{self, Bytes};
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Font {
-    /// +0x00: the character drawn with glyph 0. Bytes below it are control codes.
+    /// The character drawn with glyph 0. Bytes below it are control codes.
     pub first_char: u8,
-    /// +0x01: the last character with a glyph. Bytes above it are ignored.
+    /// The last character with a glyph. Bytes above it are ignored.
     pub last_char: u8,
-    /// +0x02: one of the `MODE_` values.
+    /// One of the `MODE_` values.
     pub mode: u8,
-    /// +0x03: `FLAG_` bits.
+    /// `FLAG_` bits.
     pub flags: u8,
-    /// +0x04: pixels added after every normal glyph.
+    /// Pixels added after every normal glyph.
     pub spacing: i32,
-    /// +0x08: pixels from one line to the next.
+    /// Pixels from one line to the next.
     pub line_height: i32,
-    /// +0x0C: added to y once.
+    /// Added to y once.
     pub y_offset: i32,
-    /// +0x10: pixels added after every extended (two-byte) glyph.
+    /// Pixels added after every extended (two-byte) glyph.
     pub extended_spacing: i32,
-    /// +0x14: the palette, for the canvas. In `MODE_MEASURE` a counter instead: one is
+    /// The palette, for the canvas. In `MODE_MEASURE` a counter instead: one is
     /// added per line.
     pub palette: u32,
-    /// +0x18: the glyph table, for the canvas.
+    /// The glyph table, for the canvas.
     pub glyph_table: u32,
-    /// +0x1C: the width of the box lines are aligned in, and the limit for
+    /// The width of the box lines are aligned in, and the limit for
     /// `FLAG_FAIL_IF_WIDER`. In `MODE_MEASURE` it receives the widest line's width.
     pub box_width: u32,
 }

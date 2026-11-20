@@ -1,6 +1,6 @@
-//! `menu::find_class_time`: the first entry of the list (0x9C bytes each) whose class (+0x1C)
-//! is the given one, or the end mark's (-1) when none is: its +0x18 when asked for that, else
-//! its +0x14.
+//! `menu::find_class_time`: the first entry of the list (0x9C bytes each) whose `group`
+//! is the given one, or the end mark's (-1) when none is: its `rally_time` when asked for that,
+//! else its `key` (the stage time).
 //!
 //! Refuses a list without its end in 0x400 entries.
 

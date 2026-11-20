@@ -1,4 +1,4 @@
-//! `menu::sort_standings_by_total`: as `menu::sort_standings_by_time` by +0x18 (a reading: the
+//! `menu::sort_standings_by_total`: as `menu::sort_standings_by_time` by `rally_time` (a reading: the
 //! total time).
 //!
 //! Refuses a null table, before anything.

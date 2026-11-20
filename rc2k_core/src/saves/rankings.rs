@@ -69,27 +69,27 @@ pub type RankedTimes = Table<BestTime>;
 /// A championship history entry (table B, 0x78 bytes).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct HistoryEntry {
-    /// +0: the driver's number; -1 ends the list.
+    /// The driver's number; -1 ends the list.
     pub first: u32,
-    /// +4: the player (1 .. 4), 0 a computer driver.
+    /// The player (1 .. 4), 0 a computer driver.
     pub player: u32,
-    /// +8: the nationality.
+    /// The nationality.
     pub nation: u32,
-    /// +0xC: the car.
+    /// The car.
     pub car: u32,
-    /// +0x10: the group.
+    /// The group.
     pub group: u32,
-    /// +0x14: the name (0x20 bytes of room).
+    /// The name (0x20 bytes of room).
     pub name: [u8; 0x20],
-    /// +0x34: the total.
+    /// The total.
     pub total: u32,
-    /// +0x38: the overall points of the six rounds, then their total (+0x50).
+    /// The overall points of the six rounds, then their total (+0x50).
     pub overall: [u32; 7],
-    /// +0x54: the stage points of the six rounds, then their total (+0x6C).
+    /// The stage points of the six rounds, then their total (+0x6C).
     pub stage: [u32; 7],
-    /// +0x70: the position.
+    /// The position.
     pub position: u32,
-    /// +0x74: logged as the driver's status.
+    /// Logged as the driver's status.
     pub status: u32,
 }
 
@@ -170,15 +170,15 @@ pub(crate) fn patch_history(e: &mut HistoryEntry, at: usize, bytes: &[u8]) -> Op
 /// A row of the summary (0x50 bytes): a rival for the race.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Rival {
-    /// +0: the name's string id.
+    /// The name's string id.
     pub name_id: u32,
-    /// +4: the nationality.
+    /// The nationality.
     pub nation: u32,
-    /// +8: the car.
+    /// The car.
     pub car: u32,
-    /// +0xC: the time.
+    /// The time.
     pub time: u32,
-    /// +0x10: the sixteen checkpoint times.
+    /// The sixteen checkpoint times.
     pub checkpoints: [u32; 16],
 }
 

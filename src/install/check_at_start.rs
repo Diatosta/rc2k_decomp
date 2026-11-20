@@ -1,7 +1,7 @@
 //! Finds the game's data when the game is started from somewhere that is not an installation.
 //! Nothing when the installer is running or `var\ral.zog` is there; otherwise the sound is
-//! switched off, and nothing more if `files\d\gfx\jade.bun` is there. Else, if the registry
-//! records an installation whose `ral.exe` exists, the installer's script is set up for an
+//! switched off, and nothing more if `files\d\gfx\jade.bun` is there. Else, if the record
+//! names an installation whose `ral.exe` exists, the installer's script is set up for an
 //! update; either way the first CD-ROM drive holding the game's files becomes the current
 //! directory ("Update cannot find RC CD-ROM" and a fatal error if there is none). Not the copy
 //! protection's CD check. Called once, by `start`. Refused: a scratch path that is not a text
@@ -48,7 +48,7 @@ pub fn check_at_start(
     };
     let program = install.names.program.text();
 
-    outside.read_registry();
+    outside.read_installed();
     if install.names.status.get() == 1 && install.names.source.get(0) != 0 {
         // Whether the source could be put there is not asked: the program's name goes
         // after whatever text the place holds.

@@ -13,39 +13,39 @@ use crate::race::owner_replay::Replay;
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct ReplayViewBlock {
-    /// +0x0: the 16-byte frame that pads a block's end, zeros (`race::replay`,
+    /// The 16-byte frame that pads a block's end, zeros (`race::replay`,
     /// `race::add_replay_frame`).
     pub pad_frame: [PlainDword; 4],
-    /// +0x10: the new replay file's length so far (`race::save_viewed_replay`, `race::replay`).
+    /// The new replay file's length so far (`race::save_viewed_replay`, `race::replay`).
     pub file_offset: PlainDword,
-    /// +0x14: frames in the block being written, 0 .. 100 (`race::replay`,
+    /// Frames in the block being written, 0 .. 100 (`race::replay`,
     /// `drive::write_replay_frames`).
     pub frames_in_block: PlainDword,
-    /// +0x18: the block shown/played (`race::viewer`, `drive::replay_clock_tick`,
+    /// The block shown/played (`race::viewer`, `drive::replay_clock_tick`,
     /// `drive::read_replay_frame`).
     pub replay_block: PlainDword,
-    /// +0x1c: its frame in the block, 0 .. 99 (`race::viewer`, `drive::replay_clock_tick`).
+    /// Its frame in the block, 0 .. 99 (`race::viewer`, `drive::replay_clock_tick`).
     pub replay_frame: PlainDword,
-    /// +0x20: playing stops before this block, -1 none (`race::viewer`, `drive::race_loop`,
+    /// Playing stops before this block, -1 none (`race::viewer`, `drive::race_loop`,
     /// `drive::finish_run`).
     pub play_end: PlainDword,
-    /// +0x24: play from here (`race::viewer`).
+    /// Play from here (`race::viewer`).
     pub play_from_here: PlainDword,
-    /// +0x28: a picture of the next frame asked (`race::viewer_frame`).
+    /// A picture of the next frame asked (`race::viewer_frame`).
     pub snapshot_asked: PlainDword,
-    /// +0x2c: the slot is 222 (`race::viewer`).
+    /// The slot is 222 (`race::viewer`).
     pub last_race_viewed: PlainFlag,
-    /// +0x30: modes 4 and 5 (`race::viewer`).
+    /// Modes 4 and 5 (`race::viewer`).
     pub viewer_only_shown: PlainDword,
-    /// +0x34: mode 5 (`race::viewer`).
+    /// Mode 5 (`race::viewer`).
     pub viewer_keys_ignored: PlainDword,
-    /// +0x38: the key after a play; starts at -1 (`race::viewer`).
+    /// The key after a play; starts at -1 (`race::viewer`).
     pub key_after_play: PlainDword,
-    /// +0x3c: keys held after playing (`race::viewer`).
+    /// Keys held after playing (`race::viewer`).
     pub wait_key_release: PlainDword,
-    /// +0x40: Escape twice leaves (`race::viewer`).
+    /// Escape twice leaves (`race::viewer`).
     pub escape_count: PlainDword,
-    /// +0x44: the viewer's list: 26 items. The header's `neighbours` names the key table; an
+    /// The viewer's list: 26 items. The header's `neighbours` names the key table; an
     /// item's `box_link` names its screen rectangle, its `data` its picture (image addresses into
     /// `RECTANGLES` and the viewer panel); its `count` is the action Enter does.
     pub viewer_list: ListData26,

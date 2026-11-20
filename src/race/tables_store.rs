@@ -8,97 +8,97 @@ use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceTables {
-    /// +0x0: the factor by section for the last three record times (`menu::scale_stage_times`).
+    /// The factor by section for the last three record times (`menu::scale_stage_times`).
     pub stage_time_factors_last: [PlainFloat; 6],
-    /// +0x18: the factor by section for the first record time (`menu::scale_stage_times`).
+    /// The factor by section for the first record time (`menu::scale_stage_times`).
     pub stage_time_factors_first: [PlainFloat; 6],
-    /// +0x30: the arcade cars count by rally (`race::set_up_mode_2_cars`).
+    /// The arcade cars count by rally (`race::set_up_mode_2_cars`).
     pub arcade_cars_by_rally: [PlainDword; 6],
-    /// +0x48: the best place wanted by arcade stage (six stages); `race::set_up_mode_2_cars` copies
+    /// The best place wanted by arcade stage (six stages); `race::set_up_mode_2_cars` copies
     /// the stage's entry to `best_place`.
     pub arcade_best_place_by_stage: [PlainDword; 6],
-    /// +0x60: the share a car gets on the last start place by arcade rally (six rallies);
+    /// The share a car gets on the last start place by arcade rally (six rallies);
     /// `race::set_up_mode_2_cars` copies the rally's entry to `start_share_last`.
     pub start_share_last_by_rally: [PlainDword; 6],
-    /// +0x78: the share on the first start place by arcade rally; copied to `start_share_first` by
+    /// The share on the first start place by arcade rally; copied to `start_share_first` by
     /// `race::set_up_mode_2_cars`.
     pub start_share_first_by_rally: [PlainDword; 6],
-    /// +0x90: the time percentage by difficulty level (`race::race_cars` prints it); 36 entries.
+    /// The time percentage by difficulty level (`race::race_cars` prints it); 36 entries.
     pub time_percentages: [PlainDword; 36],
-    /// +0x120: 0x17 floats by car kind (`race::race_cars`).
+    /// 0x17 floats by car kind (`race::race_cars`).
     pub kind_time_factors: [PlainFloat; 23],
-    /// +0x17c: `car_data_text` and the two bytes after it: the cars data text, 0x708 bytes, read
+    /// `car_data_text` and the two bytes after it: the cars data text, 0x708 bytes, read
     /// in place (`race::read_stage_car_numbers`, `race::race_cars`).
     pub car_data_text: [PlainDword; 450],
-    /// +0x884: the step of the start blend (`drive::start_blend`).
+    /// The step of the start blend (`drive::start_blend`).
     pub start_blend_step: PlainFloat,
-    /// +0x888: scale of the push apart of the pace cars (`drive::start_cars_behind`).
+    /// Scale of the push apart of the pace cars (`drive::start_cars_behind`).
     pub pace_push_scale: PlainFloat,
-    /// +0x88c: the float 30.0, never written: the speed
+    /// The float 30.0, never written: the speed
     /// `drive::drive_computer_car` eases the computer's wanted speed toward (`int_toward_to_int`).
     /// It is also slot 0 of the cars-by-place table that runs on into `arcade_car_kinds`
     /// (`race::panel_neighbours` reads `[place]` and `[place + 1]`): only a place of 0 would read
     /// the 30.0 as a car (refused there).
     pub computer_ease_speed: PlainDword,
-    /// +0x890: each car's type 1 .. 3, 89 rooms; also the cars by start
+    /// Each car's type 1 .. 3, 89 rooms; also the cars by start
     /// (`race::set_up_mode_2_cars`, `drive::start_cars_behind`, `race::panel_neighbours`).
     pub arcade_car_kinds: [PlainDword; 89],
-    /// +0x9f4: read as the number at place -1 by `race::panel_neighbours`; `arcade_car_numbers`
+    /// Read as the number at place -1 by `race::panel_neighbours`; `arcade_car_numbers`
     /// follows it.
     pub number_before_first: PlainDword,
-    /// +0x9f8: each car's number by start (`race::set_up_mode_2_cars`, `drive::start_cars_behind`,
+    /// Each car's number by start (`race::set_up_mode_2_cars`, `drive::start_cars_behind`,
     /// `drive::start_car_on_line`, `race::panel_neighbours`).
     pub arcade_car_numbers: [PlainDword; 90],
-    /// +0xb60: the noise seed (`race::set_up_mode_2_cars`, `race::race_end`, `race::credits_race`).
+    /// The noise seed (`race::set_up_mode_2_cars`, `race::race_end`, `race::credits_race`).
     pub noise_seed: PlainDword,
-    /// +0xb64: the start in use (`drive::start_car_on_line`, `drive::start_cars_behind`).
+    /// The start in use (`drive::start_car_on_line`, `drive::start_cars_behind`).
     pub start_slot: PlainDword,
-    /// +0xb68: the share of the last start place (`lo` of
+    /// The share of the last start place (`lo` of
     /// `rc2k_core::drive::start_places::start_share`, which blends it to `start_share_first` by the
     /// start's place); set by `race::set_up_mode_2_cars`.
     pub start_share_last: PlainFloat,
-    /// +0xb6c: the share of the first start place (`hi` of `start_share`); set by
+    /// The share of the first start place (`hi` of `start_share`); set by
     /// `race::set_up_mode_2_cars`.
     pub start_share_first: PlainFloat,
-    /// +0xb70: the start's share (`drive::start_car_on_line`).
+    /// The start's share (`drive::start_car_on_line`).
     pub start_share: PlainFloat,
-    /// +0xb74: the start speed, loaded as a float (`drive::start_car_on_line`,
+    /// The start speed, loaded as a float (`drive::start_car_on_line`,
     /// `drive::start_cars_behind`).
     pub start_speed: PlainFloat,
-    /// +0xb78: "NUM arcadecars", the starts count (`race::set_up_mode_2_cars`,
+    /// "NUM arcadecars", the starts count (`race::set_up_mode_2_cars`,
     /// `race::panel_neighbours`, `drive::start_cars_behind`).
     pub arcade_cars: PlainDword,
-    /// +0xb7c: unused; it only keeps the layout.
+    /// Unused; it only keeps the layout.
     pub unused_b7c: PlainDword,
-    /// +0xb80: "arc start pos (1-n)" (`race::set_up_mode_2_cars`, `race::settings_copy`,
+    /// "arc start pos (1-n)" (`race::set_up_mode_2_cars`, `race::settings_copy`,
     /// `race::race_shell`).
     pub start_place: PlainDword,
-    /// +0xb84: "bestpos" (`race::set_up_mode_2_cars`).
+    /// "bestpos" (`race::set_up_mode_2_cars`).
     pub best_place: PlainDword,
-    /// +0xb88: the first pace car's start (`drive::start_cars_behind`).
+    /// The first pace car's start (`drive::start_cars_behind`).
     pub pace_start_a: PlainDword,
-    /// +0xb8c: the second pace car's start (`drive::start_cars_behind`). Written with the three
+    /// The second pace car's start (`drive::start_cars_behind`). Written with the three
     /// before it as a run.
     pub pace_start_b: PlainDword,
-    /// +0xb90: the first pace car's distance (`drive::start_cars_behind`).
+    /// The first pace car's distance (`drive::start_cars_behind`).
     pub pace_distance_a: PlainDword,
-    /// +0xb94: the second pace car's distance (`drive::start_cars_behind`).
+    /// The second pace car's distance (`drive::start_cars_behind`).
     pub pace_distance_b: PlainDword,
-    /// +0xb98: the gap at which the lead has passed a pace car (`drive::start_cars_behind`).
+    /// The gap at which the lead has passed a pace car (`drive::start_cars_behind`).
     pub pace_pass_gap: PlainDword,
-    /// +0xb9c: the gap a pace car is moved by (`drive::start_cars_behind`).
+    /// The gap a pace car is moved by (`drive::start_cars_behind`).
     pub pace_back_gap: PlainDword,
-    /// +0xba0: the sum of the two gaps (`drive::start_cars_behind`).
+    /// The sum of the two gaps (`drive::start_cars_behind`).
     pub pace_gap_sum: PlainDword,
-    /// +0xba4: the order of the car kinds, 0x22 entries (the last two overlap `view_share` and
+    /// The order of the car kinds, 0x22 entries (the last two overlap `view_share` and
     /// `camera_turn_step`); `race::index_of_kind` searches it.
     pub kind_order: [PlainDword; 32],
-    /// +0xc24: the share of a view change done (`physics::ease_view_angles`, `ease_view_blend`,
+    /// The share of a view change done (`physics::ease_view_angles`, `ease_view_blend`,
     /// `physics::camera_view`).
     pub view_share: PlainFloat,
-    /// +0xc28: the camera's turn step, -1 or 0x4000000 and down (`physics::camera_avoid_ground`).
+    /// The camera's turn step, -1 or 0x4000000 and down (`physics::camera_avoid_ground`).
     pub camera_turn_step: PlainDword,
-    /// +0xc2c: 0 / -1 flag set by the camera's ground check (`physics::camera_avoid_ground`).
+    /// 0 / -1 flag set by the camera's ground check (`physics::camera_avoid_ground`).
     pub camera_ground_flag: PlainDword,
 }
 

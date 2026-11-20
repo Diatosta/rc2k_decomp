@@ -8,9 +8,9 @@ use crate::memory::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ErrorList {
-    /// +0x0: the error list read from the file named in the course (`race::load_error_list`).
+    /// The error list read from the file named in the course (`race::load_error_list`).
     pub list: PlainBytes<0x2000>,
-    /// +0x2000: unused.
+    /// Unused.
     pub unknown_2000: [PlainDword; 7],
 }
 

@@ -1,5 +1,5 @@
-//! `menu::find_section_player`: the first of the four players whose entry for the section
-//! (`section`, +0xB4 + 4 * section) is 0x14 (a reading: done with it); none: index -1.
+//! `menu::find_section_player`: the first of the four players whose overall points for the section
+//! (`overall_points[section]`) are 0x14 (a reading: done with it); none: index -1.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

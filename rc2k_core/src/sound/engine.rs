@@ -9,59 +9,59 @@ use crate::audio::voices::{BASE_SAMPLES, PLAYER_COPIES};
 /// offsets in the object; the game crate takes them from the object and puts them back.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Engine {
-    /// +0x10: a new revs reading came.
+    /// A new revs reading came.
     pub new_revs: u32,
-    /// +0x14: the revs.
+    /// The revs.
     pub revs: u32,
-    /// +0x18: the throttle.
+    /// The throttle.
     pub throttle: u32,
-    /// +0x20: the physics' gear-changed flag.
+    /// The physics' gear-changed flag.
     pub gear_event: u32,
-    /// +0x24: 1 in neutral.
+    /// 1 in neutral.
     pub no_gear: u32,
     /// +0x94 / +0x98: the times of the last two readings.
     pub reading_times: [u32; 2],
     /// +0x9C / +0xA0: their revs.
     pub reading_revs: [u32; 2],
-    /// +0xE8: the gear.
+    /// The gear.
     pub gear: u32,
-    /// +0xEC: the gear when it last changed.
+    /// The gear when it last changed.
     pub last_gear: u32,
-    /// +0xF0: set with a gear change.
+    /// Set with a gear change.
     pub gear_notice: u32,
-    /// +0xF4: a hold-off, counted down to 0.
+    /// A hold-off, counted down to 0.
     pub countdown: u32,
-    /// +0xF8: the back-fire wait flag.
+    /// The back-fire wait flag.
     pub wait_flag: u32,
-    /// +0xFC: the last direction.
+    /// The last direction.
     pub last_direction: u32,
-    /// +0x10C: the engine's state (0 no revs, 1 up to 1000, 2, 3 cut).
+    /// The engine's state (0 no revs, 1 up to 1000, 2, 3 cut).
     pub state: u32,
-    /// +0x110: the last state.
+    /// The last state.
     pub last_state: u32,
-    /// +0x118: follows the throttle.
+    /// Follows the throttle.
     pub smooth_throttle: u32,
-    /// +0x11C: the gap between the throttle and `smooth_throttle`.
+    /// The gap between the throttle and `smooth_throttle`.
     pub throttle_lead: u32,
-    /// +0x128: the turns going up.
+    /// The turns going up.
     pub turns_up: u32,
-    /// +0x12C: the throttle's direction (0 level, 1 up, 2 down).
+    /// The throttle's direction (0 level, 1 up, 2 down).
     pub direction: u32,
-    /// +0x130: the turns going down.
+    /// The turns going down.
     pub turns_down: u32,
-    /// +0x1C4: the sound of the timed slot the throttle's drop arms.
+    /// The sound of the timed slot the throttle's drop arms.
     pub drop_sound: u32,
-    /// +0x1C8: that slot's start flag.
+    /// That slot's start flag.
     pub drop_start: u32,
-    /// +0x1E0: the back-fire slot's start flag.
+    /// The back-fire slot's start flag.
     pub backfire_start: u32,
-    /// +0x1E4: that slot's playing flag.
+    /// That slot's playing flag.
     pub backfire_playing: u32,
-    /// +0x1EC: that slot's volume.
+    /// That slot's volume.
     pub backfire_volume: u32,
-    /// +0x1F4: the back-fires' wait, counted down.
+    /// The back-fires' wait, counted down.
     pub backfire_wait: u32,
-    /// +0x1FC: the gear change slot's start flag.
+    /// The gear change slot's start flag.
     pub gear_slot_start: u32,
 }
 

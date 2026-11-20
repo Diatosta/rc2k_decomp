@@ -1,4 +1,4 @@
-//! `menu::sort_standings_by_time`: standings table A's first 0xB4 entries sorted by their +0x14
+//! `menu::sort_standings_by_time`: standings table A's first 0xB4 entries sorted by their `key`
 //! (read as the stage time), as `menu::standings::sort_table_a`.
 //!
 //! Refuses a null table, before anything.

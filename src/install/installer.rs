@@ -1,9 +1,8 @@
 //! The installer (`install::run_installer` and its tree): the variables its parts share, the calls
-//! they make and the functions its page tables hold (its registry calls:
-//! `install::read_registry::Registry`).
+//! they make and the functions its page tables hold.
 //!
-//! The installer runs only with its script set up (`-i`, `-u`, `-p`, or the update and Clio
-//! discs: `install::check_at_start`, `check_clio_disc`). Its pages are list menus
+//! The installer runs only with its script set up (`-u`, or the update disc:
+//! `install::check_at_start`). Its pages are list menus
 //! (`install::run_page`): a list of 0x18 bytes (+0 flags, +1 items, +2 title, +4 the item
 //! chosen) and its items of 0x10 bytes from +0x18 (+0 kind and marks, +1 the answer the item
 //! leaves the page with or the choices, +2 the text, +8 and +0xC the kind's links and
@@ -40,13 +39,6 @@ impl InstallTexts {
 }
 
 // The base and locale directories: `files::state::{base_directory, locale_directory}`.
-
-/// The media mode the installation was made with, as its record says (an installation the
-/// 1999 installer made may be a smaller kind, with files left on the disc; the uninstall's
-/// script lists by it).
-pub fn media_mode() -> u32 {
-    crate::files::state::MEDIA_MODE.get()
-}
 
 /// The media mode of a full installation: every file is in the installed folder.
 pub(super) const FULL_INSTALLATION: u32 = 3;
@@ -416,7 +408,7 @@ pub(super) fn item_action_at(
 ) -> Result<bool, Refused> {
     match place {
         GO_ON_ANYWAY => {
-            crate::install::ignore_room::ignore_room(install, list_state);
+            crate::install::room_page::ignore_room(install, list_state);
             Ok(true)
         }
         _ => Err(BadInput("an item action that is not one of the installer's").into()),

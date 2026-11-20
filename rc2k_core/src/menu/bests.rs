@@ -4,7 +4,7 @@
 
 use super::standings::NAME_LEN;
 
-/// The 0x40 bytes a best time keeps (its checkpoints; the player's +0x20C).
+/// The 0x40 bytes a best time keeps (its checkpoints; the player's `best_line`).
 pub const LINE_LEN: usize = 0x40;
 
 /// Whether a time makes a list whose tenth is `tenth`: at most it (signed).
@@ -17,7 +17,7 @@ pub fn makes_score(score: u32, tenth: u32) -> bool {
     score as i32 >= tenth as i32
 }
 
-/// The seal a best time keeps: +0x50 the cheats, +0x54 / +0x58 the sealed time.
+/// The seal a best time keeps: the cheats and the sealed time.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Seal {
     pub cheats: u32,
@@ -26,23 +26,22 @@ pub struct Seal {
 
 /// A new entry.
 pub struct NewBest {
-    /// The time or score (+0x14).
+    /// The time or score.
     pub key: u32,
-    /// The player (+4): 1, or the player's index + 1 for the records.
+    /// The player: 1, or the player's index + 1 for the records.
     pub player: u32,
-    /// The player's nationality (+4 of its record; +8 here), name pointer (+0xC), car
-    /// (its +8; +0x10 here), group (its +0x90; +0x1C here).
+    /// The player's nationality, name pointer, car number and group (the class).
     pub nationality: u32,
     pub name_at: u32,
     pub car: u32,
     pub group: u32,
-    /// The name's first bytes (+0x20).
+    /// The name's first bytes.
     pub name: [u8; NAME_LEN],
-    /// The records' taking part (+0x4C, the player's `entry`).
+    /// The records' taking part (the player's `entry`).
     pub entered: Option<u32>,
     /// The best times' seal.
     pub seal: Option<Seal>,
-    /// The best times' line (+0x5C).
+    /// The best times' line.
     pub line: Option<[u8; LINE_LEN]>,
 }
 

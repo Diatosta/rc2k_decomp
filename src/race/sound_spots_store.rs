@@ -7,59 +7,59 @@ use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SoundSpotBlock {
-    /// +0x0: the work vector's length (a float).
+    /// The work vector's length (a float).
     pub work_vector_length: PlainFloat,
-    /// +0x4: `face_kind`; the drawing's is the view's (`race::face_work`), this one not used.
+    /// `face_kind`; the drawing's is the view's (`race::face_work`), this one not used.
     pub face_kind: PlainDword,
-    /// +0x8: the face's unlit byte; the drawing's is the view's (`race::face_work`), this one not
+    /// The face's unlit byte; the drawing's is the view's (`race::face_work`), this one not
     /// used.
     pub face_unlit: PlainDword,
-    /// +0xc: which groups to list (`scene::list_object_face`, `race::car_draw`); now each view's
+    /// Which groups to list (`scene::list_object_face`, `race::car_draw`); now each view's
     /// (`CarDrawState::groups_which`); unused.
     pub groups_which: PlainDword,
-    /// +0x10: unused; it only keeps the layout.
+    /// Unused; it only keeps the layout.
     pub unused_10: PlainDword,
-    /// +0x14: a flag set to 1, never read.
+    /// A flag set to 1, never read.
     pub flag_18dc: PlainDword,
-    /// +0x18: a flag set to 1, never read.
+    /// A flag set to 1, never read.
     pub flag_18e0: PlainDword,
-    /// +0x1c: a flag tested and set to 1, never read elsewhere.
+    /// A flag tested and set to 1, never read elsewhere.
     pub flag_18e4: PlainDword,
-    /// +0x20: the view window's size less one (`scene::set_view_window`); no longer written or
+    /// The view window's size less one (`scene::set_view_window`); no longer written or
     /// read.
     pub less_one: [PlainFloat; 2],
-    /// +0x28: unused.
+    /// Unused.
     pub unused_28: [PlainDword; 104],
-    /// +0x1c8: the sound by object kind, a 4-bit index (`physics::place_sound_object`).
+    /// The sound by object kind, a 4-bit index (`physics::place_sound_object`).
     pub object_kind_sounds: [PlainDword; 16],
-    /// +0x208: sound scratch (`physics::car_physics_step`).
+    /// Sound scratch (`physics::car_physics_step`).
     pub sound_scratch_a: PlainDword,
-    /// +0x20c: sound scratch (`physics::place_sound_e1_other`).
+    /// Sound scratch (`physics::place_sound_e1_other`).
     pub sound_scratch_b: PlainDword,
-    /// +0x210: sound scratch (`physics::car_physics_step`).
+    /// Sound scratch (`physics::car_physics_step`).
     pub sound_scratch_c: PlainDword,
-    /// +0x214: a band factor; never read.
+    /// A band factor; never read.
     pub band_scale_0: PlainFloat,
-    /// +0x218: the factor of the wall / ground contact sound (the contact band (`sound_bands::CONTACT_BAND`) for
+    /// The factor of the wall / ground contact sound (the contact band (`sound_bands::CONTACT_BAND`) for
     /// `place_sound_e1`, called by the wall and ground contacts) and of the object band (`sound_bands::OBJECT_BAND`).
     pub contact_band_scale: PlainFloat,
-    /// +0x21c: the factor of the crash sound (the crash band (`sound_bands::CRASH_BAND`) for `place_sound_e5`, called
+    /// The factor of the crash sound (the crash band (`sound_bands::CRASH_BAND`) for `place_sound_e5`, called
     /// by `physics::crash_contact`: the car's speed times it, less 1, held to 0 ..= 0x40).
     pub crash_band_scale: PlainFloat,
-    /// +0x220: the factor of the car-bump sound (the bump band (`sound_bands::BUMP_BAND`) for
+    /// The factor of the car-bump sound (the bump band (`sound_bands::BUMP_BAND`) for
     /// `place_sound_e1_other`, called by `physics::bump_cars`: times it, less 10, held to 0 ..=
     /// 0x40).
     pub bump_band_scale: PlainFloat,
-    /// +0x224: a band value rounded to a whole number (`physics::sound_bands`,
+    /// A band value rounded to a whole number (`physics::sound_bands`,
     /// `physics::place_sound_e1`).
     pub band_scratch: PlainDword,
-    /// +0x228: the faces summed; never read.
+    /// The faces summed; never read.
     pub eax_face_count: PlainDword,
-    /// +0x22c: 36 spots of 0x14 bytes (`race::sound_spots`, `race::frame_draw`).
+    /// 36 spots of 0x14 bytes (`race::sound_spots`, `race::frame_draw`).
     pub sound_spots: [PlainDword; 180],
-    /// +0x4fc: spots made this frame (`race::sound_spots`).
+    /// Spots made this frame (`race::sound_spots`).
     pub sound_spot_count: PlainDword,
-    /// +0x500: unused; it only keeps the layout.
+    /// Unused; it only keeps the layout.
     pub unused_500: [PlainDword; 3],
 }
 

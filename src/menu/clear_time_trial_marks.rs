@@ -1,4 +1,4 @@
-//! `menu::clear_time_trial_marks`: the +0x40 of each of the chosen stage's ten
+//! `menu::clear_time_trial_marks`: the `mark` of each of the chosen stage's ten
 //! best times set to 0 (the mark of a new entry, set by `menu::enter_time_trial_best`).
 //!
 //! Refuses (before anything) what `event_flow::stage_times` refuses.

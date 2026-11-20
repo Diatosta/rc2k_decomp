@@ -75,7 +75,7 @@ pub fn current_player(menus: &Menus) -> Result<crate::menu::standings::PlayerCel
 /// `EventState.stage.number` x 0xA4 into it.
 const KINDS: u32 = 4;
 /// The stages' best times: the second stage best times (kind 1) or
-/// `ChampView.time_trial_best_times`, ten for each stage (the record's +0x3C).
+/// `ChampView.time_trial_best_times`, ten for each stage (by the record's `event_slot`).
 pub type StageTable = crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>;
 
 /// The chosen stage's record; refused for a kind past the table's four or a null pointer

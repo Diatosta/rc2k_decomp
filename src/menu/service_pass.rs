@@ -3,7 +3,7 @@
 //! service is due: the inspection's screen, the fade in, the figures (`menu::driver_stats`),
 //! the repair flags cleared, the service page (`service::service_area_loop`; a yes to leaving
 //! ends it all), the repairs (`service::apply_repairs`), the entry kind; a player now out
-//! (+0xD0 2) gets the faults and the inspection page and is counted in `event_out`, its +0x288
+//! (`entry` 2) gets the faults and the inspection page and is counted in `event_out`, its `service_spent`
 //! takes the money x 100. When every player is out, `event_goes_on` is cleared; `service_due`
 //! is cleared at the end.
 //!

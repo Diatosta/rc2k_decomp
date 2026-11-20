@@ -1,6 +1,5 @@
-//! Whether the game was started from the directory the registry names as its installation's source:
-//! only if the status is 1, a source is named and the current directory can be had, the two are
-//! compared.
+//! The installation's recorded source folder against the current directory (only when the record
+//! says it is installed and names a source), and the path buffer the start checks build in.
 
 use crate::errors::BadInput;
 use crate::install::outside::Outside;
@@ -31,13 +30,13 @@ pub(super) fn scratch_text() -> Result<Vec<u8>, BadInput> {
     Ok(all[..n].to_vec())
 }
 
-/// The registry's source (`InstallerNames.source`) against the current directory (written into the
+/// The record's source (`InstallerNames.source`) against the current directory (written into the
 /// path buffer): None when there is no installed source or no directory.
 pub fn source_against_directory(
     install: &crate::install::owner::Install,
     outside: &mut dyn Outside,
 ) -> Result<Option<Ordering>, BadInput> {
-    outside.read_registry();
+    outside.read_installed();
     if install.names.status.get() != 1 || install.names.source.get(0) == 0 {
         return Ok(None);
     }
@@ -49,11 +48,4 @@ pub fn source_against_directory(
         &install.names.source.text(),
         &directory,
     )))
-}
-
-pub fn runs_from_source(
-    install: &crate::install::owner::Install,
-    outside: &mut dyn Outside,
-) -> Result<bool, BadInput> {
-    Ok(source_against_directory(install, outside)? == Some(Ordering::Equal))
 }

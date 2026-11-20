@@ -6,7 +6,7 @@
 pub enum Page {
     /// The languages to choose from.
     Language,
-    /// Install, play (or update), uninstall, register.
+    /// Install, play (or update), uninstall.
     Main,
     /// The drive to install on (only on systems with drive letters).
     Drive,
@@ -37,10 +37,6 @@ pub enum Step {
     Uninstall,
     /// The installed copy made the one that runs.
     OpenInstalled,
-    /// The update copied from its disc.
-    UpdateFromDisc,
-    /// The registration program asked for.
-    Registration,
 }
 
 impl Step {
@@ -53,11 +49,7 @@ impl Step {
             Step::Folder => Some(Page::Folder),
             Step::NoRoom => Some(Page::NoRoom),
             Step::Removal { .. } => Some(Page::Removal),
-            Step::CopyFiles
-            | Step::Uninstall
-            | Step::OpenInstalled
-            | Step::UpdateFromDisc
-            | Step::Registration => None,
+            Step::CopyFiles | Step::Uninstall | Step::OpenInstalled => None,
         }
     }
 }
@@ -67,9 +59,6 @@ impl Step {
 pub struct Ways {
     /// The system has drive letters: the drive page is part of the flow.
     pub drives: bool,
-    /// The program was started from an update disc: the main page's second item copies the
-    /// update instead of opening the installed copy.
-    pub update_disc: bool,
 }
 
 /// How the copying of the files ended.
@@ -116,10 +105,8 @@ pub fn after_page(step: Step, answer: u32, ways: Ways) -> Result<Option<Step>, N
         (Step::Language, 1..=9) => Some(Step::Main),
         (Step::Main, BACK) => None,
         (Step::Main, 1) => Some(choose_place),
-        (Step::Main, 2) if ways.update_disc => Some(Step::UpdateFromDisc),
         (Step::Main, 2) => Some(Step::OpenInstalled),
         (Step::Main, 3) => Some(Step::Removal { from_main: true }),
-        (Step::Main, 4) => Some(Step::Registration),
         (Step::Drive, BACK) => Some(Step::Main),
         (Step::Drive, 1) => Some(Step::Folder),
         (Step::Folder, BACK) => Some(before_folder),
@@ -151,14 +138,8 @@ pub fn resets_highlight(answer: u32) -> bool {
 mod tests {
     use super::*;
 
-    const WITH_DRIVES: Ways = Ways {
-        drives: true,
-        update_disc: false,
-    };
-    const NO_DRIVES: Ways = Ways {
-        drives: false,
-        update_disc: false,
-    };
+    const WITH_DRIVES: Ways = Ways { drives: true };
+    const NO_DRIVES: Ways = Ways { drives: false };
 
     fn after(step: Step, answer: u32, ways: Ways) -> Option<Step> {
         after_page(step, answer, ways).unwrap()
@@ -221,16 +202,10 @@ mod tests {
     #[test]
     fn the_main_page_leads_to_each_of_its_items() {
         assert_eq!(after(Step::Main, 2, WITH_DRIVES), Some(Step::OpenInstalled));
-        let from_disc = Ways {
-            drives: true,
-            update_disc: true,
-        };
-        assert_eq!(after(Step::Main, 2, from_disc), Some(Step::UpdateFromDisc));
         assert_eq!(
             after(Step::Main, 3, WITH_DRIVES),
             Some(Step::Removal { from_main: true })
         );
-        assert_eq!(after(Step::Main, 4, WITH_DRIVES), Some(Step::Registration));
     }
 
     #[test]
@@ -250,7 +225,7 @@ mod tests {
             after_page(Step::Language, 10, WITH_DRIVES),
             Err(NoSuchAnswer)
         );
-        assert_eq!(after_page(Step::Main, 5, WITH_DRIVES), Err(NoSuchAnswer));
+        assert_eq!(after_page(Step::Main, 4, WITH_DRIVES), Err(NoSuchAnswer));
         assert_eq!(after_page(Step::Drive, 2, WITH_DRIVES), Err(NoSuchAnswer));
         assert_eq!(after_page(Step::Folder, 2, WITH_DRIVES), Err(NoSuchAnswer));
         assert_eq!(after_page(Step::NoRoom, 3, WITH_DRIVES), Err(NoSuchAnswer));
@@ -271,13 +246,7 @@ mod tests {
             Some(Page::Removal)
         );
         assert_eq!(Step::NoRoom.page(), Some(Page::NoRoom));
-        for step in [
-            Step::CopyFiles,
-            Step::Uninstall,
-            Step::OpenInstalled,
-            Step::UpdateFromDisc,
-            Step::Registration,
-        ] {
+        for step in [Step::CopyFiles, Step::Uninstall, Step::OpenInstalled] {
             assert_eq!(step.page(), None);
         }
         assert!(resets_highlight(0) && resets_highlight(1) && !resets_highlight(2));

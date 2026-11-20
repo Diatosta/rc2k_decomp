@@ -40,9 +40,9 @@ pub enum Var {
     /// The two-, three- and four-player events' cleared figure k: 0 .. 3 the players' totals before
     /// the stage, 4 .. 7 their totals.
     Cleared(u32),
-    /// Player n's time (+0x88).
+    /// Player n's time.
     PlayerTime(u32),
-    /// Player n's `entry` field (+0xD0).
+    /// Player n's `entry` field.
     PlayerEntry(u32),
     /// 1 when a saved game goes on.
     Continuing,

@@ -40,7 +40,6 @@ pub(super) fn run_pages(
     use crate::install::folders::{Folders, Native};
     let ways = Ways {
         drives: <Native as Folders>::DRIVES,
-        update_disc: install.flags.update_disc.get(),
     };
     let mut step = first;
     loop {
@@ -65,14 +64,6 @@ pub(super) fn run_pages(
             }
             (Step::OpenInstalled, None) => {
                 i::open_installed::open_installed(install)?;
-                None
-            }
-            (Step::UpdateFromDisc, None) => {
-                i::install_clio::install_clio(install, o)?;
-                None
-            }
-            (Step::Registration, None) => {
-                i::ask_registration::ask_registration(install);
                 None
             }
             (Step::Language | Step::Main | Step::Drive | Step::Folder | Step::NoRoom, None)
@@ -138,17 +129,12 @@ mod tests {
                     if page == Page::Drive && !drives {
                         continue;
                     }
-                    for update_disc in [true, false] {
-                        let ways = Ways {
-                            drives,
-                            update_disc,
-                        };
-                        for &answer in &answers {
-                            assert!(
-                                flow::after_page(step, answer, ways).is_ok(),
-                                "{step:?} answer {answer} {ways:?}"
-                            );
-                        }
+                    let ways = Ways { drives };
+                    for &answer in &answers {
+                        assert!(
+                            flow::after_page(step, answer, ways).is_ok(),
+                            "{step:?} answer {answer} {ways:?}"
+                        );
                     }
                 }
             }

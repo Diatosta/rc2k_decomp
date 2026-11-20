@@ -1,8 +1,7 @@
 //! The installer's variables, in the old layout's order around the network's block:
-//! - `InstallVars`: run from the CD, the Clio's car (file, script, name), and the credits'
+//! - `InstallVars`: run from the CD, the Clio's car (file, name), and the credits'
 //!   texts with their 64 pointers (nothing reads those);
-//! - `DriveRows`: the drive page's rows;
-//! - `LobbyKeys`: the registry key and value names a lobby registration writes.
+//! - `DriveRows`: the drive page's rows.
 //!
 //! Structs of cells: the texts of `InstallVars` and `DriveRows` that the strings name are read
 //! on past a field into the next, in the order the fields are declared
@@ -23,14 +22,12 @@ pub struct InstallVars {
     pub has_clio: PlainDword,
     /// The Clio's car file, `files\b\obj0570.ro3`.
     pub clio_file: PlainBytes<20>,
-    /// The installer's script for the Clio (`install::install_clio`).
-    pub clio_script: PlainBytes<28>,
     /// 64 pointers to the texts of string ids 0x1000 .. 0x103F; the texts are found by
     /// `strings::string_table::made_text`, so the bytes are not kept.
     pub _gap_529de8: PlainBytes<256>,
     /// The credits' first texts.
     pub credits_a: PlainBytes<27>,
-    /// "renault clio sport V6 (A7)" (`install::check_clio_disc` rewrites it).
+    /// "renault clio sport V6 (A7)" (the credits' texts run on through it).
     pub clio_car_name: PlainBytes<27>,
     /// The Clio's descriptions in the languages, and the credits' texts.
     pub credits_b: PlainBytes<837>,
@@ -46,7 +43,6 @@ impl InstallVars {
     running_from_cd: PlainDword::new(0),
     has_clio: PlainDword::new(0),
     clio_file: PlainBytes::new(with_runs::<20>(&[(0, b"files\\b\\obj0570.ro3")])),
-    clio_script: PlainBytes::new(with_runs::<28>(&[(0, b"\x03ral.exe\x03*.txt\x03*.pdf\x04files\x05")])),
     _gap_529de8: PlainBytes::new([0; 256]),
     credits_a: PlainBytes::new(with_runs::<27>(&[(0, b"\xe5\x00umlaut\x00\xa7\x00Craig Griffiths")])),
     clio_car_name: PlainBytes::new(with_runs::<27>(&[(0, b"renault clio sport V6 (A7)")])),
@@ -97,44 +93,4 @@ impl DriveRows {
             _gap_52a49f: PlainBytes::new(with_runs::<17>(&[(0, b"z:")])),
         }
     }
-}
-
-/// Plain immutable texts, each NUL-ended in its room (read with `text_of`).
-pub struct LobbyKeys {
-    /// "SOFTWARE\Microsoft\DirectPlay\Applications\RC" (`install::register_lobby`).
-    pub registry_key: [u8; 74],
-    /// "Guid".
-    pub name_guid: [u8; 5],
-    /// "File".
-    pub name_file: [u8; 5],
-    /// "CommandLine".
-    pub name_command_line: [u8; 12],
-    /// "Path".
-    pub name_path: [u8; 5],
-    /// "CurrentDirectory".
-    pub name_current_directory: [u8; 17],
-    /// A gap of 1 byte(s): nothing reads it.
-    pub _gap_5ab48f: [u8; 1],
-}
-
-impl LobbyKeys {
-    pub const fn new() -> Self {
-        LobbyKeys {
-            registry_key: with_runs::<74>(&[(
-                0,
-                b"SOFTWARE\\Microsoft\\DirectPlay\\Applications\\RC",
-            )]),
-            name_guid: with_runs::<5>(&[(0, b"Guid")]),
-            name_file: with_runs::<5>(&[(0, b"File")]),
-            name_command_line: with_runs::<12>(&[(0, b"CommandLine")]),
-            name_path: with_runs::<5>(&[(0, b"Path")]),
-            name_current_directory: with_runs::<17>(&[(0, b"CurrentDirectory")]),
-            _gap_5ab48f: [0; 1],
-        }
-    }
-}
-
-/// The bytes up to the first NUL (or all of them): a text kept in a field of `LobbyKeys`.
-pub fn text_of(field: &[u8]) -> &[u8] {
-    &field[..field.iter().position(|&c| c == 0).unwrap_or(field.len())]
 }

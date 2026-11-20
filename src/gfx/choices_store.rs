@@ -43,9 +43,9 @@ pub struct ScreenMode {
     pub width: PlainDword,
     /// +4.
     pub height: PlainDword,
-    /// +8: the pixel kind's figure.
+    /// The pixel kind's figure.
     pub figure: PlainDword,
-    /// +0xC: the mode.
+    /// The mode.
     pub mode: PlainDword,
 }
 

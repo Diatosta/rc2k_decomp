@@ -8,11 +8,11 @@ use crate::memory::session::{PlainBytes, PlainDword};
 /// The ground picture's name. The offsets are from its start.
 #[derive(rc2k_derive::Cells)]
 pub struct GroundNames {
-    /// +0x0: which of the six names (0 .. 5)
+    /// Which of the six names (0 .. 5)
     pub ground: PlainDword,
-    /// +0x4: the offset of the chosen name in `names` (set by `load_mask_pictures`)
+    /// The offset of the chosen name in `names` (set by `load_mask_pictures`)
     pub ground_path: PlainDword,
-    /// +0x8: `files\m\snow1.pcx`, `mud1`, `dust1`, `mud1`, `mud1`, `gumbo0`, each NUL-ended, then
+    /// `files\m\snow1.pcx`, `mud1`, `dust1`, `mud1`, `mud1`, `gumbo0`, each NUL-ended, then
     /// zeros
     pub names: PlainBytes<160>,
 }
@@ -44,20 +44,20 @@ impl GroundNames {
 /// The mask blocks' lists and pointers. The offsets are from its start.
 #[derive(rc2k_derive::Cells)]
 pub struct MaskBlocks {
-    /// +0x0: the last mask switch seen by `swap_mask` (-1 once the masks are loaded)
+    /// The last mask switch seen by `swap_mask` (-1 once the masks are loaded)
     pub seen: PlainDword,
-    /// +0x4: the block `swap_mask` last drew from (`Mask::Plain` 1 or `Mask::Bordered` 2, 0
+    /// The block `swap_mask` last drew from (`Mask::Plain` 1 or `Mask::Bordered` 2, 0
     /// none yet)
     pub chosen: PlainDword,
-    /// +0x8: the list the first mask block is taken on
+    /// The list the first mask block is taken on
     pub list_a: crate::memory::ListCells,
-    /// +0x48: the first mask block (0x20000 bytes; unused: the pixels are `Masks::mask`)
+    /// The first mask block (0x20000 bytes; unused: the pixels are `Masks::mask`)
     pub mask: PlainDword,
-    /// +0x4C: the list the second mask block is taken on
+    /// The list the second mask block is taken on
     pub list_b: crate::memory::ListCells,
-    /// +0x8C: the second mask block (0x20000 bytes; unused: the pixels are `Masks::bmask`)
+    /// The second mask block (0x20000 bytes; unused: the pixels are `Masks::bmask`)
     pub bmask: PlainDword,
-    /// +0x90: "rse " repeated, then a NUL (unreferenced)
+    /// "rse " repeated, then a NUL (unreferenced)
     pub junk: PlainBytes<44>,
 }
 
@@ -145,11 +145,11 @@ impl Mask {
 /// The picture copy's list and pointer, and the mask paths. The offsets are from its start.
 #[derive(rc2k_derive::Cells)]
 pub struct PictureCopy {
-    /// +0x0: the list the 0x80000-byte picture copy is taken on
+    /// The list the 0x80000-byte picture copy is taken on
     pub list: crate::memory::ListCells,
-    /// +0x40: the picture copy block (0x80000 bytes; unused, the copy is Rust's)
+    /// The picture copy block (0x80000 bytes; unused, the copy is Rust's)
     pub copy: PlainDword,
-    /// +0x44: `files\m\mask00.pcx` at +0, `files\m\bmask00.pcx` at +0x13, `files\m\bdata00.pcx` at
+    /// `files\m\mask00.pcx` at +0, `files\m\bmask00.pcx` at +0x13, `files\m\bdata00.pcx` at
     /// +0x25 (the digits: +0xC, +0x20, +0x34)
     pub paths: PlainBytes<60>,
 }
@@ -173,7 +173,7 @@ impl PictureCopy {
 
 /// The picture number of each kind. The offsets are from its start.
 pub struct KindPictures {
-    /// +0x0: per kind, the number in the mask and picture paths' two digits
+    /// Per kind, the number in the mask and picture paths' two digits
     pub numbers: [u32; 34],
 }
 

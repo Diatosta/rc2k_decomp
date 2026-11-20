@@ -8,123 +8,123 @@ use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceView {
-    /// +0x0: not 0 while a replay of a network race is viewed: the headlights then light the road
+    /// Not 0 while a replay of a network race is viewed: the headlights then light the road
     /// for the drawn view's car (`race::frame_draw::lights`), as a network race's for its own.
     pub lights_follow_view: PlainDword,
-    /// +0x4: unused; it only keeps the layout.
+    /// Unused; it only keeps the layout.
     pub unused_4: [PlainDword; 5],
-    /// +0x18: the face's surface kinds (`race::course_faces`, `physics::wheel_surfaces`,
+    /// The face's surface kinds (`race::course_faces`, `physics::wheel_surfaces`,
     /// `race::best_line`).
     pub surface_kinds: [PlainDword; 4],
-    /// +0x28: the depth test (`race::course_faces`); now each view's (`FaceWork::depth_test`);
+    /// The depth test (`race::course_faces`); now each view's (`FaceWork::depth_test`);
     /// unused.
     pub depth_test: PlainDword,
-    /// +0x2c: the face's halves turned to the view (`race::course_faces`); now each view's
+    /// The face's halves turned to the view (`race::course_faces`); now each view's
     /// (`race::face_work::FaceWork`); unused.
     pub face_turned: [PlainDword; 2],
-    /// +0x34: the face's corners ([3] -1 for faces of three points, `race::norms`); now each view's
+    /// The face's corners ([3] -1 for faces of three points, `race::norms`); now each view's
     /// (`race::face_work::FaceWork`); here only the starting values, which `race::norms` reads
     /// before any face was drawn (`face_work::last_fourth_corner`).
     pub corners: [PlainDword; 4],
-    /// +0x44: the face's slope (`race::course_faces`).
+    /// The face's slope (`race::course_faces`).
     pub slope: PlainFloat,
-    /// +0x48: the face's near value (`race::course_faces`).
+    /// The face's near value (`race::course_faces`).
     pub near: PlainFloat,
-    /// +0x4c: unused; it only keeps the layout.
+    /// Unused; it only keeps the layout.
     pub unused_4c: PlainDword,
-    /// +0x50: the frame the face was drawn in (`race::face_materials` wrote it; nothing read it, so
+    /// The frame the face was drawn in (`race::face_materials` wrote it; nothing read it, so
     /// it is no longer written); unused.
     pub face_frame: PlainDword,
-    /// +0x54: the first texture's coordinates by corner, x then y; now each view's
+    /// The first texture's coordinates by corner, x then y; now each view's
     /// (`race::face_work::FaceWork`); unused.
     pub corner_uv: [PlainDword; 8],
-    /// +0x74: the first texture (`race::course_faces`); now each view's
+    /// The first texture (`race::course_faces`); now each view's
     /// (`race::face_work::FaceWork`); unused.
     pub texture_a: PlainDword,
-    /// +0x78: its corner order; now each view's (`race::face_work::FaceWork`); unused.
+    /// Its corner order; now each view's (`race::face_work::FaceWork`); unused.
     pub order_a: PlainDword,
-    /// +0x7c: its back; now each view's (`race::face_work::FaceWork`); unused.
+    /// Its back; now each view's (`race::face_work::FaceWork`); unused.
     pub back_a: PlainDword,
-    /// +0x80: the second texture (`scene::draw_polygon`'s material); now each view's
+    /// The second texture (`scene::draw_polygon`'s material); now each view's
     /// (`race::face_work::FaceWork`); unused.
     pub texture_b: PlainDword,
-    /// +0x84: its corner order; now each view's (`race::face_work::FaceWork`); unused.
+    /// Its corner order; now each view's (`race::face_work::FaceWork`); unused.
     pub order_b: PlainDword,
-    /// +0x88: its back; now each view's (`race::face_work::FaceWork`); unused.
+    /// Its back; now each view's (`race::face_work::FaceWork`); unused.
     pub back_b: PlainDword,
-    /// +0x8c: the colour by corner; now each view's (`race::face_work::FaceWork`); unused.
+    /// The colour by corner; now each view's (`race::face_work::FaceWork`); unused.
     pub corner_colours: [PlainDword; 4],
-    /// +0x9c: the light by corner; now each view's (`race::face_work::FaceWork`); unused.
+    /// The light by corner; now each view's (`race::face_work::FaceWork`); unused.
     pub corner_lights: [PlainDword; 4],
-    /// +0xac: the see-through by corner (a byte); now each view's (`race::face_work::FaceWork`);
+    /// The see-through by corner (a byte); now each view's (`race::face_work::FaceWork`);
     /// unused.
     pub corner_alphas: [PlainDword; 4],
-    /// +0xbc: unused; it only keeps the layout.
+    /// Unused; it only keeps the layout.
     pub unused_bc: [PlainDword; 2],
-    /// +0xc4: the turned orders, a byte table read in place (`race::course_faces`).
+    /// The turned orders, a byte table read in place (`race::course_faces`).
     pub turned_corner_order: [PlainDword; 14],
-    /// +0xfc: the polygon mode; now each view's (`race::face_work::FaceWork`); unused.
+    /// The polygon mode; now each view's (`race::face_work::FaceWork`); unused.
     pub polygon_mode: PlainDword,
-    /// +0x100: the second texture's coordinates by corner, x then y; now each view's
+    /// The second texture's coordinates by corner, x then y; now each view's
     /// (`race::face_work::FaceWork`); unused.
     pub corner_uv_b: [PlainDword; 8],
-    /// +0x120: the corner texture offsets, four by order.
+    /// The corner texture offsets, four by order.
     pub corner_uv_offsets: [PlainDword; 32],
-    /// +0x1a0: the lamps wanted; now each view's (`race::lamp_work::LampWork`); unused.
+    /// The lamps wanted; now each view's (`race::lamp_work::LampWork`); unused.
     pub lamps_wanted: PlainDword,
-    /// +0x1a4: the level (`drive::share_car_state`).
+    /// The level (`drive::share_car_state`).
     pub level_from: PlainFloat,
-    /// +0x1a8: unused; it only keeps the layout.
+    /// Unused; it only keeps the layout.
     pub unused_1a8: [PlainDword; 3],
-    /// +0x1b4: 0 from `race::draw_view_scene`, never read; no longer written.
+    /// 0 from `race::draw_view_scene`, never read; no longer written.
     pub view_lamps: PlainDword,
-    /// +0x1b8: unused; it only keeps the layout.
+    /// Unused; it only keeps the layout.
     pub unused_1b8: PlainDword,
-    /// +0x1bc: each view on (`race::draw_race_scene`, `race::show_replay_still`).
+    /// Each view on (`race::draw_race_scene`, `race::show_replay_still`).
     pub view_on: [PlainDword; 2],
-    /// +0x1c4: the two players' option bits (`drive::replay_cameras`, `race::settings_copy`).
+    /// The two players' option bits (`drive::replay_cameras`, `race::settings_copy`).
     pub player_options: [PlainDword; 2],
-    /// +0x1cc: the race's ticks run while below it (`drive::race_tick`; `race::credits_race`).
+    /// The race's ticks run while below it (`drive::race_tick`; `race::credits_race`).
     pub after_credits: PlainDword,
-    /// +0x1d0: the view switch (`drive::choose_shown_cars`, `drive::replay_cameras`).
+    /// The view switch (`drive::choose_shown_cars`, `drive::replay_cameras`).
     pub view_switch: PlainDword,
-    /// +0x1d4: unused; it only keeps the layout.
+    /// Unused; it only keeps the layout.
     pub unused_1d4: PlainDword,
-    /// +0x1d8: the race's cars.
+    /// The race's cars.
     pub race_cars: PlainDword,
-    /// +0x1dc: the players (`settings.race_mode`; `[shaunnumplayers]`).
+    /// The players (`settings.race_mode`; `[shaunnumplayers]`).
     pub players: PlainDword,
-    /// +0x1e0: the views shown (`race::draw_race_scene`'s one view; the second player's).
+    /// The views shown (`race::draw_race_scene`'s one view; the second player's).
     pub views: PlainDword,
-    /// +0x1e4: the view being drawn.
+    /// The view being drawn.
     pub drawn_view: PlainDword,
-    /// +0x1e8: this machine's car (`net::lets_race`).
+    /// This machine's car (`net::lets_race`).
     pub local_car: PlainDword,
-    /// +0x1ec: the drawn view's car, read only by `race::car_light_modes`, which keeps it itself;
+    /// The drawn view's car, read only by `race::car_light_modes`, which keeps it itself;
     /// no longer written.
     pub shown_car: PlainDword,
-    /// +0x1f0: each view's car.
+    /// Each view's car.
     pub view_cars: [PlainDword; 2],
-    /// +0x1f8: each view's car block (by handle:
+    /// Each view's car block (by handle:
     /// `blocks_store::block_ref`; read through `view_block`).
     pub view_blocks: [PlainDword; 2],
-    /// +0x200: cleared by `race::draw_race_scene`.
+    /// Cleared by `race::draw_race_scene`.
     pub view_cleared: [PlainDword; 32],
-    /// +0x280: the clock at the frame's start (`race::show_frame`).
+    /// The clock at the frame's start (`race::show_frame`).
     pub clock_base: PlainDword,
-    /// +0x284: the frame's time (`race::show_frame`).
+    /// The frame's time (`race::show_frame`).
     pub frame_time: PlainDword,
-    /// +0x288: the face's depth key; now each view's (`race::face_work::FaceWork`); unused.
+    /// The face's depth key; now each view's (`race::face_work::FaceWork`); unused.
     pub face_depth_key: PlainDword,
-    /// +0x28c: the face's side (`race::frame_draw`); written only, never read; unused.
+    /// The face's side (`race::frame_draw`); written only, never read; unused.
     pub face_side: PlainDword,
-    /// +0x290: the lamp count; now each view's (`race::lamp_work::LampWork`); unused.
+    /// The lamp count; now each view's (`race::lamp_work::LampWork`); unused.
     pub lamp_count: PlainDword,
-    /// +0x294: the depth entry count.
+    /// The depth entry count.
     pub depth_entry_count: PlainDword,
-    /// +0x298: the sort entry count.
+    /// The sort entry count.
     pub sort_entry_count: PlainDword,
-    /// +0x29c: how far is seen times 0x20, twice (`scene::set_view_window`); now each view's
+    /// How far is seen times 0x20, twice (`scene::set_view_window`); now each view's
     /// (`scene::view_window`); unused.
     pub view_depth: [PlainDword; 2],
 }

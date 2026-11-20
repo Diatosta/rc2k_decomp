@@ -7,15 +7,15 @@ use crate::race::owner_frame::Frame;
 /// One mark slot: a sprite that lives a number of ticks.
 #[derive(rc2k_derive::Cells)]
 pub struct MarkSlot {
-    /// +0: the ticks left (0 or less: free; `effects::add_mark_slot` sets 0x3C).
+    /// The ticks left (0 or less: free; `effects::add_mark_slot` sets 0x3C).
     pub life: PlainDword,
-    /// +4: which point of the marks' points (12 bytes each) the slot sits at.
+    /// Which point of the marks' points (12 bytes each) the slot sits at.
     pub point: PlainDword,
-    /// +8: the matrix it is turned by, as a handle (`VIEW_PLACE_MATRIX`); 0 for none.
+    /// The matrix it is turned by, as a handle (`VIEW_PLACE_MATRIX`); 0 for none.
     pub matrix: PlainDword,
-    /// +0xC: 0.
+    /// 0.
     pub spare: PlainDword,
-    /// +0x10: a float of the slot's own random (`SlotTuning.base` plus the random's low word).
+    /// A float of the slot's own random (`SlotTuning.base` plus the random's low word).
     pub size: PlainFloat,
 }
 

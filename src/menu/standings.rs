@@ -164,7 +164,7 @@ pub(super) fn walked_drivers(
         .collect())
 }
 
-/// A player as a stage record's holder: the figure (+0x94), nationality, car and the name's
+/// A player as a stage record's holder: the `figure`, nationality, car and the name's
 /// 0x20 bytes (copied past the NUL too).
 pub(super) fn as_holder(
     play: &Play,
@@ -228,7 +228,7 @@ pub(super) fn counted_players<'a>(
     Ok((0..n).map(|k| player_in(play, k)).collect())
 }
 
-/// The current record's event (the record table, `section`, `index`; its +0x3C): its place
+/// The current record's event (the record table, `section`, `index`; its `event_slot`): its place
 /// in the stages' best times (`BestTables::stage_times`); refused past the table's
 /// sections, with no table, or past it.
 pub(super) fn current_event(
