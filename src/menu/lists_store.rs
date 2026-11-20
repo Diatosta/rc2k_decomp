@@ -131,10 +131,109 @@ pub struct MenuLists {
     pub front_back_path: PlainBytes<24>,
 }
 
-/// A text of `texts_store` by its key (`MenuText::key`).
-const fn text_ref(text: MenuText) -> PlainDword {
-    PlainDword::new(text.key())
+/// The starting values of `own_places`: size, y and angle of each kind.
+#[rustfmt::skip]
+const OWN_PLACES: [[u32; 3]; 73] = [
+    [16, 0, 0],
+    [16, 0, 0],
+    [16, 0, 0],
+    [16, 0, 0],
+    [16, 0, 0],
+    [16, 0, 0],
+    [13, 0, 0],
+    [13, 0, 0],
+    [16, 0, 0],
+    [20, 0, 0],
+    [14, 0, 0],
+    [17, 0, 0],
+    [17, 0, 0x5ff],
+    [14, 0, 0],
+    [19, 0, 0],
+    [19, 0, 0],
+    [16, 0, 0],
+    [18, 0, 0xcf0],
+    [16, 0, 0],
+    [14, 0, 0],
+    [18, 0, 0],
+    [18, 0, 0],
+    [17, 0, 0],
+    [16, 0, 0x3ff],
+    [16, 0, 0x3ff],
+    [16, 0, 0x3ff],
+    [16, 0, 0x3ff],
+    [16, 0, 0],
+    [14, 0, 0],
+    [16, 0, 0],
+    [18, 0, 0],
+    [18, 0, 0],
+    [16, 0, 0],
+    [14, 0, 0],
+    [18, 0, 0xcf0],
+    [12, 0, 0],
+    [18, 0, 0],
+    [18, 0, 0],
+    [18, 0, 0],
+    [14, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+    [5, 0, 0xcf0],
+];
+
+impl OwnPlace {
+    /// The places of `rows` (size, y, angle), in order.
+    const fn rows<const N: usize>(rows: [[u32; 3]; N]) -> [Self; N] {
+        let mut places: [Self; N] = [const { Self::new(0, 0, 0) }; N];
+        let mut n = 0;
+        while n < N {
+            places[n] = Self::new(rows[n][0], rows[n][1], rows[n][2]);
+            n += 1;
+        }
+        places
+    }
+
+    const fn new(size: u32, y: u32, angle: u32) -> Self {
+        Self {
+            size: PlainDword::new(size),
+            y: PlainDword::new(y),
+            angle: PlainDword::new(angle),
+        }
+    }
 }
+
+/// The car numbers of the cheat car list, in list order.
+const CHEAT_CARS: [usize; 22] = [
+    0, 1, 3, 8, 9, 15, 16, 17, 5, 11, 12, 13, 18, 19, 2, 4, 7, 10, 14, 20, 21, 22,
+];
 
 /// A row of `texts_store`'s speech samples' names by its key.
 const fn speech_ref(row: SpeechRow) -> PlainDword {
@@ -143,9 +242,9 @@ const fn speech_ref(row: SpeechRow) -> PlainDword {
 
 /// The `n`th rally speech name (33 bytes each) among the settings page's speech names, from
 /// the one 0xB4 bytes into them, as `SampleName::key` has it (a name's key).
-const fn name_ref(n: usize) -> PlainDword {
+const fn name_key(n: usize) -> u32 {
     assert!(n < 6);
-    PlainDword::new(NameList::MenuSpeech.first_key() + 0xB4 + 33 * n as u32)
+    NameList::MenuSpeech.first_key() + 0xB4 + 33 * n as u32
 }
 
 impl MenuLists {
@@ -373,878 +472,249 @@ impl MenuLists {
     }
 }
 
+/// The starting values of `welcome_championship`.
+#[rustfmt::skip]
+const WELCOME_CHAMPIONSHIP: [u32; 6] = [
+    MenuText::welvx_png.key(), MenuText::welpir_png.key(), MenuText::welsct_png.key(),
+    MenuText::weljc_png.key(), MenuText::welul_png.key(), MenuText::welmnx_png.key(),
+];
+
+/// The starting values of `welcome_other`.
+#[rustfmt::skip]
+const WELCOME_OTHER: [u32; 6] = [
+    MenuText::a8_1_png.key(), MenuText::a8_2_png.key(), MenuText::a8_3_png.key(),
+    MenuText::a8_4_png.key(), MenuText::a8_5_png.key(), MenuText::a8_6_png.key(),
+];
+
+/// The starting values of `map_overlays`.
+#[rustfmt::skip]
+const MAP_OVERLAYS: [u32; 36] = [
+    MenuText::vrw_001_png.key(), MenuText::vrw_002_png.key(), MenuText::vrw_003_png.key(),
+    MenuText::vrw_004_png.key(), MenuText::vrw_005_png.key(), MenuText::vrw_006_png.key(),
+    MenuText::pir_001_png.key(), MenuText::pir_002_png.key(), MenuText::pir_003_png.key(),
+    MenuText::pir_004_png.key(), MenuText::pir_005_png.key(), MenuText::pir_006_png.key(),
+    MenuText::sc_001_png.key(), MenuText::sc_002_png.key(), MenuText::sc_003_png.key(),
+    MenuText::sc_004_png.key(), MenuText::sc_005_png.key(), MenuText::sc_006_png.key(),
+    MenuText::jc_001_png.key(), MenuText::jc_002_png.key(), MenuText::jc_003_png.key(),
+    MenuText::jc_004_png.key(), MenuText::jc_005_png.key(), MenuText::jc_006_png.key(),
+    MenuText::ul_001_png.key(), MenuText::ul_002_png.key(), MenuText::ul_003_png.key(),
+    MenuText::ul_004_png.key(), MenuText::ul_005_png.key(), MenuText::ul_006_png.key(),
+    MenuText::mnx_001_png.key(), MenuText::mnx_002_png.key(), MenuText::mnx_003_png.key(),
+    MenuText::mnx_004_png.key(), MenuText::mnx_005_png.key(), MenuText::mnx_006_png.key(),
+];
+
+/// The starting values of `page_pictures_a`.
+#[rustfmt::skip]
+const PAGE_PICTURES_A: [u32; 25] = [
+    MenuText::mgnvc_png.key(), MenuText::vxavc_png.key(), MenuText::stcvc_png.key(),
+    MenuText::hycvc_png.key(), MenuText::sbivc_png.key(), MenuText::pgovc_png.key(),
+    MenuText::mxpvc_png.key(), MenuText::mtlvc_png.key(), MenuText::vwgvc_png.key(),
+    MenuText::nsavc_png.key(), MenuText::ptwvc_png.key(), MenuText::ctsvc_png.key(),
+    MenuText::hncvc_png.key(), MenuText::nsmvc_png.key(), MenuText::pgtvc_png.key(),
+    MenuText::frtvc_png.key(), MenuText::sdovc_png.key(), MenuText::stivc_png.key(),
+    MenuText::sdfvc_png.key(), MenuText::ptcvc_png.key(), MenuText::fmxvc_png.key(),
+    MenuText::fpmvc_png.key(), MenuText::oscvc_png.key(), MenuText::rclvc_png.key(), 0xFFFFFFFF,
+];
+
+/// The starting values of `page_pictures_b`.
+#[rustfmt::skip]
+const PAGE_PICTURES_B: [u32; 25] = [
+    MenuText::mgndm_png.key(), MenuText::vxadm_png.key(), MenuText::stcdm_png.key(),
+    MenuText::hycdm_png.key(), MenuText::sbidm_png.key(), MenuText::pgodm_png.key(),
+    MenuText::mxpdm_png.key(), MenuText::mtldm_png.key(), MenuText::vwgdm_png.key(),
+    MenuText::nsadm_png.key(), MenuText::ptwdm_png.key(), MenuText::ctsdm_png.key(),
+    MenuText::hncdm_png.key(), MenuText::nsmdm_png.key(), MenuText::pgtdm_png.key(),
+    MenuText::frtdm_png.key(), MenuText::sdodm_png.key(), MenuText::stidm_png.key(),
+    MenuText::sdfdm_png.key(), MenuText::ptcdm_png.key(), MenuText::fmxdm_png.key(),
+    MenuText::fpmdm_png.key(), MenuText::oscdm_png.key(), MenuText::rcldm_png.key(), 0xFFFFFFFF,
+];
+
+/// The starting values of `page_pictures_c`.
+#[rustfmt::skip]
+const PAGE_PICTURES_C: [u32; 25] = [
+    MenuText::mgnen_png.key(), MenuText::vxaen_png.key(), MenuText::stcen_png.key(),
+    MenuText::hycen_png.key(), MenuText::sbien_png.key(), MenuText::pgoen_png.key(),
+    MenuText::mxpen_png.key(), MenuText::mtlen_png.key(), MenuText::vwgen_png.key(),
+    MenuText::nsaen_png.key(), MenuText::ptwen_png.key(), MenuText::ctsen_png.key(),
+    MenuText::hncen_png.key(), MenuText::nsmen_png.key(), MenuText::pgten_png.key(),
+    MenuText::frten_png.key(), MenuText::sdoen_png.key(), MenuText::stien_png.key(),
+    MenuText::sdfen_png.key(), MenuText::ptcen_png.key(), MenuText::fmxen_png.key(),
+    MenuText::fpmen_png.key(), MenuText::oscen_png.key(), MenuText::rclen_png.key(), 0xFFFFFFFF,
+];
+
+/// The starting values of `page_pictures_d`.
+#[rustfmt::skip]
+const PAGE_PICTURES_D: [u32; 25] = [
+    MenuText::mgntc_png.key(), MenuText::vxatc_png.key(), MenuText::stctc_png.key(),
+    MenuText::hyctc_png.key(), MenuText::sbitc_png.key(), MenuText::pgotc_png.key(),
+    MenuText::mxptc_png.key(), MenuText::mtltc_png.key(), MenuText::vwgtc_png.key(),
+    MenuText::nsatc_png.key(), MenuText::ptwtc_png.key(), MenuText::ctstc_png.key(),
+    MenuText::hnctc_png.key(), MenuText::nsmtc_png.key(), MenuText::pgttc_png.key(),
+    MenuText::frttc_png.key(), MenuText::sdotc_png.key(), MenuText::stitc_png.key(),
+    MenuText::sdftc_png.key(), MenuText::ptctc_png.key(), MenuText::fmxtc_png.key(),
+    MenuText::fpmtc_png.key(), MenuText::osctc_png.key(), MenuText::rcltc_png.key(), 0xFFFFFFFF,
+];
+
+/// The starting values of `page_picture_lists`.
+#[rustfmt::skip]
+const PAGE_PICTURE_LISTS: [u32; 4] = [
+    0x759942, 0x759A0A, 0x759A6E, 0x7599A6,
+];
+
+/// The starting values of `page_functions`.
+#[rustfmt::skip]
+const PAGE_FUNCTIONS: [u32; 4] = [
+    0x469C40, 0x469F12, 0x46A193, 0x469CA0,
+];
+
+/// The starting values of `car_page_titles`.
+#[rustfmt::skip]
+const CAR_PAGE_TITLES: [u32; 5] = [
+    0x24C, 0x249, 0x24B, 0x24A, 0xFFFFFFFF,
+];
+
+/// The starting values of `slideshow_templates`.
+#[rustfmt::skip]
+const SLIDESHOW_TEMPLATES: [u32; 24] = [
+    MenuText::mgnsl00_png.key(), MenuText::vxasl00_png.key(), MenuText::stcsl00_png.key(),
+    MenuText::hycsl00_png.key(), MenuText::sbisl00_png.key(), MenuText::pgosl00_png.key(),
+    MenuText::mxpsl00_png.key(), MenuText::mtlsl00_png.key(), MenuText::vwgsl00_png.key(),
+    MenuText::nsasl00_png.key(), MenuText::ptwsl00_png.key(), MenuText::ctssl00_png.key(),
+    MenuText::hncsl00_png.key(), MenuText::nsmsl00_png.key(), MenuText::pgtsl00_png.key(),
+    MenuText::frtsl00_png.key(), MenuText::sdosl00_png.key(), MenuText::stisl00_png.key(),
+    MenuText::sdfsl00_png.key(), MenuText::ptcsl00_png.key(), MenuText::fmxsl00_png.key(),
+    MenuText::fpmsl00_png.key(), MenuText::oscsl00_png.key(), MenuText::rclsl00_png.key(),
+];
+
+/// The starting values of `inspection_faults`.
+#[rustfmt::skip]
+const INSPECTION_FAULTS: [u32; 14] = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFFFFFFFF,
+];
+
+/// The starting values of `car_kinds`.
+#[rustfmt::skip]
+const CAR_KINDS: [u32; 35] = [
+    0x191, 0x193, 0x195, 0x197, 0x199, 0x19B, 0x1C3, 0x19F, 0x1A1, 0x1A3, 0x1A5, 0x1A7, 0x1A9,
+    0x1AB, 0x1AD, 0x1AF, 0x1B1, 0x1B3, 0x1B5, 0x1B7, 0x1B9, 0x1BB, 0x1BD, 0x1BF, 0x19D, 0x1C1,
+    0x1C5, 0x1C7, 0x1C9, 0x1CB, 0x1CD, 0x1CF, 0x1D1, 0x23A, 0xFFFFFFFF,
+];
+
+/// The starting values of `section_titles`.
+#[rustfmt::skip]
+const SECTION_TITLES: [u32; 7] = [
+    0x3D6, 0x3D7, 0x3D8, 0x3D9, 0x3DA, 0x3DB, 0xFFFFFFFF,
+];
+
+/// The starting values of `page_titles_a`.
+#[rustfmt::skip]
+const PAGE_TITLES_A: [u32; 12] = [
+    0x361, 0x360, 0x35F, 0x362, 0x35E, 0x363, 0x364, 0x365, 0x366, 0x367, 0x368, 0xFFFFFFFF,
+];
+
+/// The starting values of `page_titles_b`.
+#[rustfmt::skip]
+const PAGE_TITLES_B: [u32; 11] = [
+    3, 2, 1, 4, 0, 0, 1, 2, 3, 4, 5,
+];
+
+/// The starting values of `rally_speeches`.
+#[rustfmt::skip]
+const RALLY_SPEECHES: [u32; 6] = [
+    name_key(0), name_key(1), name_key(2), name_key(3), name_key(4), name_key(5),
+];
+
+/// The starting values of `durations`.
+#[rustfmt::skip]
+const DURATIONS: [u32; 37] = [
+    17, 14, 20, 21, 23, 20, 31, 27, 23, 30, 13, 25, 13, 8, 8, 10, 26, 29, 5, 9, 8, 9, 3, 9, 14, 17,
+    15, 17, 13, 13, 7, 11, 15, 6, 14, 16, 0xFFFFFFFF,
+];
+
+/// The starting values of `service_pictures`.
+#[rustfmt::skip]
+const SERVICE_PICTURES: [u32; 60] = [
+    MenuText::serv00_png_4.key(), MenuText::serv01_png.key(), MenuText::serv02_png.key(),
+    MenuText::serv03_png.key(), MenuText::serv04_png.key(), MenuText::serv05_png.key(),
+    MenuText::serv06_png.key(), MenuText::serv07_png.key(), MenuText::serv08_png.key(),
+    MenuText::serv09_png.key(), MenuText::serv10_png.key(), MenuText::serv11_png.key(),
+    MenuText::serv12_png.key(), MenuText::serv13_png.key(), MenuText::serv14_png.key(),
+    MenuText::serv15_png.key(), MenuText::serv16_png.key(), MenuText::serv17_png.key(),
+    MenuText::serv18_png.key(), MenuText::serv19_png.key(), MenuText::serv20_png.key(),
+    MenuText::serv21_png.key(), MenuText::serv22_png.key(), MenuText::serv33_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+    MenuText::serv22_png.key(), MenuText::serv22_png.key(), MenuText::serv22_png.key(),
+];
+
 impl MenuLists {
     pub const fn new() -> Self {
         MenuLists {
             draw_list: [const { PlainDword::new(0xffffffff) }; 25],
-            own_places: [
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0xd),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0xd),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x14),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0xe),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x11),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x11),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0x5ff),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0xe),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x13),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x13),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x12),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0xe),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x12),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x12),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x11),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0x3ff),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0x3ff),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0x3ff),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0x3ff),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0xe),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x12),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x12),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x10),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0xe),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x12),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0xc),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x12),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x12),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0x12),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(0xe),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-                OwnPlace {
-                    size: PlainDword::new(5),
-                    y: PlainDword::new(0),
-                    angle: PlainDword::new(0xcf0),
-                },
-            ],
+            own_places: OwnPlace::rows(OWN_PLACES),
             _gap_75987a: PlainBytes::new([0xff; 4]),
-            welcome_championship: [
-                text_ref(MenuText::welvx_png),
-                text_ref(MenuText::welpir_png),
-                text_ref(MenuText::welsct_png),
-                text_ref(MenuText::weljc_png),
-                text_ref(MenuText::welul_png),
-                text_ref(MenuText::welmnx_png),
-            ],
-            welcome_other: [
-                text_ref(MenuText::a8_1_png),
-                text_ref(MenuText::a8_2_png),
-                text_ref(MenuText::a8_3_png),
-                text_ref(MenuText::a8_4_png),
-                text_ref(MenuText::a8_5_png),
-                text_ref(MenuText::a8_6_png),
-            ],
-            map_overlays: [
-                text_ref(MenuText::vrw_001_png),
-                text_ref(MenuText::vrw_002_png),
-                text_ref(MenuText::vrw_003_png),
-                text_ref(MenuText::vrw_004_png),
-                text_ref(MenuText::vrw_005_png),
-                text_ref(MenuText::vrw_006_png),
-                text_ref(MenuText::pir_001_png),
-                text_ref(MenuText::pir_002_png),
-                text_ref(MenuText::pir_003_png),
-                text_ref(MenuText::pir_004_png),
-                text_ref(MenuText::pir_005_png),
-                text_ref(MenuText::pir_006_png),
-                text_ref(MenuText::sc_001_png),
-                text_ref(MenuText::sc_002_png),
-                text_ref(MenuText::sc_003_png),
-                text_ref(MenuText::sc_004_png),
-                text_ref(MenuText::sc_005_png),
-                text_ref(MenuText::sc_006_png),
-                text_ref(MenuText::jc_001_png),
-                text_ref(MenuText::jc_002_png),
-                text_ref(MenuText::jc_003_png),
-                text_ref(MenuText::jc_004_png),
-                text_ref(MenuText::jc_005_png),
-                text_ref(MenuText::jc_006_png),
-                text_ref(MenuText::ul_001_png),
-                text_ref(MenuText::ul_002_png),
-                text_ref(MenuText::ul_003_png),
-                text_ref(MenuText::ul_004_png),
-                text_ref(MenuText::ul_005_png),
-                text_ref(MenuText::ul_006_png),
-                text_ref(MenuText::mnx_001_png),
-                text_ref(MenuText::mnx_002_png),
-                text_ref(MenuText::mnx_003_png),
-                text_ref(MenuText::mnx_004_png),
-                text_ref(MenuText::mnx_005_png),
-                text_ref(MenuText::mnx_006_png),
-            ],
+            welcome_championship: PlainDword::array(WELCOME_CHAMPIONSHIP),
+            welcome_other: PlainDword::array(WELCOME_OTHER),
+            map_overlays: PlainDword::array(MAP_OVERLAYS),
             _gap_75993e: PlainBytes::new([0xff; 4]),
-            page_pictures_a: [
-                text_ref(MenuText::mgnvc_png),
-                text_ref(MenuText::vxavc_png),
-                text_ref(MenuText::stcvc_png),
-                text_ref(MenuText::hycvc_png),
-                text_ref(MenuText::sbivc_png),
-                text_ref(MenuText::pgovc_png),
-                text_ref(MenuText::mxpvc_png),
-                text_ref(MenuText::mtlvc_png),
-                text_ref(MenuText::vwgvc_png),
-                text_ref(MenuText::nsavc_png),
-                text_ref(MenuText::ptwvc_png),
-                text_ref(MenuText::ctsvc_png),
-                text_ref(MenuText::hncvc_png),
-                text_ref(MenuText::nsmvc_png),
-                text_ref(MenuText::pgtvc_png),
-                text_ref(MenuText::frtvc_png),
-                text_ref(MenuText::sdovc_png),
-                text_ref(MenuText::stivc_png),
-                text_ref(MenuText::sdfvc_png),
-                text_ref(MenuText::ptcvc_png),
-                text_ref(MenuText::fmxvc_png),
-                text_ref(MenuText::fpmvc_png),
-                text_ref(MenuText::oscvc_png),
-                text_ref(MenuText::rclvc_png),
-                PlainDword::new(0xffffffff),
-            ],
-            page_pictures_b: [
-                text_ref(MenuText::mgndm_png),
-                text_ref(MenuText::vxadm_png),
-                text_ref(MenuText::stcdm_png),
-                text_ref(MenuText::hycdm_png),
-                text_ref(MenuText::sbidm_png),
-                text_ref(MenuText::pgodm_png),
-                text_ref(MenuText::mxpdm_png),
-                text_ref(MenuText::mtldm_png),
-                text_ref(MenuText::vwgdm_png),
-                text_ref(MenuText::nsadm_png),
-                text_ref(MenuText::ptwdm_png),
-                text_ref(MenuText::ctsdm_png),
-                text_ref(MenuText::hncdm_png),
-                text_ref(MenuText::nsmdm_png),
-                text_ref(MenuText::pgtdm_png),
-                text_ref(MenuText::frtdm_png),
-                text_ref(MenuText::sdodm_png),
-                text_ref(MenuText::stidm_png),
-                text_ref(MenuText::sdfdm_png),
-                text_ref(MenuText::ptcdm_png),
-                text_ref(MenuText::fmxdm_png),
-                text_ref(MenuText::fpmdm_png),
-                text_ref(MenuText::oscdm_png),
-                text_ref(MenuText::rcldm_png),
-                PlainDword::new(0xffffffff),
-            ],
-            page_pictures_c: [
-                text_ref(MenuText::mgnen_png),
-                text_ref(MenuText::vxaen_png),
-                text_ref(MenuText::stcen_png),
-                text_ref(MenuText::hycen_png),
-                text_ref(MenuText::sbien_png),
-                text_ref(MenuText::pgoen_png),
-                text_ref(MenuText::mxpen_png),
-                text_ref(MenuText::mtlen_png),
-                text_ref(MenuText::vwgen_png),
-                text_ref(MenuText::nsaen_png),
-                text_ref(MenuText::ptwen_png),
-                text_ref(MenuText::ctsen_png),
-                text_ref(MenuText::hncen_png),
-                text_ref(MenuText::nsmen_png),
-                text_ref(MenuText::pgten_png),
-                text_ref(MenuText::frten_png),
-                text_ref(MenuText::sdoen_png),
-                text_ref(MenuText::stien_png),
-                text_ref(MenuText::sdfen_png),
-                text_ref(MenuText::ptcen_png),
-                text_ref(MenuText::fmxen_png),
-                text_ref(MenuText::fpmen_png),
-                text_ref(MenuText::oscen_png),
-                text_ref(MenuText::rclen_png),
-                PlainDword::new(0xffffffff),
-            ],
-            page_pictures_d: [
-                text_ref(MenuText::mgntc_png),
-                text_ref(MenuText::vxatc_png),
-                text_ref(MenuText::stctc_png),
-                text_ref(MenuText::hyctc_png),
-                text_ref(MenuText::sbitc_png),
-                text_ref(MenuText::pgotc_png),
-                text_ref(MenuText::mxptc_png),
-                text_ref(MenuText::mtltc_png),
-                text_ref(MenuText::vwgtc_png),
-                text_ref(MenuText::nsatc_png),
-                text_ref(MenuText::ptwtc_png),
-                text_ref(MenuText::ctstc_png),
-                text_ref(MenuText::hnctc_png),
-                text_ref(MenuText::nsmtc_png),
-                text_ref(MenuText::pgttc_png),
-                text_ref(MenuText::frttc_png),
-                text_ref(MenuText::sdotc_png),
-                text_ref(MenuText::stitc_png),
-                text_ref(MenuText::sdftc_png),
-                text_ref(MenuText::ptctc_png),
-                text_ref(MenuText::fmxtc_png),
-                text_ref(MenuText::fpmtc_png),
-                text_ref(MenuText::osctc_png),
-                text_ref(MenuText::rcltc_png),
-                PlainDword::new(0xffffffff),
-            ],
-            page_picture_lists: [
-                PlainDword::new(0x759942),
-                PlainDword::new(0x759a0a),
-                PlainDword::new(0x759a6e),
-                PlainDword::new(0x7599a6),
-            ],
+            page_pictures_a: PlainDword::array(PAGE_PICTURES_A),
+            page_pictures_b: PlainDword::array(PAGE_PICTURES_B),
+            page_pictures_c: PlainDword::array(PAGE_PICTURES_C),
+            page_pictures_d: PlainDword::array(PAGE_PICTURES_D),
+            page_picture_lists: PlainDword::array(PAGE_PICTURE_LISTS),
             _gap_759ae2: PlainBytes::new([0xff; 4]),
-            page_functions: [
-                PlainDword::new(0x469c40),
-                PlainDword::new(0x469f12),
-                PlainDword::new(0x46a193),
-                PlainDword::new(0x469ca0),
-            ],
+            page_functions: PlainDword::array(PAGE_FUNCTIONS),
             _gap_759af6: PlainBytes::new([0xff; 4]),
-            car_page_titles: [
-                PlainDword::new(0x24c),
-                PlainDword::new(0x249),
-                PlainDword::new(0x24b),
-                PlainDword::new(0x24a),
-                PlainDword::new(0xffffffff),
-            ],
-            slideshow_templates: [
-                text_ref(MenuText::mgnsl00_png),
-                text_ref(MenuText::vxasl00_png),
-                text_ref(MenuText::stcsl00_png),
-                text_ref(MenuText::hycsl00_png),
-                text_ref(MenuText::sbisl00_png),
-                text_ref(MenuText::pgosl00_png),
-                text_ref(MenuText::mxpsl00_png),
-                text_ref(MenuText::mtlsl00_png),
-                text_ref(MenuText::vwgsl00_png),
-                text_ref(MenuText::nsasl00_png),
-                text_ref(MenuText::ptwsl00_png),
-                text_ref(MenuText::ctssl00_png),
-                text_ref(MenuText::hncsl00_png),
-                text_ref(MenuText::nsmsl00_png),
-                text_ref(MenuText::pgtsl00_png),
-                text_ref(MenuText::frtsl00_png),
-                text_ref(MenuText::sdosl00_png),
-                text_ref(MenuText::stisl00_png),
-                text_ref(MenuText::sdfsl00_png),
-                text_ref(MenuText::ptcsl00_png),
-                text_ref(MenuText::fmxsl00_png),
-                text_ref(MenuText::fpmsl00_png),
-                text_ref(MenuText::oscsl00_png),
-                text_ref(MenuText::rclsl00_png),
-            ],
-            inspection_faults: [
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0xffffffff),
-            ],
+            car_page_titles: PlainDword::array(CAR_PAGE_TITLES),
+            slideshow_templates: PlainDword::array(SLIDESHOW_TEMPLATES),
+            inspection_faults: PlainDword::array(INSPECTION_FAULTS),
             _gap_75a1ee: PlainBytes::new([0xff; 16]),
-            car_kinds: [
-                PlainDword::new(0x191),
-                PlainDword::new(0x193),
-                PlainDword::new(0x195),
-                PlainDword::new(0x197),
-                PlainDword::new(0x199),
-                PlainDword::new(0x19b),
-                PlainDword::new(0x1c3),
-                PlainDword::new(0x19f),
-                PlainDword::new(0x1a1),
-                PlainDword::new(0x1a3),
-                PlainDword::new(0x1a5),
-                PlainDword::new(0x1a7),
-                PlainDword::new(0x1a9),
-                PlainDword::new(0x1ab),
-                PlainDword::new(0x1ad),
-                PlainDword::new(0x1af),
-                PlainDword::new(0x1b1),
-                PlainDword::new(0x1b3),
-                PlainDword::new(0x1b5),
-                PlainDword::new(0x1b7),
-                PlainDword::new(0x1b9),
-                PlainDword::new(0x1bb),
-                PlainDword::new(0x1bd),
-                PlainDword::new(0x1bf),
-                PlainDword::new(0x19d),
-                PlainDword::new(0x1c1),
-                PlainDword::new(0x1c5),
-                PlainDword::new(0x1c7),
-                PlainDword::new(0x1c9),
-                PlainDword::new(0x1cb),
-                PlainDword::new(0x1cd),
-                PlainDword::new(0x1cf),
-                PlainDword::new(0x1d1),
-                PlainDword::new(0x23a),
-                PlainDword::new(0xffffffff),
-            ],
-            section_titles: [
-                PlainDword::new(0x3d6),
-                PlainDword::new(0x3d7),
-                PlainDword::new(0x3d8),
-                PlainDword::new(0x3d9),
-                PlainDword::new(0x3da),
-                PlainDword::new(0x3db),
-                PlainDword::new(0xffffffff),
-            ],
-            page_titles_a: [
-                PlainDword::new(0x361),
-                PlainDword::new(0x360),
-                PlainDword::new(0x35f),
-                PlainDword::new(0x362),
-                PlainDword::new(0x35e),
-                PlainDword::new(0x363),
-                PlainDword::new(0x364),
-                PlainDword::new(0x365),
-                PlainDword::new(0x366),
-                PlainDword::new(0x367),
-                PlainDword::new(0x368),
-                PlainDword::new(0xffffffff),
-            ],
-            page_titles_b: [
-                PlainDword::new(3),
-                PlainDword::new(2),
-                PlainDword::new(1),
-                PlainDword::new(4),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(3),
-                PlainDword::new(4),
-                PlainDword::new(5),
-            ],
-            rally_speeches: [
-                name_ref(0),
-                name_ref(1),
-                name_ref(2),
-                name_ref(3),
-                name_ref(4),
-                name_ref(5),
-            ],
+            car_kinds: PlainDword::array(CAR_KINDS),
+            section_titles: PlainDword::array(SECTION_TITLES),
+            page_titles_a: PlainDword::array(PAGE_TITLES_A),
+            page_titles_b: PlainDword::array(PAGE_TITLES_B),
+            rally_speeches: PlainDword::array(RALLY_SPEECHES),
             _gap_75a31a: PlainBytes::new([0xff; 4]),
-            car_streams: [
-                speech_ref(SpeechRow::Car(0)),
-                speech_ref(SpeechRow::Car(1)),
-                speech_ref(SpeechRow::Car(2)),
-                speech_ref(SpeechRow::Car(3)),
-                speech_ref(SpeechRow::Car(4)),
-                speech_ref(SpeechRow::Car(5)),
-                speech_ref(SpeechRow::Car(6)),
-                speech_ref(SpeechRow::Car(7)),
-                speech_ref(SpeechRow::Car(8)),
-                speech_ref(SpeechRow::Car(9)),
-                speech_ref(SpeechRow::Car(10)),
-                speech_ref(SpeechRow::Car(11)),
-                speech_ref(SpeechRow::Car(12)),
-                speech_ref(SpeechRow::Car(13)),
-                speech_ref(SpeechRow::Car(14)),
-                speech_ref(SpeechRow::Car(15)),
-                speech_ref(SpeechRow::Car(16)),
-                speech_ref(SpeechRow::Car(17)),
-                speech_ref(SpeechRow::Car(18)),
-                speech_ref(SpeechRow::Car(19)),
-                speech_ref(SpeechRow::Car(20)),
-                speech_ref(SpeechRow::Car(21)),
-                speech_ref(SpeechRow::Car(22)),
-                speech_ref(SpeechRow::Car(23)),
-            ],
-            stage_speeches: [
-                speech_ref(SpeechRow::Stage(0)),
-                speech_ref(SpeechRow::Stage(1)),
-                speech_ref(SpeechRow::Stage(2)),
-                speech_ref(SpeechRow::Stage(3)),
-                speech_ref(SpeechRow::Stage(4)),
-                speech_ref(SpeechRow::Stage(5)),
-                speech_ref(SpeechRow::Stage(6)),
-                speech_ref(SpeechRow::Stage(7)),
-                speech_ref(SpeechRow::Stage(8)),
-                speech_ref(SpeechRow::Stage(9)),
-                speech_ref(SpeechRow::Stage(10)),
-                speech_ref(SpeechRow::Stage(11)),
-                speech_ref(SpeechRow::Stage(12)),
-                speech_ref(SpeechRow::Stage(13)),
-                speech_ref(SpeechRow::Stage(14)),
-                speech_ref(SpeechRow::Stage(15)),
-                speech_ref(SpeechRow::Stage(16)),
-                speech_ref(SpeechRow::Stage(17)),
-                speech_ref(SpeechRow::Stage(18)),
-                speech_ref(SpeechRow::Stage(19)),
-                speech_ref(SpeechRow::Stage(20)),
-                speech_ref(SpeechRow::Stage(21)),
-                speech_ref(SpeechRow::Stage(22)),
-                speech_ref(SpeechRow::Stage(23)),
-                speech_ref(SpeechRow::Stage(24)),
-                speech_ref(SpeechRow::Stage(25)),
-                speech_ref(SpeechRow::Stage(26)),
-                speech_ref(SpeechRow::Stage(27)),
-                speech_ref(SpeechRow::Stage(28)),
-                speech_ref(SpeechRow::Stage(29)),
-                speech_ref(SpeechRow::Stage(30)),
-                speech_ref(SpeechRow::Stage(31)),
-                speech_ref(SpeechRow::Stage(32)),
-                speech_ref(SpeechRow::Stage(33)),
-                speech_ref(SpeechRow::Stage(34)),
-                speech_ref(SpeechRow::Stage(35)),
-            ],
+            car_streams: {
+                let mut cells = [const { PlainDword::new(0) }; 24];
+                let mut n = 0;
+                while n < 24 {
+                    cells[n] = speech_ref(SpeechRow::Car(n));
+                    n += 1;
+                }
+                cells
+            },
+            stage_speeches: {
+                let mut cells = [const { PlainDword::new(0) }; 36];
+                let mut n = 0;
+                while n < 36 {
+                    cells[n] = speech_ref(SpeechRow::Stage(n));
+                    n += 1;
+                }
+                cells
+            },
             _gap_75a40e: PlainBytes::new([0xff; 4]),
-            cheat_cars: [
-                car_cell(0),
-                car_cell(1),
-                car_cell(3),
-                car_cell(8),
-                car_cell(9),
-                car_cell(15),
-                car_cell(16),
-                car_cell(17),
-                car_cell(5),
-                car_cell(11),
-                car_cell(12),
-                car_cell(13),
-                car_cell(18),
-                car_cell(19),
-                car_cell(2),
-                car_cell(4),
-                car_cell(7),
-                car_cell(10),
-                car_cell(14),
-                car_cell(20),
-                car_cell(21),
-                car_cell(22),
-            ],
+            cheat_cars: {
+                let mut cells = [const { PlainDword::new(0) }; 22];
+                let mut n = 0;
+                while n < 22 {
+                    cells[n] = car_cell(CHEAT_CARS[n]);
+                    n += 1;
+                }
+                cells
+            },
             _gap_75a46a: PlainBytes::new([0xff; 48]),
-            durations: [
-                PlainDword::new(0x11),
-                PlainDword::new(0xe),
-                PlainDword::new(0x14),
-                PlainDword::new(0x15),
-                PlainDword::new(0x17),
-                PlainDword::new(0x14),
-                PlainDword::new(0x1f),
-                PlainDword::new(0x1b),
-                PlainDword::new(0x17),
-                PlainDword::new(0x1e),
-                PlainDword::new(0xd),
-                PlainDword::new(0x19),
-                PlainDword::new(0xd),
-                PlainDword::new(8),
-                PlainDword::new(8),
-                PlainDword::new(0xa),
-                PlainDword::new(0x1a),
-                PlainDword::new(0x1d),
-                PlainDword::new(5),
-                PlainDword::new(9),
-                PlainDword::new(8),
-                PlainDword::new(9),
-                PlainDword::new(3),
-                PlainDword::new(9),
-                PlainDword::new(0xe),
-                PlainDword::new(0x11),
-                PlainDword::new(0xf),
-                PlainDword::new(0x11),
-                PlainDword::new(0xd),
-                PlainDword::new(0xd),
-                PlainDword::new(7),
-                PlainDword::new(0xb),
-                PlainDword::new(0xf),
-                PlainDword::new(6),
-                PlainDword::new(0xe),
-                PlainDword::new(0x10),
-                PlainDword::new(0xffffffff),
-            ],
-            service_pictures: [
-                text_ref(MenuText::serv00_png_4),
-                text_ref(MenuText::serv01_png),
-                text_ref(MenuText::serv02_png),
-                text_ref(MenuText::serv03_png),
-                text_ref(MenuText::serv04_png),
-                text_ref(MenuText::serv05_png),
-                text_ref(MenuText::serv06_png),
-                text_ref(MenuText::serv07_png),
-                text_ref(MenuText::serv08_png),
-                text_ref(MenuText::serv09_png),
-                text_ref(MenuText::serv10_png),
-                text_ref(MenuText::serv11_png),
-                text_ref(MenuText::serv12_png),
-                text_ref(MenuText::serv13_png),
-                text_ref(MenuText::serv14_png),
-                text_ref(MenuText::serv15_png),
-                text_ref(MenuText::serv16_png),
-                text_ref(MenuText::serv17_png),
-                text_ref(MenuText::serv18_png),
-                text_ref(MenuText::serv19_png),
-                text_ref(MenuText::serv20_png),
-                text_ref(MenuText::serv21_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv33_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-                text_ref(MenuText::serv22_png),
-            ],
+            durations: PlainDword::array(DURATIONS),
+            service_pictures: PlainDword::array(SERVICE_PICTURES),
             _gap_75a61e: PlainBytes::new([0xff; 4]),
             front_back_path: PlainBytes::new(sparse::<24>(&[(
                 0x0,
@@ -1260,6 +730,18 @@ impl MenuLists {
 #[cfg(test)]
 mod run_on_tests {
     use super::*;
+
+    /// The lists' whole bytes, as a checksum: a wrong dword in a row shows here.
+    #[test]
+    fn the_menu_lists_keep_the_bytes_of_the_image() {
+        let bytes = crate::memory::cells::flatten(&MenuLists::new());
+        let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+        for byte in &bytes {
+            hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
+        }
+        assert_eq!(bytes.len(), 2888);
+        assert_eq!(hash, 0x119b_0f69_279b_ce27);
+    }
 
     /// The lists, every dword from `welcome_championship` to the end of the record numbered.
     fn numbered() -> Box<MenuLists> {

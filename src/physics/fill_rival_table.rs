@@ -6,6 +6,7 @@ use crate::errors::Refused;
 use crate::physics::split_tables_store::SplitTables;
 use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::splits::{RIVALS, default_rival};
+use rc2k_core::saves::name_id::NameId;
 
 // Core: `rc2k_core::physics::splits::default_rival`.
 pub fn fill_rival_table(
@@ -17,7 +18,7 @@ pub fn fill_rival_table(
         let (time, car, name) = default_rival(c);
         split_tables.rival_times[c as usize].set(time);
         split_tables.rival_cars[c as usize].set(car);
-        split_tables.rival_names[c as usize].set(name);
+        split_tables.rival_names[c as usize].set(NameId::String(name));
     }
     // The standings summary (`RACE_STATE.settings.rivals` is 1 while it is there).
     if vars.rivals.get() == 0 {

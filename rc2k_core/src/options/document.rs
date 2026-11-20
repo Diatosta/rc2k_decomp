@@ -625,7 +625,8 @@ pub struct BestTimeView {
     /// The player (1 .. 4); 0 for a made-up entry.
     pub player: u32,
     pub nationality: u32,
-    /// A made-up entry's name string, an entered one's name pointer.
+    /// The file's number of the name (`saves::name_id`): a made-up entry's name string, an
+    /// entered one's player.
     pub name_id: u32,
     pub car: u32,
     pub key: i32,
@@ -652,7 +653,7 @@ impl BestTimeView {
             first: signed(h.first),
             player: h.player,
             nationality: h.nation,
-            name_id: h.name_id,
+            name_id: h.name_id.to_file(),
             car: h.car,
             key: signed(h.key),
             rally_time: signed(h.rally_time),
@@ -674,7 +675,7 @@ impl BestTimeView {
         h.first = self.first as u32;
         h.player = self.player;
         h.nation = self.nationality;
-        h.name_id = self.name_id;
+        h.name_id = crate::saves::name_id::NameId::from_file(self.name_id);
         h.car = self.car;
         h.key = self.key as u32;
         h.rally_time = self.rally_time as u32;

@@ -261,8 +261,8 @@ pub struct PlayerA {
     pub time: u32,
     pub group: u32,
     pub total: u32,
-    /// The name's pointer and its first 0x20 bytes.
-    pub name_at: u32,
+    /// The name and its first 0x20 bytes.
+    pub name_id: crate::saves::name_id::NameId,
     pub name: [u8; 0x20],
     /// The nationality, the car's number, the taking part (`entry`).
     pub nationality: u32,
@@ -271,7 +271,7 @@ pub struct PlayerA {
 }
 
 /// A table A entry filled from a player: `player` the index + 1, `key` the time, `group`,
-/// `rally_time` the total, `name_id` the name's pointer and `name` the name, `nation`, `car` and
+/// `rally_time` the total, `name_id` the name and `name` the name, `nation`, `car` and
 /// `entered` the taking part.
 #[cfg(test)]
 pub fn fill_a(t: &mut Entries, n: usize, p: &PlayerA) {
@@ -282,7 +282,7 @@ pub fn fill_a(t: &mut Entries, n: usize, p: &PlayerA) {
             (0x14, p.time),
             (0x1C, p.group),
             (0x18, p.total),
-            (0xC, p.name_at),
+            (0xC, p.name_id.to_file()),
         ],
     );
     t.set_bytes(n, 0x20, &p.name);
@@ -490,7 +490,7 @@ mod tests {
             time: 10,
             group: 1,
             total: 20,
-            name_at: 0x1234,
+            name_id: crate::saves::name_id::NameId::of_player(1),
             name: [b'n'; 0x20],
             nationality: 5,
             car: 6,

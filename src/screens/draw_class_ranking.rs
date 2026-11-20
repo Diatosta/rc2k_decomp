@@ -50,7 +50,7 @@ pub fn draw_class_ranking(
     // The logic is in `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};
     let player = menus.play.champ_view.rows.ranked_player.get();
-    // A player's entry names the player's name (`name_at`), a driver's a string.
+    // A player's entry names the player's name (`name_id`), a driver's a string.
     let rows: Vec<RankedRow<crate::screens::game_screen::HeldText>> = rows
         .iter()
         .map(|&(e, place)| {
@@ -59,7 +59,7 @@ pub fn draw_class_ranking(
                 place,
                 mine: kind != 0 && kind == player,
                 name: if kind == 0 {
-                    Name::String(e.head.name_id)
+                    Name::String(e.head.name_id.to_file())
                 } else {
                     Name::Text(crate::screens::game_screen::player_name(e.head.name_id)?)
                 },

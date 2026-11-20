@@ -150,7 +150,7 @@ pub(super) fn draw_scores(
                     nation: e.nation,
                     car: e.car,
                     marked: e.new == 1,
-                    ends: e.name_ref == u32::MAX,
+                    ends: e.name_id == rc2k_core::saves::name_id::NameId::LIST_END,
                 }),
             Source::LevelScores => o
                 .saves

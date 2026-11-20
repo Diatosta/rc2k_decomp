@@ -273,10 +273,10 @@ mod tests {
             let at = 0x18;
             let word = |bytes: &[u8]| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
             assert_eq!(word(&player.get().to_le_bytes()), n as u32 + 1);
-            // The best-times entries get the name's address, where the pointer was.
+            // The best-times entries carry the player's name id.
             assert_eq!(
-                crate::menu::standings::name_address_of(&player.get()),
-                Ok(crate::menu::player_names::name_address(n))
+                crate::menu::standings::name_id_of(&player.get()),
+                Ok(rc2k_core::saves::name_id::NameId::of_player(n))
             );
         }
         assert_eq!(size_of::<Player>(), 0x28c);

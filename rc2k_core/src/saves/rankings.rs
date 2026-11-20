@@ -6,6 +6,7 @@
 //! whose first dword is -1, which `init_standings_*` make of every entry before filling.
 
 use crate::saves::entries::{BestTime, Field, NAME_MOVED, TIME_LEN};
+use crate::saves::name_id::NameId;
 
 /// The entries tables A and B have room for.
 pub const ROOM: usize = 2000;
@@ -170,8 +171,8 @@ pub(crate) fn patch_history(e: &mut HistoryEntry, at: usize, bytes: &[u8]) -> Op
 /// A row of the summary (0x50 bytes): a rival for the race.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Rival {
-    /// The name's string id.
-    pub name_id: u32,
+    /// The driver's name string.
+    pub name_id: NameId,
     /// The nationality.
     pub nation: u32,
     /// The car.
@@ -186,14 +187,14 @@ impl Rival {
     /// Its twenty dwords, for the race's reads by offset.
     pub fn dwords(&self) -> [u32; 20] {
         let mut d = [0; 20];
-        d[..4].copy_from_slice(&[self.name_id, self.nation, self.car, self.time]);
+        d[..4].copy_from_slice(&[self.name_id.to_file(), self.nation, self.car, self.time]);
         d[4..].copy_from_slice(&self.checkpoints);
         d
     }
 
     pub fn from_dwords(d: [u32; 20]) -> Self {
         Self {
-            name_id: d[0],
+            name_id: NameId::from_file(d[0]),
             nation: d[1],
             car: d[2],
             time: d[3],
@@ -435,7 +436,7 @@ pub fn empty_a(e: &mut BestTime) {
     h.first = u32::MAX;
     h.player = u32::MAX;
     h.nation = 0;
-    h.name_id = 0;
+    h.name_id = NameId::String(0);
     h.car = 0;
     h.key = crate::menu::standings::NO_TIME;
     h.rally_time = crate::menu::standings::NO_TIME;
@@ -458,7 +459,7 @@ pub fn fill_a(e: &mut BestTime, p: &crate::menu::standings::PlayerA) {
     h.key = p.time;
     h.group = p.group;
     h.rally_time = p.total;
-    h.name_id = p.name_at;
+    h.name_id = p.name_id;
     h.name = p.name;
     h.nation = p.nationality;
     h.car = p.car;
@@ -493,7 +494,12 @@ pub struct Driver {
 
 /// Table A's entry from a driver (`menu::standings_from_drivers`), with the name's text and
 /// NUL at the name. None: the text past the entry.
-pub fn fill_a_from_driver(e: &mut BestTime, d: &Driver, name_id: u32, text: &[u8]) -> Option<()> {
+pub fn fill_a_from_driver(
+    e: &mut BestTime,
+    d: &Driver,
+    name_id: NameId,
+    text: &[u8],
+) -> Option<()> {
     let h = &mut e.head;
     h.key = d.time;
     h.player = 0;
@@ -524,12 +530,12 @@ pub fn fill_b_from_driver(e: &mut HistoryEntry, d: &Driver, text: &[u8]) -> Opti
 /// The summary's rows (`menu::copy_standings_summary`) from table A's walked entries with a
 /// group (`grouped`) or without: name id, nationality, car, stage time. None when they run out
 /// first.
-pub fn summary_rows(walked: &[BestTime], grouped: bool) -> Option<Vec<[u32; 4]>> {
-    let rows: Vec<[u32; 4]> = walked
+pub fn summary_rows(walked: &[BestTime], grouped: bool) -> Option<Vec<(NameId, u32, u32, u32)>> {
+    let rows: Vec<(NameId, u32, u32, u32)> = walked
         .iter()
         .filter(|e| (e.head.group != 0) == grouped)
         .take(SUMMARY_ROWS)
-        .map(|e| [e.head.name_id, e.head.nation, e.head.car, e.head.key])
+        .map(|e| (e.head.name_id, e.head.nation, e.head.car, e.head.key))
         .collect();
     (rows.len() == SUMMARY_ROWS).then_some(rows)
 }
@@ -653,6 +659,30 @@ mod tests {
         }
     }
 
+    /// A summary holding every kind of name number is the same bytes read and written.
+    #[test]
+    fn a_summary_with_every_name_number_is_the_same_bytes() {
+        use crate::saves::tables::FileTable;
+        let numbers = [
+            0x755784,
+            0x7557A4,
+            0x7557C4,
+            0x7557E4,
+            0,
+            0x5A6,
+            0x755785,
+            u32::MAX,
+        ];
+        let mut bytes = vec![0xA5u8; SUMMARY_LEN];
+        for (n, number) in numbers.iter().cycle().take(SUMMARY_ROWS).enumerate() {
+            bytes[n * 0x50..n * 0x50 + 4].copy_from_slice(&number.to_le_bytes());
+        }
+        let summary = Summary::read(&bytes);
+        assert_eq!(summary.rows[2].name_id, NameId::of_player(2));
+        assert_eq!(summary.rows[5].name_id, NameId::String(0x5A6));
+        assert_eq!(summary.write(), bytes);
+    }
+
     #[test]
     fn fills_match_the_byte_versions() {
         use crate::menu::standings::{self as bytes, Entries, PlayerA, PlayerB};
@@ -663,7 +693,7 @@ mod tests {
             time: 3,
             group: 4,
             total: 5,
-            name_at: 6,
+            name_id: NameId::of_player(1),
             name: [b'n'; 0x20],
             nationality: 7,
             car: 8,
@@ -741,7 +771,7 @@ mod tests {
             0x55,
             text,
         );
-        fill_a_from_driver(&mut e, &d, 0x55, text).unwrap();
+        fill_a_from_driver(&mut e, &d, NameId::String(0x55), text).unwrap();
         let mut out = vec![0; TIME_LEN];
         e.write(&mut out);
         assert_eq!(out, raw);

@@ -30,12 +30,12 @@ pub fn enter_record_entry(
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, slot)?;
     // The logic is in `rc2k_core::saves::entries::BestTime::enter`, then `rank_entries`.
     use rc2k_core::menu::bests;
-    let name_at = name_address_of(&p.get())?;
+    let name_id = name_id_of(&p.get())?;
     let best = bests::NewBest {
         key: p.get().time,
         player: n + 1,
         nationality: p.get().nationality,
-        name_at,
+        name_id,
         car: p.get().car_number,
         group: p.get().class,
         name: name_of(&menus.play, &p.get())?,

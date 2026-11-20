@@ -69,11 +69,7 @@ pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(
             crate::menu::player_names::name_of(&car.get())?,
         );
         car.update(|p| p.name_copy = name);
-        file.store(
-            base + car_at(n),
-            &car.get()
-                .to_file_bytes(crate::menu::player_names::name_address),
-        )?;
+        file.store(base + car_at(n), &car.get().to_file_bytes())?;
     }
     let records = crate::menu::drivers_store::records_to_bytes(&menus.cars.drivers.drivers);
     debug_assert_eq!(records.len(), RECORDS_LEN);
@@ -85,6 +81,7 @@ pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(
 mod tests {
     use super::*;
     use rc2k_core::menu::player::Player;
+    use rc2k_core::saves::name_id::NameId;
     use rc2k_core::saves::savegame::{LEN, car_at};
 
     /// The saved game's cars are each record as it is in memory, with the address of its
@@ -126,7 +123,7 @@ mod tests {
         for (n, car) in play.slots.records.iter().enumerate() {
             // The record, its name address in place of the number.
             let mut expected = car.get();
-            expected.name_number = crate::menu::player_names::name_address(n);
+            expected.name_number = NameId::of_player(n).to_file();
             let at = car_at(n);
             assert_eq!(
                 &file[at..at + 0x28c],
@@ -134,7 +131,7 @@ mod tests {
                 "car {n}"
             );
             let address = u32::from_le_bytes(file[at + 0x18..at + 0x1c].try_into().unwrap());
-            assert_eq!(address, crate::menu::player_names::name_address(n));
+            assert_eq!(address, NameId::of_player(n).to_file());
             assert_eq!(&file[at + 0x124..at + 0x144], &names_before[n][..]);
         }
         buffer.write_at(0, &file_before, "the file").unwrap();

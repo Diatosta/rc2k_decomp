@@ -30,9 +30,9 @@ pub struct NewBest {
     pub key: u32,
     /// The player: 1, or the player's index + 1 for the records.
     pub player: u32,
-    /// The player's nationality, name pointer, car number and group (the class).
+    /// The player's nationality, name, car number and group (the class).
     pub nationality: u32,
-    pub name_at: u32,
+    pub name_id: crate::saves::name_id::NameId,
     pub car: u32,
     pub group: u32,
     /// The name's first bytes.

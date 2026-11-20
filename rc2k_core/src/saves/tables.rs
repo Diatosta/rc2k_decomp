@@ -157,6 +157,69 @@ mod whole_file {
         out
     }
 
+    /// The file's numbers of every kind of name: the four players, strings, and numbers that
+    /// are neither.
+    const EVERY_NAME_NUMBER: [u32; 12] = [
+        0x755784,
+        0x7557A4,
+        0x7557C4,
+        0x7557E4,
+        0,
+        1,
+        0x5A6,
+        0x5A5 + 89,
+        0x755783,
+        0x755785,
+        0x7557E8,
+        u32::MAX,
+    ];
+
+    /// `file` with a name number from `EVERY_NAME_NUMBER` in every entry's name field: the
+    /// best scores' (+0, 0x3C apart), the levels' (+0xC, 0x50 apart) and the times' (+0xC, 0x9C
+    /// apart) tables.
+    fn with_every_name_number(stages: u32) -> Vec<u8> {
+        let mut file = file(stages);
+        let mut at = kept::HEAD_LEN;
+        for n in [1, 2, 3, 4, 7, 8] {
+            let len = sizes(stages)[n] as usize;
+            let (step, field) = match n {
+                1 => (0x3C, 0),
+                3 => (0x50, 0xC),
+                _ => (0x9C, 0xC),
+            };
+            for k in 0..len / step {
+                let number = EVERY_NAME_NUMBER[k % EVERY_NAME_NUMBER.len()];
+                let place = at + k * step + field;
+                file[place..place + 4].copy_from_slice(&number.to_le_bytes());
+            }
+            at += len;
+        }
+        file
+    }
+
+    /// A file holding every kind of name number is the same bytes after being read into typed
+    /// tables and written, and the tables name the players where the file has their numbers.
+    #[test]
+    fn a_file_with_every_name_number_is_the_same_bytes() {
+        use crate::saves::entries::BestTime;
+        use crate::saves::name_id::NameId;
+        for stages in [1, 36, 120] {
+            let file = with_every_name_number(stages);
+            assert!(rewritten(&file, stages) == file, "{stages} stages");
+        }
+        let file = with_every_name_number(36);
+        let times_at = kept::HEAD_LEN + sizes(36)[1] as usize;
+        let first_four: Vec<NameId> = (0..4)
+            .map(|k| BestTime::read(&file[times_at + k * 0x9C..]).head.name_id)
+            .collect();
+        assert_eq!(
+            first_four,
+            (0..4).map(NameId::of_player).collect::<Vec<_>>()
+        );
+        let fifth = BestTime::read(&file[times_at + 5 * 0x9C..]).head.name_id;
+        assert_eq!(fifth, NameId::String(1));
+    }
+
     #[test]
     fn a_best_times_file_is_read_and_written_with_the_same_bytes() {
         for stages in [1, 36, 120] {

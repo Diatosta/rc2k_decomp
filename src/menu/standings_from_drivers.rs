@@ -33,8 +33,13 @@ pub fn standings_from_drivers(
     crate::menu::init_standings_a::init_standings_a(tables)?;
     with_a(tables, |t| {
         for ((d, (id, text)), e) in drivers.iter().zip(&texts).zip(&mut t.entries) {
-            rc2k_core::saves::rankings::fill_a_from_driver(e, d, *id, text)
-                .expect("the name's length checked");
+            rc2k_core::saves::rankings::fill_a_from_driver(
+                e,
+                d,
+                rc2k_core::saves::name_id::NameId::String(*id),
+                text,
+            )
+            .expect("the name's length checked");
         }
     })?;
     Ok(())

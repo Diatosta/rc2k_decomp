@@ -17,13 +17,13 @@ pub fn copy_standing_entry(
 ) -> Result<(), Refused> {
     name_player(&p.get())?;
     use rc2k_core::menu::standings::PlayerA;
-    let name_at = name_address_of(&p.get())?;
+    let name_id = name_id_of(&p.get())?;
     let source = PlayerA {
         index,
         time: p.get().time,
         group: p.get().class,
         total: p.get().total,
-        name_at,
+        name_id,
         name: name_of(play, &p.get())?,
         nationality: p.get().nationality,
         car: p.get().car_number,

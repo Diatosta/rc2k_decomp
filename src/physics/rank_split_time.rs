@@ -17,11 +17,12 @@ use crate::race::groups_store::PanelAndOverlay;
 use crate::race::owner_shared::RaceShared;
 use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
+use rc2k_core::saves::name_id::NameId;
 
 /// A name into `text` (eight blanks first), its first eight bytes into `to`.
 fn name(
     o: crate::owners::Owners<'static>,
-    id: u32,
+    name: NameId,
     to: &[PlainDword; 2],
 ) -> Result<(), crate::errors::BadInput> {
     let strings = o.strings;
@@ -32,7 +33,7 @@ fn name(
     let mut refused = None;
     append_string_by_id(
         crate::strings::append_string_by_id::StringOwners::of(o),
-        id,
+        name.to_file(),
         &mut |bytes| {
             if let Err(e) = crate::memory::cells::Store::store(text, written as usize, bytes) {
                 refused.get_or_insert(e);
@@ -88,7 +89,7 @@ pub fn rank_split_time(
         shared.car().split_gaps[1].set(gap(split_tables.rival_scaled[c - 2].get(), time));
         shared.car().split_gaps[3].set(split_tables.rival_cars[c - 2].get());
         let id = split_tables.rival_names[c - 2].get();
-        shared.car().split_gaps[5].set(id);
+        shared.car().split_gaps[5].set(id.to_file());
         name(o, id, &panel_and_overlay.overlay.label_ahead)?;
     }
     if c != RIVALS {
@@ -96,7 +97,7 @@ pub fn rank_split_time(
         shared.car().split_gaps[2].set(gap(time, split_tables.rival_scaled[c - 1].get()));
         shared.car().split_gaps[4].set(split_tables.rival_cars[c - 1].get());
         let id = split_tables.rival_names[c - 1].get();
-        shared.car().split_gaps[6].set(id);
+        shared.car().split_gaps[6].set(id.to_file());
         name(o, id, &panel_and_overlay.overlay.label_behind)?;
     }
     Ok(())

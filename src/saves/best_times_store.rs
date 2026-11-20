@@ -60,8 +60,8 @@ pub struct TimeEntry {
     pub player: PlainDword,
     /// The nationality (the driver's `nation`).
     pub nation: PlainDword,
-    /// The name's string id.
-    pub name_id: PlainDword,
+    /// The name: a driver's string or a player.
+    pub name_id: crate::saves::name_cell::NameIdCell,
     /// The car (the driver's `car`).
     pub car: PlainDword,
     /// The time in a stage's table.
@@ -140,7 +140,7 @@ impl TimeEntry {
             unread_0: PlainDword::new(w[0]),
             player: PlainDword::new(w[1]),
             nation: PlainDword::new(w[2]),
-            name_id: PlainDword::new(w[3]),
+            name_id: crate::saves::name_cell::NameIdCell::from_file(w[3]),
             car: PlainDword::new(w[4]),
             stage_time: PlainDword::new(w[5]),
             rally_time: PlainDword::new(w[6]),
@@ -293,7 +293,7 @@ mod fill_made_up_tests {
             time: 0x1234,
             driver: rc2k_core::saves::defaults::Driver {
                 fields: [7, 8, 9],
-                name_id: 0x5A6,
+                name_id: rc2k_core::saves::name_id::NameId::String(0x5A6),
                 name: b"Somebody Else".to_vec(),
             },
             checkpoints: Some(std::array::from_fn(|n| 100 + n as u32)),

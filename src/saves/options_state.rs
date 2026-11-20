@@ -229,7 +229,7 @@ fn time_entry(entry: &TimeEntry, m: &mut impl Move) -> Result<(), BadInput> {
         &entry.unread_0,
         &entry.player,
         &entry.nation,
-        &entry.name_id,
+        entry.name_id.file_dword(),
         &entry.car,
         &entry.stage_time,
         &entry.rally_time,

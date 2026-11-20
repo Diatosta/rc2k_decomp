@@ -19,6 +19,17 @@ impl Dword {
         Self(AtomicU32::new(value))
     }
 
+    /// A row of cells holding `values`, in order (a store's starting table).
+    pub const fn array<const N: usize>(values: [u32; N]) -> [Self; N] {
+        let mut cells: [Self; N] = [const { Self::new(0) }; N];
+        let mut i = 0;
+        while i < N {
+            cells[i] = Self::new(values[i]);
+            i += 1;
+        }
+        cells
+    }
+
     pub fn get(&self) -> u32 {
         self.0.load(Relaxed)
     }
@@ -629,6 +640,17 @@ impl PlainDword {
         Self(Cell::new(value))
     }
 
+    /// A row of cells holding `values`, in order (a store's starting table).
+    pub const fn array<const N: usize>(values: [u32; N]) -> [Self; N] {
+        let mut cells: [Self; N] = [const { Self::new(0) }; N];
+        let mut i = 0;
+        while i < N {
+            cells[i] = Self::new(values[i]);
+            i += 1;
+        }
+        cells
+    }
+
     pub fn get(&self) -> u32 {
         self.0.get()
     }
@@ -674,6 +696,28 @@ impl PlainFloat {
     /// A cell holding `value`.
     pub const fn new(value: f32) -> Self {
         Self(Cell::new(value.to_bits()))
+    }
+
+    /// A row of cells holding `values`, in order (a store's starting table).
+    pub const fn array<const N: usize>(values: [f32; N]) -> [Self; N] {
+        let mut cells: [Self; N] = [const { Self::new(0.0) }; N];
+        let mut i = 0;
+        while i < N {
+            cells[i] = Self::new(values[i]);
+            i += 1;
+        }
+        cells
+    }
+
+    /// A row of cells holding the floats whose bits are `values`, in order.
+    pub const fn bits_array<const N: usize>(values: [u32; N]) -> [Self; N] {
+        let mut cells: [Self; N] = [const { Self::new(0.0) }; N];
+        let mut i = 0;
+        while i < N {
+            cells[i] = Self::from_bits(values[i]);
+            i += 1;
+        }
+        cells
     }
 
     /// From the float's bits (the starting values are given as bits).

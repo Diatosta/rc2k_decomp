@@ -37,8 +37,8 @@ pub struct SplitTables {
     pub kind_factor: PlainFloat,
     /// The kept split times, 64 of them.
     pub kept_times: [PlainDword; 64],
-    /// The 90 rivals' name ids (`physics::fill_rival_table`, `physics::rank_split_time`).
-    pub rival_names: [PlainDword; 90],
+    /// The 90 rivals' names (`physics::fill_rival_table`, `physics::rank_split_time`).
+    pub rival_names: [crate::saves::name_cell::NameIdCell; 90],
     /// The rivals' times.
     pub rival_times: [PlainDword; 90],
     /// The rivals' cars.

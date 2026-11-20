@@ -202,9 +202,13 @@ pub fn name_player(p: &rc2k_core::menu::player::Player) -> Result<usize, BadInpu
     crate::menu::player_names::name_of(p)
 }
 
-/// The address of the player's name that the entries carry as the name's id.
-pub(super) fn name_address_of(p: &rc2k_core::menu::player::Player) -> Result<u32, BadInput> {
-    Ok(crate::menu::player_names::name_address(name_player(p)?))
+/// The player's name as the entries carry it.
+pub(super) fn name_id_of(
+    p: &rc2k_core::menu::player::Player,
+) -> Result<rc2k_core::saves::name_id::NameId, BadInput> {
+    Ok(rc2k_core::saves::name_id::NameId::of_player(name_player(
+        p,
+    )?))
 }
 
 /// Runs `f` on the kept player name, the sorts' swap buffer (a copy of it, put back after).
@@ -332,14 +336,14 @@ pub fn enter_best(
         return Err(BadInput("no best-score table, a group past 4 or no name"));
     };
     use rc2k_core::saves::scores as s;
-    let name_ref = name_address_of(&p.get())?;
+    let name_id = name_id_of(&p.get())?;
     let best = s::Best {
         player: n + 1,
         score: score(&p.get()),
         nation: p.get().nationality,
         car: p.get().car_number,
         group: p.get().class,
-        name_ref,
+        name_id,
         name: name_of(play, &p.get())?,
     };
     scores.with(|t| {

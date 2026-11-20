@@ -65,7 +65,7 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
         let (name_id, name) = driver.name(self.so, self.menus).map_err(|e| Invalid(e.0))?;
         Ok(rc2k_core::saves::defaults::Driver {
             fields: [driver.class(), driver.nation(), driver.car()],
-            name_id,
+            name_id: rc2k_core::saves::name_id::NameId::String(name_id),
             name,
         })
     }

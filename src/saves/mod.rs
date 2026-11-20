@@ -22,6 +22,7 @@ pub(crate) mod list_car_numbers;
 pub(crate) mod load_best_times;
 mod load_options;
 pub(crate) mod load_savegame;
+pub(crate) mod name_cell;
 pub(crate) mod options_files;
 pub(crate) mod options_state;
 pub(crate) mod owner;

@@ -18,7 +18,7 @@ pub fn copy_standings_summary(screens: &Screens, tables: &BestTables) -> Result<
         return Err(BadInput("standings table A runs out").into());
     };
     tables.summary.with(|t| {
-        for (row, [name_id, nation, car, time]) in t.rows.iter_mut().zip(rows) {
+        for (row, (name_id, nation, car, time)) in t.rows.iter_mut().zip(rows) {
             row.name_id = name_id;
             row.nation = nation;
             row.car = car;

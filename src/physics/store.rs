@@ -269,6 +269,50 @@ impl DamageModel {
     }
 }
 
+/// The starting values of `wear_rates`.
+#[rustfmt::skip]
+const WEAR_RATES: [f32; 13] = [
+    0.2, 1.0, 0.02, 2.0, 0.8, 5.0, 0.01, 100.0, 3.0, 7.0, 0.6, 0.009, 0.001,
+];
+
+/// The starting values of `gear_factors`.
+#[rustfmt::skip]
+const GEAR_FACTORS: [f32; 9] = [
+    1.0, 0.0, 1.8, 1.2, 0.6, 0.3, 0.15, 0.08, 0.06,
+];
+
+/// The starting values of `gauge_rates`.
+#[rustfmt::skip]
+const GAUGE_RATES: [f32; 24] = [
+    0.075, 0.15, 0.075, 0.075, 0.125, 0.5, 0.25, 0.25, 0.1, 35.0, 50.0, 25.0, 0.0003, 0.0002,
+    0.0005, 0.005, 0.02, 0.2, 0.008, 0.15, 4.0, 0.05, 0.02, 0.005,
+];
+
+/// The starting values of `kind_table_a`.
+#[rustfmt::skip]
+const KIND_TABLE_A: [f32; 2] = [
+    1.2, 1.0,
+];
+
+/// The starting values of `kind_table_b`.
+#[rustfmt::skip]
+const KIND_TABLE_B: [f32; 2] = [
+    1.0, 1.0,
+];
+
+/// The starting values of `figures`.
+#[rustfmt::skip]
+const FIGURES: [f32; 33] = [
+    0.125, 0.05, 0.08, 0.06, 0.3, 0.08, 0.32, 0.6, 0.2, 0.3, 1.0, 0.4, 0.2, 8.0, 6.0, 7.0, 3.0,
+    12.0, 15.0, 10.0, 10.0, 25.0, 15.0, 16.0, 80.0, 40.0, 30.0, 50.0, 40.0, 20.0, 10.0, 5.0, 0.015,
+];
+
+/// The starting values of `wear_unset_row`.
+#[rustfmt::skip]
+const WEAR_UNSET_ROW: [u32; 16] = [
+    100, 20, 40, 20, 35, 15, 30, 60, 5, 100, 100, 100, 100, 100, 100, 100,
+];
+
 /// First values the image's.
 impl DamageModel {
     pub const fn new() -> Self {
@@ -433,60 +477,11 @@ impl DamageModel {
                     PlainFloat::new(0.0),
                 ],
             ],
-            wear_rates: [
-                PlainFloat::new(0.2),
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.02),
-                PlainFloat::new(2.0),
-                PlainFloat::new(0.8),
-                PlainFloat::new(5.0),
-                PlainFloat::new(0.01),
-                PlainFloat::new(100.0),
-                PlainFloat::new(3.0),
-                PlainFloat::new(7.0),
-                PlainFloat::new(0.6),
-                PlainFloat::new(0.009),
-                PlainFloat::new(0.001),
-            ],
-            gear_factors: [
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(1.8),
-                PlainFloat::new(1.2),
-                PlainFloat::new(0.6),
-                PlainFloat::new(0.3),
-                PlainFloat::new(0.15),
-                PlainFloat::new(0.08),
-                PlainFloat::new(0.06),
-            ],
-            gauge_rates: [
-                PlainFloat::new(0.075),
-                PlainFloat::new(0.15),
-                PlainFloat::new(0.075),
-                PlainFloat::new(0.075),
-                PlainFloat::new(0.125),
-                PlainFloat::new(0.5),
-                PlainFloat::new(0.25),
-                PlainFloat::new(0.25),
-                PlainFloat::new(0.1),
-                PlainFloat::new(35.0),
-                PlainFloat::new(50.0),
-                PlainFloat::new(25.0),
-                PlainFloat::new(0.0003),
-                PlainFloat::new(0.0002),
-                PlainFloat::new(0.0005),
-                PlainFloat::new(0.005),
-                PlainFloat::new(0.02),
-                PlainFloat::new(0.2),
-                PlainFloat::new(0.008),
-                PlainFloat::new(0.15),
-                PlainFloat::new(4.0),
-                PlainFloat::new(0.05),
-                PlainFloat::new(0.02),
-                PlainFloat::new(0.005),
-            ],
-            kind_table_a: [PlainFloat::new(1.2), PlainFloat::new(1.0)],
-            kind_table_b: [PlainFloat::new(1.0), PlainFloat::new(1.0)],
+            wear_rates: PlainFloat::array(WEAR_RATES),
+            gear_factors: PlainFloat::array(GEAR_FACTORS),
+            gauge_rates: PlainFloat::array(GAUGE_RATES),
+            kind_table_a: PlainFloat::array(KIND_TABLE_A),
+            kind_table_b: PlainFloat::array(KIND_TABLE_B),
             lerp_tables_b: [
                 [
                     PlainFloat::new(0.0),
@@ -508,59 +503,8 @@ impl DamageModel {
                 ],
             ],
             wheel_roughness_rate: PlainFloat::new(0.15),
-            figures: [
-                PlainFloat::new(0.125),
-                PlainFloat::new(0.05),
-                PlainFloat::new(0.08),
-                PlainFloat::new(0.06),
-                PlainFloat::new(0.3),
-                PlainFloat::new(0.08),
-                PlainFloat::new(0.32),
-                PlainFloat::new(0.6),
-                PlainFloat::new(0.2),
-                PlainFloat::new(0.3),
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.4),
-                PlainFloat::new(0.2),
-                PlainFloat::new(8.0),
-                PlainFloat::new(6.0),
-                PlainFloat::new(7.0),
-                PlainFloat::new(3.0),
-                PlainFloat::new(12.0),
-                PlainFloat::new(15.0),
-                PlainFloat::new(10.0),
-                PlainFloat::new(10.0),
-                PlainFloat::new(25.0),
-                PlainFloat::new(15.0),
-                PlainFloat::new(16.0),
-                PlainFloat::new(80.0),
-                PlainFloat::new(40.0),
-                PlainFloat::new(30.0),
-                PlainFloat::new(50.0),
-                PlainFloat::new(40.0),
-                PlainFloat::new(20.0),
-                PlainFloat::new(10.0),
-                PlainFloat::new(5.0),
-                PlainFloat::new(0.015),
-            ],
-            wear_unset_row: [
-                PlainDword::new(100),
-                PlainDword::new(20),
-                PlainDword::new(40),
-                PlainDword::new(20),
-                PlainDword::new(35),
-                PlainDword::new(15),
-                PlainDword::new(30),
-                PlainDword::new(60),
-                PlainDword::new(5),
-                PlainDword::new(100),
-                PlainDword::new(100),
-                PlainDword::new(100),
-                PlainDword::new(100),
-                PlainDword::new(100),
-                PlainDword::new(100),
-                PlainDword::new(100),
-            ],
+            figures: PlainFloat::array(FIGURES),
+            wear_unset_row: PlainDword::array(WEAR_UNSET_ROW),
             wear_table: [
                 [
                     PlainDword::new(100),
@@ -744,6 +688,17 @@ pub(crate) use laid;
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// The record's whole bytes, as a checksum: a wrong dword in a row shows here.
+    #[test]
+    fn the_damage_model_keeps_the_bytes_of_the_image() {
+        let bytes = crate::memory::cells::flatten(&DamageModel::new());
+        let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+        for byte in &bytes {
+            hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
+        }
+        assert_eq!(bytes.len(), 1516);
+        assert_eq!(hash, 0x3064_78b9_a437_1b37);
+    }
 
     #[test]
     fn the_wear_table_reads_on_as_the_original_indexed_it() {

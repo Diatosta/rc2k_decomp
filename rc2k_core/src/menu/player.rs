@@ -26,7 +26,8 @@ pub struct Player {
     /// in the saved game).
     pub saved_start_section: u32,
     /// Whose name in the four name buffers is the player's: 0 none, n the name of player n - 1.
-    /// The saved games hold the buffer's address here instead (`to_file_bytes`).
+    /// The saved games hold the player's name number (`saves::name_id`) here instead
+    /// (`to_file_bytes`).
     pub name_number: u32,
     pub keys: [u8; 12],
     /// The number on the player's car, 1 .. 90, chosen on the player details page.
@@ -169,10 +170,12 @@ impl Player {
     }
 
     /// The record as the saved game keeps it: the layout of `to_le_bytes`, with the word at
-    /// +0x18 the address of the name's buffer (`name_address(player)`), or 0 without a name.
-    pub fn to_file_bytes(&self, name_address: impl Fn(usize) -> u32) -> [u8; 0x28c] {
+    /// +0x18 the file's number of the player's name (`saves::name_id::NameId`), or 0 without a name.
+    pub fn to_file_bytes(&self) -> [u8; 0x28c] {
         let mut b = self.to_le_bytes();
-        let at = self.name_player().map_or(0, name_address);
+        let at = self.name_player().map_or(0, |player| {
+            crate::saves::name_id::NameId::of_player(player).to_file()
+        });
         b[0x18..0x1c].copy_from_slice(&at.to_le_bytes());
         b
     }
@@ -750,6 +753,22 @@ mod tests {
         b
     }
 
+    /// A saved game's four cars, each with its player's name number at +0x18, are the same
+    /// bytes after the load (which sets the name by the car's place) and the save.
+    #[test]
+    fn a_saved_game_with_every_name_number_is_the_same_bytes() {
+        use crate::saves::name_id::NameId;
+        let bytes = numbered();
+        for k in 0..4 {
+            let mut file = bytes;
+            file[0x18..0x1c].copy_from_slice(&NameId::of_player(k).to_file().to_le_bytes());
+            let mut loaded = Player::from_file_bytes(file);
+            assert_eq!(loaded.name_player(), None);
+            loaded.set_name_player(k);
+            assert_eq!(loaded.to_file_bytes(), file);
+        }
+    }
+
     #[test]
     fn the_saved_record_carries_the_names_address() {
         let address = |k: usize| 0x0075_5784 + 0x20 * k as u32;
@@ -761,13 +780,13 @@ mod tests {
             // The file has what the game wrote: the record with the address at +0x18.
             let mut expected = bytes;
             expected[0x18..0x1c].copy_from_slice(&address(k).to_le_bytes());
-            assert_eq!(p.to_file_bytes(address), expected);
+            assert_eq!(p.to_file_bytes(), expected);
         }
         let mut none = Player::from_le_bytes(bytes);
         none.name_number = 0;
         let mut expected = bytes;
         expected[0x18..0x1c].fill(0);
-        assert_eq!(none.to_file_bytes(address), expected);
+        assert_eq!(none.to_file_bytes(), expected);
         assert_eq!(none.name_player(), None);
         none.name_number = 5;
         assert_eq!(none.name_player(), None);

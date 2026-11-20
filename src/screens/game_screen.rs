@@ -173,10 +173,12 @@ pub(super) fn player_name_of(player: usize) -> HeldText {
     HeldText::Name(crate::menu::player_names::NameAt::of(player))
 }
 
-/// The name an entry's name address names (`player_names::name_address`), drawn from the
-/// names' store; refused when it names no player's name.
-pub fn player_name(name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
-    crate::menu::player_names::index_of(name_at)
+/// The name an entry's name id names, drawn from the names' store; refused when it names no
+/// player's name.
+pub fn player_name(
+    name: rc2k_core::saves::name_id::NameId,
+) -> Result<HeldText, crate::errors::BadInput> {
+    name.player()
         .map(|k| HeldText::Name(crate::menu::player_names::NameAt::of(k)))
         .ok_or(crate::errors::BadInput(
             "a player's name that is no player's name",

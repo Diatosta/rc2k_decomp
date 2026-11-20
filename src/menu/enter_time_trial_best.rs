@@ -12,7 +12,7 @@
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
 use crate::menu::owner::Menus;
-use crate::menu::standings::name_address_of;
+use crate::menu::standings::name_id_of;
 
 pub(super) fn enter_time_trial_best(
     race: &crate::race::owner::Race,
@@ -24,7 +24,7 @@ pub(super) fn enter_time_trial_best(
     let record = stage_record(menus, system)?;
     stage_times(menus, system, tables)?; // a stage the tables do not give: refused
     let p = current_player(menus)?;
-    let name = name_address_of(&p.get())?;
+    let name_id = name_id_of(&p.get())?;
     let slot = record.record(&system.records().stage_tables)?.event_slot();
     let cheats = menus.play.cheats.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, slot)?;
@@ -34,7 +34,7 @@ pub(super) fn enter_time_trial_best(
         key: p.get().time,
         player: 1,
         nationality: p.get().nationality,
-        name_at: name,
+        name_id,
         car: p.get().car_number,
         group: p.get().class,
         name: name_of(&menus.play, &p.get())?,

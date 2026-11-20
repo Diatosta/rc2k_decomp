@@ -118,3 +118,36 @@ opt-level = 3
 opt-level = 3
 [profile.test.package.miniz_oxide]
 opt-level = 3
+
+# Cold libraries optimised for size: network discovery (a few packets a second at most), the
+# options file (read and written a few times per run), the debug window (drawn only when open)
+# and the save code's encoder. The game's own crates and the hot libraries (miniz_oxide, rayon,
+# SDL) stay at the release level.
+[profile.release.package.mdns-sd]
+opt-level = "z"
+[profile.release.package.flume]
+opt-level = "z"
+[profile.release.package.socket2]
+opt-level = "s"
+[profile.release.package.mio]
+opt-level = "s"
+[profile.release.package.if-addrs]
+opt-level = "s"
+[profile.release.package.toml]
+opt-level = "s"
+[profile.release.package.toml_parser]
+opt-level = "s"
+[profile.release.package.toml_writer]
+opt-level = "s"
+[profile.release.package.toml_datetime]
+opt-level = "s"
+[profile.release.package.serde_spanned]
+opt-level = "s"
+[profile.release.package.winnow]
+opt-level = "s"
+[profile.release.package.qrcode]
+opt-level = "s"
+[profile.release.package.dear-imgui-sys]
+opt-level = "z"
+[profile.release.package.dear-imgui-rs]
+opt-level = "z"

@@ -23,7 +23,7 @@ use crate::errors::{BadInput, Refused};
 use crate::memory::session::{PlainDword, read_all, write_all};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
-use crate::menu::standings::{name_address_of, name_of, name_player, with_kept_name};
+use crate::menu::standings::{name_id_of, name_of, name_player, with_kept_name};
 use crate::race::owner::Race;
 use crate::records::stages_store::{Holder, RecordRef};
 use crate::saves::best_times::BestTables;
@@ -142,12 +142,12 @@ fn new_best(
     seal: Option<bests::Seal>,
     line: Option<[u8; bests::LINE_LEN]>,
 ) -> Result<bests::NewBest, BadInput> {
-    let name_at = name_address_of(&player.get())?;
+    let name_id = name_id_of(&player.get())?;
     Ok(bests::NewBest {
         key,
         player: 1,
         nationality: player.get().nationality,
-        name_at,
+        name_id,
         car: player.get().car_number,
         group: player.get().class,
         name: name_of(&menus.play, &player.get())?,
