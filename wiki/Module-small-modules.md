@@ -75,7 +75,7 @@ owners, so that `platform/` itself names no game type.
 | `main` | `src/shell/android.rs` | The Android activity's entry: prepares the folder (`platform::android::prepare`) and runs the game. |
 | `play_film` | `src/shell/film.rs` | Plays a film (the AVI and MPEG readers, the picture, the sound). |
 | `finger`, `tick`, `take_installer_tap` | `src/shell/touch_menu.rs` | A touch screen's gestures as the keys the menus take (touch builds). |
-| `follow`, `note_resize` | `src/shell/window_follow.rs` | A window the player resized is taken as the next race's size. |
+| `follow`, `note_resize` | `src/shell/window_follow.rs` | A window the player resized is taken as the race's size (a running race's frame is made again at it). |
 | `report_timing` | `src/shell/timing_report.rs` | The log's line every five seconds on where the time went. |
 
 What `platform/` still reaches up to: the screen-mode and renderer-switching code in `mod.rs` (`choose_screen_modes`,

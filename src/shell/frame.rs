@@ -176,7 +176,7 @@ fn show_fitted(
         renderer.draw_whole(texture);
         return;
     }
-    if screen.menu {
+    if screen.menu && !crate::render::wash::film_showing() {
         draw_wash(renderer, window);
     }
     renderer.draw_part(texture, None, [fit.x, fit.y, fit.width, fit.height]);

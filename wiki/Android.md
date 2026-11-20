@@ -28,6 +28,11 @@ tools/android/push_game.sh <the game's folder>
 Words the program should start with (`--stage langton --gearbox automatic`, for a test) are read
 from `files/rc2k_args.txt` in the app's storage.
 
+The game folder on a phone is the installation: its sound plays whether or not the folder has the
+installer's record (`var\ral.zog`; without it the 1999 game took itself to be running from the CD
+and switched the sound off). Films are shown with black bars beside them, not the menus' blurred
+background.
+
 A first-run page with a file picker for the game's zip is to come; the page the other systems show
 (pick a folder or a zip) is there but its file dialog is not tried on Android.
 

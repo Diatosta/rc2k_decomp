@@ -98,11 +98,13 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   their 4:3 shape in the middle: the loading picture has the menus' blurred wash beside it, the
   tyre change's dark backdrop and the replay viewer's bars span the whole width.
 - **A window you can resize.** In window mode the window can be dragged to any size (320 x 240 at
-  the least). Once it has stayed still for a moment and a menu is on the screen, the size becomes
-  the race's size: the next race is drawn at it (the 3D on the GPU and on the software renderer
-  alike), the graphics page's "resolution" row shows it as "1234 x 777 (window)", and the options
-  keep it as the race size. Dragged during a race, the picture is scaled in the window as before
-  and the size is taken up when the menus are back. Choosing a listed size on the page still sizes
+  the least). Once it has stayed still for a moment, the size becomes
+  the race's size: the next race is drawn at it (the 3D on the GPU, the OpenGL and the software
+  renderer alike), the graphics page's "resolution" row shows it as "1234 x 777 (window)", and the
+  options keep it as the race size. Dragged during a race, the race's frame is made again at the
+  new size at once and fills the window, with the HUD and the mirror laid out for its shape as on
+  a wide screen (no black bars). Between a race's loading and its start the resize waits for the
+  start. Choosing a listed size on the page still sizes
   the window. Full screen and borderless are unchanged.
 - **Screen row** (graphics page): window (the default), full screen or borderless. **Alt+Enter**
   toggles between a window and full screen at any time.

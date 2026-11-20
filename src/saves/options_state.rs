@@ -96,7 +96,7 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
         .or(d.race_size.map(|[w, h]| (w, h)));
     // A phone with no size kept starts at its own screen's size (the game's list has only
     // sizes far below it).
-    #[cfg(target_os = "ios")]
+    #[cfg(phone)]
     let wanted = wanted.or_else(|| {
         (d.race_mode == Options::default().display.race_mode)
             .then(crate::platform::phone_default_size)

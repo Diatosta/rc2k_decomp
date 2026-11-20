@@ -366,6 +366,15 @@ fn play_film(
     o: crate::owners::Owners<'static>,
     path: &dyn crate::memory::session::TextPlace,
 ) -> bool {
+    // A film's frames are menu-sized but shown with black bars, not the menus' wash.
+    struct Shown;
+    impl Drop for Shown {
+        fn drop(&mut self) {
+            crate::render::wash::set_film_showing(false);
+        }
+    }
+    crate::render::wash::set_film_showing(true);
+    let _shown = Shown;
     let gfx_reports = &o.gfx.reports;
     let reports: u32 = gfx_reports.on.get();
     gfx_reports.on.set(0);

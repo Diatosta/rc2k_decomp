@@ -243,7 +243,7 @@ pub fn monitor_modes() -> sdl::DisplayModes {
             .lock()
             .ok()
             .and_then(|screen| screen.as_ref().map(|s| s.window));
-        #[cfg(target_os = "ios")]
+        #[cfg(phone)]
         {
             // A phone's one mode in pixels (the whole screen, landscape), and its fractions: what
             // a frame is made at. The frame covers the screen edge to edge; the HUD keeps to the
@@ -261,7 +261,7 @@ pub fn monitor_modes() -> sdl::DisplayModes {
                 .collect();
             (modes, usable)
         }
-        #[cfg(not(target_os = "ios"))]
+        #[cfg(not(phone))]
         sdl::display_modes(window)
     }
 }
@@ -274,7 +274,13 @@ struct ModeSizes {
     bytes: u32,
 }
 
-fn set_screen_mode(mode: u32, purpose: Purpose, gfx: &Gfx, system: &System) -> Result<(), String> {
+fn set_screen_mode(
+    mode: u32,
+    purpose: Purpose,
+    keep_textures: bool,
+    gfx: &Gfx,
+    system: &System,
+) -> Result<(), String> {
     // The screen has 32 bits a pixel: a 16-bit mode asked for is the same size at 32.
     let mode = rc2k_core::gfx::screen_modes::at_32_bits(mode);
     gfx.display.mode.mode_flags.set(mode);
@@ -283,7 +289,7 @@ fn set_screen_mode(mode: u32, purpose: Purpose, gfx: &Gfx, system: &System) -> R
         height,
         bits,
         bytes,
-    } = set_mode_variables(mode, gfx, system)?;
+    } = set_mode_variables(mode, keep_textures, gfx, system)?;
 
     let mut screen = SCREEN.lock().map_err(|_| "the screen's lock")?;
     // The old frame's texture is dropped only once the new screen is whole: on a failure
@@ -339,7 +345,12 @@ fn set_screen_mode(mode: u32, purpose: Purpose, gfx: &Gfx, system: &System) -> R
 
 /// The mode's size and kind looked up, the textures given back, and the game's screen variables,
 /// the surface's pixel format and the screen's texture description set for it.
-fn set_mode_variables(mode: u32, gfx: &Gfx, system: &System) -> Result<ModeSizes, String> {
+fn set_mode_variables(
+    mode: u32,
+    keep_textures: bool,
+    gfx: &Gfx,
+    system: &System,
+) -> Result<ModeSizes, String> {
     use crate::gfx::modes::Modes;
     let modes = &gfx.display.modes;
     let (width, height) = mode_size(gfx, mode).ok_or("a screen size that is not known")?;
@@ -351,8 +362,11 @@ fn set_mode_variables(mode: u32, gfx: &Gfx, system: &System) -> Result<ModeSizes
         .ok_or("a kind that is not known")?;
     let bytes = bits >> 3;
     // Every texture is given back before the screen changes; the game loads again what it needs (a
-    // trial's 0x40 more found the pool full).
-    crate::d3d::device::release_all_textures(gfx);
+    // trial's 0x40 more found the pool full). A race's own frame being re-made keeps them: the
+    // stage's textures do not depend on the frame's size, and nothing would load them again.
+    if !keep_textures {
+        crate::d3d::device::release_all_textures(gfx);
+    }
     system.session.screen.get().width.set(width);
     system.session.screen.get().height.set(height);
     system.session.screen.get().bits.set(bits);
@@ -439,7 +453,7 @@ fn open_window(window_size: (usize, usize)) -> Result<(sdl::Window, sdl::Rendere
     let Some(renderer) = window_system::open_renderer(window, window_size) else {
         return Err("SDL makes no renderer for the window".into());
     };
-    #[cfg(target_os = "ios")]
+    #[cfg(phone)]
     log(&format!(
         "platform: the window is {:?} points, {:?} pixels, its safe area {:?} (x, y, width, height, pixels)",
         window.point_size(),
@@ -486,10 +500,10 @@ fn make_screen_pixels(
     pixels
 }
 
-/// The size the race starts at on an iPhone or iPad that has no choice of its own: the screen's
+/// The size the race starts at on a phone or tablet that has no choice of its own: the screen's
 /// own pixels cut down to what the processor-drawn menus
 /// can keep up with (`rc2k_core::gfx::resolutions::native_default`).
-#[cfg(target_os = "ios")]
+#[cfg(phone)]
 pub fn phone_default_size() -> Option<(u32, u32)> {
     let (_, usable) = monitor_modes();
     usable.map(rc2k_core::gfx::resolutions::native_default)
@@ -499,9 +513,24 @@ pub fn phone_default_size() -> Option<(u32, u32)> {
 pub fn set_mode_now(mode: u32, gfx: &Gfx, system: &System) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::d3d::device::flush();
-    let done = set_screen_mode(mode, Purpose::Race, gfx, system);
+    let done = set_screen_mode(mode, Purpose::Race, false, gfx, system);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
+    }
+    done.is_ok()
+}
+
+/// A running race's frame made again at the race mode's size (the window was resized): the
+/// screen's memory, the frame texture and the renderers' targets are new, the stage's textures
+/// and everything else the race holds stay. False (and logged) if it cannot be; the old frame
+/// is then still the screen.
+#[cfg(not(handheld))]
+/// The caller flushes the 3D drawing noted so far first (`d3d::device::flush`).
+pub fn remake_race_frame_now(gfx: &Gfx, system: &System) -> bool {
+    let mode = gfx.display.mode.race_mode.get();
+    let done = set_screen_mode(mode, Purpose::Race, true, gfx, system);
+    if let Err(why) = &done {
+        log(&format!("platform: the race's frame at {mode:#x}: {why}"));
     }
     done.is_ok()
 }
@@ -519,7 +548,7 @@ pub fn set_menu_mode_now(gfx: &Gfx, system: &System) -> bool {
         gfx.display.mode.race_mode.get(),
         gfx.display.mode.menu_mode.get(),
     );
-    let done = set_screen_mode(mode, Purpose::Menu, gfx, system);
+    let done = set_screen_mode(mode, Purpose::Menu, false, gfx, system);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
     }

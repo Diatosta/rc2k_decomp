@@ -104,3 +104,17 @@ pub fn image_for(window: (u32, u32)) -> Option<Arc<Image>> {
     state.made = Some((window, Arc::clone(&image)));
     Some(image)
 }
+
+/// Whether a film is being shown: its frames are menu-sized, with black bars beside them instead
+/// of the wash.
+static FILM_SHOWING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// A film's showing begins (`true`) or ends.
+pub fn set_film_showing(showing: bool) {
+    FILM_SHOWING.store(showing, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Whether a film is being shown.
+pub fn film_showing() -> bool {
+    FILM_SHOWING.load(std::sync::atomic::Ordering::Relaxed)
+}

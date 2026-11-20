@@ -1,9 +1,10 @@
 //! The player's resizing of the window: in window mode the window can be dragged to any size,
 //! and the race is then drawn at that size. A resize is taken up once the window has stayed
-//! still for `SETTLE_MS` (the end of a drag), and only while a menu is on the screen: a race
-//! shows its picture scaled in the window (as it always has) until the menus are back, where the
-//! new size becomes the race's size for the next race. Full screen and borderless are never
-//! followed: their size is the display's.
+//! still for `SETTLE_MS` (the end of a drag). The new size becomes the race's size; in a running
+//! race the frame is made again at once at that size (the stage's textures and the race's state
+//! stay), so the picture fills the window as the menus' does. Between a race's loading and its
+//! run the resize waits. Full screen and borderless are never followed: their size is the
+//! display's.
 
 use crate::platform::window_mode::{self, WindowMode};
 use crate::program_log::log;
@@ -35,13 +36,15 @@ fn settled(last: u64, now: u64) -> bool {
     last != NONE && now.saturating_sub(last) >= SETTLE_MS
 }
 
-/// Takes up the window's size, if a resize has settled and a menu is shown: the size becomes the
-/// race's size (kept in the options) and the graphics page's list is made again with it.
+/// Takes up the window's size, if a resize has settled and a menu or a running race is shown: the
+/// size becomes the race's size (kept in the options), the graphics page's list is made again
+/// with it, and a running race's frame is made again at it.
 pub fn follow(o: crate::owners::Owners<'static>, now: u64) {
     if !crate::platform::ffi::sdl::RESIZABLE || !settled(LAST_EVENT.load(Relaxed), now) {
         return;
     }
-    let size = {
+    let racing = o.race.course.numbers.get().in_race.is_set();
+    let (size, frame_is_race) = {
         let Ok(mut screen) = crate::platform::SCREEN.lock() else {
             return;
         };
@@ -53,8 +56,9 @@ pub fn follow(o: crate::owners::Owners<'static>, now: u64) {
             LAST_EVENT.store(NONE, Relaxed);
             return;
         }
-        // In a race the resize waits for the menus.
-        if !screen.menu {
+        // Between a race's loading and its end the resize waits (its frame is made again once
+        // the race runs).
+        if !screen.menu && !racing {
             return;
         }
         LAST_EVENT.store(NONE, Relaxed);
@@ -67,7 +71,7 @@ pub fn follow(o: crate::owners::Owners<'static>, now: u64) {
             return;
         };
         screen.window_size = (size.0 as usize, size.1 as usize);
-        size
+        (size, !screen.menu)
     };
     // The screen's lock is let go: making the list asks the display's modes through it.
     let (gfx, system) = (o.gfx, o.system);
@@ -95,6 +99,11 @@ pub fn follow(o: crate::owners::Owners<'static>, now: u64) {
         "platform: the window was resized to {} x {}: the race's size from now on",
         size.0, size.1
     ));
+    if frame_is_race {
+        // The 3D drawing noted so far, before the screen is changed.
+        crate::d3d::device::flush();
+        crate::platform::remake_race_frame_now(gfx, system);
+    }
 }
 
 #[cfg(test)]

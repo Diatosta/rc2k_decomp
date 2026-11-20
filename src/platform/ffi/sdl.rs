@@ -262,7 +262,7 @@ impl Window {
     /// The part of the window clear of the screen's notch, rounded corners and home indicator, as
     /// (x, y, width, height) in the window's pixels, if SDL knows it. The window itself where
     /// nothing intrudes.
-    #[cfg(target_os = "ios")]
+    #[cfg(phone)]
     pub fn safe_area_pixels(self) -> Option<[u32; 4]> {
         let (pixels, points) = (self.pixel_size()?, self.point_size()?);
         let mut area = SDL_Rect {

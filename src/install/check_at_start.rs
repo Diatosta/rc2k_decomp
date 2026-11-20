@@ -1,5 +1,6 @@
 //! Finds the game's data when the game is started from somewhere that is not an installation.
-//! Nothing when the installer is running or `var\ral.zog` is there; otherwise the sound is
+//! Nothing when the installer is running, `var\ral.zog` is there or on a phone (no installer, no
+//! CD); otherwise the sound is
 //! switched off, and nothing more if `files\d\gfx\jade.bun` is there. Else, if the record
 //! names an installation whose `ral.exe` exists, the installer's script is set up for an
 //! update; either way the first CD-ROM drive holding the game's files becomes the current
@@ -31,6 +32,11 @@ pub fn check_at_start(
 ) -> Result<(), Refused> {
     let record = install.texts.record_path.text();
     if install.flags.installing.get() || outside.file_exists(&record)? {
+        return Ok(());
+    }
+    // A phone has no installer and never runs from a CD: its game folder, copied in whole or in
+    // part, is the installation, with its sound.
+    if cfg!(phone) {
         return Ok(());
     }
     no_audio.set(1);

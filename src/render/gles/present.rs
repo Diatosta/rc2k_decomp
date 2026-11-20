@@ -39,7 +39,7 @@ impl Gpu {
                         fit.width as f32 / w as f32,
                         fit.height as f32 / h as f32,
                     ],
-                    bars: !menu,
+                    bars: !menu || crate::render::wash::film_showing(),
                     sharp: fit.sharp,
                 };
                 ((0, 0, w, h), placed)
