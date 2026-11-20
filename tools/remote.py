@@ -231,9 +231,12 @@ def window_shot(name):
     if answer.startswith('error'):
         sys.exit(answer)
     width, height = map(int, answer.split())
-    path = f'{FOLDER}/{name}.raw'
-    raw = open(path, 'rb').read()
-    os.unlink(path)
+    if HOST:
+        raw = ssh(f'cat {FOLDER}/{name}.raw; rm -f {FOLDER}/{name}.raw').stdout
+    else:
+        path = f'{FOLDER}/{name}.raw'
+        raw = open(path, 'rb').read()
+        os.unlink(path)
     os.makedirs(SHOTS, exist_ok=True)
     out = f'{SHOTS}/{name}.png'
     png(raw, width, height, out, full=True)

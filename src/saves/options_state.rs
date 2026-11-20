@@ -102,6 +102,12 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
             .then(crate::platform::phone_default_size)
             .flatten()
     });
+    // The handheld with no size kept starts at its panel's size.
+    #[cfg(handheld)]
+    let wanted = wanted.or_else(|| {
+        (d.race_mode == Options::default().display.race_mode)
+            .then_some(crate::platform::handheld::SCREEN)
+    });
     if let Some((w, h)) = wanted {
         let race = o.gfx.display.mode.race_mode.get();
         if let Some(mode) =

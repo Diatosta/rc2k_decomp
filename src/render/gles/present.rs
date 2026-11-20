@@ -5,9 +5,10 @@ use super::*;
 
 impl Gpu {
     /// The whole of the panel (or the window) black, and the viewport where a picture of `width`
-    /// x `height` shows. The panel's picture is centred, shrunk to fit if it is too big. The
-    /// window is drawn over its whole, the picture placed in it keeping its shape (`Placement`):
-    /// a `menu`'s picture has its edge colours carried on beside it, a race's black.
+    /// x `height` shows. The window (the handheld's panel too) is drawn over its whole, the
+    /// picture placed in it keeping its shape (`Placement`): a `menu`'s picture has its wash
+    /// carried on beside it, a race's black. Where there is no window to ask, the picture is
+    /// centred and shrunk to fit if it is too big.
     pub(super) fn panel_viewport(&self, width: i32, height: i32, menu: bool) -> Placement {
         let gl = &self.gl;
         let whole = Placement {
@@ -15,7 +16,7 @@ impl Gpu {
             bars: false,
             sharp: true,
         };
-        let (view, placed) = match gl.drawable_size() {
+        let (view, placed) = match self.drawable_size() {
             Some((w, h)) => {
                 let fit = crate::platform::safe_area::frame_fit(
                     (width as u32, height as u32),
@@ -57,6 +58,15 @@ impl Gpu {
         gl.clear(COLOUR_BIT);
         gl.viewport(view.0, view.1, view.2, view.3);
         placed
+    }
+
+    /// The size of what the GL draws on: the window's, or the handheld's panel (its context has
+    /// no window to ask).
+    fn drawable_size(&self) -> Option<(i32, i32)> {
+        #[cfg(handheld)]
+        return self.gl.drawable_size().or(Some(PANEL));
+        #[cfg(not(handheld))]
+        return self.gl.drawable_size();
     }
 
     /// The menu's wash (a small picture, 32-bit, blue first) taken as the texture beside the frame.
@@ -149,7 +159,7 @@ impl Gpu {
         if !crate::remote::window_shot_due() {
             return;
         }
-        let Some((width, height)) = self.gl.drawable_size() else {
+        let Some((width, height)) = self.drawable_size() else {
             return;
         };
         let mut rgba = vec![0u8; width as usize * height as usize * 4];

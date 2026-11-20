@@ -68,7 +68,7 @@ viewer shows no "render to video" button there ([Running and options](Running-an
 
 **Handheld.** There is no installer: the program and the game's data are copied over SSH
 ([Installing the game](Installing-the-game)). The picture goes straight to the device's
-screen. The built-in pad works in the menus; MENU + START leaves the game. There is no debug
+screen (720 x 480): the menus' 4:3 frame has the blurred wash beside it as on the other systems, and a race is drawn at the panel's size, the one resolution the graphics page lists (a fresh install starts at it). The built-in pad works in the menus; MENU + START leaves the game. There is no debug
 window. Measured speed is on [Performance](Performance).
 
 **Android.** Not an installer: an app (`rc2k-<abi>.apk`) with the game's files in its private storage. Touch controls in the race and gestures in the menus; the picture, sound and the game are the others'. [Android](Android) says how it is built, how to put the game's files in and what is not done.

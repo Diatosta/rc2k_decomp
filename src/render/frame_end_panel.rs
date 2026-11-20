@@ -69,6 +69,7 @@ pub fn show_on_panel(
     with_frame: impl FnOnce(&mut dyn FnMut(&[u8])),
     width: usize,
     height: usize,
+    menu: bool,
 ) -> bool {
     gpu::start_if_wanted();
     if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(racing) {
@@ -78,14 +79,21 @@ pub fn show_on_panel(
     let Some(gpu) = running.as_mut().and_then(Running::gl) else {
         return false;
     };
+    if menu {
+        // The menu's 4:3 frame leaves room beside it on the 3:2 panel: its wash fills that. Made
+        // and sent only when the background has changed.
+        let panel = (gles::PANEL.0 as u32, gles::PANEL.1 as u32);
+        if let Some(image) = wash::image_for(panel) {
+            gpu.set_wash(&image);
+        }
+    }
     if GPU_HOLDS_FRAME.load(Relaxed) {
         // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
         // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
         // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-        // The handheld's panel is the frame's own size: no space beside it to fill.
-        gpu.finish_and_show(target, unsafe { target.bytes() }, false);
+        gpu.finish_and_show(target, unsafe { target.bytes() }, menu);
     } else {
-        with_frame(&mut |frame| gpu.show_picture(frame, width, height, false));
+        with_frame(&mut |frame| gpu.show_picture(frame, width, height, menu));
     }
     true
 }

@@ -36,6 +36,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
                 |show| screen.with_frame(show),
                 screen.width,
                 screen.height,
+                screen.menu,
             )
         {
             return Ok(());

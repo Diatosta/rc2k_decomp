@@ -18,7 +18,6 @@ enum Key {
 }
 
 /// A wash made for a window's size, with a number no other wash of this run has.
-#[cfg_attr(handheld, allow(dead_code))] // the handheld's panel is the frame's size: no wash
 pub struct Image {
     pub version: u64,
     pub wash: Wash,
@@ -90,7 +89,6 @@ pub fn note_pixels(generation: u64, pixels: &Arc<Vec<u8>>, width: u32, height: u
 
 /// The wash of the noted background for a window of `window` pixels; `None` before any
 /// background is noted. Made when the background or the window's size has changed.
-#[cfg_attr(handheld, allow(dead_code))] // the handheld's panel is the frame's size: no wash
 pub fn image_for(window: (u32, u32)) -> Option<Arc<Image>> {
     let mut state = STATE.lock().unwrap();
     if let Some((size, image)) = &state.made

@@ -67,7 +67,7 @@ const COLOUR_BIT: u32 = 0x4000;
 const DEPTH_BIT: u32 = 0x0100;
 
 /// The panel.
-const PANEL: (i32, i32) = (720, 480);
+pub const PANEL: (i32, i32) = (720, 480);
 
 struct Quad {
     program: u32,

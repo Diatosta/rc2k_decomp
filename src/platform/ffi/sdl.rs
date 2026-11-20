@@ -737,9 +737,10 @@ fn route_sdl_log() {
 pub fn init_video() -> bool {
     #[cfg(target_os = "android")]
     route_sdl_log();
-    #[cfg(target_os = "ios")]
     // SAFETY: SDL's own hint name and NUL-ended value, read during the call. The game is drawn
-    // for a wide screen.
+    // for a wide screen; on Android without the hint SDL asks for the user's orientation, which a
+    // phone locked upright keeps in portrait.
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     unsafe {
         SDL_SetHint(
             SDL_HINT_ORIENTATIONS,

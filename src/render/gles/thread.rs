@@ -35,8 +35,6 @@ pub struct Front {
     /// What the GL's background texture holds, at the screen's size.
     background_held: Option<background::Held>,
     /// The version of the wash (`render::wash`) the GL holds.
-    #[cfg_attr(handheld, allow(dead_code))]
-    // the handheld's panel is the frame's size: no side space
     wash_held: u64,
 }
 
@@ -154,7 +152,6 @@ impl Front {
 
     /// The menu's wash sent to the GL (which shows it beside the frames of the menus), unless the
     /// GL holds it already.
-    #[cfg_attr(handheld, allow(dead_code))] // the handheld's panel is the frame's size: no side space
     pub fn set_wash(&mut self, image: &crate::render::wash::Image) {
         if self.wash_held == image.version {
             return;

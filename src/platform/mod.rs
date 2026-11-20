@@ -138,8 +138,6 @@ pub fn choose_screen_modes(
             at_32_bits(display.mode.menu_mode.get()),
             at_32_bits(display.mode.race_mode.get()),
         );
-        #[cfg(handheld)]
-        let race = crate::platform::handheld::race_mode(race);
         match choose(menu, race, works, listed) {
             Some((menu, race)) => {
                 display.mode.race_mode.set(race);
@@ -231,7 +229,13 @@ pub fn monitor_modes() -> sdl::DisplayModes {
         ];
         return (modes, Some(sizes.screen));
     }
-    #[cfg(any(test, handheld))]
+    // The panel has one size, which the handheld (no window system) does not ask for.
+    #[cfg(all(handheld, not(test)))]
+    return (
+        vec![(handheld::SCREEN.0, handheld::SCREEN.1, 60.0)],
+        Some(handheld::SCREEN),
+    );
+    #[cfg(test)]
     return (Vec::new(), None);
     #[cfg(not(any(test, handheld)))]
     {

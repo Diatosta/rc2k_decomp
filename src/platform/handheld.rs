@@ -94,11 +94,8 @@ pub fn present(frame: &[u8], width: usize, height: usize) -> Result<(), &'static
     Ok(())
 }
 
-/// The race's mode the handheld takes: the game's smallest size, 640 x 480 (a saved 1920 x 1280
-/// is far past what the processor can draw, and the panel's size).
-pub fn race_mode(mode: u32) -> u32 {
-    mode & !0xFF | 1
-}
+/// The panel's size in pixels: its one display mode, and the size a race starts at.
+pub const SCREEN: (u32, u32) = (WIDTH as u32, HEIGHT as u32);
 
 /// The built-in pad's names: the stock OS's, and Knulli's (whose SDL map for it has the sticks
 /// and Start wrong). Both send the same key and axis codes, so one map serves them.
