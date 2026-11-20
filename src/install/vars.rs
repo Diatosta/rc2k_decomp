@@ -257,11 +257,9 @@ impl GlyphRecord {
 /// save and settings folders removed too), 5 ends the script there (`install::removal_page`).
 pub const SCRIPT_MARK: usize = 17;
 
-/// The page: its pieces, the fonts and the pages' tables.
+/// The page: the fonts and the pages' tables.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerPages {
-    /// The page's pieces: a count, then 0x30 bytes each.
-    pub layout: PlainBytes<4096>,
     /// The copying page's two texts.
     pub texts: [StringRecord; 2],
     /// The error message.
@@ -314,7 +312,6 @@ pub struct InstallerPages {
 impl InstallerPages {
     pub const fn new() -> Self {
         InstallerPages {
-    layout: PlainBytes::new([0; 4096]),
     texts: [StringRecord::new(0x1A9, 0xAF, fonts::TITLE, 0xAF), StringRecord::new(0x1A9, 0xFA, fonts::CAPTION_A, 0xB0)],
     msg_error: [StringRecord::new(0x1A9, 0x15E, fonts::TITLE, 0xB1)],
     msg_cancel: [StringRecord::new(0x1A9, 0x190, fonts::TITLE, 0xB3)],

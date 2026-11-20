@@ -41,7 +41,6 @@ use crate::platform::ffi::gl::Gles;
 use crate::program_log::log;
 use std::collections::HashMap;
 use std::ffi::CStr;
-use std::sync::Mutex;
 use std::sync::mpsc::{Receiver, SyncSender, channel, sync_channel};
 
 /// A canvas pixel the game has not written (`gpu::UNWRITTEN`'s kin).
@@ -342,8 +341,6 @@ struct CanvasTexture {
     texture: u32,
     size: (i32, i32),
 }
-
-pub static GPU: Mutex<Option<Front>> = Mutex::new(None);
 
 /// Whether this is a phone whose 3D goes on the software rasteriser: never where this renderer
 /// stands in for the GPU one (the handheld).

@@ -234,20 +234,6 @@ const fn constants() -> [SampleRecord; SAMPLE_COUNT] {
     out
 }
 
-/// A name's key from the 1999 address of the name, for the menus' speech tables, which still
-/// name their samples that way: the name's position in the five lists of
-/// `names_store::SampleNames` (0: none). The key is also what voices sharing a sample are matched
-/// by.
-pub const fn name_key(ida: u32) -> u32 {
-    use crate::audio::names_store::{FIRST_IDA, FIRST_KEY, POOL_LEN};
-    if ida == 0 {
-        return 0;
-    }
-    let at = ida as usize;
-    assert!(FIRST_IDA as usize <= at && at < FIRST_IDA as usize + POOL_LEN);
-    (at - FIRST_IDA as usize) as u32 + FIRST_KEY
-}
-
 /// The name of `key` in `names`, read to its NUL inside the list that holds it: the last name of
 /// every list ends in a NUL, so a name never runs on into the next list.
 pub fn name_in(

@@ -7,7 +7,7 @@ use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
     draw_action, draw_string, draw_text, push_string_by_id, store_text, text_action, text_at,
 };
-use crate::install::page_records::{Piece, piece_count};
+use crate::install::page_records::item_of;
 use crate::install::vars::InstallerPages;
 use crate::strings::owner::Strings;
 use rc2k_core::install::pieces::{self, Way};
@@ -59,19 +59,18 @@ pub fn draw_pieces(
     strings: &'static Strings,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let count = piece_count(install);
-    if count == 0 {
+    let laid = install.pieces.borrow().clone();
+    if laid.is_empty() {
         return Err(BadInput("a page of no pieces").into());
     }
-    for k in 0..count {
-        let piece = Piece::nth(install, k);
-        let first = piece.marks();
-        let (x, y) = (piece.x(), piece.y());
-        match Way::of(first, piece.kind()) {
+    for piece in &laid {
+        let first = piece.marks;
+        let (x, y) = (piece.x, piece.y);
+        match Way::of(first, piece.kind) {
             Way::String { font_kind } => {
                 draw_string(
                     so,
-                    piece.text_id() as u32,
+                    piece.text as u32,
                     font(install, colour(install, first, font_kind))?,
                     x,
                     y,
@@ -79,7 +78,7 @@ pub fn draw_pieces(
                 )?;
             }
             Way::Edit => {
-                let item = piece.item(install);
+                let item = item_of(piece);
                 let record = item.edit_field(install);
                 let edit_font = font(install, colour(install, first, record.font_kind() as u32))?;
                 let mut text = text_at(item.text(install));
@@ -118,9 +117,9 @@ pub fn draw_pieces(
                 draw_text(edit_font, &text, x, y, gfx)?;
             }
             Way::Text => {
-                let item = piece.item(install);
+                let item = item_of(piece);
                 let mut text = Vec::new();
-                push_string_by_id(so, &mut text, piece.text_id() as u32);
+                push_string_by_id(so, &mut text, piece.text as u32);
                 let action = item.data();
                 if action != 0 {
                     text_action(action, &mut text)?;
@@ -135,7 +134,7 @@ pub fn draw_pieces(
                     gfx,
                 )?;
             }
-            Way::Action => draw_action(piece.item(install).data())?,
+            Way::Action => draw_action(item_of(piece).data())?,
             Way::Other => {}
         }
     }

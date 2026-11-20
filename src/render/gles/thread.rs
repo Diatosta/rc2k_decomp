@@ -2,6 +2,7 @@
 //! backend the renderer draws through.
 
 use super::*;
+use crate::render::backend::{self, Running};
 
 /// What the GL's thread hands back when it ends: the hidden window its context was on (the
 /// game's thread destroys it, as it made it); the panel's context lives on with the program.
@@ -267,7 +268,7 @@ pub fn start_on_window(
     game_window: crate::platform::ffi::sdl::Window,
     size: (usize, usize),
 ) -> bool {
-    if GPU.lock().unwrap().is_some() {
+    if backend::gl_runs() {
         return true;
     }
     if TRIED.load(std::sync::atomic::Ordering::Relaxed) || !wanted() {
@@ -313,7 +314,7 @@ pub fn start_on_window(
     };
     let handle = window.handle();
     start_with(move || Gles::open_window(window).map_err(|(why, window)| (why, Some(window))));
-    let runs = GPU.lock().unwrap().is_some();
+    let runs = backend::gl_runs();
     if runs {
         *WINDOW.lock().unwrap() = Some(handle);
     }
@@ -324,7 +325,8 @@ pub fn start_on_window(
 /// name (`platform` shows it in place of the one SDL's renderer has, and gives the keyboard to
 /// it).
 #[cfg(not(handheld))]
-pub(super) static WINDOW: Mutex<Option<crate::platform::ffi::sdl::Window>> = Mutex::new(None);
+pub(super) static WINDOW: std::sync::Mutex<Option<crate::platform::ffi::sdl::Window>> =
+    std::sync::Mutex::new(None);
 
 /// The window the OpenGL backend shows its frames on, while it runs.
 #[cfg(not(handheld))]
@@ -336,8 +338,15 @@ pub fn window() -> Option<crate::platform::ffi::sdl::Window> {
 /// joined, the context and its window are destroyed. The next `start_on_window` asks again.
 #[cfg(not(handheld))]
 pub fn stop() -> bool {
-    let Some(front) = GPU.lock().unwrap().take() else {
-        return false;
+    let front = {
+        let mut running = backend::lock();
+        match running.take() {
+            Some(Running::Gl(front)) => front,
+            other => {
+                *running = other;
+                return false;
+            }
+        }
     };
     *WINDOW.lock().unwrap() = None;
     crate::render::gpu_stopped();
@@ -358,7 +367,7 @@ pub fn stop() -> bool {
 
 /// Starts the GL's thread, which makes its context with `open`.
 pub(super) fn start_with(open: impl FnOnce() -> Result<Gles, Failed> + Send + 'static) {
-    let mut held = GPU.lock().unwrap();
+    let mut held = backend::lock();
     if held.is_some() || TRIED.swap(true, std::sync::atomic::Ordering::Relaxed) {
         return;
     }
@@ -415,14 +424,14 @@ pub(super) fn start_with(open: impl FnOnce() -> Result<Gles, Failed> + Send + 's
             } else {
                 "render: the OpenGL backend (3.3 core), on its own thread"
             });
-            *held = Some(Front {
+            *held = Some(Running::Gl(Front {
                 jobs,
                 threads,
                 known: Default::default(),
                 size: (0, 0),
                 background_held: None,
                 wash_held: 0,
-            });
+            }));
             crate::render::gpu_started();
         }
         Err(why) => log(&format!(

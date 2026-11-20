@@ -5,6 +5,7 @@
 pub mod cells;
 pub mod draw_order;
 pub mod free_list;
+pub mod host_hooks;
 pub mod list_handle;
 pub mod owned;
 pub mod part_cell;

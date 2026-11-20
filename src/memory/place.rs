@@ -111,7 +111,8 @@ impl BytePlace {
     fn first_byte(self) -> *const u8 {
         match self {
             BytePlace::In(b, at) => {
-                Self::inside(b, at, 1).unwrap_or_else(|e| crate::fatal::raise::end("place", e));
+                Self::inside(b, at, 1)
+                    .unwrap_or_else(|e| crate::memory::host_hooks::end("place", e));
                 core::ptr::from_ref(b).cast::<u8>().wrapping_add(at)
             }
             BytePlace::Store(s, at) => s.first().wrapping_add(at),
@@ -140,7 +141,7 @@ impl BytePlace {
         match at.checked_add(len) {
             Some(end) if end <= b.len() => Ok(()),
             _ => {
-                crate::program_log::log(&format!(
+                crate::memory::host_hooks::log(&format!(
                     "place: {len} bytes at {at} of a buffer of {}, from {}",
                     b.len(),
                     std::panic::Location::caller()

@@ -100,7 +100,7 @@ pub fn load_race_sounds(
     };
     // The logic is `rc2k_core::sound::race::voices` and `sets`.
     use rc2k_core::sound::race::{Set, Voice, sets, voices};
-    // The lists by name key (`audio::store::name_key`: their places in the names).
+    // The lists by name key (`SampleName::key`: their places in the names).
     let list = |v: Voice| {
         match v {
             Voice::Male => NameList::MaleSpeech,

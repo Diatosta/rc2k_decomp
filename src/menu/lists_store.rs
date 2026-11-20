@@ -142,7 +142,7 @@ const fn speech_ref(row: SpeechRow) -> PlainDword {
 }
 
 /// The `n`th rally speech name (33 bytes each) among the settings page's speech names, from
-/// the one 0xB4 bytes into them, as `audio::store::name_key` has it (a name's key).
+/// the one 0xB4 bytes into them, as `SampleName::key` has it (a name's key).
 const fn name_ref(n: usize) -> PlainDword {
     assert!(n < 6);
     PlainDword::new(NameList::MenuSpeech.first_key() + 0xB4 + 33 * n as u32)

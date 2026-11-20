@@ -6,12 +6,16 @@
 use crate::d3d::Vertex;
 use crate::d3d::vertices_store::PolygonVertices;
 
+/// Vertices a polygon holds without the heap: what clipping against the depth and screen edges
+/// makes of a face stays under it.
+const INLINE_VERTICES: usize = 12;
+
 /// The polygon as it stands in the buffer (the store's 64 vertices). More vertices than the
 /// buffer holds is a count gone wrong: a refusal.
 pub fn polygon(
     poly: &crate::scene::polygon_work::PolygonWork,
     buffer: &PolygonVertices,
-) -> smallvec::SmallVec<[Vertex; 6]> {
+) -> smallvec::SmallVec<[Vertex; INLINE_VERTICES]> {
     let count = poly.polygon_vertex_count.get() as usize;
     let vertices = &buffer.vertices;
     if count > vertices.len() {

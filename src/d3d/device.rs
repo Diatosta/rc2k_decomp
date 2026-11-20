@@ -28,7 +28,7 @@
 use crate::errors::FatalError;
 use crate::gfx::texture_upload::TextureFormat;
 use crate::program_log::log;
-use crate::render::{CommandList, STATES, Target, TextureId, TextureNote};
+use crate::render::{CommandList, Target, TextureId, TextureNote};
 use rc2k_core::fatal::Context;
 use std::sync::Mutex;
 
@@ -288,7 +288,9 @@ struct Pending {
     /// With the textures its fans read (`CommandList::textures`).
     noted: CommandList,
     /// The states as the last fan had them, until one changes (`forget_states`).
-    states: Option<std::sync::Arc<[u32; STATES]>>,
+    states: Option<crate::d3d::shared_states::States>,
+    /// The sets of states the last fans carried, to share again when a state goes back.
+    shared_states: crate::d3d::shared_states::SharedStates,
     /// The last fan's texture level, the lock of the levels spared while it holds.
     level: Option<NotedLevel>,
     /// Whether the screen has pixels, as the last fan found (`note`).
@@ -342,6 +344,7 @@ impl Noted {
             into: None,
             noted: CommandList::new(),
             states: None,
+            shared_states: crate::d3d::shared_states::SharedStates::new(),
             level: None,
             screen_pixels: crate::gfx::locked_pixels::Remembered::new(),
         }))
@@ -565,10 +568,11 @@ fn note_fan(
                 masks: format.format.masks,
             })
         });
-        let states =
-            std::sync::Arc::clone(pending.states.get_or_insert_with(|| {
-                std::sync::Arc::new(crate::d3d::render_cache::all_kept(part))
-            }));
+        let states = std::sync::Arc::clone(pending.states.get_or_insert_with(|| {
+            pending
+                .shared_states
+                .of(crate::d3d::render_cache::all_kept(part))
+        }));
         pending.noted.push_fan(vertices, states, texture, bounds);
     });
 }

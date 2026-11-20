@@ -80,7 +80,7 @@ pub fn draw_object_polygon(
     }
     poly.polygon_next_record
         .set(crate::scene::polygon::pool_start());
-    for (n, number) in first_list(count).into_iter().enumerate() {
+    for (n, number) in first_list(count).enumerate() {
         crate::scene::polygon::list_cell(polygon_work, n).set(number);
     }
     poly.polygon_next_entry.set(count);

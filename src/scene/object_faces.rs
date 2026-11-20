@@ -45,14 +45,6 @@ impl ObjectFaces {
         &self.0
     }
 
-    /// `len` bytes at place `at`; refused outside the faces.
-    pub fn bytes(&self, at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
-        let range = range(at, len).ok_or(BadInput("a read outside the objects' faces"))?;
-        self.0
-            .bytes(range.start, len)?
-            .ok_or(BadInput("a read outside the objects' faces"))
-    }
-
     /// The `N` bytes at place `at`; refused outside the faces.
     pub fn array<const N: usize>(&self, at: u32) -> Result<[u8; N], BadInput> {
         let range = range(at, N).ok_or(BadInput("a read outside the objects' faces"))?;
@@ -112,7 +104,7 @@ mod tests {
             (faces.word(face).unwrap(), faces.byte(face + 6).unwrap()),
             (3, 0x1C)
         );
-        assert!(faces.bytes(BASE + 0x3E, 4).is_err() && faces.bytes(0, 1).is_err());
+        assert!(faces.array::<4>(BASE + 0x3E).is_err() && faces.array::<1>(0).is_err());
         faces.give_back();
         course.lists.get().face_memory.set(kept);
         crate::memory::with_figures(|f| *f = figures);

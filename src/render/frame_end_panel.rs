@@ -3,6 +3,7 @@
 //! same names for the other systems.
 
 use super::*;
+use backend::Running;
 
 /// The commands come back: only the GPU backend draws on the panel (`draw`'s first backend).
 pub(super) fn draw_on_gl(_target: &Target, commands: CommandList) -> Option<CommandList> {
@@ -12,7 +13,7 @@ pub(super) fn draw_on_gl(_target: &Target, commands: CommandList) -> Option<Comm
 /// `bring_back`, when the GPU holds the frame.
 pub(super) fn bring_back_now(target: &Target) {
     if GPU_HOLDS_FRAME.load(Relaxed)
-        && let Some(gpu) = gpu::GPU.lock().unwrap().as_mut()
+        && let Some(gpu) = backend::lock().as_mut().and_then(Running::gl)
     {
         // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
         // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
@@ -73,8 +74,8 @@ pub fn show_on_panel(
     if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(racing) {
         give_frame_back(target);
     }
-    let mut gpu = gpu::GPU.lock().unwrap();
-    let Some(gpu) = gpu.as_mut() else {
+    let mut running = backend::lock();
+    let Some(gpu) = running.as_mut().and_then(Running::gl) else {
         return false;
     };
     if GPU_HOLDS_FRAME.load(Relaxed) {

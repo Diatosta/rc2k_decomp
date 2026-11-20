@@ -3,9 +3,9 @@
 //! the rest centred (or at 0 / the right edge by the piece's kind bits); then the whole centred
 //! across and down in the box (by an even number of pixels down in the title's box).
 
-use crate::errors::Refused;
-use crate::install::page_records::{BoxRecord, Piece as LaidPiece};
-use rc2k_core::install::layout::{self, Area, Piece};
+use crate::errors::{BadInput, Refused};
+use crate::install::page_records::BoxRecord;
+use rc2k_core::install::layout::{self, Area};
 
 /// `first` the first piece, `count` the pieces, `the_box` the box.
 ///
@@ -17,27 +17,17 @@ pub fn place_row(
     the_box: BoxRecord,
     title: bool,
 ) -> Result<(), Refused> {
-    let at = |k: u32| LaidPiece::nth(install, first.wrapping_add(k));
-    let mut pieces: Vec<Piece> = (0..count)
-        .map(|k| Piece {
-            marks: at(k).marks(),
-            kind: at(k).kind(),
-            x: at(k).x(),
-            y: at(k).y(),
-            width: at(k).width(),
-            height: at(k).height(),
-        })
-        .collect();
+    let mut laid = install.pieces.borrow_mut();
+    let range = first as usize..first as usize + count as usize;
+    let Some(pieces) = laid.get_mut(range) else {
+        return Err(BadInput("a row of pieces past the page's pieces").into());
+    };
     let area = Area {
         x: the_box.x(),
         y: the_box.y(),
         width: the_box.width(),
         height: the_box.height(),
     };
-    layout::place_row(&mut pieces, area, title)?;
-    for (k, p) in (0..).zip(&pieces) {
-        at(k).set_x(p.x);
-        at(k).set_y(p.y);
-    }
+    layout::place_row(pieces, area, title)?;
     Ok(())
 }

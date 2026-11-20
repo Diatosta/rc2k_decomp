@@ -39,13 +39,6 @@ struct Config {
     /// Quads are drawn (not with `RC2K_2D_QUADS=0`, nor while `RC2K_2D_CHECK` compares the
     /// canvas with a replay of the commands).
     quads: bool,
-    /// `RC2K_QUAD_CHECK`: each frame is also drawn the canvas way and the pictures compared.
-    #[cfg(not(handheld))]
-    check: bool,
-    /// `RC2K_QUAD_CHECK=2d`: both drawings leave out the 3D, so that only the 2D is compared
-    /// (the GPU's drawing of the 3D differs from itself by a few pixels a frame).
-    #[cfg(not(handheld))]
-    check_2d_only: bool,
 }
 
 fn config() -> &'static Config {
@@ -56,24 +49,13 @@ fn config() -> &'static Config {
         Config {
             // macOS's Metal draws the canvas way until its backend draws quads.
             quads: cfg!(not(apple)) && asked && !set("RC2K_2D_CHECK"),
-            #[cfg(not(handheld))]
-            check: set("RC2K_QUAD_CHECK"),
-            #[cfg(not(handheld))]
-            check_2d_only: std::env::var("RC2K_QUAD_CHECK").is_ok_and(|v| v == "2d"),
         }
     })
 }
 
-/// Whether `RC2K_QUAD_CHECK` is set: the GPU backend draws each frame twice and compares.
-#[cfg(not(handheld))]
-pub fn check_wanted() -> bool {
-    config().quads && config().check
-}
-
-/// Whether the check leaves the 3D out of both drawings (`RC2K_QUAD_CHECK=2d`).
-#[cfg(not(handheld))]
-pub fn check_2d_only() -> bool {
-    check_wanted() && config().check_2d_only
+/// Whether quads are drawn at all (`RC2K_2D_QUADS`, `RC2K_2D_CHECK`).
+pub(super) fn drawn() -> bool {
+    config().quads
 }
 
 /// Which texels of the glyph table's glyph the atlas holds.
@@ -405,7 +387,7 @@ pub static SOLIDS: AtomicU64 = AtomicU64::new(0);
 /// Whether a glyph drawn now on the screen may be noted as a quad: they are on, a GPU backend
 /// that draws them holds the frame, and it is not a race's frame.
 pub fn wanted() -> bool {
-    config().quads
+    drawn()
         && crate::render::gpu_running()
         && crate::render::frame_on_gpu()
         && !crate::d3d::device::game_scratch()

@@ -8,6 +8,8 @@
 //! screen are also noted as quads for the GPU (`quads`), which needs no recording.
 
 pub mod check;
+#[cfg_attr(handheld, path = "quad_check_none.rs")]
+pub mod quad_check;
 pub mod quads;
 pub mod replay;
 
@@ -107,8 +109,7 @@ struct Recorder {
     outside: bool,
     /// With the quad check: what the funnels wrote since the GPU last took it, as the pixels
     /// the canvas would hold, the overlay's "unwritten" pixel where nothing.
-    #[cfg(not(handheld))]
-    interval: Vec<u8>,
+    interval: quad_check::Interval,
 }
 
 /// What `written` holds where nothing was written.
@@ -124,8 +125,7 @@ static RECORDER: Mutex<Recorder> = Mutex::new(Recorder {
     latest: std::collections::BTreeMap::new(),
     written: Vec::new(),
     outside: false,
-    #[cfg(not(handheld))]
-    interval: Vec::new(),
+    interval: quad_check::Interval::new(),
 });
 
 fn recorder() -> std::sync::MutexGuard<'static, Recorder> {
@@ -189,29 +189,8 @@ pub fn mirror(offset: u32, bytes: &[u8]) {
         Some(place) => place.copy_from_slice(bytes),
         None => rec.outside = true,
     }
-    #[cfg(not(handheld))]
-    if quads::check_wanted() {
-        if rec.interval.is_empty() {
-            let len = rec.written.len();
-            let mut blank = vec![0u8; len];
-            blank
-                .as_chunks_mut::<4>()
-                .0
-                .fill(rc2k_core::gfx::atlas::UNWRITTEN_PIXEL.to_le_bytes());
-            rec.interval = blank;
-        }
-        if let Some(place) = rec.interval.get_mut(at..at.wrapping_add(bytes.len())) {
-            place.copy_from_slice(bytes);
-        }
-    }
-}
-
-/// What the funnels wrote since the last call, as the canvas would hold it (the overlay's
-/// "unwritten" pixel where nothing was written); `None` when nothing was.
-#[cfg(not(handheld))]
-pub fn take_interval() -> Option<Vec<u8>> {
-    let interval = std::mem::take(&mut recorder().interval);
-    (!interval.is_empty()).then_some(interval)
+    let screen_len = rec.written.len();
+    rec.interval.note(screen_len, at, bytes);
 }
 
 /// Notes a command.

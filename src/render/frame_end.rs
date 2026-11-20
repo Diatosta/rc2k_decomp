@@ -5,12 +5,13 @@
 //! straight to.
 
 use super::*;
+use backend::Running;
 
 /// Draws the commands on the OpenGL backend that runs on its own window, if one runs and the
 /// frame is 32 bits; the commands come back when it did not take them.
 pub(super) fn draw_on_gl(target: &Target, commands: CommandList) -> Option<CommandList> {
     if target.bits == 32
-        && let Some(gl) = gles::GPU.lock().unwrap().as_mut()
+        && let Some(gl) = backend::lock().as_mut().and_then(Running::gl)
     {
         if !GPU_HOLDS_FRAME.swap(true, Relaxed) {
             target.note_all_rows_written();
@@ -24,35 +25,37 @@ pub(super) fn draw_on_gl(target: &Target, commands: CommandList) -> Option<Comma
 
 /// `bring_back`, when the GPU holds the frame.
 pub(super) fn bring_back_now(target: &Target) {
-    if GPU_HOLDS_FRAME.load(Relaxed)
-        && let Some(gl) = gles::GPU.lock().unwrap().as_mut()
-    {
-        // SAFETY: as below: the game's thread waits for this call and no other slice of the
-        // canvas lives.
-        gl.bring_back(target, unsafe { target.bytes() });
-        target.note_all_rows_written();
+    if !GPU_HOLDS_FRAME.load(Relaxed) {
         return;
     }
-    if GPU_HOLDS_FRAME.load(Relaxed)
-        && let Some(gpu) = gpu::GPU.lock().unwrap().as_mut()
-    {
-        // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
-        // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
-        // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-        let canvas = unsafe { target.bytes() };
-        let began = std::time::Instant::now();
-        let rows = canvas_rows::written_rows(target, canvas);
-        if let Err(why) = gpu.bring_back(Some(rows), canvas) {
-            crate::program_log::log(&format!("render: the frame did not come back: {why}"));
+    match backend::lock().as_mut() {
+        Some(Running::Gl(gl)) => {
+            // SAFETY: as below: the game's thread waits for this call and no other slice of the
+            // canvas lives.
+            gl.bring_back(target, unsafe { target.bytes() });
+            target.note_all_rows_written();
         }
-        READ_BACKS.fetch_add(1, Relaxed);
-        crate::platform::timing::note_span(
-            &crate::platform::timing::READ_BACK_MICROS,
-            &crate::platform::timing::READ_BACK_MAX,
-            began.elapsed().as_micros() as u64,
-        );
-        // The picture written in place, unnoted.
-        target.note_all_rows_written();
+        Some(Running::Vulkan(gpu)) => {
+            // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call,
+            // so nothing else reaches the canvas; no other slice of it lives (the frame's showing
+            // takes its own after this returns, `platform::with_frame`); the screen keeps its
+            // pixels.
+            let canvas = unsafe { target.bytes() };
+            let began = std::time::Instant::now();
+            let rows = canvas_rows::written_rows(target, canvas);
+            if let Err(why) = gpu.bring_back(Some(rows), canvas) {
+                crate::program_log::log(&format!("render: the frame did not come back: {why}"));
+            }
+            READ_BACKS.fetch_add(1, Relaxed);
+            crate::platform::timing::note_span(
+                &crate::platform::timing::READ_BACK_MICROS,
+                &crate::platform::timing::READ_BACK_MAX,
+                began.elapsed().as_micros() as u64,
+            );
+            // The picture written in place, unnoted.
+            target.note_all_rows_written();
+        }
+        None => {}
     }
 }
 
@@ -65,7 +68,8 @@ pub fn stretched_frame(target: &Target, size: (u32, u32)) -> Option<Vec<u32>> {
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
     }
-    if let Some(gl) = gles::GPU.lock().unwrap().as_mut() {
+    let mut running = backend::lock();
+    if let Some(gl) = running.as_mut().and_then(Running::gl) {
         let began = std::time::Instant::now();
         // SAFETY: as below.
         let canvas = unsafe { target.bytes() };
@@ -74,8 +78,7 @@ pub fn stretched_frame(target: &Target, size: (u32, u32)) -> Option<Vec<u32>> {
         READ_BACK_MICROS.fetch_add(began.elapsed().as_micros() as u64, Relaxed);
         return picture;
     }
-    let mut gpu = gpu::GPU.lock().unwrap();
-    let gpu = gpu.as_mut()?;
+    let gpu = running.as_mut()?.vulkan()?;
     let began = std::time::Instant::now();
     // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
     // nothing else reaches the canvas; no other slice of it lives.
@@ -112,9 +115,8 @@ pub fn video_read_next(target: &Target, spare: Vec<u8>, nv12: bool) -> VideoRead
         previous: None,
         started: false,
     };
-    let opengl = gles::GPU.lock().unwrap().is_some();
-    let mut gpu = gpu::GPU.lock().unwrap();
-    let Some(gpu) = gpu.as_mut() else {
+    let mut running = backend::lock();
+    let Some(gpu) = running.as_mut().and_then(Running::vulkan) else {
         return read;
     };
     // Whatever was queued comes first, so that the frames stay in order.
@@ -126,7 +128,7 @@ pub fn video_read_next(target: &Target, spare: Vec<u8>, nv12: bool) -> VideoRead
             "render: the video's last frame did not come back: {why}"
         )),
     }
-    if !GPU_HOLDS_FRAME.load(Relaxed) || opengl {
+    if !GPU_HOLDS_FRAME.load(Relaxed) {
         return read;
     }
     // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
@@ -146,15 +148,19 @@ pub fn video_read_next(target: &Target, spare: Vec<u8>, nv12: bool) -> VideoRead
 /// Whether the video's frames can come from the card as NV12 (`video_read_next`'s `nv12`): the
 /// Vulkan renderer is the one in use and the panel is not the handheld's.
 pub fn video_nv12_possible() -> bool {
-    gles::GPU.lock().unwrap().is_none() && gpu::GPU.lock().unwrap().is_some()
+    backend::vulkan_runs()
 }
 
 /// The last frame `video_read_next` queued, collected into `spare`; `None` when none is queued.
 /// The GPU is only tried, never waited for, so that a program ending in a fault cannot hang here.
 pub fn video_read_last(spare: Vec<u8>) -> Option<Vec<u8>> {
-    let mut gpu = gpu::GPU.try_lock().ok()?;
+    let mut running = backend::try_lock()?;
     let mut buffer = spare;
-    matches!(gpu.as_mut()?.collect_video_read(&mut buffer), Ok(true)).then_some(buffer)
+    matches!(
+        running.as_mut()?.vulkan()?.collect_video_read(&mut buffer),
+        Ok(true)
+    )
+    .then_some(buffer)
 }
 
 /// The frame's end, before it is shown. The GPU's colour target when that is what to show, the
@@ -170,15 +176,15 @@ pub fn finish_frame(
     // The OpenGL backend's window shows its own frames (`show_on_gl_window`); a frame that
     // comes here is read back into the canvas.
     let stays = frame_stays_on_gpu(racing);
-    if !stays || gles::GPU.lock().unwrap().is_some() {
+    if !stays || backend::gl_runs() {
         give_frame_back(target);
         if stays {
             dev::seethru::frame_end();
         }
         return None;
     }
-    let mut gpu = gpu::GPU.lock().unwrap();
-    let gpu = gpu.as_mut()?;
+    let mut running = backend::lock();
+    let gpu = running.as_mut()?.vulkan()?;
     // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
     // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
     // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
@@ -207,14 +213,14 @@ pub fn show_on_gl_window(
     height: usize,
     menu: bool,
 ) -> bool {
-    if gles::window().is_none() || gles::GPU.lock().unwrap().is_none() {
+    if gles::window().is_none() || !backend::gl_runs() {
         return false;
     }
     if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(racing) {
         give_frame_back(target);
     }
-    let mut gl = gles::GPU.lock().unwrap();
-    let Some(gl) = gl.as_mut() else {
+    let mut running = backend::lock();
+    let Some(gl) = running.as_mut().and_then(Running::gl) else {
         return false;
     };
     if menu
@@ -248,7 +254,7 @@ pub(crate) fn gpu_stopped() {
 /// Whether the desktop's OpenGL backend is the one running (the handheld's GL ES is its GPU
 /// renderer, `gpu_running`).
 pub fn gl_running() -> bool {
-    gles::GPU.lock().unwrap().is_some()
+    backend::gl_runs()
 }
 
 /// Whether the GPU's frame may be given up: a frame the GPU holds is brought back into the

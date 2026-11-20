@@ -9,6 +9,7 @@ use crate::install::vars::{
     InstallerNames, InstallerPages, InstallerPalette, InstallerPaths, InstallerRun,
 };
 use crate::memory::owned::Owned;
+use std::cell::RefCell;
 
 /// The installation's state.
 pub struct Install {
@@ -20,6 +21,8 @@ pub struct Install {
     pub flags: RunFlags,
     pub names: InstallerNames,
     pub pages: InstallerPages,
+    /// The pieces of the page being shown (the installer runs on one thread).
+    pub pieces: RefCell<Vec<crate::install::page_records::Piece>>,
     pub paths: InstallerPaths,
     pub palette: InstallerPalette,
     /// The lobby's registry key and value names (read-only texts).
@@ -42,6 +45,7 @@ impl Install {
             flags: RunFlags::new(),
             names: InstallerNames::new(),
             pages: InstallerPages::new(),
+            pieces: RefCell::new(Vec::new()),
             paths: InstallerPaths::new(),
             palette: InstallerPalette::new(),
             lobby_keys: LobbyKeys::new(),

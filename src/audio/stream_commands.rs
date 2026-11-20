@@ -102,7 +102,7 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
 }
 
 /// `audio::stream_command` on the player at `player`. `name` is the sample name's key
-/// (`audio::store::name_key`), 0 with none (a stop).
+/// (`SampleName::key`), 0 with none (a stop).
 pub fn stream_command(
     audio: &AudioThread,
     name: u32,

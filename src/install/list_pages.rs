@@ -125,11 +125,6 @@ pub enum ItemPosition {
     In(ListId, u32),
 }
 
-/// The kind of the handle a piece keeps for its item (the high byte; 0 is no item).
-const ITEM_HANDLE: u32 = 7;
-/// The list number the title's item is kept under (no list has it).
-const TITLE_LIST: u32 = 0xFF;
-
 impl ListItem {
     /// Where `item`, one of the pages' typed items, is.
     fn position(
@@ -153,46 +148,6 @@ impl ListItem {
         install: &'static crate::install::owner::Install,
     ) -> Option<ItemPosition> {
         Self::position(install, self.0)
-    }
-
-    /// The item a handle names (`to_handle`): what a piece keeps of its item. A word that
-    /// names no item of the installer's pages is refused.
-    pub fn from_handle(
-        install: &'static crate::install::owner::Install,
-        handle: u32,
-    ) -> Result<Self, crate::errors::BadInput> {
-        let refused = || crate::errors::BadInput("an item that is none of the installer's items");
-        if handle >> 24 != ITEM_HANDLE {
-            return Err(refused());
-        }
-        let (list, n) = ((handle >> 8) & 0xFFFF, handle & 0xFF);
-        if list == TITLE_LIST {
-            return if n == 0 {
-                Ok(Self::of_title(install))
-            } else {
-                Err(refused())
-            };
-        }
-        let list = ListId::ALL.get(list as usize).ok_or_else(refused)?;
-        let item = list_items(install, *list)
-            .get(n as usize)
-            .ok_or_else(refused)?;
-        Ok(Self(item))
-    }
-
-    /// The handle a piece keeps for this item; an item that is none of the installer's is
-    /// refused.
-    pub fn to_handle(
-        self,
-        install: &'static crate::install::owner::Install,
-    ) -> Result<u32, crate::errors::BadInput> {
-        match self.installer_position(install) {
-            Some(ItemPosition::Title) => Ok(ITEM_HANDLE << 24 | TITLE_LIST << 8),
-            Some(ItemPosition::In(list, n)) => Ok(ITEM_HANDLE << 24 | (list as u32) << 8 | n),
-            None => Err(crate::errors::BadInput(
-                "an item that is none of the installer's items",
-            )),
-        }
     }
 
     /// The title's item (the pages' `title` record).
@@ -353,13 +308,12 @@ mod tests {
     }
 
     #[test]
-    fn a_pieces_item_is_kept_as_a_handle() {
+    fn an_installer_item_knows_its_place() {
         let install = crate::test_support::own::install();
         let _lock = crate::test_support::test_lock();
-        let title = ListItem::of_title(install);
         assert_eq!(
-            ListItem::from_handle(install, title.to_handle(install).unwrap()).unwrap(),
-            title
+            ListItem::of_title(install).installer_position(install),
+            Some(ItemPosition::Title)
         );
         for list in ListId::ALL {
             for n in 0..held(list) {
@@ -368,24 +322,8 @@ mod tests {
                     item.installer_position(install),
                     Some(ItemPosition::In(list, n))
                 );
-                assert_eq!(
-                    ListItem::from_handle(install, item.to_handle(install).unwrap()).unwrap(),
-                    item
-                );
             }
         }
-    }
-
-    #[test]
-    fn a_handle_that_names_no_item_is_refused() {
-        let install = crate::test_support::own::install();
-        let _lock = crate::test_support::test_lock();
-        assert!(ListItem::from_handle(install, 0).is_err());
-        assert!(ListItem::from_handle(install, u32::MAX).is_err());
-        assert!(ListItem::from_handle(install, ITEM_HANDLE << 24 | 14 << 8).is_err());
-        assert!(ListItem::from_handle(install, ITEM_HANDLE << 24 | TITLE_LIST << 8 | 1).is_err());
-        let past = ITEM_HANDLE << 24 | (ListId::Room as u32) << 8 | held(ListId::Room);
-        assert!(ListItem::from_handle(install, past).is_err());
     }
 
     /// M4 for the installer's lists: every list's count starts within the items its record

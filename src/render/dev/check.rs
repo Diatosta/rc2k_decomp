@@ -10,7 +10,7 @@ use sdl3_sys::everything::*;
 
 /// Whether the check is asked for.
 pub fn wanted() -> bool {
-    super::switches().background_check.is_some() || crate::gfx::draw2d::quads::check_wanted()
+    super::switches().background_check.is_some() || crate::gfx::draw2d::quad_check::wanted()
 }
 
 /// Whether `RC2K_CHECK_SAME` is set: the second pass draws as the first does, so the check
@@ -100,9 +100,9 @@ impl Gpu {
         let Some(check) = &self.check else {
             return Ok(());
         };
-        let old = if crate::gfx::draw2d::quads::check_wanted() {
+        let old = if crate::gfx::draw2d::quad_check::wanted() {
             // The canvas the old way would hold: everything the funnels wrote.
-            crate::gfx::draw2d::take_interval()
+            crate::gfx::draw2d::quad_check::take_interval()
                 .unwrap_or_else(|| canvas_as_before(canvas, &[], stride, None))
         } else {
             let scan = crate::render::canvas_rows::rows_holding_written(canvas, stride);
@@ -150,7 +150,7 @@ impl Gpu {
         } else {
             self.draw_overlay(&pass, targets.canvas);
         }
-        if !crate::gfx::draw2d::quads::check_2d_only() {
+        if !crate::gfx::draw2d::quad_check::only_2d() {
             draw_3d(&pass);
         }
         pass.end();

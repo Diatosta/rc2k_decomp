@@ -81,7 +81,8 @@ pub fn start(device: Device) -> bool {
     match made {
         Ok(gpu) => {
             log(&format!("render: the GPU backend on {}", device.driver()));
-            *GPU.lock().unwrap() = Some(gpu);
+            *crate::render::backend::lock() =
+                Some(crate::render::backend::Running::Vulkan(Box::new(gpu)));
             crate::render::gpu_started();
             true
         }
@@ -97,9 +98,42 @@ pub fn start(device: Device) -> bool {
 /// Stops the backend if it runs: everything it made is let go, and the device is handed back
 /// (the caller destroys it once the window's renderer on it is gone).
 pub fn stop() -> Option<Device> {
-    let gpu = GPU.lock().unwrap().take()?;
+    let gpu = {
+        let mut running = crate::render::backend::lock();
+        match running.take() {
+            Some(crate::render::backend::Running::Vulkan(gpu)) => *gpu,
+            other => {
+                *running = other;
+                return None;
+            }
+        }
+    };
     crate::render::gpu_stopped();
     let device = gpu.device;
     gpu.release();
     Some(device)
+}
+
+/// The backend's targets at the screen's size; a backend that cannot make them is given up
+/// (the software rasteriser draws the 3D from here).
+pub fn size_targets(width: u32, height: u32) {
+    let mut held = crate::render::backend::lock();
+    let sized = match held
+        .as_mut()
+        .and_then(crate::render::backend::Running::vulkan)
+    {
+        Some(_) if crate::render::choice::forced_failure("size") => Err("made to fail".to_string()),
+        Some(gpu) => gpu.set_size(width, height),
+        None => Ok(()),
+    };
+    if let Err(why) = sized {
+        // The frame texture's size does not matter to the window: the 3D goes on the
+        // software rasteriser from here, and the GPU's targets are not kept.
+        log(&format!(
+            "render: the GPU backend cannot make its targets ({why}): the software \
+             rasteriser draws the 3D"
+        ));
+        *held = None;
+        crate::render::gpu_stopped();
+    }
 }

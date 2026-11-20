@@ -20,6 +20,7 @@ pub mod render_cache;
 pub mod run_states;
 pub mod set_render_state;
 pub mod set_texture;
+pub mod shared_states;
 pub mod texture_lock;
 pub mod texture_surface_info;
 pub mod unlock_texture;

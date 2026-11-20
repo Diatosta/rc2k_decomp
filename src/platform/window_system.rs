@@ -124,22 +124,7 @@ pub(super) fn place_shown_window(
 /// The GPU backend's targets at the screen's size; a backend that cannot make them is given up
 /// (the software rasteriser draws the 3D from here).
 pub(super) fn size_gpu_targets(width: u32, height: u32) {
-    let mut held = crate::render::gpu::GPU.lock().unwrap();
-    let sized = match held.as_mut() {
-        Some(_) if crate::render::choice::forced_failure("size") => Err("made to fail".to_string()),
-        Some(gpu) => gpu.set_size(width, height),
-        None => Ok(()),
-    };
-    if let Err(why) = sized {
-        // The frame texture's size does not matter to the window: the 3D goes on the
-        // software rasteriser from here, and the GPU's targets are not kept.
-        log(&format!(
-            "render: the GPU backend cannot make its targets ({why}): the software \
-             rasteriser draws the 3D"
-        ));
-        *held = None;
-        crate::render::gpu_stopped();
-    }
+    crate::render::gpu::size_targets(width, height);
 }
 /// The window's renderer on a GPU device, with the GPU backend started on the same device.
 /// `None` (each failure logged) when the GPU is not wanted or a step fails; the device is

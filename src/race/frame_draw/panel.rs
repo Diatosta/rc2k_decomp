@@ -261,8 +261,8 @@ pub fn object_bytes(
                 .ok_or(BadInput("an object's first face past the faces"))?
                 .get();
             // The face is a place of `scene::object_faces`.
-            let word = reads.stage.object_faces.bytes(face.wrapping_add(4), 2)?;
-            let word = u16::from_le_bytes([word[0], word[1]]);
+            let word = reads.stage.object_faces.array::<2>(face.wrapping_add(4))?;
+            let word = u16::from_le_bytes(word);
             Some(kind(word as u32)?)
         } else {
             None

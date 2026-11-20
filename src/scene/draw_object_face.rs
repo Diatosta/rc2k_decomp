@@ -58,8 +58,8 @@ pub fn draw_object_face(
     if count == 0 || count > MOST || !crate::scene::point_records::held(ctx.reads.course_lists) {
         return Err(BadInput("a face of no vertices or more than 64, or no records").into());
     }
-    // The whole face in one read: at most `MOST` vertices.
-    let mut whole: smallvec::SmallVec<[u8; 0x10 + 8 * 0x10]> =
+    // The whole face in one read: at most `MOST` vertices, so never on the heap.
+    let mut whole: smallvec::SmallVec<[u8; 0x10 + MOST as usize * 0x10]> =
         smallvec::smallvec![0; 0x10 + count as usize * 0x10];
     ctx.reads
         .stage

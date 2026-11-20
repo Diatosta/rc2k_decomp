@@ -723,6 +723,10 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     let log_file = crate::single_copy::log_for(log_file, copy.number);
     let log_file = &std::path::absolute(&log_file).unwrap_or(log_file);
     crate::program_log::start(log_file);
+    crate::memory::host_hooks::set(crate::memory::host_hooks::Hooks {
+        log: crate::program_log::log,
+        end: |name, reason| crate::fatal::raise::end(name, reason),
+    });
     if switches.instance.is_some_and(|n| n > 1) {
         log(&format!(
             "standalone: instance {} of this folder: its own var and savedata are in instances/{}/",

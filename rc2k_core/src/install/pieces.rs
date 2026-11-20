@@ -2,15 +2,11 @@
 //! +1 item count (0: 0x100), +2 title string, from +0x18 its items, 0x10 bytes each: +0 kind (low
 //! four bits: 1 link, 2 choice, 3 value, 4 edit, 5 text, 6 action) and marks, +1 a count or a
 //! font, +2 its string, +0xC a choice's table (a word a choice, high bits marks) or an edit's
-//! record. A piece (`crate::install::layout::PIECE` bytes): +0 its item's kind and marks, +1 its
-//! own kind (0x10 and up: drawn by its item), +2 its string, +4 its item, then place and size.
+//! record. A piece (`crate::install::layout::Piece`): its item's kind and marks, its own kind
+//! (0x10 and up: drawn by its item), its string, its item, then place and size.
 
-use crate::install::layout::PIECE;
-
-/// The bytes the page's pieces have.
-pub const ROOM: u32 = 0xFFC;
-/// The most pieces a page has room for (85).
-pub const MOST_PIECES: u32 = ROOM / PIECE;
+/// The most pieces a page has room for.
+pub const MOST_PIECES: u32 = 85;
 /// The fatal error of an item of a kind the installer does not know.
 pub const UNKNOWN_KIND: u32 = 0x80A9_7451;
 

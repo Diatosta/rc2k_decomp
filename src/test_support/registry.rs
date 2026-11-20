@@ -583,8 +583,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.install.names", on_game(&o.install.names), 0x8a7,),
         listed!(
             "owners.install.pages",
-            on_game_from(&o.install.pages, ".layout"),
-            0x1a25,
+            on_game_from(&o.install.pages, ".texts[0].dx"),
+            0xa25,
         ),
         listed!(
             "owners.install.paths",

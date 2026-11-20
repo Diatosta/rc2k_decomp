@@ -2,6 +2,35 @@
 
 use super::*;
 
+/// What the batches before the one being drawn left set, so that a batch sets only what differs,
+/// and the counts the frame's statistics take.
+struct BatchState {
+    last_pipeline: Option<PipelineKey>,
+    /// The program in use and what it is for.
+    in_use: Option<(ProgramKind, usize)>,
+    last_second: Option<crate::render::batches::Second>,
+    free_draws: u64,
+    switches: u64,
+    last_arrays: Option<(usize, usize)>,
+    last_sampler: u32,
+    scissored: bool,
+}
+
+impl Default for BatchState {
+    fn default() -> BatchState {
+        BatchState {
+            last_pipeline: None,
+            in_use: None,
+            last_second: None,
+            free_draws: 0,
+            switches: 0,
+            last_arrays: None,
+            last_sampler: u32::MAX,
+            scissored: false,
+        }
+    }
+}
+
 impl Gpu {
     /// Everything a quad needs off.
     pub(super) fn plain_state(&self) {
@@ -33,30 +62,54 @@ impl Gpu {
     /// the batches.
     pub(super) fn draw(&mut self, batched: Batched) {
         let Batched {
-            part:
-                Part {
-                    commands,
-                    uploads,
-                    written,
-                    quads,
-                    background,
-                    size: (width, height),
-                    scale,
-                    high,
-                },
+            part,
             batches,
             quad_vertices,
             opaque,
         } = batched;
+        let size = part.size;
         self.take_cuts();
-        if let Err(why) = self.set_size(width, height) {
+        if let Err(why) = self.set_size(size.0, size.1) {
             crate::fatal::raise::end(
                 "render::gles",
                 crate::errors::BadInput(Box::leak(why.into_boxed_str())),
             );
         }
+        self.send_part(&part, &quad_vertices, &batches);
+        self.begin_target(size);
+        self.draw_overlays(
+            part.background.is_some(),
+            &part.written,
+            quad_vertices.len(),
+            size,
+        );
+        self.draw_scene(&batches, size, part.scale, part.high);
+        if bench::due(batches.batches.len()) {
+            self.bench(&part.commands, &batches, &opaque, size.1);
+        }
+        crate::render::give_back(part.commands);
+        crate::render::batches::give_back_batches(batches);
+    }
+
+    /// Everything the part draws from sent to the GL: the textures, the canvas's written rows,
+    /// the atlas, the background and the quads' vertices (each timed; the slow ones are noted).
+    fn send_part(
+        &mut self,
+        part: &Part,
+        quad_vertices: &[[u32; quads::VERTEX_WORDS]],
+        batches: &Batches,
+    ) {
+        let Part {
+            uploads,
+            written,
+            quads,
+            background,
+            size: (width, height),
+            ..
+        } = part;
+        let (width, height) = (*width, *height);
         let started = std::time::Instant::now();
-        for (note, bytes) in &uploads {
+        for (note, bytes) in uploads {
             self.bring_texture_up(note, bytes);
         }
         note_if_slow(
@@ -76,7 +129,7 @@ impl Gpu {
         if !written.is_empty() {
             self.next_canvas(width, height);
         }
-        for w in &written {
+        for w in written {
             self.upload_canvas_rows(&w.bytes, width, w.first, w.last);
             crate::render::CANVAS_UPLOAD_BYTES
                 .fetch_add(w.bytes.len() as u64, std::sync::atomic::Ordering::Relaxed);
@@ -94,17 +147,21 @@ impl Gpu {
             quads.uploads.iter().map(|u| u.texels.len() * 4).sum(),
         );
         let started = std::time::Instant::now();
-        if let Some(background) = &background {
+        if let Some(background) = background {
             self.send_background(background, (width, height));
         }
         note_if_slow("background", started, 0);
         let started = std::time::Instant::now();
-        self.send_quad_vertices(&quad_vertices);
+        self.send_quad_vertices(quad_vertices);
         note_if_slow("quad vertices", started, quad_vertices.len() * 24);
+    }
+
+    /// The part's target bound, its viewport set (`half`: a quarter of the target, a quarter of
+    /// the fragments) and its depth cleared when it is new.
+    fn begin_target(&mut self, (width, height): (i32, i32)) {
         self.plain_state();
         let gl = &self.gl;
         gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
-        // `half`: a quarter of the target, a quarter of the fragments.
         let (view_width, view_height) = if self.cuts.half {
             (width / 2, height / 2)
         } else {
@@ -117,14 +174,25 @@ impl Gpu {
             gl.clear(DEPTH_BIT);
             self.depth_is_new = false;
         }
-        // Up in clip space is the picture's top for the 2D as for the 3D; the object's
-        // last row is that top, which `show_target` and `bring_back` turn over.
-        if background.is_some() && !self.cuts.two_d {
+    }
+
+    /// The background, the canvas's written rows and the 2D's quads, under the 3D. Up in clip
+    /// space is the picture's top for the 2D as for the 3D; the object's last row is that top,
+    /// which `show_target` and `bring_back` turn over.
+    fn draw_overlays(
+        &mut self,
+        has_background: bool,
+        written: &[Written],
+        quad_count: usize,
+        (width, height): (i32, i32),
+    ) {
+        let gl = &self.gl;
+        if has_background && !self.cuts.two_d {
             self.draw_background((width, height));
         }
         if !written.is_empty() && !self.cuts.two_d {
             gl.enable(SCISSOR_TEST);
-            for w in &written {
+            for w in written {
                 gl.bind_texture(TEXTURE_2D, self.canvases[self.canvas_now].texture);
                 let rows = (w.last - w.first + 1) as i32;
                 gl.scissor(0, height - w.last as i32 - 1, width, rows);
@@ -136,37 +204,38 @@ impl Gpu {
             gl.disable(SCISSOR_TEST);
         }
         if !self.cuts.two_d {
-            self.draw_quads(quad_vertices.len(), (width, height));
+            self.draw_quads(quad_count, (width, height));
         }
-        if !batches.batches.is_empty() && !self.cuts.scene {
-            if high > 100 && scale == 100 && !self.cuts.half {
-                if let Err(why) = self.draw_batches_high(&batches, (width, height), high) {
-                    crate::fatal::raise::end(
-                        "render::gles",
-                        crate::errors::BadInput(Box::leak(why.into_boxed_str())),
-                    );
-                }
-            } else if scale != 100 && !self.cuts.half {
-                if let Err(why) = self.draw_batches_small(&batches, (width, height), scale) {
-                    crate::fatal::raise::end(
-                        "render::gles",
-                        crate::errors::BadInput(Box::leak(why.into_boxed_str())),
-                    );
-                }
-            } else {
-                self.draw_batches(
-                    &batches,
-                    width,
-                    height,
-                    if self.cuts.half { 50 } else { 100 },
+    }
+
+    /// The part's 3D: larger than the frame for a menu, at a share of it for a race, else whole
+    /// (half under the `half` cut).
+    fn draw_scene(&mut self, batches: &Batches, size: (i32, i32), scale: u32, high: u32) {
+        if batches.batches.is_empty() || self.cuts.scene {
+            return;
+        }
+        if high > 100 && scale == 100 && !self.cuts.half {
+            if let Err(why) = self.draw_batches_high(batches, size, high) {
+                crate::fatal::raise::end(
+                    "render::gles",
+                    crate::errors::BadInput(Box::leak(why.into_boxed_str())),
                 );
             }
+        } else if scale != 100 && !self.cuts.half {
+            if let Err(why) = self.draw_batches_small(batches, size, scale) {
+                crate::fatal::raise::end(
+                    "render::gles",
+                    crate::errors::BadInput(Box::leak(why.into_boxed_str())),
+                );
+            }
+        } else {
+            self.draw_batches(
+                batches,
+                size.0,
+                size.1,
+                if self.cuts.half { 50 } else { 100 },
+            );
         }
-        if bench::due(batches.batches.len()) {
-            self.bench(&commands, &batches, &opaque, height);
-        }
-        crate::render::give_back(commands);
-        crate::render::batches::give_back_batches(batches);
     }
 
     /// The part's 3D: its vertices sent up and each batch drawn, by the program for its kind.
@@ -178,34 +247,10 @@ impl Gpu {
         height: i32,
         percent: u32,
     ) {
-        let gl = &self.gl;
-        gl.bind_vertex_array(self.scene_array);
-        gl.bind_buffer(ARRAY_BUFFER, self.vertices);
-        gl.buffer_data(ARRAY_BUFFER, &batches.vertices, 0x88E0);
-        gl.bind_buffer(ARRAY_BUFFER, self.seconds);
-        gl.buffer_data(ARRAY_BUFFER, &batches.seconds, 0x88E0);
-        gl.bind_buffer(ARRAY_BUFFER, self.layers);
-        gl.buffer_data(ARRAY_BUFFER, &self.vertex_layers(batches), 0x88E0);
+        self.send_scene_vertices(batches);
         if !self.cuts.depth {
-            gl.enable(DEPTH_TEST);
+            self.gl.enable(DEPTH_TEST);
         }
-        let cuts = self.cuts;
-        let for_any = !kinds_wanted();
-        let mut last_pipeline = None;
-        // The program in use and what it is for.
-        let mut in_use: Option<(ProgramKind, usize)> = None;
-        let mut last_second: Option<crate::render::batches::Second> = None;
-        let mut free_draws = 0;
-        let mut switches = 0;
-        let mut last_arrays = None;
-        let mut last_sampler = u32::MAX;
-        let size = |n: Option<u32>| {
-            n.map(|n| {
-                let note = &batches.textures[n as usize];
-                (note.width, note.height)
-            })
-        };
-        let mut scissored = false;
         if !self.mip_levels
             && batches
                 .batches
@@ -214,111 +259,158 @@ impl Gpu {
         {
             self.level_arrays();
         }
+        let mut state = BatchState::default();
         for batch in &batches.batches {
-            if cuts.drops(batch.pipeline.blend.is_some()) {
+            if self.cuts.drops(batch.pipeline.blend.is_some()) {
                 continue;
             }
-            if last_pipeline != Some(batch.pipeline) {
-                self.set_pipeline(&batch.pipeline, last_pipeline.as_ref());
-                last_pipeline = Some(batch.pipeline);
-            }
-            let kind = match in_use {
-                // A depth clear draws nothing a program for every kind decides once its values
-                // are set: it keeps the one in use.
-                Some((kind, _)) if for_any && batch.scissor.is_some() => kind,
-                _ => ProgramKind::of(batch, for_any),
-            };
-            let number = match in_use {
-                Some((was, number)) if was == kind => number,
-                _ => {
-                    let number = self.program_number(cuts, kind);
-                    self.gl.use_program(self.programs[number].name);
-                    switches += u64::from(in_use.is_some());
-                    in_use = Some((kind, number));
-                    number
-                }
-            };
-            let gl = &self.gl;
-            let program = &mut self.programs[number];
-            if program.size != Some((width, height)) {
-                gl.uniform_2f(program.locations.size, width as f32, height as f32);
-                program.size = Some((width, height));
-            }
-            if batch.scissor.is_none() {
-                free_draws += u64::from(kind.discard_free());
-            }
-            set_values(
-                gl,
-                &program.locations.first,
-                &mut program.first,
-                &batch.values,
-            );
-            if let Some(second) = &batch.second {
-                set_values(
-                    gl,
-                    &program.locations.second,
-                    &mut program.second,
-                    &second.values,
-                );
-            }
-            // The second pass's textures are bound whichever program is in use.
-            if let Some(second) = &batch.second
-                && last_second != Some(*second)
-            {
-                if let Some(size) = size(second.texture) {
-                    self.bind_arrays(2, size);
-                    gl.active_texture(TEXTURE0);
-                }
-                let sampler = self.samplers
-                    [second.linear as usize + 2 * second.clamp as usize + 4 * second.mips as usize];
-                gl.bind_sampler(2, sampler);
-                gl.bind_sampler(3, sampler);
-                last_second = Some(*second);
-            }
-            // A batch's textures are all read from the arrays its first one's size names.
-            if let Some(size) = size(batch.texture)
-                && last_arrays != Some(size)
-            {
-                self.bind_arrays(0, size);
-                gl.active_texture(TEXTURE0);
-                last_arrays = Some(size);
-            }
-            let sampler = self.samplers
-                [batch.linear as usize + 2 * batch.clamp as usize + 4 * batch.mips as usize];
-            if sampler != last_sampler {
-                gl.bind_sampler(0, sampler);
-                gl.bind_sampler(1, sampler);
-                last_sampler = sampler;
-            }
-            if let Some([left, top, right, bottom]) = batch.scissor {
-                gl.enable(SCISSOR_TEST);
-                // The rectangle is scaled with the viewport (`half`, a smaller 3D): its place from
-                // the bottom, in the scaled picture's rows.
-                let p = i64::from(percent);
-                let down = |n: i32| (i64::from(n) * p / 100) as i32;
-                let up = |n: i32| ((i64::from(n) * p + 99) / 100) as i32;
-                let rows = up(height);
-                let (x0, y0) = (down(left as i32), rows - up(bottom as i32));
-                gl.scissor(
-                    x0,
-                    y0,
-                    up(right as i32) - x0,
-                    up(bottom as i32) - down(top as i32),
-                );
-                scissored = true;
-            } else if scissored {
-                gl.disable(SCISSOR_TEST);
-                scissored = false;
-            }
-            gl.draw_arrays(TRIANGLES, batch.first_vertex as i32, batch.vertices as i32);
+            self.draw_batch(batch, batches, &mut state, (width, height), percent);
         }
         let gl = &self.gl;
         for unit in 0..4 {
             gl.bind_sampler(unit, 0);
         }
-        crate::render::GPU_FREE_DRAWS.fetch_add(free_draws, std::sync::atomic::Ordering::Relaxed);
+        crate::render::GPU_FREE_DRAWS
+            .fetch_add(state.free_draws, std::sync::atomic::Ordering::Relaxed);
         crate::render::GPU_PROGRAM_SWITCHES
-            .fetch_add(switches, std::sync::atomic::Ordering::Relaxed);
+            .fetch_add(state.switches, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// The batches' vertices, second passes and layers sent to their buffers.
+    fn send_scene_vertices(&self, batches: &Batches) {
+        let gl = &self.gl;
+        gl.bind_vertex_array(self.scene_array);
+        gl.bind_buffer(ARRAY_BUFFER, self.vertices);
+        gl.buffer_data(ARRAY_BUFFER, &batches.vertices, 0x88E0);
+        gl.bind_buffer(ARRAY_BUFFER, self.seconds);
+        gl.buffer_data(ARRAY_BUFFER, &batches.seconds, 0x88E0);
+        gl.bind_buffer(ARRAY_BUFFER, self.layers);
+        gl.buffer_data(ARRAY_BUFFER, &self.vertex_layers(batches), 0x88E0);
+    }
+
+    /// One batch drawn: its pipeline's states, its program and values, its textures and
+    /// samplers and its scissor, each only when they differ from the batch before (`state`).
+    fn draw_batch(
+        &mut self,
+        batch: &Batch,
+        batches: &Batches,
+        state: &mut BatchState,
+        (width, height): (i32, i32),
+        percent: u32,
+    ) {
+        let for_any = !kinds_wanted();
+        if state.last_pipeline != Some(batch.pipeline) {
+            self.set_pipeline(&batch.pipeline, state.last_pipeline.as_ref());
+            state.last_pipeline = Some(batch.pipeline);
+        }
+        let number = self.select_program(batch, state, for_any);
+        let gl = &self.gl;
+        let program = &mut self.programs[number];
+        if program.size != Some((width, height)) {
+            gl.uniform_2f(program.locations.size, width as f32, height as f32);
+            program.size = Some((width, height));
+        }
+        if batch.scissor.is_none() {
+            state.free_draws += u64::from(ProgramKind::of(batch, for_any).discard_free());
+        }
+        set_values(
+            gl,
+            &program.locations.first,
+            &mut program.first,
+            &batch.values,
+        );
+        if let Some(second) = &batch.second {
+            set_values(
+                gl,
+                &program.locations.second,
+                &mut program.second,
+                &second.values,
+            );
+        }
+        self.bind_batch_textures(batch, batches, state);
+        let gl = &self.gl;
+        if let Some([left, top, right, bottom]) = batch.scissor {
+            gl.enable(SCISSOR_TEST);
+            // The rectangle is scaled with the viewport (`half`, a smaller 3D): its place from
+            // the bottom, in the scaled picture's rows.
+            let p = i64::from(percent);
+            let down = |n: i32| (i64::from(n) * p / 100) as i32;
+            let up = |n: i32| ((i64::from(n) * p + 99) / 100) as i32;
+            let rows = up(height);
+            let (x0, y0) = (down(left as i32), rows - up(bottom as i32));
+            gl.scissor(
+                x0,
+                y0,
+                up(right as i32) - x0,
+                up(bottom as i32) - down(top as i32),
+            );
+            state.scissored = true;
+        } else if state.scissored {
+            gl.disable(SCISSOR_TEST);
+            state.scissored = false;
+        }
+        gl.draw_arrays(TRIANGLES, batch.first_vertex as i32, batch.vertices as i32);
+    }
+
+    /// The program for the batch's kind, in use after this (the one already in use when it is
+    /// the same kind); its number.
+    fn select_program(&mut self, batch: &Batch, state: &mut BatchState, for_any: bool) -> usize {
+        let kind = match state.in_use {
+            // A depth clear draws nothing a program for every kind decides once its values
+            // are set: it keeps the one in use.
+            Some((kind, _)) if for_any && batch.scissor.is_some() => kind,
+            _ => ProgramKind::of(batch, for_any),
+        };
+        match state.in_use {
+            Some((was, number)) if was == kind => number,
+            _ => {
+                let number = self.program_number(self.cuts, kind);
+                self.gl.use_program(self.programs[number].name);
+                state.switches += u64::from(state.in_use.is_some());
+                state.in_use = Some((kind, number));
+                number
+            }
+        }
+    }
+
+    /// The batch's textures and samplers bound, where they differ from the batch before.
+    fn bind_batch_textures(&mut self, batch: &Batch, batches: &Batches, state: &mut BatchState) {
+        let size = |n: Option<u32>| {
+            n.map(|n| {
+                let note = &batches.textures[n as usize];
+                (note.width, note.height)
+            })
+        };
+        let gl = &self.gl;
+        // The second pass's textures are bound whichever program is in use.
+        if let Some(second) = &batch.second
+            && state.last_second != Some(*second)
+        {
+            if let Some(size) = size(second.texture) {
+                self.bind_arrays(2, size);
+                gl.active_texture(TEXTURE0);
+            }
+            let sampler = self.samplers
+                [second.linear as usize + 2 * second.clamp as usize + 4 * second.mips as usize];
+            gl.bind_sampler(2, sampler);
+            gl.bind_sampler(3, sampler);
+            state.last_second = Some(*second);
+        }
+        // A batch's textures are all read from the arrays its first one's size names.
+        if let Some(size) = size(batch.texture)
+            && state.last_arrays != Some(size)
+        {
+            self.bind_arrays(0, size);
+            gl.active_texture(TEXTURE0);
+            state.last_arrays = Some(size);
+        }
+        let sampler = self.samplers
+            [batch.linear as usize + 2 * batch.clamp as usize + 4 * batch.mips as usize];
+        if sampler != state.last_sampler {
+            gl.bind_sampler(0, sampler);
+            gl.bind_sampler(1, sampler);
+            state.last_sampler = sampler;
+        }
     }
 
     /// Each vertex's passes' arrays and layers (`unit_of`, the texture's layer), two

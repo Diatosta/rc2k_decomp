@@ -60,18 +60,17 @@ fn tapped_item(
     list_state: &crate::menu::list_state::ListState,
     list: ListMenu,
 ) -> Option<u32> {
-    use crate::install::page_records::{Piece, piece_count};
     let (x, y) = crate::shell::touch_menu::take_installer_tap()?;
-    let inside = |n: u32| {
-        let piece = Piece::nth(install, n);
-        let (px, py) = (piece.x() as i32 as f32, piece.y() as i32 as f32);
-        let width = piece.width() as f32;
+    let laid = install.pieces.borrow().clone();
+    let inside = |piece: &crate::install::page_records::Piece| {
+        let (px, py) = (piece.x as i32 as f32, piece.y as i32 as f32);
+        let width = piece.width as f32;
         // A piece's place is where its text starts or where it is centred, by how the page lays
         // it out: both are taken, from half a width before the place to a width after it.
-        x >= px - width / 2.0 && x < px + width && y >= py && y < py + piece.height() as f32
+        x >= px - width / 2.0 && x < px + width && y >= py && y < py + piece.height as f32
     };
-    let piece = (0..piece_count(install)).find(|&n| inside(n))?;
-    let item = Piece::nth(install, piece).item(install);
+    let piece = laid.iter().find(|piece| inside(piece))?;
+    let item = crate::install::page_records::item_of(piece);
     let before = list_state.choice.get();
     let found = (0..u32::from(list.count())).find(|&k| list.item(k) == item)?;
     list_state.choice.set(found);

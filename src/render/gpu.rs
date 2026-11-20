@@ -21,7 +21,7 @@ mod uploads;
 
 #[cfg(target_os = "android")]
 pub use self::device::probe_early;
-pub use self::device::{make_device, software_phone, start, stop, wanted};
+pub use self::device::{make_device, size_targets, software_phone, start, stop, wanted};
 use self::pipelines::*;
 
 use super::batches::{Batch, Batches, PipelineKey};
@@ -191,9 +191,6 @@ pub struct Gpu {
     /// The diagnostic cuts of the flush last drawn (`gpu_cut`), to log their changes.
     cuts: Cuts,
 }
-
-/// The GPU, once asked for and made.
-pub static GPU: Mutex<Option<Gpu>> = Mutex::new(None);
 
 impl Gpu {
     pub fn new(device: Device) -> Result<Gpu, String> {

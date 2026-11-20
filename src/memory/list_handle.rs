@@ -200,7 +200,7 @@ impl ListMenu {
     pub fn item(self, n: u32) -> ListItem {
         match self.items.get(n as usize) {
             Some(item) => ListItem(item),
-            None => crate::fatal::raise::end(
+            None => crate::memory::host_hooks::end(
                 "list menu",
                 crate::errors::BadInput("an item past the items of a list"),
             ),
@@ -212,7 +212,7 @@ impl ListMenu {
     pub fn item_at_offset(self, offset: u32) -> ListItem {
         let past = offset.wrapping_sub(HEADER);
         if !past.is_multiple_of(ITEM) {
-            crate::fatal::raise::end(
+            crate::memory::host_hooks::end(
                 "list menu",
                 crate::errors::BadInput("an offset in a list that is no item's start"),
             );

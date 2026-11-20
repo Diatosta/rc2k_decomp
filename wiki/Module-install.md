@@ -11,7 +11,7 @@ the installation's record, makes the menu shortcuts, and removes the game again.
 
 The owner is `Install` (`src/install/owner.rs`). Its parts: the installer's variables
 (`src/install/vars.rs`, `store.rs`), the lists of names it builds (`name_tables.rs`) and the
-pages' records (`page_records.rs`).
+pages' records (`page_records.rs`); the page being shown is a plain list of pieces, `Install::pieces`.
 
 ## Main entry points
 

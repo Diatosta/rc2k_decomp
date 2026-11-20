@@ -96,26 +96,12 @@ pub fn rw(at: impl Into<BytePlace>) -> u16 {
 }
 
 #[track_caller]
-pub fn ww(at: impl Into<BytePlace>, v: u16) {
-    at.into()
-        .write(&v.to_le_bytes(), "an installer word")
-        .unwrap_or_else(|e| refuse(e));
-}
-
-#[track_caller]
 pub fn rd(at: impl Into<BytePlace>) -> u32 {
     let b = at
         .into()
         .read(4, "an installer dword")
         .unwrap_or_else(|e| refuse(e));
     u32::from_le_bytes([b[0], b[1], b[2], b[3]])
-}
-
-#[track_caller]
-pub fn wd(at: impl Into<BytePlace>, v: u32) {
-    at.into()
-        .write(&v.to_le_bytes(), "an installer dword")
-        .unwrap_or_else(|e| refuse(e));
 }
 
 pub fn fatal(code: u32) -> Refused {

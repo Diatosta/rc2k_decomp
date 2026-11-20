@@ -213,7 +213,7 @@ fn on_in<H, C>(
         .wrapping_sub(std::ptr::from_ref(holder) as usize)
         .wrapping_add(n.wrapping_mul(4));
     access(at).inspect_err(|_| {
-        crate::program_log::log(&format!(
+        crate::memory::host_hooks::log(&format!(
             "pointers: {what}: dword {n} at +{at:#x}, outside its holder of {:#x} bytes",
             size_of::<H>()
         ));
@@ -296,7 +296,7 @@ fn locate<'a>(
         }
         rest -= run.count();
     }
-    crate::program_log::log(&format!(
+    crate::memory::host_hooks::log(&format!(
         "pointers: {what}: dword {n}, past the {} dwords listed",
         n - rest
     ));
@@ -550,7 +550,7 @@ impl<const N: usize> Bytes<N> {
         match offset.checked_add(len) {
             Some(end) if end <= N => Ok(()),
             _ => {
-                crate::program_log::log(&format!(
+                crate::memory::host_hooks::log(&format!(
                     "session: {what}: {len} bytes at {offset:#x} of a {N:#x}-byte buffer"
                 ));
                 Err(crate::errors::BadInput("past the end of a buffer"))
@@ -935,7 +935,7 @@ impl<const N: usize> PlainBytes<N> {
         match offset.checked_add(len) {
             Some(end) if end <= N => Ok(()),
             _ => {
-                crate::program_log::log(&format!(
+                crate::memory::host_hooks::log(&format!(
                     "session: {what}: {len} bytes at {offset:#x} of a {N:#x}-byte buffer"
                 ));
                 Err(crate::errors::BadInput("past the end of a buffer"))

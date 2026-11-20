@@ -4,6 +4,7 @@
 
 #![allow(unsafe_code)]
 
+pub(crate) mod backend;
 pub mod background;
 pub mod batches;
 pub mod canvas_rows;
@@ -378,8 +379,8 @@ pub fn draw(screen: (usize, usize), racing: bool, target: &Target, commands: Com
     FLUSH_SCALE.store(if racing { render_scale() } else { 100 }, Relaxed);
     FLUSH_RACING.store(racing, Relaxed);
     if target.bits == 32 {
-        let mut gpu = gpu::GPU.lock().unwrap();
-        if let Some(gpu) = gpu.as_mut() {
+        let mut running = backend::lock();
+        if let Some(gpu) = running.as_mut().and_then(backend::Running::drawing) {
             // On the first one, the picture so far goes over as written pixels: the canvas is
             // whole.
             if !GPU_HOLDS_FRAME.swap(true, Relaxed) {
@@ -387,7 +388,7 @@ pub fn draw(screen: (usize, usize), racing: bool, target: &Target, commands: Com
                 target.note_all_rows_written();
             }
             GPU_DREW_THIS_FRAME.store(true, Relaxed);
-            Backend::draw(gpu, target, commands);
+            gpu.draw(target, commands);
             return;
         }
     }
