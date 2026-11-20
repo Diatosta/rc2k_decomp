@@ -45,7 +45,7 @@ pub fn emit_car_particles(effects: &Effects, o: &CarEffects) -> Result<(), Refus
     effects.kinds.emitter.looks[0].set(x87::to_int(o.records[0].place[0].get().abs()) as u32);
     effects.kinds.emitter.looks[1].set(bh::to_int(
         (bh::ld(o.records[0].place[2].get()).abs() + bh::ld(o.records[2].place[2].get()).abs())
-            * bh::ld(effects.setup.floats.half.get()),
+            * bh::ld(effects.setup.floats.half),
     ) as u32);
     let m = o.whole(effects.car_blocks()?)?;
     for wheel in [0, 1, 2, 3] {

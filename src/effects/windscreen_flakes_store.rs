@@ -30,135 +30,67 @@ impl WindscreenFlakeTiming {
 }
 
 /// The windscreen flakes' curve, circles, frame and corners.
-#[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeTables {
     /// The quarter-circle curve of 0x100 floats (`effects::set_up_windscreen_flakes`; nothing
     /// reads it).
-    pub curve: [PlainFloat; 256],
+    pub curve: [f32; 256],
     /// The eight circles' radii the windscreen flakes' points are made on; the first also scales
     /// the axes (`effects::scale_axes`).
-    pub radii: [PlainFloat; 8],
+    pub radii: [f32; 8],
     /// 1 over the view's farthest depth (`effects::windscreen_flakes_setup`, `begin`s of
     /// `draw_pong_box`, `draw_windscreen_flake`).
-    pub inverse: PlainFloat,
+    pub inverse: f32,
     /// The first and second axes' lengths over the frame's divisors
     /// (`effects::windscreen_flakes_frame`, `draw_plane`).
-    pub lengths: [PlainFloat; 2],
+    pub lengths: [f32; 2],
     /// The frame's place (the settings' `light_point_b_negated`, as floats).
-    pub place: [PlainFloat; 3],
+    pub place: [f32; 3],
     /// The frame's three axes (the first and second made from the settings, the third their cross
     /// product), each (x, y, z), made one long.
-    pub axes: [[PlainFloat; 3]; 3],
+    pub axes: [[f32; 3]; 3],
     /// The first two axes times the first radius (`effects::scale_axes`).
-    pub scaled_by_radius: [[PlainFloat; 3]; 2],
+    pub scaled_by_radius: [[f32; 3]; 2],
     /// The first two axes scaled by the per-part halves (`effects::scale_axes`).
-    pub half_axes: [[PlainFloat; 3]; 2],
+    pub half_axes: [[f32; 3]; 2],
     /// The first two axes scaled by the lengths and the per-part factors (`effects::scale_axes`).
-    pub scaled_axes: [[PlainFloat; 3]; 2],
+    pub scaled_axes: [[f32; 3]; 2],
     /// The four corners (x, y, depth) of the flake being drawn.
-    pub corners: [[PlainFloat; 3]; 4],
+    pub corners: [[f32; 3]; 4],
     /// For each of the eight radii the circle of four points (x, y, and a third float that
     /// is not used).
-    pub points: [[[PlainFloat; 3]; 4]; 8],
+    pub points: [[[f32; 3]; 4]; 8],
     /// An offset into the items, where `effects::spawn_windscreen_flake` looks for a free one.
-    pub cursor: PlainDword,
+    pub cursor: u32,
 }
 
 impl WindscreenFlakeTables {
     /// The values the game starts with.
     pub const fn new() -> Self {
         WindscreenFlakeTables {
-            curve: [const { PlainFloat::new(0.0) }; 256],
+            curve: [0.0; 256],
             radii: [
-                PlainFloat::new(1264.0),
-                PlainFloat::new(4564.0),
-                PlainFloat::new(4464.0),
-                PlainFloat::new(4364.0),
-                PlainFloat::new(4264.0),
-                PlainFloat::new(4164.0),
-                PlainFloat::new(4400.0),
-                PlainFloat::new(4100.0),
+                1264.0, 4564.0, 4464.0, 4364.0, 4264.0, 4164.0, 4400.0, 4100.0,
             ],
-            inverse: PlainFloat::new(0.0),
-            lengths: [PlainFloat::new(37.6), PlainFloat::new(37.6)],
-            place: [
-                PlainFloat::new(-58982.4),
-                PlainFloat::new(-29491.2),
-                PlainFloat::new(145536.0),
-            ],
-            axes: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(1.0),
-                ],
-            ],
-            scaled_by_radius: [
-                [
-                    PlainFloat::new(1664.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1188.0),
-                    PlainFloat::new(1188.0),
-                ],
-            ],
-            half_axes: [
-                [
-                    PlainFloat::new(1664.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1188.0),
-                    PlainFloat::new(1188.0),
-                ],
-            ],
+            inverse: 0.0,
+            lengths: [37.6, 37.6],
+            place: [-58982.4, -29491.2, 145536.0],
+            axes: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            scaled_by_radius: [[1664.0, 0.0, 0.0], [0.0, -1188.0, 1188.0]],
+            half_axes: [[1664.0, 0.0, 0.0], [0.0, -1188.0, 1188.0]],
             scaled_axes: [
+                [1.0, 0.0, 0.0],
                 [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
+                    0.0,
                     // Not 1 / sqrt 2: the game's own six digits.
                     #[allow(clippy::approx_constant)]
-                    PlainFloat::new(-0.707106),
+                    -0.707106,
                     #[allow(clippy::approx_constant)]
-                    PlainFloat::new(0.707106),
+                    0.707106,
                 ],
             ],
-            corners: [const {
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ]
-            }; 4],
-            points: [const {
-                [const {
-                    [
-                        PlainFloat::new(0.0),
-                        PlainFloat::new(0.0),
-                        PlainFloat::new(0.0),
-                    ]
-                }; 4]
-            }; 8],
-            cursor: PlainDword::new(0x0),
+            corners: [[0.0, 0.0, 0.0]; 4],
+            points: [const { [[0.0, 0.0, 0.0]; 4] }; 8],
+            cursor: 0x0,
         }
     }
 }
@@ -219,125 +151,88 @@ impl WindscreenFlakeItems {
 }
 
 /// The windscreen flakes' once-only mark, constants and randoms.
-#[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeState {
     /// No code reads it (it was a once-only mark with nothing done once).
-    pub unused_done: PlainDword,
+    pub unused_done: u32,
     /// The curve's two constants (1024.0, 0.0005).
-    pub curve_ends: [PlainFloat; 2],
+    pub curve_ends: [f32; 2],
     /// The circles' steps (4).
-    pub steps: PlainDword,
+    pub steps: u32,
     /// The circles' angle (2.0).
-    pub step_angle: PlainFloat,
+    pub step_angle: f32,
     /// What the settings' rate is multiplied by (1.0; `effects::windscreen_flakes_frame`).
-    pub rate_share: PlainFloat,
+    pub rate_share: f32,
     /// The axes' lengths are divided by them (2048.0, 1024.0).
-    pub length_divisors: [PlainFloat; 2],
+    pub length_divisors: [f32; 2],
     /// The rate times it must come to a whole number above 0 for the windscreen flakes to run
     /// (65536.0).
-    pub share: PlainFloat,
+    pub share: f32,
     /// The texture places of a drawn flake (u a, u c, v b, v d; `effects::draw_windscreen_flake`).
-    pub places: [PlainFloat; 4],
+    pub places: [f32; 4],
     /// 4096.0 four times (nothing reads them).
-    pub unread_floats: [PlainFloat; 4],
+    pub unread_floats: [f32; 4],
     /// 0, 0.5, 0.99999, 0.99999 (nothing reads them).
-    pub unread_dwords: [PlainDword; 4],
+    pub unread_dwords: [u32; 4],
     /// The axes' per-part factors, 2048.0 three times and 1024.0 three times
     /// (`effects::scale_axes`).
-    pub axis_factors: [PlainFloat; 6],
+    pub axis_factors: [f32; 6],
     /// 0.5 six times (`effects::scale_axes`).
-    pub halves: [PlainFloat; 6],
+    pub halves: [f32; 6],
     /// 256.0 (nothing reads it).
-    pub unread_rhw: PlainDword,
+    pub unread_rhw: u32,
     /// The texture places `effects::windscreen_flakes_setup` puts on the vertices.
-    pub setup_places: [PlainFloat; 4],
+    pub setup_places: [f32; 4],
     /// The texture places `effects::run_windscreen_flakes` puts on the vertices.
-    pub run_places: [PlainFloat; 4],
+    pub run_places: [f32; 4],
     /// The age over which a flake fades (16).
-    pub fade: PlainDword,
+    pub fade: u32,
     /// 1024.0, what a flake's z is taken from (`effects::run_windscreen_flakes`).
-    pub far: PlainFloat,
+    pub far: f32,
     /// A new flake's texture u offset is its kind times the first (1/16) plus the second (1/512);
     /// the third (0) is its v offset (`texture_v`) (`effects::spawn_windscreen_flake`).
-    pub tile_offset_k: [PlainFloat; 3],
+    pub tile_offset_k: [f32; 3],
     /// 0.1 and 0 (`effects::windscreen_flakes_spawn`).
-    pub rate_constants: [PlainFloat; 2],
+    pub rate_constants: [f32; 2],
     /// 65536.0, what the rate's fraction is multiplied by (`effects::windscreen_flakes_spawn`).
-    pub share_k: PlainFloat,
+    pub share_k: f32,
     /// The random (times 0xC5 plus 0x5D) of whether one more flake is spawned.
-    pub spawn_random: PlainDword,
+    pub spawn_random: u32,
     /// The random of a flake's place and kind (`effects::pick_windscreen_flake`).
-    pub pick_random: PlainDword,
+    pub pick_random: u32,
     /// The settings' `setting_to_scale` times `EdgeSettings::factor` (`effects::scale_setting`).
-    pub scaled_setting: PlainFloat,
+    pub scaled_setting: f32,
     /// 50.0 and a bit (nothing reads it).
-    pub unread_limit: PlainFloat,
+    pub unread_limit: f32,
 }
 
 impl WindscreenFlakeState {
     /// The values the game starts with.
     pub const fn new() -> Self {
         WindscreenFlakeState {
-            unused_done: PlainDword::new(0x0),
-            curve_ends: [PlainFloat::new(1024.0), PlainFloat::new(0.00054414064)],
-            steps: PlainDword::new(0x4),
-            step_angle: PlainFloat::new(2.0),
-            rate_share: PlainFloat::new(1.0),
-            length_divisors: [PlainFloat::new(2048.0), PlainFloat::new(1024.0)],
-            share: PlainFloat::new(65536.0),
-            places: [
-                PlainFloat::new(0.001953125),
-                PlainFloat::new(0.001953125),
-                PlainFloat::new(0.064453125),
-                PlainFloat::new(0.064453125),
-            ],
-            unread_floats: [
-                PlainFloat::new(16384.0),
-                PlainFloat::new(16384.0),
-                PlainFloat::new(16384.0),
-                PlainFloat::new(16384.0),
-            ],
-            unread_dwords: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x3F000000),
-                PlainDword::new(0x3F7FFFFE),
-                PlainDword::new(0x3F7FFFFE),
-            ],
-            axis_factors: [
-                PlainFloat::new(2048.0),
-                PlainFloat::new(2048.0),
-                PlainFloat::new(2048.0),
-                PlainFloat::new(1024.0),
-                PlainFloat::new(1024.0),
-                PlainFloat::new(1024.0),
-            ],
-            halves: [const { PlainFloat::new(0.5) }; 6],
-            unread_rhw: PlainDword::new(0x43800000),
-            setup_places: [
-                PlainFloat::new(0.11328125),
-                PlainFloat::new(0.03125),
-                PlainFloat::new(0.24609375),
-                PlainFloat::new(0.1640625),
-            ],
-            run_places: [
-                PlainFloat::new(0.001953125),
-                PlainFloat::new(0.001953125),
-                PlainFloat::new(0.064453125),
-                PlainFloat::new(0.064453125),
-            ],
-            fade: PlainDword::new(0x10),
-            far: PlainFloat::new(1024.0),
-            tile_offset_k: [
-                PlainFloat::new(0.0625),
-                PlainFloat::new(0.001953125),
-                PlainFloat::new(0.0),
-            ],
-            rate_constants: [PlainFloat::new(0.1), PlainFloat::new(0.0)],
-            share_k: PlainFloat::new(65536.0),
-            spawn_random: PlainDword::new(0x0),
-            pick_random: PlainDword::new(0x0),
-            scaled_setting: PlainFloat::new(10.0),
-            unread_limit: PlainFloat::new(50.0001),
+            unused_done: 0x0,
+            curve_ends: [1024.0, 0.00054414064],
+            steps: 0x4,
+            step_angle: 2.0,
+            rate_share: 1.0,
+            length_divisors: [2048.0, 1024.0],
+            share: 65536.0,
+            places: [0.001953125, 0.001953125, 0.064453125, 0.064453125],
+            unread_floats: [16384.0, 16384.0, 16384.0, 16384.0],
+            unread_dwords: [0x0, 0x3F000000, 0x3F7FFFFE, 0x3F7FFFFE],
+            axis_factors: [2048.0, 2048.0, 2048.0, 1024.0, 1024.0, 1024.0],
+            halves: [0.5; 6],
+            unread_rhw: 0x43800000,
+            setup_places: [0.11328125, 0.03125, 0.24609375, 0.1640625],
+            run_places: [0.001953125, 0.001953125, 0.064453125, 0.064453125],
+            fade: 0x10,
+            far: 1024.0,
+            tile_offset_k: [0.0625, 0.001953125, 0.0],
+            rate_constants: [0.1, 0.0],
+            share_k: 65536.0,
+            spawn_random: 0x0,
+            pick_random: 0x0,
+            scaled_setting: 10.0,
+            unread_limit: 50.0001,
         }
     }
 }
@@ -346,18 +241,18 @@ impl WindscreenFlakeState {
 /// The pong box and the plane draw with its frame and corners too.
 pub struct WindscreenFlakes {
     pub timing: std::cell::RefCell<WindscreenFlakeTiming>,
-    pub tables: WindscreenFlakeTables,
+    pub tables: std::cell::RefCell<WindscreenFlakeTables>,
     pub items: WindscreenFlakeItems,
-    pub state: WindscreenFlakeState,
+    pub state: std::cell::RefCell<WindscreenFlakeState>,
 }
 
 impl WindscreenFlakes {
     pub const fn new() -> Self {
         WindscreenFlakes {
             timing: std::cell::RefCell::new(WindscreenFlakeTiming::new()),
-            tables: WindscreenFlakeTables::new(),
+            tables: std::cell::RefCell::new(WindscreenFlakeTables::new()),
             items: WindscreenFlakeItems::new(),
-            state: WindscreenFlakeState::new(),
+            state: std::cell::RefCell::new(WindscreenFlakeState::new()),
         }
     }
 }

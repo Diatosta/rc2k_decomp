@@ -12,7 +12,6 @@ use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::matrix3::extended;
 use crate::math::x87;
-use crate::memory::session::PlainFloat;
 
 const LIFE: i32 = 0xFA0;
 
@@ -58,19 +57,19 @@ fn run(
     let setup = &effects.setup;
     {
         crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(buffer, fl, scene);
-        let [a, b, c, d] = fl.state.run_places.each_ref().map(PlainFloat::get);
+        let [a, b, c, d] = fl.state.borrow().run_places;
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
             buffer.vertices[n].u.set(u);
             buffer.vertices[n].v.set(v);
         }
-        if setup.kind_floats.running.get() != 0 {
+        if setup.kind_floats.borrow().running != 0 {
             windscreen_flakes_spawn(shared, drops, fl, effects)?;
         }
         for item in &fl.items.items {
             if item.live.get() != 1 {
                 continue;
             }
-            if setup.kind_floats.running.get() != 0 {
+            if setup.kind_floats.borrow().running != 0 {
                 let age = item
                     .age
                     .get()
@@ -90,10 +89,11 @@ fn run(
                 continue;
             }
             let alpha =
-                x87::int_over_int_to_int(item.age.get() as i32, fl.state.fade.get() as i32) as u32;
+                x87::int_over_int_to_int(item.age.get() as i32, fl.state.borrow().fade as i32)
+                    as u32;
             let colour = ((!alpha) << 24) | (view_light & 0xFF_FFFF);
             let values = [
-                less(fl.state.far.get(), item.place[1].get()),
+                less(fl.state.borrow().far, item.place[1].get()),
                 extended(item.place[0].get()),
             ];
             crate::effects::draw_windscreen_flake::draw_windscreen_flake(

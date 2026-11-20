@@ -37,13 +37,13 @@ pub(super) fn spawn_windscreen_flake(
     kind: u32,
 ) -> Result<u32, Refused> {
     let walk = walk_to_free(
-        fl.tables.cursor.get(),
+        fl.tables.borrow().cursor,
         ITEMS,
         ITEM_LEN,
         |at| fl.items.items[(at / ITEM_LEN) as usize].live.get() == 0,
         "a windscreen flake cursor off the items",
     )?;
-    fl.tables.cursor.set(walk.cursor);
+    fl.tables.borrow_mut().cursor = walk.cursor;
     let Some(at) = walk.free else {
         return Ok(kind);
     };
@@ -54,10 +54,11 @@ pub(super) fn spawn_windscreen_flake(
     let k = kind & 7;
     e.texture_u.set(x87::int_times_plus(
         k as i32,
-        &fl.state.tile_offset_k[0],
-        &fl.state.tile_offset_k[1],
+        fl.state.borrow().tile_offset_k[0],
+        fl.state.borrow().tile_offset_k[1],
     ));
-    e.texture_v.set(x87::loaded(&fl.state.tile_offset_k[2]));
+    e.texture_v
+        .set(x87::loaded(fl.state.borrow().tile_offset_k[2]));
     e.born.set(shared.physics_tables.get().scene_clock.get());
     e.age.set(0);
     Ok(k)
@@ -67,11 +68,11 @@ pub fn pick_windscreen_flake(shared: &RaceShared, fl: &WindscreenFlakes) -> Resu
     {
         let s = fl
             .state
+            .borrow()
             .pick_random
-            .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
-        fl.state.pick_random.set(s);
+        fl.state.borrow_mut().pick_random = s;
         spawn_windscreen_flake(shared, fl, s & 0x7FF, (s >> 11) & 0x3FF, (s >> 21) & 7)?;
     }
     Ok(())
@@ -90,8 +91,8 @@ pub fn expire_windscreen_flakes(masks: &Masks, drops: &WindscreenDrops, fl: &Win
             continue;
         }
         let c = expiry::cell(item.place[0].get(), item.place[1].get());
-        drops.state.cell[1].set(c.z as u32);
-        drops.state.cell[0].set(c.x as u32);
+        drops.state.borrow_mut().cell[1] = c.z as u32;
+        drops.state.borrow_mut().cell[0] = c.x as u32;
         if expiry::square_ends(
             ease_step,
             || masks.vars.run_count.get() as i32,
@@ -111,7 +112,7 @@ pub fn windscreen_flakes_step(
     use rc2k_core::effects::steps;
     {
         drops.hex.windscreen_flakes_cleared.set(0);
-        let clock: u32 = drops.state.clock.get();
+        let clock: u32 = drops.state.borrow().clock;
         let n = steps::steps(drops.picks.index.get(), clock);
         drops.picks.index.set(clock);
         for _ in 0..n {
@@ -122,7 +123,7 @@ pub fn windscreen_flakes_step(
                 .index
                 .set(steps::next_step(drops.picks.index.get()));
         }
-        drops.state.clock.set(drops.picks.index.get());
+        drops.state.borrow_mut().clock = drops.picks.index.get();
     }
     Ok(())
 }

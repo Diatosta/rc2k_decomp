@@ -105,24 +105,16 @@ fn reset_object(o: &crate::sound::store::SoundObject) {
 }
 /// The race sound stage's flags (the run of dwords in the stage block): all set to 0.
 fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
-    use crate::memory::session::DwordLike;
-    let s = sound.race.stage.get();
-    let flags: [&dyn DwordLike; 11] = [
-        &s.once[0],
-        &s.once[1],
-        &s.once[2],
-        &s.timed_arm,
-        &s.timed_waiting,
-        &s.timed_slot.start,
-        &s.timed_slot.playing,
-        &s.loop_volume_a,
-        &s.loop_volume_b,
-        &s.random[0],
-        &s.random[1],
-    ];
-    for flag in flags {
-        flag.set(0);
-    }
+    let mut s = sound.race.stage.get().borrow_mut();
+    s.once = [0; 3];
+    s.timed_arm = 0;
+    s.timed_waiting = 0;
+    s.loop_volume_a = 0;
+    s.loop_volume_b = 0;
+    s.random = [0; 2];
+    let slot = sound.race.timed_slot.get();
+    slot.start.set(0);
+    slot.playing.set(0);
 }
 
 /// Waits until the sound command queue has run out.
@@ -157,7 +149,7 @@ pub fn reset_race_sounds(
         voice.id.set(crate::sound::spot_voices::SpotVoice::FREE_ID);
         voice.sound.set(0xFFFF_FFFE);
     }
-    sound.race.stage.get().shared_count.set(0);
+    sound.race.stage.get().borrow_mut().shared_count = 0;
     crate::sound::queue::send_command_in(audio, Command::Room(3));
     sound.race.clock.get().borrow_mut().started = 0;
     Ok(())

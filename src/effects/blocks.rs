@@ -123,7 +123,6 @@ pub fn scale_corners(
             };
             let (across, along) = (side(4, 0), side(0xA, 2));
             write_bits(&effects.frame.draw_work.half, [across, along]);
-            let slope = &effects.blocks.corner_slopes.slopes[n as usize];
             // A record of no size (both sides 0: the stage's unused corners) has no slope:
             // it is 0 (dividing 0 by 0 would give a NaN).
             let ratio = if along == 0 && across == 0 {
@@ -131,8 +130,9 @@ pub fn scale_corners(
             } else {
                 x87::int_ratio(along as i32, across as i32)
             };
-            slope.slope.set(ratio);
-            write_bits(&slope.values, values);
+            let slope = &mut effects.blocks.corner_slopes.borrow_mut().slopes[n as usize];
+            slope.slope = ratio;
+            slope.values = values.map(f32::from_bits);
         }
     }
 }

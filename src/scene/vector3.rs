@@ -20,6 +20,18 @@ pub fn normalise(v: &(impl Cells + ?Sized)) {
     v.set_float(0, stf(x));
 }
 
+/// `normalise` on three plain floats, the same steps.
+pub fn normalise_plain(v: &mut [f32; 3]) {
+    let f = |k: usize| ld(v[k]);
+    let (x, y, z) = (f(0), f(1), f(2));
+    let length = (x * x + (y * y + z * z)).sqrt();
+    let t10 = ONE / length;
+    let (x, y, z) = (f(0) * t10, f(1) * t10, f(2) * t10);
+    v[2] = stf(z);
+    v[1] = stf(y);
+    v[0] = stf(x);
+}
+
 /// `scene::dot_product3`: the dot product x x' + (y y' + z z'), unrounded.
 pub fn dot_product3(a: [u32; 3], b: [u32; 3]) -> [u8; 10] {
     let out = [std::cell::Cell::new([0u8; 10])];

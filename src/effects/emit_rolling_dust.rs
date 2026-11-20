@@ -26,22 +26,21 @@ use crate::effects::particles_store::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
-use crate::memory::session::PlainFloat;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 
 /// The strength's two factors and its least.
-fn strength_k(effects: &Effects) -> [&PlainFloat; 3] {
+fn strength_k(effects: &Effects) -> [f32; 3] {
     [
-        &effects.setup.floats.three_tenths,
-        &effects.setup.floats.thirty_second,
-        &effects.setup.floats.fifth,
+        effects.setup.floats.three_tenths,
+        effects.setup.floats.thirty_second,
+        effects.setup.floats.fifth,
     ]
 }
 /// The life's factor and base.
-fn life_k(effects: &Effects) -> [&PlainFloat; 2] {
+fn life_k(effects: &Effects) -> [f32; 2] {
     [
-        &effects.setup.floats.two_thousand,
-        &effects.setup.floats.hundred,
+        effects.setup.floats.two_thousand,
+        effects.setup.floats.hundred,
     ]
 }
 const SIZE: u32 = 0x1_0000;
@@ -69,7 +68,7 @@ fn pace(effects: &Effects, wheel: &MarkRecord) -> Result<Pace, Refused> {
                 strength: None,
             });
         }
-        let [k1, k2, least] = strength_k(effects).map(crate::memory::session::PlainFloat::get);
+        let [k1, k2, least] = strength_k(effects);
         let (kept, status) = x87::abs_blend_compare(
             &wheel.local_velocity_x,
             k1,
@@ -131,14 +130,14 @@ fn emit_particle_1(
         if under {
             return Ok(());
         }
-        let one = effects.setup.floats.one.get();
+        let one = effects.setup.floats.one;
         if x87::compare_status(kept, one) != 0x100 {
             ring.work.whole.set(one.to_bits());
         }
         let strength: u32 = ring.work.whole.get();
         let life = x87::times_plus_to_int(strength, life_k(effects)[0], life_k(effects)[1]);
         ring.work.life.set(life as u32);
-        let fade = x87::mul(strength, &effects.setup.floats.two_fifty_five);
+        let fade = x87::mul(strength, effects.setup.floats.two_fifty_five);
         ring.work.fade.set(fade);
         if next_entry(ring)?.is_none() {
             return Ok(());
@@ -160,7 +159,7 @@ fn emit_particle_1(
         slot.put(|en| &mut en.place[1], rounded_value(place[1]))?;
         slot.put(
             |en| &mut en.ground_y,
-            x87::ext_less(place[1], &effects.setup.floats.fixed_16_scale),
+            x87::ext_less(place[1], effects.setup.floats.fixed_16_scale),
         )?;
         slot.put(|en| &mut en.place[2], rounded_value(place[2]))?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {

@@ -128,10 +128,10 @@ fn facing_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.run_ring.facing_x87", &SPEC, |b| {
-        with_laid::<MarksFloats, _>(b[0], |f| {
+        with_laid::<std::cell::RefCell<MarksFloats>, _>(b[0], |f| {
             with_laid::<RingWork, _>(b[0], |w| {
                 let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54]);
-                super::facing_x87(&car, f, w);
+                super::facing_x87(&car, &f.borrow(), w);
             });
         });
     });
@@ -240,14 +240,14 @@ fn pull_facing_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.run_ring.pull_facing_x87", &SPEC, |b| {
-        with_laid::<MarksFloats, _>(b[0], |f| {
+        with_laid::<std::cell::RefCell<MarksFloats>, _>(b[0], |f| {
             with_laid::<RingWork, _>(b[0], |w| {
                 let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54, 0x88]);
                 let length: [u8; 10] =
                     // SAFETY: `host` checks that the byte lies in the operand's test buffer,
                     // which the recorded run keeps alive and nothing else reaches meanwhile.
                     std::array::from_fn(|i| unsafe { (b[2] + i).host().read() });
-                super::pull_facing_x87(&car, &length, f, w);
+                super::pull_facing_x87(&car, &length, &f.borrow(), w);
             });
         });
     });
@@ -285,7 +285,7 @@ fn pull_strength_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.run_ring.pull_strength_x87", &SPEC, |b| {
-        with_laid::<MarksFloats, _>(b[0], |f| {
+        with_laid::<std::cell::RefCell<MarksFloats>, _>(b[0], |f| {
             with_laid::<RingWork, _>(b[0], |w| {
                 crate::effects::ring_entries::with_entry_copy_at(b[1], 0x64, 0x68, |e| {
                     let car = car_with(b[2], 0, &[0x88]);
@@ -301,7 +301,7 @@ fn pull_strength_x87_matches() {
                             std::cell::RefCell<crate::effects::setup_store::MarksClock>,
                         >(b[0])
                         .borrow(),
-                        f,
+                        &f.borrow(),
                         w,
                         &kinds,
                     );

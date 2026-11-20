@@ -69,8 +69,8 @@ pub fn emit_exhaust_smoke(
         read_first::<_, 3>(&paths.spline_head.points[3 * model..]).map(f32::from_bits);
     let [x, y, y_less, z] = x87::turned_place_less_f32(
         t,
-        &effects.setup.floats.particle_13_place_k,
-        &effects.setup.floats.seven_hundred,
+        effects.setup.floats.particle_13_place_k,
+        effects.setup.floats.seven_hundred,
         &particles.kind13_set.lift,
         car.whole(effects.car_blocks()?)?,
     );
@@ -78,7 +78,7 @@ pub fn emit_exhaust_smoke(
     slot.put(|en| &mut en.place[1], y)?;
     slot.put(|en| &mut en.ground_y, y_less)?;
     slot.put(|en| &mut en.place[2], z)?;
-    let one = effects.setup.floats.one.get();
+    let one = effects.setup.floats.one;
     let s = x87::one_less_inverse(&object.engine_speed, &particles.kind13_set.strength_k, one);
     ring.work.whole.set(s.to_bits());
     let motion: [f32; 3] = crate::effects::try_from_fn(|k| {
@@ -94,7 +94,7 @@ pub fn emit_exhaust_smoke(
     let r = (next_c5(&particles.kind13_set.drift_random) & 0xFFFF) as i32;
     let moved = x87::drifted(
         r,
-        &effects.setup.floats.over_65536,
+        effects.setup.floats.over_65536,
         motion.map(f32::to_bits),
         effects.setup.clock.borrow().frame_ticks as i32,
         [x, y, z].map(f32::to_bits),
@@ -110,12 +110,12 @@ pub fn emit_exhaust_smoke(
     slot.put(
         |en| &mut en.alpha_fade,
         f32::from_bits(bh::st(
-            bh::ld(s) * bh::ld(effects.setup.floats.two_fifty_seven.get()) / bh::int(LIFE as i32),
+            bh::ld(s) * bh::ld(effects.setup.floats.two_fifty_seven) / bh::int(LIFE as i32),
         )),
     )?;
     slot.put(
         |en| &mut en.alpha,
-        x87::mul(s, &effects.setup.floats.two_fifty_six).to_bits(),
+        x87::mul(s, effects.setup.floats.two_fifty_six).to_bits(),
     )?;
     slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
     let size = x87::times_plus_to_int(

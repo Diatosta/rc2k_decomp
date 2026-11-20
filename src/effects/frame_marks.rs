@@ -13,23 +13,7 @@ use crate::effects::run_frame::FRAME_K;
 use crate::effects::{morph_object_points, scale_vectors_by, view_frame};
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::memory::session::PlainDword;
-use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner::Race;
-/// (the settings' field, the copy): `listener_near`, `after_loading_copy` and
-/// `other_marks_shown`.
-fn copies<'a>(
-    effects: &'a Effects,
-    marks: &'a EffectsSettings,
-) -> [(&'a PlainDword, &'a PlainDword); 3] {
-    let setup = &effects.setup;
-    [
-        (&marks.listener_near, &setup.kind_floats.fading),
-        (&marks.after_loading_copy, &setup.kind_floats.other),
-        (&marks.other_marks_shown, &setup.kind_floats.running),
-    ]
-}
-
 pub fn frame_marks(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -49,8 +33,11 @@ pub fn frame_marks(
                 .frame_cycles
                 .set(now.wrapping_sub(last) as i32);
         }
-        for (from, to) in copies(effects, marks) {
-            to.set(from.get());
+        {
+            let mut kinds = effects.setup.kind_floats.borrow_mut();
+            kinds.fading = marks.listener_near.get();
+            kinds.other = marks.after_loading_copy.get();
+            kinds.running = marks.other_marks_shown.get();
         }
         effects.setup.clock.borrow_mut().settings_copies[0] = marks.fresh_marks_flags[1].get();
         scale_vectors_by::scale_vectors_by(effects);

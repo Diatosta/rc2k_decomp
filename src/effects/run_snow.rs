@@ -43,29 +43,32 @@ pub fn run_snow(
     let part = scene.scratch.game_scratch();
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
-    let (s, l) = (&weather.snow, &weather.snow_light);
+    let (snow, l) = (&weather.snow, &weather.snow_light);
     {
         let marks = effects.settings()?;
         l.borrow_mut().kept = marks.snow_light_words[1].get();
         turn_light(frame, view.view_matrix, weather);
         crate::effects::make_fade_colours::make_fade_colours(view.light, weather, effects);
         let mut flakes = marks.snow_flakes.get() as i32;
-        s.flakes.set(flakes as u32);
+        snow.borrow_mut().flakes = flakes as u32;
         if flakes == 0 {
-            s.flag.set(0);
+            snow.borrow_mut().flag = 0;
             return Ok(());
         }
         if flakes > MOST {
             flakes = MOST;
-            s.flakes.set(flakes as u32);
+            snow.borrow_mut().flakes = flakes as u32;
         }
-        for n in 0..9 {
-            s.view_matrix[n].set(marks.listener_turn[n].get());
+        {
+            let mut s = snow.borrow_mut();
+            for n in 0..9 {
+                s.view_matrix[n] = marks.listener_turn[n].get();
+            }
+            for n in 0..3 {
+                s.view_place[n] = marks.listener_place[n].get();
+            }
         }
-        for n in 0..3 {
-            s.view_place[n].set(marks.listener_place[n].get());
-        }
-        crate::effects::place_snow_view::place_snow_view(weather)?;
+        crate::effects::place_snow_view::place_snow_view(weather);
         crate::scene::set_texture::set_texture(
             part,
             scene,
@@ -94,37 +97,25 @@ pub fn run_snow(
             .polygon_vertex_count
             .set(4);
         let inverse = x87::reciprocal(&scene.scratch.front_end_polygon().window.farthest);
-        for r in &s.inverses {
-            r.set(inverse);
-        }
-        s.inverse.set(inverse);
+        snow.borrow_mut().inverses = [inverse; 4];
+        snow.borrow_mut().inverse = inverse;
         let marks = effects.settings()?;
+        let clock = race.shared.physics_tables.get().scene_clock.get();
         if marks.other_marks_shown.get() != 0 {
-            let ticks = race
-                .shared
-                .physics_tables
-                .get()
-                .scene_clock
-                .get()
-                .wrapping_sub(s.last_clock.get());
-            let fall = x87::int_times_plus_int_to_int(
-                ticks as i32,
-                l.borrow().fall_k,
-                s.fall.get() as i32,
-            );
-            s.fall.set(fall as u32);
+            let (last_clock, fall) = {
+                let s = snow.borrow();
+                (s.last_clock, s.fall)
+            };
+            let ticks = clock.wrapping_sub(last_clock);
+            let fall = x87::int_times_plus_int_to_int(ticks as i32, l.borrow().fall_k, fall as i32);
+            snow.borrow_mut().fall = fall as u32;
         }
-        s.fall.set(s.fall.get() & 0x0FFF_FFFF);
-        s.last_clock
-            .set(race.shared.physics_tables.get().scene_clock.get());
-        for (n, v) in s.matrix_copy.iter().enumerate() {
-            for item in s.wide_turn[n].iter().take(4) {
-                item.set(v.get());
-            }
-        }
-        let focal = scene.scratch.front_end_polygon().window.view_scale.get();
-        for item in s.wide_focal.iter().take(4) {
-            item.set(focal);
+        {
+            let mut s = snow.borrow_mut();
+            s.fall &= 0x0FFF_FFFF;
+            s.last_clock = clock;
+            s.wide_turn = s.matrix_copy.map(|v| [v; 4]);
+            s.wide_focal = [scene.scratch.front_end_polygon().window.view_scale.get(); 4];
         }
         crate::effects::draw_snow::draw_snow(buffer, weather, scene, effects)?;
         crate::scene::depth_test_on::depth_test_on(part);

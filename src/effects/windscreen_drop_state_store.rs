@@ -5,42 +5,41 @@ use crate::memory::session::{PlainDword, PlainFloat};
 
 /// The windscreen drops' and windscreen flakes' frame variables (`effects::windscreen_drops_*`,
 /// `effects::windscreen_flakes_*`, `effects::draw_plane`).
-#[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropState {
     /// The live windscreen drop items counted in this frame (`effects::windscreen_drops_frame`).
-    pub live: PlainDword,
+    pub live: u32,
     /// The clock the items' steps are counted from (`effects::windscreen_drops_step`,
     /// `effects::windscreen_flakes_step`).
-    pub clock: PlainDword,
+    pub clock: u32,
     /// The place's way dotted with the third axis, negative when it faces the third axis away
     /// (`effects::windscreen_drops_top`, `effects::windscreen_flakes_frame`,
     /// `effects::draw_plane`).
-    pub facing: PlainFloat,
+    pub facing: f32,
     /// The cell (x, z) of the item being looked at (`effects::expire_windscreen_drops`,
     /// `effects::expire_windscreen_flakes`).
-    pub cell: [PlainDword; 2],
+    pub cell: [u32; 2],
     /// The frames counted (`effects::windscreen_drops_spawn`).
-    pub frames: PlainDword,
+    pub frames: u32,
     /// The windscreen drops' rate (`effects::windscreen_drops_top`,
     /// `effects::windscreen_drops_spawn`).
-    pub rate: PlainFloat,
+    pub rate: f32,
     /// The spawn rate worked out each frame (`effects::windscreen_drops_spawn`).
-    pub spawn_rate: PlainFloat,
+    pub spawn_rate: f32,
     /// The sprite's depth (`effects::windscreen_drops_frame`).
-    pub depth: PlainFloat,
+    pub depth: f32,
 }
 
 impl WindscreenDropState {
     pub const fn new() -> Self {
         WindscreenDropState {
-            live: PlainDword::new(0x0),
-            clock: PlainDword::new(0x0),
-            facing: PlainFloat::new(0.0),
-            cell: [PlainDword::new(0x0), PlainDword::new(0x0)],
-            frames: PlainDword::new(0x0),
-            rate: PlainFloat::new(0.0),
-            spawn_rate: PlainFloat::new(1.125),
-            depth: PlainFloat::new(0.0),
+            live: 0x0,
+            clock: 0x0,
+            facing: 0.0,
+            cell: [0x0, 0x0],
+            frames: 0x0,
+            rate: 0.0,
+            spawn_rate: 1.125,
+            depth: 0.0,
         }
     }
 }

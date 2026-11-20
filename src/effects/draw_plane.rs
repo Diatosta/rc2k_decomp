@@ -22,8 +22,8 @@ use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::race::effects_settings_store::EffectsSettings;
-use crate::scene::cross_product3::cross;
-use crate::scene::vector3::normalise;
+use crate::scene::cross_product3::cross_plain;
+use crate::scene::vector3::{normalise, normalise_plain};
 
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
@@ -59,12 +59,17 @@ static PLANE_TUNING: PlaneTuning = PlaneTuning {
 /// The rate, the place and the first axis from the settings, and the first axis's length over
 /// its divisor into the first of the flakes' `lengths`.
 fn plane_axes(fl: &WindscreenFlakes, m: &EffectsSettings) {
-    plane_axes_x87(m, &mut fl.timing.borrow_mut(), &fl.tables, &PLANE_TUNING);
+    plane_axes_x87(
+        m,
+        &mut fl.timing.borrow_mut(),
+        &mut fl.tables.borrow_mut(),
+        &PLANE_TUNING,
+    );
 }
 
 /// The second axis, its length over its divisor into the second of the flakes' `lengths`.
 fn plane_up(fl: &WindscreenFlakes, m: &EffectsSettings) {
-    plane_up_x87(m, &fl.tables, &PLANE_TUNING);
+    plane_up_x87(m, &mut fl.tables.borrow_mut(), &PLANE_TUNING);
 }
 
 /// The place as floats into the drops' `place`.
@@ -74,12 +79,12 @@ fn plane_place(drops: &WindscreenDrops, m: &EffectsSettings) {
 
 /// The place's way dotted with the third axis into the drops' `facing`.
 fn plane_facing(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
-    plane_facing_x87(drops, &fl.tables);
+    plane_facing_x87(drops, &mut fl.tables.borrow_mut());
 }
 
 /// The plane's centre and corners from the axes.
 fn plane_corners(fl: &WindscreenFlakes, effects: &crate::effects::owner::Effects) {
-    plane_corners_x87(&fl.tables, &effects.kinds.plane_quad);
+    plane_corners_x87(&mut fl.tables.borrow_mut(), &effects.kinds.plane_quad);
 }
 
 /// The four corners projected.
@@ -102,18 +107,24 @@ pub fn draw_plane(
     let m = effects.settings()?;
     let corner: u32 = effects.kinds.plane_quad.corner.get();
     plane_axes(fl, m);
-    let [a0, a1, a2] = [0, 1, 2].map(|n| &fl.tables.axes[n]);
-    normalise(a0);
+    {
+        let mut tables = fl.tables.borrow_mut();
+        normalise_plain(&mut tables.axes[0]);
+    }
     plane_up(fl, m);
-    normalise(a1);
-    cross(a1, a0, a2);
-    normalise(a2);
-    cross(a0, a2, a1);
+    {
+        let mut tables = fl.tables.borrow_mut();
+        let axes = &mut tables.axes;
+        normalise_plain(&mut axes[1]);
+        axes[2] = cross_plain(&axes[1], &axes[0]);
+        normalise_plain(&mut axes[2]);
+        axes[1] = cross_plain(&axes[0], &axes[2]);
+    }
     crate::effects::scale_axes::scale_axes(fl);
     plane_place(drops, m);
     normalise(&drops.hex.place);
     plane_facing(drops, fl);
-    if !drops.state.facing.get().is_sign_negative() {
+    if !drops.state.borrow().facing.is_sign_negative() {
         return Ok(());
     }
     if race.frame.frame_work.get().lead_kept[7].get() == 0 {
@@ -156,7 +167,7 @@ pub fn draw_plane(
     }
     plane_projected(ctx.scene.scratch.front_end_polygon(), effects);
     let [kind, z_k] = [
-        effects.setup.kind_floats.kind_float.get(),
+        effects.setup.kind_floats.borrow().kind_float,
         effects.frame.draw_work.z_k.get(),
     ];
     for n in 0..4 {
@@ -188,7 +199,7 @@ use crate::math::x87_float as bh;
 fn plane_axes_x87(
     m: &EffectsSettings,
     sti: &mut WindscreenFlakeTiming,
-    sq: &WindscreenFlakeTables,
+    sq: &mut WindscreenFlakeTables,
     pt: &PlaneTuning,
 ) {
     let t0 = ldi_cell(&m.windscreen_flakes_rate_factor);
@@ -197,53 +208,53 @@ fn plane_axes_x87(
     let t2 = ldi_cell(&m.light_point_b_negated[0]);
     let t3 = ldi_cell(&m.light_point_b_negated[1]);
     let t4 = ldi_cell(&m.light_point_b_negated[2]);
-    sq.place[2].st(t4);
-    sq.place[1].st(t3);
-    sq.place[0].st(t2);
+    sq.place[2] = f32::from_bits(bh::st(t4));
+    sq.place[1] = f32::from_bits(bh::st(t3));
+    sq.place[0] = f32::from_bits(bh::st(t2));
     let t5 = ldi_cell(&m.light_point_b[0]);
     let t6 = t5 - ldi_cell(&m.light_point_b_negated[0]);
-    sq.axes[0][0].st(t6);
+    sq.axes[0][0] = f32::from_bits(bh::st(t6));
     let t7 = ldi_cell(&m.light_point_b[1]);
     let t8 = t7 - ldi_cell(&m.light_point_b_negated[1]);
-    sq.axes[0][1].st(t8);
+    sq.axes[0][1] = f32::from_bits(bh::st(t8));
     let t9 = ldi_cell(&m.light_point_b[2]);
     let t10 = t9 - ldi_cell(&m.light_point_b_negated[2]);
-    sq.axes[0][2].st(t10);
-    let t11 = sq.axes[0][0].ld();
+    sq.axes[0][2] = f32::from_bits(bh::st(t10));
+    let t11 = bh::ld(sq.axes[0][0]);
     let t12 = t11 * t11;
-    let t13 = sq.axes[0][1].ld();
+    let t13 = bh::ld(sq.axes[0][1]);
     let t14 = t13 * t13;
-    let t15 = sq.axes[0][2].ld();
+    let t15 = bh::ld(sq.axes[0][2]);
     let t16 = t15 * t15;
     let t17 = t14 + t16;
     let t18 = t12 + t17;
     let t19 = t18.sqrt();
     let t20 = t19 / bh::ld(pt.shares[0]);
-    sq.lengths[0].st(t20);
+    sq.lengths[0] = f32::from_bits(bh::st(t20));
 }
 
 /// `plane_up`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn plane_up_x87(m: &EffectsSettings, sq: &WindscreenFlakeTables, pt: &PlaneTuning) {
+fn plane_up_x87(m: &EffectsSettings, sq: &mut WindscreenFlakeTables, pt: &PlaneTuning) {
     let t0 = ldi_cell(&m.light_point_a_negated[0]);
     let t1 = t0 - ldi_cell(&m.light_point_b_negated[0]);
-    sq.axes[1][0].st(t1);
+    sq.axes[1][0] = f32::from_bits(bh::st(t1));
     let t2 = ldi_cell(&m.light_point_a_negated[1]);
     let t3 = t2 - ldi_cell(&m.light_point_b_negated[1]);
-    sq.axes[1][1].st(t3);
+    sq.axes[1][1] = f32::from_bits(bh::st(t3));
     let t4 = ldi_cell(&m.light_point_a_negated[2]);
     let t5 = t4 - ldi_cell(&m.light_point_b_negated[2]);
-    sq.axes[1][2].st(t5);
-    let t6 = sq.axes[1][0].ld();
+    sq.axes[1][2] = f32::from_bits(bh::st(t5));
+    let t6 = bh::ld(sq.axes[1][0]);
     let t7 = t6 * t6;
-    let t8 = sq.axes[1][1].ld();
+    let t8 = bh::ld(sq.axes[1][1]);
     let t9 = t8 * t8;
-    let t10 = sq.axes[1][2].ld();
+    let t10 = bh::ld(sq.axes[1][2]);
     let t11 = t10 * t10;
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
     let t15 = t14 / bh::ld(pt.shares[1]);
-    sq.lengths[1].st(t15);
+    sq.lengths[1] = f32::from_bits(bh::st(t15));
 }
 
 /// `plane_place`'s arithmetic as plain Rust on the x87 model, in the same order.
@@ -257,59 +268,59 @@ fn plane_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
 }
 
 /// `plane_facing`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn plane_facing_x87(drops: &WindscreenDrops, sq: &WindscreenFlakeTables) {
+fn plane_facing_x87(drops: &WindscreenDrops, sq: &mut WindscreenFlakeTables) {
     let t0 = ld_cell(&drops.hex.place[0]);
-    let t1 = t0 * sq.axes[2][0].ld();
+    let t1 = t0 * bh::ld(sq.axes[2][0]);
     let t2 = ld_cell(&drops.hex.place[1]);
-    let t3 = t2 * sq.axes[2][1].ld();
+    let t3 = t2 * bh::ld(sq.axes[2][1]);
     let t4 = ld_cell(&drops.hex.place[2]);
-    let t5 = t4 * sq.axes[2][2].ld();
+    let t5 = t4 * bh::ld(sq.axes[2][2]);
     let t6 = t3 + t5;
     let t7 = t1 + t6;
-    drops.state.facing.st(t7);
+    drops.state.borrow_mut().facing = f32::from_bits(bh::st(t7));
 }
 
 /// `plane_corners`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn plane_corners_x87(sq: &WindscreenFlakeTables, q: &QuadWork) {
+fn plane_corners_x87(sq: &mut WindscreenFlakeTables, q: &QuadWork) {
     let t0 = bh::X(0.0);
     let t1 = bh::X(0.0);
-    let t2 = t1 * sq.lengths[1].ld();
-    let t3 = t0 * sq.lengths[0].ld();
-    let t4 = t3 * sq.axes[0][0].ld();
-    let t5 = t2 * sq.axes[1][0].ld();
+    let t2 = t1 * bh::ld(sq.lengths[1]);
+    let t3 = t0 * bh::ld(sq.lengths[0]);
+    let t4 = t3 * bh::ld(sq.axes[0][0]);
+    let t5 = t2 * bh::ld(sq.axes[1][0]);
     let t6 = t4 + t5;
-    let t7 = t6 + sq.place[0].ld();
+    let t7 = t6 + bh::ld(sq.place[0]);
     q.corners[3][0].st(t7);
-    let t8 = t3 * sq.axes[0][1].ld();
-    let t9 = t2 * sq.axes[1][1].ld();
+    let t8 = t3 * bh::ld(sq.axes[0][1]);
+    let t9 = t2 * bh::ld(sq.axes[1][1]);
     let t10 = t8 + t9;
-    let t11 = t10 + sq.place[1].ld();
+    let t11 = t10 + bh::ld(sq.place[1]);
     q.corners[3][1].st(t11);
-    let t12 = t2 * sq.axes[1][2].ld();
-    let t13 = t3 * sq.axes[0][2].ld();
+    let t12 = t2 * bh::ld(sq.axes[1][2]);
+    let t13 = t3 * bh::ld(sq.axes[0][2]);
     let t14 = t12 + t13;
-    let t15 = t14 + sq.place[2].ld();
+    let t15 = t14 + bh::ld(sq.place[2]);
     q.corners[3][2].st(t15);
     let t16 = q.corners[3][0].ld();
-    let t17 = t16 + sq.scaled_axes[1][0].ld();
+    let t17 = t16 + bh::ld(sq.scaled_axes[1][0]);
     q.corners[0][0].st(t17);
-    let t18 = t17 + sq.scaled_axes[0][0].ld();
+    let t18 = t17 + bh::ld(sq.scaled_axes[0][0]);
     q.corners[1][0].st(t18);
-    let t19 = t18 - sq.scaled_axes[1][0].ld();
+    let t19 = t18 - bh::ld(sq.scaled_axes[1][0]);
     q.corners[2][0].st(t19);
     let t20 = q.corners[3][1].ld();
-    let t21 = t20 + sq.scaled_axes[1][1].ld();
+    let t21 = t20 + bh::ld(sq.scaled_axes[1][1]);
     q.corners[0][1].st(t21);
-    let t22 = t21 + sq.scaled_axes[0][1].ld();
+    let t22 = t21 + bh::ld(sq.scaled_axes[0][1]);
     q.corners[1][1].st(t22);
-    let t23 = t22 - sq.scaled_axes[1][1].ld();
+    let t23 = t22 - bh::ld(sq.scaled_axes[1][1]);
     q.corners[2][1].st(t23);
     let t24 = q.corners[3][2].ld();
-    let t25 = t24 + sq.scaled_axes[1][2].ld();
+    let t25 = t24 + bh::ld(sq.scaled_axes[1][2]);
     q.corners[0][2].st(t25);
-    let t26 = t25 + sq.scaled_axes[0][2].ld();
+    let t26 = t25 + bh::ld(sq.scaled_axes[0][2]);
     q.corners[1][2].st(t26);
-    let t27 = t26 - sq.scaled_axes[1][2].ld();
+    let t27 = t26 - bh::ld(sq.scaled_axes[1][2]);
     q.corners[2][2].st(t27);
 }
 

@@ -23,7 +23,7 @@ use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 /// The chance and the random it would be met by, worked out without writing.
 fn chance(effects: &Effects, wheel: &MarkRecord) -> Result<(i32, u32), Refused> {
     Ok({
-        let chance = x87::mul_to_int(&wheel.chance, &effects.setup.floats.fixed_16_scale);
+        let chance = x87::mul_to_int(&wheel.chance, effects.setup.floats.fixed_16_scale);
         let r = effects
             .kinds
             .emitter

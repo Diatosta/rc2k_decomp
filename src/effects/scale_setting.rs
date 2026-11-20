@@ -22,9 +22,7 @@ pub fn scale_setting(
         }
         let marks = effects.settings()?;
         let n = marks.setting_to_scale.get() as i32;
-        fl.state
-            .scaled_setting
-            .set(x87::int_times(n, &masks.edge_settings.factor));
+        fl.state.borrow_mut().scaled_setting = x87::int_times(n, &masks.edge_settings.factor);
     }
     Ok(())
 }

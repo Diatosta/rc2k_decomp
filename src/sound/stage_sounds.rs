@@ -38,49 +38,68 @@ pub fn stage_sounds(
         crate::sound::play_sound::play_sound_in(audio, sound, volume, rate, place);
     };
     let request = crate::sound::turn_parts::request(sound);
-    let stage = sound.race.stage.get();
+    let stages = sound.race.stage.get();
+    let timed_slot = sound.race.timed_slot.get();
     request.pitch_factor.set(1.0);
     request.volume_factor.set(1.0);
     for (n, sound) in ONE_OFFS {
-        if stage.once[n].get() == 1 {
-            stage.once[n].set(0);
+        let flagged = {
+            let mut stage = stages.borrow_mut();
+            let flagged = stage.once[n] == 1;
+            if flagged {
+                stage.once[n] = 0;
+            }
+            flagged
+        };
+        if flagged {
             play(sound, OWN, OWN, [0, 0, MINUS_ONE]);
         }
     }
     // The logic is `rc2k_core::sound::stage::wait_turn`.
     let clock = sound.race.clock.get().borrow().last;
-    let mut wait = rc2k_core::sound::stage::Wait {
-        arm: stage.timed_arm.get(),
-        delay: stage.timed_delay.get(),
-        due: stage.timed_due.get(),
-        waiting: stage.timed_waiting.get(),
-        start: stage.timed_slot.start.get(),
-    };
-    let slot = rc2k_core::sound::stage::wait_turn(&mut wait, clock);
-    stage.timed_arm.set(wait.arm);
-    stage.timed_due.set(wait.due);
-    stage.timed_waiting.set(wait.waiting);
-    if wait.start != stage.timed_slot.start.get() {
-        stage.timed_slot.start.set(wait.start);
-    }
-    if slot {
-        for (cell, place) in request.place.iter().zip(&stage.timed_place) {
-            cell.set(place.get());
+    let (slot, place) = {
+        let mut stage = stages.borrow_mut();
+        let mut wait = rc2k_core::sound::stage::Wait {
+            arm: stage.timed_arm,
+            delay: stage.timed_delay,
+            due: stage.timed_due,
+            waiting: stage.timed_waiting,
+            start: timed_slot.start.get(),
+        };
+        let slot = rc2k_core::sound::stage::wait_turn(&mut wait, clock);
+        stage.timed_arm = wait.arm;
+        stage.timed_due = wait.due;
+        stage.timed_waiting = wait.waiting;
+        if wait.start != timed_slot.start.get() {
+            timed_slot.start.set(wait.start);
         }
-        crate::sound::play_timed_slot::play_timed_slot(&stage.timed_slot, request, sound, audio)?;
+        (slot, stage.timed_place)
+    };
+    if slot {
+        for (cell, place) in request.place.iter().zip(&place) {
+            cell.set(*place);
+        }
+        crate::sound::play_timed_slot::play_timed_slot(timed_slot, request, sound, audio)?;
     }
+    let (volume_a, volume_b) = {
+        let stage = stages.borrow();
+        (stage.loop_volume_a, stage.loop_volume_b)
+    };
     play(
         0x1C5,
-        ((stage.loop_volume_a.get() as i32) >> 1) as u32,
+        ((volume_a as i32) >> 1) as u32,
         OWN,
         [0, ONE, MINUS_ONE],
     );
-    play(0x1C6, stage.loop_volume_b.get(), OWN, [0, ONE, 0]);
+    play(0x1C6, volume_b, OWN, [0, ONE, 0]);
     for (n, sound) in RANDOMS {
-        if stage.random[n].get() != 1 {
-            continue;
+        {
+            let mut stage = stages.borrow_mut();
+            if stage.random[n] != 1 {
+                continue;
+            }
+            stage.random[n] = 0;
         }
-        stage.random[n].set(0);
         let n = random.sounds.next();
         // The logic is `rc2k_core::sound::stage::random`.
         let r = rc2k_core::sound::stage::random(n, audio.state.mix_rate_setting.get());

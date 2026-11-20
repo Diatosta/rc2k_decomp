@@ -124,13 +124,13 @@ fn corners_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_windscreen_flake.corners_x87", &SPEC, |b| {
-        with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
+        with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |sq| {
             let v: [[u8; 10]; 2] = std::array::from_fn(|n| {
                 // SAFETY: `host` checks that the byte lies in the operand's test buffer, which
                 // the recorded run keeps alive and nothing else reaches meanwhile.
                 std::array::from_fn(|i| unsafe { (b[1] + 10 * n + i).host().read() })
             });
-            super::corners_x87(&v, sq);
+            super::corners_x87(&v, &mut sq.borrow_mut());
         });
     });
 }
@@ -187,8 +187,8 @@ fn projected_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_windscreen_flake.projected_x87", &SPEC, |b| {
-        with_laid::<MarksKindFloats, _>(b[1], |k| {
-            with_laid::<WindscreenFlakeTables, _>(b[1], |sq| {
+        with_laid::<std::cell::RefCell<MarksKindFloats>, _>(b[1], |k| {
+            with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[1], |sq| {
                 staged(
                     b[2],
                     &[
@@ -201,8 +201,8 @@ fn projected_x87_matches() {
                                 .scratch
                                 .front_end_polygon(),
                             &crate::d3d::vertices_store::VERTICES,
-                            k,
-                            sq,
+                            &k.borrow(),
+                            &mut sq.borrow_mut(),
                         );
                     },
                 );

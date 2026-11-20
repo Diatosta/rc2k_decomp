@@ -56,10 +56,15 @@ fn sides_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_pong_box.sides_x87", &SPEC, |b| {
-        with_laid::<MarksFloats, _>(b[0], |f| {
-            with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
-                with_laid::<PongState, _>(b[0], |state| {
-                    super::sides_x87(&values(b[1]), state, f, sq);
+        with_laid::<std::cell::RefCell<MarksFloats>, _>(b[0], |f| {
+            with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |sq| {
+                with_laid::<std::cell::RefCell<PongState>, _>(b[0], |state| {
+                    super::sides_x87(
+                        &values(b[1]),
+                        &mut state.borrow_mut(),
+                        &f.borrow(),
+                        &mut sq.borrow_mut(),
+                    );
                 });
             });
         });
@@ -120,9 +125,9 @@ fn corners_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_pong_box.corners_x87", &SPEC, |b| {
-        with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
-            with_laid::<PongState, _>(b[0], |state| {
-                super::corners_x87(&values(b[1]), state, sq);
+        with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |sq| {
+            with_laid::<std::cell::RefCell<PongState>, _>(b[0], |state| {
+                super::corners_x87(&values(b[1]), &state.borrow(), &mut sq.borrow_mut());
             });
         });
     });
@@ -179,7 +184,7 @@ fn projected_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_pong_box.projected_x87", &SPEC, |b| {
-        with_laid::<WindscreenFlakeTables, _>(b[1], |sq| {
+        with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[1], |sq| {
             staged(
                 b[2],
                 &[
@@ -192,7 +197,7 @@ fn projected_x87_matches() {
                             .scratch
                             .front_end_polygon(),
                         &crate::d3d::vertices_store::VERTICES,
-                        sq,
+                        &mut sq.borrow_mut(),
                     );
                 },
             );

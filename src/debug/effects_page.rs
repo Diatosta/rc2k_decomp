@@ -62,11 +62,11 @@ const GROUPS: &[(&str, &[Row])] = &[
             ),
             (
                 "?rain.total",
-                Cell(|effects, _| effects.windscreen_drops.state.live.get().into()),
+                Cell(|effects, _| effects.windscreen_drops.state.borrow().live.into()),
             ),
             (
                 "?snow3d.drawn",
-                Cell(|effects, _| effects.weather.snow.drawn.get().into()),
+                Cell(|effects, _| effects.weather.snow.borrow().drawn.into()),
             ),
             (
                 "splash amount",

@@ -48,7 +48,7 @@ fn square(
         k as usize,
         angle as usize,
         &effects.frame.draw_work,
-        &effects.blocks.corner_slopes,
+        &effects.blocks.corner_slopes.borrow(),
     )
 }
 
@@ -136,7 +136,6 @@ use crate::effects::frame_state_store::DrawWork;
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::engine_tables::{cosine, sine};
 use crate::math::x87_float as bh;
-use crate::memory::session::PlainFloat;
 
 /// `turn`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_x87(
@@ -182,11 +181,11 @@ fn turn_x87(
 }
 
 /// The float at byte `k` of the slope records, whatever field of a record it falls on.
-fn slope_at(cs: &CornerSlopes, k: usize) -> &PlainFloat {
+fn slope_at(cs: &CornerSlopes, k: usize) -> f32 {
     let record = &cs.slopes[k / 0x24];
     match (k % 0x24) / 4 {
-        0 => &record.slope,
-        n => &record.values[n - 1],
+        0 => record.slope,
+        n => record.values[n - 1],
     }
 }
 
@@ -215,7 +214,7 @@ fn square_x87(
     let t4 = bh::int(dw.sprite_half[0].get() as i32);
     let t5 = t4 * t1;
     dw.sprite_half[0].st(t5);
-    let t6 = t5 * ld_cell(slope_at(cs, k));
+    let t6 = t5 * bh::ld(slope_at(cs, k));
     dw.sprite_half[1].st(t6);
     let t7 = dw.sprite_half[0].get();
     let t8 = t7 ^ 0x80000000;

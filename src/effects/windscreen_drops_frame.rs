@@ -123,18 +123,21 @@ pub fn windscreen_drops_frame(
         return Err(BadInput(why).into());
     }
     {
-        if setup.kind_floats.running.get() != 0 {
+        if setup.kind_floats.borrow().running != 0 {
             crate::effects::windscreen_drops_drift::windscreen_drops_drift(frame, drops, effects)?;
         }
         crate::effects::windscreen_drops_setup::windscreen_drops_setup(buffer, drops, scene);
-        drops.state.live.set(0);
+        drops.state.borrow_mut().live = 0;
         for n in 0..ITEMS {
             let e = n * ITEM_LEN;
             if get(drops, e) != 1 {
                 continue;
             }
-            drops.state.live.set(drops.state.live.get().wrapping_add(1));
-            if setup.kind_floats.running.get() != 0 {
+            {
+                let value = drops.state.borrow().live.wrapping_add(1);
+                drops.state.borrow_mut().live = value;
+            }
+            if setup.kind_floats.borrow().running != 0 {
                 let x = x87::to_int(get(drops, e + ITEM_X));
                 setup.work.scratch.set(x as u32);
                 drift_cell(drops, 4 * (((x as u32) >> 3) & 0xFF));
@@ -182,9 +185,9 @@ pub fn windscreen_drops_frame(
             }
         }
         let marks = effects.settings()?;
-        let live: u32 = drops.state.live.get();
+        let live: u32 = drops.state.borrow().live;
         if (live as i32) < marks.windscreen_drops_wanted.get() as i32
-            && setup.kind_floats.running.get() != 0
+            && setup.kind_floats.borrow().running != 0
         {
             crate::effects::windscreen_drops_spawn::windscreen_drops_spawn(drops, effects)?;
         }
@@ -247,7 +250,7 @@ fn sprite_depth_x87(drops: &WindscreenDrops) {
         };
         let out = sum + work.place[i].ld();
         if i == 2 {
-            drops.state.depth.st(out);
+            drops.state.borrow_mut().depth = f32::from_bits(bh::st(out));
         }
         work.cell[i].st(out);
     }
@@ -321,8 +324,9 @@ fn sprite_project_x87(
         st_at(records, at + 0x1C, y);
     }
     // Every vertex's depth.
-    let depth =
-        (drops.state.depth.ld() + effects.setup.kind_floats.kind_float.ld()) * work.inverse.ld();
+    let depth = (bh::ld(drops.state.borrow().depth)
+        + bh::ld(effects.setup.kind_floats.borrow().kind_float))
+        * work.inverse.ld();
     for v in 0..6 {
         st_at(records, e + 0x20 * v + 0x8, depth);
     }

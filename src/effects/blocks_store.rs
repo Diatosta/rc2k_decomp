@@ -137,26 +137,24 @@ impl MarkLinks {
 /// A corner's slope record (0x24 bytes): the slope of its sides and its eight scaled values
 /// (`effects::scale_corners`; `effects::draw_cell_sprite` scales a sprite by the slope, and
 /// `effects::set_quad_uvs` reads record 0x58's eight values as four texture places).
-#[derive(rc2k_derive::Cells)]
 pub struct Slope {
     /// |v of the third pair - v of the first| over |u of the second - u of the first| of the
     /// corner record, as a float.
-    pub slope: PlainFloat,
+    pub slope: f32,
     /// The corner's four word pairs times `DrawWork::uv_k`.
-    pub values: [PlainFloat; 8],
+    pub values: [f32; 8],
 }
 
 impl Slope {
     pub const fn new() -> Self {
         Slope {
-            slope: PlainFloat::new(0.0),
-            values: [const { PlainFloat::new(0.0) }; 8],
+            slope: 0.0,
+            values: [0.0; 8],
         }
     }
 }
 
 /// The corners' slopes (0x100 records of 0x24 bytes).
-#[derive(rc2k_derive::Cells)]
 pub struct CornerSlopes {
     /// One record for each corner record.
     pub slopes: [Slope; 0x100],

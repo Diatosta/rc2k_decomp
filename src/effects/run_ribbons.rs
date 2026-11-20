@@ -54,7 +54,7 @@ fn turn_place(
 /// The size of the colour table in use: 128 colours (the surface's) while the kind floats'
 /// `other` is not 0, else 257.
 fn colour_count(effects: &crate::effects::owner::Effects) -> i32 {
-    if effects.setup.kind_floats.other.get() != 0 {
+    if effects.setup.kind_floats.borrow().other != 0 {
         128
     } else {
         257
@@ -68,7 +68,7 @@ fn colour_at(
     i: usize,
     effects: &crate::effects::owner::Effects,
 ) -> u32 {
-    if effects.setup.kind_floats.other.get() != 0 {
+    if effects.setup.kind_floats.borrow().other != 0 {
         masks.surface.borrow().colours[i]
     } else {
         ring.colours.colours[i]

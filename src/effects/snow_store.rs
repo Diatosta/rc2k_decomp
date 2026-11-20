@@ -2,26 +2,24 @@
 //! (the curve and its copy), `SnowState` (the flakes' variables, with the 16-byte constants),
 //! `SnowCurveVars` (the walk's variables and the curve records) and `SnowLight` (the light, the
 //! fade colours and the constants).
-
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::PlainDword;
 
 /// The snow's random tables (0x800 flakes).
-#[derive(rc2k_derive::Cells)]
 pub struct SnowTables {
     /// The flakes' places, 20-bit randoms (`effects::make_noise_curve`).
-    pub randoms: [[PlainDword; 2048]; 3],
+    pub randoms: [[u32; 2048]; 3],
     /// Remainders of randoms (the curve indices' offsets for x and z).
-    pub remainders: [[PlainDword; 2048]; 2],
+    pub remainders: [[u32; 2048]; 2],
     /// The flakes' texture u (three bits of the seed times 0.0625 plus a base).
-    pub spreads: [PlainFloat; 2048],
+    pub spreads: [f32; 2048],
 }
 
 impl SnowTables {
     pub const fn new() -> Self {
         SnowTables {
-            randoms: [const { [const { PlainDword::new(0x0) }; 2048] }; 3],
-            remainders: [const { [const { PlainDword::new(0x0) }; 2048] }; 2],
-            spreads: [const { PlainFloat::new(0.0) }; 2048],
+            randoms: [[0; 2048]; 3],
+            remainders: [[0; 2048]; 2],
+            spreads: [0.0; 2048],
         }
     }
 }
@@ -46,160 +44,81 @@ impl SnowCurve {
 }
 
 /// The snow's variables.
-#[derive(rc2k_derive::Cells)]
 pub struct SnowState {
     /// The turn's nine floats, each four times (`effects::run_snow`).
-    pub wide_turn: [[PlainFloat; 4]; 9],
+    pub wide_turn: [[f32; 4]; 9],
     /// Cleared by `effects::place_snow_view`.
-    pub cleared: [PlainDword; 8],
+    pub cleared: [u32; 8],
     /// The view point's z, four times (`effects::place_snow_view`).
-    pub filled: [PlainFloat; 4],
+    pub filled: [f32; 4],
     /// The focal length four times.
-    pub wide_focal: [PlainFloat; 4],
+    pub wide_focal: [f32; 4],
     /// A constant loaded four times (`effects::make_noise_curve`).
-    pub quad_a: [PlainFloat; 4],
+    pub quad_a: [f32; 4],
     /// One over the view's farthest depth, four times (and `inverse` again).
-    pub inverses: [PlainFloat; 4],
+    pub inverses: [f32; 4],
     /// A constant four times.
-    pub quad_b: [PlainFloat; 4],
+    pub quad_b: [f32; 4],
     /// A constant four times.
-    pub quad_c: [PlainFloat; 4],
+    pub quad_c: [f32; 4],
     /// -1.0 four times (nothing reads it).
-    pub minus_ones: [PlainFloat; 4],
+    pub minus_ones: [f32; 4],
     /// The scene clock at the last snow frame.
-    pub last_clock: PlainDword,
+    pub last_clock: u32,
     /// 0 with no flakes (and after `effects::make_noise_curve`).
-    pub flag: PlainDword,
+    pub flag: u32,
     /// The settings' `listener_place`, the view's place.
-    pub view_place: [PlainDword; 3],
+    pub view_place: [u32; 3],
     /// The settings' `listener_turn`, the view's 3 x 3 matrix.
-    pub view_matrix: [PlainFloat; 9],
+    pub view_matrix: [f32; 9],
     /// How far the flakes have fallen (28 bits).
-    pub fall: PlainDword,
+    pub fall: u32,
     /// The flakes drawn this frame.
-    pub drawn: PlainDword,
+    pub drawn: u32,
     /// A copy of `flakes`.
-    pub count_copy: PlainDword,
+    pub count_copy: u32,
     /// The flakes (the settings' `snow_flakes`, held to 0x800; initially 0x800).
-    pub flakes: PlainDword,
+    pub flakes: u32,
     /// The flake's depth as a whole number.
-    pub depth: PlainDword,
+    pub depth: u32,
     /// One over the view's farthest depth.
-    pub inverse: PlainFloat,
+    pub inverse: f32,
     /// The point `effects::place_snow_view` turns (whole numbers).
-    pub point: [PlainDword; 3],
+    pub point: [u32; 3],
     /// The view's place less the point (`effects::place_snow_view`).
-    pub view: [PlainDword; 3],
+    pub view: [u32; 3],
     /// The view matrix copied (`effects::place_snow_view`).
-    pub matrix_copy: [PlainFloat; 9],
+    pub matrix_copy: [f32; 9],
     /// The flake's place turned.
-    pub turned: [PlainFloat; 3],
+    pub turned: [f32; 3],
 }
 
 impl SnowState {
     pub const fn new() -> Self {
         SnowState {
-            wide_turn: [const {
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ]
-            }; 9],
-            cleared: [const { PlainDword::new(0x0) }; 8],
-            filled: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            wide_focal: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            quad_a: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            inverses: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            quad_b: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            quad_c: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            minus_ones: [
-                PlainFloat::new(-1.0),
-                PlainFloat::new(-1.0),
-                PlainFloat::new(-1.0),
-                PlainFloat::new(-1.0),
-            ],
-            last_clock: PlainDword::new(0x0),
-            flag: PlainDword::new(0x0),
-            view_place: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-            view_matrix: [
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(1.0),
-            ],
-            fall: PlainDword::new(0x0),
-            drawn: PlainDword::new(0x0),
-            count_copy: PlainDword::new(0x0),
-            flakes: PlainDword::new(0x800),
-            depth: PlainDword::new(0x0),
-            inverse: PlainFloat::new(0.0),
-            point: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-            view: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-            matrix_copy: [
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(1.0),
-            ],
-            turned: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
+            wide_turn: [[0.0, 0.0, 0.0, 0.0]; 9],
+            cleared: [0x0; 8],
+            filled: [0.0, 0.0, 0.0, 0.0],
+            wide_focal: [0.0, 0.0, 0.0, 0.0],
+            quad_a: [0.0, 0.0, 0.0, 0.0],
+            inverses: [0.0, 0.0, 0.0, 0.0],
+            quad_b: [0.0, 0.0, 0.0, 0.0],
+            quad_c: [0.0, 0.0, 0.0, 0.0],
+            minus_ones: [-1.0, -1.0, -1.0, -1.0],
+            last_clock: 0x0,
+            flag: 0x0,
+            view_place: [0x0, 0x0, 0x0],
+            view_matrix: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            fall: 0x0,
+            drawn: 0x0,
+            count_copy: 0x0,
+            flakes: 0x800,
+            depth: 0x0,
+            inverse: 0.0,
+            point: [0x0, 0x0, 0x0],
+            view: [0x0, 0x0, 0x0],
+            matrix_copy: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            turned: [0.0, 0.0, 0.0],
         }
     }
 }

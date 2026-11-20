@@ -90,8 +90,8 @@ pub(super) fn expire_windscreen_drops(
             }
             let f = |o: usize| f32::from_bits(items.get_u32(e + o));
             let c = expiry::cell(f(0x14), f(0x18));
-            drops.state.cell[1].set(c.z as u32);
-            drops.state.cell[0].set(c.x as u32);
+            drops.state.borrow_mut().cell[1] = c.z as u32;
+            drops.state.borrow_mut().cell[0] = c.x as u32;
             let (r, draw) = expiry::windscreen_drop_draw(drops.hex.random.get());
             drops.hex.random.set(r);
             if draw == 0 {
@@ -116,14 +116,14 @@ pub(super) fn expire_windscreen_drops(
 // The logic is in `rc2k_core::effects::steps::steps`
 pub(super) fn windscreen_drops_step(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     {
-        let clock: u32 = drops.state.clock.get();
+        let clock: u32 = drops.state.borrow().clock;
         let steps = rc2k_core::effects::steps::steps(drops.picks.index.get(), clock);
         drops.picks.index.set(clock);
         drops.hex.steps.set(steps);
         expire_windscreen_drops(masks, drops)?;
         let latest = drops.picks.index.get().wrapping_add(drops.hex.steps.get());
         drops.picks.index.set(latest & 0xFF);
-        drops.state.clock.set(latest & 0xFF);
+        drops.state.borrow_mut().clock = latest & 0xFF;
     }
     Ok(())
 }

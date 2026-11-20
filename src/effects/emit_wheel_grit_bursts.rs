@@ -97,7 +97,7 @@ fn strength(
     wheel: &MarkRecord,
 ) -> Result<(f32, i32), Refused> {
     Ok({
-        let scale = effects.setup.floats.thirty_two.get();
+        let scale = effects.setup.floats.thirty_two;
         if n == 0 {
             x87::times_kept_abs_to_int(&wheel.local_velocity_x, &set.tuning.strength_k, scale)
         } else {
@@ -188,9 +188,9 @@ pub(super) fn emit_bursts_with(
                 continue;
             }
             let car = emitting_car(effects)?;
-            let k = effects.setup.floats.burst_direction_k.get();
+            let k = effects.setup.floats.burst_direction_k;
             let s = h.strength.get();
-            let scale = h.scaled.then_some(&effects.setup.floats.half);
+            let scale = h.scaled.then_some(effects.setup.floats.half);
             let direction = [
                 x87::mul2(h.factors[0], s, k),
                 x87::times_less_abs_times(h.factors[1], s, scale, k),
@@ -210,7 +210,7 @@ pub(super) fn emit_bursts_with(
                 let (out, _) = crate::effects::spread_point::spread_point(
                     paths,
                     [
-                        extended(effects.setup.floats.half.get()),
+                        extended(effects.setup.floats.half),
                         extended(d[2]),
                         extended(d[1]),
                         extended(d[0]),
@@ -228,7 +228,7 @@ pub(super) fn emit_bursts_with(
                     |en| &mut en.cell,
                     ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3),
                 )?;
-                let tk = effects.setup.floats.minus_eighth.get();
+                let tk = effects.setup.floats.minus_eighth;
                 slot.put(|en| &mut en.push[2], x87::mul(&car.motion[2], tk))?;
                 slot.put(|en| &mut en.push[1], x87::mul(&car.motion[1], tk))?;
                 slot.put(|en| &mut en.push[0], x87::mul(&car.motion[0], tk))?;
@@ -257,8 +257,8 @@ pub(super) fn emit_bursts_with(
                     |en| &mut en.cell_rate,
                     x87::int_times_plus(
                         pick as i32,
-                        &effects.setup.floats.over_65536,
-                        &effects.setup.floats.one,
+                        effects.setup.floats.over_65536,
+                        effects.setup.floats.one,
                     ),
                 )?;
                 slot.put(|en| &mut en.life, LIFE)?;

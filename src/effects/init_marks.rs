@@ -72,7 +72,7 @@ pub fn init_marks(
         crate::logfile::load_times::mark("tick_clock");
         setup::tick_clock(&race.shared, effects)?;
         effects.setup.frame.steps.set(0);
-        let less = effects.setup.floats.one.get();
+        let less = effects.setup.floats.one;
         for (n, side) in [
             &system.session.screen.get().width,
             &system.session.screen.get().height,
@@ -89,11 +89,11 @@ pub fn init_marks(
         // Kinds 0x17 .. 0x21 are past the table and get `KIND_FLOAT_PAST` (wiki/Fixed-bugs.md:
         // "Some cars' marks lose their depth bias").
         let float = if kind < KIND_FLOATS {
-            effects.setup.kind_floats.kind_floats[kind as usize].get()
+            effects.setup.kind_floats.borrow().kind_floats[kind as usize]
         } else {
             KIND_FLOAT_PAST
         };
-        effects.setup.kind_floats.kind_float.set(float);
+        effects.setup.kind_floats.borrow_mut().kind_float = float;
     }
     Ok(())
 }

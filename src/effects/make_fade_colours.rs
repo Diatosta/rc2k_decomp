@@ -34,7 +34,7 @@ pub(super) fn make_fade_colours(
             let [r, gr, b] = scaled.map(|v| v as u32 & 0xFF);
             let fade = (0xFF00_0000 | r << 16 | gr << 8 | b).wrapping_add(view_light);
             l.fade_colours[n] = fade;
-            l.fade_step = x87::add(step, &effects.setup.floats.sixteenth);
+            l.fade_step = x87::add(step, effects.setup.floats.sixteenth);
         }
     }
 }

@@ -8,7 +8,7 @@
 //! bytes through the field lists below (`asm_fields`), which this file owns. Test code only.
 
 use crate::effects::asm_fields::{
-    Fields, Leaf, field_start, fields, image, plain_fields, put_image,
+    Fields, Leaf, PlainLeaf, field_start, fields, image, plain_fields, put_image,
 };
 use crate::effects::asm_test::Operand;
 use crate::effects::asm_test::START as BLOCK;
@@ -98,7 +98,7 @@ pub(super) fn copy_of<T: Laid>(mk: Operand) -> &'static T {
     Box::leak(local)
 }
 
-impl Laid for CornerSlopes {
+impl Laid for std::cell::RefCell<CornerSlopes> {
     const START: usize = 0x920734;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
@@ -233,7 +233,7 @@ impl Laid for PictureCopy {
     ];
 }
 
-impl Laid for PongState {
+impl Laid for std::cell::RefCell<PongState> {
     const START: usize = 0x768658;
     const RUNS: &'static [Run] = &[
         Run {
@@ -315,7 +315,7 @@ impl Laid for std::cell::RefCell<PongRules> {
     ];
 }
 
-impl Laid for RainState {
+impl Laid for std::cell::RefCell<RainState> {
     const START: usize = 0x8BC405;
     const RUNS: &'static [Run] = &[
         Run {
@@ -426,7 +426,7 @@ impl Laid for std::cell::RefCell<MarksClock> {
     }];
 }
 
-impl Laid for SnowTables {
+impl Laid for std::cell::RefCell<SnowTables> {
     const START: usize = 0x8C6000;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
@@ -435,7 +435,7 @@ impl Laid for SnowTables {
     }];
 }
 
-impl Laid for SnowState {
+impl Laid for std::cell::RefCell<SnowState> {
     const START: usize = 0x8D2000;
     const RUNS: &'static [Run] = &[
         Run {
@@ -517,7 +517,7 @@ impl Laid for std::cell::RefCell<ShapeTilt> {
     }];
 }
 
-impl Laid for MarksFloats {
+impl Laid for std::cell::RefCell<MarksFloats> {
     const START: usize = 0x765140;
     const RUNS: &'static [Run] = &[
         Run {
@@ -588,7 +588,7 @@ impl Laid for MarksFloats {
     ];
 }
 
-impl Laid for MarksKindFloats {
+impl Laid for std::cell::RefCell<MarksKindFloats> {
     const START: usize = 0x765238;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
@@ -623,7 +623,7 @@ impl Laid for KeptView {
     ];
 }
 
-impl Laid for WindscreenDropState {
+impl Laid for std::cell::RefCell<WindscreenDropState> {
     const START: usize = 0x814710;
     const RUNS: &'static [Run] = &[
         Run {
@@ -725,7 +725,7 @@ impl Laid for std::cell::RefCell<WindscreenFlakeTiming> {
     }];
 }
 
-impl Laid for WindscreenFlakeTables {
+impl Laid for std::cell::RefCell<WindscreenFlakeTables> {
     const START: usize = 0x89CACA;
     const RUNS: &'static [Run] = &[
         Run {
@@ -751,7 +751,7 @@ impl Laid for WindscreenFlakeTables {
     ];
 }
 
-impl Laid for WindscreenFlakeState {
+impl Laid for std::cell::RefCell<WindscreenFlakeState> {
     const START: usize = 0x8BC18A;
     const RUNS: &'static [Run] = &[
         Run {
@@ -769,8 +769,21 @@ impl Laid for WindscreenFlakeState {
 
 // The stores' fields in order, each once: what the runs above name, and what the tests'
 // byte images are made of.
-fields!(CornerSlopes { slopes });
-fields!(Slope { slope, values });
+plain_fields!(CornerSlopes { slopes });
+
+impl PlainLeaf for Slope {
+    fn byte_len(&self) -> usize {
+        4 + self.values.byte_len()
+    }
+    fn dump(&self, out: &mut Vec<u8>) {
+        self.slope.dump(out);
+        self.values.dump(out);
+    }
+    fn load(&mut self, from: &mut &[u8]) {
+        self.slope.load(from);
+        self.values.load(from);
+    }
+}
 fields!(QuadWork {
     place,
     light_turned,
@@ -823,7 +836,7 @@ fields!(MaskBlocks {
     junk
 });
 fields!(PictureCopy { list, copy, paths });
-fields!(PongState {
+plain_fields!(PongState {
     box_sides,
     ball,
     ball_way,
@@ -852,7 +865,7 @@ plain_fields!(PongRules {
     near,
     setup_places
 });
-fields!(RainState {
+plain_fields!(RainState {
     drawn,
     drift_since,
     drift_wait,
@@ -911,12 +924,12 @@ plain_fields!(MarksClock {
     before,
     settings_copies
 });
-fields!(SnowTables {
+plain_fields!(SnowTables {
     randoms,
     remainders,
     spreads
 });
-fields!(SnowState {
+plain_fields!(SnowState {
     wide_turn,
     cleared,
     filled,
@@ -985,7 +998,7 @@ plain_fields!(ShapeTilt {
     unit,
     point
 });
-fields!(MarksFloats {
+plain_fields!(MarksFloats {
     pull_limit,
     burst_direction_k,
     minus_eighth,
@@ -1015,7 +1028,7 @@ fields!(MarksFloats {
     over_65536,
     spread_scale
 });
-fields!(MarksKindFloats {
+plain_fields!(MarksKindFloats {
     other,
     fading,
     kind_floats,
@@ -1042,7 +1055,7 @@ fields!(VectorSource {
     vector,
     scaled
 });
-fields!(WindscreenDropState {
+plain_fields!(WindscreenDropState {
     live,
     clock,
     facing,
@@ -1110,7 +1123,7 @@ plain_fields!(WindscreenFlakeTiming {
     rate,
     spawn_rate
 });
-fields!(WindscreenFlakeTables {
+plain_fields!(WindscreenFlakeTables {
     curve,
     radii,
     inverse,
@@ -1124,7 +1137,7 @@ fields!(WindscreenFlakeTables {
     points,
     cursor
 });
-fields!(WindscreenFlakeState {
+plain_fields!(WindscreenFlakeState {
     unused_done,
     curve_ends,
     steps,
@@ -1175,30 +1188,30 @@ mod tests {
 
     #[test]
     fn runs_cover_the_stores() {
-        covered::<CornerSlopes>();
+        covered::<std::cell::RefCell<CornerSlopes>>();
         covered::<QuadWork>();
         covered::<DrawWork>();
         covered::<ViewVars>();
         covered::<MaskBlocks>();
         covered::<PictureCopy>();
-        covered::<PongState>();
+        covered::<std::cell::RefCell<PongState>>();
         covered::<std::cell::RefCell<PongRules>>();
-        covered::<RainState>();
+        covered::<std::cell::RefCell<RainState>>();
         covered::<RingWork>();
         covered::<std::cell::RefCell<MarksClock>>();
-        covered::<SnowTables>();
-        covered::<SnowState>();
+        covered::<std::cell::RefCell<SnowTables>>();
+        covered::<std::cell::RefCell<SnowState>>();
         covered::<std::cell::RefCell<SnowCurveVars>>();
         covered::<std::cell::RefCell<SnowLight>>();
         covered::<std::cell::RefCell<ShapeTilt>>();
-        covered::<MarksFloats>();
-        covered::<MarksKindFloats>();
+        covered::<std::cell::RefCell<MarksFloats>>();
+        covered::<std::cell::RefCell<MarksKindFloats>>();
         covered::<KeptView>();
-        covered::<WindscreenDropState>();
+        covered::<std::cell::RefCell<WindscreenDropState>>();
         covered::<WindscreenDropWork>();
         covered::<WindscreenDropVars>();
         covered::<std::cell::RefCell<WindscreenFlakeTiming>>();
-        covered::<WindscreenFlakeTables>();
-        covered::<WindscreenFlakeState>();
+        covered::<std::cell::RefCell<WindscreenFlakeTables>>();
+        covered::<std::cell::RefCell<WindscreenFlakeState>>();
     }
 }

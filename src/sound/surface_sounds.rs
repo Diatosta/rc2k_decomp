@@ -52,7 +52,7 @@ fn one(
         }
     }
     let pair = surfaces::set_pair(surface, |n| {
-        sound.race.stage.get().surface_sets[n as usize].get()
+        sound.race.stage.get().borrow().surface_sets[n as usize]
     })
     .map_err(BadInput::from)?;
     let set = sound

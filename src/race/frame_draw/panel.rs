@@ -197,22 +197,20 @@ pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Res
     let frame = &race.frame;
     let n: u32 = frame.sound_spots().sound_spot_count.get();
     let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
-    sound.race.stage.get().shared_count.set(n);
+    let mut stage = sound.race.stage.get().borrow_mut();
+    stage.shared_count = n;
     let from = frame.sound_spots().sound_spots.chunks(5);
-    for (spot, d) in sound
-        .race
-        .stage
-        .get()
+    for (spot, d) in stage
         .shared_spots
-        .iter()
+        .iter_mut()
         .zip(from)
         .take(bytes as usize / 0x14)
     {
-        spot.id.set(d[0].get());
-        for (p, c) in spot.place.iter().zip(&d[1..4]) {
-            p.set(f32::from_bits(c.get()));
+        spot.id = d[0].get();
+        for (p, c) in spot.place.iter_mut().zip(&d[1..4]) {
+            *p = f32::from_bits(c.get());
         }
-        spot.kind.set(d[4].get());
+        spot.kind = d[4].get();
     }
     Ok(())
 }

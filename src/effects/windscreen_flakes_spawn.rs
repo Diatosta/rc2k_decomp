@@ -21,7 +21,7 @@ fn rate(drops: &WindscreenDrops, fl: &WindscreenFlakes, effects: &crate::effects
         drops,
         &effects.frame.kept_view,
         &mut fl.timing.borrow_mut(),
-        &fl.state,
+        &fl.state.borrow(),
         &effects.setup.work,
     );
 }
@@ -51,14 +51,14 @@ pub(super) fn windscreen_flakes_spawn(
             for _ in 0..n.max(0) {
                 pick_windscreen_flake(shared, fl)?;
             }
-            let share = x87::fraction_times_to_int(v, &fl.state.share_k);
+            let share = x87::fraction_times_to_int(v, fl.state.borrow().share_k);
             let s = fl
                 .state
+                .borrow()
                 .spawn_random
-                .get()
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
-            fl.state.spawn_random.set(s);
+            fl.state.borrow_mut().spawn_random = s;
             if ((s >> 8) & 0xFFFF) as i32 <= share {
                 pick_windscreen_flake(shared, fl)?;
             }
@@ -92,11 +92,11 @@ fn rate_x87(
     let t8 = t7 + bh::ld(drops.tilt.borrow().tilt);
     let t9 = t8.cos();
     let t10 = t6 * t9;
-    let t11 = t10 * ss.rate_constants[0].ld();
+    let t11 = t10 * bh::ld(ss.rate_constants[0]);
     let t12 = t11 + bh::ld(sti.spawn_rate);
     sti.spawn_rate = f32::from_bits(bh::st(t12));
     let t13 = bh::ld(sti.spawn_rate);
-    crate::effects::plain::set_status(work, bh::compare(t13, ss.rate_constants[1].ld()));
+    crate::effects::plain::set_status(work, bh::compare(t13, bh::ld(ss.rate_constants[1])));
 }
 
 #[cfg(test)]

@@ -12,20 +12,17 @@ use crate::sound::spot_voices::{MOST_KIND, MOST_SPOTS, load_voices, store_voices
 pub fn match_spot_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     use rc2k_core::sound::spot_voices::Spot;
     // The logic is `rc2k_core::sound::spot_voices::match_spots`.
-    let stage = sound.race.stage.get();
-    let count = stage.shared_count.get();
+    let stage = sound.race.stage.get().borrow();
+    let count = stage.shared_count;
     if count > MOST_SPOTS {
         return Err(BadInput("more than 36 shared spots").into());
     }
     let spots: Vec<Spot> = stage.shared_spots[..count as usize]
         .iter()
         .map(|spot| Spot {
-            id: spot.id.get(),
-            place: spot
-                .place
-                .each_ref()
-                .map(crate::memory::session::PlainFloat::bits),
-            kind: spot.kind.get(),
+            id: spot.id,
+            place: spot.place.map(f32::to_bits),
+            kind: spot.kind,
         })
         .collect();
     let kinds: [u32; MOST_KIND as usize + 1] = sound.race.spot_kinds.get().kind_sounds;

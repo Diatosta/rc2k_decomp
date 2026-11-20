@@ -24,13 +24,14 @@ pub(super) fn pong_digit(
             buffer,
             pong,
             fl,
-            pong.state.digit_patterns[first / 20][n].get(),
+            pong.state.borrow().digit_patterns[first / 20][n],
             col,
             row,
             scene,
             effects,
         )?;
     }
-    pong.state.digit_at[0].set(pong.state.digit_at[0].get().wrapping_add(core::DIGIT_STEP));
+    let mut state = pong.state.borrow_mut();
+    state.digit_at[0] = state.digit_at[0].wrapping_add(core::DIGIT_STEP);
     Ok(())
 }

@@ -37,7 +37,7 @@ fn rate_x87_matches() {
     recorded_writes("effects.windscreen_flakes_spawn.rate_x87", &SPEC, |b| {
         with_laid::<KeptView, _>(b[1], |kv| {
             with_laid::<RefCell<WindscreenFlakeTiming>, _>(b[1], |sti| {
-                with_laid::<WindscreenFlakeState, _>(b[1], |ss| {
+                with_laid::<RefCell<WindscreenFlakeState>, _>(b[1], |ss| {
                     with_overlays(
                         b[1],
                         &[overlay_laid(
@@ -48,7 +48,7 @@ fn rate_x87_matches() {
                                 &crate::test_support::own::effects().windscreen_drops,
                                 kv,
                                 &mut sti.borrow_mut(),
-                                ss,
+                                &ss.borrow(),
                                 &crate::test_support::own::effects().setup.work,
                             );
                         },

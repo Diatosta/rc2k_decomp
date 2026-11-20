@@ -63,9 +63,9 @@ fn scale_axes_x87_matches() {
         sincos: false,
     };
     recorded_buffer_writes("effects.scale_axes.scale_axes_x87", &SPEC, |b| {
-        with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
-            with_laid::<WindscreenFlakeState, _>(b[0], |ss| {
-                super::scale_axes_x87(sq, ss);
+        with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |sq| {
+            with_laid::<std::cell::RefCell<WindscreenFlakeState>, _>(b[0], |ss| {
+                super::scale_axes_x87(&mut sq.borrow_mut(), &ss.borrow());
             });
         });
     });

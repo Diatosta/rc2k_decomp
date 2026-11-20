@@ -234,7 +234,7 @@ pub fn measure_lines(
                 measure_kind_lines(course, from, to, block)?;
             }
             if paths.lines_work.borrow().shares == 1 {
-                let hundred = effects.setup.floats.hundred.get();
+                let hundred = effects.setup.floats.hundred;
                 let share = |at: &PlainDword, of: &PlainDword| {
                     // A share of nothing (no line of that kind measured) is the x87's
                     // integer indefinite, 0x80000000, which the marks then read as the sum

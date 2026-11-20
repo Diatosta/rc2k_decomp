@@ -18,20 +18,19 @@ use crate::effects::rain_store::Weather;
 use crate::effects::snow_store::{SnowLight, SnowState, SnowTables};
 use crate::effects::tuning_store::MarksFloats;
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
 
 const MOST: i32 = 0x800;
 const CURVE: u32 = 4095;
 const FADES: u32 = 17;
 /// The flake's whole-number place turned by the view.
 fn turn(weather: &Weather, v: &[u32; 3]) {
-    turn_x87(&v[..], &weather.snow);
+    turn_x87(&v[..], &mut weather.snow.borrow_mut());
 }
 
 /// The light's dot and its fade index.
 fn fade(weather: &Weather, effects: &crate::effects::owner::Effects) {
     fade_x87(
-        &weather.snow,
+        &weather.snow.borrow(),
         &mut weather.snow_light.borrow_mut(),
         &effects.setup.floats,
     );
@@ -49,8 +48,8 @@ fn square(
         front,
         crate::math::x87_mem::cells(&mut w),
         i as usize,
-        &weather.snow_tables,
-        &weather.snow,
+        &weather.snow_tables.borrow(),
+        &mut weather.snow.borrow_mut(),
         &weather.snow_light.borrow(),
     );
     // The scratch holds four vertices' records, eight dwords each.
@@ -67,20 +66,14 @@ fn square(
 /// shifted values the indices are made from.
 fn place(weather: &Weather, k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
     {
-        let t = &weather.snow_tables;
-        let mut x = t.randoms[0][k as usize].get();
-        let mut y = t.randoms[1][k as usize]
-            .get()
-            .wrapping_add(weather.snow.fall.get());
-        let mut z = t.randoms[2][k as usize].get();
+        let t = weather.snow_tables.borrow();
+        let mut x = t.randoms[0][k as usize];
+        let mut y = t.randoms[1][k as usize].wrapping_add(weather.snow.borrow().fall);
+        let mut z = t.randoms[2][k as usize];
         let f = (y & 0xF_FFFF) >> 11;
-        let ix = f.wrapping_add(t.remainders[0][k as usize].get());
-        let iz = f.wrapping_add(t.remainders[1][k as usize].get());
-        let shift: [u32; 3] = weather
-            .snow
-            .view
-            .each_ref()
-            .map(crate::memory::session::PlainDword::get);
+        let ix = f.wrapping_add(t.remainders[0][k as usize]);
+        let iz = f.wrapping_add(t.remainders[1][k as usize]);
+        let shift: [u32; 3] = weather.snow.borrow().view;
         let curve = |i: u32| {
             if i < CURVE {
                 weather.snow_curve.curve[i as usize].get()
@@ -98,7 +91,7 @@ fn place(weather: &Weather, k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
 
 /// Why it refuses before anything is drawn, if it does.
 fn refusal(weather: &Weather, effects: &crate::effects::owner::Effects) -> Option<&'static str> {
-    let n = weather.snow.flakes.get() as i32;
+    let n = weather.snow.borrow().flakes as i32;
     if n > MOST {
         return Some("more than 0x800 snowflakes");
     }
@@ -119,10 +112,10 @@ pub(super) fn draw_snow(
         return Err(BadInput(why).into());
     }
     {
-        let n = snow.flakes.get() as i32;
-        snow.count_copy.set(n as u32);
+        let n = snow.borrow().flakes as i32;
+        snow.borrow_mut().count_copy = n as u32;
         weather.snow_vars.borrow_mut().first = 0;
-        snow.drawn.set(0);
+        snow.borrow_mut().drawn = 0;
         weather.snow_vars.borrow_mut().first = n as u32;
         for k in 0..n.max(0) as u32 {
             let ([eax, ebx, ecx], curve_at, _) = place(weather, k);
@@ -130,8 +123,8 @@ pub(super) fn draw_snow(
                 return Err(BadInput("a snow curve index past the table").into());
             }
             turn(weather, &[ebx, eax, ecx]);
-            if snow.depth.get() as i32 > 0x1_0000 {
-                if effects.setup.kind_floats.fading.get() != 0 {
+            if snow.borrow().depth as i32 > 0x1_0000 {
+                if effects.setup.kind_floats.borrow().fading != 0 {
                     fade(weather, effects);
                     let mut index = snow_light.borrow().fade_index;
                     if snow_light.borrow().dot.is_sign_negative() {
@@ -152,7 +145,8 @@ pub(super) fn draw_snow(
                 }
                 if !clip_quad(buffer, scene, effects)? {
                     draw_fan(buffer, scene);
-                    snow.drawn.set(snow.drawn.get().wrapping_add(1));
+                    let drawn = snow.borrow().drawn;
+                    snow.borrow_mut().drawn = drawn.wrapping_add(1);
                     scene
                         .scratch
                         .front_end_polygon()
@@ -169,53 +163,53 @@ use crate::math::x87_float as bh;
 use crate::math::x87_mem::{Base, fild as ldi, fld as ld, fstp as st};
 
 /// `turn`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn turn_x87(v: impl Base, s: &SnowState) {
+fn turn_x87(v: impl Base, s: &mut SnowState) {
     let t0 = ldi(v, 0);
     let t1 = ldi(v, 0x4);
     let t2 = ldi(v, 0x8);
-    let t3 = t1 * s.matrix_copy[0].ld();
-    let t4 = t0 * s.matrix_copy[3].ld();
-    let t5 = t2 * s.matrix_copy[6].ld();
+    let t3 = t1 * bh::ld(s.matrix_copy[0]);
+    let t4 = t0 * bh::ld(s.matrix_copy[3]);
+    let t5 = t2 * bh::ld(s.matrix_copy[6]);
     let t6 = t4 + t5;
     let t7 = t3 + t6;
-    let t8 = t7 + bh::int(s.point[0].get() as i32);
-    s.turned[0].st(t8);
-    let t9 = t1 * s.matrix_copy[1].ld();
-    let t10 = t0 * s.matrix_copy[4].ld();
-    let t11 = t2 * s.matrix_copy[7].ld();
+    let t8 = t7 + bh::int(s.point[0] as i32);
+    s.turned[0] = f32::from_bits(bh::st(t8));
+    let t9 = t1 * bh::ld(s.matrix_copy[1]);
+    let t10 = t0 * bh::ld(s.matrix_copy[4]);
+    let t11 = t2 * bh::ld(s.matrix_copy[7]);
     let t12 = t10 + t11;
     let t13 = t9 + t12;
-    let t14 = t13 + bh::int(s.point[1].get() as i32);
-    s.turned[1].st(t14);
-    let t15 = t1 * s.matrix_copy[2].ld();
-    let t16 = t0 * s.matrix_copy[5].ld();
-    let t17 = t2 * s.matrix_copy[8].ld();
+    let t14 = t13 + bh::int(s.point[1] as i32);
+    s.turned[1] = f32::from_bits(bh::st(t14));
+    let t15 = t1 * bh::ld(s.matrix_copy[2]);
+    let t16 = t0 * bh::ld(s.matrix_copy[5]);
+    let t17 = t2 * bh::ld(s.matrix_copy[8]);
     let t18 = t16 + t17;
     let t19 = t15 + t18;
-    let t20 = t19 + bh::int(s.point[2].get() as i32);
-    s.depth.set(bh::to_int(t20) as u32);
-    s.turned[2].st(t20);
+    let t20 = t19 + bh::int(s.point[2] as i32);
+    s.depth = bh::to_int(t20) as u32;
+    s.turned[2] = f32::from_bits(bh::st(t20));
 }
 
 /// `fade`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn fade_x87(s: &SnowState, l: &mut SnowLight, f: &MarksFloats) {
     {
-        let t0 = s.turned[0].ld();
+        let t0 = bh::ld(s.turned[0]);
         let t1 = t0 - bh::ld(l.light_place[0]);
         l.fade_delta[0] = f32::from_bits(bh::st(t1));
         let t2 = t1 * t1;
-        let t3 = s.turned[1].ld();
+        let t3 = bh::ld(s.turned[1]);
         let t4 = t3 - bh::ld(l.light_place[1]);
         l.fade_delta[1] = f32::from_bits(bh::st(t4));
         let t5 = t4 * t4;
-        let t6 = s.turned[2].ld();
+        let t6 = bh::ld(s.turned[2]);
         let t7 = t6 - bh::ld(l.light_place[2]);
         l.fade_delta[2] = f32::from_bits(bh::st(t7));
         let t8 = t7 * t7;
         let t9 = t5 + t8;
         let t10 = t2 + t9;
         let t11 = t10.sqrt();
-        let t12 = f.one.ld() / t11;
+        let t12 = bh::ld(f.one) / t11;
         let t13 = t12 * bh::ld(l.fade_delta[0]);
         l.fade_unit[0] = f32::from_bits(bh::st(t13));
         let t14 = t13 * bh::ld(l.light_way[0]);
@@ -229,7 +223,7 @@ fn fade_x87(s: &SnowState, l: &mut SnowLight, f: &MarksFloats) {
         let t20 = t16 + t19;
         l.dot = f32::from_bits(bh::st(t20));
         let t21 = t20 * t20;
-        let t22 = t21 * f.sixteen.ld();
+        let t22 = t21 * bh::ld(f.sixteen);
         l.fade_index = bh::to_int(t22) as u32;
     }
 }
@@ -240,22 +234,22 @@ fn square_x87(
     vt: impl Base,
     i: usize,
     t: &SnowTables,
-    s: &SnowState,
+    s: &mut SnowState,
     l: &SnowLight,
 ) {
-    let t0 = s.turned[2].ld();
+    let t0 = bh::ld(s.turned[2]);
     let t1 = crate::math::x87_float::ld(front.window.view_scale.get()) / t0;
-    s.depth.set(bh::st(t1));
-    let t2 = s.turned[1].ld();
+    s.depth = bh::st(t1);
+    let t2 = bh::ld(s.turned[1]);
     let t3 = t2 * t1;
-    let t4 = t1 * s.turned[0].ld();
+    let t4 = t1 * bh::ld(s.turned[0]);
     let t5 = -t3;
     let t6 = t5 + crate::math::x87_float::ld(front.window.view_centre[1].get());
     st(vt, 0x4, t6);
     let t7 = t4 + crate::math::x87_float::ld(front.window.view_centre[0].get());
     st(vt, 0x0, t7);
     let t8 = bh::ld(l.side);
-    let t9 = t8 * bh::ld(s.depth.get());
+    let t9 = t8 * bh::ld(s.depth);
     let t10 = ld(vt, 0x0);
     let t11 = t10 + t9;
     st(vt, 0x20, t11);
@@ -267,13 +261,13 @@ fn square_x87(
     let t14 = t9 + t13;
     st(vt, 0x44, t14);
     st(vt, 0x64, t14);
-    let t15 = s.turned[2].ld();
-    let t16 = t15 * s.inverse.ld();
+    let t15 = bh::ld(s.turned[2]);
+    let t16 = t15 * bh::ld(s.inverse);
     st(vt, 0x8, t16);
     st(vt, 0x28, t16);
     st(vt, 0x48, t16);
     st(vt, 0x68, t16);
-    let t17 = t.spreads[i / 4].ld();
+    let t17 = bh::ld(t.spreads[i / 4]);
     st(vt, 0x18, t17);
     st(vt, 0x78, t17);
     let t18 = t17 + bh::ld(l.u_offset);

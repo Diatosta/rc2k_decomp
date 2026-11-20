@@ -14,9 +14,9 @@ pub(super) fn set_quad_uvs(
     {
         crate::scene::depth_test_off::depth_test_off(scene.scratch.game_scratch());
         for n in 0..4 {
-            let values = &effects.blocks.corner_slopes.slopes[SET_RECORD].values;
-            buffer.vertices[n].u.set(values[2 * n].get());
-            buffer.vertices[n].v.set(values[2 * n + 1].get());
+            let values = effects.blocks.corner_slopes.borrow().slopes[SET_RECORD].values;
+            buffer.vertices[n].u.set(values[2 * n]);
+            buffer.vertices[n].v.set(values[2 * n + 1]);
         }
     }
 }

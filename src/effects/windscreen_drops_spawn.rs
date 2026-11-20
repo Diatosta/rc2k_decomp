@@ -26,10 +26,10 @@ pub(super) fn windscreen_drops_spawn(
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
     {
-        drops
-            .state
-            .frames
-            .set(drops.state.frames.get().wrapping_add(1));
+        {
+            let mut state = drops.state.borrow_mut();
+            state.frames = state.frames.wrapping_add(1);
+        }
         if !crate::effects::spawn_gate::DROPS.due(setup.clock.borrow().now) {
             return Ok(());
         }
@@ -38,7 +38,7 @@ pub(super) fn windscreen_drops_spawn(
         let status = setup.work.fpu_status.get() & 0x700;
         setup.work.fpu_status.set(status);
         if status != 0x100 {
-            let v = drops.state.spawn_rate.get();
+            let v = drops.state.borrow().spawn_rate;
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
                 pick_windscreen_drop(drops, effects)?;
@@ -64,9 +64,9 @@ fn rate_x87(drops: &WindscreenDrops, kv: &KeptView, work: &crate::effects::work_
     let t0 = kv.first_angle.ld();
     let t1 = t0 + bh::ld(drops.tilt.borrow().tilt);
     let t2 = t1.sin();
-    let t3 = t2 * drops.state.rate.ld();
-    drops.state.spawn_rate.st(t3);
-    let t4 = drops.state.rate.ld();
+    let t3 = t2 * bh::ld(drops.state.borrow().rate);
+    drops.state.borrow_mut().spawn_rate = f32::from_bits(bh::st(t3));
+    let t4 = bh::ld(drops.state.borrow().rate);
     let t5 = t4 * bh::ld(drops.tilt.borrow().point[2]);
     let t6 = -t5;
     let t7 = kv.first_angle.ld();
@@ -74,9 +74,9 @@ fn rate_x87(drops: &WindscreenDrops, kv: &KeptView, work: &crate::effects::work_
     let t9 = t8.cos();
     let t10 = t6 * t9;
     let t11 = t10 * ld_cell(&drops.hex.spawn_k[0]);
-    let t12 = t11 + drops.state.spawn_rate.ld();
-    drops.state.spawn_rate.st(t12);
-    let t13 = drops.state.spawn_rate.ld();
+    let t12 = t11 + bh::ld(drops.state.borrow().spawn_rate);
+    drops.state.borrow_mut().spawn_rate = f32::from_bits(bh::st(t12));
+    let t13 = bh::ld(drops.state.borrow().spawn_rate);
     crate::effects::plain::set_status(work, bh::compare(t13, ld_cell(&drops.hex.spawn_k[1])));
 }
 

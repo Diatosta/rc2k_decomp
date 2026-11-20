@@ -9,17 +9,20 @@
 
 use crate::effects::pong::{self};
 use crate::effects::pong_store::{Pong, PongRules, PongState};
-use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 
 /// The centres and their difference.
 fn centres(pong: &Pong) {
-    centres_x87(&pong.state, &pong.rules);
+    centres_x87(&mut pong.state.borrow_mut(), &pong.rules);
 }
 
 /// The difference made one long, scaled.
 fn new_way(pong: &Pong, effects: &crate::effects::owner::Effects) {
-    new_way_x87(&pong.state, &pong.rules, effects.setup.floats.one.get());
+    new_way_x87(
+        &mut pong.state.borrow_mut(),
+        &pong.rules,
+        effects.setup.floats.one,
+    );
 }
 
 pub fn pong_ball_hits(pong: &Pong, effects: &crate::effects::owner::Effects) {
@@ -27,72 +30,75 @@ pub fn pong_ball_hits(pong: &Pong, effects: &crate::effects::owner::Effects) {
     if !over {
         return;
     }
-    let p = &pong.state;
-    p.hits.set(p.hits.get().wrapping_add(1));
-    p.steps.set(p.steps.get().wrapping_add(4));
-    for n in 0..2 {
-        p.ball[n].set(x87::sub(&p.ball[n], &p.ball_way[n]));
+    {
+        let mut p = pong.state.borrow_mut();
+        p.hits = p.hits.wrapping_add(1);
+        p.steps = p.steps.wrapping_add(4);
+        for n in 0..2 {
+            p.ball[n] = x87::sub(p.ball[n], p.ball_way[n]);
+        }
     }
     centres(pong);
-    let across = p.difference[0].get();
+    let across = pong.state.borrow().difference[0];
     if across == 0.0 && across.is_sign_positive() {
-        p.difference[0].set(x87::sub(&p.difference[0], pong.rules.nudge));
+        let mut p = pong.state.borrow_mut();
+        p.difference[0] = x87::sub(p.difference[0], pong.rules.nudge);
     }
     new_way(pong, effects);
-    p.ball_way[0].set(p.difference[0].get());
-    p.ball_way[1].set(p.difference[1].get());
+    let mut p = pong.state.borrow_mut();
+    p.ball_way = p.difference;
 }
 
-use crate::math::x87_float::ld;
+use crate::math::x87_float::{self as bh, ld};
 
 /// `centres`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn centres_x87(p: &PongState, r: &PongRules) {
-    let t0 = p.ball_size[0].ld();
+fn centres_x87(p: &mut PongState, r: &PongRules) {
+    let t0 = bh::ld(p.ball_size[0]);
     let t1 = t0 * ld(r.centre[0]);
-    let t2 = t1 + p.ball[0].ld();
-    p.ball_centre[0].st(t2);
-    let t3 = p.ball_size[1].ld();
+    let t2 = t1 + bh::ld(p.ball[0]);
+    p.ball_centre[0] = f32::from_bits(bh::st(t2));
+    let t3 = bh::ld(p.ball_size[1]);
     let t4 = t3 * ld(r.centre[1]);
-    let t5 = t4 + p.ball[1].ld();
-    p.ball_centre[1].st(t5);
-    let t6 = p.bat_size[0].ld();
+    let t5 = t4 + bh::ld(p.ball[1]);
+    p.ball_centre[1] = f32::from_bits(bh::st(t5));
+    let t6 = bh::ld(p.bat_size[0]);
     let t7 = t6 * ld(r.centre[2]);
-    let t8 = t7 + p.bat[0].ld();
-    p.bat_centre[0].st(t8);
-    let t9 = p.bat_size[1].ld();
+    let t8 = t7 + bh::ld(p.bat[0]);
+    p.bat_centre[0] = f32::from_bits(bh::st(t8));
+    let t9 = bh::ld(p.bat_size[1]);
     let t10 = t9 * ld(r.centre[3]);
-    let t11 = t10 + p.bat[1].ld();
-    p.bat_centre[1].st(t11);
-    let t12 = p.ball_centre[0].ld();
-    let t13 = t12 - p.bat_centre[0].ld();
-    p.difference[0].st(t13);
-    let t14 = p.ball_centre[1].ld();
-    let t15 = t14 - p.bat_centre[1].ld();
-    p.difference[1].st(t15);
+    let t11 = t10 + bh::ld(p.bat[1]);
+    p.bat_centre[1] = f32::from_bits(bh::st(t11));
+    let t12 = bh::ld(p.ball_centre[0]);
+    let t13 = t12 - bh::ld(p.bat_centre[0]);
+    p.difference[0] = f32::from_bits(bh::st(t13));
+    let t14 = bh::ld(p.ball_centre[1]);
+    let t15 = t14 - bh::ld(p.bat_centre[1]);
+    p.difference[1] = f32::from_bits(bh::st(t15));
 }
 
 /// `new_way`'s x87 block as plain Rust on the x87 model (19 instructions), same order and
 /// memory places; `length` the bits of `MarksFloats.one`.
-fn new_way_x87(p: &PongState, r: &PongRules, length: f32) {
-    let t0 = p.difference[0].ld();
+fn new_way_x87(p: &mut PongState, r: &PongRules, length: f32) {
+    let t0 = bh::ld(p.difference[0]);
     let t1 = t0 * t0;
-    let t2 = p.difference[1].ld();
+    let t2 = bh::ld(p.difference[1]);
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
     let t6 = ld(length) / t5;
-    let t7 = p.difference[0].ld();
+    let t7 = bh::ld(p.difference[0]);
     let t8 = t7 * t6;
-    p.difference[0].st(t8);
-    let t9 = p.difference[1].ld();
+    p.difference[0] = f32::from_bits(bh::st(t8));
+    let t9 = bh::ld(p.difference[1]);
     let t10 = t6 * t9;
-    p.difference[1].st(t10);
-    let t11 = p.difference[0].ld();
+    p.difference[1] = f32::from_bits(bh::st(t10));
+    let t11 = bh::ld(p.difference[0]);
     let t12 = t11 * ld(r.way_scale[0]);
-    p.difference[0].st(t12);
-    let t13 = p.difference[1].ld();
+    p.difference[0] = f32::from_bits(bh::st(t12));
+    let t13 = bh::ld(p.difference[1]);
     let t14 = t13 * ld(r.way_scale[1]);
-    p.difference[1].st(t14);
+    p.difference[1] = f32::from_bits(bh::st(t14));
 }
 
 #[cfg(test)]

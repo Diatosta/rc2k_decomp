@@ -4,19 +4,18 @@
 //! Refuses (before anything) a current car past 7 (`listed_car_sounds` holds eight).
 
 use crate::errors::Refused;
-use crate::memory::session::PlainDword;
 use crate::race::frame_store::FrameWork;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::listed_cars::listed_entry;
 
 /// Sets `flag` to 1 when the current car is listed (`FrameWork.listed_car_sounds`).
-pub fn set_flag(frame_work: &FrameWork, work: &RaceWork, flag: &PlainDword) -> Result<(), Refused> {
+pub fn set_flag(frame_work: &FrameWork, work: &RaceWork, flag: &mut u32) -> Result<(), Refused> {
     let current = work.current_car.get();
     let (_, listed) = listed_entry(current, |car| {
         frame_work.listed_car_sounds[car as usize].get()
     })?;
     if listed {
-        flag.set(1);
+        *flag = 1;
     }
     Ok(())
 }

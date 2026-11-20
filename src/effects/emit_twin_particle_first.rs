@@ -158,11 +158,11 @@ pub(super) fn emit_twin(
     slot.put(|en| &mut en.life, life)?;
     slot.put(
         |en| &mut en.alpha_fade,
-        x87::over_int(&effects.setup.floats.two_fifty_seven, life as i32),
+        x87::over_int(effects.setup.floats.two_fifty_seven, life as i32),
     )?;
     slot.put(
         |en| &mut en.alpha,
-        effects.setup.floats.two_fifty_five.bits(),
+        effects.setup.floats.two_fifty_five.to_bits(),
     )?;
     slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
     Ok(())

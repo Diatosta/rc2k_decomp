@@ -33,8 +33,8 @@ fn count(
     let setup = &effects.setup;
     Ok({
         let n = ((record.flags.get() >> 6) << 2) as i32;
-        let (size, k) = (record.size.get(), setup.floats.thirty_second.get());
-        let under = x87::times_compare(size, k, &setup.floats.one) & 0x700 == 0x100;
+        let (size, k) = (record.size.get(), setup.floats.thirty_second);
+        let under = x87::times_compare(size, k, setup.floats.one) & 0x700 == 0x100;
         let count = if under {
             bh::to_int(bh::ld(size) * bh::ld(k) * bh::int(n))
         } else {
@@ -79,7 +79,7 @@ pub fn emit_body_contact_particles(
                 .map(|r| extended(r.get()));
             let (moved, _) = jitter_point(
                 [
-                    extended(effects.setup.floats.hundred_twenty_eight.get()),
+                    extended(effects.setup.floats.hundred_twenty_eight),
                     m[2],
                     m[1],
                     m[0],
@@ -93,7 +93,7 @@ pub fn emit_body_contact_particles(
             slot.put(|en| &mut en.place[1], x87::loaded(&record.place[1]))?;
             slot.put(
                 |en| &mut en.ground_y,
-                x87::sub(&record.place[1], &effects.setup.floats.fixed_16_scale),
+                x87::sub(&record.place[1], effects.setup.floats.fixed_16_scale),
             )?;
             slot.put(|en| &mut en.place[2], x87::loaded(&record.place[2]))?;
             for n in 0..3 {
@@ -103,7 +103,7 @@ pub fn emit_body_contact_particles(
             slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
             slot.put(
                 |en| &mut en.alpha_fade,
-                x87::over_int(&effects.setup.floats.two_fifty_seven, LIFE as i32),
+                x87::over_int(effects.setup.floats.two_fifty_seven, LIFE as i32),
             )?;
         }
     }

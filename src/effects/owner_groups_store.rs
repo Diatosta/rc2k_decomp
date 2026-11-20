@@ -37,7 +37,7 @@ impl Clipping {
 pub struct Blocks {
     pub places: PlacesBlock,
     pub links: MarkLinks,
-    pub corner_slopes: CornerSlopes,
+    pub corner_slopes: std::cell::RefCell<CornerSlopes>,
     pub corners: MarkCorners,
     pub slots: MarkSlots,
     pub slot_tuning: SlotTuning,
@@ -48,7 +48,7 @@ impl Blocks {
         Blocks {
             places: PlacesBlock::new(),
             links: MarkLinks::new(),
-            corner_slopes: CornerSlopes::new(),
+            corner_slopes: std::cell::RefCell::new(CornerSlopes::new()),
             corners: MarkCorners::new(),
             slots: MarkSlots::new(),
             slot_tuning: SlotTuning::new(),
@@ -130,7 +130,7 @@ pub struct Setup {
     pub stage: core::cell::Cell<Option<&'static crate::race::stage_data_store::StageData>>,
     pub frame: MarksFrame,
     pub floats: MarksFloats,
-    pub kind_floats: MarksKindFloats,
+    pub kind_floats: std::cell::RefCell<MarksKindFloats>,
     pub mask_constants: MaskConstants,
     pub work: MarksWork,
 }
@@ -146,7 +146,7 @@ impl Setup {
             stage: core::cell::Cell::new(None),
             frame: MarksFrame::new(),
             floats: MarksFloats::new(),
-            kind_floats: MarksKindFloats::new(),
+            kind_floats: std::cell::RefCell::new(MarksKindFloats::new()),
             mask_constants: MaskConstants::new(),
             work: MarksWork::new(),
         }

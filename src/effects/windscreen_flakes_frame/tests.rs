@@ -57,10 +57,15 @@ fn frame_axes_x87_matches() {
         &SPEC,
         |b| {
             with_laid::<RefCell<WindscreenFlakeTiming>, _>(b[0], |sti| {
-                with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
-                    with_laid::<WindscreenFlakeState, _>(b[0], |ss| {
+                with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |sq| {
+                    with_laid::<std::cell::RefCell<WindscreenFlakeState>, _>(b[0], |ss| {
                         with_settings(b[1], |m| {
-                            super::frame_axes_x87(m, &mut sti.borrow_mut(), sq, ss);
+                            super::frame_axes_x87(
+                                m,
+                                &mut sti.borrow_mut(),
+                                &mut sq.borrow_mut(),
+                                &ss.borrow(),
+                            );
                         });
                     });
                 });
@@ -106,9 +111,11 @@ fn frame_up_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.windscreen_flakes_frame.frame_up_x87", &SPEC, |b| {
-        with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
-            with_laid::<WindscreenFlakeState, _>(b[0], |ss| {
-                with_settings(b[1], |m| super::frame_up_x87(m, sq, ss));
+        with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |sq| {
+            with_laid::<std::cell::RefCell<WindscreenFlakeState>, _>(b[0], |ss| {
+                with_settings(b[1], |m| {
+                    super::frame_up_x87(m, &mut sq.borrow_mut(), &ss.borrow());
+                });
             });
         });
     });
@@ -184,10 +191,10 @@ fn frame_facing_x87_matches() {
                     overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
                 ],
                 || {
-                    with_laid::<WindscreenFlakeTables, _>(b[0], |m| {
+                    with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |m| {
                         super::frame_facing_x87(
                             &crate::test_support::own::effects().windscreen_drops,
-                            m,
+                            &mut m.borrow_mut(),
                         );
                     });
                 },

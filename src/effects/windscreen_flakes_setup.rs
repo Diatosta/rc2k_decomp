@@ -7,7 +7,6 @@
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 use crate::math::x87;
-use crate::memory::session::PlainFloat;
 const STATES: [(u32, u32); 7] = [
     (2, 0x11),
     (2, 0x12),
@@ -23,12 +22,7 @@ pub(super) fn windscreen_flakes_setup(
     fl: &WindscreenFlakes,
     scene: &crate::scene::owner::Scene,
 ) {
-    setup_with(
-        buffer,
-        fl,
-        fl.state.setup_places.each_ref().map(PlainFloat::get),
-        scene,
-    );
+    setup_with(buffer, fl, fl.state.borrow().setup_places, scene);
 }
 
 /// The set-up with the texture places `places` (`effects::pong_setup` has its own).
@@ -66,8 +60,7 @@ pub(super) fn setup_with(
             .front_end_polygon()
             .polygon_vertex_count
             .set(4);
-        fl.tables.inverse.set(x87::reciprocal(
-            &scene.scratch.front_end_polygon().window.farthest,
-        ));
+        fl.tables.borrow_mut().inverse =
+            x87::reciprocal(&scene.scratch.front_end_polygon().window.farthest);
     }
 }

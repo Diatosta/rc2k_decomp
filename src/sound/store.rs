@@ -658,15 +658,15 @@ impl TimedCells for SoundSlot {
     }
 }
 
-/// A sound spot shared with the sound side, 0x14 bytes.
-#[derive(rc2k_derive::Cells)]
+/// A sound spot shared with the sound side.
+#[derive(Clone, Copy)]
 pub struct SharedSpot {
     /// The spot's id.
-    pub id: PlainDword,
+    pub id: u32,
     /// Its place.
-    pub place: [PlainFloat; 3],
+    pub place: [f32; 3],
     /// Its kind, 1 .. 0x15.
-    pub kind: PlainDword,
+    pub kind: u32,
 }
 
 /// A spot kind's repeats.
@@ -679,34 +679,32 @@ pub struct KindRepeats {
     pub most_delay: u16,
 }
 
-/// The stage sounds' state and the shared sound spots.
-#[derive(rc2k_derive::Cells)]
+/// The stage sounds' state and the shared sound spots (the timed sound's slot is
+/// `RaceSoundState::timed_slot`).
 pub struct StageSounds {
     /// A surface's sound set (an index into `SurfaceSets.sets`' pairs), 16 surfaces.
-    pub surface_sets: [PlainDword; 16],
+    pub surface_sets: [u32; 16],
     /// At 1 the stage's one-off sound is played once (the flag is cleared).
-    pub once: [PlainDword; 3],
+    pub once: [u32; 3],
     /// At 1 the timed sound is armed (cleared; due and waiting set).
-    pub timed_arm: PlainDword,
+    pub timed_arm: u32,
     /// The timed sound's place.
-    pub timed_place: [PlainFloat; 3],
+    pub timed_place: [f32; 3],
     /// The delay (ms) from arming to the timed sound.
-    pub timed_delay: PlainDword,
+    pub timed_delay: u32,
     /// The volume (halved) of the sound that plays all the time.
-    pub loop_volume_a: PlainDword,
+    pub loop_volume_a: u32,
     /// The volume of the second.
-    pub loop_volume_b: PlainDword,
+    pub loop_volume_b: u32,
     /// The clock the timed sound is due at.
-    pub timed_due: PlainDword,
+    pub timed_due: u32,
     /// 1 while it waits to be due.
-    pub timed_waiting: PlainDword,
-    /// The timed sound's slot (sound 0x1C4).
-    pub timed_slot: SoundSlot,
+    pub timed_waiting: u32,
     /// At 1 a sound at a random pitch and place is played once.
-    pub random: [PlainDword; 2],
+    pub random: [u32; 2],
     /// The spots the race frame shared this frame (`race::share_sound_spots`).
-    pub shared_count: PlainDword,
-    /// The spots shared with the sound side, 36 of 0x14 bytes.
+    pub shared_count: u32,
+    /// The spots shared with the sound side, 36 of them.
     pub shared_spots: [SharedSpot; 36],
 }
 
@@ -714,58 +712,35 @@ pub struct StageSounds {
 impl StageSounds {
     pub const fn new() -> Self {
         StageSounds {
-            surface_sets: [
-                PlainDword::new(1),
-                PlainDword::new(3),
-                PlainDword::new(0),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(4),
-                PlainDword::new(1),
-                PlainDword::new(1),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(6),
-                PlainDword::new(2),
-                PlainDword::new(2),
-                PlainDword::new(1),
-                PlainDword::new(1),
-                PlainDword::new(1),
-            ],
-            once: [PlainDword::new(0), PlainDword::new(0), PlainDword::new(0)],
-            timed_arm: PlainDword::new(0),
-            timed_place: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(2.0),
-                PlainFloat::new(1.0),
-            ],
-            timed_delay: PlainDword::new(0),
-            loop_volume_a: PlainDword::new(0),
-            loop_volume_b: PlainDword::new(0),
-            timed_due: PlainDword::new(0),
-            timed_waiting: PlainDword::new(0),
-            timed_slot: SoundSlot {
-                sound: PlainDword::new(0x1C4),
-                start: PlainDword::new(0),
-                playing: PlainDword::new(0),
-                ends: PlainDword::new(0),
-                volume: PlainDword::new(0xFFFFFF91),
-                rate: PlainDword::new(0xFFFFFF91),
-            },
-            random: [PlainDword::new(0), PlainDword::new(0)],
-            shared_count: PlainDword::new(0),
-            shared_spots: [const {
-                SharedSpot {
-                    id: PlainDword::new(0),
-                    place: [
-                        PlainFloat::new(0.0),
-                        PlainFloat::new(0.0),
-                        PlainFloat::new(0.0),
-                    ],
-                    kind: PlainDword::new(0),
-                }
+            surface_sets: [1, 3, 0, 1, 2, 4, 1, 1, 1, 2, 6, 2, 2, 1, 1, 1],
+            once: [0; 3],
+            timed_arm: 0,
+            timed_place: [0.0, 2.0, 1.0],
+            timed_delay: 0,
+            loop_volume_a: 0,
+            loop_volume_b: 0,
+            timed_due: 0,
+            timed_waiting: 0,
+            random: [0; 2],
+            shared_count: 0,
+            shared_spots: [SharedSpot {
+                id: 0,
+                place: [0.0; 3],
+                kind: 0,
             }; 36],
         }
+    }
+}
+
+/// The stage's timed sound's slot (sound 0x1C4), starting as the game does.
+pub const fn stage_timed_slot() -> SoundSlot {
+    SoundSlot {
+        sound: PlainDword::new(0x1C4),
+        start: PlainDword::new(0),
+        playing: PlainDword::new(0),
+        ends: PlainDword::new(0),
+        volume: PlainDword::new(0xFFFFFF91),
+        rate: PlainDword::new(0xFFFFFF91),
     }
 }
 

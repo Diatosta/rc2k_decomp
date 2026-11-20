@@ -39,7 +39,7 @@ fn rate(
             k1,
             k2,
             k3,
-            &effects.setup.floats.one,
+            effects.setup.floats.one,
             k4,
         )
     })
@@ -144,11 +144,11 @@ pub(super) fn emit_rolling_particles_rated(
         slot.put(|en| &mut en.life, LIFE)?;
         slot.put(
             |en| &mut en.alpha_fade,
-            x87::over_int(&effects.setup.floats.two_fifty_seven, LIFE as i32),
+            x87::over_int(effects.setup.floats.two_fifty_seven, LIFE as i32),
         )?;
         slot.put(
             |en| &mut en.alpha,
-            effects.setup.floats.two_fifty_five.bits(),
+            effects.setup.floats.two_fifty_five.to_bits(),
         )?;
         slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
         let size = car.rate.get().wrapping_add(g.rate as u32);

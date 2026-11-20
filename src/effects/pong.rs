@@ -7,7 +7,6 @@
 //! `PongState.digit_patterns` (0x14 each).
 
 use crate::effects::pong_store::Pong;
-use crate::memory::session::PlainFloat;
 
 /// The status bits (0x700 mask) of `a + b` compared with `c`.
 fn sum_compare(a: f32, b: f32, c: f32) -> u32 {
@@ -33,31 +32,21 @@ fn less_status(x: f32, k: f32, w: f32, m: Option<f32>) -> u16 {
     bh::compare(t, bh::ld(x))
 }
 
-fn pair(r: &[PlainFloat; 2]) -> [f32; 2] {
-    r.each_ref().map(PlainFloat::get)
-}
-
-fn put_pair(r: &[PlainFloat; 2], v: [f32; 2]) {
-    for (r, v) in r.iter().zip(v) {
-        r.set(v);
-    }
-}
-
 /// The court (`rc2k_core::effects::pong::Court`) from the game's variables.
 pub fn court(pong: &Pong) -> rc2k_core::effects::pong::Court {
-    let p = &pong.state;
+    let p = pong.state.borrow();
     rc2k_core::effects::pong::Court {
-        ball: pair(&p.ball),
-        way: pair(&p.ball_way),
-        ball_size: pair(&p.ball_size),
-        saved_bat: pair(&p.saved_bat).map(f32::to_bits),
-        bat: pair(&p.bat),
-        bat_size: pair(&p.bat_size),
-        ball_centre: pair(&p.ball_centre),
-        bat_centre: pair(&p.bat_centre),
-        difference: pair(&p.difference),
-        steps: p.steps.get(),
-        hits: p.hits.get(),
+        ball: p.ball,
+        way: p.ball_way,
+        ball_size: p.ball_size,
+        saved_bat: p.saved_bat.map(f32::to_bits),
+        bat: p.bat,
+        bat_size: p.bat_size,
+        ball_centre: p.ball_centre,
+        bat_centre: p.bat_centre,
+        difference: p.difference,
+        steps: p.steps,
+        hits: p.hits,
     }
 }
 
@@ -68,24 +57,25 @@ fn put_court(
     c: &rc2k_core::effects::pong::Court,
     before: &rc2k_core::effects::pong::Court,
 ) {
-    let p = &pong.state;
+    let mut p = pong.state.borrow_mut();
+    let p = &mut *p;
     for (r, v, b) in [
-        (&p.ball, c.ball, before.ball),
-        (&p.ball_way, c.way, before.way),
-        (&p.ball_size, c.ball_size, before.ball_size),
-        (&p.bat, c.bat, before.bat),
-        (&p.bat_size, c.bat_size, before.bat_size),
-        (&p.ball_centre, c.ball_centre, before.ball_centre),
-        (&p.bat_centre, c.bat_centre, before.bat_centre),
-        (&p.difference, c.difference, before.difference),
+        (&mut p.ball, c.ball, before.ball),
+        (&mut p.ball_way, c.way, before.way),
+        (&mut p.ball_size, c.ball_size, before.ball_size),
+        (&mut p.bat, c.bat, before.bat),
+        (&mut p.bat_size, c.bat_size, before.bat_size),
+        (&mut p.ball_centre, c.ball_centre, before.ball_centre),
+        (&mut p.bat_centre, c.bat_centre, before.bat_centre),
+        (&mut p.difference, c.difference, before.difference),
     ] {
         if v.map(f32::to_bits) != b.map(f32::to_bits) {
-            put_pair(r, v);
+            *r = v;
         }
     }
-    put_pair(&p.saved_bat, c.saved_bat.map(f32::from_bits));
-    p.steps.set(c.steps);
-    p.hits.set(c.hits);
+    p.saved_bat = c.saved_bat.map(f32::from_bits);
+    p.steps = c.steps;
+    p.hits = c.hits;
 }
 
 /// The court's constants from the game.
@@ -98,7 +88,7 @@ pub fn rules(
         centre: r.centre,
         nudge: r.nudge,
         way_scale: r.way_scale,
-        length: effects.setup.floats.one.get(),
+        length: effects.setup.floats.one,
         walls: r.walls,
         start: r.start.map(f32::to_bits),
     }
@@ -120,16 +110,16 @@ pub(super) fn with_court<T>(
 /// `effects::pong_bat_back`): whether they overlap (no compare gave C0 alone) and the
 /// last status.
 pub fn overlap(pong: &Pong) -> (bool, u32) {
-    let p = &pong.state;
+    let p = pong.state.borrow();
     let tests = [
-        (&p.ball[0], &p.ball_size[0], &p.bat[0]),
-        (&p.bat[0], &p.bat_size[0], &p.ball[0]),
-        (&p.ball[1], &p.ball_size[1], &p.bat[1]),
-        (&p.bat[1], &p.bat_size[1], &p.ball[1]),
+        (p.ball[0], p.ball_size[0], p.bat[0]),
+        (p.bat[0], p.bat_size[0], p.ball[0]),
+        (p.ball[1], p.ball_size[1], p.bat[1]),
+        (p.bat[1], p.bat_size[1], p.ball[1]),
     ];
     let mut s = 0;
     for (a, b, c) in tests {
-        s = sum_compare(a.get(), b.get(), c.get());
+        s = sum_compare(a, b, c);
         if s == 0x100 {
             return (false, s);
         }

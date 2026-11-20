@@ -316,7 +316,7 @@ pub fn run_particles(
         if effects.setup.frame.steps.get() & 7 != 0 {
             return Ok(());
         }
-        sound.race.stage.get().random[0].set(1);
+        sound.race.stage.get().borrow_mut().random[0] = 1;
         let seed = || {
             let s = effects
                 .setup

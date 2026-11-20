@@ -72,16 +72,21 @@ mod squares {
     pub fn make_plain(fl: &WindscreenFlakes) {
         use rc2k_core::effects::shapes as core;
         clear_items(fl);
-        let curve = core::curve(fl.state.curve_ends[0].get(), fl.state.curve_ends[1].get());
-        for (cell, v) in fl.tables.curve.iter().zip(curve) {
-            cell.set(v);
-        }
-        let (c, d): (i32, f32) = (fl.state.steps.get() as i32, fl.state.step_angle.get());
+        let (ends, steps, angle) = {
+            let state = fl.state.borrow();
+            (state.curve_ends, state.steps as i32, state.step_angle)
+        };
+        let curve = core::curve(ends[0], ends[1]);
+        let mut tables = fl.tables.borrow_mut();
+        tables.curve = curve;
         for n in 0..RADII as usize {
-            let r = fl.tables.radii[n].get();
-            for (k, [x, y]) in core::circle(r, SIDES as u32, c, d).into_iter().enumerate() {
-                fl.tables.points[n][k][0].set(x);
-                fl.tables.points[n][k][1].set(y);
+            let r = tables.radii[n];
+            for (k, [x, y]) in core::circle(r, SIDES as u32, steps, angle)
+                .into_iter()
+                .enumerate()
+            {
+                tables.points[n][k][0] = x;
+                tables.points[n][k][1] = y;
             }
         }
     }
@@ -89,18 +94,23 @@ mod squares {
     /// The items cleared, the curve, the circles.
     pub fn make(fl: &WindscreenFlakes) {
         clear_items(fl);
-        let (a, b) = (fl.state.curve_ends[0].get(), fl.state.curve_ends[1].get());
-        for (n, cell) in fl.tables.curve.iter().enumerate().take(CURVE as usize) {
+        let (ends, steps, angle) = {
+            let state = fl.state.borrow();
+            (state.curve_ends, state.steps as i32, state.step_angle)
+        };
+        let mut tables = fl.tables.borrow_mut();
+        for (n, cell) in tables.curve.iter_mut().enumerate().take(CURVE as usize) {
             let i = 8 * n as i32;
-            cell.set(x87::circle_curve(i, a, b, i < 0x400));
+            *cell = x87::circle_curve(i, ends[0], ends[1], i < 0x400);
         }
         for n in 0..RADII as usize {
-            super::circle_cells(
-                fl.tables.radii[n].get(),
-                fl.tables.points[n].as_flattened(),
+            let r = tables.radii[n];
+            x87::circle_points(
+                r,
+                tables.points[n].as_flattened_mut(),
                 SIDES as u32,
-                fl.state.steps.get() as i32,
-                fl.state.step_angle.get(),
+                steps,
+                angle,
             );
         }
     }
@@ -238,7 +248,7 @@ fn windscreen_drops_with(
                 at += 6;
             }
         }
-        let value = effects.setup.floats.two_fifty_six.get().to_bits();
+        let value = effects.setup.floats.two_fifty_six.to_bits();
         for n in 0..FANS as usize {
             for part in 0..6 {
                 let p = 0xC0 * n + 0x20 * part;

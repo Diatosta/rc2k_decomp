@@ -55,153 +55,131 @@ impl MarksFrame {
 }
 
 /// The marks' constants (a pool of integers and floats the effects' code multiplies by).
-#[derive(rc2k_derive::Cells)]
 pub struct MarksFloats {
     /// 0x10000, the ring's pull limit (`effects::run_ring`).
-    pub pull_limit: PlainInt,
+    pub pull_limit: i32,
     /// -65.536, multiplied with a burst's strength and direction factors to make the burst's
     /// direction vector (`effects::emit_wheel_grit_bursts`).
-    pub burst_direction_k: PlainFloat,
+    pub burst_direction_k: f32,
     /// -0.125, the burst's turn scale (`effects::emit_wheel_grit_bursts`).
-    pub minus_eighth: PlainFloat,
+    pub minus_eighth: f32,
     /// 0.5 (`effects::emit_wheel_grit_bursts`, `effects::emit_car_particles`, `effects::draw_pong_box`).
-    pub half: PlainFloat,
+    pub half: f32,
     /// 0.05, the ring's frame scale (`effects::run_ring`).
-    pub twentieth: PlainFloat,
+    pub twentieth: f32,
     /// 0.2 (`effects::emit_rolling_dust`).
-    pub fifth: PlainFloat,
+    pub fifth: f32,
     /// 0.3 (`effects::emit_rolling_dust`).
-    pub three_tenths: PlainFloat,
+    pub three_tenths: f32,
     /// 1.0.
-    pub one: PlainFloat,
+    pub one: f32,
     /// 3.0 (`effects::emit_body_particles`).
-    pub three: PlainFloat,
+    pub three: f32,
     /// 16.0 (`effects::draw_snow`).
-    pub sixteen: PlainFloat,
+    pub sixteen: f32,
     /// 32.0 (`effects::emit_wheel_grit_bursts`).
-    pub thirty_two: PlainFloat,
+    pub thirty_two: f32,
     /// 128.0 (`effects::emit_body_contact_particles`).
-    pub hundred_twenty_eight: PlainFloat,
+    pub hundred_twenty_eight: f32,
     /// 255.0, as bits (the particles' fade scale).
-    pub two_fifty_five: PlainFloat,
+    pub two_fifty_five: f32,
     /// 256.0, as bits.
-    pub two_fifty_six: PlainFloat,
+    pub two_fifty_six: f32,
     /// 257.0 (the particles' life scale).
-    pub two_fifty_seven: PlainFloat,
+    pub two_fifty_seven: f32,
     /// 0.25.
-    pub quarter: PlainFloat,
+    pub quarter: f32,
     /// 0.125 (`effects::set_up_surface`).
-    pub eighth: PlainFloat,
+    pub eighth: f32,
     /// 0.0625 (`effects::make_fade_colours`).
-    pub sixteenth: PlainFloat,
+    pub sixteenth: f32,
     /// 1/512, the surface places' edge value (`effects::set_up_surface`'s `edge`).
-    pub surface_edge: PlainFloat,
+    pub surface_edge: f32,
     /// 1/256, the surface places' pixel value (`effects::set_up_surface`'s `pixel`).
-    pub surface_pixel: PlainFloat,
+    pub surface_pixel: f32,
     /// 1/32: the surface places' step (`effects::set_up_surface`), the emitters' size factor
     /// (`effects::emit_body_contact_particles`, `effects::emit_rolling_dust`'s count) and the
     /// least strength.
-    pub thirty_second: PlainFloat,
+    pub thirty_second: f32,
     /// 65.536, the scale `effects::emit_exhaust_smoke` turns the spline point's place with
     /// (probably the model units to metres).
-    pub particle_13_place_k: PlainFloat,
+    pub particle_13_place_k: f32,
     /// 65536.0, the 16-bit fixed-point one: a chance (0 .. 1) times it is compared with a 16-bit
     /// random, and the ring's fractions are scaled by it.
-    pub fixed_16_scale: PlainFloat,
+    pub fixed_16_scale: f32,
     /// 700.0 (`effects::emit_exhaust_smoke`).
-    pub seven_hundred: PlainFloat,
+    pub seven_hundred: f32,
     /// 100.0.
-    pub hundred: PlainFloat,
+    pub hundred: f32,
     /// 2000.0 (`effects::emit_rolling_dust`).
-    pub two_thousand: PlainFloat,
+    pub two_thousand: f32,
     /// 1/65536 (`effects::emit_wheel_grit_bursts`, `effects::emit_exhaust_smoke`).
-    pub over_65536: PlainFloat,
+    pub over_65536: f32,
     /// A double (low dword, high dword), 2^-31 (`effects::spread_point`).
-    pub spread_scale: [PlainDword; 2],
+    pub spread_scale: [u32; 2],
 }
 
 impl MarksFloats {
     pub const fn new() -> Self {
         Self {
-            pull_limit: PlainInt::new(0x10000),
-            burst_direction_k: PlainFloat::new(-65.536),
-            minus_eighth: PlainFloat::new(-0.125),
-            half: PlainFloat::new(0.5),
-            twentieth: PlainFloat::new(0.05),
-            fifth: PlainFloat::new(0.2),
-            three_tenths: PlainFloat::new(0.3),
-            one: PlainFloat::new(1.0),
-            three: PlainFloat::new(3.0),
-            sixteen: PlainFloat::new(16.0),
-            thirty_two: PlainFloat::new(32.0),
-            hundred_twenty_eight: PlainFloat::new(128.0),
-            two_fifty_five: PlainFloat::new(255.0),
-            two_fifty_six: PlainFloat::new(256.0),
-            two_fifty_seven: PlainFloat::new(257.0),
-            quarter: PlainFloat::new(0.25),
-            eighth: PlainFloat::new(0.125),
-            sixteenth: PlainFloat::new(0.0625),
-            surface_edge: PlainFloat::new(0.001953125),
-            surface_pixel: PlainFloat::new(0.00390625),
-            thirty_second: PlainFloat::new(0.03125),
-            particle_13_place_k: PlainFloat::new(65.536),
-            fixed_16_scale: PlainFloat::new(65536.0),
-            seven_hundred: PlainFloat::new(700.0),
-            hundred: PlainFloat::new(100.0),
-            two_thousand: PlainFloat::new(2000.0),
-            over_65536: PlainFloat::new(0.000015259),
-            spread_scale: [PlainDword::new(0), PlainDword::new(0x3E00_0000)],
+            pull_limit: 0x10000,
+            burst_direction_k: -65.536,
+            minus_eighth: -0.125,
+            half: 0.5,
+            twentieth: 0.05,
+            fifth: 0.2,
+            three_tenths: 0.3,
+            one: 1.0,
+            three: 3.0,
+            sixteen: 16.0,
+            thirty_two: 32.0,
+            hundred_twenty_eight: 128.0,
+            two_fifty_five: 255.0,
+            two_fifty_six: 256.0,
+            two_fifty_seven: 257.0,
+            quarter: 0.25,
+            eighth: 0.125,
+            sixteenth: 0.0625,
+            surface_edge: 0.001953125,
+            surface_pixel: 0.00390625,
+            thirty_second: 0.03125,
+            particle_13_place_k: 65.536,
+            fixed_16_scale: 65536.0,
+            seven_hundred: 700.0,
+            hundred: 100.0,
+            two_thousand: 2000.0,
+            over_65536: 0.000015259,
+            spread_scale: [0, 0x3E00_0000],
         }
     }
 }
 
 /// The settings' copies and the kinds' floats (`effects::frame_marks`, `effects::init_marks`).
-#[derive(rc2k_derive::Cells)]
 pub struct MarksKindFloats {
     /// The settings' `after_loading_copy`, copied each frame step (a reading: which colours the ribbons use).
-    pub other: PlainDword,
+    pub other: u32,
     /// The settings' `listener_near`, copied each frame step (a reading: the snow fades).
-    pub fading: PlainDword,
+    pub fading: u32,
     /// 0x17 floats by kind (the depth bias).
-    pub kind_floats: [PlainFloat; 23],
+    pub kind_floats: [f32; 23],
     /// This kind's float.
-    pub kind_float: PlainFloat,
+    pub kind_float: f32,
     /// The settings' `other_marks_shown`, copied each frame step (a reading: whether the effects run).
-    pub running: PlainDword,
+    pub running: u32,
 }
 
 impl MarksKindFloats {
     pub const fn new() -> Self {
         Self {
-            other: PlainDword::new(0x1),
-            fading: PlainDword::new(0x1),
+            other: 0x1,
+            fading: 0x1,
             kind_floats: [
-                PlainFloat::new(16240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(17240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(17240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(25240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(15240.0),
-                PlainFloat::new(13240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(16240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(18240.0),
-                PlainFloat::new(18240.0),
+                16240.0, 18240.0, 18240.0, 18240.0, 18240.0, 18240.0, 17240.0, 18240.0, 17240.0,
+                18240.0, 25240.0, 18240.0, 15240.0, 13240.0, 18240.0, 18240.0, 16240.0, 18240.0,
+                18240.0, 18240.0, 18240.0, 18240.0, 18240.0,
             ],
-            kind_float: PlainFloat::new(0.0),
-            running: PlainDword::new(0x0),
+            kind_float: 0.0,
+            running: 0x0,
         }
     }
 }

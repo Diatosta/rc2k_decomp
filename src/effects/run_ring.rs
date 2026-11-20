@@ -563,8 +563,8 @@ fn pull_toward(
             return Ok(());
         }
         pull_strength(ring, en, car, effects);
-        if (ring.work.whole.get() as i32) > (setup.floats.pull_limit.get()) {
-            en.size_factor = x87::loaded(&setup.floats.fixed_16_scale);
+        if (ring.work.whole.get() as i32) > (setup.floats.pull_limit) {
+            en.size_factor = x87::loaded(setup.floats.fixed_16_scale);
         }
     }
     Ok(())
@@ -597,7 +597,7 @@ fn boxed_kind(
         let size = en.size;
         let f = bh::to_int(
             bh::int(en.life as i32)
-                * bh::ld(effects.setup.floats.twentieth.get())
+                * bh::ld(effects.setup.floats.twentieth)
                 * bh::ld(en.cell_rate.to_bits()),
         );
         ring.work.whole.set(f as u32);
@@ -850,7 +850,7 @@ fn facing_x87(car: &CarEffects, f: &MarksFloats, w: &RingWork) {
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    let t9 = f.one.ld() / t8;
+    let t9 = bh::ld(f.one) / t8;
     let t10 = w.away[0].ld();
     let t11 = t10 * t9;
     w.away[0].st(t11);
@@ -906,7 +906,7 @@ fn pull_length_x87(
 /// `pull_facing`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn pull_facing_x87(car: &CarEffects, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
     let t0 = bh::from_f80(*l);
-    let t1 = f.one.ld() / t0;
+    let t1 = bh::ld(f.one) / t0;
     let t2 = w.away[0].ld();
     let t3 = t2 * t1;
     w.away[0].st(t3);
@@ -917,7 +917,7 @@ fn pull_facing_x87(car: &CarEffects, l: &[u8; 10], f: &MarksFloats, w: &RingWork
     let t7 = t1 * t6;
     w.away[2].st(t7);
     let t8 = ldi_cell(&car.pace);
-    let t9 = f.one.ld() / t8;
+    let t9 = bh::ld(f.one) / t8;
     let t10 = car_float(&car.motion[0]);
     let t11 = t10 * t9;
     w.turned[0].st(t11);
@@ -951,11 +951,11 @@ fn pull_strength_x87(
 ) {
     let t0 = ldi_cell(&car.pace);
     let t1 = t0 * bh::ld(rk.near_scale);
-    let t2 = t1 + f.one.ld();
-    let t3 = f.one.ld() / t2;
-    let t4 = f.one.ld() - t3;
+    let t2 = t1 + bh::ld(f.one);
+    let t3 = bh::ld(f.one) / t2;
+    let t4 = bh::ld(f.one) - t3;
     w.whole.st(t4);
-    let t5 = f.fixed_16_scale.ld();
+    let t5 = bh::ld(f.fixed_16_scale);
     let t6 = t5 - bh::ld(en.size_factor);
     let t7 = bh::ld(rk.near_rate);
     let t8 = t7 * w.whole.ld();

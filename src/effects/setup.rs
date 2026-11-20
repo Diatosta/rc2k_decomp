@@ -16,13 +16,14 @@ pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
     let setup = &effects.setup;
     // The logic is in `rc2k_core::effects::noise::seed_noise`.
     let (tables, seed) = rc2k_core::effects::noise::seed_noise(setup.work.seed.get());
-    for (table, values) in weather.rain.noise.iter().zip(tables) {
-        for (cell, v) in table.iter().zip(values) {
-            cell.set(v);
+    {
+        let mut rain = weather.rain.borrow_mut();
+        for (table, values) in rain.noise.iter_mut().zip(tables) {
+            table.copy_from_slice(&values);
         }
+        rain.drawn = 0;
     }
     setup.work.seed.set(seed);
-    weather.rain.drawn.set(0);
 }
 
 /// `effects::make_wave_tables`: once: the 0x11 levels, whole numbers, become floats (over 256,
@@ -84,7 +85,7 @@ pub(super) fn tick_clock(
         c.quarter = ticks >> 2;
         c.sixteenth = ticks >> 4;
         let (reciprocal, scaled) =
-            x87::reciprocal_int_and_times(ticks as i32, &setup.floats.quarter);
+            x87::reciprocal_int_and_times(ticks as i32, setup.floats.quarter);
         c.reciprocal = reciprocal;
         c.reciprocal_scaled = scaled;
         c.ticks_scaled = x87::mul(ticks, &setup.clock_k.ticks_scale);
@@ -172,24 +173,21 @@ pub(super) fn make_noise_curve(
     }
     let (spread_scale, spread_base): (f32, f32) = (light.spread_scale, light.spread_base);
     let t = core::random_tables(w.seed, divisors);
-    for (cells, table) in weather.snow_tables.randoms.iter().zip(&t.randoms) {
-        for (cell, v) in cells.iter().zip(table) {
-            cell.set(*v);
+    {
+        let mut tables = weather.snow_tables.borrow_mut();
+        for (cells, table) in tables.randoms.iter_mut().zip(&t.randoms) {
+            cells.copy_from_slice(table);
         }
-    }
-    let spread = t
-        .threes
-        .map(|three| x87::int_times_plus(three, spread_scale, spread_base));
-    for (cell, v) in weather.snow_tables.spreads.iter().zip(spread) {
-        cell.set(v);
-    }
-    for (cells, table) in weather.snow_tables.remainders.iter().zip(&t.remainders) {
-        for (cell, v) in cells.iter().zip(table) {
-            cell.set(*v);
+        let spread = t
+            .threes
+            .map(|three| x87::int_times_plus(three, spread_scale, spread_base));
+        tables.spreads.copy_from_slice(&spread);
+        for (cells, table) in tables.remainders.iter_mut().zip(&t.remainders) {
+            cells.copy_from_slice(table);
         }
     }
     effects.setup.work.seed.set(t.seed);
-    weather.snow.flag.set(0);
+    weather.snow.borrow_mut().flag = 0;
     let values = light.record_values.map(f32::to_bits);
     let layout = core::record_values(values);
     for record in weather
@@ -204,19 +202,13 @@ pub(super) fn make_noise_curve(
         }
     }
     let first = x87::loaded(light.quad_first);
-    for cell in &weather.snow.quad_a {
-        cell.set(first);
-    }
+    weather.snow.borrow_mut().quad_a = [first; 4];
     // The view's centre (`SceneDraw.view_centre[0]`, `SceneDraw.view_centre[1]`).
     let centre = &scene.scratch.front_end_polygon().window.view_centre;
-    for (quad, from) in [
-        (&weather.snow.quad_b, &centre[0]),
-        (&weather.snow.quad_c, &centre[1]),
-    ] {
-        let v = from.get();
-        for cell in quad {
-            cell.set(v);
-        }
+    {
+        let mut snow = weather.snow.borrow_mut();
+        snow.quad_b = [centre[0].get(); 4];
+        snow.quad_c = [centre[1].get(); 4];
     }
     Ok(())
 }

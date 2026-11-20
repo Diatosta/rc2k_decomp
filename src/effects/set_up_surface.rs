@@ -105,10 +105,10 @@ pub(super) fn set_up_surface(
     ring.work.count.set(0);
 
     let [eighth, edge, pixel, step]: [f32; 4] = [
-        setup.floats.eighth.get(),
-        setup.floats.surface_edge.get(),
-        setup.floats.surface_pixel.get(),
-        setup.floats.thirty_second.get(),
+        setup.floats.eighth,
+        setup.floats.surface_edge,
+        setup.floats.surface_pixel,
+        setup.floats.thirty_second,
     ];
     let end = masks.surface.borrow().places.len();
     let put = |at: u32, v: u32| {

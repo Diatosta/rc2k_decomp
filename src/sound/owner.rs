@@ -8,8 +8,8 @@ use crate::sound::sets_store::{
     CueLists, MenuSounds, SoundKinds, SoundRequest, SoundSets, SpotVoices, SurfaceSets,
 };
 use crate::sound::store::{
-    CarStream, RaceClock, RaceSounds, SoundOptions, SoundShared, SpotKinds, StageSounds,
-    SurfaceSounds,
+    CarStream, RaceClock, RaceSounds, SoundOptions, SoundShared, SoundSlot, SpotKinds, StageSounds,
+    SurfaceSounds, stage_timed_slot,
 };
 
 /// The race's sounds: the objects, the clock, the surface and stage constants, the sets and
@@ -20,7 +20,9 @@ pub struct RaceSoundState {
     pub sounds: GameThread<RaceSounds>,
     pub clock: GameThread<RefCell<RaceClock>>,
     pub surface: GameThread<SurfaceSounds>,
-    pub stage: GameThread<StageSounds>,
+    pub stage: GameThread<RefCell<StageSounds>>,
+    /// The stage's timed sound's slot.
+    pub timed_slot: GameThread<SoundSlot>,
     pub spot_kinds: GameThread<SpotKinds>,
     /// The request each sound is sent with (a work area).
     pub request: GameThread<SoundRequest>,
@@ -39,7 +41,8 @@ impl RaceSoundState {
             sounds: GameThread::new(RaceSounds::new()),
             clock: GameThread::new(RefCell::new(RaceClock::new())),
             surface: GameThread::new(SurfaceSounds::new()),
-            stage: GameThread::new(StageSounds::new()),
+            stage: GameThread::new(RefCell::new(StageSounds::new())),
+            timed_slot: GameThread::new(stage_timed_slot()),
             spot_kinds: GameThread::new(SpotKinds::new()),
             request: GameThread::new(SoundRequest::new()),
             cue_lists: GameThread::new(CueLists::new()),

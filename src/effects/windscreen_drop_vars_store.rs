@@ -139,7 +139,7 @@ impl WindscreenDropVars {
 /// part of the effects' owner (`effects::owner::Effects`).
 pub struct WindscreenDrops {
     pub hex: WindscreenDropVars,
-    pub state: crate::effects::windscreen_drop_state_store::WindscreenDropState,
+    pub state: std::cell::RefCell<crate::effects::windscreen_drop_state_store::WindscreenDropState>,
     pub work: crate::effects::windscreen_drop_state_store::WindscreenDropWork,
     pub shape_work: crate::effects::shape_work_store::ShapeWork,
     pub tilt: std::cell::RefCell<crate::effects::tilt_shape_store::ShapeTilt>,
@@ -152,7 +152,9 @@ impl WindscreenDrops {
     pub const fn new() -> Self {
         WindscreenDrops {
             hex: WindscreenDropVars::new(),
-            state: crate::effects::windscreen_drop_state_store::WindscreenDropState::new(),
+            state: std::cell::RefCell::new(
+                crate::effects::windscreen_drop_state_store::WindscreenDropState::new(),
+            ),
             work: crate::effects::windscreen_drop_state_store::WindscreenDropWork::new(),
             shape_work: crate::effects::shape_work_store::ShapeWork::new(),
             tilt: std::cell::RefCell::new(crate::effects::tilt_shape_store::ShapeTilt::new()),

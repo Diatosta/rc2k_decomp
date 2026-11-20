@@ -444,7 +444,10 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.sound.race.surface",
             on_game(o.sound.race.surface.get()),
         ),
-        listed!("owners.sound.race.stage", on_game(o.sound.race.stage.get()),),
+        listed!(
+            "owners.sound.race.timed_slot",
+            on_game(o.sound.race.timed_slot.get()),
+        ),
         listed!("owners.input.force_feedback", &o.input.force_feedback,),
         listed!("owners.sound.menu.options", &o.sound.menu.options,),
         listed!("owners.input.devices", &o.input.devices,),
@@ -538,18 +541,9 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.sound.race.request.get()),
         ),
         listed!(
-            "owners.sound.race.cue_lists",
-            on_game_from(o.sound.race.cue_lists.get(), ".table[0]"),
-        ),
-        listed!(
             "owners.sound.race.kinds",
             on_game(o.sound.race.kinds.get()),
             0x13c8,
-        ),
-        listed!(
-            "owners.sound.race.surface_sets",
-            on_game_from(o.sound.race.surface_sets.get(), ".sets[0]"),
-            0x1c0,
         ),
         listed!(
             "owners.sound.race.spot_voices",
@@ -796,20 +790,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().setup.frame),
         ),
         listed!(
-            "owners.effects.setup.floats",
-            on_game(&o.race.effects.get().setup.floats),
-        ),
-        listed!(
-            "owners.effects.setup.kind_floats",
-            on_game(&o.race.effects.get().setup.kind_floats),
-        ),
-        listed!(
             "owners.effects.setup.settings",
             on_game(&o.race.effects.get().setup.settings),
-        ),
-        listed!(
-            "owners.effects.pong.state",
-            on_game(&o.race.effects.get().pong.state),
         ),
         listed!(
             "owners.effects.clipping.clip",
@@ -852,10 +834,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().masks.kind_boxes),
         ),
         listed!(
-            "owners.effects.windscreen_drops.state",
-            on_game(&o.race.effects.get().windscreen_drops.state),
-        ),
-        listed!(
             "owners.effects.windscreen_drops.work",
             on_game(&o.race.effects.get().windscreen_drops.work),
         ),
@@ -884,32 +862,12 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().setup.mask_constants),
         ),
         listed!(
-            "owners.effects.windscreen_flakes.tables",
-            on_game(&o.race.effects.get().windscreen_flakes.tables,),
-        ),
-        listed!(
             "owners.effects.windscreen_flakes.items",
             on_game(&o.race.effects.get().windscreen_flakes.items),
         ),
         listed!(
-            "owners.effects.windscreen_flakes.state",
-            on_game(&o.race.effects.get().windscreen_flakes.state),
-        ),
-        listed!(
             "owners.effects.masks.edge_settings",
             on_game(&o.race.effects.get().masks.edge_settings),
-        ),
-        listed!(
-            "owners.effects.weather.rain",
-            on_game(&o.race.effects.get().weather.rain),
-        ),
-        listed!(
-            "owners.effects.weather.snow_tables",
-            on_game(&o.race.effects.get().weather.snow_tables),
-        ),
-        listed!(
-            "owners.effects.weather.snow",
-            on_game(&o.race.effects.get().weather.snow),
         ),
         listed!(
             "owners.effects.weather.snow_curve",
@@ -946,10 +904,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.blocks.links",
             on_game(&o.race.effects.get().blocks.links),
-        ),
-        listed!(
-            "owners.effects.blocks.corner_slopes",
-            on_game(&o.race.effects.get().blocks.corner_slopes),
         ),
         listed!(
             "owners.effects.kinds.overlay_quad",

@@ -101,7 +101,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
                 &car.last_place[k],
             ));
         }
-        let mean_k = effects.setup.floats.quarter.get();
+        let mean_k = effects.setup.floats.quarter;
         for k in 0..3 {
             car.motion[k].set(x87::sum4_times(
                 &car.steps[0][k],
@@ -115,7 +115,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             cell.set(matrix_float(whole, 0x30 + 4 * k as u32)?);
         }
         let [k1, k2, k3] = read_bits(&effects.kinds.emitter.rate_k);
-        let one = effects.setup.floats.one.get();
+        let one = effects.setup.floats.one;
         let (length, rate) = x87::length_and_rate(car.motion.each_ref(), k1, k2, one, k3);
         car.pace.set(length as u32);
         car.rate.set(rate as u32);

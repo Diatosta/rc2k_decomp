@@ -175,7 +175,7 @@ fn square_x87_matches() {
     };
     recorded_writes("effects.draw_cell_sprite.square_x87", &SPEC, |b| {
         with_laid::<DrawWork, _>(b[2], |dw| {
-            with_laid::<CornerSlopes, _>(b[2], |cs| {
+            with_laid::<std::cell::RefCell<CornerSlopes>, _>(b[2], |cs| {
                 let vertices: Vec<(
                     &dyn crate::memory::session::Cell32,
                     crate::effects::asm_test::Operand,
@@ -232,7 +232,7 @@ fn square_x87_matches() {
                         b[3].number(),
                         b[4].number() / 4,
                         dw,
-                        cs,
+                        &cs.borrow(),
                     )
                 })
             })

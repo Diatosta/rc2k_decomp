@@ -44,7 +44,7 @@ fn turn_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_snow.turn_x87", &SPEC, |b| {
-        with_laid::<SnowState, _>(b[0], |s| super::turn_x87(b[1], s));
+        with_laid::<RefCell<SnowState>, _>(b[0], |s| super::turn_x87(b[1], &mut s.borrow_mut()));
     });
 }
 
@@ -84,9 +84,11 @@ fn fade_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_snow.fade_x87", &SPEC, |b| {
-        with_laid::<SnowState, _>(b[0], |s| {
+        with_laid::<RefCell<SnowState>, _>(b[0], |s| {
             with_laid::<RefCell<SnowLight>, _>(b[0], |l| {
-                with_laid::<MarksFloats, _>(b[0], |f| super::fade_x87(s, &mut l.borrow_mut(), f));
+                with_laid::<std::cell::RefCell<MarksFloats>, _>(b[0], |f| {
+                    super::fade_x87(&s.borrow(), &mut l.borrow_mut(), &f.borrow());
+                });
             });
         });
     });
@@ -147,8 +149,8 @@ fn square_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_snow.square_x87", &SPEC, |b| {
-        with_laid::<SnowTables, _>(b[2], |t| {
-            with_laid::<SnowState, _>(b[2], |s| {
+        with_laid::<RefCell<SnowTables>, _>(b[2], |t| {
+            with_laid::<RefCell<SnowState>, _>(b[2], |s| {
                 with_laid::<RefCell<SnowLight>, _>(b[2], |l| {
                     super::square_x87(
                         crate::owners::Owners::the()
@@ -157,8 +159,8 @@ fn square_x87_matches() {
                             .front_end_polygon(),
                         b[1],
                         b[3].number(),
-                        t,
-                        s,
+                        &t.borrow(),
+                        &mut s.borrow_mut(),
                         &l.borrow(),
                     );
                 });

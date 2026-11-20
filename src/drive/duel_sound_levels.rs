@@ -7,16 +7,14 @@ use crate::race::owner::Race;
 use rc2k_core::drive::replay_views::{RARE_FROM, first_level, rare_draw, second_level};
 
 pub(super) fn duel_sound_levels(race: &Race, sound: &crate::sound::owner::Sound) {
-    let stage = sound.race.stage.get();
-    stage
-        .loop_volume_a
-        .set(first_level(race.car_blocks().cars[0].surface_noise_a.get()));
-    if stage.loop_volume_a.get() >= RARE_FROM {
+    let mut stage = sound.race.stage.get().borrow_mut();
+    stage.loop_volume_a = first_level(race.car_blocks().cars[0].surface_noise_a.get());
+    if stage.loop_volume_a >= RARE_FROM {
         let r = race.shared.random.sounds.next();
         if rare_draw(r) {
-            stage.timed_arm.set(1);
+            stage.timed_arm = 1;
         }
     }
     let (level, _) = second_level(race.car_blocks().cars[0].surface_noise_second.get());
-    stage.loop_volume_b.set(level);
+    stage.loop_volume_b = level;
 }

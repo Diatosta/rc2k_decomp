@@ -67,10 +67,10 @@ fn plane_axes_x87_matches() {
     };
     recorded_writes("effects.draw_plane.plane_axes_x87", &SPEC, |b| {
         with_laid::<RefCell<WindscreenFlakeTiming>, _>(b[0], |sti| {
-            with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
+            with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |sq| {
                 with_plane_tuning(b[0], |pt| {
                     with_settings(b[1], |m| {
-                        super::plane_axes_x87(m, &mut sti.borrow_mut(), sq, pt);
+                        super::plane_axes_x87(m, &mut sti.borrow_mut(), &mut sq.borrow_mut(), pt);
                     });
                 });
             });
@@ -115,9 +115,9 @@ fn plane_up_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_plane.plane_up_x87", &SPEC, |b| {
-        with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
+        with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |sq| {
             with_plane_tuning(b[0], |pt| {
-                with_settings(b[1], |m| super::plane_up_x87(m, sq, pt));
+                with_settings(b[1], |m| super::plane_up_x87(m, &mut sq.borrow_mut(), pt));
             });
         });
     });
@@ -186,10 +186,10 @@ fn plane_facing_x87_matches() {
                 overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
             ],
             || {
-                with_laid::<WindscreenFlakeTables, _>(b[0], |m| {
+                with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |m| {
                     super::plane_facing_x87(
                         &crate::test_support::own::effects().windscreen_drops,
-                        m,
+                        &mut m.borrow_mut(),
                     );
                 });
             },
@@ -243,8 +243,10 @@ fn plane_corners_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_plane.plane_corners_x87", &SPEC, |b| {
-        with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
-            with_laid_at::<QuadWork, _>(b[0], 0x934BD0, |q| super::plane_corners_x87(sq, q));
+        with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |sq| {
+            with_laid_at::<QuadWork, _>(b[0], 0x934BD0, |q| {
+                super::plane_corners_x87(&mut sq.borrow_mut(), q);
+            });
         });
     });
 }
