@@ -45,14 +45,14 @@ pub enum Var {
 }
 
 /// The test: `put` writes a variable, `get` reads one back.
-pub fn test(p: &dyn Processor, put: &mut dyn FnMut(Var, u32), get: &dyn Fn(Var) -> u32) {
-    if !test_cpuid(p, put, get) {
-        test_fpu(p, put);
+pub fn detect(p: &dyn Processor, put: &mut dyn FnMut(Var, u32), get: &dyn Fn(Var) -> u32) {
+    if !detect_cpuid(p, put, get) {
+        detect_fpu(p, put);
     }
 }
 
 /// The FPU test (no `cpuid`).
-fn test_fpu(p: &dyn Processor, put: &mut dyn FnMut(Var, u32)) {
+fn detect_fpu(p: &dyn Processor, put: &mut dyn FnMut(Var, u32)) {
     let (status, control) = p.fpu_words();
     put(Var::FpuWord, status as u32);
     if status as u8 != 0 {
@@ -65,7 +65,11 @@ fn test_fpu(p: &dyn Processor, put: &mut dyn FnMut(Var, u32)) {
 }
 
 /// `cpuid` and what follows from it; false where the FPU test is needed instead.
-fn test_cpuid(p: &dyn Processor, put: &mut dyn FnMut(Var, u32), get: &dyn Fn(Var) -> u32) -> bool {
+fn detect_cpuid(
+    p: &dyn Processor,
+    put: &mut dyn FnMut(Var, u32),
+    get: &dyn Fn(Var) -> u32,
+) -> bool {
     put(Var::Family, 3);
     if !p.flag_toggles(AC_FLAG) {
         return false;
@@ -135,7 +139,7 @@ mod tests {
 
     fn run(f: &Fake) -> Vec<(Var, u32)> {
         let vars = std::cell::RefCell::new(Vec::new());
-        test(f, &mut |v, x| vars.borrow_mut().push((v, x)), &|v| {
+        detect(f, &mut |v, x| vars.borrow_mut().push((v, x)), &|v| {
             vars.borrow()
                 .iter()
                 .rev()

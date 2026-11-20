@@ -66,7 +66,7 @@ pub fn set_particle(particles: &Particles, p: u32, offset: u32, v: u32) -> Resul
 /// the one before, +4 the one after). The particles are `Particles::ring`, counted on the
 /// list.
 pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> {
-    // Converted: `rc2k_core::effects::rings::neighbours`.
+    // The logic is in `rc2k_core::effects::rings::neighbours`.
     let links: Vec<Particle> = (0..rc2k_core::effects::rings::ENTRIES)
         .map(|n| {
             let mut p = [0; (RING_ENTRY / 4) as usize];

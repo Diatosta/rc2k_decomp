@@ -24,7 +24,7 @@ pub fn below(a: impl crate::math::x87::Flt, b: impl crate::math::x87::Flt) -> bo
 }
 
 /// The exact version, for `physics::engine_torque_or_cut`, `drive_force`, `free_rev*`,
-/// `test_drive_run`.
+/// `acceleration_run`.
 pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let shared_store = shared;
     let drawing = &scene.drawing;

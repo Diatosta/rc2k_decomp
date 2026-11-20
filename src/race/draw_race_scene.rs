@@ -405,27 +405,8 @@ fn draw_players_beside(
     })
 }
 
-/// Draws the race frame (see the header).
-pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    let (input, system, scene) = (o.input, o.system, o.scene);
-    let owners = Owners {
-        race,
-        scene,
-        system,
-        net: o.net,
-        sound: o.sound,
-        input,
-    };
-    let frame = &race.frame;
-    // Drawn outside the views' parts: on the game's thread's part.
-    let part = o.scene.scratch.game_scratch();
-    use crate::scene::set_render_state::set_render_state;
-    use crate::sound::race_sound_tick::race_sound_tick;
-    // Declared before the snapshot: the blend is in the blocks while the snapshot is taken and
-    // until the drawing is over.
-    let blended = crate::race::blend::Blended::new(race);
-    let _cars = crate::race::frame_view::Held::take(race);
-    let blocks = view_blocks(&race.shared)?;
+/// The slots the panel's extra light textures are wanted in must exist.
+fn check_light_texture_slots(race: &Race, scene: &Scene) -> Result<(), Refused> {
     for (k, extra) in race
         .frame
         .panel_and_overlay
@@ -442,8 +423,13 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
     }
-    crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
-    crate::memory::session::write_bits(&race.shared.view.get().view_cleared, [0u32; 0x20]);
+    Ok(())
+}
+
+/// The hud flags of the views: the first views take their car's option bits (`blocks`), the
+/// further views of a split screen their own player's car's (none past the views shown), and a
+/// view that is off has none.
+fn set_hud_flags(race: &Race, blocks: &[usize], views: u32) -> Result<(), Refused> {
     for (flags, block) in race
         .frame
         .panel_and_overlay
@@ -451,19 +437,9 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .panel
         .hud_flags
         .iter()
-        .zip(blocks)
+        .zip(blocks.iter().copied())
     {
         flags.set(race.frame.cars.car(block)?.option_bits.get());
-    }
-    // The split screen's further views show their own player's car; each is on.
-    let views = race.shared.view.get().views.get();
-    crate::race::view_scratch::set_many_views(views > 2);
-    if views > 2 {
-        // A view slot that was a mirror in an earlier race keeps its mirror flag: the players'
-        // views are never mirrors, or the camera looks back from the car.
-        for view in 0..views as usize {
-            o.scene.scratch.main_view(view).polygon.view_mirrored.set(0);
-        }
     }
     {
         let panel = &race.frame.panel_and_overlay.get().panel;
@@ -489,6 +465,70 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             flags.set(0);
         }
     }
+    Ok(())
+}
+
+/// Each panel light's texture put in its wanted slot.
+fn assign_light_textures(race: &Race, scene: &Scene) -> Result<(), Refused> {
+    for (k, extra) in race
+        .frame
+        .panel_and_overlay
+        .get()
+        .panel
+        .lights
+        .iter()
+        .map(|l| &l.lit)
+        .enumerate()
+    {
+        let texture = extra.get();
+        if texture != u32::MAX {
+            let slot = scene.textures.kinds.get().kind_first_slots[220 + k].get();
+            crate::scene::texture_places_store::cell_at(
+                scene.textures.places.get(),
+                crate::scene::texture_places_store::PlacesTable::SlotWanted,
+                slot,
+            )?
+            .set(texture.wrapping_add(scene.textures.kinds.get().kind_first_textures[220].get()));
+        }
+    }
+    Ok(())
+}
+
+/// Draws the race frame (see the header).
+pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (input, system, scene) = (o.input, o.system, o.scene);
+    let owners = Owners {
+        race,
+        scene,
+        system,
+        net: o.net,
+        sound: o.sound,
+        input,
+    };
+    let frame = &race.frame;
+    // Drawn outside the views' parts: on the game's thread's part.
+    let part = o.scene.scratch.game_scratch();
+    use crate::scene::set_render_state::set_render_state;
+    use crate::sound::race_sound_tick::race_sound_tick;
+    // Declared before the snapshot: the blend is in the blocks while the snapshot is taken and
+    // until the drawing is over.
+    let blended = crate::race::blend::Blended::new(race);
+    let _cars = crate::race::frame_view::Held::take(race);
+    let blocks = view_blocks(&race.shared)?;
+    check_light_texture_slots(race, scene)?;
+    crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
+    crate::memory::session::write_bits(&race.shared.view.get().view_cleared, [0u32; 0x20]);
+    // The split screen's further views show their own player's car; each is on.
+    let views = race.shared.view.get().views.get();
+    crate::race::view_scratch::set_many_views(views > 2);
+    if views > 2 {
+        // A view slot that was a mirror in an earlier race keeps its mirror flag: the players'
+        // views are never mirrors, or the camera looks back from the car.
+        for view in 0..views as usize {
+            o.scene.scratch.main_view(view).polygon.view_mirrored.set(0);
+        }
+    }
+    set_hud_flags(race, &blocks, views)?;
     // The polygon counts of the four views' slots (read by none).
     for view in [
         o.scene.scratch.main_view(0),
@@ -605,27 +645,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     crate::race::mud_frame::mud_frame(race, scene, o.gfx, o.system)?;
     race.frame.frame_work.get().kind_textures_done.set(0);
     crate::scene::assign_kind_textures::assign_kind_textures(scene)?;
-    for (k, extra) in race
-        .frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .lights
-        .iter()
-        .map(|l| &l.lit)
-        .enumerate()
-    {
-        let texture = extra.get();
-        if texture != u32::MAX {
-            let slot = scene.textures.kinds.get().kind_first_slots[220 + k].get();
-            crate::scene::texture_places_store::cell_at(
-                scene.textures.places.get(),
-                crate::scene::texture_places_store::PlacesTable::SlotWanted,
-                slot,
-            )?
-            .set(texture.wrapping_add(scene.textures.kinds.get().kind_first_textures[220].get()));
-        }
-    }
+    assign_light_textures(race, scene)?;
     crate::scene::map_texture_places::map_texture_places(scene);
     crate::scene::load_slot_textures::load_slot_textures_in_game(&race.frame, scene)?;
     if race.replay.finish.get().no_place.get() == 0 {

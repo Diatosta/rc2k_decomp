@@ -4,7 +4,7 @@
 //! second at every start, for the log alone): `cpu_mhz` stays 0.
 
 use crate::memory::session::{Machine, PlainDword};
-use rc2k_core::system::processor::{Var, test};
+use rc2k_core::system::processor::{Var, detect};
 
 /// Whether toggling `bit` in the flags changes them: yes on every processor these builds can
 /// run on, which all have SSE2.
@@ -88,7 +88,7 @@ fn cell(m: &Machine, v: Var) -> &PlainDword {
     }
 }
 
-pub fn test_processor(p: &dyn Processor, system: &crate::system::owner::System) {
+pub fn detect_processor(p: &dyn Processor, system: &crate::system::owner::System) {
     let mut put = |v: Var, value: u32| {
         if v == Var::FpuWord {
             system.work().files.buffer.set(0, value as u8);
@@ -112,5 +112,5 @@ pub fn test_processor(p: &dyn Processor, system: &crate::system::owner::System) 
             }
         }
     };
-    test(p, &mut put, &get);
+    detect(p, &mut put, &get);
 }

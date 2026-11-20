@@ -169,7 +169,7 @@ plays, so a replay still plays back correctly after the player has changed them.
 
 ## Trying the physics
 
-- `test_drive.rs` and `test_drive_run.rs` are the game's own "dyno": a car run through its
+- `acceleration_figures.rs` and `acceleration_run.rs` are the game's own "dyno": a car run through its
   gears on a flat road to measure its figures. The debug window's Dyno tab shows the result
   (see [The debug window](The-debug-window)).
 - The unit tests in `rc2k_core/src/physics/` check each formula.

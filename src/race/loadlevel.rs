@@ -135,10 +135,22 @@ pub fn loadlevel_init(
     o: crate::owners::Owners<'static>,
     progress: &mut dyn Progress,
 ) -> Result<(), Refused> {
-    let (scene, system, gfx) = (o.scene, o.system, o.gfx);
-    use crate::race::level_init as level;
-    use crate::race::stage_prefs;
     let mut s = Steps { progress };
+    begin_level(&mut s, race, o)?;
+    load_course_data(&mut s, race, o)?;
+    load_objects_and_map(&mut s, race, o)?;
+    init_marks_and_lights(&mut s, race, o)?;
+    finish_level(&mut s, race, o)?;
+    Ok(())
+}
+
+/// The level begun: the map's and the stage's variables, the loading bar's first mark.
+fn begin_level(
+    s: &mut Steps<'_>,
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    let scene = o.scene;
     s.log(Word::Start);
     s.indent(3);
     race.frame.map().use_packed.set(1u32);
@@ -156,6 +168,18 @@ pub fn loadlevel_init(
     o.audio.racing.set(true);
     s.mark(0)?;
     s.indent(-3);
+    Ok(())
+}
+
+/// The object memory, the course memory, the texture information, the prefs, the textures and the course.
+fn load_course_data(
+    s: &mut Steps<'_>,
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    let scene = o.scene;
+    use crate::race::level_init as level;
+    use crate::race::stage_prefs;
     s.step(
         Word::ObjectsInit,
         &mut || {
@@ -219,6 +243,16 @@ pub fn loadlevel_init(
         },
         Some(0x14),
     )?;
+    Ok(())
+}
+
+/// The objects, their plates, the game map and the fonts.
+fn load_objects_and_map(
+    s: &mut Steps<'_>,
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    let (scene, system, gfx) = (o.scene, o.system, o.gfx);
     // reloadobjects.
     s.log(Word::ReloadObjects);
     s.indent(3);
@@ -249,6 +283,18 @@ pub fn loadlevel_init(
         &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(gfx, system, o.strings),
         Some(0x5C),
     )?;
+    Ok(())
+}
+
+/// The marks, the refresh flags, the skid marks, the 3D's tables, the lights and the mud.
+fn init_marks_and_lights(
+    s: &mut Steps<'_>,
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    let (scene, system, gfx) = (o.scene, o.system, o.gfx);
+    use crate::race::level_init as level;
+    use crate::race::stage_prefs;
     // init mark, with the log off.
     s.log(Word::InitMark);
     s.indent(3);
@@ -322,6 +368,18 @@ pub fn loadlevel_init(
     s.mark(0x64)?;
     s.mark(0x64)?;
     s.indent(-3);
+    Ok(())
+}
+
+/// The crash matrix, the norms, the checkpoints, the pace notes and the overlay, the marker object, and the camera's last frames.
+fn finish_level(
+    s: &mut Steps<'_>,
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    let scene = o.scene;
+    use crate::race::level_init as level;
+    use crate::race::stage_prefs;
     s.step(
         Word::GetMatCrash,
         &mut || {

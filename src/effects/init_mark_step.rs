@@ -31,7 +31,7 @@ fn kind_row_word(records: &LightRecords, kind: i32, group: usize) -> Result<u32,
         .ok_or(BadInput("a kind's row field past the groups"))
 }
 
-// Converted: `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
+// The logic is in `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
 pub fn init_mark_step(
     race: &'static Race,
     effects: &Effects,

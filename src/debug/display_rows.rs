@@ -1,7 +1,6 @@
 //! The display page's figures named and grouped for the debug UI (a more meaningful name, the
-//! input with other inputs, the damage together): generated from the page's items
-//! (`debug::wear_items`), with the developers' labels; a place the page printed twice is listed
-//! once. "Car 1" and "Car 2" are the cars' blocks 0 and 1 (0xFE0 apart); "Player car" the first
+//! input with other inputs, the damage together), with the developers' labels; kept by hand. A place the page
+//! printed twice is listed once. "Car 1" and "Car 2" are the cars' blocks 0 and 1 (0xFE0 apart); "Player car" the first
 //! block's gauges and its state record.
 
 use super::row_cells::{car_cell, indexed_cell, store_cell};

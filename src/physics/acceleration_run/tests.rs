@@ -1,0 +1,81 @@
+use super::*;
+use crate::math::x87_mem::view;
+use crate::test_support::own::race;
+use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
+
+fn blocks() -> Vec<Block> {
+    vec![
+        Block {
+            name: "test_drive_run line 42",
+            operands: vec![
+                Operand::RaceBlock {
+                    reads: &[(0x1C5E34, In::F), (0x1CB968, In::F), (0x214748, In::F)],
+                    writes: &[(0x214750, Out::F)],
+                },
+                Operand::Buffer {
+                    reads: &[(0, In::F)],
+                    writes: &[],
+                },
+            ],
+            ulps: 0,
+            plain: |a| {
+                x87_1(
+                    race().shared.physics_tables.get(),
+                    race().gear(),
+                    race().course.numbers.get(),
+                    view(a[1], 0),
+                );
+            },
+        },
+        Block {
+            name: "test_drive_run line 51",
+            operands: vec![Operand::RaceBlock {
+                reads: &[
+                    (0x1C5E34, In::F),
+                    (0x21388C, In::F),
+                    (0x213FCC, In::F),
+                    (0x213FD0, In::F),
+                    (0x214750, In::F),
+                    (0x31A190, In::F),
+                ],
+                writes: &[(0x22400C, Out::F), (0x31A190, Out::F), (0x31A194, Out::F)],
+            }],
+            ulps: 0,
+            plain: |_| {
+                x87_2(
+                    race().shared.car(),
+                    race().shared.physics_tables.get(),
+                    race().course.numbers.get(),
+                    crate::test_support::own::scene(),
+                );
+            },
+        },
+        Block {
+            name: "test_drive_run line 93",
+            operands: vec![Operand::RaceBlock {
+                reads: &[
+                    (0x1C5D00, In::F),
+                    (0x1C5D14, In::F),
+                    (0x1CB97C, In::I),
+                    (0x1CB980, In::I),
+                    (0x31A190, In::F),
+                ],
+                writes: &[(0x1CB97C, Out::F), (0x1CB980, Out::F), (0x1CB984, Out::F)],
+            }],
+            ulps: 0,
+            plain: |_| {
+                x87_3(
+                    race().shared.car(),
+                    race().gear(),
+                    race().course.numbers.get(),
+                );
+            },
+        },
+    ]
+}
+
+#[test]
+fn x87_blocks_matches_the_assembly() {
+    // The recorded vectors are filed under the function's earlier name.
+    sparse("physics.test_drive_run", &blocks(), 1200, 100);
+}

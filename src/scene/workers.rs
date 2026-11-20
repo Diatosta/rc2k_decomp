@@ -266,7 +266,6 @@ impl Default for DrawingScratch {
 
 // ---- the stores the parts read ----
 
-// r40course
 /// Whether a race is on (`race::numbers_store::Numbers::in_race`), as part `part`'s drawing
 /// reads it: its own copy (`set_game_part_racing` for the game's part, `draw_parts` for every
 /// part when a scope opens).
@@ -292,7 +291,6 @@ pub fn set_game_part_screen(scratch: &DrawingScratch, width: u32, height: u32, b
         cell.set(figure);
     }
 }
-// end r40course
 
 /// The owners whose draw-shared stores a drawing reads: lent to the parts of a drawing scope
 /// (`draw_parts`), or read from on the game's thread (`DrawReads::on_game_thread`).
@@ -368,7 +366,6 @@ pub struct Lent<'s> {
     kind_records:
         crate::memory::session::PhaseRead<'s, crate::race::kind_records_store::KindRecords>,
     numbers: crate::memory::session::PhaseRead<'s, crate::race::numbers_store::Numbers>,
-    // The race owner's shared group (lane r41shared).
     switches: crate::memory::session::PhaseRead<'s, crate::race::switches_store::FrameSwitches>,
     vars: crate::memory::session::PhaseRead<'s, crate::race::vars_store::RaceVars>,
     view: crate::memory::session::PhaseRead<'s, crate::race::view_store::RaceView>,
@@ -427,7 +424,6 @@ impl<'s> Lent<'s> {
             stage: &race.course.stage,
             kind_records: PhaseRead::lend(race.course.kind_records_store(), scope),
             numbers: PhaseRead::lend(&race.course.numbers, scope),
-            // The race owner's shared group (lane r41shared).
             switches: PhaseRead::lend(&race.shared.switches, scope),
             vars: PhaseRead::lend(&race.shared.vars, scope),
             view: PhaseRead::lend(&race.shared.view, scope),
@@ -478,7 +474,6 @@ impl<'s> Lent<'s> {
             stage: self.stage,
             kind_records: &self.kind_records,
             numbers: &self.numbers,
-            // The race owner's shared group (lane r41shared).
             switches: &self.switches,
             vars: &self.vars,
             view: &self.view,
@@ -567,7 +562,6 @@ pub struct DrawReads<'a> {
     /// The game's numbers: its float constants, the replay's mode, `in_race`, the grip change
     /// (`race::owner_course::Course::numbers`).
     pub numbers: &'a crate::race::numbers_store::Numbers,
-    // The race owner's shared group (lane r41shared).
     /// The frame switches (`race::owner_shared::RaceShared::switches`): the scene set-up flag,
     /// the mask kind, the marker object.
     pub switches: &'a crate::race::switches_store::FrameSwitches,
@@ -597,7 +591,6 @@ pub struct DrawReads<'a> {
 }
 
 impl<'a> DrawReads<'a> {
-    // r40course
     /// The course's drawing stores as one value (`race::owner_course::CourseReads`).
     pub fn course(&self) -> crate::race::owner_course::CourseReads<'a> {
         crate::race::owner_course::CourseReads {
@@ -609,7 +602,6 @@ impl<'a> DrawReads<'a> {
             stage: self.stage,
         }
     }
-    // end r40course
 
     /// The stores from their owners: on the game's thread, outside a drawing scope (the
     /// views drawn one after another, the overlays, the menus' objects).
@@ -655,7 +647,6 @@ impl<'a> DrawReads<'a> {
             stage: &race.course.stage,
             kind_records: race.course.kind_records(),
             numbers: race.course.numbers.get(),
-            // The race owner's shared group (lane r41shared).
             switches: race.shared.switches.get(),
             vars: race.shared.vars.get(),
             view: race.shared.view.get(),
@@ -872,7 +863,6 @@ fn draw_parts(
     let columns_start = crate::scene::view_matrices::columns(matrices.get());
     begin_list();
     let control = crate::math::x87::control_word();
-    // r40course
     // Whether a race is on, as the parts' noted drawing reads it inside the scope (`in_race`).
     let racing = owners.race.course.numbers.get().in_race.is_set();
     let screen = owners.system.session.screen.get();
@@ -883,7 +873,7 @@ fn draw_parts(
             cell.set(figure);
         }
     }
-    // end r40course The parts are drawn from here until every one has ended: the draw-shared stores
+    // The parts are drawn from here until every one has ended: the draw-shared stores
     // lent.
     let scope = DrawScope::open(scratch_owner);
     let lent = Lent::new(&scope, owners);

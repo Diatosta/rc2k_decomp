@@ -9,6 +9,8 @@ pub mod batches;
 pub mod canvas_rows;
 pub mod choice;
 pub mod dev;
+#[cfg_attr(handheld, path = "frame_end_panel.rs")]
+mod frame_end;
 pub mod gl_batching;
 pub mod gles;
 pub mod wash;
@@ -23,6 +25,7 @@ pub mod rasteriser_neon;
 pub mod small_frame;
 pub mod software;
 
+pub use self::frame_end::*;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
@@ -388,17 +391,9 @@ pub fn draw(screen: (usize, usize), racing: bool, target: &Target, commands: Com
             return;
         }
     }
-    #[cfg(not(handheld))]
-    if target.bits == 32
-        && let Some(gl) = gles::GPU.lock().unwrap().as_mut()
-    {
-        if !GPU_HOLDS_FRAME.swap(true, Relaxed) {
-            target.note_all_rows_written();
-        }
-        GPU_DREW_THIS_FRAME.store(true, Relaxed);
-        Backend::draw(gl, target, commands);
+    let Some(commands) = frame_end::draw_on_gl(target, commands) else {
         return;
-    }
+    };
     give_frame_back(target);
     // Whatever was noted for a GPU is on the canvas before the rasteriser draws.
     crate::gfx::draw2d::quads::before_canvas_write();
@@ -422,103 +417,6 @@ pub fn bring_back(target: &Target) {
     READ_BACK_MICROS.fetch_add(began.elapsed().as_micros() as u64, Relaxed);
 }
 
-/// `bring_back`, when the GPU holds the frame.
-fn bring_back_now(target: &Target) {
-    #[cfg(not(handheld))]
-    if GPU_HOLDS_FRAME.load(Relaxed)
-        && let Some(gl) = gles::GPU.lock().unwrap().as_mut()
-    {
-        // SAFETY: as below: the game's thread waits for this call and no other slice of the
-        // canvas lives.
-        gl.bring_back(target, unsafe { target.bytes() });
-        target.note_all_rows_written();
-        return;
-    }
-    if GPU_HOLDS_FRAME.load(Relaxed)
-        && let Some(gpu) = gpu::GPU.lock().unwrap().as_mut()
-    {
-        // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
-        // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
-        // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-        let canvas = unsafe { target.bytes() };
-        let began = std::time::Instant::now();
-        #[cfg(handheld)]
-        gpu.bring_back(target, canvas);
-        #[cfg(not(handheld))]
-        {
-            let rows = canvas_rows::written_rows(target, canvas);
-            if let Err(why) = gpu.bring_back(Some(rows), canvas) {
-                crate::program_log::log(&format!("render: the frame did not come back: {why}"));
-            }
-        }
-        READ_BACKS.fetch_add(1, Relaxed);
-        crate::platform::timing::note_span(
-            &crate::platform::timing::READ_BACK_MICROS,
-            &crate::platform::timing::READ_BACK_MAX,
-            began.elapsed().as_micros() as u64,
-        );
-        // The picture written in place, unnoted.
-        target.note_all_rows_written();
-    }
-}
-
-/// The frame's picture stretched to `size` (width, height) pixels, each the frame's pixel at its
-/// place scaled down in whole numbers, as 0xAARRGGBB dwords, rows top first: what a texture
-/// made from the screen reads, without bringing the whole frame back into the canvas. `None`
-/// when the GPU does not hold the frame or its backend cannot (the caller then brings the frame
-/// back and reads the canvas).
-pub fn stretched_frame(target: &Target, size: (u32, u32)) -> Option<Vec<u32>> {
-    #[cfg(not(handheld))]
-    {
-        if !GPU_HOLDS_FRAME.load(Relaxed) {
-            return None;
-        }
-        if let Some(gl) = gles::GPU.lock().unwrap().as_mut() {
-            let began = std::time::Instant::now();
-            // SAFETY: as below.
-            let canvas = unsafe { target.bytes() };
-            let picture = gl.stretched(target, canvas, (size.0 as usize, size.1 as usize));
-            READ_BACKS.fetch_add(1, Relaxed);
-            READ_BACK_MICROS.fetch_add(began.elapsed().as_micros() as u64, Relaxed);
-            return picture;
-        }
-        let mut gpu = gpu::GPU.lock().unwrap();
-        let gpu = gpu.as_mut()?;
-        let began = std::time::Instant::now();
-        // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
-        // nothing else reaches the canvas; no other slice of it lives.
-        let canvas = unsafe { target.bytes() };
-        // The canvas's size is `target`'s, as the card's frame (`read_stretched` checks).
-        let rows = canvas_rows::written_rows(target, canvas);
-        let screen = (target.width as u32, target.height as u32);
-        let picture = gpu.read_stretched(Some(rows), canvas, screen, size);
-        READ_BACKS.fetch_add(1, Relaxed);
-        READ_BACK_MICROS.fetch_add(began.elapsed().as_micros() as u64, Relaxed);
-        match picture {
-            Ok(Some(bytes)) => Some(
-                bytes
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|p| u32::from_le_bytes(*p))
-                    .collect(),
-            ),
-            Ok(None) => None,
-            Err(why) => {
-                crate::program_log::log(&format!(
-                    "render: the stretched frame did not come back: {why}"
-                ));
-                None
-            }
-        }
-    }
-    #[cfg(handheld)]
-    {
-        let _ = (target, size);
-        None
-    }
-}
-
 /// The frames of a video being rendered, read back from the GPU one frame behind the game: the
 /// frame just drawn is queued to come back, and the one queued the frame before is collected
 /// (the GPU has had a whole frame of the game's time to finish it).
@@ -528,82 +426,6 @@ pub struct VideoRead {
     pub previous: Option<Vec<u8>>,
     /// Whether this frame is queued; if not the caller brings it back as `bring_back` does.
     pub started: bool,
-}
-
-/// Collects the frame queued by the last call into `spare` (the buffer is kept in `previous`) and
-/// queues the frame now drawn. Only the Vulkan backend queues; any other leaves `started` false.
-#[cfg(not(handheld))]
-pub fn video_read_next(target: &Target, spare: Vec<u8>, nv12: bool) -> VideoRead {
-    let mut read = VideoRead {
-        previous: None,
-        started: false,
-    };
-    let opengl = gles::GPU.lock().unwrap().is_some();
-    let mut gpu = gpu::GPU.lock().unwrap();
-    let Some(gpu) = gpu.as_mut() else {
-        return read;
-    };
-    // Whatever was queued comes first, so that the frames stay in order.
-    let mut buffer = spare;
-    match gpu.collect_video_read(&mut buffer) {
-        Ok(true) => read.previous = Some(buffer),
-        Ok(false) => {}
-        Err(why) => crate::program_log::log(&format!(
-            "render: the video's last frame did not come back: {why}"
-        )),
-    }
-    if !GPU_HOLDS_FRAME.load(Relaxed) || opengl {
-        return read;
-    }
-    // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
-    // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
-    // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-    let canvas = unsafe { target.bytes() };
-    let rows = canvas_rows::written_rows(target, canvas);
-    match gpu.start_video_read(Some(rows), canvas, nv12) {
-        Ok(()) => read.started = true,
-        Err(why) => crate::program_log::log(&format!(
-            "render: the video's frame did not start back: {why}"
-        )),
-    }
-    read
-}
-
-/// The handheld's panel has no pipelined read-back: every frame is brought back at once.
-#[cfg(handheld)]
-pub fn video_read_next(_target: &Target, _spare: Vec<u8>, _nv12: bool) -> VideoRead {
-    VideoRead {
-        previous: None,
-        started: false,
-    }
-}
-
-/// Whether the video's frames can come from the card as NV12 (`video_read_next`'s `nv12`): the
-/// Vulkan renderer is the one in use and the panel is not the handheld's.
-#[cfg(not(handheld))]
-pub fn video_nv12_possible() -> bool {
-    gles::GPU.lock().unwrap().is_none() && gpu::GPU.lock().unwrap().is_some()
-}
-
-/// The handheld's panel queues no frame: its frames stay 32 bits a pixel.
-#[cfg(handheld)]
-pub fn video_nv12_possible() -> bool {
-    false
-}
-
-/// The last frame `video_read_next` queued, collected into `spare`; `None` when none is queued.
-/// The GPU is only tried, never waited for, so that a program ending in a fault cannot hang here.
-#[cfg(not(handheld))]
-pub fn video_read_last(spare: Vec<u8>) -> Option<Vec<u8>> {
-    let mut gpu = gpu::GPU.try_lock().ok()?;
-    let mut buffer = spare;
-    matches!(gpu.as_mut()?.collect_video_read(&mut buffer), Ok(true)).then_some(buffer)
-}
-
-/// The handheld's panel queues no frame (`video_read_next`): nothing is left to collect.
-#[cfg(handheld)]
-pub fn video_read_last(_spare: Vec<u8>) -> Option<Vec<u8>> {
-    None
 }
 
 /// Whether the frame ending now stays on the GPU: a race's always (`racing`), a menu's when it drew 3D or
@@ -618,118 +440,6 @@ fn frame_stays_on_gpu(racing: bool) -> bool {
 fn give_frame_back(target: &Target) {
     bring_back(target);
     GPU_HOLDS_FRAME.store(false, Relaxed);
-}
-
-/// The frame's end, before it is shown. The GPU's colour target when that is what to show, the
-/// canvas's written pixels over it, with the number of its set of targets and its size
-/// (`Gpu::colour_texture`).
-#[cfg(not(handheld))]
-pub fn finish_frame(
-    racing: bool,
-    target: &Target,
-) -> Option<(*mut sdl3_sys::everything::SDL_GPUTexture, u64, (u32, u32))> {
-    if !GPU_HOLDS_FRAME.load(Relaxed) {
-        return None;
-    }
-    // The OpenGL backend's window shows its own frames (`show_on_gl_window`); a frame that
-    // comes here is read back into the canvas.
-    let stays = frame_stays_on_gpu(racing);
-    if !stays || gles::GPU.lock().unwrap().is_some() {
-        give_frame_back(target);
-        if stays {
-            dev::seethru::frame_end();
-        }
-        return None;
-    }
-    let mut gpu = gpu::GPU.lock().unwrap();
-    let gpu = gpu.as_mut()?;
-    // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
-    // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
-    // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-    let canvas = unsafe { target.bytes() };
-    let rows = canvas_rows::written_rows(target, canvas);
-    if let Err(why) = gpu.finish_frame(Some(rows), canvas) {
-        crate::program_log::log(&format!("render: the frame did not finish: {why}"));
-    }
-    if let Err(why) = gpu.finish_high() {
-        crate::program_log::log(&format!(
-            "render: the menu's larger 3D did not finish: {why}"
-        ));
-    }
-    Some(gpu.colour_texture())
-}
-
-/// The frame on the panel, by the GPU when it is running: the target during a race, else
-/// the canvas's picture, which `with_frame` hands over (taken only after the GPU's writes to the
-/// canvas here, so that no slice of it is held across them). False: it is not running.
-#[cfg(handheld)]
-pub fn show_on_panel(
-    racing: bool,
-    target: &Target,
-    with_frame: impl FnOnce(&mut dyn FnMut(&[u8])),
-    width: usize,
-    height: usize,
-) -> bool {
-    gpu::start_if_wanted();
-    if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(racing) {
-        give_frame_back(target);
-    }
-    let mut gpu = gpu::GPU.lock().unwrap();
-    let Some(gpu) = gpu.as_mut() else {
-        return false;
-    };
-    if GPU_HOLDS_FRAME.load(Relaxed) {
-        // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
-        // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
-        // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-        // The handheld's panel is the frame's own size: no space beside it to fill.
-        gpu.finish_and_show(target, unsafe { target.bytes() }, false);
-    } else {
-        with_frame(&mut |frame| gpu.show_picture(frame, width, height, false));
-    }
-    true
-}
-
-/// The frame on the OpenGL backend's own window, which shows it without the frame's coming back
-/// through the canvas: the target during a race (and in the menus that keep their background on
-/// the GPU), else the canvas's picture, which `with_frame` hands over. False: the backend does
-/// not show a window (it is not running), and the caller shows the frame.
-#[cfg(not(handheld))]
-pub fn show_on_gl_window(
-    racing: bool,
-    target: &Target,
-    with_frame: impl FnOnce(&mut dyn FnMut(&[u8])),
-    width: usize,
-    height: usize,
-    menu: bool,
-) -> bool {
-    if gles::window().is_none() || gles::GPU.lock().unwrap().is_none() {
-        return false;
-    }
-    if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(racing) {
-        give_frame_back(target);
-    }
-    let mut gl = gles::GPU.lock().unwrap();
-    let Some(gl) = gl.as_mut() else {
-        return false;
-    };
-    if menu
-        && let Some(window) = gles::window().and_then(crate::platform::ffi::sdl::Window::pixel_size)
-    {
-        // Made and sent only when the background or the window's size has changed.
-        if let Some(image) = wash::image_for(window) {
-            gl.set_wash(&image);
-        }
-    }
-    if GPU_HOLDS_FRAME.load(Relaxed) {
-        // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
-        // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
-        // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-        gl.finish_and_show(target, unsafe { target.bytes() }, menu);
-    } else {
-        with_frame(&mut |frame| gl.show_picture(frame, width, height, menu));
-    }
-    true
 }
 
 // ---- textures' changes ----
@@ -766,29 +476,6 @@ pub(crate) fn gpu_started() {
     GPU_STARTED.store(true, Relaxed);
 }
 
-/// A GPU backend that had started is given up (the screen's targets could not be made): its
-/// texture changes are no longer kept.
-#[cfg(not(handheld))]
-pub(crate) fn gpu_stopped() {
-    GPU_STARTED.store(false, Relaxed);
-    crate::gfx::draw2d::quads::gpu_changed();
-    background::clear();
-    *CHANGED_TEXTURES.lock().unwrap() = None;
-}
-
-/// Whether the desktop's OpenGL backend is the one running (the handheld's GL ES is its GPU
-/// renderer, `gpu_running`).
-pub fn gl_running() -> bool {
-    #[cfg(not(handheld))]
-    {
-        gles::GPU.lock().unwrap().is_some()
-    }
-    #[cfg(handheld)]
-    {
-        false
-    }
-}
-
 /// Whether a GPU backend is running: what started, not what was asked for.
 pub fn gpu_running() -> bool {
     GPU_STARTED.load(Relaxed)
@@ -804,17 +491,6 @@ pub fn running_wish() -> choice::Wish {
     } else {
         choice::Wish::Software
     }
-}
-
-/// Whether the GPU's frame may be given up: a frame the GPU holds is brought back into the
-/// canvas, and the rasteriser draws from here. For the renderer's swap.
-#[cfg(not(handheld))]
-pub(crate) fn release_frame(target: Option<&Target>) {
-    if let Some(target) = target {
-        give_frame_back(target);
-    }
-    GPU_HOLDS_FRAME.store(false, Relaxed);
-    GPU_DREW_THIS_FRAME.store(false, Relaxed);
 }
 
 /// Whether the software renderer keeps smaller levels of textures (`software`): only then are

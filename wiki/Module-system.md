@@ -19,7 +19,7 @@ buffers that [`files`](Module-files) uses.
 | `main_loop` | `src/system/main_loop.rs` | Runs the installer or the front end, then saves the game's data. |
 | `read_command_line` | `src/system/read_command_line.rs` | The game's own command-line switches. |
 | `load_game_data` | `src/system/load_game_data.rs` | Loads options, best times and the lists of saved games at start-up. |
-| `test_processor` | `src/system/test_processor.rs` | Notes what the processor is. |
+| `detect_processor` | `src/system/detect_processor.rs` | Notes what the processor is. |
 | `pause` | `src/system/pause.rs` | The screens' fixed pauses: the window's events go on meanwhile, and a key ends one early (`pause` takes the key, `pause_keeping_key` leaves it for the menu, `hold` ignores keys). |
 | `wait_or_key` | `src/system/wait_or_key.rs` | Waits for a time or a key, whichever is first. |
 | `checked_reads.rs` | `src/system/checked_reads.rs` | Bounds-checked reads used by loaders. |

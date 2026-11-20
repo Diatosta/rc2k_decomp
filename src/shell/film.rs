@@ -540,7 +540,7 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
         let Some(next) = next else {
             continue;
         };
-        // (`gfx::lock_surface` leaves the carry clear for a locked surface, 1.)
+        // Only a surface that was locked (1 or more) is drawn on.
         if crate::platform::lock_surface(gfx, system) >= 1 {
             blit(&next, gfx, system);
             crate::platform::unlock_surface(gfx);

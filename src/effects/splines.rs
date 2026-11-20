@@ -146,7 +146,7 @@ mod spline_handle_tests {
 }
 
 /// `effects::centre_spline_points`: record `s`'s points (+0x654, 12 bytes, the
-/// last first) less its centre (+0xC54). Refuses more than 0x80 points. Converted:
+/// last first) less its centre (+0xC54). Refuses more than 0x80 points. The logic is in
 /// `rc2k_core::effects::splines::centre`.
 pub fn centre_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
@@ -160,7 +160,7 @@ pub fn centre_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
 
 /// `effects::grade_spline_points`: record `s`'s points' grades (+0xC90, the last
 /// first) by their heights (+0x658): 0 below 0x3830, 1 below 0x6720, else 2. Refuses more
-/// than 0x80 points. Converted: `rc2k_core::effects::splines::grade`.
+/// than 0x80 points. The logic is in `rc2k_core::effects::splines::grade`.
 pub fn grade_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
         let n = s.count(paths)?;
@@ -178,7 +178,7 @@ pub fn grade_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
 /// highest third value, into +0x30; of the +0x10 from +4 the last with the lowest, into
 /// +0x34. The value is read at +0x65C + 0x30 a point, not 12 (a slip kept as is).
 /// Refuses a negative start or count, or points past 0x80.
-/// Converted: `rc2k_core::effects::splines::find_end`.
+/// The logic is in `rc2k_core::effects::splines::find_end`.
 pub fn find_spline_ends(paths: &Paths, s: Spline) -> Result<(), Refused> {
     use rc2k_core::effects::splines::{find_end, run_fits};
     {
@@ -201,7 +201,7 @@ pub fn find_spline_ends(paths: &Paths, s: Spline) -> Result<(), Refused> {
 /// `effects::add_face_points`: face `face`'s points (+0 the count, from +0x10, 16
 /// bytes each: the point and two values) added to record `s`'s (+0x50 the count, ids
 /// +0x454, values +0x54 and +0x254) unless there already, up to 0x80. Refuses a record of
-/// more than 0x80 points. Converted: `rc2k_core::effects::splines::FacePoints::add_face`.
+/// more than 0x80 points. The logic is in `rc2k_core::effects::splines::FacePoints::add_face`.
 pub fn add_face_points(
     object_faces: &crate::scene::object_faces::ObjectFaces,
     paths: &Paths,
@@ -247,7 +247,7 @@ pub fn add_face_points(
 
 /// `effects::reset_pong`: the eight floats from `PongRules.start[0]` to four (x, y)
 /// pairs from `PongState.ball[0]`, `PongState.steps` 5, `PongState.hits` 0.
-/// Converted: `rc2k_core::effects::pong::Court::reset` (exact at every precision: copying a
+/// The logic is in `rc2k_core::effects::pong::Court::reset` (exact at every precision: copying a
 /// float only makes a signalling NaN quiet).
 pub fn reset_pong(pong: &crate::effects::pong::Pong, effects: &crate::effects::owner::Effects) {
     let rules = crate::effects::pong::rules(pong, effects);
@@ -480,7 +480,7 @@ pub fn write_point(
 /// grade's the last first) through the ordered ids and coordinates; +0 .. +8 each grade's
 /// start, +0xC .. +0x14 its count; then the count's ids and points moved back (as a
 /// byte move would, as many as the count, whatever their grade). Refuses more
-/// than 0x80 points or a negative count. Converted:
+/// than 0x80 points or a negative count. The logic is in
 /// `rc2k_core::effects::splines::order`.
 pub fn order_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
@@ -530,7 +530,7 @@ pub fn order_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
 /// slip kept as is); the box's middle (half the size, shifted right, plus the smallest) into the
 /// centre (+0xC54); the angle between the spline's up vector and the size
 /// (`scene::angle_between_vectors`, both normalised) into +0x20. Refuses more than 0x80
-/// points. Converted: `rc2k_core::effects::splines::bounds` (the floats, the sizes made
+/// points. The logic is in `rc2k_core::effects::splines::bounds` (the floats, the sizes made
 /// floats and the angle, stay the x87's: the first round as its control word says).
 pub fn bound_spline_points(
     paths: &Paths,

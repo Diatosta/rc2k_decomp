@@ -206,7 +206,7 @@ fn measured(
 /// (+0x34 .., +0x110 .., +0x1FC ..), with a `finit` after the first six; a share of 0 gives
 /// 0x80000000, the integer indefinite of the x87's division by 0.
 /// Refuses more than 8 blocks, an object past 0xFF, faces past the course's faces.
-// Converted: `rc2k_core::effects::lines::{measured, block_at}` (the lengths and shares
+// The logic is in `rc2k_core::effects::lines::{measured, block_at}` (the lengths and shares
 // stay x87: its `finit` between)
 pub fn measure_lines(
     course: &Course,
@@ -292,7 +292,7 @@ pub fn measure_lines(
 /// from (+0x1C .. +0x30 to +0x34 .., +0xF0 .. to +0x110 .., +0x1B8 .. to +0x1FC ..) and
 /// cleared; then the measure-every flag 0 and the make-shares flag 1. Refuses as
 /// `measure_lines` with every block, before writing anything.
-// Converted: `rc2k_core::effects::lines::{measured, block_at}`
+// The logic is in `rc2k_core::effects::lines::{measured, block_at}`
 pub fn measure_starting_sums(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
@@ -352,7 +352,7 @@ pub fn block_point(paths: &Paths, handle: u32, n: u32) -> Result<[u32; 3], BadIn
 /// `effects::copy_block_points`: the points of block `block`'s object (+0): the object's
 /// point count of 12 bytes from its first point, to the table the block's +0x8C names.
 /// Refuses an object past 0xFF.
-// Converted: `rc2k_core::effects::lines::check_object`
+// The logic is in `rc2k_core::effects::lines::check_object`
 pub fn copy_block_points(
     course: &Course,
     paths: &Paths,
@@ -383,7 +383,7 @@ pub fn copy_block_points(
 /// (`Paths::block_points`, its number + 1 into the taken count and +0x8C), `copy_block_points`,
 /// and +0x90 .. +0xAC the eight floats of `LinesWork.block_start`. Refuses as
 /// `measure_starting_sums`, before anything is taken.
-// Converted: `rc2k_core::effects::lines::{measured, block_at}`
+// The logic is in `rc2k_core::effects::lines::{measured, block_at}`
 pub fn set_up_blocks(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,

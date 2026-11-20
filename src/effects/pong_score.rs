@@ -26,7 +26,7 @@ fn number(
     Ok(())
 }
 
-// Converted: `rc2k_core::effects::pong::{best, score_digits}`
+// The logic is in `rc2k_core::effects::pong::{best, score_digits}`
 pub fn pong_score(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     pong: &Pong,

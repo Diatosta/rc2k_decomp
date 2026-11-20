@@ -5,7 +5,7 @@
 //! number wraps.
 
 pub fn parse_number(text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized)) -> u32 {
-    // Converted: `rc2k_core::files::settings::number`.
+    // The logic is in `rc2k_core::files::settings::number`.
     let number = rc2k_core::files::settings::number(text, 0).map_err(crate::errors::BadInput::from);
     number.unwrap_or_else(|e| crate::fatal::raise::end("settings::parse_number", e))
 }

@@ -1,4 +1,4 @@
-//! `noise_word` (the word `physics::test_car_word` tests) = `scene::noise_step` of itself.
+//! `noise_word` (the word `physics::car_word_bits` tests) = `scene::noise_step` of itself.
 //!
 //! Returns the new word.
 

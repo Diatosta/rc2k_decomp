@@ -1,7 +1,7 @@
 //! The dyno graph (the "Dyno" tab). For each forward gear, speeds from 0 to 71: the driven
 //! speeds set, `physics::revs_from_wheels`, and below the engine's limit full throttle's drive;
 //! the colours say where each point lies against the gearbox's shift points. Then the drag, the
-//! best gear's drive less it, and the acceleration test's samples (`physics::test_drive_run`).
+//! best gear's drive less it, and the acceleration test's samples (`physics::acceleration_run`).
 //! The curves are measured once for the car, and every variable the measuring writes is put
 //! back.
 

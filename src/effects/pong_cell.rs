@@ -14,7 +14,7 @@ use crate::math::matrix3::extended;
 use rc2k_core::math::extended::from_f64;
 
 /// `pattern` is the pattern byte, `column` and `row` the cell's place.
-// Converted: `rc2k_core::effects::pong::cell_place`
+// The logic is in `rc2k_core::effects::pong::cell_place`
 #[allow(
     clippy::too_many_arguments,
     reason = "the effects' groups, the cell's place, the owners and the vertex buffer"

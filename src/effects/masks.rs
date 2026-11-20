@@ -43,7 +43,7 @@ pub const MOST_POINTS: u32 = rc2k_core::effects::masks::MOST_POINTS;
 
 /// `collect_points`: face `face`'s points (+0 the count, from +0x10, 16 bytes
 /// apart) added to the list unless there already, up to 0x40, each with the face. Refuses a list of
-/// more than 0x40. Converted: `rc2k_core::effects::masks::PointList::add_face`.
+/// more than 0x40. The logic is in `rc2k_core::effects::masks::PointList::add_face`.
 pub fn collect_points(
     object_faces: &crate::scene::object_faces::ObjectFaces,
     list: &PointList<'_>,
@@ -73,7 +73,7 @@ pub fn collect_points(
     Ok(())
 }
 /// `effects::reset_mask_cursor`: the cursor the work block, the runs from the start of
-/// `run_table` (the runs are offsets in it), the run count 0. Converted:
+/// `run_table` (the runs are offsets in it), the run count 0. The logic is in
 /// `rc2k_core::effects::masks::MaskCursor::reset`.
 pub fn reset_mask_cursor(masks: &Masks) {
     // The work's first byte: offset 0.
@@ -110,7 +110,7 @@ fn shape_rows(masks: &Masks, entries: u32, index: u32) -> Result<ShapeRows, Refu
 /// `effects::draw_mask`: shape `n`'s mask (`MASKS.mask_a`, `_b`) all 0xFF, then each of the
 /// shape's +4 quads drawn (`rc2k_core::effects::masks::draw_shape`); the shape's number is held
 /// in the picks.
-/// Refuses a count of 0 or less or a span outside the mask, before writing. Converted:
+/// Refuses a count of 0 or less or a span outside the mask, before writing. The logic is in
 /// `rc2k_core::effects::masks::draw_mask`.
 pub fn draw_mask(masks: &Masks, drops: &WindscreenDrops, n: u32) -> Result<(), Refused> {
     {

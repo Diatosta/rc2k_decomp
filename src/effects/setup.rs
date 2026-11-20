@@ -63,7 +63,7 @@ pub const SINES: u32 = 0x140;
 /// 10 and turned right 20; `RainState.drawn` 0.
 pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
     let setup = &effects.setup;
-    // Converted: `rc2k_core::effects::noise::seed_noise`.
+    // The logic is in `rc2k_core::effects::noise::seed_noise`.
     let (tables, seed) = rc2k_core::effects::noise::seed_noise(setup.work.seed.get());
     for (table, values) in weather.rain.noise.iter().zip(tables) {
         for (cell, v) in table.iter().zip(values) {
@@ -173,7 +173,7 @@ pub const CURVE_RECORDS: u32 = 0x20;
 /// - `SnowState.flag` 0, the 0x20 records' four quarters, the three quads.
 ///
 /// Refuses a divisor that is 0 or 1 or -1 (the division would trap).
-// Converted: `rc2k_core::effects::noise::{walk, smooth, random_tables, record_values}`
+// The logic is in `rc2k_core::effects::noise::{walk, smooth, random_tables, record_values}`
 pub fn make_noise_curve(
     weather: &Weather,
     scene: &crate::scene::owner::Scene,

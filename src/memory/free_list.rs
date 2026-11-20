@@ -17,7 +17,7 @@ pub fn free_list(list: &impl HeldList) -> Result<(), BadInput> {
     if l.head != 0 {
         return Err(BadInput("a memory list holding a block"));
     }
-    // Converted: `rc2k_core::memory` (`Figures::given_back`, `List::emptied`).
+    // The logic is in `rc2k_core::memory` (`Figures::given_back`, `List::emptied`).
     with_figures(|f| f.given_back(l.total));
     // Only Rust's memory counted on it (`count_owned`): its total emptied too.
     if l.total != 0 {

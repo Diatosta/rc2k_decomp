@@ -75,7 +75,7 @@ pub fn pick_windscreen_drop(
 pub const ITEMS: u32 = 0x800;
 pub const ITEM_LEN: u32 = 0x30;
 
-// Converted: `rc2k_core::effects::expiry::{cell, windscreen_drop_draw, windscreen_drop_hit}`
+// The logic is in `rc2k_core::effects::expiry::{cell, windscreen_drop_draw, windscreen_drop_hit}`
 pub fn expire_windscreen_drops(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     use rc2k_core::effects::expiry;
     {
@@ -110,7 +110,7 @@ pub fn expire_windscreen_drops(masks: &Masks, drops: &WindscreenDrops) -> Result
     Ok(())
 }
 
-// Converted: `rc2k_core::effects::steps::steps`
+// The logic is in `rc2k_core::effects::steps::steps`
 pub fn windscreen_drops_step(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     {
         let clock: u32 = drops.state.clock.get();

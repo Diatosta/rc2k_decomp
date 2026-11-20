@@ -2,7 +2,7 @@
 //! textures smaller group by group until it is had.
 //!
 //! The listing is one list of 432 steps of a few kinds, which `scene/texture_steps.rs` holds
-//! as a table (made by `tools/texture_catalogue`): log a text or a number; count a reduction in
+//! as a table: log a text or a number; count a reduction in
 //! the counters (0x100 of them); raise the level a tag's textures are needed at
 //! (`scene::raise_texture_needs`: a higher level is a smaller texture); try
 //! (`scene::try_allocate_textures`), which ends the list when it succeeds; release what a

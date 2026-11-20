@@ -350,8 +350,8 @@ fn stand_in(what: &str, variable: &crate::memory::session::Dword, value: u32) {
     variable.set(value);
 }
 
-/// The game's `start`, call for call, in its steps. The checks it makes after calls of the
-/// platform (already running, no screen mode) cannot fail here.
+/// The game's start-up, in its steps. The checks after the platform's calls (already
+/// running, no screen mode) cannot fail here.
 ///
 /// Once, on the main thread: the start-up functions it calls write the game's state before
 /// any thread of the game's runs.
@@ -405,8 +405,11 @@ fn seed_clock_and_random(system: &'static System, random: &crate::math::next_ran
 
 /// The processor's test and the system's version.
 fn check_machine(system: &'static System) {
-    rust("system::test_processor");
-    crate::system::test_processor::test_processor(&crate::system::test_processor::Real, system);
+    rust("system::detect_processor");
+    crate::system::detect_processor::detect_processor(
+        &crate::system::detect_processor::Real,
+        system,
+    );
     rust("system::read_windows_version");
     crate::system::read_windows_version::read_windows_version(system);
 }
@@ -454,7 +457,7 @@ fn make_save_folders() {
 /// start check, the languages and the install record.
 fn read_command_line_and_install_state(o: Owners<'static>) {
     let system = o.system;
-    // `system::test_processor` (called above) has set it from `cpuid`.
+    // `system::detect_processor` (called above) has set it from `cpuid`.
     if system.session.host.has_fpu.get() != 1 {
         finish("fatal error 0x900010FF, FPU is required", 1);
     }

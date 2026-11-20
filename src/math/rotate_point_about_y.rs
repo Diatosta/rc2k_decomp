@@ -25,7 +25,7 @@ fn turn_point_with(
     angle: u32,
     turn: fn(&crate::math::engine_tables::EngineTables, &mut Scratch, u32) -> u32,
 ) -> [u32; 4] {
-    // Converted: `rc2k_core::math::geometry` (whole numbers become `f32` and back, rounded).
+    // The logic is in `rc2k_core::math::geometry` (whole numbers become `f32` and back, rounded).
     let mut point = Scratch {
         x: x as f32,
         y: y as f32,

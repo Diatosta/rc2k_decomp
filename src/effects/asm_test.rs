@@ -1,4 +1,4 @@
-//! The tests of the marks' converted x87 blocks: each block's plain Rust version runs over
+//! The tests of the marks' plain x87 blocks: each block's plain Rust version runs over
 //! random memory, at the default control word and at chop, and every place the recorded
 //! x87 assembly wrote (recorded once on i686, `test_support::vectors`) must hold the same
 //! bits afterwards.

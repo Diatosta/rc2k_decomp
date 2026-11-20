@@ -80,7 +80,7 @@ pub fn pick_windscreen_flake(shared: &RaceShared, fl: &WindscreenFlakes) -> Resu
 pub const ITEMS: u32 = 0x800;
 pub const ITEM_LEN: u32 = 0x3C;
 
-// Converted: `rc2k_core::effects::expiry::{cell, square_ends}`
+// The logic is in `rc2k_core::effects::expiry::{cell, square_ends}`
 pub fn expire_windscreen_flakes(masks: &Masks, drops: &WindscreenDrops, fl: &WindscreenFlakes) {
     use rc2k_core::effects::expiry;
 
@@ -102,7 +102,7 @@ pub fn expire_windscreen_flakes(masks: &Masks, drops: &WindscreenDrops, fl: &Win
     }
 }
 
-// Converted: `rc2k_core::effects::steps::{steps, next_step}`
+// The logic is in `rc2k_core::effects::steps::{steps, next_step}`
 pub fn windscreen_flakes_step(
     masks: &Masks,
     drops: &WindscreenDrops,

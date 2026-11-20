@@ -16,7 +16,7 @@ use crate::system::owner::System;
 use std::sync::atomic::Ordering;
 
 /// Every five seconds a line on where the time went: the frames shown, the fans drawn and
-/// the time in the rasteriser, the calls of functions that are not ported (each a fault).
+/// the time in the rasteriser.
 pub fn report_timing(system: &System) {
     use std::sync::Mutex;
     use std::sync::atomic::Ordering::Relaxed;

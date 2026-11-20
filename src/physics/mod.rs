@@ -56,6 +56,8 @@ pub mod clear_records;
 pub mod compare_split_times;
 pub mod contact_force;
 
+pub mod acceleration_figures;
+pub mod acceleration_run;
 pub mod contact_store;
 pub mod corner_hits_car;
 pub mod count_down_notice;
@@ -219,8 +221,6 @@ pub mod take_notice;
 pub mod take_second_view;
 pub mod take_split;
 pub mod take_split_counted;
-pub mod test_drive;
-pub mod test_drive_run;
 pub mod touch_face;
 pub mod track_checkpoints;
 pub mod turn_by_car_matrix;

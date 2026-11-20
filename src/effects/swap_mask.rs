@@ -13,7 +13,7 @@ use crate::errors::{BadInput, Refused};
 
 /// The lock and unlock (`d3d::lock_texture`,
 /// `unlock_texture`), `gfx::put_surface_pixel`, `scene::forget_slot_texture`.
-// Converted: `rc2k_core::effects::masks::{swapped, check_width, texture_pixels}`
+// The logic is in `rc2k_core::effects::masks::{swapped, check_width, texture_pixels}`
 pub fn swap_mask(
     masks: &Masks,
     scene: &crate::scene::owner::Scene,

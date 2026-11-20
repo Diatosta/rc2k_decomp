@@ -1,5 +1,5 @@
 //! The screen modes Direct3D can draw in, marked in the modes' table. Nothing unless
-//! `machine.has_fpu` (set by `system::test_processor`) is 1. First Direct3D's devices are looked at
+//! `machine.has_fpu` (set by `system::detect_processor`) is 1. First Direct3D's devices are looked at
 //! ("D3D: detect card"): the depth formats go to `mode.depth_bits` and `mode.depth_extra`, and
 //! failure says none fit (the platform's version is below). Then over the modes' table
 //! (`modes.count` entries of 8 bytes: flags, a word of extra flags): the next entry with all of the

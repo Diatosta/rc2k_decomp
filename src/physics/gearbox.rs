@@ -1,7 +1,7 @@
 //! The gearbox: `physics::gearbox_step` and what it runs, `physics::manual_gearbox`,
 //! `physics::auto_gearbox`, `physics::pick_start_gear`. This file holds the steps they share,
 //! on the work car's gear fields (`physics/gearing.rs`). The steps return only what the flow
-//! uses (`physics::car_physics_step`, `physics::test_drive_run`).
+//! uses (`physics::car_physics_step`, `physics::acceleration_run`).
 //!
 //! The shift points `LightsAndGear.gear.shift_up_point` .. `shift_ratio_figure`, `rev_limit`
 //! and `idle_engine_speed` are set at run time (0 in the file); the tests set them.

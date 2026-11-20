@@ -8,7 +8,7 @@ use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 
 /// `digit` is the digit.
-// Converted: `rc2k_core::effects::pong::{pattern, cells}`
+// The logic is in `rc2k_core::effects::pong::{pattern, cells}`
 pub fn pong_digit(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     pong: &Pong,

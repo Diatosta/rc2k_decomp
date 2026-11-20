@@ -18,7 +18,7 @@ use crate::physics::gear_store::GearFigures;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 
-/// The exact version, for `physics::car_physics_step` and `physics::test_drive`: the gear count.
+/// The exact version, for `physics::car_physics_step` and `physics::acceleration_figures`: the gear count.
 pub fn make_gear_ratios(
     car: &Car,
     tables: &PhysicsTables,

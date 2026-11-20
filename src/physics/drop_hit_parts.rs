@@ -1,4 +1,4 @@
-//! For cars of kind (`car_kind`) below 0x17, four parts in turn (`physics::test_car_word` bits
+//! For cars of kind (`car_kind`) below 0x17, four parts in turn (`physics::car_word_bits` bits
 //! 5, 9, 0xE, 0x19 of the car flags; their timers from `wheel_hit_damage`): the first whose bit
 //! is set and timer not below 100 loses its part when its bit of `parts_present` (5, 6, 7, 8)
 //! is still set (`physics::fill_slot_on_bit`, the timer 256) and it ends there; a bit of

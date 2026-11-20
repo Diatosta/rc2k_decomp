@@ -13,7 +13,7 @@ pub fn replay_mode(
     o: crate::owners::Owners<'static>,
     mode: Mode,
 ) -> Result<Viewed, Refused> {
-    // Converted: `rc2k_core::race::viewer_flow::views_replay`.
+    // The logic is in `rc2k_core::race::viewer_flow::views_replay`.
     if rc2k_core::race::viewer_flow::views_replay(race.shared.replay_file().replay_closed.get()) {
         return crate::race::replay_viewer::replay_viewer(race, o, mode);
     }

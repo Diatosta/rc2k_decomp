@@ -37,7 +37,7 @@ pub fn read(path: &[u8], buffer: &mut [u8]) -> Result<ReadResult, Refused> {
 }
 
 /// The unpacking of a file of `size` bytes read into `buffer`: the bytes written (from the
-/// buffer's start). Converted: `rc2k_core::files::packed::unpack`.
+/// buffer's start). The logic is in `rc2k_core::files::packed::unpack`.
 pub fn unpack(buffer: &mut [u8], size: u32) -> Result<u32, Refused> {
     Ok(rc2k_core::files::packed::unpack(buffer, size as usize)? as u32)
 }

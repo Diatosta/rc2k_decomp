@@ -50,7 +50,7 @@ impl<'a> Vars<'a> {
     }
 }
 
-/// On the variables in `v`. Converted: `rc2k_core::input::effects::loads` (the way worked out
+/// On the variables in `v`. The logic is in `rc2k_core::input::effects::loads` (the way worked out
 /// before any call: nothing a call changes decides it).
 pub fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Result<(), Refused> {
     use rc2k_core::input::effects::{Players, loads};

@@ -5,6 +5,7 @@
 //! the machine's facts. The time itself (`tick_count`, `sleep`) is `crate::clock`.
 
 pub mod checked_reads;
+pub mod detect_processor;
 pub mod keep_start_time;
 pub mod load_game_data;
 pub mod main_loop;
@@ -14,5 +15,4 @@ pub mod read_command_line;
 pub mod read_windows_version;
 pub mod restore_window;
 pub mod start_texts;
-pub mod test_processor;
 pub mod wait_or_key;

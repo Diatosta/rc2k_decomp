@@ -12,7 +12,7 @@
 //! The canvas path stays whole beside it. Drawing that cannot be a quad (a glyph the atlas does
 //! not hold, a full atlas, a rectangle, a picture) goes to the canvas, which the GPU puts under
 //! the quads; so that order stays exact, a canvas write first draws the quads noted so far onto
-//! the canvas (`before_canvas_write`, hooked into the screen's pixels' writes): the canvas then
+//! the canvas (`before_canvas_write`, called by the screen's pixels' write hook): the canvas then
 //! holds everything drawn up to that write, in order, and the quads everything after it.
 
 use crate::gfx::blit_glyph::Scratch;
