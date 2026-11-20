@@ -24,7 +24,7 @@ pub struct KindSet<'a> {
     /// The constants.
     pub consts: &'a KindConsts,
     /// The quad the values are put in.
-    pub quad: &'a QuadWork,
+    pub quad: &'a core::cell::RefCell<QuadWork>,
     /// Where the kind's `extra` goes (the lift along the up).
     pub extra: &'a PlainFloat,
     /// `divisor` copied here too (the first set only).
@@ -82,22 +82,20 @@ pub(super) fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), 
         return Err(BadInput("the marks' kind is past the tables (0x22)").into());
     }
     let n = kind as usize;
-    let q = k.quad;
+    let mut q = k.quad.borrow_mut();
     let c = k.consts;
     let [size, divisor, low, high, start, middle, end, spread, extra] =
         k.values.map(|table| table[n]);
     let count = k.count[n];
-    q.corner.set(count);
+    q.corner = count;
     let (scaled, ratio) = x87::mul_and_div(size, c.size_k, divisor);
-    q.size.set(scaled);
-    q.ratio.set(ratio);
-    q.low.set(low);
-    q.high.set(high);
-    q.start.set(x87::mul(start, c.start_k));
-    q.step.set(bh::stf(
-        (bh::ld(middle) - bh::ld(start)) / bh::ld(low) * bh::ld(c.step_k),
-    ));
-    q.middle.set(x87::mul(middle, c.middle_k));
+    q.size = scaled;
+    q.ratio = ratio;
+    q.low = low;
+    q.high = high;
+    q.start = x87::mul(start, c.start_k);
+    q.step = bh::stf((bh::ld(middle) - bh::ld(start)) / bh::ld(low) * bh::ld(c.step_k));
+    q.middle = x87::mul(middle, c.middle_k);
     // The angle's line above the split runs from `low` to `high`. In the kinds where the two
     // are the same it has no length (and its two ends, `middle` and `end`, are the same in
     // every such kind that is drawn): such a line is flat, with slope 0 (the 1999 code
@@ -108,8 +106,8 @@ pub(super) fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), 
     } else {
         bh::stf((bh::ld(end) - bh::ld(middle)) / (bh::ld(high) - bh::ld(low)) * bh::ld(c.slope_k))
     };
-    q.slope.set(slope);
-    q.spread.set(x87::mul(spread, c.spread_k));
+    q.slope = slope;
+    q.spread = x87::mul(spread, c.spread_k);
     k.extra.set(x87::mul(extra, c.extra_k));
     if let Some(copy) = k.divisor_copy {
         copy.set(divisor);
@@ -124,16 +122,16 @@ pub(super) fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), 
             less,
         )
     };
-    q.place[0].set(lerp(2, None));
-    q.place[1].set(lerp(1, Some(c.place_less)));
-    q.place[2].set(lerp(0, None));
+    q.place[0] = lerp(2, None);
+    q.place[1] = lerp(1, Some(c.place_less));
+    q.place[2] = lerp(0, None);
     // The first side is the kind's `copied` triple; the second side's first float is the 0
     // that goes with it, then the two differences.
-    q.sides[0][0].set(triple(2, 0));
-    q.sides[0][1].set(triple(2, 1));
-    q.sides[0][2].set(triple(2, 2));
-    q.sides[1][0].set(0.0);
-    q.sides[1][1].set(x87::sub(triple(0, 1), triple(1, 1)));
-    q.sides[1][2].set(x87::negated(x87::sub(triple(0, 0), triple(1, 0))));
+    q.sides[0][0] = triple(2, 0);
+    q.sides[0][1] = triple(2, 1);
+    q.sides[0][2] = triple(2, 2);
+    q.sides[1][0] = 0.0;
+    q.sides[1][1] = x87::sub(triple(0, 1), triple(1, 1));
+    q.sides[1][2] = x87::negated(x87::sub(triple(0, 0), triple(1, 0)));
     Ok(())
 }

@@ -84,7 +84,7 @@ pub fn draw_menu_items(
             }
         })
         .collect();
-    let since_key = if menus.screens.entry.redefining_key.is_set() {
+    let since_key = if menus.screens.entry.read().redefining_key {
         0
     } else {
         o.system
@@ -98,7 +98,7 @@ pub fn draw_menu_items(
     rc2k_core::screens::menus::items(
         &mut screen,
         &list,
-        menus.screens.loop_flags.item.get(),
+        menus.screens.loop_flags.read().item,
         since_key,
     )
 }

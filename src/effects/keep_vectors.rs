@@ -1,28 +1,25 @@
-//! `effects::keep_vectors`: twelve dwords kept: `KeptView.pushed[1]` .. and `KeptView.pushed[0]`
-//! into `KeptView.kept_a.vector[0]` .. and `KeptView.kept_a.factor`;
-//! `ViewSources.sources[1].vector[0]` .. and `ViewSources.sources[1].factor` into
-//! `KeptView.kept_c.vector[0]` .. and `KeptView.kept_c.factor`; `ViewSources.sources[0].vector[0]`
-//! .. and `ViewSources.sources[0].factor` into `KeptView.kept_b.vector[0]` .. and
-//! `KeptView.kept_b.factor`.
-
 pub(super) fn keep_vectors(effects: &crate::effects::owner::Effects) {
     let frame = &effects.frame;
-    let (k, s) = (&frame.kept_view, &frame.view_sources.sources);
-    for (from, to) in [
-        // (from, to)
-        (&k.pushed[1], &k.kept_a.vector[0]),
-        (&k.pushed[2], &k.kept_a.vector[1]),
-        (&k.pushed[3], &k.kept_a.vector[2]),
-        (&k.pushed[0], &k.kept_a.factor),
-        (&s[1].vector[0], &k.kept_c.vector[0]),
-        (&s[1].vector[1], &k.kept_c.vector[1]),
-        (&s[1].vector[2], &k.kept_c.vector[2]),
-        (&s[1].factor, &k.kept_c.factor),
-        (&s[0].vector[0], &k.kept_b.vector[0]),
-        (&s[0].vector[1], &k.kept_b.vector[1]),
-        (&s[0].vector[2], &k.kept_b.vector[2]),
-        (&s[0].factor, &k.kept_b.factor),
-    ] {
-        to.set(from.get());
-    }
+    let mut k = frame.kept_view.borrow_mut();
+    let s = frame.view_sources.borrow();
+    let from = [
+        k.pushed[1],
+        k.pushed[2],
+        k.pushed[3],
+        k.pushed[0],
+        s.sources[1].vector[0],
+        s.sources[1].vector[1],
+        s.sources[1].vector[2],
+        s.sources[1].factor,
+        s.sources[0].vector[0],
+        s.sources[0].vector[1],
+        s.sources[0].vector[2],
+        s.sources[0].factor,
+    ];
+    k.kept_a.vector = [from[0], from[1], from[2]];
+    k.kept_a.factor = from[3];
+    k.kept_c.vector = [from[4], from[5], from[6]];
+    k.kept_c.factor = from[7];
+    k.kept_b.vector = [from[8], from[9], from[10]];
+    k.kept_b.factor = from[11];
 }

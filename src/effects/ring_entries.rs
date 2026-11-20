@@ -18,7 +18,10 @@ pub const ENTRIES: u32 = 0x400;
 const RING_BYTES: u32 = 0x2_5000;
 
 /// The ring made: each entry linked to its neighbours, counted on `list`.
-pub fn take(ring: &Ring, list: &crate::memory::ListCells) -> Result<(), crate::errors::Refused> {
+pub fn take(
+    ring: &Ring,
+    list: &impl crate::memory::HeldList,
+) -> Result<(), crate::errors::Refused> {
     let entries = (0..ENTRIES)
         .map(|i| Entry {
             prev: (i.wrapping_sub(1) & (ENTRIES - 1)) + 1,
@@ -77,8 +80,9 @@ pub fn set<T>(
 /// by moving the cursor on, any other is unlinked and linked in just before the cursor (the
 /// end of the walk's order), so the live ones stay together from the cursor on.
 fn retire_entry(ring: &Ring, e: u32) -> Result<(), BadInput> {
-    ring.work.count.set(ring.work.count.get().wrapping_sub(1));
-    let cursor: u32 = ring.work.cursor.get();
+    let count = ring.work.borrow().count.wrapping_sub(1);
+    ring.work.borrow_mut().count = count;
+    let cursor: u32 = ring.work.borrow().cursor;
     let moved_on = ring.entries.with(|r| -> Option<Option<u32>> {
         let len = r.len();
         let slot = |n: u32| (n as usize).checked_sub(1).filter(|&i| i < len);
@@ -100,7 +104,7 @@ fn retire_entry(ring: &Ring, e: u32) -> Result<(), BadInput> {
     match moved_on {
         None => Err(BadInput("a ring entry past the ring")),
         Some(Some(next)) => {
-            ring.work.cursor.set(next);
+            ring.work.borrow_mut().cursor = next;
             Ok(())
         }
         Some(None) => Ok(()),
@@ -114,8 +118,8 @@ pub(super) fn walk_ring(
     ring: &Ring,
     mut visit: impl FnMut(u32) -> Result<bool, crate::errors::Refused>,
 ) -> Result<(), crate::errors::Refused> {
-    let mut e: u32 = ring.work.cursor.get();
-    let mut counter = ring.work.count.get() as i32;
+    let mut e: u32 = ring.work.borrow().cursor;
+    let mut counter = ring.work.borrow().count as i32;
     loop {
         counter = counter.wrapping_sub(1);
         if counter < 0 {
@@ -137,8 +141,8 @@ pub(super) fn walk_ring_copies(
     ring: &Ring,
     mut visit: impl FnMut(u32, &mut Entry) -> Result<bool, crate::errors::Refused>,
 ) -> Result<(), crate::errors::Refused> {
-    let mut e: u32 = ring.work.cursor.get();
-    let mut counter = ring.work.count.get() as i32;
+    let mut e: u32 = ring.work.borrow().cursor;
+    let mut counter = ring.work.borrow().count as i32;
     loop {
         counter = counter.wrapping_sub(1);
         if counter < 0 {

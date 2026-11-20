@@ -117,7 +117,7 @@ pub(super) fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), 
         )?;
         best_times.loaded.set(1);
     }
-    if !menus.screens.loop_flags.options_loaded.is_set() {
+    if !menus.screens.loop_flags.read().options_loaded {
         for table in record_tables(system) {
             crate::records::default_stage_records::default_stage_records(
                 crate::strings::append_string_by_id::StringOwners::of(o),

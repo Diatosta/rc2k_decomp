@@ -54,7 +54,7 @@ pub fn volume_step(o: Owners<'static>, v: Volume<'_>) {
             value as u32,
         ),
         Then::Sound(sound) => {
-            screens.flow.menu_sounds_volume.set(value as u32);
+            screens.flow.write().menu_sounds_volume = value as u32;
             crate::sound::play_menu_sound::play_menu_sound(
                 o.sound,
                 o.audio,
@@ -90,10 +90,35 @@ pub(super) fn step_texture_setting(
     race.shared.state.settings.car_detail.set(v);
 }
 
+/// Which start-section number a pick steps, in the flow's plain values.
+#[derive(Clone, Copy)]
+pub enum StartNumber<'a> {
+    /// The Mobil One championship's.
+    A(&'a ScreenFlow),
+    /// The A8 championship's.
+    B(&'a ScreenFlow),
+}
+
+impl StartNumber<'_> {
+    fn get(self) -> u32 {
+        match self {
+            StartNumber::A(flow) => flow.read().start_section,
+            StartNumber::B(flow) => flow.read().start_section_a8,
+        }
+    }
+
+    fn set(self, number: u32) {
+        match self {
+            StartNumber::A(flow) => flow.write().start_section = number,
+            StartNumber::B(flow) => flow.write().start_section_a8 = number,
+        }
+    }
+}
+
 /// One of the two start-section picks: (its number, the table, where the pick goes).
 #[derive(Clone, Copy)]
 pub struct StartPick<'a> {
-    pub number: &'a PlainDword,
+    pub number: StartNumber<'a>,
     /// The table of the pictures' string ids, in `CAPTIONS.caption_lists`, from `table_at`.
     pub table_at: usize,
     pub pick: &'a PlainDword,
@@ -101,14 +126,14 @@ pub struct StartPick<'a> {
 
 pub(super) fn start_pick_a<'a>(flow: &'a ScreenFlow, captions: &'a CaptionTables) -> StartPick<'a> {
     StartPick {
-        number: &flow.start_section,
+        number: StartNumber::A(flow),
         table_at: 21,
         pick: &captions.caption_lists[7],
     }
 }
 pub(super) fn start_pick_b<'a>(flow: &'a ScreenFlow, captions: &'a CaptionTables) -> StartPick<'a> {
     StartPick {
-        number: &flow.start_section_a8,
+        number: StartNumber::B(flow),
         table_at: 13,
         pick: &captions.caption_lists[8],
     }

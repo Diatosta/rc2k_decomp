@@ -8,7 +8,7 @@
 //! for itself). Another thread's step is waited for.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::{HeldList, ListCells, with_figures};
+use crate::memory::{HeldList, with_figures};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
@@ -36,7 +36,7 @@ fn check_count(bytes: u32) -> Result<(), Refused> {
 /// only while one function runs. Sized as the game's block was (whole pages less its
 /// header), so a read just past `bytes` gives zeros as it did. Refuses what `count_on`
 /// refuses.
-pub fn counted(list: &ListCells, bytes: u32) -> Result<Vec<u8>, Refused> {
+pub fn counted(list: &impl HeldList, bytes: u32) -> Result<Vec<u8>, Refused> {
     count_on(list, bytes)?;
     Ok(vec![0; block_len(bytes)])
 }

@@ -7,7 +7,6 @@ use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::memory::session::PlainFloat;
-use crate::memory::session::write_bits;
 
 const PLACES_LEN: u32 = 0x7024;
 const RING_LEN: u32 = 0x4C000;
@@ -100,7 +99,7 @@ pub fn scale_corners(
     effects: &crate::effects::owner::Effects,
 ) {
     {
-        let scale = effects.frame.draw_work.uv_k.get();
+        let scale = effects.frame.draw_work.borrow().uv_k;
         for n in (0..CORNERS).rev() {
             let record = &effects.blocks.corners.corners[n as usize];
             let word = |o: u32| record.words[o as usize / 2].get();
@@ -122,7 +121,7 @@ pub fn scale_corners(
                 (if (d as i16) < 0 { d.wrapping_neg() } else { d }) as u32
             };
             let (across, along) = (side(4, 0), side(0xA, 2));
-            write_bits(&effects.frame.draw_work.half, [across, along]);
+            effects.frame.draw_work.borrow_mut().half = [across, along].map(f32::from_bits);
             // A record of no size (both sides 0: the stage's unused corners) has no slope:
             // it is 0 (dividing 0 by 0 would give a NaN).
             let ratio = if along == 0 && across == 0 {

@@ -7,7 +7,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::Car;
-use crate::physics::ground_store::GroundWork;
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
@@ -110,8 +109,12 @@ fn distance_to_checkpoint(
     }
     {
         let (_, point) = check_point(checkpoints, course, c)?;
-        let dx = get(course, point, 0)?.wrapping_sub(physics.ground().ground_x.get()) as i32;
-        let dz = get(course, point, 2)?.wrapping_sub(physics.ground().ground_z.get()) as i32;
+        let (x, z) = {
+            let search = physics.ground_search().borrow();
+            (search.x, search.z)
+        };
+        let dx = get(course, point, 0)?.wrapping_sub(x) as i32;
+        let dz = get(course, point, 2)?.wrapping_sub(z) as i32;
         drawing
             .scene
             .get()
@@ -150,7 +153,10 @@ pub fn nearest_checkpoint_in(
         // Every checkpoint, every physics tick: read straight from the stores while nothing
         // needs looking at more closely, by `distance_to_checkpoint` otherwise.
         let measured = measure_held(
-            physics.ground(),
+            {
+                let search = physics.ground_search().borrow();
+                (search.x, search.z)
+            },
             course,
             shared,
             &mut c,
@@ -206,7 +212,7 @@ thread_local! {
 /// Measures checkpoints from `c` up to `to` as `distance_to_checkpoint` does, until one is off the
 /// line or its reads leave the stores (`c` is then that one).
 fn measure_held(
-    ground: &GroundWork,
+    place: (u32, u32),
     course: &Course,
     shared: &RaceShared,
     c: &mut u32,
@@ -221,7 +227,7 @@ fn measure_held(
     }
     let (checkpoints, vars) = (&shared.buffers.reads.get().checkpoints, shared.vars.get());
     let count: u32 = vars.checkpoint_count.get();
-    let (x, z) = (ground.ground_x.get(), ground.ground_z.get());
+    let (x, z) = place;
     // With rounding to nearest the distance is `round(sqrt(dx^2 + dz^2))` in plain doubles,
     // rising with the sum: a checkpoint whose sum is at least (nearest + 1)^2 cannot be kept,
     // and its root is not taken (the bound is exact while the nearest is below 2^26).
@@ -300,14 +306,11 @@ pub fn nearest_checkpoint(
 ) -> Result<u32, Refused> {
     let count = count(shared)?;
     {
-        physics
-            .ground()
-            .ground_x
-            .set(shared.car().position[0].get());
-        physics
-            .ground()
-            .ground_z
-            .set(shared.car().position[2].get());
+        {
+            let mut search = physics.ground_search().borrow_mut();
+            search.x = shared.car().position[0].get();
+            search.z = shared.car().position[2].get();
+        }
         if count == 0 {
             return Ok(0);
         }

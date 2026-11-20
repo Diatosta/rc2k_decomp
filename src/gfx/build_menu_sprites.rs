@@ -17,13 +17,12 @@ pub fn build_menu_sprites(
     strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
     let vars = &gfx.sheet;
-    let sprite_table = &menus.screens.loop_flags.sprite_table;
     let list = &gfx.fonts.glyph_tables.memory;
     begin_glyph_tables(vars, gfx, system, strings)?;
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
     begin_glyph_table(&gfx.fonts, vars, list)?;
     build_glyphs(vars, &crate::gfx::texts::MBUTS, list, gfx, system, strings)?;
-    sprite_table.set(vars.table.get());
+    menus.screens.loop_flags.write().sprite_table = vars.table.get();
     end_glyph_tables(strings)?;
     all_direct_colour(vars.table.get(), gfx)
 }

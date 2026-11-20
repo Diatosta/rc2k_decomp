@@ -11,10 +11,10 @@ use crate::menu::screen_loop::{Callee, Entry, Flow, Frames, Keys, List, Screen, 
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let menus = entry.menus;
-    if menus.screens.entry.typing.is_set() {
+    if menus.screens.entry.read().typing {
         let failed = Callee::EditReplayName.run(entry)?;
         if !failed {
-            if menus.screens.entry.typing.is_set() {
+            if menus.screens.entry.read().typing {
                 return Ok(Flow::NextFrame);
             }
             if menus.tables.captions.left_by_key.is_set() {
@@ -23,9 +23,9 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
                 return Ok(Flow::Leave);
             }
             // 0x14 replays a page; the items count from 1.
-            let replay = menus.tables.pages.replay_page.get().wrapping_mul(0x14);
+            let replay = menus.tables.pages.read().replay_page.wrapping_mul(0x14);
             menus.screens.draw_work.write().leave_result = replay
-                .wrapping_add(menus.screens.loop_flags.item.get())
+                .wrapping_add(menus.screens.loop_flags.read().item)
                 .wrapping_sub(1);
             return Ok(Flow::Leave);
         }

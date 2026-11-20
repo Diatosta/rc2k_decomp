@@ -140,7 +140,7 @@ pub(super) fn draw_item_button(
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let highlighted = menus.screens.loop_flags.item.get() == item.fixed().id;
+    let highlighted = menus.screens.loop_flags.read().item == item.fixed().id;
     draw_button(
         menus,
         if highlighted { &HIGHLIGHTED } else { &PLAIN },

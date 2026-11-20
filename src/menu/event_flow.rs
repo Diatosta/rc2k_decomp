@@ -39,10 +39,10 @@ pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {
 pub(super) fn switch_is_set(menus: &Menus, system: &System, s: Switch) -> bool {
     let screens = &menus.screens;
     match s {
-        Switch::EventLeft => screens.loop_flags.event_left.is_set(),
-        Switch::LeaveScreen => screens.loop_flags.leave_screen.is_set(),
-        Switch::LeftWithCarry => screens.loop_flags.left_with_carry.is_set(),
-        Switch::AskLeave => screens.loop_flags.ask_leave.is_set(),
+        Switch::EventLeft => screens.loop_flags.read().event_left,
+        Switch::LeaveScreen => screens.loop_flags.read().leave_screen,
+        Switch::LeftWithCarry => screens.loop_flags.read().left_with_carry,
+        Switch::AskLeave => screens.loop_flags.read().ask_leave,
         Switch::EventOver => screens.event.event_over.is_set(),
         Switch::LeftByKey => menus.tables.captions.left_by_key.is_set(),
         Switch::EscapePressed => screens.draw_work.read().escape_pressed,
@@ -56,10 +56,10 @@ pub(super) fn switch_is_set(menus: &Menus, system: &System, s: Switch) -> bool {
 pub(super) fn set_switch(menus: &Menus, system: &System, s: Switch, on: bool) {
     let screens = &menus.screens;
     match s {
-        Switch::EventLeft => screens.loop_flags.event_left.set(on),
-        Switch::LeaveScreen => screens.loop_flags.leave_screen.set(on),
-        Switch::LeftWithCarry => screens.loop_flags.left_with_carry.set(on),
-        Switch::AskLeave => screens.loop_flags.ask_leave.set(on),
+        Switch::EventLeft => screens.loop_flags.write().event_left = on,
+        Switch::LeaveScreen => screens.loop_flags.write().leave_screen = on,
+        Switch::LeftWithCarry => screens.loop_flags.write().left_with_carry = on,
+        Switch::AskLeave => screens.loop_flags.write().ask_leave = on,
         Switch::EventOver => screens.event.event_over.set(on),
         Switch::LeftByKey => menus.tables.captions.left_by_key.set(on),
         Switch::EscapePressed => screens.draw_work.write().escape_pressed = on,
@@ -75,7 +75,7 @@ pub fn player(menus: &Menus, n: u32) -> crate::menu::standings::PlayerCell<'_> {
 }
 
 pub fn yes(pages: &MenuPages) -> bool {
-    pages.yes_no_answer.get() == 1
+    pages.read().yes_no_answer == 1
 }
 
 /// The current player's record, refused past the four.

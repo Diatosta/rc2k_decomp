@@ -37,12 +37,12 @@ pub(super) fn class_rally_results_pass(
         .map(|e| (e.head.group, e.head.player))
         .collect();
     for class in classes {
-        screens.loop_flags.left_with_carry.set(false);
+        screens.loop_flags.write().left_with_carry = false;
         let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
         if !has_player {
             continue;
         }
-        screens.loop_flags.left_with_carry.set(true);
+        screens.loop_flags.write().left_with_carry = true;
         let numbered = number_standings(play, Which::A, class, tables)?;
         screens.event.standings_count.set(numbered.last_number);
         crate::menu::show_class_rally_results::show_class_rally_results(
@@ -52,7 +52,7 @@ pub(super) fn class_rally_results_pass(
             entry,
             tables,
         )?;
-        if pages.yes_no_answer.get() == 1 {
+        if pages.read().yes_no_answer == 1 {
             break;
         }
     }

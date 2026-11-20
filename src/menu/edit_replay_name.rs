@@ -55,7 +55,7 @@ pub(super) fn edit_replay_name(
     // A character: appended unless the name is full, and taken off again when too wide.
     let mut append = |c: u8| -> Result<(), Refused> {
         let len = length(menus);
-        if entry::appends(c, len, menus.screens.loop_flags.text_max.get() as i32) {
+        if entry::appends(c, len, menus.screens.loop_flags.read().text_max as i32) {
             name.add(len as u32).write(&[c], "a replay's name")?;
             set_length(menus, len.wrapping_add(1));
             let measured =
@@ -74,7 +74,7 @@ pub(super) fn edit_replay_name(
         Key::None => {}
         Key::Escape => {
             restore_text(menus, name)?;
-            menus.screens.entry.typing.set(false);
+            menus.screens.entry.write().typing = false;
             menus.tables.captions.left_by_key.set(true);
             return Ok(true);
         }
@@ -83,7 +83,7 @@ pub(super) fn edit_replay_name(
                 restore_text(menus, name)?;
                 add_text_length(menus, name)?;
             }
-            menus.screens.entry.typing.set(false);
+            menus.screens.entry.write().typing = false;
             end_name(menus, name)?;
             return Ok(false);
         }

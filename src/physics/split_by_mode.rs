@@ -16,7 +16,7 @@ use rc2k_core::physics::splits::{SplitFigure, split_figure};
 pub(super) fn split_by_mode(
     o: crate::owners::Owners<'static>,
     split_tables: &mut SplitTables,
-    league: &League,
+    league: &mut League,
     panel_and_overlay: &PanelAndOverlay,
     shared: &RaceShared,
     car_blocks: &crate::race::blocks_store::CarBlocks,

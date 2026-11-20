@@ -436,7 +436,7 @@ impl ScreenHost for ScriptedHost<'_> {
     }
     fn confirm_leaving(&mut self) -> Result<(), Refused> {
         // The question is answered yes.
-        self.real.entry.menus.tables.pages.yes_no_answer.set(1u32);
+        self.real.entry.menus.tables.pages.write().yes_no_answer = 1u32;
         Ok(())
     }
     fn answered_yes(&self) -> bool {

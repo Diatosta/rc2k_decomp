@@ -15,7 +15,7 @@ use crate::sound::sets_store::SoundRequest;
 /// The gear sounds of object `so`, through `request`.
 pub(super) fn car_gear_sounds(
     so: &crate::sound::store::SoundObject,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
@@ -33,17 +33,13 @@ pub(super) fn car_gear_sounds(
             .each_ref()
             .map(crate::memory::session::PlainFloat::get),
     );
-    for (cell, v) in request.place.iter().zip(place) {
-        cell.set(v);
-    }
+    request.place = place;
     for slot in &so.slots[5..] {
         crate::sound::play_timed_slot::play_timed_slot(slot, request, sound, audio)?;
     }
-    let factor = &request.pitch_factor;
-    let kept = factor.get();
-    let pitch = gear_pitch(kept, so.gear_pitch.get());
-    factor.set(pitch);
+    let kept = request.pitch_factor;
+    request.pitch_factor = gear_pitch(kept, so.gear_pitch.get());
     crate::sound::play_timed_slot::play_timed_slot(&so.gear_slot, request, sound, audio)?;
-    factor.set(kept);
+    request.pitch_factor = kept;
     Ok(())
 }

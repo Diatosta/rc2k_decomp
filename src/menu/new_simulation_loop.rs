@@ -17,11 +17,11 @@ fn before(screens: &Screens) -> Result<(), Refused> {
 
 fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let screens = &set_up.menus.screens;
-    screens.flow.turning.set(0x1u32);
+    screens.flow.write().turning = 0x1u32;
     screens.carousel.menu.set(0x2u32);
     set_up.carousel_with(None)?;
     let item = screens.items.current[slot::NEW_SIMULATION].get();
-    screens.loop_flags.item.set(item);
+    screens.loop_flags.write().item = item;
     screens.carousel.front.set(item.wrapping_sub(1));
 
     Ok(())

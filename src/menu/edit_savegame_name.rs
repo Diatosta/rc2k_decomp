@@ -44,10 +44,10 @@ fn end_name(menus: &Menus, name: crate::memory::place::BytePlace) -> Result<(), 
 /// The slot of the highlighted saved game: `page * 10 + item - 1`.
 fn highlighted_slot(pages: &MenuPages, loop_flags: &LoopFlags) -> u32 {
     pages
+        .read()
         .save_page
-        .get()
         .wrapping_mul(10)
-        .wrapping_add(loop_flags.item.get())
+        .wrapping_add(loop_flags.read().item)
         .wrapping_sub(1)
 }
 
@@ -95,7 +95,7 @@ pub fn edit_savegame_name(
     // A character: appended unless the name is full, and taken off again when too wide.
     let mut append = |c: u8| -> Result<(), Refused> {
         let len = length(menus);
-        if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
+        if entry::appends(c, len, screens.loop_flags.read().text_max as i32) {
             name.add(len as u32).write(&[c], "a saved game's name")?;
             set_length(menus, len.wrapping_add(1));
             let measured = measure_text_at(
@@ -118,7 +118,7 @@ pub fn edit_savegame_name(
         Key::None => {}
         Key::Escape => {
             restore_text(menus, name)?;
-            screens.entry.typing.set(false);
+            screens.entry.write().typing = false;
             return Ok(());
         }
         Key::Enter => {
@@ -126,7 +126,7 @@ pub fn edit_savegame_name(
                 restore_text(menus, name)?;
                 add_text_length(menus, name)?;
             }
-            screens.entry.typing.set(false);
+            screens.entry.write().typing = false;
             end_name(menus, name)?;
             save(highlighted_slot(
                 &menus.tables.pages,

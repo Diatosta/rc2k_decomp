@@ -5,10 +5,6 @@ use crate::menu::owner::Menus;
 
 pub fn next_setup_page(menus: &Menus) {
     let tables = &menus.tables;
-    tables
-        .pages
-        .setup_slot_page
-        .set(
-            rc2k_core::service::setups::next_page(tables.pages.setup_slot_page.get() as i32) as u32,
-        );
+    tables.pages.write().setup_slot_page =
+        rc2k_core::service::setups::next_page(tables.pages.read().setup_slot_page as i32) as u32;
 }

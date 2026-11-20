@@ -338,8 +338,7 @@ fn finish(
     race: &Race,
     step: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let kept = &menus.screens.flow.kept;
-    kept.set(race.shared.state.settings.kept.get());
+    menus.screens.flow.write().kept = race.shared.state.settings.kept.get();
     step(Call::PlayTune3)
 }
 
@@ -437,7 +436,7 @@ fn single_rally(
         2
     };
     if one_car {
-        settings.kept.set(menus.screens.flow.kept.get());
+        settings.kept.set(menus.screens.flow.read().kept);
         settings.race_mode.set(split_players);
         if first.entry != TAKES_PART {
             results[1].result.set(u32::MAX);
@@ -617,6 +616,29 @@ mod vector_tests {
     /// The arcade store is plain fields: its one range here, `scene_let_go`, is read and
     /// written by hand.
     const ARCADE: &str = "owners.menus.play.arcade";
+    /// The screens' flow store is plain fields: its one range here, `kept`, is read and
+    /// written by hand.
+    const FLOW: &str = "owners.menus.screens.flow";
+
+    /// The word of a plain store's range, if `name` is one.
+    fn plain_word(name: &str) -> Option<u32> {
+        let menus = Owners::the().menus;
+        match name {
+            ARCADE => Some(menus.play.arcade.read().scene_let_go),
+            FLOW => Some(menus.screens.flow.read().kept),
+            _ => None,
+        }
+    }
+
+    /// Sets the word of a plain store's range.
+    fn set_plain_word(name: &str, word: u32) {
+        let menus = Owners::the().menus;
+        match name {
+            ARCADE => menus.play.arcade.write().scene_let_go = word,
+            FLOW => menus.screens.flow.write().kept = word,
+            _ => unreachable!("{name} is not a plain store"),
+        }
+    }
 
     /// The memory the function and its calls' stand-ins read and write: (store, field, byte of the
     /// field's cells to start at, bytes).
@@ -872,11 +894,10 @@ mod vector_tests {
     ];
 
     /// The stores the test writes.
-    const STORES: [&str; 8] = [
+    const STORES: [&str; 7] = [
         "owners.menus.play.champ_view",
         "owners.menus.play.slots",
         "owners.menus.screens.event",
-        "owners.menus.screens.flow",
         "owners.menus.options",
         "owners.race.replay.viewer_and_kinds",
         "owners.race.shared.state",
@@ -951,15 +972,8 @@ mod vector_tests {
 
     /// `len` bytes of the cells from byte `skip` of the field `path` of the store `name`.
     fn read_range(name: &str, path: &str, skip: usize, len: usize) -> Vec<u8> {
-        if name == ARCADE {
-            let bytes = Owners::the()
-                .menus
-                .play
-                .arcade
-                .read()
-                .scene_let_go
-                .to_le_bytes();
-            return bytes[skip..skip + len].to_vec();
+        if let Some(word) = plain_word(name) {
+            return word.to_le_bytes()[skip..skip + len].to_vec();
         }
         let mut cells = walk(name).range_bytes(path, skip + len);
         assert_eq!(cells.len(), skip + len, "{name}{path}");
@@ -969,11 +983,10 @@ mod vector_tests {
 
     /// The cells `read_range` names set from `bytes`.
     fn write_range(name: &str, path: &str, skip: usize, bytes: &[u8]) {
-        if name == ARCADE {
-            let arcade = &Owners::the().menus.play.arcade;
-            let mut word = arcade.read().scene_let_go.to_le_bytes();
+        if let Some(word) = plain_word(name) {
+            let mut word = word.to_le_bytes();
             word[skip..skip + bytes.len()].copy_from_slice(bytes);
-            arcade.write().scene_let_go = u32::from_le_bytes(word);
+            set_plain_word(name, u32::from_le_bytes(word));
             return;
         }
         let store = walk(name);
@@ -1201,6 +1214,7 @@ mod vector_tests {
     fn single_rally_is_the_originals() {
         let kept = Snapshot::of(&STORES);
         let kept_arcade = Owners::the().menus.play.arcade.read();
+        let kept_flow = Owners::the().menus.screens.flow.read();
         let mut vectors = Vectors::open("race.single_rally.cases", Kind::Bits, 8);
         let (mut done, mut fatal, mut failed, mut engine, mut early, mut results) =
             (0, 0, 0, 0, 0, 0);
@@ -1222,6 +1236,7 @@ mod vector_tests {
         }
         kept.restore();
         *Owners::the().menus.play.arcade.write() = kept_arcade;
+        *Owners::the().menus.screens.flow.write() = kept_flow;
         vectors.finish();
         assert!(
             done > 100 && fatal > 10 && failed > 20 && engine > 20 && early > 5 && results > 10,

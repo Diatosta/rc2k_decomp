@@ -17,7 +17,7 @@ pub fn yes_no_caption(
     pages: &MenuPages,
     buffers: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
-    let id = pages.yes_no_answer.get().wrapping_add(FIRST);
+    let id = pages.read().yes_no_answer.wrapping_add(FIRST);
     let mut text = Vec::new();
     append_string_by_id(so, id, &mut |bytes| text.extend_from_slice(bytes))?;
     // The logic is in `rc2k_core::screens::captions::fit`.

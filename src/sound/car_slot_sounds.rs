@@ -13,7 +13,7 @@ use rc2k_core::sound::engine::{computers, placed_slots};
 /// The timed slots of object `so`, through `request`.
 pub fn car_slot_sounds(
     so: &crate::sound::store::SoundObject,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
@@ -21,15 +21,15 @@ pub fn car_slot_sounds(
     if computers(so.sound_offset.get()) {
         return Ok(());
     }
-    let place = |from: &[crate::memory::session::PlainFloat; 3]| {
-        for (cell, f) in request.place.iter().zip(from) {
-            cell.set(f.get());
+    let place = |request: &mut SoundRequest, from: &[crate::memory::session::PlainFloat; 3]| {
+        for (to, from) in request.place.iter_mut().zip(from) {
+            *to = from.get();
         }
     };
-    place(&so.place);
+    place(request, &so.place);
     for at in placed_slots(so.view_flag.get() == 0) {
         crate::sound::play_timed_slot::play_timed_slot(so.slot_at(at), request, sound, audio)?;
     }
-    place(&so.place_b);
+    place(request, &so.place_b);
     crate::sound::play_timed_slot::play_timed_slot(&so.slot_b, request, sound, audio)
 }

@@ -15,21 +15,18 @@ use rc2k_core::sound::engine::computers;
 pub fn throttle_sound(
     so: &crate::sound::store::SoundObject,
     kind: u32,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     if computers(so.sound_offset.get()) {
         return Ok(());
     }
-    let set = &sound.race.kinds.get().record(kind)?.throttle;
-    request.sound.set(rc2k_core::sound::engine::player_sound(
-        so.sound_offset.get(),
-        set.sound.get(),
-    ));
+    let set = sound.race.kinds.get().record(kind)?.throttle;
+    request.sound = rc2k_core::sound::engine::player_sound(so.sound_offset.get(), set.sound);
     send_engine_sound(
         so,
-        set,
+        &set,
         &so.throttle_input,
         EnginePlace::Behind,
         request,
@@ -40,12 +37,11 @@ pub fn throttle_sound(
 
 #[cfg(test)]
 mod reference_vectors {
-    use super::*;
-    use crate::sound::asm_layout::{Laid, with_laid};
+    use crate::sound::asm_layout::{Laid, SURFACE_EXTENT, with_laid, with_request, with_surface};
     use crate::sound::revs_sound::EnginePlace;
     use crate::sound::revs_sound::fill_request;
     use crate::sound::sets_store::SoundSet;
-    use crate::sound::store::{SoundObject, SurfaceSounds};
+    use crate::sound::store::SoundObject;
 
     use crate::math::x87_mem::view;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
@@ -91,15 +87,16 @@ mod reference_vectors {
                     with_laid::<SoundObject, _>(a[0], |bx| {
                         let set = view::<SoundSet>(a[1], 0);
                         bx.view_flag.set(1);
-                        let request = view::<SoundRequest>(a[2], 0);
-                        fill_request(
-                            bx,
-                            set,
-                            &bx.throttle_input,
-                            EnginePlace::Behind,
-                            crate::test_support::own::sound().race.surface.get(),
-                            request,
-                        );
+                        with_request(a[2], |request| {
+                            fill_request(
+                                bx,
+                                set,
+                                &bx.throttle_input,
+                                EnginePlace::Behind,
+                                crate::test_support::own::sound().race.surface.get(),
+                                request,
+                            );
+                        });
                     });
                 },
             },
@@ -126,7 +123,7 @@ mod reference_vectors {
                         writes: &[],
                     },
                     Operand::Sized {
-                        len: SurfaceSounds::EXTENT,
+                        len: SURFACE_EXTENT,
                         reads: &[(0x28, In::F)],
                         writes: &[],
                     },
@@ -144,18 +141,19 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     with_laid::<SoundObject, _>(a[0], |bx| {
-                        with_laid::<SurfaceSounds, _>(a[2], |sf| {
+                        with_surface(a[2], |sf| {
                             let set = view::<SoundSet>(a[1], 0);
                             bx.view_flag.set(0);
-                            let request = view::<SoundRequest>(a[3], 0);
-                            fill_request(
-                                bx,
-                                set,
-                                &bx.throttle_input,
-                                EnginePlace::Behind,
-                                sf,
-                                request,
-                            );
+                            with_request(a[3], |request| {
+                                fill_request(
+                                    bx,
+                                    set,
+                                    &bx.throttle_input,
+                                    EnginePlace::Behind,
+                                    sf,
+                                    request,
+                                );
+                            });
                         });
                     });
                 },

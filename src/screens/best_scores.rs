@@ -22,7 +22,7 @@ use rc2k_core::screens::best_scores::{Row, Rows};
 /// `menu::previous_scores_page` (below 0 to 10) write it, from 0. Refused past the list.
 fn page_title(titles: &[PlainDword], pages: &MenuPages) -> Result<u32, BadInput> {
     titles
-        .get(pages.scores_page.get() as usize)
+        .get(pages.read().scores_page as usize)
         .map(PlainDword::get)
         .ok_or(BadInput("a best scores page past its title"))
 }
@@ -227,7 +227,7 @@ pub fn draw_best_scores_page(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let pages = &o.menus.tables.pages;
-    if (pages.scores_page.get() as i32) <= 4 {
+    if (pages.read().scores_page as i32) <= 4 {
         draw_scores(o, &BEST_SCORES, canvas)
     } else {
         draw_scores(o, &CLASS_TIMES, canvas)
@@ -254,7 +254,7 @@ pub fn replay_range_caption(
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), BadInput> {
     // The logic is in `rc2k_core::screens::best_scores::range_caption`.
-    let mut bytes = rc2k_core::screens::best_scores::range_caption(pages.replay_page.get());
+    let mut bytes = rc2k_core::screens::best_scores::range_caption(pages.read().replay_page);
     bytes.push(0);
     text.caption.write_at(0, &bytes, "the caption")
 }

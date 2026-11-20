@@ -29,7 +29,8 @@ pub(super) fn run_pong(
     use crate::effects::draw_pong_box::draw_pong_box;
     {
         // `FrameWork.lead_kept[7]`: pong shown.
-        if cheats.cheats.get() & CHEAT == 0 || race.frame.frame_work.get().lead_kept[7].get() == 0 {
+        if cheats.read().cheats & CHEAT == 0 || race.frame.frame_work.get().lead_kept[7].get() == 0
+        {
             return Ok(());
         }
         crate::effects::pong_setup::pong_setup(buffer, pong, fl, scene);

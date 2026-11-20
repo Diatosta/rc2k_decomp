@@ -12,11 +12,10 @@ use crate::race::frame_text::Credits;
 use crate::race::game_map_store::MapVars;
 use crate::race::groups_store::{LightsAndGear, PanelAndOverlay, ViewAndRecords};
 use crate::race::matrices_store::SceneMatrices;
-use crate::race::panel_clock_store::PanelClock;
 use crate::race::scratch_store::FrameScratch;
 use crate::race::shadow_skids_store::ShadowSkids;
 use crate::race::sound_spots_store::SoundSpotBlock;
-use crate::race::text_state_store::TextState;
+use std::cell::{Ref, RefCell, RefMut};
 
 /// The race's frame state. The view
 /// variables, the panel and the overlay are fields of `view_and_records` and
@@ -59,14 +58,12 @@ pub struct Frame {
 /// What only the game's thread reaches (no drawing part and no other thread touches it).
 struct FrameMain {
     scratch: FrameScratch,
-    counter: FrameCounter,
+    counter: RefCell<FrameCounter>,
     draw_batches: DrawBatches,
-    panel_clock: PanelClock,
-    text_state: TextState,
-    clock_ticks: ClockTicks,
+    clock_ticks: RefCell<ClockTicks>,
     sound_spots: SoundSpotBlock,
-    error_list: ErrorList,
-    credits: Credits,
+    error_list: RefCell<ErrorList>,
+    credits: RefCell<Credits>,
     map: MapVars,
 }
 
@@ -86,14 +83,12 @@ impl Frame {
             cars: crate::race::frame_view::FrameCars::new(),
             main: GameThread::new(FrameMain {
                 scratch: FrameScratch::new(),
-                counter: FrameCounter::new(),
+                counter: RefCell::new(FrameCounter::new()),
                 draw_batches: DrawBatches::new(),
-                panel_clock: PanelClock::new(),
-                text_state: TextState::new(),
-                clock_ticks: ClockTicks::new(),
+                clock_ticks: RefCell::new(ClockTicks::new()),
                 sound_spots: SoundSpotBlock::new(),
-                error_list: ErrorList::new(),
-                credits: Credits::new(),
+                error_list: RefCell::new(ErrorList::new()),
+                credits: RefCell::new(Credits::new()),
                 map: MapVars::new(),
             }),
         }
@@ -103,36 +98,52 @@ impl Frame {
         &self.main.get().scratch
     }
 
-    pub fn counter(&self) -> &FrameCounter {
-        &self.main.get().counter
+    /// The frame counter setting, read: no write borrow may be held.
+    pub fn counter(&self) -> Ref<'_, FrameCounter> {
+        self.main.get().counter.borrow()
+    }
+
+    /// The frame counter setting, to write: no other borrow may be held.
+    pub fn counter_mut(&self) -> RefMut<'_, FrameCounter> {
+        self.main.get().counter.borrow_mut()
     }
 
     pub fn draw_batches(&self) -> &DrawBatches {
         &self.main.get().draw_batches
     }
 
-    pub fn panel_clock(&self) -> &PanelClock {
-        &self.main.get().panel_clock
+    /// The sound tick clock, read: no write borrow may be held.
+    pub fn clock_ticks(&self) -> Ref<'_, ClockTicks> {
+        self.main.get().clock_ticks.borrow()
     }
 
-    pub fn text_state(&self) -> &TextState {
-        &self.main.get().text_state
-    }
-
-    pub fn clock_ticks(&self) -> &ClockTicks {
-        &self.main.get().clock_ticks
+    /// The sound tick clock, to write: no other borrow may be held.
+    pub fn clock_ticks_mut(&self) -> RefMut<'_, ClockTicks> {
+        self.main.get().clock_ticks.borrow_mut()
     }
 
     pub fn sound_spots(&self) -> &SoundSpotBlock {
         &self.main.get().sound_spots
     }
 
-    pub fn error_list(&self) -> &ErrorList {
-        &self.main.get().error_list
+    /// The error list, read: no write borrow may be held.
+    pub fn error_list(&self) -> Ref<'_, ErrorList> {
+        self.main.get().error_list.borrow()
     }
 
-    pub fn credits(&self) -> &Credits {
-        &self.main.get().credits
+    /// The error list, to write: no other borrow may be held.
+    pub fn error_list_mut(&self) -> RefMut<'_, ErrorList> {
+        self.main.get().error_list.borrow_mut()
+    }
+
+    /// The credits' state, read: no write borrow may be held.
+    pub fn credits(&self) -> Ref<'_, Credits> {
+        self.main.get().credits.borrow()
+    }
+
+    /// The credits' state, to write: no other borrow may be held.
+    pub fn credits_mut(&self) -> RefMut<'_, Credits> {
+        self.main.get().credits.borrow_mut()
     }
 
     pub fn map(&self) -> &MapVars {

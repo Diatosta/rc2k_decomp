@@ -39,10 +39,10 @@ pub(super) fn next_c5(at: impl Random) -> u32 {
 /// The entry the next `take_entry` takes, if one is left.
 pub fn next_entry(ring: &Ring) -> Result<Option<u32>, Refused> {
     Ok({
-        if ring.work.count.get() == MOST_TAKEN {
+        if ring.work.borrow().count == MOST_TAKEN {
             return Ok(None);
         }
-        Some(crate::effects::ring_entries::entry(ring, ring.work.cursor.get())?.prev)
+        Some(crate::effects::ring_entries::entry(ring, ring.work.borrow().cursor)?.prev)
     })
 }
 
@@ -55,9 +55,10 @@ pub(super) fn take_entry(
     kind: u32,
 ) -> Result<u32, Refused> {
     Ok({
-        let e = crate::effects::ring_entries::entry(ring, ring.work.cursor.get())?.prev;
-        ring.work.cursor.set(e);
-        ring.work.count.set(ring.work.count.get().wrapping_add(1));
+        let e = crate::effects::ring_entries::entry(ring, ring.work.borrow().cursor)?.prev;
+        ring.work.borrow_mut().cursor = e;
+        let count = ring.work.borrow().count.wrapping_add(1);
+        ring.work.borrow_mut().count = count;
         let slot = crate::effects::ring_entries::Slot::new(ring, e);
         slot.put(|en| &mut en.emitter_tag, effects.kinds.emitter.tag.get())?;
         slot.put(|en| &mut en.car_tag, tag)?;

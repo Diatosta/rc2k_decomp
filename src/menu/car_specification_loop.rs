@@ -15,7 +15,7 @@ fn before(menus: &Menus) -> Result<(), Refused> {
         .event
         .shown
         .car
-        .set(menus.play.cheats.kept_car.get());
+        .set(menus.play.cheats.read().kept_car);
     menus.screens.event.shown.car_page.set(0x0u32);
 
     Ok(())
@@ -25,23 +25,19 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let screens = &set_up.menus.screens;
     set_up.set_view(-160, -100, 0x100);
     set_up.prepare_scene();
-    screens.flow.turning.set(0x1u32);
+    screens.flow.write().turning = 0x1u32;
     screens.carousel.menu.set(0xBu32);
     set_up.carousel_with(None)?;
     let item = screens.items.current[slot::CAR_SPECIFICATION].get();
-    screens.loop_flags.item.set(item);
+    screens.loop_flags.write().item = item;
     screens.carousel.front.set(item.wrapping_sub(1));
-    screens.flow.turning.set(0x0u32);
+    screens.flow.write().turning = 0x0u32;
     screens.carousel.front.set(screens.event.shown.car.get());
     Ok(())
 }
 
 fn after(menus: &Menus) -> Result<(), Refused> {
-    menus
-        .play
-        .cheats
-        .kept_car
-        .set(menus.screens.event.shown.car.get());
+    menus.play.cheats.write().kept_car = menus.screens.event.shown.car.get();
 
     Ok(())
 }

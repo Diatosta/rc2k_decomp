@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::ground_probe_store::GroundProbe;
-use crate::physics::ground_store::GroundWork;
+use crate::physics::ground_query::GroundSearch;
 use crate::race::owner_course::Course;
 use rc2k_core::physics::walls::ProbeCounts;
 use std::cell::RefCell;
@@ -19,7 +19,7 @@ use std::cell::RefCell;
 pub fn count_ground_probe(
     camera: &RefCell<CameraWork>,
     ground_probe: &GroundProbe,
-    ground: &GroundWork,
+    search: &RefCell<GroundSearch>,
     course: &Course,
 ) -> Result<(), Refused> {
     let mut counts = ProbeCounts {
@@ -30,13 +30,13 @@ pub fn count_ground_probe(
     ground_probe.settle_mark.set(0x40);
     counts.tried();
     camera.borrow_mut().ground_probes = counts.tries;
-    { crate::physics::find_ground::find_ground(ground_probe, ground, course) }?;
-    if ground.ground_found.get() != 0 {
-        counts.searched(
-            true,
-            course.course.get().ground_face_last.get(),
-            course.course.get().ground_slot.get(),
-        );
+    { crate::physics::find_ground::find_ground(ground_probe, search, course) }?;
+    let (found, last, slot) = {
+        let search = search.borrow();
+        (search.found, search.last, search.slot)
+    };
+    if found != 0 {
+        counts.searched(true, last, slot);
         let mut work = camera.borrow_mut();
         work.ground_found = counts.found;
         work.ground_same = counts.same;

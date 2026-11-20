@@ -73,7 +73,7 @@ pub(super) fn burst_particles(
         sound.race.stage.get().borrow_mut().random[1] = 1;
         let s = next_seed(effects);
         let r = s & 0xFFFF;
-        let m = effects.frame.draw_work.uv_k.get();
+        let m = effects.frame.draw_work.borrow().uv_k;
         let [c, k] = effects
             .kinds
             .particle_tuning

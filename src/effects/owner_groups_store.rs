@@ -58,25 +58,25 @@ impl Blocks {
 
 /// The draw frame's work, the views, the flare and the kept view vectors.
 pub struct FrameState {
-    pub draw_work: DrawWork,
-    pub view_vars: ViewVars,
+    pub draw_work: core::cell::RefCell<DrawWork>,
+    pub view_vars: core::cell::RefCell<ViewVars>,
     pub draw_frame: DrawFrame,
     pub flare_parts: FlareParts,
     pub flare_scales: FlareScales,
-    pub view_sources: ViewSources,
-    pub kept_view: KeptView,
+    pub view_sources: core::cell::RefCell<ViewSources>,
+    pub kept_view: core::cell::RefCell<KeptView>,
 }
 
 impl FrameState {
     pub const fn new() -> Self {
         FrameState {
-            draw_work: DrawWork::new(),
-            view_vars: ViewVars::new(),
+            draw_work: core::cell::RefCell::new(DrawWork::new()),
+            view_vars: core::cell::RefCell::new(ViewVars::new()),
             draw_frame: DrawFrame::new(),
             flare_parts: FlareParts::new(),
             flare_scales: FlareScales::new(),
-            view_sources: ViewSources::new(),
-            kept_view: KeptView::new(),
+            view_sources: core::cell::RefCell::new(ViewSources::new()),
+            kept_view: core::cell::RefCell::new(KeptView::new()),
         }
     }
 }
@@ -88,9 +88,9 @@ impl FrameState {
 pub struct Kinds {
     /// The kind of the marks (the surface / weather: 0 .. 0x21), set at `effects::init_marks`.
     pub marks_kind: core::cell::Cell<u32>,
-    pub overlay_quad: QuadWork,
-    pub shadow_quad: QuadWork,
-    pub plane_quad: QuadWork,
+    pub overlay_quad: core::cell::RefCell<QuadWork>,
+    pub shadow_quad: core::cell::RefCell<QuadWork>,
+    pub plane_quad: core::cell::RefCell<QuadWork>,
     pub overlay_extras: KindExtras1,
     pub shadow_extra: KindExtra2,
     pub emitter: EmitterVars,
@@ -102,9 +102,9 @@ impl Kinds {
     pub const fn new() -> Self {
         Kinds {
             marks_kind: core::cell::Cell::new(0),
-            overlay_quad: QuadWork::new_1(),
-            shadow_quad: QuadWork::new_2(),
-            plane_quad: QuadWork::new_3(),
+            overlay_quad: core::cell::RefCell::new(QuadWork::new_1()),
+            shadow_quad: core::cell::RefCell::new(QuadWork::new_2()),
+            plane_quad: core::cell::RefCell::new(QuadWork::new_3()),
             overlay_extras: KindExtras1::new(),
             shadow_extra: KindExtra2::new(),
             emitter: EmitterVars::new(),

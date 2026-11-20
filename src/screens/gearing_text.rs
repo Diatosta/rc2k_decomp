@@ -22,7 +22,7 @@ pub fn gearing_text(
 ) -> Result<(), Refused> {
     let value = current(menus)?.get().gearing;
     put_string(so, FIRST_STRING.wrapping_add(value), &text.title, TEXT_LEN)?;
-    menus.screens.flow.shown_gearing.set(value);
+    menus.screens.flow.write().shown_gearing = value;
     Ok(())
 }
 
@@ -36,11 +36,11 @@ pub fn step_gearing(
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
     let p = current(menus)?;
-    let kept = screens.flow.shown_gearing.get() as i32;
+    let kept = screens.flow.read().shown_gearing as i32;
     // The logic is in `rc2k_core::screens::captions::step_gearing`.
     let value = rc2k_core::screens::captions::step_gearing(kept, on);
     put_string(so, FIRST_STRING.wrapping_add(value), &text.title, TEXT_LEN)?;
-    screens.flow.shown_gearing.set(value);
+    screens.flow.write().shown_gearing = value;
     p.update(|p| p.gearing = value);
     Ok(())
 }

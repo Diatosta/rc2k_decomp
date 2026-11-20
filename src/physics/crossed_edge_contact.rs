@@ -1,8 +1,7 @@
 //! The contact of the probe point that crossed a face's edge (`crossed_probe`, into
 //! `probe_index`). The probe's x, z before and now and its face go into `crossed_figures`; the
 //! face's four corners' x, z (scene points) into `crossed_corners`. The side of the probe's
-//! path each corner lies on (the sign of the 64-bit cross product of the move; the first
-//! product is kept in `product`) picks the edge crossed: p1 -> p2, p2 -> p4, p4 -> p3, else p3
+//! path each corner lies on (the sign of the 64-bit cross product of the move) picks the edge crossed: p1 -> p2, p2 -> p4, p4 -> p3, else p3
 //! -> p1, into `crossed_edge`. Then the normal across the edge (`physics::wall_edge_contact`'s
 //! `edge_normal`; the heading also into `crossed_heading`), the speeds and the probe's point (y
 //! times `tenth`) are set, with no slide limit; `physics::contact_force` fills contact record
@@ -16,7 +15,6 @@ use crate::math::x87::mul;
 use crate::memory::session::FloatLike;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
-use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::step_families::ContactInputs;
 use crate::physics::wall_edge_contact::edge_normal;
 use rc2k_core::physics::walls;
@@ -29,9 +27,9 @@ fn copy3(to: &[impl FloatLike], from: &[impl FloatLike]) {
 }
 
 /// Which side of the probe's path the point (x, z) lies: true for not left of it (the
-/// 64-bit difference not below 0). `product` the first product.
-fn side(contact: &ContactWork, probe: &GroundProbe, x: u32, z: u32) -> bool {
-    let (first, difference) = walls::path_side(
+/// 64-bit difference not below 0).
+fn side(contact: &ContactWork, x: u32, z: u32) -> bool {
+    let (_, difference) = walls::path_side(
         (
             contact.crossed_figures[0].get(),
             contact.crossed_figures[1].get(),
@@ -42,8 +40,6 @@ fn side(contact: &ContactWork, probe: &GroundProbe, x: u32, z: u32) -> bool {
         ),
         (x, z),
     );
-    probe.product[0].set(first as u32);
-    probe.product[1].set((first >> 32) as u32);
     difference >= 0
 }
 
@@ -85,7 +81,7 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     // The tests run in this order (each computed, `product` the last one's).
     let (first, second) = walls::crossed_edge(|j| {
         let (x, z) = corner(j);
-        side(c.contact, c.ground.probe, x, z)
+        side(c.contact, x, z)
     });
     let corner_point =
         |at| crate::race::course_places::face_field::<u32>(c.course.reads(), face, at);

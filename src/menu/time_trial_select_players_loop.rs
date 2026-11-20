@@ -14,11 +14,11 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let screens = &set_up.menus.screens;
     set_up.set_view(7, 10, 0x100);
     set_up.prepare_scene();
-    screens.flow.turning.set(0x1u32);
+    screens.flow.write().turning = 0x1u32;
     screens.carousel.menu.set(0x2u32);
     set_up.carousel_with(None)?;
     let item = screens.items.current[slot::TIME_TRIAL_SELECT_PLAYERS].get();
-    screens.loop_flags.item.set(item);
+    screens.loop_flags.write().item = item;
     screens.carousel.front.set(item.wrapping_sub(1));
     Ok(())
 }

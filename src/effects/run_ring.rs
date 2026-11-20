@@ -59,7 +59,7 @@ fn box_(
     whole: &[crate::memory::session::PlainFloat; 16],
     car: &CarEffects,
 ) {
-    box_x87(en, &ring.work, whole, car);
+    box_x87(en, &mut ring.work.borrow_mut(), whole, car);
 }
 
 /// The car's whole matrix (its block's); refused when there is none.
@@ -78,7 +78,7 @@ fn whole_of(
 /// That way made one long (`MarksFloats.one` over its length), dotted with the object's `motion`
 /// into `RingWork.facing`.
 fn facing(ring: &Ring, car: &CarEffects, effects: &crate::effects::owner::Effects) {
-    facing_x87(car, &effects.setup.floats, &ring.work);
+    facing_x87(car, &effects.setup.floats, &mut ring.work.borrow_mut());
 }
 
 /// The place less the object's into `RingWork.away[0]` .., its length (kept, 80 bits, at `l`)
@@ -89,7 +89,7 @@ fn pull_length(
     whole: &[crate::memory::session::PlainFloat; 16],
     length: &mut [u8; 10],
 ) {
-    pull_length_x87(en, whole, length, &ring.work, &ring.kinds);
+    pull_length_x87(en, whole, length, &mut ring.work.borrow_mut(), &ring.kinds);
 }
 
 /// The way made one long by the kept length, the object's `motion` over its `pace`, minus their dot
@@ -100,7 +100,12 @@ fn pull_facing(
     length: &[u8; 10],
     effects: &crate::effects::owner::Effects,
 ) {
-    pull_facing_x87(car, length, &effects.setup.floats, &ring.work);
+    pull_facing_x87(
+        car,
+        length,
+        &effects.setup.floats,
+        &mut ring.work.borrow_mut(),
+    );
 }
 
 /// The entry's `size_factor` pulled toward `MarksFloats.fixed_16_scale` (rounded into
@@ -117,7 +122,7 @@ fn pull_strength(
         car,
         &setup.clock.borrow(),
         &setup.floats,
-        &ring.work,
+        &mut ring.work.borrow_mut(),
         &ring.kinds,
     );
 }
@@ -125,7 +130,7 @@ fn pull_strength(
 /// The place turned by the object's matrix (`m`), |x| and |z| into `RingWork.extent[0]` /
 /// `RingWork.extent[1]`.
 fn box_place(ring: &Ring, en: &Entry, car: &CarEffects) {
-    box_place_x87(en, &ring.work, car);
+    box_place_x87(en, &mut ring.work.borrow_mut(), car);
 }
 
 /// The kinds' constants: (the y gain, the three dampings, the size's rate).
@@ -243,14 +248,14 @@ fn shown(effects: &crate::effects::owner::Effects, en: &Entry) -> Result<bool, R
 fn whole_alpha(ring: &Ring, en: &Entry) -> Result<u32, Refused> {
     Ok({
         let a = x87::to_int(en.alpha);
-        ring.work.whole.set(a as u32);
+        ring.work.borrow_mut().whole = a as u32;
         (a as u32) << 24
     })
 }
 
 /// The size as a whole number (through `RingWork.whole`).
 fn whole(ring: &Ring, v: i32) -> u32 {
-    ring.work.whole.set(v as u32);
+    ring.work.borrow_mut().whole = v as u32;
     v as u32
 }
 
@@ -300,7 +305,7 @@ fn damp3(
         let t: i32 = effects.setup.clock.borrow().frame_ticks as i32;
         for (axis, kk) in ks.into_iter().enumerate() {
             let old = en.motion[axis];
-            ring.work.whole.set(old.to_bits());
+            ring.work.borrow_mut().whole = old.to_bits();
             let new = f32::from_bits(bh::st(
                 bh::ld(old) - bh::ld(old) * bh::ld(k(kk)) * bh::int(t),
             ));
@@ -323,7 +328,7 @@ fn pull_size(
     {
         let t: i32 = effects.setup.clock.borrow().frame_ticks as i32;
         let (w, f) = x87::approach(en.size_goal as i32, en.size, k(k_addr), t);
-        ring.work.whole.set(w as u32);
+        ring.work.borrow_mut().whole = w as u32;
         en.size = f.to_bits();
         if w > en.size_goal as i32 {
             en.size = x87::from_int(en.size_goal as i32).to_bits();
@@ -349,13 +354,13 @@ fn outside_and_away(
     Ok({
         let car = entry_car(en, effects)?;
         box_(ring, en, whole_of(car, effects)?, car);
-        let outside = (en.box_limit[0] as i32) < (ring.work.extent[0].get() as i32)
-            || (en.box_limit[1] as i32) < (ring.work.extent[1].get() as i32);
+        let outside = (en.box_limit[0] as i32) < (ring.work.borrow().extent[0] as i32)
+            || (en.box_limit[1] as i32) < (ring.work.borrow().extent[1] as i32);
         if !outside {
             return Ok(false);
         }
         facing(ring, car, effects);
-        crate::math::x87::bits_at_or_below(ring.work.facing.get(), 0.0)
+        crate::math::x87::bits_at_or_below(ring.work.borrow().facing, 0.0)
     })
 }
 
@@ -555,15 +560,15 @@ fn pull_toward(
         let car = entry_car(en, effects)?;
         let mut length = [0u8; 10];
         pull_length(ring, en, whole_of(car, effects)?, &mut length);
-        if ring.work.near.get().is_sign_negative() {
+        if ring.work.borrow().near.is_sign_negative() {
             return Ok(());
         }
         pull_facing(ring, car, &length, effects);
-        if crate::math::x87::bits_at_or_below(ring.work.facing.get(), 0.0) {
+        if crate::math::x87::bits_at_or_below(ring.work.borrow().facing, 0.0) {
             return Ok(());
         }
         pull_strength(ring, en, car, effects);
-        if (ring.work.whole.get() as i32) > (setup.floats.pull_limit) {
+        if (ring.work.borrow().whole as i32) > (setup.floats.pull_limit) {
             en.size_factor = x87::loaded(setup.floats.fixed_16_scale);
         }
     }
@@ -600,7 +605,7 @@ fn boxed_kind(
                 * bh::ld(effects.setup.floats.twentieth)
                 * bh::ld(en.cell_rate.to_bits()),
         );
-        ring.work.whole.set(f as u32);
+        ring.work.borrow_mut().whole = f as u32;
         let subcell = ((f as u32) & 3).wrapping_add(en.cell);
         draw(
             buffer,
@@ -621,11 +626,11 @@ fn boxed_kind(
         )?;
     }
     box_place(ring, en, entry_car(en, effects)?);
-    let mut outside = (en.box_limit[0] as i32) < (ring.work.extent[0].get() as i32);
+    let mut outside = (en.box_limit[0] as i32) < (ring.work.borrow().extent[0] as i32);
     if !outside && both {
-        outside = (en.box_limit[1] as i32) < (ring.work.extent[1].get() as i32);
+        outside = (en.box_limit[1] as i32) < (ring.work.borrow().extent[1] as i32);
     }
-    if !outside && x87::compare_status(en.place[1], &ring.work.top) == 0 {
+    if !outside && x87::compare_status(en.place[1], ring.work.borrow().top) == 0 {
         return Ok(true);
     }
     Ok(x87::compare_status(en.place[1], en.ground_y) == 0x100)
@@ -793,22 +798,22 @@ fn turn(car: &CarEffects, n: usize) -> bh::X {
 /// `box_`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn box_x87(
     en: &Entry,
-    w: &RingWork,
+    w: &mut RingWork,
     whole: &[impl crate::memory::session::Cell32; 16],
     car: &CarEffects,
 ) {
     let t0 = bh::ld(en.place[0]);
     let t1 = t0 - ld_cell(&whole[12]);
-    w.away[0].st(t1);
+    w.away[0] = bh::stf(t1);
     let t2 = bh::ld(en.place[1]);
     let t3 = t2 - ld_cell(&whole[13]);
-    w.away[1].st(t3);
+    w.away[1] = bh::stf(t3);
     let t4 = bh::ld(en.place[2]);
     let t5 = t4 - ld_cell(&whole[14]);
-    w.away[2].st(t5);
-    let t6 = w.away[2].ld();
-    let t7 = w.away[1].ld();
-    let t8 = w.away[0].ld();
+    w.away[2] = bh::stf(t5);
+    let t6 = bh::ld(w.away[2]);
+    let t7 = bh::ld(w.away[1]);
+    let t8 = bh::ld(w.away[0]);
     let t9 = turn(car, 0);
     let t10 = t9 * t8;
     let t11 = turn(car, 4);
@@ -834,41 +839,41 @@ fn box_x87(
     let t31 = t30 + t28;
     let t32 = t26 + t31;
     let t33 = t16.abs();
-    w.extent[0].set(bh::to_int(t33) as u32);
+    w.extent[0] = bh::to_int(t33) as u32;
     let t34 = t32.abs();
-    w.extent[1].set(bh::to_int(t34) as u32);
+    w.extent[1] = bh::to_int(t34) as u32;
 }
 
 /// `facing`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn facing_x87(car: &CarEffects, f: &MarksFloats, w: &RingWork) {
-    let t0 = w.away[0].ld();
+fn facing_x87(car: &CarEffects, f: &MarksFloats, w: &mut RingWork) {
+    let t0 = bh::ld(w.away[0]);
     let t1 = t0 * t0;
-    let t2 = w.away[1].ld();
+    let t2 = bh::ld(w.away[1]);
     let t3 = t2 * t2;
-    let t4 = w.away[2].ld();
+    let t4 = bh::ld(w.away[2]);
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
     let t9 = bh::ld(f.one) / t8;
-    let t10 = w.away[0].ld();
+    let t10 = bh::ld(w.away[0]);
     let t11 = t10 * t9;
-    w.away[0].st(t11);
-    let t12 = w.away[1].ld();
+    w.away[0] = bh::stf(t11);
+    let t12 = bh::ld(w.away[1]);
     let t13 = t12 * t9;
-    w.away[1].st(t13);
-    let t14 = w.away[2].ld();
+    w.away[1] = bh::stf(t13);
+    let t14 = bh::ld(w.away[2]);
     let t15 = t9 * t14;
-    w.away[2].st(t15);
-    let t16 = w.away[0].ld();
+    w.away[2] = bh::stf(t15);
+    let t16 = bh::ld(w.away[0]);
     let t17 = t16 * car_float(&car.motion[0]);
-    let t18 = w.away[1].ld();
+    let t18 = bh::ld(w.away[1]);
     let t19 = t18 * car_float(&car.motion[1]);
-    let t20 = w.away[2].ld();
+    let t20 = bh::ld(w.away[2]);
     let t21 = t20 * car_float(&car.motion[2]);
     let t22 = t19 + t21;
     let t23 = t17 + t22;
-    w.facing.st(t23);
+    w.facing = bh::stf(t23);
 }
 
 /// `pull_length`'s arithmetic as plain Rust on the x87 model, in the same order.
@@ -877,66 +882,66 @@ fn pull_length_x87(
     en: &Entry,
     whole: &[impl crate::memory::session::Cell32; 16],
     l: &mut [u8; 10],
-    w: &RingWork,
+    w: &mut RingWork,
     rk: &RingKinds,
 ) {
     let t0 = bh::ld(en.place[0]);
     let t1 = t0 - ld_cell(&whole[12]);
-    w.away[0].st(t1);
+    w.away[0] = bh::stf(t1);
     let t2 = bh::ld(en.place[1]);
     let t3 = t2 - ld_cell(&whole[13]);
-    w.away[1].st(t3);
+    w.away[1] = bh::stf(t3);
     let t4 = bh::ld(en.place[2]);
     let t5 = t4 - ld_cell(&whole[14]);
-    w.away[2].st(t5);
-    let t6 = w.away[0].ld();
+    w.away[2] = bh::stf(t5);
+    let t6 = bh::ld(w.away[0]);
     let t7 = t6 * t6;
-    let t8 = w.away[1].ld();
+    let t8 = bh::ld(w.away[1]);
     let t9 = t8 * t8;
-    let t10 = w.away[2].ld();
+    let t10 = bh::ld(w.away[2]);
     let t11 = t10 * t10;
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
     let t15 = t14 - bh::ld(rk.near_less);
-    w.near.st(t15);
+    w.near = bh::stf(t15);
     *l = bh::f80(t14);
 }
 
 /// `pull_facing`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn pull_facing_x87(car: &CarEffects, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
+fn pull_facing_x87(car: &CarEffects, l: &[u8; 10], f: &MarksFloats, w: &mut RingWork) {
     let t0 = bh::from_f80(*l);
     let t1 = bh::ld(f.one) / t0;
-    let t2 = w.away[0].ld();
+    let t2 = bh::ld(w.away[0]);
     let t3 = t2 * t1;
-    w.away[0].st(t3);
-    let t4 = w.away[1].ld();
+    w.away[0] = bh::stf(t3);
+    let t4 = bh::ld(w.away[1]);
     let t5 = t4 * t1;
-    w.away[1].st(t5);
-    let t6 = w.away[2].ld();
+    w.away[1] = bh::stf(t5);
+    let t6 = bh::ld(w.away[2]);
     let t7 = t1 * t6;
-    w.away[2].st(t7);
+    w.away[2] = bh::stf(t7);
     let t8 = ldi_cell(&car.pace);
     let t9 = bh::ld(f.one) / t8;
     let t10 = car_float(&car.motion[0]);
     let t11 = t10 * t9;
-    w.turned[0].st(t11);
+    w.turned[0] = bh::stf(t11);
     let t12 = car_float(&car.motion[1]);
     let t13 = t12 * t9;
-    w.turned[1].st(t13);
+    w.turned[1] = bh::stf(t13);
     let t14 = car_float(&car.motion[2]);
     let t15 = t9 * t14;
-    w.turned[2].st(t15);
-    let t16 = w.away[0].ld();
-    let t17 = t16 * w.turned[0].ld();
-    let t18 = w.away[1].ld();
-    let t19 = t18 * w.turned[1].ld();
-    let t20 = w.away[2].ld();
-    let t21 = t20 * w.turned[2].ld();
+    w.turned[2] = bh::stf(t15);
+    let t16 = bh::ld(w.away[0]);
+    let t17 = t16 * bh::ld(w.turned[0]);
+    let t18 = bh::ld(w.away[1]);
+    let t19 = t18 * bh::ld(w.turned[1]);
+    let t20 = bh::ld(w.away[2]);
+    let t21 = t20 * bh::ld(w.turned[2]);
     let t22 = t19 + t21;
     let t23 = t17 + t22;
     let t24 = -t23;
-    w.facing.st(t24);
+    w.facing = bh::stf(t24);
 }
 
 /// `pull_strength`'s arithmetic as plain Rust on the x87 model, in the same order.
@@ -946,7 +951,7 @@ fn pull_strength_x87(
     car: &CarEffects,
     c: &MarksClock,
     f: &MarksFloats,
-    w: &RingWork,
+    w: &mut RingWork,
     rk: &RingKinds,
 ) {
     let t0 = ldi_cell(&car.pace);
@@ -954,20 +959,20 @@ fn pull_strength_x87(
     let t2 = t1 + bh::ld(f.one);
     let t3 = bh::ld(f.one) / t2;
     let t4 = bh::ld(f.one) - t3;
-    w.whole.st(t4);
+    w.whole = bh::st(t4);
     let t5 = bh::ld(f.fixed_16_scale);
     let t6 = t5 - bh::ld(en.size_factor);
     let t7 = bh::ld(rk.near_rate);
-    let t8 = t7 * w.whole.ld();
+    let t8 = t7 * bh::ld(w.whole);
     let t9 = t6 * t8;
     let t10 = t9 * crate::math::x87_float::int(c.frame_ticks as i32);
     let t11 = t10 + bh::ld(en.size_factor);
-    w.whole.set(bh::to_int(t11) as u32);
+    w.whole = bh::to_int(t11) as u32;
     en.size_factor = <f32 as bh::Stored>::stored(t11);
 }
 
 /// `box_place`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn box_place_x87(en: &Entry, w: &RingWork, car: &CarEffects) {
+fn box_place_x87(en: &Entry, w: &mut RingWork, car: &CarEffects) {
     let t0 = bh::ld(en.place[2]);
     let t1 = bh::ld(en.place[1]);
     let t2 = bh::ld(en.place[0]);
@@ -996,9 +1001,9 @@ fn box_place_x87(en: &Entry, w: &RingWork, car: &CarEffects) {
     let t25 = t24 + t22;
     let t26 = t20 + t25;
     let t27 = t10.abs();
-    w.extent[0].set(bh::to_int(t27) as u32);
+    w.extent[0] = bh::to_int(t27) as u32;
     let t28 = t26.abs();
-    w.extent[1].set(bh::to_int(t28) as u32);
+    w.extent[1] = bh::to_int(t28) as u32;
 }
 
 #[cfg(test)]

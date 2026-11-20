@@ -14,7 +14,7 @@ pub fn draw_replay_slot_names(
 ) -> Result<(), Refused> {
     let menus = o.menus;
     // The logic is in `rc2k_core::screens::slot_lists::names`.
-    let page = menus.tables.pages.replay_page.get();
+    let page = menus.tables.pages.read().replay_page;
     rc2k_core::screens::slot_lists::names(
         &mut crate::screens::game_screen::SlotScreen::new(canvas, o),
         &rc2k_core::screens::slot_lists::REPLAYS,

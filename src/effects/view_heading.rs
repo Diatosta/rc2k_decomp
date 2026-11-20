@@ -32,5 +32,5 @@ pub fn view_heading(frame: &Frame, effects: &crate::effects::owner::Effects) {
     if !effects_frame.draw_frame.level[0].get().is_sign_negative() {
         heading = x87::two_pi_less(heading.to_bits());
     }
-    effects_frame.view_vars.heading.set(heading);
+    effects_frame.view_vars.borrow_mut().heading = heading;
 }

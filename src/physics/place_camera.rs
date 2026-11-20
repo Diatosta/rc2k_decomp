@@ -54,9 +54,9 @@ fn place_with(
         &r6.offset[2],
     ];
     for (k, to) in places.iter().enumerate() {
-        to.set(figures[k].get());
+        to.set(figures[k]);
     }
-    let last = figures[6].get();
+    let last = figures[6];
     for to in [&r4.angles[0], &r5.angles[0], &r6.angles[0]] {
         to.set(last);
     }

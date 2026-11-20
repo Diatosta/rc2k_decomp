@@ -29,7 +29,12 @@ fn turn(
     p: &[[u8; 10]; 3],
     effects: &crate::effects::owner::Effects,
 ) {
-    turn_x87(view_matrix, p, &ring.work, &effects.frame.draw_work);
+    turn_x87(
+        view_matrix,
+        p,
+        &mut ring.work.borrow_mut(),
+        &mut effects.frame.draw_work.borrow_mut(),
+    );
 }
 
 /// The square about the projected place.
@@ -38,7 +43,7 @@ fn square(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     effects: &crate::effects::owner::Effects,
 ) {
-    square_x87(front, buffer, &effects.frame.draw_work);
+    square_x87(front, buffer, &mut effects.frame.draw_work.borrow_mut());
 }
 
 /// `subcell` is the subcell's number, `size` a float's bits, `entry` the ring entry.
@@ -70,18 +75,18 @@ pub(super) fn draw_subcell_sprite(
     }
     turn(view.view_matrix, ring, &place, effects);
     if crate::math::x87::bits_at_or_below(
-        effects.frame.draw_work.turned[2].get(),
-        effects.frame.draw_work.near.get(),
+        effects.frame.draw_work.borrow().turned[2],
+        effects.frame.draw_work.borrow().near,
     ) {
         return Ok(());
     }
-    let fogged = fog_at(view.fog, ring.work.whole.get())?;
+    let fogged = fog_at(view.fog, ring.work.borrow().whole)?;
     let colour = crate::effects::ring_entries::entry(ring, entry)?.car_tag | 0xFF00_0000;
     for item in buffer.vertices.iter().take(4) {
         item.specular.set(fogged);
         item.colour.set(colour);
     }
-    effects.frame.draw_work.half[0].set(f32::from_bits(size));
+    effects.frame.draw_work.borrow_mut().half[0] = f32::from_bits(size);
     let at = subcell << 4;
     let place = |n: usize| {
         f32::from_bits(
@@ -122,8 +127,8 @@ use crate::math::x87_float::ld;
 fn turn_x87(
     view_matrix: &[crate::memory::session::PlainFloat; 16],
     p: &[[u8; 10]; 3],
-    w: &RingWork,
-    dw: &DrawWork,
+    w: &mut RingWork,
+    dw: &mut DrawWork,
 ) {
     let t0 = bh::from_f80(p[2]);
     let t1 = bh::from_f80(p[1]);
@@ -155,50 +160,50 @@ fn turn_x87(
     let t27 = t26 + t24;
     let t28 = t22 + t27;
     let t29 = t28 + view_matrix[14].ld();
-    dw.turned[0].st(t11);
-    dw.turned[1].st(t20);
-    w.whole.set(bh::to_int(t29) as u32);
-    dw.turned[2].st(t29);
+    dw.turned[0] = bh::stf(t11);
+    dw.turned[1] = bh::stf(t20);
+    w.whole = bh::to_int(t29) as u32;
+    dw.turned[2] = bh::stf(t29);
 }
 
 /// `square`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn square_x87(
     front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
-    dw: &DrawWork,
+    dw: &mut DrawWork,
 ) {
     let t0 = ld(front.window.view_scale.get());
-    let t1 = t0 / dw.turned[2].ld();
-    let t2 = dw.turned[2].ld();
-    let t3 = t2 * dw.z_k.ld();
+    let t1 = t0 / bh::ld(dw.turned[2]);
+    let t2 = bh::ld(dw.turned[2]);
+    let t3 = t2 * bh::ld(dw.z_k);
     st_cell(&buffer.vertices[0].z, t3);
     st_cell(&buffer.vertices[1].z, t3);
     st_cell(&buffer.vertices[2].z, t3);
     st_cell(&buffer.vertices[3].z, t3);
-    let t4 = dw.half[0].ld();
+    let t4 = bh::ld(dw.half[0]);
     let t5 = t4 * t1;
-    dw.half[0].st(t5);
-    dw.half[1].st(t5);
-    let t6 = t1 * dw.turned[0].ld();
-    let t7 = t1 * dw.turned[1].ld();
+    dw.half[0] = bh::stf(t5);
+    dw.half[1] = bh::stf(t5);
+    let t6 = t1 * bh::ld(dw.turned[0]);
+    let t7 = t1 * bh::ld(dw.turned[1]);
     let t8 = -t7;
     let t9 = t8 + front.window.view_centre[1].ld();
-    let t10 = t9 - dw.half[1].ld();
+    let t10 = t9 - bh::ld(dw.half[1]);
     st_cell(&buffer.vertices[0].y, t10);
-    let t11 = t9 - dw.half[1].ld();
+    let t11 = t9 - bh::ld(dw.half[1]);
     st_cell(&buffer.vertices[1].y, t11);
-    let t12 = t9 + dw.half[1].ld();
+    let t12 = t9 + bh::ld(dw.half[1]);
     st_cell(&buffer.vertices[2].y, t12);
-    let t13 = t9 + dw.half[1].ld();
+    let t13 = t9 + bh::ld(dw.half[1]);
     st_cell(&buffer.vertices[3].y, t13);
     let t14 = t6 + front.window.view_centre[0].ld();
-    let t15 = t14 - dw.half[0].ld();
+    let t15 = t14 - bh::ld(dw.half[0]);
     st_cell(&buffer.vertices[0].x, t15);
-    let t16 = t14 + dw.half[0].ld();
+    let t16 = t14 + bh::ld(dw.half[0]);
     st_cell(&buffer.vertices[1].x, t16);
-    let t17 = t14 + dw.half[0].ld();
+    let t17 = t14 + bh::ld(dw.half[0]);
     st_cell(&buffer.vertices[2].x, t17);
-    let t18 = t14 - dw.half[0].ld();
+    let t18 = t14 - bh::ld(dw.half[0]);
     st_cell(&buffer.vertices[3].x, t18);
 }
 

@@ -16,6 +16,7 @@
 //! game thread's.
 
 use crate::memory::session::{Dword, PlainDword, PlainFloat};
+use std::cell::RefCell;
 
 /// One cue of a car's queue: eight dwords.
 #[derive(rc2k_derive::Cells)]
@@ -551,65 +552,77 @@ impl RaceClock {
     }
 }
 
-/// The surface sounds' constants and work: the factors the engine, speed, revs and throttle sounds
-/// and the wheel sounds scale by, and what `sound::surface_sounds` works out.
-#[derive(rc2k_derive::Cells)]
-pub struct SurfaceSounds {
-    /// 1 once `race::prepare_sound_tables` has run.
-    pub tables_done: PlainDword,
+/// The factors the engine, speed, revs and throttle sounds and the wheel sounds scale by.
+#[derive(Clone, Copy)]
+pub struct SurfaceConstants {
     /// 0.1: a surface sound's volume is the wheels' sum times it.
-    pub volume_scale: PlainFloat,
+    pub volume_scale: f32,
     /// 0.1: how far a pitch moves to its target in a turn (the engine's and the spot voices'
     /// Doppler pitch).
-    pub pitch_blend: PlainFloat,
+    pub pitch_blend: f32,
     /// 0.4: the first wheel sum (`SoundObject.sum_a`) is scaled by it.
-    pub across_scale: PlainFloat,
+    pub across_scale: f32,
     /// 64: the second wheel sum (`sum_b`, `sum_c`) is scaled by it.
-    pub along_scale: PlainFloat,
-    /// 160; nothing reads it.
-    pub unused_constant_160: PlainFloat,
+    pub along_scale: f32,
     /// 0.014: the car speed's (|`SoundObject.speed`|) factor for the speed sound's input
     /// (`speed_input`).
-    pub speed_scale: PlainFloat,
-    /// 65536.0; nothing reads it.
-    pub unused_constant_65536: PlainFloat,
-    /// 2.0; nothing reads it.
-    pub unused_constant_2: PlainFloat,
+    pub speed_scale: f32,
     /// 1.4: the speed sound's gain.
-    pub speed_gain: PlainFloat,
+    pub speed_gain: f32,
     /// 0.714: the revs and throttle sounds' gain.
-    pub revs_gain: PlainFloat,
-    /// 0.625 and 0.25; nothing reads them.
-    pub unused_constant_0_625: PlainFloat,
-    pub unused_quarter: PlainFloat,
-    /// Front less back of the wheel floats (the signs pick the wheel).
-    pub across: PlainFloat,
-    /// Left less right of the wheel floats.
-    pub along: PlainFloat,
-    /// The volume the surface sound is sent with.
-    pub volume: PlainFloat,
+    pub revs_gain: f32,
 }
 
-/// The surface sounds' constants and work (`SurfaceSounds`), starting as the game does.
+impl SurfaceConstants {
+    pub const fn new() -> Self {
+        SurfaceConstants {
+            volume_scale: 0.1,
+            pitch_blend: 0.1,
+            across_scale: 0.4,
+            along_scale: 64.0,
+            speed_scale: 0.0140625,
+            speed_gain: 1.4,
+            revs_gain: 0.71428573,
+        }
+    }
+}
+
+/// What `sound::surface_sounds` works out, and whether the sound tables are prepared.
+#[derive(Clone, Copy)]
+pub struct SurfaceWork {
+    /// 1 once `race::prepare_sound_tables` has run.
+    pub tables_done: u32,
+    /// Front less back of the wheel floats (the signs pick the wheel).
+    pub across: f32,
+    /// Left less right of the wheel floats.
+    pub along: f32,
+    /// The volume the surface sound is sent with.
+    pub volume: f32,
+}
+
+impl SurfaceWork {
+    pub const fn new() -> Self {
+        SurfaceWork {
+            tables_done: 0,
+            across: 0.0,
+            along: 0.0,
+            volume: 0.0,
+        }
+    }
+}
+
+/// The surface sounds' constants and work, starting as the game does. The work is the game
+/// thread's, borrowed for a statement at a time.
+pub struct SurfaceSounds {
+    pub constants: SurfaceConstants,
+    pub work: RefCell<SurfaceWork>,
+}
+
 impl SurfaceSounds {
     pub const fn new() -> Self {
         SurfaceSounds {
-            tables_done: PlainDword::new(0),
-            volume_scale: PlainFloat::new(0.1),
-            pitch_blend: PlainFloat::new(0.1),
-            across_scale: PlainFloat::new(0.4),
-            along_scale: PlainFloat::new(64.0),
-            unused_constant_160: PlainFloat::new(160.0),
-            speed_scale: PlainFloat::new(0.0140625),
-            unused_constant_65536: PlainFloat::new(65536.0),
-            unused_constant_2: PlainFloat::new(2.0),
-            speed_gain: PlainFloat::new(1.4),
-            revs_gain: PlainFloat::new(0.71428573),
-            unused_constant_0_625: PlainFloat::new(0.625),
-            unused_quarter: PlainFloat::new(0.25),
-            across: PlainFloat::new(0.0),
-            along: PlainFloat::new(0.0),
-            volume: PlainFloat::new(0.0),
+            constants: SurfaceConstants::new(),
+            work: RefCell::new(SurfaceWork::new()),
         }
     }
 }

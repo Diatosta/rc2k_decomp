@@ -24,7 +24,7 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
     let place = rotate_point(m, zero);
     for k in 0..3 {
         let step = x87::ext_less(place[k], &effects.frame.draw_frame.last[k]);
-        effects.frame.draw_work.step[k].set(step);
+        effects.frame.draw_work.borrow_mut().step[k] = step;
         local[3 + k].set(step);
     }
     // A view that has not moved since the last frame (a stage's first frame, a replay's
@@ -37,7 +37,7 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
     } else {
         0.0
     };
-    effects.frame.view_vars.facing.set(facing);
+    effects.frame.view_vars.borrow_mut().facing = facing;
     let place = rotate_point(m, zero);
     for (k, p) in place.iter().enumerate() {
         effects.frame.draw_frame.last[k].set(rounded_value(*p));
@@ -48,9 +48,8 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
     if ticks == 0 {
         return Ok(());
     }
-    for item in effects.frame.draw_work.step.iter().take(3) {
-        let a = &item;
-        a.set(x87::over_int(a, ticks));
+    for item in effects.frame.draw_work.borrow_mut().step.iter_mut().take(3) {
+        *item = x87::over_int(*item, ticks);
     }
     Ok(())
 }

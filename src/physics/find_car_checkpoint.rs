@@ -23,14 +23,11 @@ pub(super) fn find_car_checkpoint(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
 ) -> Result<u32, Refused> {
-    physics
-        .ground()
-        .ground_x
-        .set(shared.car().position[0].get());
-    physics
-        .ground()
-        .ground_z
-        .set(shared.car().position[2].get());
+    {
+        let mut search = physics.ground_search().borrow_mut();
+        search.x = shared.car().position[0].get();
+        search.z = shared.car().position[2].get();
+    }
     if shared.vars.get().checkpoint_count.get() == 0 {
         return Ok(0);
     }

@@ -32,18 +32,18 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     entry.front_end.window.view_offset[1].set(0xAu32);
     entry.front_end.window.view_zoom.set(0x100u32);
     prepare_scene(&entry.owners); // scene::prepare_menu_scene
-    menus.screens.loop_flags.ask_leave.set(false);
+    menus.screens.loop_flags.write().ask_leave = false;
     Callee::TakeKey.run(entry)?; // input::take_key
     menus.screens.draw_work.write().escape_pressed = false;
     menus
         .screens
         .entry
         .set_sound(rc2k_core::menu::keys::MenuSound::None);
-    menus.screens.flow.turning.set(1u32);
+    menus.screens.flow.write().turning = 1u32;
     menus.screens.carousel.menu.set(0u32);
     carousel(entry, None)?;
     let item = menus.screens.items.current[slot::MAIN_MENU].get();
-    menus.screens.loop_flags.item.set(item);
+    menus.screens.loop_flags.write().item = item;
     menus
         .screens
         .carousel
@@ -59,7 +59,7 @@ fn before_first_frame(menus: &Menus, system: &System) -> Result<(), Refused> {
         .key_clock
         .last_key_time
         .set(system.clocks().setup_time.get());
-    play.cheats.notice_due.set(1u32);
+    play.cheats.write().notice_due = 1u32;
 
     Ok(())
 }
@@ -67,14 +67,12 @@ fn before_first_frame(menus: &Menus, system: &System) -> Result<(), Refused> {
 fn idle(entry: &Entry) -> Result<Flow, Refused> {
     let system = entry.owners.system;
     let menus = entry.menus;
-    if !menus.screens.loop_flags.idle.is_set() {
+    if !menus.screens.loop_flags.read().idle {
         return Ok(Flow::On);
     }
-    menus
-        .screens
-        .loop_flags
-        .idle_frames
-        .set(menus.screens.loop_flags.idle_frames.get().wrapping_add(1));
+    let mut flags = menus.screens.loop_flags.write();
+    flags.idle_frames = flags.idle_frames.wrapping_add(1);
+    drop(flags);
     if entry.owners.system.machine().no_fmv.get() == 1 {
         return Ok(Flow::On);
     }
@@ -82,7 +80,7 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
     // `menu::play_films` with mode 1.
     crate::menu::play_films::play_films(entry.owners, true)?;
     log("menu::main_menu_loop: `menu::play_films` has come back");
-    menus.screens.loop_flags.idle.set(false);
+    menus.screens.loop_flags.write().idle = false;
     update_blink(menus, system);
     let now = system.clocks().frame.get();
     menus.play.champ_view.key_clock.last_key_time.set(now);

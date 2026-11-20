@@ -60,8 +60,8 @@ pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(
         file.store(base + 4 * n, &at.get().to_le_bytes())?;
     }
     cars[0].update(|p| {
-        p.saved_start_section = menus.screens.flow.start_section.get();
-        p.saved_start_section_a8 = menus.screens.flow.start_section_a8.get();
+        p.saved_start_section = menus.screens.flow.read().start_section;
+        p.saved_start_section_a8 = menus.screens.flow.read().start_section_a8;
     });
     for (n, car) in cars.iter().enumerate() {
         let name = crate::menu::player_names::name_bytes(
@@ -165,8 +165,8 @@ mod tests {
         let records_before =
             crate::menu::drivers_store::records_to_bytes(&menus.cars.drivers.drivers);
         let start_before = [
-            menus.screens.flow.start_section.get(),
-            menus.screens.flow.start_section_a8.get(),
+            menus.screens.flow.read().start_section,
+            menus.screens.flow.read().start_section_a8,
         ];
         // A varied state: head values, cars, names, driver records.
         for (n, d) in head(menus).into_iter().enumerate() {
@@ -240,8 +240,8 @@ mod tests {
             &records_before,
         )
         .unwrap();
-        menus.screens.flow.start_section.set(start_before[0]);
-        menus.screens.flow.start_section_a8.set(start_before[1]);
+        menus.screens.flow.write().start_section = start_before[0];
+        menus.screens.flow.write().start_section_a8 = start_before[1];
 
         assert!(second == first, "the saved game changed through a load");
         assert_eq!((first.len(), sum), (29_276, 13_361_182_919_990_968_310));

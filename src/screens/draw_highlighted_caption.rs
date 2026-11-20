@@ -37,7 +37,7 @@ pub fn draw_highlighted_caption(
     } else {
         return Ok(None);
     };
-    let item: u32 = menus.screens.loop_flags.item.get();
+    let item: u32 = menus.screens.loop_flags.read().item;
     if !(1..=ITEMS).contains(&item) {
         return Err(BadInput("a highlighted item outside the lists of captions").into());
     }

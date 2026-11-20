@@ -37,11 +37,11 @@ pub fn stage_sounds(
     let play = |sound, volume, rate, place| {
         crate::sound::play_sound::play_sound_in(audio, sound, volume, rate, place);
     };
-    let request = crate::sound::turn_parts::request(sound);
+    let mut request = crate::sound::turn_parts::request(sound);
     let stages = sound.race.stage.get();
     let timed_slot = sound.race.timed_slot.get();
-    request.pitch_factor.set(1.0);
-    request.volume_factor.set(1.0);
+    request.pitch_factor = 1.0;
+    request.volume_factor = 1.0;
     for (n, sound) in ONE_OFFS {
         let flagged = {
             let mut stage = stages.borrow_mut();
@@ -76,10 +76,8 @@ pub fn stage_sounds(
         (slot, stage.timed_place)
     };
     if slot {
-        for (cell, place) in request.place.iter().zip(&place) {
-            cell.set(*place);
-        }
-        crate::sound::play_timed_slot::play_timed_slot(timed_slot, request, sound, audio)?;
+        request.place = place;
+        crate::sound::play_timed_slot::play_timed_slot(timed_slot, &mut request, sound, audio)?;
     }
     let (volume_a, volume_b) = {
         let stage = stages.borrow();

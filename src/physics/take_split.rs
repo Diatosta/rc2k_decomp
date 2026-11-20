@@ -18,7 +18,7 @@ use rc2k_core::physics::progress::{FINISH_NOTICE, finished_at, split_due};
 pub(super) fn take_split(
     o: crate::owners::Owners<'static>,
     split_tables: &mut SplitTables,
-    league: &League,
+    league: &mut League,
     panel_and_overlay: &PanelAndOverlay,
     shared: &RaceShared,
     car_blocks: &crate::race::blocks_store::CarBlocks,

@@ -131,6 +131,11 @@ type BytesGet<'a> = dyn Fn() -> Vec<u8> + 'a;
 /// Writes a plain store's bytes.
 type BytesSet<'a> = dyn Fn(&[u8]) + 'a;
 
+/// Reads a plain store's dword.
+type WordGet<'a> = dyn Fn() -> u32 + 'a;
+/// Writes a plain store's dword.
+type WordSet<'a> = dyn Fn(u32) + 'a;
+
 /// One entry of the options file: named fields of the game's state, in the file's order.
 pub(crate) enum Field<'a> {
     /// One dword.
@@ -142,6 +147,11 @@ pub(crate) enum Field<'a> {
         cells: &'a dyn Store,
         from: usize,
         len: usize,
+    },
+    /// One dword of a plain store, read and written through functions.
+    Value {
+        get: Box<WordGet<'a>>,
+        set: Box<WordSet<'a>>,
     },
     /// `len` bytes of a plain store, read and written through functions.
     Bytes {
@@ -162,6 +172,8 @@ trait Move {
     fn dword(&mut self, field: &dyn DwordLike) -> Result<(), BadInput>;
     /// The dwords of a run (a record), each in turn.
     fn words(&mut self, run: &dyn Run) -> Result<(), BadInput>;
+    /// A dword of a plain store.
+    fn value(&mut self, get: &dyn Fn() -> u32, set: &dyn Fn(u32)) -> Result<(), BadInput>;
     fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput>;
     fn bytes(
         &mut self,
@@ -178,6 +190,11 @@ struct Put(Vec<u8>);
 impl Move for Put {
     fn dword(&mut self, field: &dyn DwordLike) -> Result<(), BadInput> {
         self.0.extend_from_slice(&field.get().to_le_bytes());
+        Ok(())
+    }
+
+    fn value(&mut self, get: &dyn Fn() -> u32, _: &dyn Fn(u32)) -> Result<(), BadInput> {
+        self.0.extend_from_slice(&get().to_le_bytes());
         Ok(())
     }
 
@@ -234,6 +251,11 @@ impl Take<'_> {
 impl Move for Take<'_> {
     fn dword(&mut self, field: &dyn DwordLike) -> Result<(), BadInput> {
         field.set(Take::dword(self)?);
+        Ok(())
+    }
+
+    fn value(&mut self, _: &dyn Fn() -> u32, set: &dyn Fn(u32)) -> Result<(), BadInput> {
+        set(Take::dword(self)?);
         Ok(())
     }
 
@@ -301,7 +323,7 @@ impl Field<'_> {
     /// How many bytes it takes in the file.
     pub(crate) fn len(&self) -> usize {
         match self {
-            Self::Dword(_) => 4,
+            Self::Dword(_) | Self::Value { .. } => 4,
             Self::Dwords(fields) => 4 * fields.len(),
             Self::Text { len, .. } | Self::Bytes { len, .. } => *len,
             Self::Player(_) => size_of::<Player>(),
@@ -313,6 +335,7 @@ impl Field<'_> {
     fn walk(&self, m: &mut impl Move) -> Result<(), BadInput> {
         match self {
             Self::Dword(field) => m.dword(*field),
+            Self::Value { get, set } => m.value(get, set),
             Self::Dwords(fields) => fields.iter().try_for_each(|field| m.dword(*field)),
             Self::Text { cells, from, len } => m.text(*cells, *from, *len),
             Self::Bytes { len, get, set } => m.bytes(*len, get, set),
@@ -403,7 +426,10 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
             &work.audio_quality, &work.ds3d, &work.eax, &work.retired_a3d, &work.dolby, &work.channels,
         ]),
         Field::Dword(&menus.play.champ_view.services),                       // the services counted
-        Field::Dword(&menus.screens.flow.kept),                          // kept by the event races
+        Field::Value {                                          // kept by the event races
+            get: Box::new(|| menus.screens.flow.read().kept),
+            set: Box::new(|kept| menus.screens.flow.write().kept = kept),
+        },
         Field::Dword(&race.shared.state.settings.a8_game),               // the race settings' first word
         Field::Bytes {                                          // the arcade levels won, a byte each
             len: 6,

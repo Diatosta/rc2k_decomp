@@ -74,7 +74,7 @@ fn field_y(o: crate::owners::Owners<'static>) -> Option<i32> {
     }
     let flags = &o.menus.screens.loop_flags;
     let menu = flags.menu.get().ok()?;
-    let item = menu.item(&o.menus.tables.menus, flags.item.get()).ok()?;
+    let item = menu.item(&o.menus.tables.menus, flags.read().item).ok()?;
     Some(item.fixed().y)
 }
 

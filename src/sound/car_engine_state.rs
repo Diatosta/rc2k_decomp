@@ -153,14 +153,14 @@ pub fn car_engine_state(
     .map_err(BadInput::from)?;
     readings(&mut object, clock, change);
     store(so, &before, &object);
-    revs_input(so, record);
+    revs_input(so, &record);
     so.throttle_input.set(f32::from_bits(over_256(
         from_int(so.throttle.get() as i32).to_bits(),
     )));
     speed_input(so, sound.race.surface.get());
     let before = load(so);
     let mut object = before;
-    let low = state(&mut object, || record.flags.get(), clock);
+    let low = state(&mut object, || record.flags, clock);
     store(so, &before, &object);
     if let Some(low) = low {
         gear_pitch(so, low, system);
@@ -185,16 +185,15 @@ pub fn car_engine_state(
 /// The revs input of the engine sounds: `(revs - kind.revs_low) * kind.revs_scale`.
 fn revs_input(so: &SoundObject, kind: &KindRecord) {
     let revs = int(so.revs.get() as i32);
-    let above_low = revs - ld(kind.revs_low.get());
-    so.revs_input
-        .set(stf(above_low * ld(kind.revs_scale.get())));
+    let above_low = revs - ld(kind.revs_low);
+    so.revs_input.set(stf(above_low * ld(kind.revs_scale)));
 }
 
 /// The speed input: `|speed| * surface.speed_scale`.
 fn speed_input(so: &SoundObject, surface: &SurfaceSounds) {
     let speed = ld(so.speed.get()).abs();
     so.speed_input
-        .set(stf(speed * ld(surface.speed_scale.get())));
+        .set(stf(speed * ld(surface.constants.speed_scale)));
 }
 
 /// The gear-change cue's pitch from the clock's low four bits `low`: `low / 60 + 0.75` (the factors
@@ -232,7 +231,7 @@ fn distance_and_approach(so: &SoundObject, clock: &RaceClock) {
 fn ease_pitch_factor(so: &SoundObject, clock: &RaceClock, surface: &SurfaceSounds) {
     let target = (ld(so.approach.get()) + ld(clock.sound_speed)) * ld(clock.over_sound_speed);
     let factor = ld(so.pitch_factor.get());
-    let eased = (target - factor) * ld(surface.pitch_blend.get()) + factor;
+    let eased = (target - factor) * ld(surface.constants.pitch_blend) + factor;
     so.pitch_factor.set(stf(eased));
 }
 
@@ -246,7 +245,7 @@ mod reference_vectors {
     use super::*;
     use crate::math::x87_mem::{HostCell, view};
     use crate::memory::session::Cell32;
-    use crate::sound::asm_layout::{Laid, with_laid};
+    use crate::sound::asm_layout::{Laid, SURFACE_EXTENT, with_laid, with_surface};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -279,7 +278,7 @@ mod reference_vectors {
                         writes: &[(0x108, Out::F)],
                     },
                     Operand::Sized {
-                        len: SurfaceSounds::EXTENT,
+                        len: SURFACE_EXTENT,
                         reads: &[(0x18, In::F)],
                         writes: &[],
                     },
@@ -287,7 +286,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     with_laid::<SoundObject, _>(a[0], |so| {
-                        with_laid::<SurfaceSounds, _>(a[1], |sf| speed_input(so, sf));
+                        with_surface(a[1], |sf| speed_input(so, sf));
                     });
                 },
             },
@@ -341,7 +340,7 @@ mod reference_vectors {
                         writes: &[],
                     },
                     Operand::Sized {
-                        len: SurfaceSounds::EXTENT,
+                        len: SURFACE_EXTENT,
                         reads: &[(8, In::F)],
                         writes: &[],
                     },
@@ -350,7 +349,7 @@ mod reference_vectors {
                 plain: |a| {
                     let clock = view::<RaceClock>(a[1], 0);
                     with_laid::<SoundObject, _>(a[0], |so| {
-                        with_laid::<SurfaceSounds, _>(a[2], |sf| ease_pitch_factor(so, clock, sf));
+                        with_surface(a[2], |sf| ease_pitch_factor(so, clock, sf));
                     });
                 },
             },

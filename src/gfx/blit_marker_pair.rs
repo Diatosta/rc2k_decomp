@@ -11,7 +11,7 @@ const FIRST_GLYPH: u32 = 0x9C;
 const SECOND_GLYPH: u32 = 0x9D;
 
 pub fn sprite_table(menus: &Menus) -> u32 {
-    menus.screens.loop_flags.sprite_table.get()
+    menus.screens.loop_flags.read().sprite_table
 }
 
 /// The two blitter calls made for `record`.

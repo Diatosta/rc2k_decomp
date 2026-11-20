@@ -71,7 +71,7 @@ pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
 pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
     let records = &race.light_records().records;
-    let source = race.course.lights_data().lights.read();
+    let source = race.course.lights_table().lights;
     let mut laid = vec![0; LIGHT_RECORD_COUNT as usize * LIGHT_RECORD];
     Store::load(records, 0, &mut laid)?;
     lay_lights(&source, &mut laid);
@@ -88,9 +88,9 @@ pub(super) fn load_lights_data(race: &Race) -> Result<(), Refused> {
         .iter()
         .flat_map(|word| word.to_le_bytes())
         .collect();
-    crate::files::read_whole_file::read_whole_file_plain_bytes(
+    crate::files::read_whole_file::read_whole_file_len(
         &crate::files::cstring_in(&lights_path)?,
-        &race.course.lights_data().lights,
+        &mut race.course.lights_table_mut().lights,
     )?;
     copy_lights_data(race)?;
     Ok(())

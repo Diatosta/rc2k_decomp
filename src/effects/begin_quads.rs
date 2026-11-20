@@ -46,9 +46,8 @@ pub(super) fn begin_quads(
             .front_end_polygon()
             .polygon_vertex_count
             .set(4);
-        frame.draw_work.z_k.set(crate::math::x87::reciprocal(
-            &scene.scratch.front_end_polygon().window.farthest,
-        ));
+        frame.draw_work.borrow_mut().z_k =
+            crate::math::x87::reciprocal(&scene.scratch.front_end_polygon().window.farthest);
         frame.draw_frame.cleared.set(0);
     }
 }

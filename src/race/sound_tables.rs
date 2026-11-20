@@ -3,16 +3,16 @@
 //! table) and the race's sounds are restarted or silenced.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::PlainDword;
 use crate::sound::sets_store::SoundSet;
 
-/// `race::whole_to_float`: makes the dword a float when it looks like a whole number (its top
-/// byte 0 or 0xFF). Returns its top byte (the dword masked with 0xFF000000).
-pub fn whole_to_float(at: &PlainDword) -> u32 {
+/// Makes the dword a float when it looks like a whole number (its top byte 0 or 0xFF). Returns
+/// its top byte (the dword masked with 0xFF000000).
+pub fn whole_to_float(at: &mut u32) -> u32 {
     // One rounding only, the same at every precision.
-    let (top, float) = rc2k_core::race::sound_tables::whole_to_float(at.get());
+    let (top, float) = rc2k_core::race::sound_tables::whole_to_float(*at);
     if let Some(f) = float {
-        at.set(f);
+        *at = f;
     }
     top
 }
@@ -21,28 +21,33 @@ fn span_plain(second: u32, first: u32) -> u32 {
     rc2k_core::race::sound_tables::span(f32::from_bits(first), f32::from_bits(second)).to_bits()
 }
 
-/// `race::sound_span`: makes the two dwords `first` and `second` floats and sets `span` (the
-/// dword after them) to their difference.
-fn sound_span(first: &PlainDword, second: &PlainDword, span: &PlainDword) {
+/// Makes the two dwords `first` and `second` floats and sets `span` to their difference.
+fn sound_span(first: &mut u32, second: &mut u32, span: &mut u32) {
     whole_to_float(first);
     whole_to_float(second);
-    span.set(span_plain(second.get(), first.get()));
+    *span = span_plain(*second, *first);
 }
 
-/// `race::sound_row`: sets a `row`'s pitch and volume spans. The set's other three words are 0 in
-/// every shipped set and read by no sound code, so they are left alone.
-fn sound_row(row: &SoundSet) {
-    sound_span(&row.pitch_low, &row.pitch_high, &row.pitch_scale);
-    sound_span(&row.volume_low, &row.volume_high, &row.volume_scale);
+/// Sets a `row`'s pitch and volume spans. The set's other three words are 0 in every shipped set
+/// and read by no sound code, so they are left alone.
+fn sound_row(row: &mut SoundSet) {
+    sound_span(
+        &mut row.pitch_low,
+        &mut row.pitch_high,
+        &mut row.pitch_scale,
+    );
+    sound_span(
+        &mut row.volume_low,
+        &mut row.volume_high,
+        &mut row.volume_scale,
+    );
 }
 
 /// Where `prepare_sound_tables_plain` finds its variables (the live ones, or a test's).
 #[derive(Clone, Copy)]
 struct TableVars<'a> {
     /// `SurfaceSounds.tables_done`: 1 once done.
-    pub done: &'a PlainDword,
-    /// `SoundKinds.sines`: 0x40 floats.
-    pub sines: &'a [PlainFloat; 64],
+    pub done: &'a std::cell::RefCell<crate::sound::store::SurfaceWork>,
     /// The kinds' records.
     pub kinds: &'a crate::sound::sets_store::SoundKinds,
     /// `Machine.scratch`: left holding the last angle of the sine table.
@@ -55,8 +60,7 @@ impl<'a> TableVars<'a> {
         system: &'a crate::system::owner::System,
     ) -> Self {
         Self {
-            done: &sound.race.surface.get().tables_done,
-            sines: &sound.race.kinds.get().sines,
+            done: &sound.race.surface.get().work,
             kinds: sound.race.kinds.get(),
             scratch: &system.machine().scratch,
         }
@@ -68,28 +72,28 @@ pub const RECORDS: u32 = 0x22;
 
 /// Prepares the sound tables, run once (`SurfaceSounds.tables_done`): each of the 0x22 records
 /// (`SoundKinds.kinds`) gets its rev span (`sound_span`), turned into its reciprocal, and its
-/// three rows (`sound_row`). Then the 0x40 floats of `sines` are set to 1 + 0.05 sin(x) for x from
-/// 0 by pi / 32, and `Machine.scratch` keeps the last x.
+/// three rows (`sound_row`). Then the sine table's last angle is left in `Machine.scratch` (the
+/// table itself, 1 + 0.05 sin(x) for x from 0 by pi / 32, is read by nothing and not kept).
 fn prepare_sound_tables_plain(v: &TableVars<'_>) -> Result<(), BadInput> {
     use rc2k_core::race::sound_tables::{reciprocal, sines};
-    if v.done.get() == 1 {
+    if v.done.borrow().tables_done == 1 {
         return Ok(());
     }
-    v.done.set(1);
+    v.done.borrow_mut().tables_done = 1;
     for n in 0..RECORDS {
-        let record = v.kinds.record(n)?;
-        sound_span(&record.revs_low, &record.revs_high, &record.revs_scale);
-        record
-            .revs_scale
-            .set(reciprocal(f32::from_bits(record.revs_scale.get())).to_bits());
-        for set in [&record.revs, &record.throttle, &record.speed] {
-            sound_row(set);
-        }
+        v.kinds.update_record(n, |record| {
+            sound_span(
+                &mut record.revs_low,
+                &mut record.revs_high,
+                &mut record.revs_scale,
+            );
+            record.revs_scale = reciprocal(f32::from_bits(record.revs_scale)).to_bits();
+            for set in [&mut record.revs, &mut record.throttle, &mut record.speed] {
+                sound_row(set);
+            }
+        })?;
     }
-    let (table, last) = sines();
-    for (k, f) in table.iter().enumerate() {
-        v.sines[k].set(*f);
-    }
+    let (_, last) = sines();
     v.scratch.set(last.to_bits());
     Ok(())
 }

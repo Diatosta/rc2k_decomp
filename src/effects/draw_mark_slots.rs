@@ -112,7 +112,7 @@ pub fn draw_mark_slots(
         effects.blocks.slot_tuning.draw_random.set(r);
         let corner = &effects.blocks.corners.corners[((r & 7) + 0x50) as usize];
         let word = |off: u32| u32::from(corner.words[off as usize / 2].get());
-        let uv_k = effects.frame.draw_work.uv_k.get();
+        let uv_k = effects.frame.draw_work.borrow().uv_k;
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = &buffer.vertices[n];
             vertex.u.set(x87::int_times(word(u) as i32, uv_k));
@@ -143,7 +143,7 @@ pub fn draw_mark_slots(
             (x87::add(px, half), x87::add(py, half)),
             (x87::sub(px, half), x87::add(py, half)),
         ];
-        let depth = x87::mul(x, &effects.frame.draw_work.z_k);
+        let depth = x87::mul(x, effects.frame.draw_work.borrow().z_k);
         let rhw = x87::reciprocal_times(x, &effects.blocks.slot_tuning.rhw_k);
         for (n, (vx, vy)) in corners.into_iter().enumerate() {
             let vertex = &buffer.vertices[n];

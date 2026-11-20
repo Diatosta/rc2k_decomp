@@ -25,7 +25,7 @@ pub(super) fn camera_over_ground(
         return Ok(false);
     }
     for (side, slot) in SIDES.into_iter().zip(&c.car.camera_ground_faces[1..]) {
-        c.course.course.get().ground_face_last.set(slot.get());
+        c.search.borrow_mut().last = slot.get();
         // The y only goes through the scratch point, which nothing reads after: 0 here.
         let [x, _, z, _] =
             rotate_point_about_y(engine_tables, side as i32, 0, 0, c.car.camera_heading.get());

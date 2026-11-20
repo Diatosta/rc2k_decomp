@@ -31,15 +31,18 @@ fn distance_and_angle_match_the_assembly() {
                 distance(
                     crate::test_support::own::race().shared.physics_tables.get(),
                     crate::test_support::own::race().course.numbers.get(),
-                    crate::test_support::own::race().physics.ground(),
+                    &crate::test_support::own::race()
+                        .physics
+                        .ground_search()
+                        .borrow(),
                     point_at(a[1]),
                 );
                 // The original leaves the last gap in the shared work dword.
                 let ground_z = crate::test_support::own::race()
                     .physics
-                    .ground()
-                    .ground_z
-                    .get();
+                    .ground_search()
+                    .borrow()
+                    .z;
                 crate::test_support::own::scene()
                     .drawing
                     .scene
@@ -69,7 +72,10 @@ fn distance_and_angle_match_the_assembly() {
             plain: |a| {
                 let turns = angle(
                     crate::test_support::own::race().course.numbers.get(),
-                    crate::test_support::own::race().physics.ground(),
+                    &crate::test_support::own::race()
+                        .physics
+                        .ground_search()
+                        .borrow(),
                     point_at(a[1]),
                 );
                 crate::test_support::own::scene()

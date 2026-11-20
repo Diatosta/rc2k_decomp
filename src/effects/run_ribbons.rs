@@ -48,7 +48,12 @@ fn turn_place(
     e: u32,
     effects: &crate::effects::owner::Effects,
 ) {
-    turn_place_x87(view_matrix, ring, e, &effects.frame.draw_work);
+    turn_place_x87(
+        view_matrix,
+        ring,
+        e,
+        &mut effects.frame.draw_work.borrow_mut(),
+    );
 }
 
 /// The size of the colour table in use: 128 colours (the surface's) while the kind floats'
@@ -86,8 +91,8 @@ fn refusal(
             return Ok(Some("no marks settings"));
         };
         let ticks: u32 = effects.setup.clock.borrow().frame_ticks;
-        let mut e: u32 = ring.work.cursor.get();
-        let count = ring.work.count.get() as i32;
+        let mut e: u32 = ring.work.borrow().cursor;
+        let count = ring.work.borrow().count as i32;
         if count > 0 && (e == 0 || entry(ring, e)?.prev == 0) {
             return Ok(Some("a null ring entry"));
         }
@@ -142,19 +147,19 @@ fn streak(
         first_frame(view_matrix, ring, e, effects);
     }
     move_on(ring, e, effects);
-    effects.frame.draw_work.second[0].set(entry(ring, e)?.last_place[0]);
-    effects.frame.draw_work.second[1].set(entry(ring, e)?.last_place[1]);
-    effects.frame.draw_work.second[2].set(entry(ring, e)?.last_place[2]);
+    effects.frame.draw_work.borrow_mut().second[0] = entry(ring, e)?.last_place[0];
+    effects.frame.draw_work.borrow_mut().second[1] = entry(ring, e)?.last_place[1];
+    effects.frame.draw_work.borrow_mut().second[2] = entry(ring, e)?.last_place[2];
     turn_place(view_matrix, ring, e, effects);
     let marks = effects.settings()?;
     if marks.own_marks_shown.get() != 0 || marks.other_marks_shown.get() == 1 {
-        set(ring, e, effects.frame.draw_work.turned[0].get(), |en| {
+        set(ring, e, effects.frame.draw_work.borrow().turned[0], |en| {
             &mut en.last_place[0]
         })?;
-        set(ring, e, effects.frame.draw_work.turned[1].get(), |en| {
+        set(ring, e, effects.frame.draw_work.borrow().turned[1], |en| {
             &mut en.last_place[1]
         })?;
-        set(ring, e, effects.frame.draw_work.turned[2].get(), |en| {
+        set(ring, e, effects.frame.draw_work.borrow().turned[2], |en| {
             &mut en.last_place[2]
         })?;
     }
@@ -162,7 +167,7 @@ fn streak(
         .specular
         .set(fog_at(fog, entry(ring, e)?.last_place[2].to_bits())?);
     let i = x87::int_times_to_int(entry(ring, e)?.life as i32, entry(ring, e)?.alpha_fade);
-    ring.work.whole.set(i as u32);
+    ring.work.borrow_mut().whole = i as u32;
     let colour = colour_at(&effects.masks, ring, i as usize, effects);
     crate::effects::draw_ribbon::draw_ribbon(
         buffer,
@@ -285,12 +290,12 @@ fn turn_place_x87(
     view_matrix: &[crate::memory::session::PlainFloat; 16],
     ring: &Ring,
     e: u32,
-    dw: &DrawWork,
+    dw: &mut DrawWork,
 ) {
     let [x, y, z] = view_turned(view_matrix, ring, e);
-    dw.turned[0].st(x);
-    dw.turned[1].st(y);
-    dw.turned[2].st(z);
+    dw.turned[0] = bh::stf(x);
+    dw.turned[1] = bh::stf(y);
+    dw.turned[2] = bh::stf(z);
 }
 
 #[cfg(test)]

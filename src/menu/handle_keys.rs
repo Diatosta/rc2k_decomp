@@ -34,11 +34,11 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
     }) {
         return Ok(nothing);
     }
-    if menus.screens.flow.asking.is_set() && !has_layout(o.input) {
+    if menus.screens.flow.read().asking && !has_layout(o.input) {
         return Err(BadInput("no keyboard layout").into());
     }
     menus.screens.entry.set_sound(keys::MenuSound::None);
-    menus.screens.loop_flags.leave_screen.set(false);
+    menus.screens.loop_flags.write().leave_screen = false;
     let key = take_key(o.input);
     if key == 0 {
         return Ok(nothing);
@@ -50,11 +50,11 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
         menus,
         key_over_elapsed,
     )?;
-    let action = keys::action(key, || menus.play.cheats.cheats.get());
+    let action = keys::action(key, || menus.play.cheats.read().cheats);
     match action {
         Action::Ignored => return Ok(nothing),
         Action::Escape => {
-            menus.screens.loop_flags.leave_screen.set(true);
+            menus.screens.loop_flags.write().leave_screen = true;
             menus.screens.draw_work.write().escape_pressed = true;
             menus.tables.captions.left_by_key.set(true);
             return Ok(Pressed::Escape);
@@ -85,8 +85,8 @@ pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused>
             return Ok(nothing);
         }
         Action::Toggle => {
-            let toggle = &menus.screens.loop_flags.toggle;
-            toggle.set(!toggle.is_set());
+            let mut flags = menus.screens.loop_flags.write();
+            flags.toggle = !flags.toggle;
             return Ok(nothing);
         }
         Action::AddTime => {

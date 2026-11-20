@@ -71,10 +71,45 @@ impl PlayerField {
     }
 }
 
+/// The variables kept as plain fields.
+#[derive(Clone, Copy)]
+enum PlainField {
+    Cheats,
+    Answer,
+    CarListKind,
+    StartSection,
+    StartSectionA8,
+}
+
+impl PlainField {
+    fn get(self, menus: &Menus) -> u32 {
+        let flow = menus.screens.flow.read();
+        match self {
+            PlainField::Cheats => menus.play.cheats.read().cheats,
+            PlainField::Answer => menus.tables.pages.read().yes_no_answer,
+            PlainField::CarListKind => flow.car_list_kind,
+            PlainField::StartSection => flow.start_section,
+            PlainField::StartSectionA8 => flow.start_section_a8,
+        }
+    }
+
+    fn set(self, menus: &Menus, value: u32) {
+        match self {
+            PlainField::Cheats => menus.play.cheats.write().cheats = value,
+            PlainField::Answer => menus.tables.pages.write().yes_no_answer = value,
+            PlainField::CarListKind => menus.screens.flow.write().car_list_kind = value,
+            PlainField::StartSection => menus.screens.flow.write().start_section = value,
+            PlainField::StartSectionA8 => menus.screens.flow.write().start_section_a8 = value,
+        }
+    }
+}
+
 /// Where a variable is.
 enum Place<'a> {
     /// A variable of the front end's or the physics block's.
     Cell(&'a dyn DwordLike),
+    /// A field of a store of plain values.
+    Plain(PlainField),
     /// Player n's field.
     Player(u32, PlayerField),
     /// The found record's field.
@@ -86,7 +121,7 @@ enum Place<'a> {
 fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
     use Place::Cell;
     match v {
-        Var::Answer => Cell(&menus.tables.pages.yes_no_answer),
+        Var::Answer => Place::Plain(PlainField::Answer),
         Var::PlayerCount => Cell(&menus.screens.event.player_count),
         Var::EventMode => Cell(&menus.screens.event.event_kind),
         Var::EventType => Cell(&menus.screens.event.event_type),
@@ -98,8 +133,8 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
         Var::RaceResult => Cell(&race.shared.state.results.results[0].result),
         Var::RaceResult2 => Cell(&race.shared.state.results.results[1].result),
         Var::RaceResultOf(k) => Cell(&race.shared.state.result(k as usize).result),
-        Var::CarListKind => Cell(&menus.screens.flow.car_list_kind),
-        Var::Cheats => Cell(&menus.play.cheats.cheats),
+        Var::CarListKind => Place::Plain(PlainField::CarListKind),
+        Var::Cheats => Place::Plain(PlainField::Cheats),
         // The eight cleared figures are the four totals before the stage, then the four totals.
         Var::Cleared(k @ 0..4) => Cell(&menus.play.results.players[k as usize].before),
         Var::Cleared(k @ 4..8) => Cell(&menus.play.results.players[k as usize - 4].total),
@@ -111,8 +146,8 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
         Var::ResetTimes => Cell(&menus.play.champ_view.reset_times),
         Var::Services => Cell(&menus.play.champ_view.services),
         Var::ModeAB40 => Cell(&menus.screens.state.menus.class_mode),
-        Var::StartSection { a8: false } => Cell(&menus.screens.flow.start_section),
-        Var::StartSection { a8: true } => Cell(&menus.screens.flow.start_section_a8),
+        Var::StartSection { a8: false } => Place::Plain(PlainField::StartSection),
+        Var::StartSection { a8: true } => Place::Plain(PlainField::StartSectionA8),
         Var::ServiceTime => Cell(&menus.screens.event.service.minutes),
         Var::CpuSpreadFirst => Cell(&menus.screens.event.service.spread_first),
         Var::ServiceNext => Cell(&menus.screens.event.service.next),
@@ -146,6 +181,7 @@ impl flow::Game for Game<'_> {
     fn get(&mut self, v: Var) -> u32 {
         match place(self.menus, self.owners.race, v) {
             Place::Cell(cell) => cell.get(),
+            Place::Plain(field) => field.get(self.menus),
             Place::Player(n, field) => *field.of(&mut player(self.menus, n).get()),
             Place::Refused(why) => {
                 self.fault.ok::<()>(Err(BadInput(why)));
@@ -161,6 +197,7 @@ impl flow::Game for Game<'_> {
     fn set(&mut self, v: Var, value: u32) {
         match place(self.menus, self.owners.race, v) {
             Place::Cell(cell) => cell.set(value),
+            Place::Plain(field) => field.set(self.menus, value),
             Place::Player(n, field) => player(self.menus, n).update(|q| *field.of(q) = value),
             Place::Refused(why) => {
                 self.fault.ok::<()>(Err(BadInput(why)));

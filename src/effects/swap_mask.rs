@@ -29,13 +29,13 @@ pub fn swap_mask(
     }
     let marks = effects.settings()?;
     let switch = marks.sound_objects_shown.get();
-    let Some(second) = masks::swapped(switch, masks.blocks.seen.get()) else {
+    let Some(second) = masks::swapped(switch, masks.blocks.borrow().seen) else {
         return Ok(());
     };
-    let kept: [u32; 2] = [masks.blocks.seen.get(), masks.blocks.chosen.get()];
-    masks.blocks.seen.set(switch);
+    let kept: [u32; 2] = [masks.blocks.borrow().seen, masks.blocks.borrow().chosen];
+    masks.blocks.borrow_mut().seen = switch;
     let chosen = if second { Mask::Bordered } else { Mask::Plain };
-    masks.blocks.chosen.set(chosen as u32);
+    masks.blocks.borrow_mut().chosen = chosen as u32;
     lock(gfx, scene.textures.first_textures()[202], true)?;
     // The width is the locked texture's, not the screen's: checked here (before the lock it
     // refused every frame). A row wider than the mask's would read past its block: unlocked,
@@ -43,8 +43,8 @@ pub fn swap_mask(
     let width: u32 = gfx.drawing.draw_surface.width.get();
     if let Err(e) = masks::check_width(width) {
         lock(gfx, scene.textures.first_textures()[202], false)?;
-        masks.blocks.seen.set(kept[0]);
-        masks.blocks.chosen.set(kept[1]);
+        masks.blocks.borrow_mut().seen = kept[0];
+        masks.blocks.borrow_mut().chosen = kept[1];
         return Err(e.into());
     }
     let pixels = chosen.pixels(masks).with(|p| {
@@ -54,8 +54,8 @@ pub fn swap_mask(
     })?;
     let Some(pixels) = pixels else {
         lock(gfx, scene.textures.first_textures()[202], false)?;
-        masks.blocks.seen.set(kept[0]);
-        masks.blocks.chosen.set(kept[1]);
+        masks.blocks.borrow_mut().seen = kept[0];
+        masks.blocks.borrow_mut().chosen = kept[1];
         return Err(BadInput("a mask pixel past its block").into());
     };
     for (row, col, pixel) in pixels {

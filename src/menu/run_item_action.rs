@@ -20,7 +20,7 @@ pub fn run_item_action(
     let menus = o.menus;
     let screens = &menus.screens;
     let items = menu.items(&menus.tables.menus);
-    let highlighted: u32 = screens.loop_flags.item.get();
+    let highlighted: u32 = screens.loop_flags.read().item;
     // The logic is in `rc2k_core::menu::items::highlighted_item`. It asks for item n's type only
     // while item n is there, and for the x of one past the last: the end mark after it.
     let found = rc2k_core::menu::items::highlighted_item(
@@ -54,13 +54,13 @@ pub fn run_item_action(
         } else {
             crate::menu::table_calls::call_action(o, action);
         }
-        screens.loop_flags.item.set(item.fixed().id);
+        screens.loop_flags.write().item = item.fixed().id;
     }
     Ok(ActionResult {
-        ask_leave: screens.loop_flags.ask_leave.is_set(),
+        ask_leave: screens.loop_flags.read().ask_leave,
         event_over: screens.event.event_over.is_set(),
-        leave_screen: screens.loop_flags.leave_screen.is_set(),
-        event_left: screens.loop_flags.event_left.is_set(),
+        leave_screen: screens.loop_flags.read().leave_screen,
+        event_left: screens.loop_flags.read().event_left,
         action_mode: screens.draw_work.read().action_mode,
     })
 }

@@ -13,14 +13,15 @@ pub(super) fn face_contacts_around(
     c: &ContactInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    c.ground.ground.ground_x.set(c.car.position[0].get());
-    c.ground.ground.ground_z.set(c.car.position[2].get());
+    {
+        let mut search = c.ground.search.borrow_mut();
+        search.x = c.car.position[0].get();
+        search.z = c.car.position[2].get();
+    }
     rc2k_core::physics::ground_search::cells_around(
         || {
-            (
-                c.ground.ground.ground_x.get(),
-                c.ground.ground.ground_z.get(),
-            )
+            let search = c.ground.search.borrow();
+            (search.x, search.z)
         },
         |x, z| crate::physics::cell_face_contacts::steps(c, x, z, scene),
     )

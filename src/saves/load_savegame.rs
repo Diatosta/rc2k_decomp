@@ -36,7 +36,7 @@ const UNREADABLE_SOUND: u32 = 8;
 
 /// The slot the highlighted menu item stands for.
 fn highlighted_slot(pages: &MenuPages, loop_flags: &LoopFlags) -> u32 {
-    rc2k_core::saves::savegame::slot(pages.save_page.get(), loop_flags.item.get())
+    rc2k_core::saves::savegame::slot(pages.read().save_page, loop_flags.read().item)
 }
 
 /// The players' own records and names come back when the loaded championship is over or left
@@ -144,16 +144,8 @@ fn restore(o: Owners<'static>) -> Result<Resume, Refused> {
     }
     let records = file.read_at(cursor, RECORDS_LEN, "the saved drivers")?;
     crate::menu::drivers_store::records_from_bytes(&menus.cars.drivers.drivers, &records)?;
-    menus
-        .screens
-        .flow
-        .start_section
-        .set(cars[0].get().saved_start_section);
-    menus
-        .screens
-        .flow
-        .start_section_a8
-        .set(cars[0].get().saved_start_section_a8);
+    menus.screens.flow.write().start_section = cars[0].get().saved_start_section;
+    menus.screens.flow.write().start_section_a8 = cars[0].get().saved_start_section_a8;
 
     Ok(resume(crate::menu::next_record_kind::next_record_kind(
         menus, o.system,

@@ -1,5 +1,5 @@
 //! The course's data and the scene's state: the course's records, faces and scene points (counts
-//! and places), the ground face being probed, the faces' light, the camera's and start place's
+//! and places), the faces' light, the camera's and start place's
 //! place and heading, a shape's radius, the car model's part groups' masks, the shine. The fields
 //! are in the image's order. Plain cells: a drawing store (`session::DrawShared`), written on the
 //! game's thread between frames and read by the drawing parts through their `scene::workers::DrawReads`.
@@ -12,16 +12,6 @@ pub struct CourseWork {
     /// A course record's x and z (`race::frame_draw`, `race::car_shadow`); written by
     /// nothing; unused.
     pub record_place: [PlainDword; 2],
-    /// The ground face's corners (`physics::ground`).
-    pub ground_corners: [PlainDword; 3],
-    /// (`physics::ground`, `physics::probe_ground`).
-    pub ground_half: PlainDword,
-    /// The ground face's number (`physics::ground`).
-    pub ground_number: PlainDword,
-    /// (`physics::camera_ground`, `physics::count_ground_probe`).
-    pub ground_slot: PlainDword,
-    /// The face found last time (`physics::camera_ground`).
-    pub ground_face_last: PlainDword,
     /// The face's four light bytes (`physics::car_lighting`).
     pub face_light_bytes: [PlainDword; 4],
     /// (`physics::car_lighting`).

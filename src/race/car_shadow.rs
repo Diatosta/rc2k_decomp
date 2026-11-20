@@ -11,8 +11,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 use crate::memory::session::{PlainByte, PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
-use crate::physics::ground_probe_store::GroundProbe;
-use crate::physics::ground_query::{GroundCells, GroundQuery};
+use crate::physics::ground_query::{GroundEnv, GroundSearch};
 use crate::race::owner_course::CourseReads;
 use crate::race::scene_points::{OwnPoints, point_word, point_xz, put_point_word};
 use crate::race::shadow_skids_store::ShadowPoint;
@@ -59,8 +58,6 @@ pub(super) struct ShadowWork {
     list_count: PlainDword,
     /// The ground's height under the car.
     ground: PlainDword,
-    /// The ground searches' fields.
-    search: GroundCells,
 }
 
 impl ShadowWork {
@@ -83,17 +80,6 @@ impl ShadowWork {
             list: [const { PlainDword::new(0) }; 64],
             list_count: PlainDword::new(0),
             ground: PlainDword::new(0),
-            search: GroundCells::new(),
-        }
-    }
-
-    /// The ground search on the shadow's own fields, the scene points through `points`; the
-    /// caller's mark (`settle_mark`), which the search only reads, is the physics' (`probe`) as the
-    /// last search there left it.
-    fn query<'a>(&'a self, probe: &'a GroundProbe, points: &'a OwnPoints) -> GroundQuery<'a> {
-        GroundQuery {
-            settle_mark: &probe.settle_mark,
-            ..self.search.query(points)
         }
     }
 }
@@ -197,8 +183,6 @@ fn shadow_hull(work: &ShadowWork) -> Result<(), Refused> {
             crate::memory::cells::store_value(at(n)?, 0, *now)?;
         }
     }
-    work.search.product()[0].set(h.product as u32);
-    work.search.product()[1].set((h.product as u64 >> 32) as u32);
     work.hull_count.set(h.count);
     Ok(())
 }
@@ -264,7 +248,7 @@ fn work_entry(
 
 /// Whether scene point `n` is on the inner side of the edge from (`work.edge`, `work.edge[1]`) to
 /// (`work.edge[2]`, `work.edge[3]`): the cross product of whole numbers, on the x87, above 0 or not
-/// a number. The point's x and z go into `ground_x` / `ground_z`.
+/// a number.
 fn inside_edge(
     course: CourseReads<'_>,
     points: &OwnPoints,
@@ -272,22 +256,18 @@ fn inside_edge(
     n: u32,
 ) -> Result<bool, BadInput> {
     let (x, z) = point_xz(course, points, n)?;
-    let q = work.search.query(points);
-    q.x.set(x);
-    q.z.set(z);
     use crate::math::x87_float::{X, compare, int};
     let word = |d: &dyn crate::memory::session::DwordLike| int(d.get() as i32);
-    let (x, z) = (q.x, q.z);
     let c = &work.edge;
-    let first = (word(x) - word(&c[0])) * (word(&c[3]) - word(&c[1]));
-    let second = (word(z) - word(&c[1])) * (word(&c[2]) - word(&c[0]));
+    let first = (int(x as i32) - word(&c[0])) * (word(&c[3]) - word(&c[1]));
+    let second = (int(z as i32) - word(&c[1])) * (word(&c[2]) - word(&c[0]));
     // Above 0, or not a number.
     Ok(compare(X(0.0), first - second) & 0x0100 != 0)
 }
 
 /// `edge_crossing`'s arithmetic: the share of the edge's crossing (-(`work.crossing[8]` x
 /// `work.crossing[11]` - `work.crossing[10]` x `work.crossing[9]`) over the difference of the two
-/// cross products, rounded to a float into `plane_f` and used as read back), the
+/// cross products, rounded to a float, returned, and used as read back), the
 /// crossing's place (x and z whole numbers into `clip_work[2]` / `clip_work[4]`) and the
 /// entry's texture floats (`clip_work[10]`, `clip_work[11]`) and two bytes
 /// (`crossing_amount`, `clip_out_words`), shared the same way between the scene points
@@ -301,14 +281,13 @@ fn crossing_block(
     (pa, pb): (u32, u32),
     ea: &PolygonEntry,
     eb: &PolygonEntry,
-) -> Result<(), BadInput> {
+) -> Result<f32, BadInput> {
     use crate::math::x87_float::{int, ld, stf, to_int};
     let word = |n: usize| int(work.crossing[n].get() as i32);
     let first = word(11) * word(8) - word(10) * word(9);
     let second = word(13) * word(8) - word(12) * word(9);
-    let share = stf(-(first / (second - first)));
-    work.search.plane_f().set(share);
-    let share = ld(share);
+    let stored_share = stf(-(first / (second - first)));
+    let share = ld(stored_share);
     // a + (b - a) x share.
     let whole = |k: u32| -> Result<i32, BadInput> {
         let (a, b) = (
@@ -333,7 +312,7 @@ fn crossing_block(
     };
     poly.crossing_amount.set(byte(&ea.amount, &eb.amount));
     poly.clip_out_words[0].set(byte(&ea.fog, &eb.fog));
-    Ok(())
+    Ok(stored_share)
 }
 
 /// The edge's crossing between work entries `ea` and `eb` as a new scene point (`work.next_point`,
@@ -547,23 +526,27 @@ fn raise_onto_face(
     index: u32,
 ) -> Result<(), Refused> {
     use crate::physics::ground::face_shares_at;
-    let probe = reads.ground_probe;
     let p = work_entry(polygon_work, index)?.point.get();
-    let q = work.query(probe, points);
+    let mut q = GroundSearch::default();
     for k in 0..3 {
-        q.corner_numbers[k].set(work.face_corners[k].get());
+        q.corner_numbers[k] = work.face_corners[k].get();
     }
     let (x, z) = point_xz(reads.course(), points, p)?;
-    q.x.set(x);
-    q.z.set(z);
-    face_shares_at(reads.course(), &q)?;
-    crate::physics::plane_height::plane_height(&q);
+    q.x = x;
+    q.z = z;
+    let env = GroundEnv {
+        course: reads.course(),
+        points,
+        mark: reads.ground_probe.settle_mark.get(),
+    };
+    face_shares_at(env, &mut q)?;
+    crate::physics::plane_height::plane_height(&mut q);
     put_point_word(
         reads.course(),
         points,
         p,
         1,
-        q.height.get().wrapping_add(work.lift.get()),
+        q.height.wrapping_add(work.lift.get()),
     )?;
     Ok(())
 }
@@ -787,20 +770,27 @@ pub(super) fn shadow_points(
     car: &Car,
     sun: u32,
 ) -> Result<(), Refused> {
-    let probe = reads.ground_probe;
     use crate::math::x87::mul_to_int;
     use crate::math::x87::{below_or_unordered, to_tbyte};
     let count: u32 = work.point_count.get();
     if count == 0 || count > 0x40 {
         return Err(BadInput("no shadow corners or more than 0x40").into());
     }
-    let q = work.query(probe, points);
-    q.x.set(car.position[0].get());
-    q.z.set(car.position[2].get());
-    q.last.set(car.probe_point_face[4].get());
-    crate::physics::find_ground::find_ground_with(reads.course(), &q)?;
+    // The mark is the physics' as the last search there left it.
+    let env = GroundEnv {
+        course: reads.course(),
+        points,
+        mark: reads.ground_probe.settle_mark.get(),
+    };
+    let mut q = GroundSearch {
+        x: car.position[0].get(),
+        z: car.position[2].get(),
+        last: car.probe_point_face[4].get(),
+        ..GroundSearch::default()
+    };
+    crate::physics::find_ground::find_ground_with(env, &mut q)?;
     work.farthest_length.set(-1.0f32);
-    work.ground.set(q.height.get());
+    work.ground.set(q.height);
     let sun = sun.max(0x10);
     let turn = reads
         .stage_prefs
@@ -1080,11 +1070,20 @@ mod vector_tests {
                     },
                 )
                 .expect("the test's memory is registered");
-                // The point the recorded run left in the ground work, here the shadow's own search
-                // in the shadow's own search fields.
-                let none = crate::race::scene_points::no_own();
-                let q = work.search.query(&none);
-                let got = [inside as u32, q.x.get(), q.z.get()];
+                // The point the recorded run left in the ground work: the point the test asked about.
+                let (x, z) = crate::race::scene_points::with_test_points(
+                    &race().course.stage.course,
+                    &points,
+                    || {
+                        point_xz(
+                            race().course.reads(),
+                            &crate::race::scene_points::no_own(),
+                            n,
+                        )
+                    },
+                )
+                .expect("the test's memory is registered");
+                let got = [inside as u32, x, z];
                 vectors.check(&got, |a, b| a == b, || format!("{points:x?} {edge:x?} {n}"));
                 if got[0] != 0 { yes += 1 } else { no += 1 }
             }
@@ -1137,7 +1136,7 @@ mod vector_tests {
                 }
                 let both = [pa, pb].concat();
                 let (a, b) = (entry_of(ea), entry_of(eb));
-                crate::race::scene_points::with_test_points(
+                let stored_share = crate::race::scene_points::with_test_points(
                     &race().course.stage.course,
                     &both,
                     || {
@@ -1153,10 +1152,10 @@ mod vector_tests {
                     },
                 )
                 .expect("the test's memory is registered");
-                // The inputs, `plane_f` (kept in the shadow's own search fields) and the view's
+                // The inputs, the share the block returns and the view's
                 // work the block writes.
                 let mut got = inputs.to_vec();
-                got.push(work.search.plane_f().get().to_bits());
+                got.push(stored_share.to_bits());
                 for k in [2, 4, 10, 11] {
                     got.push(poly.clip_work[k].bits());
                 }

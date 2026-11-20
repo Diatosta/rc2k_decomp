@@ -118,13 +118,11 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
         .set(start.run_count.runs.get().wrapping_add(1));
     outside(Call::ReadDriverNames)?;
     outside(Call::ApplyPatches)?;
-    if removes_secret_cars(play.cheats.all_secret_cars.get()) {
+    if removes_secret_cars(play.cheats.read().all_secret_cars) {
         outside(Call::RemoveSecretCars)?;
     }
-    if all_secret_cars(play.cheats.all_secret_cars.get()) {
-        play.cheats
-            .cheats
-            .set(play.cheats.cheats.get() | ALL_CARS_CHEATS);
+    if all_secret_cars(play.cheats.read().all_secret_cars) {
+        play.cheats.write().cheats |= ALL_CARS_CHEATS;
         outside(Call::ApplyCheats)?;
     }
 

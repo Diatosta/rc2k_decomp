@@ -392,7 +392,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.replay.snapshot()),
         ),
         listed!("owners.menus.panels.films", on_game(&o.menus.panels.films),),
-        listed!("owners.race.frame.credits", on_game(o.race.frame.credits()),),
         listed!("owners.gfx.card.texture_tables", &o.gfx.card.texture_tables,),
         listed!(
             "owners.gfx.fonts.game_fonts_memory",
@@ -441,10 +440,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.sound.race.sounds.get()),
         ),
         listed!(
-            "owners.sound.race.surface",
-            on_game(o.sound.race.surface.get()),
-        ),
-        listed!(
             "owners.sound.race.timed_slot",
             on_game(o.sound.race.timed_slot.get()),
         ),
@@ -471,24 +466,13 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.menus.play.slots", on_game(&o.menus.play.slots),),
         listed!("owners.menus.cars.table", on_game(&o.menus.cars.table),),
-        listed!("owners.menus.play.cheats", on_game(&o.menus.play.cheats),),
         listed!("owners.menus.play.results", on_game(&o.menus.play.results),),
         listed!(
             "owners.menus.tables.captions",
             on_game(&o.menus.tables.captions),
         ),
-        listed!("owners.menus.tables.pages", on_game(&o.menus.tables.pages),),
         listed!("owners.menus.cars.numbers", on_game(&o.menus.cars.numbers),),
-        listed!("owners.menus.screens.flow", on_game(&o.menus.screens.flow),),
-        listed!(
-            "owners.menus.screens.loop_flags",
-            on_game(&o.menus.screens.loop_flags),
-        ),
         listed!("owners.menus.options", on_game(&o.menus.options),),
-        listed!(
-            "owners.menus.screens.entry",
-            on_game(&o.menus.screens.entry),
-        ),
         listed!(
             "owners.menus.play.champ_view",
             on_game(&o.menus.play.champ_view),
@@ -536,19 +520,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             0x28,
         ),
         listed!("owners.sound.race.sets", &o.sound.threads.sets, 0x9ac,),
-        listed!(
-            "owners.sound.race.request",
-            on_game(o.sound.race.request.get()),
-        ),
-        listed!(
-            "owners.sound.race.kinds",
-            on_game(o.sound.race.kinds.get()),
-            0x13c8,
-        ),
-        listed!(
-            "owners.sound.race.spot_voices",
-            on_game(o.sound.race.spot_voices.get()),
-        ),
         listed!(
             "owners.install.pages",
             on_game_from(&o.install.pages, ".texts[0].dx"),
@@ -620,11 +591,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "race.groups_store.PANEL_TAIL",
             on_game_from(o.race.frame.panel_and_overlay.get(), ".panel.split_6",),
         ),
-        listed!("owners.race.course.league", on_game(o.race.course.league()),),
-        listed!(
-            "owners.race.course.lights_data",
-            on_game(o.race.course.lights_data()),
-        ),
         listed!(
             "owners.race.course.level_paths",
             on_game(o.race.course.level_paths()),
@@ -634,24 +600,12 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.physics.ground_probe.get()),
         ),
         listed!(
-            "owners.race.frame.panel_clock",
-            on_game(o.race.frame.panel_clock()),
-        ),
-        listed!(
             "owners.scene.objects.slots",
             on_game(o.scene.objects.slots.get()),
         ),
         listed!(
             "owners.scene.light_tables",
             on_game(o.scene.light_tables.get()),
-        ),
-        listed!(
-            "owners.race.frame.error_list",
-            on_game(o.race.frame.error_list()),
-        ),
-        listed!(
-            "owners.race.course.flare_tables",
-            on_game(o.race.course.flare_tables()),
         ),
         listed!(
             "owners.race.frame.shadow_skids",
@@ -736,14 +690,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.race.shared.car", on_game(o.race.shared.car()),),
         listed!("owners.race.shared.work", on_game(o.race.shared.work.get()),),
         listed!(
-            "owners.race.frame.text_state",
-            on_game(o.race.frame.text_state()),
-        ),
-        listed!(
-            "owners.race.frame.clock_ticks",
-            on_game(o.race.frame.clock_ticks()),
-        ),
-        listed!(
             "owners.race.course.kind_records",
             on_game(o.race.course.kind_records()),
         ),
@@ -751,7 +697,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.scene.textures.kinds",
             on_game(o.scene.textures.kinds.get()),
         ),
-        listed!("owners.race.frame.counter", on_game(o.race.frame.counter()),),
         listed!(
             "owners.race.shared.switches",
             on_game(o.race.shared.switches.get()),
@@ -782,10 +727,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().windscreen_drops.inputs),
         ),
         listed!(
-            "owners.effects.frame.view_sources",
-            on_game(&o.race.effects.get().frame.view_sources),
-        ),
-        listed!(
             "owners.effects.setup.frame",
             on_game(&o.race.effects.get().setup.frame),
         ),
@@ -796,10 +737,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.clipping.clip",
             on_game(&o.race.effects.get().clipping.clip),
-        ),
-        listed!(
-            "owners.effects.frame.kept_view",
-            on_game(&o.race.effects.get().frame.kept_view),
         ),
         listed!(
             "owners.effects.paths.spline_head",
@@ -878,16 +815,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().blocks.places),
         ),
         listed!(
-            "owners.effects.frame.draw_work",
-            on_game(&o.race.effects.get().frame.draw_work),
-        ),
-        listed!(
             "owners.effects.blocks.corners",
             on_game(&o.race.effects.get().blocks.corners),
-        ),
-        listed!(
-            "owners.effects.frame.view_vars",
-            on_game(&o.race.effects.get().frame.view_vars),
         ),
         listed!(
             "owners.effects.frame.draw_frame",
@@ -906,37 +835,17 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().blocks.links),
         ),
         listed!(
-            "owners.effects.kinds.overlay_quad",
-            on_game(&o.race.effects.get().kinds.overlay_quad),
-        ),
-        listed!(
             "owners.effects.kinds.overlay_extras",
             on_game(&o.race.effects.get().kinds.overlay_extras),
-        ),
-        listed!(
-            "owners.effects.kinds.shadow_quad",
-            on_game(&o.race.effects.get().kinds.shadow_quad),
         ),
         listed!(
             "owners.effects.kinds.shadow_extra",
             on_game(&o.race.effects.get().kinds.shadow_extra),
         ),
         listed!(
-            "owners.effects.kinds.plane_quad",
-            on_game(&o.race.effects.get().kinds.plane_quad),
-        ),
-        listed!(
             "owners.effects.masks.ground_names",
             on_game(&o.race.effects.get().masks.ground_names),
             0xa6,
-        ),
-        listed!(
-            "owners.effects.masks.blocks",
-            on_game(&o.race.effects.get().masks.blocks),
-        ),
-        listed!(
-            "owners.effects.masks.picture_copy",
-            on_game(&o.race.effects.get().masks.picture_copy),
         ),
         listed!(
             "owners.effects.blocks.slots",
@@ -949,10 +858,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.kinds.emitter",
             on_game(&o.race.effects.get().kinds.emitter),
-        ),
-        listed!(
-            "owners.effects.ring.work",
-            on_game(&o.race.effects.get().ring.work),
         ),
         listed!(
             "owners.effects.ring.names",

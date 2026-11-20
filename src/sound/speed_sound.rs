@@ -19,16 +19,16 @@ use rc2k_core::sound::engine::{computers, speed_stopped};
 pub fn speed_sound(
     so: &SoundObject,
     kind: u32,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     owner: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     if computers(so.sound_offset.get()) {
         return Ok(());
     }
-    let set = &owner.race.kinds.get().record(kind)?.speed;
-    let sound = rc2k_core::sound::engine::player_sound(so.sound_offset.get(), set.sound.get());
-    request.sound.set(sound);
+    let set = owner.race.kinds.get().record(kind)?.speed;
+    let sound = rc2k_core::sound::engine::player_sound(so.sound_offset.get(), set.sound);
+    request.sound = sound;
     if speed_stopped(
         so.state.get(),
         || so.no_gear.get(),
@@ -39,14 +39,14 @@ pub fn speed_sound(
     }
     fill_pitch_and_volume(
         so,
-        set,
+        &set,
         &so.speed_input,
         &so.speed_input,
-        &owner.race.surface.get().speed_gain,
+        owner.race.surface.get().constants.speed_gain,
         request,
     );
-    for (cell, place) in request.place.iter().zip(&so.place) {
-        cell.set(place.get());
+    for (to, from) in request.place.iter_mut().zip(&so.place) {
+        *to = from.get();
     }
     crate::sound::turn_parts::placed(request, owner, audio)
 }
@@ -54,9 +54,9 @@ pub fn speed_sound(
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::sound::asm_layout::{Laid, with_laid};
+    use crate::sound::asm_layout::{Laid, SURFACE_EXTENT, with_laid, with_request, with_surface};
     use crate::sound::sets_store::SoundSet;
-    use crate::sound::store::{SoundObject, SurfaceSounds};
+    use crate::sound::store::SoundObject;
 
     use crate::math::x87_mem::view;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
@@ -86,20 +86,22 @@ mod reference_vectors {
                     with_laid::<SoundObject, _>(a[0], |bx| {
                         let set = view::<SoundSet>(a[1], 0);
                         bx.view_flag.set(1);
-                        let request = view::<SoundRequest>(a[2], 0);
-                        let gain = &&crate::test_support::own::sound()
-                            .race
-                            .surface
-                            .get()
-                            .speed_gain;
-                        fill_pitch_and_volume(
-                            bx,
-                            set,
-                            &bx.speed_input,
-                            &bx.speed_input,
-                            gain,
-                            request,
-                        );
+                        with_request(a[2], |request| {
+                            let gain = crate::test_support::own::sound()
+                                .race
+                                .surface
+                                .get()
+                                .constants
+                                .speed_gain;
+                            fill_pitch_and_volume(
+                                bx,
+                                set,
+                                &bx.speed_input,
+                                &bx.speed_input,
+                                gain,
+                                request,
+                            );
+                        });
                     });
                 },
             },
@@ -116,7 +118,7 @@ mod reference_vectors {
                         writes: &[],
                     },
                     Operand::Sized {
-                        len: SurfaceSounds::EXTENT,
+                        len: SURFACE_EXTENT,
                         reads: &[(0x24, In::F)],
                         writes: &[],
                     },
@@ -128,19 +130,20 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     with_laid::<SoundObject, _>(a[0], |bx| {
-                        with_laid::<SurfaceSounds, _>(a[2], |sf| {
+                        with_surface(a[2], |sf| {
                             let set = view::<SoundSet>(a[1], 0);
                             bx.view_flag.set(0);
-                            let request = view::<SoundRequest>(a[3], 0);
-                            let gain = &sf.speed_gain;
-                            fill_pitch_and_volume(
-                                bx,
-                                set,
-                                &bx.speed_input,
-                                &bx.speed_input,
-                                gain,
-                                request,
-                            );
+                            with_request(a[3], |request| {
+                                let gain = sf.constants.speed_gain;
+                                fill_pitch_and_volume(
+                                    bx,
+                                    set,
+                                    &bx.speed_input,
+                                    &bx.speed_input,
+                                    gain,
+                                    request,
+                                );
+                            });
                         });
                     });
                 },

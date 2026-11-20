@@ -20,7 +20,7 @@ pub(super) fn camera_clear_of_ground(c: &CameraGroundInputs<'_>) -> Result<bool,
     if clear {
         clear = is_clear(over(
             c.car.camera_position[1].get(),
-            c.ground.ground_height.get(),
+            c.search.borrow().height,
         ));
     }
     Ok(clear)

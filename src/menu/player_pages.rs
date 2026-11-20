@@ -430,9 +430,9 @@ fn details_each_frame<const N: usize>(entry: &Entry) -> Result<Flow, Refused> {
     if N == 3 {
         Callee::CheckCheatName.run(entry)?;
     }
-    if screens.entry.typing.is_set() {
+    if screens.entry.read().typing {
         Callee::EditPlayerName.run(entry)?;
-        if screens.entry.typing.is_set() {
+        if screens.entry.read().typing {
             return Ok(Flow::NextFrame);
         }
     }
@@ -456,7 +456,7 @@ fn redefine_keys_after_first_frame(system: &System) -> Result<Flow, Refused> {
 
 /// While a key is being chosen the page waits.
 fn redefine_keys_each_frame(screens: &Screens) -> Result<Flow, Refused> {
-    if screens.entry.redefining_key.is_set() {
+    if screens.entry.read().redefining_key {
         return Ok(Flow::NextFrame);
     }
     Ok(Flow::On)

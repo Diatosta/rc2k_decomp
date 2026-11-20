@@ -53,15 +53,15 @@ impl<'a> Game<'a> {
 }
 
 /// The variables that are in the physics block.
-fn cell<'a>(screens: &'a Screens, play: &'a Play, race: &'a Race, v: Var) -> &'a dyn DwordLike {
+fn cell<'a>(screens: &'a Screens, race: &'a Race, v: Var) -> &'a dyn DwordLike {
     match v {
         Var::CheatSwitch => &race.shared.state.settings.direction,
         Var::RaceKept => &race.shared.state.settings.kept,
         Var::Result => &race.shared.state.results.results[0].result,
         Var::Result2 => &race.shared.state.results.results[1].result,
         Var::GoesOn => &screens.event.event_goes_on,
-        Var::Cheats => &play.cheats.cheats,
-        Var::Kept => &screens.flow.kept,
+        Var::Cheats => unreachable!("the cheats are plain fields, `get` and `set` handle them"),
+        Var::Kept => unreachable!("the kept word is a plain field, `get` and `set` handle it"),
         Var::Current => &screens.event.current_player,
     }
 }
@@ -70,11 +70,20 @@ impl races::EventRaces for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        cell(self.screens, self.play, self.owners.race, v).get()
+        match v {
+            Var::Cheats => return self.play.cheats.read().cheats,
+            Var::Kept => return self.screens.flow.read().kept,
+            _ => {}
+        }
+        cell(self.screens, self.owners.race, v).get()
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        cell(self.screens, self.play, self.owners.race, v).set(value);
+        match v {
+            Var::Cheats => self.play.cheats.write().cheats = value,
+            Var::Kept => self.screens.flow.write().kept = value,
+            _ => cell(self.screens, self.owners.race, v).set(value),
+        }
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {

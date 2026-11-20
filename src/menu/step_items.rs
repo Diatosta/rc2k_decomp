@@ -38,9 +38,6 @@ pub(super) fn car_button(o: Owners<'static>, button: Which) -> Result<(), Refuse
 /// The saved games' list one page on (`menu::next_savegame_page`): adds 1 to
 /// `MenuPages.save_page`, and above 9 goes back to 0.
 pub(super) fn next_savegame_page(tables: &Tables) {
-    let page = tables.pages.save_page.get();
-    tables
-        .pages
-        .save_page
-        .set(rc2k_core::menu::steps::savegame_page(page, true));
+    let page = tables.pages.read().save_page;
+    tables.pages.write().save_page = rc2k_core::menu::steps::savegame_page(page, true);
 }

@@ -78,7 +78,7 @@ pub(super) fn emit_rolling_particles_rated(
             return Err(BadInput(why).into());
         }
         let g = gate_with(wheel, object, rate(particles, wheel, effects)?)?;
-        ring.work.rate.set(g.rate as u32);
+        ring.work.borrow_mut().rate = g.rate as u32;
         if let Some(count) = g.count {
             wheel.pace.set(count);
         }

@@ -20,7 +20,7 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
-use crate::memory::session::{PlainFloat, read_bits, write_bits};
+use crate::memory::session::PlainFloat;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 
 const LIFE: u32 = 0x7D0;
@@ -28,7 +28,8 @@ const LIFE: u32 = 0x7D0;
 /// One half's variables.
 pub struct Half<'a> {
     pub kind: u32,
-    pub strength: &'a PlainFloat,
+    /// Which of `RingWork.strength` is the half's.
+    pub strength: usize,
     /// The direction's factors (x, y, z) and whether |s| is scaled by the half constant in y.
     pub factors: [&'a PlainFloat; 3],
     pub scaled: bool,
@@ -48,7 +49,7 @@ pub fn halves(effects: &Effects) -> [Half<'_>; 2] {
     [
         Half {
             kind: 0x11,
-            strength: &effects.ring.work.strength[0],
+            strength: 0,
             factors: [
                 &effects.kinds.emitter.side_a[0],
                 &effects.kinds.emitter.side_a[1],
@@ -64,7 +65,7 @@ pub fn halves(effects: &Effects) -> [Half<'_>; 2] {
         },
         Half {
             kind: 0x10,
-            strength: &effects.ring.work.strength[1],
+            strength: 1,
             factors: [
                 &effects.kinds.emitter.side_b[0],
                 &effects.kinds.emitter.side_b[1],
@@ -181,32 +182,32 @@ pub(super) fn emit_bursts_with(
         }
         for (n, h) in set.halves.iter().enumerate() {
             let (s, rate) = strength(effects, set, n, wheel)?;
-            h.strength.set(s);
-            ring.work.whole.set(rate as u32);
+            ring.work.borrow_mut().strength[h.strength] = s;
+            ring.work.borrow_mut().whole = rate as u32;
             let r = next_c5(&set.tuning.randoms(n)[0]);
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
                 continue;
             }
             let car = emitting_car(effects)?;
             let k = effects.setup.floats.burst_direction_k;
-            let s = h.strength.get();
+            let s = ring.work.borrow().strength[h.strength];
             let scale = h.scaled.then_some(effects.setup.floats.half);
             let direction = [
                 x87::mul2(h.factors[0], s, k),
                 x87::times_less_abs_times(h.factors[1], s, scale, k),
                 x87::mul2(h.factors[2], s, k),
             ];
-            write_bits(&ring.work.direction, direction.map(f32::to_bits));
+            ring.work.borrow_mut().direction = direction;
             let count = (next_c5(&set.tuning.randoms(n)[1]) & 0xFFF) % ((flags2 >> 6) << 2);
             for _ in 0..count {
                 // The ring is full (0x3FE taken): the bursts end here (wiki/Fixed-bugs.md:
                 // "Crash driving over mud (particle ring full)").
-                if ring.work.count.get() == MOST_TAKEN {
+                if ring.work.borrow().count == MOST_TAKEN {
                     return Ok(());
                 }
                 let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, h.kind)?;
                 let slot = crate::effects::ring_entries::Slot::new(ring, e);
-                let d = read_bits(&ring.work.direction);
+                let d = ring.work.borrow().direction.map(f32::to_bits);
                 let (out, _) = crate::effects::spread_point::spread_point(
                     paths,
                     [
@@ -252,7 +253,7 @@ pub(super) fn emit_bursts_with(
                 slot.put(|en| &mut en.ground_y, place[1])?;
                 slot.put(|en| &mut en.place[2], place[2])?;
                 let pick = r & 0x7_FFFF;
-                ring.work.whole.set(pick);
+                ring.work.borrow_mut().whole = pick;
                 slot.put(
                     |en| &mut en.cell_rate,
                     x87::int_times_plus(

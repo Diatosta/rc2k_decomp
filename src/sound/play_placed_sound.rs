@@ -61,14 +61,14 @@ fn angle_and_place(y: f32, x: f32, per_angle: f32, centre: f32) -> (u32, u32) {
 /// Plays the request's sound at its place around the listener, in the audio's sound mode.
 /// Outside the 3D modes the place sent on is the pan worked out here.
 pub(super) fn play_placed_sound(
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     owner: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
     let mode = audio.state.sound_mode.get();
     // The logic is `rc2k_core::sound::placed` (`played`, `sample_of`, `volume`, `place`); the
     // products and the angle are x87-precision.
-    let sound = request.sound.get();
+    let sound = request.sound;
     if !placed::played(sound) {
         return Ok(());
     }
@@ -77,33 +77,33 @@ pub(super) fn play_placed_sound(
         let number = placed::sample_of(sound)?;
         let factor = crate::audio::sample_records::SAMPLE_CONSTANTS[number as usize].min_distance;
         let volume = placed::volume(product3_to_int(
-            request.volume.get(),
+            request.volume,
             factor,
-            request.volume_factor.get(),
+            request.volume_factor,
         ));
-        request.volume.set(volume);
+        request.volume = volume;
         let clock = owner.race.clock.get().borrow();
         let (angle, place) = angle_and_place(
-            request.place[2].get(),
-            request.place[0].get(),
+            request.place[2],
+            request.place[0],
             clock.pan_per_radian,
             clock.pan_centre,
         );
-        request.angle.set(angle);
-        request.pan.set(place);
-        let place = placed::place(place, request.place[0].get(), angle as i32, mode);
+        request.angle = angle;
+        request.pan = place;
+        let place = placed::place(place, request.place[0], angle as i32, mode);
         // Outside 3D `play_sound` sends no place beyond the pan, so the other two values are 0.
         (volume_sent, pan, place_b, place_c) = (volume, place, 0, 0);
     } else {
         (volume_sent, pan, place_b, place_c) = (
-            to_int(request.volume.get()),
-            request.place[0].bits(),
-            request.place[1].bits(),
-            request.place[2].bits(),
+            to_int(request.volume),
+            request.place[0].to_bits(),
+            request.place[1].to_bits(),
+            request.place[2].to_bits(),
         );
     }
-    let rate = product_to_int(request.pitch.get(), request.pitch_factor.get());
-    request.pitch.set(rate);
+    let rate = product_to_int(request.pitch, request.pitch_factor);
+    request.pitch = rate;
     crate::sound::play_sound::play_sound_in(
         audio,
         sound,

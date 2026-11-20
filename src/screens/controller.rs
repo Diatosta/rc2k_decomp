@@ -41,7 +41,7 @@ pub fn learn_axis(
             .loop_flags
             .menu
             .get()?
-            .item(&menus.tables.menus, screens.loop_flags.item.get())?;
+            .item(&menus.tables.menus, screens.loop_flags.read().item)?;
         // The prompt names what the row takes.
         use rc2k_core::input::profile::Row;
         let prompt = match controls_row(controls) {

@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     options_state::apply(o, options)?;
     rebuild_car_lists(o.menus)?;
-    o.menus.screens.loop_flags.options_loaded.set(true);
+    o.menus.screens.loop_flags.write().options_loaded = true;
     Ok(())
 }
 
@@ -179,7 +179,7 @@ mod tests {
     fn capture_and_apply_round_trip() {
         let _lock = crate::test_support::test_lock();
         let o = crate::test_support::own::owners();
-        let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
+        let loaded = o.menus.screens.loop_flags.read().options_loaded;
         let before = capture(o).unwrap();
         let saved: Vec<Vec<u8>> = options_state::pieces()
             .iter()
@@ -189,7 +189,7 @@ mod tests {
         apply(o, &before).unwrap();
         let after = capture(o).unwrap();
         // `apply` marks the options loaded, as the game's loader does: put the flag back.
-        o.menus.screens.loop_flags.options_loaded.set(loaded);
+        o.menus.screens.loop_flags.write().options_loaded = loaded;
         assert_eq!(after, before);
     }
 
@@ -215,12 +215,12 @@ mod tests {
     fn with_options_in_stores<T>(options: &Options, body: impl FnOnce(Owners<'static>) -> T) -> T {
         let _lock = crate::test_support::test_lock();
         let o = crate::test_support::own::owners();
-        let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
+        let loaded = o.menus.screens.loop_flags.read().options_loaded;
         let before = capture(o).unwrap();
         apply(o, options).unwrap();
         let result = body(o);
         apply(o, &before).unwrap();
-        o.menus.screens.loop_flags.options_loaded.set(loaded);
+        o.menus.screens.loop_flags.write().options_loaded = loaded;
         result
     }
 
@@ -275,7 +275,7 @@ mod tests {
         use rc2k_core::options::toml_file;
         let _lock = crate::test_support::test_lock();
         let o = crate::test_support::own::owners();
-        let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
+        let loaded = o.menus.screens.loop_flags.read().options_loaded;
         let before = capture(o).unwrap();
         let wanted = toml_file::read("[display]\nmenu_mode = 5\n", &before)
             .unwrap()
@@ -284,7 +284,7 @@ mod tests {
         apply(o, &wanted).unwrap();
         let after = capture(o).unwrap();
         apply(o, &before).unwrap();
-        o.menus.screens.loop_flags.options_loaded.set(loaded);
+        o.menus.screens.loop_flags.write().options_loaded = loaded;
         let mut expected = before;
         expected.display.menu_mode = 5;
         assert_eq!(after, expected);

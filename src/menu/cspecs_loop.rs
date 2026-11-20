@@ -18,14 +18,11 @@ fn before(screens: &Screens) -> Result<(), Refused> {
 // The scene is prepared after the carousel, so the front car is not left white.
 fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let screens = &set_up.menus.screens;
-    screens.flow.turning.set(0x1u32);
+    screens.flow.write().turning = 0x1u32;
     screens.carousel.menu.set(0xCu32);
     set_up.carousel_with(None)?;
-    screens
-        .loop_flags
-        .item
-        .set(screens.items.current[SLOT].get());
-    screens.flow.turning.set(0x0u32);
+    screens.loop_flags.write().item = screens.items.current[SLOT].get();
+    screens.flow.write().turning = 0x0u32;
     screens.carousel.front.set(0x0u32);
     screens.event.shown.car.set(0x0u32);
     set_up.set_view(7, -50, 0x100);

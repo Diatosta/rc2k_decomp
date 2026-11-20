@@ -26,7 +26,7 @@ pub fn enter_record_entry(
     let p = player(menus, n);
     // The event's place in the table (`current_event`'s).
     let slot = event as u32;
-    let cheats = menus.play.cheats.cheats.get();
+    let cheats = menus.play.cheats.read().cheats;
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, slot)?;
     // The logic is in `rc2k_core::saves::entries::BestTime::enter`, then `rank_entries`.
     use rc2k_core::menu::bests;

@@ -90,9 +90,9 @@ fn box_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.run_ring.box_x87", &SPEC, |b| {
-        with_laid::<RingWork, _>(b[0], |w| {
+        with_laid::<std::cell::RefCell<RingWork>, _>(b[0], |w| {
             crate::effects::ring_entries::with_entry_copy_at(b[1], 0x10, 0x1C, |e| {
-                super::box_x87(e, w, &whole_at(b[2]), &car_matrix(b[3]));
+                super::box_x87(e, &mut w.borrow_mut(), &whole_at(b[2]), &car_matrix(b[3]));
             });
         });
     });
@@ -129,9 +129,9 @@ fn facing_x87_matches() {
     };
     recorded_writes("effects.run_ring.facing_x87", &SPEC, |b| {
         with_laid::<std::cell::RefCell<MarksFloats>, _>(b[0], |f| {
-            with_laid::<RingWork, _>(b[0], |w| {
+            with_laid::<std::cell::RefCell<RingWork>, _>(b[0], |w| {
                 let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54]);
-                super::facing_x87(&car, &f.borrow(), w);
+                super::facing_x87(&car, &f.borrow(), &mut w.borrow_mut());
             });
         });
     });
@@ -180,14 +180,20 @@ fn pull_length_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.run_ring.pull_length_x87", &SPEC, |b| {
-        with_laid::<RingWork, _>(b[0], |w| {
+        with_laid::<std::cell::RefCell<RingWork>, _>(b[0], |w| {
             crate::effects::ring_entries::with_entry_copy_at(b[1], 0x10, 0x1C, |e| {
                 let mut length = [0xAA; 10];
                 let kinds = super::RingKinds {
                     near_less: f32::from_bits(word(b[4] + 0x4C)),
                     ..crate::test_support::own::effects().ring.kinds
                 };
-                super::pull_length_x87(e, &whole_at(b[2]), &mut length, w, &kinds);
+                super::pull_length_x87(
+                    e,
+                    &whole_at(b[2]),
+                    &mut length,
+                    &mut w.borrow_mut(),
+                    &kinds,
+                );
                 // SAFETY: `at` checks that the ten bytes lie in the operand's test buffer,
                 // which the recorded run keeps alive; `length` is this closure's own.
                 unsafe {
@@ -241,13 +247,13 @@ fn pull_facing_x87_matches() {
     };
     recorded_writes("effects.run_ring.pull_facing_x87", &SPEC, |b| {
         with_laid::<std::cell::RefCell<MarksFloats>, _>(b[0], |f| {
-            with_laid::<RingWork, _>(b[0], |w| {
+            with_laid::<std::cell::RefCell<RingWork>, _>(b[0], |w| {
                 let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54, 0x88]);
                 let length: [u8; 10] =
                     // SAFETY: `host` checks that the byte lies in the operand's test buffer,
                     // which the recorded run keeps alive and nothing else reaches meanwhile.
                     std::array::from_fn(|i| unsafe { (b[2] + i).host().read() });
-                super::pull_facing_x87(&car, &length, &f.borrow(), w);
+                super::pull_facing_x87(&car, &length, &f.borrow(), &mut w.borrow_mut());
             });
         });
     });
@@ -286,7 +292,7 @@ fn pull_strength_x87_matches() {
     };
     recorded_writes("effects.run_ring.pull_strength_x87", &SPEC, |b| {
         with_laid::<std::cell::RefCell<MarksFloats>, _>(b[0], |f| {
-            with_laid::<RingWork, _>(b[0], |w| {
+            with_laid::<std::cell::RefCell<RingWork>, _>(b[0], |w| {
                 crate::effects::ring_entries::with_entry_copy_at(b[1], 0x64, 0x68, |e| {
                     let car = car_with(b[2], 0, &[0x88]);
                     let kinds = super::RingKinds {
@@ -302,7 +308,7 @@ fn pull_strength_x87_matches() {
                         >(b[0])
                         .borrow(),
                         &f.borrow(),
-                        w,
+                        &mut w.borrow_mut(),
                         &kinds,
                     );
                 });
@@ -347,9 +353,9 @@ fn box_place_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.run_ring.box_place_x87", &SPEC, |b| {
-        with_laid::<RingWork, _>(b[0], |w| {
+        with_laid::<std::cell::RefCell<RingWork>, _>(b[0], |w| {
             crate::effects::ring_entries::with_entry_copy_at(b[1], 0x10, 0x1C, |e| {
-                super::box_place_x87(e, w, &car_matrix(b[2]));
+                super::box_place_x87(e, &mut w.borrow_mut(), &car_matrix(b[2]));
             });
         });
     });

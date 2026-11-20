@@ -7,23 +7,21 @@
 
 use crate::errors::Refused;
 use crate::physics::ground_probe_store::GroundProbe;
+use crate::physics::ground_query::{GroundEnv, GroundSearch};
 use crate::physics::ground_search::ground_search;
-use crate::physics::ground_store::GroundWork;
 use crate::race::owner_course::Course;
+use std::cell::RefCell;
 
 /// Whether the face under the point was found.
 pub fn find_ground(
     ground_probe: &GroundProbe,
-    ground: &GroundWork,
+    search: &RefCell<GroundSearch>,
     course: &Course,
 ) -> Result<bool, Refused> {
-    ground_search(ground_probe, ground, course)
+    ground_search(ground_probe, search, course)
 }
 
-/// The same on the fields of `q` (a drawing's own: `race::car_shadow`).
-pub fn find_ground_with(
-    course: crate::race::owner_course::CourseReads<'_>,
-    q: &crate::physics::ground_query::GroundQuery<'_>,
-) -> Result<bool, Refused> {
-    crate::physics::ground::ground_search_at(course, q)
+/// The same on the record `q` (a drawing's own: `race::car_shadow`).
+pub fn find_ground_with(env: GroundEnv<'_>, q: &mut GroundSearch) -> Result<bool, Refused> {
+    crate::physics::ground::ground_search_at(env, q)
 }

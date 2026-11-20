@@ -22,7 +22,7 @@ pub fn seal_time(
     let replay = &race.replay;
     let value = sealed_value(
         time,
-        menus.play.cheats.cheats.get(),
+        menus.play.cheats.read().cheats,
         race.shared.work.get().patch_switch().get(),
     );
     let bytes = block(value, bytes);

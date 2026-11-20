@@ -7,11 +7,11 @@ use crate::menu::owner::Menus;
 pub use rc2k_core::menu::text_entry::{Entry, TEXT_LEN, Text};
 
 pub fn length(menus: &Menus) -> i32 {
-    menus.screens.loop_flags.text_length.get() as i32
+    menus.screens.loop_flags.read().text_length as i32
 }
 
 pub fn set_length(menus: &Menus, length: i32) {
-    menus.screens.loop_flags.text_length.set(length as u32);
+    menus.screens.loop_flags.write().text_length = length as u32;
 }
 
 /// Where the backup copy of the text is.
@@ -22,8 +22,8 @@ pub fn backup(menus: &'static Menus) -> crate::memory::place::BytePlace {
 /// The entry's state, as the game holds it.
 pub fn entry(menus: &Menus) -> Entry {
     Entry {
-        length: menus.screens.loop_flags.text_length.get() as i32,
-        entering: menus.screens.entry.typing.is_set(),
+        length: menus.screens.loop_flags.read().text_length as i32,
+        entering: menus.screens.entry.read().typing,
         backup: std::array::from_fn(|i| menus.play.slots.names.text_backup.get(i)),
     }
 }
@@ -31,7 +31,7 @@ pub fn entry(menus: &Menus) -> Entry {
 /// The entry's state stored back.
 pub(super) fn put_entry(menus: &Menus, e: &Entry) {
     set_length(menus, e.length);
-    menus.screens.entry.typing.set(e.entering);
+    menus.screens.entry.write().typing = e.entering;
     for (i, &byte) in e.backup.iter().enumerate() {
         menus.play.slots.names.text_backup.set(i, byte);
     }

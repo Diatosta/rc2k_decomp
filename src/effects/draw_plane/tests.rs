@@ -244,8 +244,8 @@ fn plane_corners_x87_matches() {
     };
     recorded_writes("effects.draw_plane.plane_corners_x87", &SPEC, |b| {
         with_laid::<std::cell::RefCell<WindscreenFlakeTables>, _>(b[0], |sq| {
-            with_laid_at::<QuadWork, _>(b[0], 0x934BD0, |q| {
-                super::plane_corners_x87(&mut sq.borrow_mut(), q);
+            with_laid_at::<std::cell::RefCell<QuadWork>, _>(b[0], 0x934BD0, |q| {
+                super::plane_corners_x87(&mut sq.borrow_mut(), &mut q.borrow_mut());
             });
         });
     });
@@ -291,13 +291,13 @@ fn plane_projected_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_plane.plane_projected_x87", &SPEC, |b| {
-        with_laid_at::<QuadWork, _>(b[1], 0x934BD0, |q| {
+        with_laid_at::<std::cell::RefCell<QuadWork>, _>(b[1], 0x934BD0, |q| {
             super::plane_projected_x87(
                 crate::owners::Owners::the()
                     .scene
                     .scratch
                     .front_end_polygon(),
-                q,
+                &mut q.borrow_mut(),
             );
         });
     });

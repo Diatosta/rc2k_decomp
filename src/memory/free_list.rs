@@ -7,7 +7,7 @@ use crate::errors::BadInput;
 use crate::memory::{HeldList, with_figures};
 
 /// The list's blocks given back, the list a store (or a field of one).
-pub fn free_list(list: &impl HeldList) -> Result<(), BadInput> {
+pub fn free_list(list: &(impl HeldList + ?Sized)) -> Result<(), BadInput> {
     // Rust's own tables counted on it (`memory::owned`) are given back by their owners
     // (`saves::free_best_times`); its total counts them like the others.
     let mut l = list.get();

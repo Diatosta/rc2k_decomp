@@ -17,7 +17,7 @@ use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
-use crate::physics::ground_store::GroundWork;
+use crate::physics::ground_query::GroundSearch;
 use crate::physics::split_tables_store::SplitTables;
 use crate::physics::step_families::CheckpointInputs;
 use crate::physics::tables_store::PhysicsTables;
@@ -26,14 +26,14 @@ use crate::race::owner_course::Course;
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
-/// The distance from `point`: the whole-number gaps (`GroundWork.ground_x` and `ground_z` less the
+/// The distance from `point`: the whole-number gaps (the search's `x` and `z` less the
 /// point's x and z), their squares added, square-rooted,
 /// x `one_over_65536`, into the split point distance.
-fn distance(tables: &PhysicsTables, numbers: &Numbers, ground: &GroundWork, point: [u32; 3]) {
+fn distance(tables: &PhysicsTables, numbers: &Numbers, ground: &GroundSearch, point: [u32; 3]) {
     let word = |k: usize| point[k] as i32;
-    let dx = word(0).wrapping_sub(ground.ground_x.get() as i32);
+    let dx = word(0).wrapping_sub(ground.x as i32);
     let first = int(dx);
-    let dz = word(2).wrapping_sub(ground.ground_z.get() as i32);
+    let dz = word(2).wrapping_sub(ground.z as i32);
     let second = int(dz);
     tables
         .split_point_distance
@@ -42,11 +42,11 @@ fn distance(tables: &PhysicsTables, numbers: &Numbers, ground: &GroundWork, poin
 
 /// The angle from `point` to the car: the gaps (the car's x and z less the point's), the
 /// arctangent, over pi, x `half` x `k65536`, rounded; its low 16 bits.
-fn angle(numbers: &Numbers, ground: &GroundWork, point: [u32; 3]) -> u32 {
+fn angle(numbers: &Numbers, ground: &GroundSearch, point: [u32; 3]) -> u32 {
     let word = |k: usize| point[k] as i32;
-    let dx = (ground.ground_x.get() as i32).wrapping_sub(word(0));
+    let dx = (ground.x as i32).wrapping_sub(word(0));
     let y = int(dx);
-    let dz = (ground.ground_z.get() as i32).wrapping_sub(word(2));
+    let dz = (ground.z as i32).wrapping_sub(word(2));
     let x = int(dz);
     let turns = y.atan2_over_pi(x) * numbers.half.ld() * numbers.k65536.ld();
     to_int(turns) as u32 & 0xFFFF
@@ -93,9 +93,12 @@ pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
         &crate::race::scene_points::no_own(),
         pt,
     )?;
-    c.physics.ground().ground_x.set(c.car.position[0].get());
-    c.physics.ground().ground_z.set(c.car.position[2].get());
-    distance(c.tables, c.numbers, c.physics.ground(), pt);
+    {
+        let mut search = c.physics.ground_search().borrow_mut();
+        search.x = c.car.position[0].get();
+        search.z = c.car.position[2].get();
+    }
+    distance(c.tables, c.numbers, &c.physics.ground_search().borrow(), pt);
     let within = !matches!(
         c.tables
             .split_point_distance
@@ -106,7 +109,7 @@ pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
     if !within {
         return Ok(false);
     }
-    let car_angle = angle(c.numbers, c.physics.ground(), pt) << 16;
+    let car_angle = angle(c.numbers, &c.physics.ground_search().borrow(), pt) << 16;
     let heading = crate::race::checkpoints_store::angle_run_on(c.checkpoints, cp as usize).get();
     let (carry, _) = progress::passed_point(car_angle, heading);
     Ok(carry)

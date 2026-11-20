@@ -15,7 +15,7 @@ use crate::sound::sets_store::SoundRequest;
 /// The logic is `rc2k_core::sound::cars::slot_turn`.
 pub(super) fn play_timed_slot(
     slot: &impl crate::sound::store::TimedCells,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
@@ -32,9 +32,9 @@ pub(super) fn play_timed_slot(
     match turn {
         SlotTurn::Nothing | SlotTurn::Checked => Ok(()),
         SlotTurn::Start { volume, rate, .. } => {
-            request.sound.set(s.sound);
-            request.volume.set(from_int(volume as i32));
-            request.pitch.set(from_int(rate as i32));
+            request.sound = s.sound;
+            request.volume = from_int(volume as i32);
+            request.pitch = from_int(rate as i32);
             crate::sound::turn_parts::placed(request, sound, audio)
         }
     }

@@ -58,7 +58,7 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
                 crate::input::take_key::take_key(entry.owners.input);
             }
             run_screen(ScreenId::ServiceArea, entry)?;
-            if menus.tables.pages.yes_no_answer.get() == 1 {
+            if menus.tables.pages.read().yes_no_answer == 1 {
                 break 'all;
             }
             crate::service::apply_repairs::apply_repairs_in_game_in(entry.owners)?;
@@ -66,7 +66,7 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             if passes::is_out(p.get().entry) {
                 crate::menu::inspection_faults::inspection_faults(menus)?;
                 run_screen(ScreenId::InspectionArea, entry)?;
-                if menus.tables.pages.yes_no_answer.get() == 1 {
+                if menus.tables.pages.read().yes_no_answer == 1 {
                     break 'all;
                 }
                 menus

@@ -181,7 +181,7 @@ fn copy_header_settings_of(
         (1, 0x36, car.race_number.get()),
         (1, 0x37, car.view.get()),
         (4, 0x9, shared.replay_file().season_code.get()),
-        (4, 0x2E, menus.play.cheats.cheats.get()),
+        (4, 0x2E, menus.play.cheats.read().cheats),
         (1, 0x40, car.controls.gearing.get()),
         (1, 0x41, car.gear_ratio.get()),
         (1, 0x42, car.tyre.get()),
@@ -527,7 +527,6 @@ mod header_tests {
     const REPLAY_FILE: &str = "owners.race.shared.replay_file";
     const WORK: &str = "owners.race.shared.work";
     const STATE: &str = "owners.race.shared.state";
-    const CHEATS: &str = "owners.menus.play.cheats";
     #[derive(Clone, Copy)]
     enum Dest {
         /// At a byte of the sealed header part.
@@ -544,8 +543,10 @@ mod header_tests {
         Bytes(&'static str, usize),
         /// The cell at the field `path`.
         Cell(&'static str),
+        /// The cheats switched on (plain fields, not walked).
+        Cheats,
     }
-    use Source::{Bytes, Cell};
+    use Source::{Bytes, Cell, Cheats};
 
     /// The header's copies: (bytes, where they are written, the store read and the field in it).
     /// The header's own layout is the file's, so the destinations stay byte positions.
@@ -565,7 +566,7 @@ mod header_tests {
         (1, Door, STATE, Cell(".settings.cars[0].own.race_number")),
         (1, Sealed(0x37), STATE, Cell(".settings.cars[0].own.view")),
         (4, Sealed(0x9), REPLAY_FILE, Cell(".season_code")),
-        (4, Sealed(0x2E), CHEATS, Cell(".cheats")),
+        (4, Sealed(0x2E), "", Cheats),
         (
             1,
             Sealed(0x40),
@@ -620,13 +621,17 @@ mod header_tests {
 
     fn old_copy() -> Result<(), BadInput> {
         for &(size, to, from, source) in &HEADER_MOVES {
-            let walk = crate::test_support::state::walk(from);
-            let (path, skip) = match source {
-                Bytes(path, skip) => (path, skip),
-                Cell(path) => (path, 0),
+            let bytes = match source {
+                Cheats => menus().play.cheats.read().cheats.to_le_bytes()[..size].to_vec(),
+                Bytes(path, skip) => {
+                    let walk = crate::test_support::state::walk(from);
+                    walk.path_bytes(path).expect("a field of the store")[skip..skip + size].to_vec()
+                }
+                Cell(path) => {
+                    let walk = crate::test_support::state::walk(from);
+                    walk.path_bytes(path).expect("a field of the store")[..size].to_vec()
+                }
             };
-            let cells = walk.path_bytes(path).expect("a field of the store");
-            let bytes = cells[skip..skip + size].to_vec();
             let work = race().replay_work();
             match to {
                 Sealed(at) => crate::memory::cells::Store::store(&work.sealed_header, at, &bytes)?,
@@ -666,7 +671,6 @@ mod header_tests {
             &car.ride_height,
             &car.suspension_stiffness,
             &shared.replay_file().season_code,
-            &menus().play.cheats.cheats,
         ];
         cells.extend(
             shared
@@ -681,6 +685,7 @@ mod header_tests {
         let sealed = &crate::test_support::own::race().replay_work().sealed_header;
         let door = &crate::test_support::own::race().replay_work().after_header[0];
         let kept_cells: Vec<u32> = cells.iter().map(|c| c.get()).collect();
+        let kept_cheats = menus().play.cheats.read().cheats;
         let kept_locale = locale.get(8);
         let kept_header: Vec<u8> = (0..16).map(|i| header.get(i)).collect();
         let kept_sealed: Vec<u32> = sealed.iter().map(PlainDword::get).collect();
@@ -690,6 +695,7 @@ mod header_tests {
             for c in &cells {
                 c.set(next(&mut state) as u32);
             }
+            menus().play.cheats.write().cheats = next(&mut state) as u32;
             locale.set(8, next(&mut state) as u8);
             for i in 0..16 {
                 header.set(i, next(&mut state) as u8);
@@ -716,6 +722,7 @@ mod header_tests {
         for (c, v) in cells.iter().zip(kept_cells) {
             c.set(v);
         }
+        menus().play.cheats.write().cheats = kept_cheats;
         locale.set(8, kept_locale);
         for (i, b) in kept_header.into_iter().enumerate() {
             header.set(i, b);

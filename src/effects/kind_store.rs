@@ -10,100 +10,78 @@
 //!   `extra` out and, for set 1, the `divisor` copy) and `KindConsts` (the constants and the
 //!   light), once for each set. Set 1 is `kind_values::first`, set 2 `kind_values::second`.
 
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::PlainFloat;
 
 /// A quad's work area (0xF8 bytes, three copies: `overlay_quad`, `shadow_quad`, `plane_quad`). The
 /// offsets are from its start.
-#[derive(rc2k_derive::Cells)]
 pub struct QuadWork {
     /// The quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two
     /// triples blended
-    pub place: [PlainFloat; 3],
+    pub place: [f32; 3],
     /// The light's way turned by the matrix (`draw_shadow`), a reading
-    pub light_turned: [PlainFloat; 3],
+    pub light_turned: [f32; 3],
     /// The matrix turned about z by the angle (`turn_matrix3`); its rows are made the
     /// frame's
-    pub matrix: [PlainFloat; 9],
+    pub matrix: [f32; 9],
     /// The quad's two sides: the kind's triple (`copied`), then (0, difference y, minus
     /// difference x)
-    pub sides: [[PlainFloat; 3]; 2],
+    pub sides: [[f32; 3]; 2],
     /// The sides made one long and square (`normalise_vector3`, `cross_product3`); the light
     /// turned is stored in the third
-    pub frame: [[PlainFloat; 3]; 3],
+    pub frame: [[f32; 3]; 3],
     /// The corner of the mark corners table (-1: none), the kind's `count`
-    pub corner: PlainDword,
+    pub corner: u32,
     /// The kind's size over its divisor (`kind_values`)
-    pub ratio: PlainFloat,
+    pub ratio: f32,
     /// The kind's size times its constant (`kind_values`)
-    pub size: PlainFloat,
+    pub size: f32,
     /// The kind's start times its constant
-    pub start: PlainFloat,
+    pub start: f32,
     /// The angle line below the split: the factor
-    pub step: PlainFloat,
+    pub step: f32,
     /// The split of the angle's two lines: the kind's `low` (signed compare of the bits)
-    pub low: PlainFloat,
+    pub low: f32,
     /// The kind's `high`
-    pub high: PlainFloat,
+    pub high: f32,
     /// The angle line above the split: its base
-    pub middle: PlainFloat,
+    pub middle: f32,
     /// The angle line above the split: its factor
-    pub slope: PlainFloat,
+    pub slope: f32,
     /// The factor the quad is drawn in by (`corners_in`)
-    pub spread: PlainFloat,
+    pub spread: f32,
     /// The way between two corners, made one long (`normalise_vector3`)
-    pub way: [PlainFloat; 3],
+    pub way: [f32; 3],
     /// The quad's four corners (z, y, x), turned to the view then projected
-    pub corners: [[PlainFloat; 3]; 4],
+    pub corners: [[f32; 3]; 4],
 }
 
 impl QuadWork {
+    /// A quad as its set 1 starts (what the layout tests zero from).
+    #[cfg(test)]
+    pub(super) const fn new() -> Self {
+        Self::new_1()
+    }
+
     /// The second shadow's (`draw_shadow::second`) quad.
     pub(super) const fn new_1() -> Self {
         Self {
-            place: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(125536.0),
-                PlainFloat::new(0.0),
-            ],
-            light_turned: [const { PlainFloat::new(0.0) }; 3],
-            matrix: [const { PlainFloat::new(0.0) }; 9],
-            sides: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-            ],
-            frame: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-                [const { PlainFloat::new(0.0) }; 3],
-            ],
-            corner: PlainDword::new(0x4),
-            ratio: PlainFloat::new(32768.0),
-            size: PlainFloat::new(65536.0),
-            start: PlainFloat::new(0.0),
-            step: PlainFloat::new(0.0),
-            low: PlainFloat::new(0.0),
-            high: PlainFloat::new(0.0),
-            middle: PlainFloat::new(0.0),
-            slope: PlainFloat::new(0.0),
-            spread: PlainFloat::new(0.0),
-            way: [const { PlainFloat::new(0.0) }; 3],
-            corners: [const { [const { PlainFloat::new(0.0) }; 3] }; 4],
+            place: [0.0, 125536.0, 0.0],
+            light_turned: [0.0; 3],
+            matrix: [0.0; 9],
+            sides: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0]],
+            frame: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0], [0.0; 3]],
+            corner: 0x4,
+            ratio: 32768.0,
+            size: 65536.0,
+            start: 0.0,
+            step: 0.0,
+            low: 0.0,
+            high: 0.0,
+            middle: 0.0,
+            slope: 0.0,
+            spread: 0.0,
+            way: [0.0; 3],
+            corners: [[0.0; 3]; 4],
         }
     }
 }
@@ -112,50 +90,23 @@ impl QuadWork {
     /// The first shadow's (`draw_shadow::first`) quad.
     pub(super) const fn new_2() -> Self {
         Self {
-            place: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(125536.0),
-                PlainFloat::new(0.0),
-            ],
-            light_turned: [const { PlainFloat::new(0.0) }; 3],
-            matrix: [const { PlainFloat::new(0.0) }; 9],
-            sides: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-            ],
-            frame: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-                [const { PlainFloat::new(0.0) }; 3],
-            ],
-            corner: PlainDword::new(0x4),
-            ratio: PlainFloat::new(32768.0),
-            size: PlainFloat::new(65536.0),
-            start: PlainFloat::new(0.0),
-            step: PlainFloat::new(0.0),
-            low: PlainFloat::new(0.0),
-            high: PlainFloat::new(0.0),
-            middle: PlainFloat::new(0.0),
-            slope: PlainFloat::new(0.0),
-            spread: PlainFloat::new(0.0),
-            way: [const { PlainFloat::new(0.0) }; 3],
-            corners: [const { [const { PlainFloat::new(0.0) }; 3] }; 4],
+            place: [0.0, 125536.0, 0.0],
+            light_turned: [0.0; 3],
+            matrix: [0.0; 9],
+            sides: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0]],
+            frame: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0], [0.0; 3]],
+            corner: 0x4,
+            ratio: 32768.0,
+            size: 65536.0,
+            start: 0.0,
+            step: 0.0,
+            low: 0.0,
+            high: 0.0,
+            middle: 0.0,
+            slope: 0.0,
+            spread: 0.0,
+            way: [0.0; 3],
+            corners: [[0.0; 3]; 4],
         }
     }
 }
@@ -164,50 +115,23 @@ impl QuadWork {
     /// The plane's (`draw_plane`) quad.
     pub(super) const fn new_3() -> Self {
         Self {
-            place: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(125536.0),
-                PlainFloat::new(0.0),
-            ],
-            light_turned: [const { PlainFloat::new(0.0) }; 3],
-            matrix: [const { PlainFloat::new(0.0) }; 9],
-            sides: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-            ],
-            frame: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-                [const { PlainFloat::new(0.0) }; 3],
-            ],
-            corner: PlainDword::new(0x4),
-            ratio: PlainFloat::new(32768.0),
-            size: PlainFloat::new(65536.0),
-            start: PlainFloat::new(0.0),
-            step: PlainFloat::new(0.0),
-            low: PlainFloat::new(0.0),
-            high: PlainFloat::new(0.0),
-            middle: PlainFloat::new(0.0),
-            slope: PlainFloat::new(0.0),
-            spread: PlainFloat::new(0.0),
-            way: [const { PlainFloat::new(0.0) }; 3],
-            corners: [const { [const { PlainFloat::new(0.0) }; 3] }; 4],
+            place: [0.0, 125536.0, 0.0],
+            light_turned: [0.0; 3],
+            matrix: [0.0; 9],
+            sides: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0]],
+            frame: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0], [0.0; 3]],
+            corner: 0x4,
+            ratio: 32768.0,
+            size: 65536.0,
+            start: 0.0,
+            step: 0.0,
+            low: 0.0,
+            high: 0.0,
+            middle: 0.0,
+            slope: 0.0,
+            spread: 0.0,
+            way: [0.0; 3],
+            corners: [[0.0; 3]; 4],
         }
     }
 }

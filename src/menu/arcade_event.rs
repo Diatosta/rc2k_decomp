@@ -44,13 +44,13 @@ fn address(menus: &Menus, v: Var) -> &'_ PlainDword {
         Var::PlayerCount => &menus.screens.event.player_count,
         Var::EventMode => &menus.screens.event.event_kind,
         Var::Current => &menus.screens.event.current_player,
-        Var::Answer => &menus.tables.pages.yes_no_answer,
-        Var::Cheats => &menus.play.cheats.cheats,
         Var::Qualifies => &menus.screens.event.trial.qualifies,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
         Var::Failed
         | Var::Stage
         | Var::Level
+        | Var::Cheats
+        | Var::Answer
         | Var::RaceStage
         | Var::RaceLevel
         | Var::CheatSwitch
@@ -70,6 +70,8 @@ impl arcade::Arcade for Game<'_> {
             Var::Failed => return arcade.retry,
             Var::Stage => return arcade.stage,
             Var::Level => return arcade.level,
+            Var::Cheats => return menus.play.cheats.read().cheats,
+            Var::Answer => return menus.tables.pages.read().yes_no_answer,
             _ => {}
         }
         match cell(self.owners.race, v) {
@@ -85,6 +87,8 @@ impl arcade::Arcade for Game<'_> {
             Var::Failed => menus.play.arcade.write().retry = value,
             Var::Stage => menus.play.arcade.write().stage = value,
             Var::Level => menus.play.arcade.write().level = value,
+            Var::Cheats => menus.play.cheats.write().cheats = value,
+            Var::Answer => menus.tables.pages.write().yes_no_answer = value,
             _ => match cell(self.owners.race, v) {
                 Some(cell) => cell.set(value),
                 None => address(menus, v).set(value),

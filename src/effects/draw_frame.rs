@@ -50,7 +50,7 @@ pub fn draw_frame(
         let p: [u32; 3] = read_bits(&effects.frame.draw_frame.points[n]);
         let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);
         for (k, v) in turned.iter().enumerate() {
-            effects.frame.view_vars.turned_points[n][k].set(rounded_value(*v));
+            effects.frame.view_vars.borrow_mut().turned_points[n][k] = rounded_value(*v);
         }
     }
     let corners = crate::race::course_places::info_bytes(
@@ -68,16 +68,13 @@ pub fn draw_frame(
     }
     let source: u32 = scene.draw_switches().marks_source;
     if source != effects.frame.draw_frame.last_source.get() {
-        effects
-            .frame
-            .view_vars
-            .step
-            .set(effects.frame.view_vars.step.get().wrapping_add(1) & 7);
+        let step = effects.frame.view_vars.borrow().step.wrapping_add(1) & 7;
+        effects.frame.view_vars.borrow_mut().step = step;
     }
     effects.frame.draw_frame.last_source.set(source);
     effects.setup.work.sound_source.set(source);
     effects.setup.work.sound_zero.set(0);
-    effects.frame.view_vars.cleared.set(0);
+    effects.frame.view_vars.borrow_mut().cleared = 0;
     cars_particles::cars_particles(effects)?;
     view_heading::view_heading(&race.frame, effects);
     view_motion::view_motion(&race.frame, effects)?;

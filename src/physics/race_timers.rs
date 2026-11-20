@@ -21,7 +21,7 @@ pub(super) fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Res
     let (physics, numbers, league) = (
         &race.physics,
         race.course.numbers.get(),
-        race.course.league(),
+        &mut race.course.league_mut(),
     );
     let (frame_work, panel_and_overlay) = (
         &race.frame.frame_work.get(),
@@ -62,7 +62,7 @@ pub(super) fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Res
             shared.work.get(),
             shared.car(),
             sound,
-            o.menus.play.cheats.cheats.get(),
+            o.menus.play.cheats.read().cheats,
         )?;
     } else {
         take_split(

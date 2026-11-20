@@ -40,7 +40,7 @@ pub fn play_menu_sound(
     };
     let volume: u32 = match volume {
         MenuVolume::A => audio.levels.race_effects_volume.get(),
-        MenuVolume::B => menus.screens.flow.menu_sounds_volume.get(),
+        MenuVolume::B => menus.screens.flow.read().menu_sounds_volume,
         MenuVolume::C => menus.options.snapshot().menu_effects_volume,
     };
     crate::sound::play_sound::play_sound_in(audio, sound, volume, 0xFFFF_FF91, [0; 3]);

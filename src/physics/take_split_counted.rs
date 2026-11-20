@@ -24,7 +24,7 @@ use rc2k_core::physics::progress::{
 pub(super) fn take_split_counted(
     o: crate::owners::Owners<'static>,
     physics: &Physics,
-    league: &League,
+    league: &mut League,
     frame_work: &FrameWork,
     panel_and_overlay: &PanelAndOverlay,
     shared: &RaceShared,

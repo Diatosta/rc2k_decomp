@@ -15,6 +15,11 @@ use crate::strings::same_text::case_table;
 enum Target {
     /// A whole aligned dword of a store (`dword!`).
     Dword(fn(Owners<'static>) -> &'static dyn DwordLike),
+    /// A field of a store of plain values, read and written by functions (`plain!`).
+    Plain {
+        get: fn(Owners<'static>) -> u32,
+        set: fn(Owners<'static>, u32),
+    },
     /// A dword that straddles two cells of its store's untyped tail: the store's own
     /// setter writes the four bytes (`race::viewer_screen_store`'s).
     Unaligned(fn(Owners<'static>, u32)),
@@ -29,6 +34,7 @@ impl Target {
     fn get(self, o: Owners<'static>) -> Option<u32> {
         match self {
             Target::Dword(cell) => Some(cell(o).get()),
+            Target::Plain { get, .. } => Some(get(o)),
             Target::Unaligned(_) | Target::Ignored => None,
         }
     }
@@ -37,6 +43,7 @@ impl Target {
     fn set(self, o: Owners<'static>, number: u32) {
         match self {
             Target::Dword(cell) => cell(o).set(number),
+            Target::Plain { set, .. } => set(o, number),
             Target::Unaligned(set) => set(o, number),
             Target::Ignored => {}
         }
@@ -54,6 +61,36 @@ macro_rules! dword {
             cell
         })
     };
+}
+
+/// `plain!(o => o.owner.store, field)`: a field of a store that keeps plain values behind
+/// `read()` / `write()`, as a `Target`.
+macro_rules! plain {
+    ($o:ident => $store:expr; $field:ident) => {
+        Target::Plain {
+            get: {
+                fn get($o: Owners<'static>) -> u32 {
+                    $store.read().$field
+                }
+                get
+            },
+            set: {
+                fn set($o: Owners<'static>, number: u32) {
+                    $store.write().$field = number;
+                }
+                set
+            },
+        }
+    };
+}
+
+/// `framecounter`: whether the frame rate is shown.
+fn frame_counter_shown(o: Owners<'static>) -> u32 {
+    o.race.frame.counter().show
+}
+
+fn set_frame_counter_shown(o: Owners<'static>, number: u32) {
+    o.race.frame.counter_mut().show = number;
 }
 
 /// `wrreplayenable`: `ViewerAndKinds.viewer_panel.untyped_tail[0]` (unaligned, in the viewer panel's tail).
@@ -152,7 +189,13 @@ const ENTRIES: [(&[u8], Target); 77] = [
     (b"nonetwork", dword!(o => o.net.vars.receive_done)),
     (b"inetport", dword!(o => o.net.setup().port)),
     (b"screensnapshot", dword!(o => o.gfx.shots.on)),
-    (b"framecounter", dword!(o => o.race.frame.counter().show)),
+    (
+        b"framecounter",
+        Target::Plain {
+            get: frame_counter_shown,
+            set: set_frame_counter_shown,
+        },
+    ),
     (
         b"noreplay",
         dword!(o => o.race.shared.replay_file().no_replay_switch),
@@ -169,11 +212,11 @@ const ENTRIES: [(&[u8], Target); 77] = [
     (b"key", dword!(o => o.race.replay.seal_work().key[0])),
     (
         b"allsecretcars",
-        dword!(o => o.menus.play.cheats.all_secret_cars),
+        plain!(o => o.menus.play.cheats; all_secret_cars),
     ),
     (
         b"secretcar",
-        dword!(o => o.menus.play.cheats.all_secret_cars),
+        plain!(o => o.menus.play.cheats; all_secret_cars),
     ),
     (
         b"usesavegamekeys",
@@ -304,7 +347,7 @@ mod tests {
 
     /// Where each setting's variable is: its store (a registry name) and the field in it, by
     /// path. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, &str); 67] = [
+    const PLACES: [(&str, &str, &str); 64] = [
         (
             "notaskswitch",
             "owners.system.window_loop",
@@ -364,7 +407,6 @@ mod tests {
         ("nonetwork", "owners.net.vars", ".receive_done"),
         ("inetport", "owners.net.main.setup", ".port"),
         ("screensnapshot", "owners.gfx.shots", ".on"),
-        ("framecounter", "owners.race.frame.counter", ".show"),
         (
             "noreplay",
             "owners.race.shared.replay_file",
@@ -378,12 +420,6 @@ mod tests {
         ("logfile", "logfile.write_line.state.LEVEL", ""),
         ("nofmv", "owners.system.machine", ".no_fmv"),
         ("key", "owners.race.replay.seal_work", ".key[0]"),
-        (
-            "allsecretcars",
-            "owners.menus.play.cheats",
-            ".all_secret_cars",
-        ),
-        ("secretcar", "owners.menus.play.cheats", ".all_secret_cars"),
         (
             "usesavegamekeys",
             "owners.saves.savegame_preview",
@@ -452,6 +488,8 @@ mod tests {
             let name = String::from_utf8_lossy(key);
             let cell: *const () = match target {
                 Target::Dword(cell) => std::ptr::from_ref(cell(Owners::the())).cast(),
+                // Plain fields have no cell; the tests below check them by writing.
+                Target::Plain { .. } => continue,
                 // Their cells are bytes of a tail: checked by writing, in the test below.
                 Target::Unaligned(_) | Target::Ignored => continue,
             };
@@ -511,7 +549,7 @@ mod tests {
             let setting = rc2k_core::files::settings::Setting(n);
             assert_eq!(setting.name(), *key);
             let kind = match target {
-                Target::Dword(_) => Kind::Dword,
+                Target::Dword(_) | Target::Plain { .. } => Kind::Dword,
                 Target::Unaligned(_) => Kind::Unaligned,
                 Target::Ignored => Kind::Dword,
             };
@@ -521,13 +559,7 @@ mod tests {
 
     /// The variables of every setting that is a whole dword, as they are now.
     fn dword_values(o: Owners<'static>) -> Vec<Option<u32>> {
-        ENTRIES
-            .iter()
-            .map(|(_, target)| match target {
-                Target::Dword(cell) => Some(cell(o).get()),
-                Target::Unaligned(_) | Target::Ignored => None,
-            })
-            .collect()
+        ENTRIES.iter().map(|(_, target)| target.get(o)).collect()
     }
 
     /// The two unaligned settings' variables, as they are now.
@@ -570,7 +602,7 @@ mod tests {
                     }
                 }
                 match target {
-                    Target::Dword(_) => {
+                    Target::Dword(_) | Target::Plain { .. } => {
                         // A key whose number equals the variable's start value changes nothing.
                         assert!(changed.contains(&name), "{name} did not reach its variable");
                         assert_eq!(now_unaligned, start_unaligned, "{name}");
@@ -598,8 +630,8 @@ mod tests {
                     "{name} also moved {shares:?}"
                 );
                 for (m, (_, other)) in ENTRIES.iter().enumerate() {
-                    if let (Target::Dword(cell), Some(value)) = (other, start[m]) {
-                        cell(o).set(value);
+                    if let Some(value) = start[m] {
+                        other.set(o, value);
                     }
                 }
                 let [keys, rate] = start_unaligned;
@@ -635,8 +667,8 @@ mod tests {
             );
         }
         for (m, (_, target)) in ENTRIES.iter().enumerate() {
-            if let (Target::Dword(cell), Some(value)) = (target, start[m]) {
-                cell(o).set(value);
+            if let Some(value) = start[m] {
+                target.set(o, value);
             }
         }
         assert_eq!(dword_values(o), start);

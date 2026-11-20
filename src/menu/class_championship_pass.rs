@@ -33,12 +33,12 @@ pub(super) fn class_championship_pass(
         .map(|e| (e.group, e.player))
         .collect();
     for class in classes {
-        menus.screens.loop_flags.left_with_carry.set(false);
+        menus.screens.loop_flags.write().left_with_carry = false;
         let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
         if !has_player {
             continue;
         }
-        menus.screens.loop_flags.left_with_carry.set(true);
+        menus.screens.loop_flags.write().left_with_carry = true;
         let numbered = number_standings(&menus.play, Which::B, class, tables)?;
         menus
             .screens
@@ -52,7 +52,7 @@ pub(super) fn class_championship_pass(
             entry,
             tables,
         )?;
-        if menus.tables.pages.yes_no_answer.get() == 1 {
+        if menus.tables.pages.read().yes_no_answer == 1 {
             break;
         }
     }

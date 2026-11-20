@@ -36,12 +36,16 @@ use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::ground::*;
-use crate::physics::ground_query::GroundQuery;
+use crate::physics::ground_query::{GroundEnv, GroundSearch};
 use crate::physics::step_families::GroundInputs;
+use crate::race::scene_points::OwnPoints;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::ground;
 
 pub const MOST_POINTS: u32 = 0x40;
+
+/// The mark the probe points' searches are made with (which faces count).
+const SETTLE_MARK: u32 = 0x80;
 
 /// What the probe reads besides the car and the query: the drawing parts build it from the
 /// race's shared parts (the work car and the physics' ground work are the game thread's).
@@ -70,7 +74,8 @@ impl<'a> ProbeInputs<'a> {
 pub(super) fn probe_ground_at(
     c: &ProbeInputs<'_>,
     car: &Car<impl CellKind>,
-    q: &GroundQuery<'_>,
+    q: &mut GroundSearch,
+    points: &OwnPoints,
     contact: &ContactWork,
 ) -> Result<(), Refused> {
     let n = car.probe_count.get();
@@ -81,14 +86,15 @@ pub(super) fn probe_ground_at(
         return Err(BadInput("more than 0x40 probe points (the lists' room)").into());
     }
 
-    probe_points(c, car, n, q, contact)
+    probe_points(c, car, n, q, points, contact)
 }
 
 fn probe_points(
     c: &ProbeInputs<'_>,
     car: &Car<impl CellKind>,
     n: u32,
-    q: &GroundQuery<'_>,
+    q: &mut GroundSearch,
+    points: &OwnPoints,
     contact: &ContactWork,
 ) -> Result<(), Refused> {
     // The work values the point's steps spill through (each is stored before it is read).
@@ -129,22 +135,25 @@ fn probe_points(
             let w = (x87::mul_to_int(v, k65536) as u32).wrapping_add(place.get());
             list.set(w);
         }
-        q.x.set(work.probe_x[i].get());
-        q.z.set(work.probe_z[i].get());
-        // The search tries this face first (`ground_face_last`: the physics' query's own cell,
-        // a drawing's its own).
-        q.last.set(car.probe_point_face[b as usize].get());
-        q.settle_mark.set(0x80);
-        ground_search_at(c.course, q)?;
+        q.x = work.probe_x[i].get();
+        q.z = work.probe_z[i].get();
+        // The search tries this face first.
+        q.last = car.probe_point_face[b as usize].get();
+        let env = GroundEnv {
+            course: c.course,
+            points,
+            mark: SETTLE_MARK,
+        };
+        ground_search_at(env, q)?;
         work.probe_ground_height[i].set(0);
-        if q.found.get() == 0 {
+        if q.found == 0 {
             contact.crossed_probe.set(b);
             work.probe_found[i].set(0);
             continue;
         }
         work.probe_found[i].set(1);
-        work.probe_ground_height[i].set(q.height.get());
-        let cell = ground::noise_cell(q.x.get(), q.z.get());
+        work.probe_ground_height[i].set(q.height);
+        let cell = ground::noise_cell(q.x, q.z);
         let trap = crate::physics::cells::Trap::new();
         let noise = |i: u32| {
             trap.keep(
@@ -156,7 +165,7 @@ fn probe_points(
         };
         let n = cell.corners.map(noise);
         trap.finish()?;
-        let (_, _, n5c, _) = ground::bump_noise(n, q.x.get(), q.z.get());
+        let (_, _, n5c, _) = ground::bump_noise(n, q.x, q.z);
         scratch.set(n5c);
         let bump = bh::to_int(
             bh::int(n5c as i32) * car.ground_bump_scale.ld() * c.numbers.k256.ld()
@@ -165,9 +174,9 @@ fn probe_points(
         scratch.set(bump as u32);
         work.probe_ground_height[i]
             .set(work.probe_ground_height[i].get().wrapping_add(bump as u32));
-        work.probe_face_flip[i].set(q.half.get());
-        work.probe_share_u[i].set(q.plane_f.get());
-        work.probe_share_v[i].set(q.plane_g.get());
+        work.probe_face_flip[i].set(q.half);
+        work.probe_share_u[i].set(q.plane_f);
+        work.probe_share_v[i].set(q.plane_g);
         let d = work.probe_y[i]
             .get()
             .wrapping_sub(work.probe_ground_height[i].get());
@@ -179,7 +188,7 @@ fn probe_points(
             }
             work.probe_height[i].set(x87::int_times_to_int(d as i32, scratch.get()) as u32);
         }
-        car.probe_point_face[b as usize].set(q.slot.get());
+        car.probe_point_face[b as usize].set(q.slot);
     }
     for i in 0..4 {
         car.wheel_ground_x[i].set(contact.probe_x[i].get());
@@ -190,29 +199,34 @@ fn probe_points(
 }
 
 /// `car` is the work car in the race's ticks (the view's copy of its car in the drawing,
-/// `probe_ground_in_view`).
+/// `probe_ground_in_view`). The mark the searches were made with is kept in the probe, where
+/// the drawing parts read it.
 pub fn probe_ground(c: &GroundInputs<'_>, car: &Car) -> Result<(), Refused> {
+    if (1..=MOST_POINTS).contains(&car.probe_count.get()) {
+        c.probe.settle_mark.set(SETTLE_MARK);
+    }
     probe_ground_at(
         &ProbeInputs::of_ground(c),
         car,
-        &GroundQuery::of_physics(
-            c.ground,
-            c.probe,
-            c.course.course.get(),
-            &crate::race::scene_points::no_own(),
-        ),
+        &mut c.search.borrow_mut(),
+        &crate::race::scene_points::no_own(),
         c.contact,
     )
 }
 
 /// The same for the drawing (`race::face_hide_mask`): its ground search, its probe lists and its
-/// work values on fields of its own, not the physics' work and the scene's scratch (nothing the
+/// work values on records of its own, not the physics' work and the scene's scratch (nothing the
 /// drawing does reads them after), the scene points through the drawing part's `points`.
 pub fn probe_ground_in_view(
     c: &ProbeInputs<'_>,
     car: &Car<impl CellKind>,
-    points: &crate::race::scene_points::OwnPoints,
+    points: &OwnPoints,
 ) -> Result<(), Refused> {
-    let ground = crate::physics::ground_query::GroundCells::new();
-    probe_ground_at(c, car, &ground.query(points), &ContactWork::new())
+    probe_ground_at(
+        c,
+        car,
+        &mut GroundSearch::default(),
+        points,
+        &ContactWork::new(),
+    )
 }

@@ -48,6 +48,8 @@ enum Slot {
     ButtonX,
     /// The drawing work's `button_y`.
     ButtonY,
+    /// The championship row highlighted (`loop_flags.champ_row`).
+    ChampRow,
 }
 
 impl<T: DwordLike> From<&'static T> for Slot {
@@ -599,6 +601,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
             Some(Slot::Cell(cell)) => cell.set(value),
             Some(Slot::ButtonX) => self.menus.screens.draw_work.write().button_x = value,
             Some(Slot::ButtonY) => self.menus.screens.draw_work.write().button_y = value,
+            Some(Slot::ChampRow) => self.menus.screens.loop_flags.write().champ_row = value,
             None => {}
         }
     }
@@ -830,7 +833,7 @@ impl GameWork for rc2k_core::screens::results_pages::Work {
     fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         use rc2k_core::screens::results_pages::Work as W;
         match self {
-            W::Row => Some((&menus.screens.loop_flags.champ_row).into()),
+            W::Row => Some(Slot::ChampRow),
             W::RowEnd => Some((&menus.play.champ_view.rows.row_end).into()),
         }
     }
@@ -1108,9 +1111,7 @@ impl GameFont for rc2k_core::screens::championship_table::Font {
 impl GameWork for rc2k_core::screens::championship_table::Work {
     fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {
-            rc2k_core::screens::championship_table::Work::Position => {
-                Some((&menus.screens.loop_flags.champ_row).into())
-            }
+            rc2k_core::screens::championship_table::Work::Position => Some(Slot::ChampRow),
             rc2k_core::screens::championship_table::Work::End => {
                 Some((&menus.play.champ_view.rows.row_end).into())
             }

@@ -99,10 +99,10 @@ pub(super) fn set_up_surface(
     )?;
     crate::memory::free_list::free_list(&masks.list.list)?;
 
-    crate::effects::ring_entries::take(ring, &ring.work.list)?;
-    ring.work.block.set(1);
-    ring.work.cursor.set(1);
-    ring.work.count.set(0);
+    crate::effects::ring_entries::take(ring, &ring.work)?;
+    ring.work.borrow_mut().block = 1;
+    ring.work.borrow_mut().cursor = 1;
+    ring.work.borrow_mut().count = 0;
 
     let [eighth, edge, pixel, step]: [f32; 4] = [
         setup.floats.eighth,

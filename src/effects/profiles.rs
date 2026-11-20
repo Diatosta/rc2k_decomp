@@ -19,7 +19,7 @@ const CURVES: [usize; 2] = [1, 2];
 
 /// The profiles' work, `DrawWork.profile_work[0]` .. `DrawWork.profile_work[10]`.
 fn work(n: usize, v: f32, effects: &crate::effects::owner::Effects) {
-    effects.frame.draw_work.profile_work[n].set(v);
+    effects.frame.draw_work.borrow_mut().profile_work[n] = v;
 }
 
 /// A table's second half: each the next less this (whole numbers, so the last reads the

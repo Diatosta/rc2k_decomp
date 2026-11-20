@@ -47,9 +47,9 @@ pub(super) fn move_highlight(o: Owners<'static>, direction: Direction) -> Result
     let way = direction.slot();
     let sideways = matches!(direction, Direction::Left | Direction::Right);
     {
-        let highlighted: u32 = screens.loop_flags.item.get();
+        let highlighted: u32 = screens.loop_flags.read().item;
         let item = item_at(menus, highlighted)?;
-        let turned = (sideways && screens.flow.turning.get() == 1).then(|| {
+        let turned = (sideways && screens.flow.read().turning == 1).then(|| {
             let t = Turn {
                 count: screens.carousel.count.get() as i32,
                 value: screens.carousel.front.get() as i32,
@@ -75,7 +75,7 @@ pub(super) fn move_highlight(o: Owners<'static>, direction: Direction) -> Result
         if link(next) == Link::None {
             return Ok(());
         }
-        if !sideways || screens.flow.quiet.get() != 1 {
+        if !sideways || screens.flow.read().quiet != 1 {
             crate::sound::play_menu_sound::play_menu_sound(
                 o.sound,
                 o.audio,
@@ -85,7 +85,7 @@ pub(super) fn move_highlight(o: Owners<'static>, direction: Direction) -> Result
             );
         }
         match to {
-            Some(n) => screens.loop_flags.item.set(n),
+            Some(n) => screens.loop_flags.write().item = n,
             None => crate::menu::table_calls::call_key(o, item.fixed().on_key[way])?,
         }
     }

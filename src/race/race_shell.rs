@@ -104,9 +104,10 @@ pub fn copy_league_table(
         if failed.get() {
             return Err(BadInput("a league record past the summary"));
         }
-        crate::memory::session::write_bits(&course.league().names, l.firsts);
+        let mut league = course.league_mut();
+        league.names = l.firsts;
         for (k, row) in l.rows.iter().enumerate() {
-            crate::memory::session::write_first(&course.league().rows[10 * k..10 * k + 10], row);
+            league.rows[10 * k..10 * k + 10].copy_from_slice(row);
         }
     }
     Ok(())

@@ -9,22 +9,22 @@
 use crate::errors::Refused;
 use crate::physics::ground::*;
 use crate::physics::ground_probe_store::GroundProbe;
-use crate::physics::ground_store::GroundWork;
+use crate::physics::ground_query::{GroundEnv, GroundSearch};
 use crate::race::owner_course::Course;
+use std::cell::RefCell;
 
 /// Whether the face under the point was found.
 pub fn ground_search(
     ground_probe: &GroundProbe,
-    ground: &GroundWork,
+    search: &RefCell<GroundSearch>,
     course: &Course,
 ) -> Result<bool, Refused> {
     ground_search_at(
-        course.reads(),
-        &crate::physics::ground_query::GroundQuery::of_physics(
-            ground,
-            ground_probe,
-            course.course.get(),
-            &crate::race::scene_points::no_own(),
-        ),
+        GroundEnv {
+            course: course.reads(),
+            points: &crate::race::scene_points::no_own(),
+            mark: ground_probe.settle_mark.get(),
+        },
+        &mut search.borrow_mut(),
     )
 }

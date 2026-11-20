@@ -6,6 +6,7 @@
 
 use crate::drive::finish_store::Finish;
 use crate::physics::camera_store::CameraWork;
+use crate::physics::ground_query::GroundSearch;
 use std::sync::OnceLock;
 
 /// `(offset, store, field path)`, sorted by offset.
@@ -238,8 +239,8 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x23763C, "owners.scene.lights.state", ".camera_shake_y"),
     (0x237640, "owners.scene.lights.state", ".camera_shake_z"),
     (0x237644, "owners.scene.lights.state", ".camera_shake_listener"),
-    (0x239824, "owners.race.physics.ground", ".ground_x"),
-    (0x23982C, "owners.race.physics.ground", ".ground_z"),
+    (0x239824, "owners.race.physics.ground_search", ".x"),
+    (0x23982C, "owners.race.physics.ground_search", ".z"),
     (0x24BB38, "owners.race.replay.finish", ".car_lift"),
     (0x24BB44, "owners.race.replay.finish", ".limit_a"),
     (0x24BB48, "owners.race.replay.finish", ".limit_b"),
@@ -554,12 +555,35 @@ fn camera_field(path: &str) -> Option<CameraBits> {
     }
 }
 
+/// The ground search's record (plain fields, not cells): its registry name.
+const GROUND_SEARCH: &str = "owners.race.physics.ground_search";
+
+/// How a field of the ground search's record is read and written as bits.
+type SearchBits = (fn(&GroundSearch) -> u32, fn(&mut GroundSearch, u32));
+
+/// The ground search record's field at `path`.
+fn search_field(path: &str) -> Option<SearchBits> {
+    match path {
+        ".x" => Some((|g| g.x, |g, v| g.x = v)),
+        ".z" => Some((|g| g.z, |g, v| g.z = v)),
+        _ => None,
+    }
+}
+
 /// The bytes of the field at `path` in the store `name` (the registry's, or a plain one).
 fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
     if name == FINISH {
         let (get, _) = finish_field(path)?;
         return Some(
             get(&super::own::race().replay.finish())
+                .to_le_bytes()
+                .to_vec(),
+        );
+    }
+    if name == GROUND_SEARCH {
+        let (get, _) = search_field(path)?;
+        return Some(
+            get(&super::own::race().physics.ground_search().borrow())
                 .to_le_bytes()
                 .to_vec(),
         );
@@ -583,6 +607,16 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
         };
         set(
             &mut super::own::race().replay.finish_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    if name == GROUND_SEARCH {
+        let (Some((_, set)), Ok(word)) = (search_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::race().physics.ground_search().borrow_mut(),
             u32::from_le_bytes(word),
         );
         return true;

@@ -18,7 +18,7 @@ fn with_shadow<R>(
     l: Layout,
     f: impl FnOnce(&Shadow) -> R,
 ) -> R {
-    with_laid_at::<QuadWork, R>(mk, l.0, |quad| {
+    with_laid_at::<std::cell::RefCell<QuadWork>, R>(mk, l.0, |quad| {
         with_consts(mk, l.1, |consts| {
             with_copy::<PlainFloat, R>(mk, l.2, |up| {
                 f(&Shadow {
@@ -56,10 +56,17 @@ fn with_consts<R>(mk: Operand, start: usize, f: impl FnOnce(&KindConsts) -> R) -
 fn with_matrix(
     m: crate::effects::asm_test::Operand,
     t: crate::effects::asm_test::Operand,
-    f: impl FnOnce(&[PlainFloat; 9], &[PlainFloat; 2]),
+    f: impl FnOnce(&[f32; 9], &mut [f32; 2]),
 ) {
     with_copy::<[PlainFloat; 9], ()>(m, START, |m| {
-        with_copy::<[PlainFloat; 2], ()>(t, START, |t| f(m, t));
+        with_copy::<[PlainFloat; 2], ()>(t, START, |t| {
+            let matrix: [f32; 9] = std::array::from_fn(|i| m[i].get());
+            let mut temps: [f32; 2] = std::array::from_fn(|i| t[i].get());
+            f(&matrix, &mut temps);
+            for (cell, value) in t.iter().zip(temps) {
+                cell.set(value);
+            }
+        });
     });
 }
 use crate::effects::asm_test::Kind::*;

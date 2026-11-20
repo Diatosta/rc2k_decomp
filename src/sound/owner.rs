@@ -25,7 +25,7 @@ pub struct RaceSoundState {
     pub timed_slot: GameThread<SoundSlot>,
     pub spot_kinds: GameThread<SpotKinds>,
     /// The request each sound is sent with (a work area).
-    pub request: GameThread<SoundRequest>,
+    pub request: GameThread<RefCell<SoundRequest>>,
     pub cue_lists: GameThread<CueLists>,
     pub kinds: GameThread<SoundKinds>,
     pub surface_sets: GameThread<SurfaceSets>,
@@ -44,7 +44,7 @@ impl RaceSoundState {
             stage: GameThread::new(RefCell::new(StageSounds::new())),
             timed_slot: GameThread::new(stage_timed_slot()),
             spot_kinds: GameThread::new(SpotKinds::new()),
-            request: GameThread::new(SoundRequest::new()),
+            request: GameThread::new(RefCell::new(SoundRequest::new())),
             cue_lists: GameThread::new(CueLists::new()),
             kinds: GameThread::new(SoundKinds::new()),
             surface_sets: GameThread::new(SurfaceSets::new()),

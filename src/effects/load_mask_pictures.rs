@@ -8,7 +8,7 @@
 //! the six names (before anything), a surface wider than 256 (after the lock, unlocked again; the
 //! three blocks are left taken), memory or a picture not had, as its steps do.
 
-use crate::effects::mask_store::{KIND_PICTURES, MASK_PIXELS, Mask, Masks};
+use crate::effects::mask_store::{KIND_PICTURES, MASK_PIXELS, Mask, MaskBlockList, Masks};
 use crate::errors::{BadInput, Refused};
 
 const NAMES: i32 = 6;
@@ -87,7 +87,16 @@ fn mask(
 ) -> Result<(), Refused> {
     {
         // A file path (text up to its NUL) at a byte offset in the paths.
-        read(&masks.picture_copy.paths.text_from(path), gfx, system)?;
+        let text = {
+            let paths = masks.picture_copy.borrow().paths;
+            let mut text = [0u8; 60];
+            let tail = paths
+                .get(path..)
+                .ok_or(BadInput("a text past its buffer"))?;
+            text[..tail.len()].copy_from_slice(tail);
+            text
+        };
+        read(&text, gfx, system)?;
         copy[..4 * COPIED as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
             &gfx.pictures.buffers,
             gfx.pictures.picture.buffer.get(),
@@ -148,14 +157,12 @@ pub(super) fn load_mask_pictures(
     }
     masks.ground_names.ground_path.set(name as u32);
     // The masks and the picture copy are Rust's, counted on their lists.
-    for (mask, list) in [
-        (Mask::Plain, &masks.blocks.list_a),
-        (Mask::Bordered, &masks.blocks.list_b),
-    ] {
+    for (mask, bordered) in [(Mask::Plain, false), (Mask::Bordered, true)] {
+        let list = MaskBlockList::new(&masks.blocks, bordered);
         mask.pixels(masks)
-            .take(list, MASK_BYTES, vec![0; MASK_PIXELS])?;
+            .take(&list, MASK_BYTES, vec![0; MASK_PIXELS])?;
     }
-    let mut copy = crate::memory::owned::counted(&masks.picture_copy.list, COPY_BYTES)?;
+    let mut copy = crate::memory::owned::counted(&masks.picture_copy, COPY_BYTES)?;
     lock(gfx, scene.textures.first_textures()[202], true)?;
     let width: u32 = gfx.drawing.draw_surface.width.get();
     if width > MOST_WIDTH {
@@ -169,8 +176,9 @@ pub(super) fn load_mask_pictures(
         (number % 10) as u8 + b'0',
     ];
     for d in DIGITS_AT {
-        masks.picture_copy.paths.set(d, digits[0]);
-        masks.picture_copy.paths.set(d + 1, digits[1]);
+        let mut copy = masks.picture_copy.borrow_mut();
+        copy.paths[d] = digits[0];
+        copy.paths[d + 1] = digits[1];
     }
     mask(
         masks,
@@ -195,7 +203,7 @@ pub(super) fn load_mask_pictures(
         scene.textures.kinds.get().kind_first_slots[202].get(),
         scene,
     )?;
-    crate::memory::free_list::free_list(&masks.picture_copy.list)?;
-    masks.blocks.seen.set(u32::MAX);
+    crate::memory::free_list::free_list(&masks.picture_copy)?;
+    masks.blocks.borrow_mut().seen = u32::MAX;
     Ok(())
 }

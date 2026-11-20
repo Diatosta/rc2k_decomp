@@ -46,7 +46,7 @@ pub(super) fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refuse
         crate::system::pause::pause(entry.owners, passes::SCREEN_PAUSE);
         crate::menu::fade_in::fade_in(entry.owners)?;
         run_screen(ScreenId::InspectionArea, entry)?;
-        if menus.tables.pages.yes_no_answer.get() == 1 {
+        if menus.tables.pages.read().yes_no_answer == 1 {
             return Ok(());
         }
         crate::menu::fades::fade(entry.owners, true)?;

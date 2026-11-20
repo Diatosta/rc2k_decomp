@@ -1,198 +1,59 @@
 //! The league's kept times and the automatic set-ups: the ten first records' ids, the sixteen rows
-//! of ten kept times, the car's time at a split in race mode 3, the 36 set-ups of 0x10 bytes. The
-//! fields keep a fixed layout.
+//! of ten kept times, the car's time at a split in race mode 3, the 36 set-ups of 0x10 bytes.
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::PlainDword;
+use crate::errors::BadInput;
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct League {
     /// The ten records' names (`race::copy_league_table`, `physics::compare_split_times`).
-    pub names: [PlainDword; 10],
-    /// Sixteen rows of ten kept times, 0x28 bytes each (`race::copy_league_table`;
+    pub names: [u32; 10],
+    /// Sixteen rows of ten kept times (`race::copy_league_table`;
     /// `physics::compare_split_times` reads up to split 27, rows past the sixteenth: a slip, kept).
-    pub rows: [PlainDword; 160],
-    /// Unused; it only keeps the layout.
-    pub reserved_2a8: [PlainDword; 17],
+    pub rows: [u32; 160],
+    /// Unused; the kept-time reads past the rows run through it.
+    pub reserved: [u32; 17],
     /// The car's time (`physics::compare_split_times`).
-    pub car_time: PlainDword,
-    /// The 36 automatic set-ups, 0x10 bytes each (h, s, g5, g4 + 1;
-    /// `race::auto_set_up_car`).
-    pub auto_setups: [PlainDword; 144],
+    pub car_time: u32,
+    /// The 36 automatic set-ups, 4 values each (h, s, g5, g4 + 1; `race::auto_set_up_car`).
+    pub auto_setups: [u32; 144],
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-
-/// The piece (a field of `race::owner::Race::course`), with its first values.
 impl League {
     /// Kept time `n` of the rows. Splits 16 .. 27 read past the sixteen rows into the fields
-    /// after them, in order.
-    pub fn kept_time(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
+    /// after them, in order (the rows, the reserved values, the car's time, the set-ups).
+    pub fn kept_time(&self, n: usize) -> Result<u32, BadInput> {
+        let past_rows = n.wrapping_sub(self.rows.len());
         if let Some(time) = self.rows.get(n) {
-            return Ok(time.get());
+            return Ok(*time);
         }
-        crate::memory::session::read_runs(
-            &[
-                &self.rows,
-                &self.reserved_2a8,
-                &self.car_time,
-                &self.auto_setups,
-            ],
-            n,
-            "a kept split time",
-        )
+        if let Some(value) = self.reserved.get(past_rows) {
+            return Ok(*value);
+        }
+        let past_reserved = past_rows.wrapping_sub(self.reserved.len());
+        if past_reserved == 0 {
+            return Ok(self.car_time);
+        }
+        self.auto_setups
+            .get(past_reserved.wrapping_sub(1))
+            .copied()
+            .ok_or(BadInput("a kept split time"))
     }
 
     pub const fn new() -> Self {
-        Self {
+        League {
+            names: [0; 10],
+            rows: [0; 160],
+            reserved: [0; 17],
+            car_time: 0,
             auto_setups: [
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(4),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(3),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(3),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(3),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(2),
-                PlainDword::new(3),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(1),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(2),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(2),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(2),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(2),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(4),
-                PlainDword::new(1),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(1),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(1),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(2),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(5),
-                PlainDword::new(1),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(5),
-                PlainDword::new(1),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(5),
-                PlainDword::new(1),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(2),
-                PlainDword::new(2),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(1),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(1),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(2),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(3),
-                PlainDword::new(1),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(4),
-                PlainDword::new(1),
-                PlainDword::new(0xB4),
-                PlainDword::new(0x4C),
-                PlainDword::new(4),
-                PlainDword::new(2),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(4),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(2),
-                PlainDword::new(0x4C),
-                PlainDword::new(0x80),
-                PlainDword::new(1),
-                PlainDword::new(3),
+                0x4C, 0x80, 1, 4, 0x4C, 0x80, 1, 3, 0x4C, 0x80, 1, 3, 0x4C, 0x80, 1, 2, 0x4C, 0x80,
+                1, 3, 0x4C, 0x80, 2, 3, 0xB4, 0x4C, 3, 1, 0xB4, 0x4C, 3, 2, 0xB4, 0x4C, 3, 2, 0xB4,
+                0x4C, 3, 2, 0xB4, 0x4C, 3, 2, 0xB4, 0x4C, 4, 1, 0xB4, 0x4C, 3, 1, 0xB4, 0x4C, 3, 1,
+                0xB4, 0x4C, 3, 2, 0xB4, 0x4C, 5, 1, 0xB4, 0x4C, 5, 1, 0xB4, 0x4C, 5, 1, 0x4C, 0x80,
+                2, 2, 0x4C, 0x80, 1, 2, 0x4C, 0x80, 1, 2, 0x4C, 0x80, 1, 2, 0x4C, 0x80, 1, 2, 0x4C,
+                0x80, 1, 2, 0xB4, 0x4C, 3, 1, 0xB4, 0x4C, 3, 1, 0xB4, 0x4C, 3, 2, 0xB4, 0x4C, 3, 1,
+                0xB4, 0x4C, 4, 1, 0xB4, 0x4C, 4, 2, 0x4C, 0x80, 1, 2, 0x4C, 0x80, 1, 2, 0x4C, 0x80,
+                1, 4, 0x4C, 0x80, 1, 2, 0x4C, 0x80, 1, 2, 0x4C, 0x80, 1, 3,
             ],
-            ..ZeroCells::ZERO
         }
     }
 }
@@ -205,8 +66,9 @@ mod tests {
     #[test]
     fn kept_time_reads_the_rows_and_refuses_far_past_them() {
         let league = League::new();
-        for (n, row) in league.rows.iter().enumerate() {
-            row.set(0x1000 + n as u32);
+        let mut league = league;
+        for n in 0..league.rows.len() {
+            league.rows[n] = 0x1000 + n as u32;
             assert_eq!(
                 league.kept_time(n).ok(),
                 Some(0x1000 + n as u32),

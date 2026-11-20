@@ -159,39 +159,36 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         at(&race.course, f, 0x38)?.wrapping_add(z),
                     )?;
                     let p = at(&race.course, f, 4)?;
-                    race.physics.ground().ground_x.set(
-                        crate::race::scene_points::point_word(
-                            race.course.reads(),
-                            &crate::race::scene_points::no_own(),
-                            p,
-                            0,
-                        )?
-                        .wrapping_add(at(&race.course, f, 0x30)?),
-                    );
-                    race.physics.ground().ground_z.set(
-                        crate::race::scene_points::point_word(
-                            race.course.reads(),
-                            &crate::race::scene_points::no_own(),
-                            p,
-                            2,
-                        )?
-                        .wrapping_add(at(&race.course, f, 0x38)?),
-                    );
-                    race.course
-                        .course
-                        .get()
-                        .ground_face_last
-                        .set(race.car_blocks().cars[0].probe_point_face[4].get());
+                    let ground_x = crate::race::scene_points::point_word(
+                        race.course.reads(),
+                        &crate::race::scene_points::no_own(),
+                        p,
+                        0,
+                    )?
+                    .wrapping_add(at(&race.course, f, 0x30)?);
+                    let ground_z = crate::race::scene_points::point_word(
+                        race.course.reads(),
+                        &crate::race::scene_points::no_own(),
+                        p,
+                        2,
+                    )?
+                    .wrapping_add(at(&race.course, f, 0x38)?);
+                    {
+                        let mut search = race.physics.ground_search().borrow_mut();
+                        search.x = ground_x;
+                        search.z = ground_z;
+                        search.last = race.car_blocks().cars[0].probe_point_face[4].get();
+                    }
                     crate::physics::find_ground::find_ground(
                         race.physics.ground_probe.get(),
-                        race.physics.ground(),
+                        race.physics.ground_search(),
                         &race.course,
                     )?;
                     put(
                         &race.course,
                         f,
                         0x34,
-                        race.physics.ground().ground_height.get().wrapping_sub(
+                        race.physics.ground_search().borrow().height.wrapping_sub(
                             crate::race::scene_points::point_word(
                                 race.course.reads(),
                                 &crate::race::scene_points::no_own(),
@@ -200,7 +197,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                             )?,
                         ),
                     )?;
-                    if race.course.course.get().ground_slot.get() == u32::MAX {
+                    if race.physics.ground_search().borrow().slot == u32::MAX {
                         put(
                             &race.course,
                             f,

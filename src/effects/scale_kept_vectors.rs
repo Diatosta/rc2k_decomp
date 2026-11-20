@@ -7,10 +7,7 @@
 use crate::effects::scale_vectors_by::scale_triples;
 
 pub(super) fn scale_kept_vectors(effects: &crate::effects::owner::Effects) {
-    let frame = &effects.frame;
-    scale_triples(&[
-        &frame.kept_view.kept_a,
-        &frame.kept_view.kept_c,
-        &frame.kept_view.kept_b,
-    ]);
+    let mut kept = effects.frame.kept_view.borrow_mut();
+    let kept = &mut *kept;
+    scale_triples(&mut [&mut kept.kept_a, &mut kept.kept_c, &mut kept.kept_b]);
 }

@@ -104,11 +104,11 @@ pub(super) fn load_error_list(
     frame: &Frame,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    crate::files::read_whole_file::read_whole_file_plain_bytes(
+    crate::files::read_whole_file::read_whole_file_len(
         &scene
             .path_text(texts::ERROR_LIST_PATH)
             .text("the error list's path")?,
-        &frame.error_list().list,
+        &mut frame.error_list_mut().list,
     )?;
     Ok(())
 }

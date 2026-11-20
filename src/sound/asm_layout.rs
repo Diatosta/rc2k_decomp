@@ -7,8 +7,10 @@
 //! nothing typed reads them. Test code only; it goes with the recorded vectors.
 
 use crate::memory::cells::Cells;
-use crate::sound::store::{SoundObject, SurfaceSounds};
+use crate::sound::sets_store::SoundRequest;
+use crate::sound::store::{SoundObject, SurfaceConstants, SurfaceSounds, SurfaceWork};
 use crate::test_support::paths::{field_range, field_start, set_field_range};
+use std::cell::RefCell;
 
 /// A run of fields that were next to each other in the 1999 layout.
 pub struct Run {
@@ -31,14 +33,14 @@ pub trait Laid: Cells + Sized {
     fn fresh() -> Box<Self>;
 }
 
-/// The first `T::EXTENT` bytes of the test buffer at `base`.
+/// The first `len` bytes of the test buffer at `base`.
 ///
 /// # Safety
-/// `base` is the address of a buffer of `Operand::Sized { len: T::EXTENT, .. }` of the
+/// `base` is the address of a buffer of `Operand::Sized { len, .. }` of the
 /// vectors' harness, which stays alive and is touched by nothing else while the block runs.
-unsafe fn buffer<'a, T: Laid>(base: usize) -> &'a mut [u8] {
-    // SAFETY: as the contract says; the buffer is `T::EXTENT` bytes at least.
-    unsafe { core::slice::from_raw_parts_mut(base as *mut u8, T::EXTENT) }
+unsafe fn buffer<'a>(base: usize, len: usize) -> &'a mut [u8] {
+    // SAFETY: as the contract says; the buffer is `len` bytes at least.
+    unsafe { core::slice::from_raw_parts_mut(base as *mut u8, len) }
 }
 
 /// Runs `f` on a store `T` made from the bytes the test buffer at `base` holds at the 1999
@@ -46,7 +48,7 @@ unsafe fn buffer<'a, T: Laid>(base: usize) -> &'a mut [u8] {
 /// store's fields back into the buffer afterwards.
 pub fn with_laid<T: Laid, R>(base: usize, f: impl FnOnce(&T) -> R) -> R {
     // SAFETY: the operand is a sized buffer of the vectors' harness (see `buffer`).
-    let bytes = unsafe { buffer::<T>(base) };
+    let bytes = unsafe { buffer(base, T::EXTENT) };
     let local = T::fresh();
     for r in T::RUNS {
         assert!(
@@ -75,24 +77,77 @@ pub fn image_offset<T: Laid>(store: &T, field: &str) -> usize {
     panic!("{field} lies in no run");
 }
 
-impl Laid for SurfaceSounds {
-    const EXTENT: usize = 0x44;
-    const RUNS: &'static [Run] = &[
-        Run {
-            at: 0x0,
-            field: ".tables_done",
-            len: 0x38,
+/// The length of the 1999 surface-sounds variables, gaps included.
+pub const SURFACE_EXTENT: usize = 0x44;
+
+fn word(bytes: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes(bytes[at..at + 4].try_into().expect("four bytes"))
+}
+
+/// Runs `f` on a `SurfaceSounds` made from the bytes the test buffer at `base` holds at the
+/// 1999 places of its fields (the operand is `Operand::Sized { len: SURFACE_EXTENT, .. }`), and
+/// puts the work fields back into the buffer afterwards.
+pub fn with_surface<R>(base: usize, f: impl FnOnce(&SurfaceSounds) -> R) -> R {
+    // SAFETY: the operand is a sized buffer of the vectors' harness (see `buffer`).
+    let bytes = unsafe { buffer(base, SURFACE_EXTENT) };
+    let float = |at| f32::from_bits(word(bytes, at));
+    let local = SurfaceSounds {
+        constants: SurfaceConstants {
+            volume_scale: float(0x4),
+            pitch_blend: float(0x8),
+            across_scale: float(0xC),
+            along_scale: float(0x10),
+            speed_scale: float(0x18),
+            speed_gain: float(0x24),
+            revs_gain: float(0x28),
         },
-        // 0x38: one dword nothing reads or writes.
-        Run {
-            at: 0x3C,
-            field: ".along",
-            len: 0x8,
-        },
-    ];
-    fn fresh() -> Box<Self> {
-        Box::new(SurfaceSounds::new())
+        work: RefCell::new(SurfaceWork {
+            tables_done: word(bytes, 0),
+            across: float(0x34),
+            along: float(0x3C),
+            volume: float(0x40),
+        }),
+    };
+    let out = f(&local);
+    let work = local.work.borrow();
+    bytes[0..4].copy_from_slice(&work.tables_done.to_le_bytes());
+    bytes[0x34..0x38].copy_from_slice(&work.across.to_bits().to_le_bytes());
+    bytes[0x3C..0x40].copy_from_slice(&work.along.to_bits().to_le_bytes());
+    bytes[0x40..0x44].copy_from_slice(&work.volume.to_bits().to_le_bytes());
+    out
+}
+
+/// The length of the 1999 request variables.
+pub const REQUEST_EXTENT: usize = 40;
+
+/// Runs `f` on a `SoundRequest` made from the ten dwords of the test buffer at `base` (the operand
+/// is `Operand::Sized { len: REQUEST_EXTENT, .. }`), and puts the request's dwords back
+/// afterwards.
+pub fn with_request<R>(base: usize, f: impl FnOnce(&mut SoundRequest) -> R) -> R {
+    // SAFETY: the operand is a sized buffer of the vectors' harness (see `buffer`).
+    let bytes = unsafe { buffer(base, REQUEST_EXTENT) };
+    let mut request = SoundRequest::new();
+    for n in 0..10 {
+        let bits = word(bytes, 4 * n);
+        request.set_word(n, bits).expect("one of the ten words");
     }
+    let out = f(&mut request);
+    let words = [
+        request.sound,
+        request.pitch,
+        request.volume,
+        request.place[0].to_bits(),
+        request.place[1].to_bits(),
+        request.place[2].to_bits(),
+        request.angle,
+        request.pan,
+        request.pitch_factor.to_bits(),
+        request.volume_factor.to_bits(),
+    ];
+    for (n, w) in words.into_iter().enumerate() {
+        bytes[4 * n..4 * n + 4].copy_from_slice(&w.to_le_bytes());
+    }
+    out
 }
 
 /// One wheel record's runs: its first dword, then (after a dword nothing reads) the other four.
@@ -211,7 +266,6 @@ mod tests {
     #[test]
     fn runs_cover_the_stores() {
         covered(&*SoundObject::fresh());
-        covered(&*SurfaceSounds::fresh());
     }
 
     /// The engine's dwords sit where the core's offsets had them in the sound object.

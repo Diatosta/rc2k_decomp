@@ -36,14 +36,14 @@ pub(super) fn redefine_key(
     input: &crate::input::owner::Input,
     player: Option<crate::menu::standings::PlayerCell>,
 ) -> Result<(), Refused> {
-    if !menus.screens.entry.redefining_key.is_set() {
+    if !menus.screens.entry.read().redefining_key {
         return Ok(());
     }
     // Everything that could be refused, before the key is taken.
     let Some(player) = player else {
         return Err(BadInput("no player").into());
     };
-    let place: u32 = menus.screens.entry.redefined_key_place.get();
+    let place: u32 = menus.screens.entry.read().redefined_key_place;
     if place as usize >= KEYS {
         return Err(BadInput("a key's place of 12 or more").into());
     }
@@ -59,9 +59,9 @@ pub(super) fn redefine_key(
     menus.keys.tables_mut().redefined_keys[..KEYS].copy_from_slice(&keys);
     // Escape ends the redefining too: the place is cleared either way, so no key goes on
     // blinking on the page.
-    menus.screens.entry.redefined_key_place.set(NO_PLACE);
+    menus.screens.entry.write().redefined_key_place = NO_PLACE;
     player.update(|p| p.keys = keys);
-    menus.screens.entry.redefining_key.set(false);
+    menus.screens.entry.write().redefining_key = false;
 
     Ok(())
 }

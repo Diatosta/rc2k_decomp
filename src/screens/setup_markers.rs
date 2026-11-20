@@ -96,7 +96,7 @@ pub fn draw_marker(
     use rc2k_core::screens::setup_markers::{Marker as M, Menu, Plan};
     let menu = Menu {
         edit_mode: edit_mode(menus),
-        item: menus.screens.loop_flags.item.get(),
+        item: menus.screens.loop_flags.read().item,
         blink_on: blink_on(menus),
     };
     let read = |cell: Setting| -> Result<i32, Refused> { Ok(cell(&menus.service).get() as i32) };

@@ -20,15 +20,15 @@ fn before(screens: &Screens) -> Result<(), Refused> {
 /// item 0x16 or `CaptionTables.left_by_key` is 1, else the replay's number, `MenuPages.replay_page`
 /// * 20 + the highlighted item - 1.
 fn result(menus: &Menus) -> u32 {
-    let item: u32 = menus.screens.loop_flags.item.get();
+    let item: u32 = menus.screens.loop_flags.read().item;
     if item == 0x16 || menus.tables.captions.left_by_key.is_set() {
         return 0xFFFF_FFFF;
     }
     menus
         .tables
         .pages
+        .read()
         .replay_page
-        .get()
         .wrapping_mul(0x14)
         .wrapping_add(item)
         .wrapping_sub(1)

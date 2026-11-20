@@ -16,6 +16,6 @@ pub fn draw_background_band(
     use rc2k_core::screens::controller_page::{Font, Work, background_band};
     background_band(
         &mut crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas, o),
-        { menus.screens.flow.left_service.get() } == 1,
+        { menus.screens.flow.read().left_service } == 1,
     )
 }

@@ -72,7 +72,7 @@ pub(super) fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
     picture_as_surface(gfx)?;
     blit_glyph_on_surface(
         MAP_SPRITE,
-        menus.screens.loop_flags.sprite_table.get(),
+        menus.screens.loop_flags.read().sprite_table,
         0,
         0,
         None,

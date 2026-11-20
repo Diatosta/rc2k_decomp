@@ -243,8 +243,7 @@ pub(super) fn auto_set_up_car(race: &Race, car: &Car) -> Result<(), Refused> {
         let set_up = |k: usize| {
             (pick.index as usize)
                 .checked_mul(4)
-                .and_then(|first| course.league().auto_setups.get(first + k))
-                .map(crate::memory::session::PlainDword::get)
+                .and_then(|first| course.league().auto_setups.get(first + k).copied())
                 .ok_or(BadInput("the auto set-ups"))
         };
         for (value, field, words) in [

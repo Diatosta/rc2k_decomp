@@ -8,24 +8,29 @@
 //! Refuses (before anything) null settings, a cars' count below 0 or above 8, and a list that holds
 //! a block (`free_list`'s refusal; no block is put on a list any more).
 
+use crate::effects::mask_store::MaskBlockList;
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
-use crate::memory::ListCells;
 use crate::memory::free_list::free_list;
+use crate::memory::{HeldList, ListCells};
 
 // The cars' loop starts from the first car's record.
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
-fn lists(effects: &Effects) -> [&ListCells; 6] {
+fn with_lists<R>(effects: &Effects, f: impl FnOnce([&dyn HeldList; 6]) -> R) -> R {
     let (ring, masks, blocks) = (&effects.ring, &effects.masks, &effects.blocks);
-    [
+    let (second, first) = (
+        MaskBlockList::new(&masks.blocks, true),
+        MaskBlockList::new(&masks.blocks, false),
+    );
+    f([
         &ring.pool.list,
-        &ring.work.list,
-        &masks.blocks.list_b,
-        &masks.blocks.list_a,
+        &ring.work,
+        &second,
+        &first,
         &blocks.places.list,
         &blocks.links.list,
-    ]
+    ])
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).
 fn car_lists(effects: &Effects) -> Result<Vec<&ListCells>, BadInput> {
@@ -40,7 +45,9 @@ fn car_lists(effects: &Effects) -> Result<Vec<&ListCells>, BadInput> {
 fn any_holds_blocks(effects: &Effects) -> Result<bool, Refused> {
     Ok(
         crate::effects::try_any(car_lists(effects)?.iter(), |&l| Ok(l.get().head != 0))?
-            || crate::effects::try_any(lists(effects).iter(), |&l| Ok(l.get().head != 0))?,
+            || with_lists(effects, |lists| {
+                crate::effects::try_any(lists.iter(), |&l| Ok(l.get().head != 0))
+            })?,
     )
 }
 
@@ -62,9 +69,12 @@ pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {
         }
         car.point_block.set(paths.morph_taken.get());
     }
-    for list in lists(effects) {
-        free_list(list)?;
-    }
+    with_lists(effects, |lists| {
+        for list in lists {
+            free_list(list)?;
+        }
+        Ok::<(), BadInput>(())
+    })?;
     // The particles and the masks went with their lists.
     effects.particles.ring.give_back();
     ring.entries.give_back();

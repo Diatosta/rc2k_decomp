@@ -80,7 +80,7 @@ pub fn emit_exhaust_smoke(
     slot.put(|en| &mut en.place[2], z)?;
     let one = effects.setup.floats.one;
     let s = x87::one_less_inverse(&object.engine_speed, &particles.kind13_set.strength_k, one);
-    ring.work.whole.set(s.to_bits());
+    ring.work.borrow_mut().whole = s.to_bits();
     let motion: [f32; 3] = crate::effects::try_from_fn(|k| {
         Ok(x87::mul2(
             matrix_float(cells, 0x20 + 4 * k as u32)?,

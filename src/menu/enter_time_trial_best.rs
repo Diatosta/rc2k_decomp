@@ -26,7 +26,7 @@ pub(super) fn enter_time_trial_best(
     let p = current_player(menus)?;
     let name_id = name_id_of(&p.get())?;
     let slot = record.record(&system.records().stage_tables)?.event_slot();
-    let cheats = menus.play.cheats.cheats.get();
+    let cheats = menus.play.cheats.read().cheats;
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, slot)?;
     // The logic is in `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.
     use crate::menu::standings::name_of;

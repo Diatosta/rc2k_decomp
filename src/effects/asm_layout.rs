@@ -108,7 +108,7 @@ impl Laid for std::cell::RefCell<CornerSlopes> {
 }
 
 /// The first of the three quads; the others are reached by `with_laid_at`.
-impl Laid for QuadWork {
+impl Laid for std::cell::RefCell<QuadWork> {
     const START: usize = 0x9331B4;
     const RUNS: &'static [Run] = &[
         Run {
@@ -134,7 +134,7 @@ impl Laid for QuadWork {
     ];
 }
 
-impl Laid for DrawWork {
+impl Laid for std::cell::RefCell<DrawWork> {
     const START: usize = 0x8EB871;
     const RUNS: &'static [Run] = &[
         Run {
@@ -170,7 +170,7 @@ impl Laid for DrawWork {
     ];
 }
 
-impl Laid for ViewVars {
+impl Laid for std::cell::RefCell<ViewVars> {
     const START: usize = 0x8F3975;
     const RUNS: &'static [Run] = &[
         Run {
@@ -196,7 +196,7 @@ impl Laid for ViewVars {
     ];
 }
 
-impl Laid for MaskBlocks {
+impl Laid for std::cell::RefCell<MaskBlocks> {
     const START: usize = 0x934D6E;
     const RUNS: &'static [Run] = &[
         Run {
@@ -217,7 +217,7 @@ impl Laid for MaskBlocks {
     ];
 }
 
-impl Laid for PictureCopy {
+impl Laid for std::cell::RefCell<PictureCopy> {
     const START: usize = 0x934E29;
     const RUNS: &'static [Run] = &[
         Run {
@@ -366,7 +366,7 @@ impl Laid for std::cell::RefCell<RainState> {
     ];
 }
 
-impl Laid for RingWork {
+impl Laid for std::cell::RefCell<RingWork> {
     const START: usize = 0x935620;
     const RUNS: &'static [Run] = &[
         Run {
@@ -597,7 +597,7 @@ impl Laid for std::cell::RefCell<MarksKindFloats> {
     }];
 }
 
-impl Laid for KeptView {
+impl Laid for std::cell::RefCell<KeptView> {
     const START: usize = 0x769236;
     const RUNS: &'static [Run] = &[
         Run {
@@ -771,6 +771,27 @@ impl Laid for std::cell::RefCell<WindscreenFlakeState> {
 // byte images are made of.
 plain_fields!(CornerSlopes { slopes });
 
+impl PlainLeaf for crate::memory::MemoryList {
+    fn byte_len(&self) -> usize {
+        16
+    }
+    fn dump(&self, out: &mut Vec<u8>) {
+        for word in [self.head, self.total, self.cursor, self.remaining] {
+            word.dump(out);
+        }
+    }
+    fn load(&mut self, from: &mut &[u8]) {
+        for word in [
+            &mut self.head,
+            &mut self.total,
+            &mut self.cursor,
+            &mut self.remaining,
+        ] {
+            word.load(from);
+        }
+    }
+}
+
 impl PlainLeaf for Slope {
     fn byte_len(&self) -> usize {
         4 + self.values.byte_len()
@@ -784,7 +805,7 @@ impl PlainLeaf for Slope {
         self.values.load(from);
     }
 }
-fields!(QuadWork {
+plain_fields!(QuadWork {
     place,
     light_turned,
     matrix,
@@ -803,7 +824,7 @@ fields!(QuadWork {
     way,
     corners
 });
-fields!(DrawWork {
+plain_fields!(DrawWork {
     profile_work,
     half,
     sprite_half,
@@ -816,7 +837,7 @@ fields!(DrawWork {
     uv_k,
     z_k
 });
-fields!(ViewVars {
+plain_fields!(ViewVars {
     heading,
     step,
     facing,
@@ -826,7 +847,7 @@ fields!(ViewVars {
     second_end_half_width,
     turned_points
 });
-fields!(MaskBlocks {
+plain_fields!(MaskBlocks {
     seen,
     chosen,
     list_a,
@@ -835,7 +856,7 @@ fields!(MaskBlocks {
     bmask,
     junk
 });
-fields!(PictureCopy { list, copy, paths });
+plain_fields!(PictureCopy { list, copy, paths });
 plain_fields!(PongState {
     box_sides,
     ball,
@@ -893,7 +914,7 @@ plain_fields!(RainState {
     turned,
     second
 });
-fields!(RingWork {
+plain_fields!(RingWork {
     list,
     cursor,
     block,
@@ -1035,7 +1056,7 @@ plain_fields!(MarksKindFloats {
     kind_float,
     running
 });
-fields!(KeptView {
+plain_fields!(KeptView {
     first_sine_cosine,
     first_angle,
     second_sine_cosine,
@@ -1050,11 +1071,21 @@ fields!(KeptView {
     unit,
     vector
 });
-fields!(VectorSource {
-    factor,
-    vector,
-    scaled
-});
+impl PlainLeaf for VectorSource {
+    fn byte_len(&self) -> usize {
+        4 + self.vector.byte_len() + self.scaled.byte_len()
+    }
+    fn dump(&self, out: &mut Vec<u8>) {
+        self.factor.dump(out);
+        self.vector.dump(out);
+        self.scaled.dump(out);
+    }
+    fn load(&mut self, from: &mut &[u8]) {
+        self.factor.load(from);
+        self.vector.load(from);
+        self.scaled.load(from);
+    }
+}
 plain_fields!(WindscreenDropState {
     live,
     clock,
@@ -1189,15 +1220,15 @@ mod tests {
     #[test]
     fn runs_cover_the_stores() {
         covered::<std::cell::RefCell<CornerSlopes>>();
-        covered::<QuadWork>();
-        covered::<DrawWork>();
-        covered::<ViewVars>();
-        covered::<MaskBlocks>();
-        covered::<PictureCopy>();
+        covered::<std::cell::RefCell<QuadWork>>();
+        covered::<std::cell::RefCell<DrawWork>>();
+        covered::<std::cell::RefCell<ViewVars>>();
+        covered::<std::cell::RefCell<MaskBlocks>>();
+        covered::<std::cell::RefCell<PictureCopy>>();
         covered::<std::cell::RefCell<PongState>>();
         covered::<std::cell::RefCell<PongRules>>();
         covered::<std::cell::RefCell<RainState>>();
-        covered::<RingWork>();
+        covered::<std::cell::RefCell<RingWork>>();
         covered::<std::cell::RefCell<MarksClock>>();
         covered::<std::cell::RefCell<SnowTables>>();
         covered::<std::cell::RefCell<SnowState>>();
@@ -1206,7 +1237,7 @@ mod tests {
         covered::<std::cell::RefCell<ShapeTilt>>();
         covered::<std::cell::RefCell<MarksFloats>>();
         covered::<std::cell::RefCell<MarksKindFloats>>();
-        covered::<KeptView>();
+        covered::<std::cell::RefCell<KeptView>>();
         covered::<std::cell::RefCell<WindscreenDropState>>();
         covered::<WindscreenDropWork>();
         covered::<WindscreenDropVars>();

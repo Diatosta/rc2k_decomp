@@ -95,7 +95,7 @@ pub fn draw_player_page(
         name: crate::screens::game_screen::player_name_of(crate::menu::player_names::name_of(
             &player,
         )?),
-        typing: screens.entry.typing.is_set(),
+        typing: screens.entry.read().typing,
         blink: screens.draw_work.read().cursor_on,
         nationality: player.nationality,
         nationality_id,

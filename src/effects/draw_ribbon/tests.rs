@@ -72,8 +72,8 @@ fn ribbon_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_ribbon.ribbon_x87", &SPEC, |b| {
-        with_laid::<DrawWork, _>(b[2], |dw| {
-            with_laid::<ViewVars, _>(b[2], |vv| {
+        with_laid::<std::cell::RefCell<DrawWork>, _>(b[2], |dw| {
+            with_laid::<std::cell::RefCell<ViewVars>, _>(b[2], |vv| {
                 staged(
                     b[1],
                     &[
@@ -86,8 +86,8 @@ fn ribbon_x87_matches() {
                                 .scratch
                                 .front_end_polygon(),
                             &crate::d3d::vertices_store::VERTICES,
-                            dw,
-                            vv,
+                            &mut dw.borrow_mut(),
+                            &mut vv.borrow_mut(),
                         );
                     },
                 );

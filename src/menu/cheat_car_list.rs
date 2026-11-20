@@ -6,6 +6,6 @@ use crate::menu::owner::Menus;
 
 /// The cheat cars' list (`MenuLists.cheat_cars[0]`) when the cheat is on.
 pub fn cheat_car_list(menus: &Menus) -> Option<CarList> {
-    let on = rc2k_core::menu::car_lists::cheat_cars(menus.play.cheats.cheats.get());
+    let on = rc2k_core::menu::car_lists::cheat_cars(menus.play.cheats.read().cheats);
     on.then_some(CarList::Cheat)
 }

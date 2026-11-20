@@ -29,17 +29,17 @@ use rc2k_core::sound::surfaces;
 /// (the other wheel of the pair is not needed there).
 fn one(
     o: &SoundObject,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     second: usize,
     sound: &crate::sound::owner::Sound,
     system: &System,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     // The logic is `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
-    let (first, _) = surfaces::wheel(
-        sound.race.surface.get().across.get(),
-        sound.race.surface.get().along.get(),
-    );
+    let (first, _) = {
+        let work = sound.race.surface.get().work.borrow();
+        surfaces::wheel(work.across, work.along)
+    };
     let surface = o.voices[first].surface.get();
     if second == 0 {
         o.surface.set(surface);
@@ -66,7 +66,7 @@ fn one(
 /// The wheels' surface sounds of object `so`, through `request`.
 pub(super) fn surface_sounds(
     so: &crate::sound::store::SoundObject,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     system: &System,
     audio: &crate::audio::owner::Audio,
@@ -82,21 +82,23 @@ pub(super) fn surface_sounds(
 /// An x87-precision run in plain Rust over `X`: `volume = volume * 0.25` (the constant 0x3E800000
 /// stored in the scratch cell `t`).
 fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
-    let t0 = ld(sf.volume.get());
+    let mut work = sf.work.borrow_mut();
+    let t0 = ld(work.volume);
     mov(t, 0, 0x3E800000);
     let t1 = fld(t, 0);
     let t2 = t0 * t1;
-    sf.volume.set(stf(t2));
+    work.volume = stf(t2);
 }
 
 /// An x87-precision run in plain Rust over `X`: `volume = volume * 0.1` (the constant 0x3DCCCCCD
 /// stored in the scratch cell `t`).
 fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
-    let t0 = ld(sf.volume.get());
+    let mut work = sf.work.borrow_mut();
+    let t0 = ld(work.volume);
     mov(t, 0, 0x3DCCCCCD);
     let t1 = fld(t, 0);
     let t2 = t0 * t1;
-    sf.volume.set(stf(t2));
+    work.volume = stf(t2);
 }
 
 /// With `a`, `b` the four voices' `share_a`, `share_b`:
@@ -107,6 +109,7 @@ fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
 /// `volume = (a0 * b0 + a1 * b1 + a2 * b2 + a3 * b3) * volume_scale`
 /// (a long formula: checked by the tests' `reference_vectors`)
 fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::SurfaceSounds) {
+    let mut work = sf.work.borrow_mut();
     let t0 = X(0.0);
     let t1 = ld(bx.voices[0].share_b.get());
     let t2 = t0 - t1;
@@ -116,7 +119,7 @@ fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     let t6 = t4 - t5;
     let t7 = ld(bx.voices[3].share_b.get());
     let t8 = t6 + t7;
-    sf.across.set(stf(t8));
+    work.across = stf(t8);
     let t9 = X(0.0);
     let t10 = ld(bx.voices[0].share_b.get());
     let t11 = t9 + t10;
@@ -126,7 +129,7 @@ fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     let t15 = t13 - t14;
     let t16 = ld(bx.voices[3].share_b.get());
     let t17 = t15 - t16;
-    sf.along.set(stf(t17));
+    work.along = stf(t17);
     let t18 = ld(bx.voices[0].share_a.get());
     let t19 = ld(bx.voices[1].share_a.get());
     let t20 = t18 + t19;
@@ -134,7 +137,7 @@ fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     let t22 = t20 + t21;
     let t23 = ld(bx.voices[3].share_a.get());
     let t24 = t22 + t23;
-    let t25 = ld(sf.across_scale.get());
+    let t25 = ld(sf.constants.across_scale);
     let t26 = t24 * t25;
     bx.sum_a.set(to_int(t26) as u32);
     let t27 = ld(bx.voices[0].share_b.get());
@@ -144,7 +147,7 @@ fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     let t31 = t29 + t30;
     let t32 = ld(bx.voices[3].share_b.get());
     let t33 = t31 + t32;
-    let t34 = ld(sf.along_scale.get());
+    let t34 = ld(sf.constants.along_scale);
     let t35 = t33 * t34;
     bx.sum_b.set(to_int(t35) as u32);
     let t36 = X(0.0);
@@ -164,9 +167,9 @@ fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     let t50 = ld(bx.voices[3].share_b.get());
     let t51 = t49 * t50;
     let t52 = t48 + t51;
-    let t53 = ld(sf.volume_scale.get());
+    let t53 = ld(sf.constants.volume_scale);
     let t54 = t52 * t53;
-    sf.volume.set(stf(t54));
+    work.volume = stf(t54);
 }
 
 /// With `c` the four voices' `share_c`:
@@ -175,6 +178,7 @@ fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
 /// `sum_c = (c0 + c1 + c2 + c3) * along_scale` (a whole number)
 /// `volume = (c0 + c1 + c2 + c3) * volume_scale`
 fn x87_4(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::SurfaceSounds) {
+    let mut work = sf.work.borrow_mut();
     let t0 = X(0.0);
     let t1 = ld(bx.voices[0].share_c.get());
     let t2 = t0 - t1;
@@ -184,7 +188,7 @@ fn x87_4(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     let t6 = t4 - t5;
     let t7 = ld(bx.voices[3].share_c.get());
     let t8 = t6 + t7;
-    sf.across.set(stf(t8));
+    work.across = stf(t8);
     let t9 = X(0.0);
     let t10 = ld(bx.voices[0].share_c.get());
     let t11 = t9 + t10;
@@ -194,7 +198,7 @@ fn x87_4(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     let t15 = t13 - t14;
     let t16 = ld(bx.voices[3].share_c.get());
     let t17 = t15 - t16;
-    sf.along.set(stf(t17));
+    work.along = stf(t17);
     let t18 = ld(bx.voices[0].share_c.get());
     let t19 = ld(bx.voices[1].share_c.get());
     let t20 = t18 + t19;
@@ -202,7 +206,7 @@ fn x87_4(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     let t22 = t20 + t21;
     let t23 = ld(bx.voices[3].share_c.get());
     let t24 = t22 + t23;
-    let t25 = ld(sf.along_scale.get());
+    let t25 = ld(sf.constants.along_scale);
     let t26 = t24 * t25;
     bx.sum_c.set(to_int(t26) as u32);
     let t27 = ld(bx.voices[0].share_c.get());
@@ -212,16 +216,16 @@ fn x87_4(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     let t31 = t29 + t30;
     let t32 = ld(bx.voices[3].share_c.get());
     let t33 = t31 + t32;
-    let t34 = ld(sf.volume_scale.get());
+    let t34 = ld(sf.constants.volume_scale);
     let t35 = t33 * t34;
-    sf.volume.set(stf(t35));
+    work.volume = stf(t35);
 }
 
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::sound::asm_layout::{Laid, with_laid};
-    use crate::sound::store::{SoundObject, SurfaceSounds};
+    use crate::sound::asm_layout::{Laid, SURFACE_EXTENT, with_laid, with_surface};
+    use crate::sound::store::SoundObject;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -230,7 +234,7 @@ mod reference_vectors {
                 name: "surface_sounds line 62",
                 operands: vec![
                     Operand::Sized {
-                        len: SurfaceSounds::EXTENT,
+                        len: SURFACE_EXTENT,
                         reads: &[(0x40, In::F)],
                         writes: &[(0x40, Out::F)],
                     },
@@ -241,14 +245,14 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    with_laid::<SurfaceSounds, _>(a[0], |sf| x87_1(sf, a[1]));
+                    with_surface(a[0], |sf| x87_1(sf, a[1]));
                 },
             },
             Block {
                 name: "surface_sounds line 70",
                 operands: vec![
                     Operand::Sized {
-                        len: SurfaceSounds::EXTENT,
+                        len: SURFACE_EXTENT,
                         reads: &[(0x40, In::F)],
                         writes: &[(0x40, Out::F)],
                     },
@@ -259,7 +263,7 @@ mod reference_vectors {
                 ],
                 ulps: 0,
                 plain: |a| {
-                    with_laid::<SurfaceSounds, _>(a[0], |sf| x87_2(sf, a[1]));
+                    with_surface(a[0], |sf| x87_2(sf, a[1]));
                 },
             },
             Block {
@@ -280,7 +284,7 @@ mod reference_vectors {
                         writes: &[(0x284, Out::I), (0x28C, Out::I)],
                     },
                     Operand::Sized {
-                        len: SurfaceSounds::EXTENT,
+                        len: SURFACE_EXTENT,
                         reads: &[(4, In::F), (0xC, In::F), (0x10, In::F)],
                         writes: &[(0x34, Out::F), (0x3C, Out::F), (0x40, Out::F)],
                     },
@@ -288,7 +292,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     with_laid::<SoundObject, _>(a[0], |so| {
-                        with_laid::<SurfaceSounds, _>(a[1], |sf| x87_3(so, sf));
+                        with_surface(a[1], |sf| x87_3(so, sf));
                     });
                 },
             },
@@ -301,7 +305,7 @@ mod reference_vectors {
                         writes: &[(0x290, Out::I)],
                     },
                     Operand::Sized {
-                        len: SurfaceSounds::EXTENT,
+                        len: SURFACE_EXTENT,
                         reads: &[(4, In::F), (0x10, In::F)],
                         writes: &[(0x34, Out::F), (0x3C, Out::F), (0x40, Out::F)],
                     },
@@ -309,7 +313,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     with_laid::<SoundObject, _>(a[0], |so| {
-                        with_laid::<SurfaceSounds, _>(a[1], |sf| x87_4(so, sf));
+                        with_surface(a[1], |sf| x87_4(so, sf));
                     });
                 },
             },

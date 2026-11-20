@@ -6,6 +6,7 @@ use crate::memory::session::{DrawShared, GameThread};
 use crate::physics::camera_store::CameraWork;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::ground_probe_store::GroundProbe;
+use crate::physics::ground_query::GroundSearch;
 use crate::physics::ground_store::GroundWork;
 use crate::physics::pace_store::PaceNotes;
 use crate::physics::split_tables_store::SplitTables;
@@ -13,12 +14,13 @@ use crate::physics::store::DamageModel;
 use crate::race::car_specs_store::CarSpecs;
 use std::cell::{Ref, RefCell, RefMut};
 
-/// What only the game's thread reaches: the camera, the ground, the pace notes, the split
+/// What only the game's thread reaches: the camera, the ground work and search, the pace notes, the split
 /// tables, the damage model and the car specs (no drawing part, audio, key or network thread
 /// touches them; the drawing's searches have their own copies).
 struct PhysicsMain {
     pub camera: RefCell<CameraWork>,
     pub ground: GroundWork,
+    pub ground_search: RefCell<GroundSearch>,
     pub pace: RefCell<PaceNotes>,
     pub split_tables: RefCell<SplitTables>,
     pub damage: RefCell<DamageModel>,
@@ -30,6 +32,7 @@ impl PhysicsMain {
         PhysicsMain {
             camera: RefCell::new(CameraWork::new()),
             ground: GroundWork::new(),
+            ground_search: RefCell::new(GroundSearch::new()),
             pace: RefCell::new(PaceNotes::new()),
             split_tables: RefCell::new(SplitTables::new()),
             damage: RefCell::new(DamageModel::new()),
@@ -75,6 +78,12 @@ impl Physics {
 
     pub fn ground(&self) -> &GroundWork {
         &self.main.get().ground
+    }
+
+    /// The ground search's record: the place asked for, the face found, its shares and height. The
+    /// search holds the borrow while it runs; nothing else reads it then.
+    pub fn ground_search(&self) -> &RefCell<GroundSearch> {
+        &self.main.get().ground_search
     }
 
     /// The pace notes, read: no write borrow may be held.

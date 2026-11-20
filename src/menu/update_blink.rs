@@ -23,7 +23,7 @@ fn states_now(champ: &ChampView, entry: &EntryState, system: &System) -> (bool, 
         system.clocks().frame.get(),
         champ.key_clock.last_key_time.get(),
         champ.key_clock.cursor_time.get(),
-        entry.redefining_key.is_set(),
+        entry.read().redefining_key,
     )
 }
 
@@ -36,6 +36,6 @@ pub fn update_blink(menus: &Menus, system: &System) {
         let (blink, cursor_on, idle) = states_now(&menus.play.champ_view, &screens.entry, system);
         screens.draw_work.write().blink = blink;
         screens.draw_work.write().cursor_on = cursor_on;
-        screens.loop_flags.idle.set(idle);
+        screens.loop_flags.write().idle = idle;
     }
 }

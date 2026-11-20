@@ -38,7 +38,7 @@ pub fn draw_highlighted(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let item = screens.loop_flags.item.get().wrapping_sub(1);
+    let item = screens.loop_flags.read().item.wrapping_sub(1);
     if item >= ENTRIES {
         return Err(BadInput("a highlighted item of 0 or past the carousel's kinds").into());
     }

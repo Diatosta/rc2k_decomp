@@ -5,23 +5,13 @@
 //! Refuses what `probe_ground` refuses (nothing written).
 
 use crate::errors::Refused;
-use crate::physics::probe_ground::probe_ground_at;
+use crate::physics::probe_ground::probe_ground;
 use crate::physics::step_families::GroundInputs;
 
 /// The steps.
 fn probe_and_keep_at(c: &GroundInputs<'_>) -> Result<(), Refused> {
     let contact = c.contact;
-    probe_ground_at(
-        &crate::physics::probe_ground::ProbeInputs::of_ground(c),
-        c.car,
-        &crate::physics::ground_query::GroundQuery::of_physics(
-            c.ground,
-            c.probe,
-            c.course.course.get(),
-            &crate::race::scene_points::no_own(),
-        ),
-        c.contact,
-    )?;
+    probe_ground(c, c.car)?;
     for k in 0..64 {
         contact.saved_probe_x[k].set(contact.probe_x[k].get());
     }

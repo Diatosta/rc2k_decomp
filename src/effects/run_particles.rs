@@ -330,7 +330,7 @@ pub fn run_particles(
         };
         let r = seed();
         let view = |o: usize| frame.matrices.get().view_place[o / 4].get();
-        let uv_k: f32 = effects.frame.draw_work.uv_k.get();
+        let uv_k: f32 = effects.frame.draw_work.borrow().uv_k;
         let wave = |k: &[crate::memory::session::PlainFloat; 3], add: f32, cosine: bool| {
             x87::int_times3_wave_plus(r as i32, [uv_k, k[0].get(), k[1].get()], &k[2], add, cosine)
         };

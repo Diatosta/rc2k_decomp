@@ -11,13 +11,13 @@ use crate::system::owner::System;
 fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let menus = set_up.menus;
     let screens = &menus.screens;
-    screens.flow.turning.set(0x1u32);
+    screens.flow.write().turning = 0x1u32;
     screens.carousel.menu.set(0xEu32);
     set_up.carousel()?;
     let item = screens.items.current[slot::CAR_SPECS_DISPLAY].get();
-    screens.loop_flags.item.set(item);
+    screens.loop_flags.write().item = item;
     screens.carousel.front.set(item.wrapping_sub(1));
-    screens.flow.turning.set(0x0u32);
+    screens.flow.write().turning = 0x0u32;
     screens.carousel.front.set(0x0u32);
     screens.event.shown.car.set(0x0u32);
     crate::menu::car_choice::find_player_car(menus)?;

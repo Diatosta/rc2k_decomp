@@ -89,7 +89,7 @@ pub(super) fn emit_wheel_particles(
 ) -> Result<(), Refused> {
     {
         let (chance, _) = chance(effects, wheel)?;
-        effects.ring.work.whole.set(chance as u32);
+        effects.ring.work.borrow_mut().whole = chance as u32;
         let r = next_c5(&effects.kinds.emitter.wheel_random);
         if copies(chance, r) {
             wheel.take_surface();

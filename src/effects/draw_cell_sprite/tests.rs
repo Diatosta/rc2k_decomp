@@ -85,8 +85,8 @@ fn turn_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_cell_sprite.turn_x87", &SPEC, |b| {
-        with_laid::<RingWork, _>(b[1], |w| {
-            with_laid::<DrawWork, _>(b[1], |dw| {
+        with_laid::<std::cell::RefCell<RingWork>, _>(b[1], |w| {
+            with_laid::<std::cell::RefCell<DrawWork>, _>(b[1], |dw| {
                 super::turn_x87(
                     &crate::test_support::own::race()
                         .frame
@@ -94,8 +94,8 @@ fn turn_x87_matches() {
                         .get()
                         .view_matrix,
                     &values(b[2]),
-                    w,
-                    dw,
+                    &mut w.borrow_mut(),
+                    &mut dw.borrow_mut(),
                 );
             });
         });
@@ -174,7 +174,7 @@ fn square_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_cell_sprite.square_x87", &SPEC, |b| {
-        with_laid::<DrawWork, _>(b[2], |dw| {
+        with_laid::<std::cell::RefCell<DrawWork>, _>(b[2], |dw| {
             with_laid::<std::cell::RefCell<CornerSlopes>, _>(b[2], |cs| {
                 let vertices: Vec<(
                     &dyn crate::memory::session::Cell32,
@@ -231,7 +231,7 @@ fn square_x87_matches() {
                         &crate::d3d::vertices_store::VERTICES,
                         b[3].number(),
                         b[4].number() / 4,
-                        dw,
+                        &mut dw.borrow_mut(),
                         &cs.borrow(),
                     )
                 })

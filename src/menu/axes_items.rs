@@ -40,7 +40,7 @@ pub fn set_look(menus: &Menus, number: u32, look: Look, hidden: bool) -> Result<
 pub fn step(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
-    let item: u32 = screens.loop_flags.item.get();
+    let item: u32 = screens.loop_flags.read().item;
     let current = screens.event.current_player.get();
     let controller = crate::menu::player_settings::current(menus)?
         .get()
@@ -60,7 +60,7 @@ pub fn step(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Refused> 
 pub(super) fn page_step(o: crate::owners::Owners<'static>, up: bool) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
-    let item: u32 = screens.loop_flags.item.get();
+    let item: u32 = screens.loop_flags.read().item;
     let current = screens.event.current_player.get();
     let controller = crate::menu::player_settings::current(menus)?
         .get()

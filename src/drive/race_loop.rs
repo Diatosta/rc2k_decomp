@@ -147,17 +147,8 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     crate::remote::race_loop_begins();
     restart_clock(race, &system.session.picture_clock);
     let _racing = crate::race::blend::Racing::begin(race);
-    race.frame
-        .clock_ticks()
-        .clock_a
-        .set(race.shared.physics_tables.get().scene_clock.get());
-    race.frame
-        .clock_ticks()
-        .sound_tick_last
-        .set(race.shared.physics_tables.get().scene_clock.get());
-    for mark in &race.frame.clock_ticks().marks {
-        mark.set(u32::MAX);
-    }
+    race.frame.clock_ticks_mut().sound_tick_last =
+        race.shared.physics_tables.get().scene_clock.get();
     race.replay.replay_view().play_end.set(u32::MAX);
     let mut pause_binding = PauseBinding::new();
     let pad_at_start = input.pad_marker();
@@ -191,7 +182,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             input_update(o);
             crate::debug::timing::stop(crate::debug::timing::Stage::Input, begun);
             if race.shared.work.get().in_credits.is_set() {
-                if race.frame.credits().done.get() != 0 {
+                if race.frame.credits().done != 0 {
                     crate::program_log::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
                 }

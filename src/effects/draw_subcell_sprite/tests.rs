@@ -47,8 +47,8 @@ fn turn_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_subcell_sprite.turn_x87", &SPEC, |b| {
-        with_laid::<RingWork, _>(b[1], |w| {
-            with_laid::<DrawWork, _>(b[1], |dw| {
+        with_laid::<std::cell::RefCell<RingWork>, _>(b[1], |w| {
+            with_laid::<std::cell::RefCell<DrawWork>, _>(b[1], |dw| {
                 // SAFETY: `at` checks that the ten bytes lie in the operand's test buffer,
                 // which the recorded run keeps alive and nothing else reaches meanwhile;
                 // unaligned.
@@ -65,8 +65,8 @@ fn turn_x87_matches() {
                         .get()
                         .view_matrix,
                     &place,
-                    w,
-                    dw,
+                    &mut w.borrow_mut(),
+                    &mut dw.borrow_mut(),
                 );
             });
         });
@@ -117,7 +117,7 @@ fn square_x87_matches() {
         sincos: false,
     };
     recorded_writes("effects.draw_subcell_sprite.square_x87", &SPEC, |b| {
-        with_laid::<DrawWork, _>(b[2], |dw| {
+        with_laid::<std::cell::RefCell<DrawWork>, _>(b[2], |dw| {
             staged(
                 b[1],
                 &[
@@ -130,7 +130,7 @@ fn square_x87_matches() {
                             .scratch
                             .front_end_polygon(),
                         &crate::d3d::vertices_store::VERTICES,
-                        dw,
+                        &mut dw.borrow_mut(),
                     );
                 },
             );

@@ -19,14 +19,15 @@ use rc2k_core::options::Options;
 pub struct Places<'a> {
     /// The buffer the file is read into.
     pub file: &'a crate::memory::session::PlainBytes<65536>,
-    pub loaded: &'a dyn crate::memory::session::FlagLike,
+    /// Sets the loaded flag.
+    pub set_loaded: &'a dyn Fn(bool),
     /// Puts the options read into the game's state.
     pub apply: &'a mut dyn FnMut(&Options) -> Result<(), Refused>,
     pub rebuild_car_lists: &'a mut dyn FnMut() -> Result<(), BadInput>,
 }
 
 pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refused> {
-    places.loaded.set(false);
+    (places.set_loaded)(false);
     let file = places.file;
     let read = read_file_to_store(
         &crate::files::cstring(path, "the options file's path")?,
@@ -53,7 +54,7 @@ pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refus
         .into());
     }
     (places.rebuild_car_lists)()?;
-    places.loaded.set(true);
+    (places.set_loaded)(true);
     Ok(true)
 }
 
@@ -63,7 +64,7 @@ pub(super) fn load_game_options(o: Owners<'static>) -> Result<bool, Refused> {
         &o.saves.files.options_path,
         &mut Places {
             file: &o.system.work().files.buffer,
-            loaded: &menus.screens.loop_flags.options_loaded,
+            set_loaded: &|loaded| menus.screens.loop_flags.write().options_loaded = loaded,
             apply: &mut |options| options_state::apply(o, options),
             rebuild_car_lists: &mut || rebuild_car_lists(menus),
         },

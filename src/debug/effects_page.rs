@@ -70,7 +70,7 @@ const GROUPS: &[(&str, &[Row])] = &[
             ),
             (
                 "splash amount",
-                Cell(|effects, _| effects.ring.work.count.get().into()),
+                Cell(|effects, _| effects.ring.work.borrow().count.into()),
             ),
             (
                 "fworks amount",
@@ -101,11 +101,11 @@ const GROUPS: &[(&str, &[Row])] = &[
             ("backfire", Through(|s| s.cars[0].gear_notice.get().into())),
             (
                 "car angle",
-                Cell(|effects, _| effects.frame.view_vars.heading.get().into()),
+                Cell(|effects, _| effects.frame.view_vars.borrow().heading.into()),
             ),
             (
                 "car direction of travel",
-                Cell(|effects, _| effects.frame.view_vars.facing.get().into()),
+                Cell(|effects, _| effects.frame.view_vars.borrow().facing.into()),
             ),
             ("car x", Through(|s| s.listener_car_place[0].get().into())),
             ("car y", Through(|s| s.listener_car_place[1].get().into())),

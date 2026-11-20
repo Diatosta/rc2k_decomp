@@ -145,9 +145,9 @@ pub fn reset_race_sounds(
         reset_object(o);
     }
     clear_stage_flags(sound);
-    for voice in v.voices.iter() {
-        voice.id.set(crate::sound::spot_voices::SpotVoice::FREE_ID);
-        voice.sound.set(0xFFFF_FFFE);
+    for voice in v.voices.borrow_mut().iter_mut() {
+        voice.id = crate::sound::spot_voices::SpotVoice::FREE_ID;
+        voice.sound = 0xFFFF_FFFE;
     }
     sound.race.stage.get().borrow_mut().shared_count = 0;
     crate::sound::queue::send_command_in(audio, Command::Room(3));
@@ -157,7 +157,7 @@ pub fn reset_race_sounds(
 
 /// Where `reset_race_sounds` finds the voices (the game's, or a test's).
 pub struct SoundVars<'a> {
-    pub voices: &'a [crate::sound::spot_voices::SpotVoice; 72],
+    pub voices: &'a std::cell::RefCell<[crate::sound::spot_voices::SpotVoice; 72]>,
 }
 
 impl<'a> SoundVars<'a> {

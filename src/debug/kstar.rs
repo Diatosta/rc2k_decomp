@@ -26,7 +26,7 @@ fn first_car(race: &Race) -> &Car {
 const ERROR_ENTRIES: usize = 0x100;
 const GROUP_COUNT: usize = 32;
 /// The lights' table: 0x22 models of 12 lights of 3 dwords.
-const LIGHTS_LEN: usize = 0x1320;
+const LIGHTS_LEN: usize = crate::race::lights_store::LIGHTS_BYTES;
 const VIEW_NAMES: [&str; 52] = [
     "bumper",
     "bonnet",
@@ -131,11 +131,11 @@ fn set_group(scene: &Scene, g: usize, value: u32) {
 
 /// The error list's dword `offset` bytes into entry `n`.
 fn kept(race: &Race, n: usize, offset: usize) -> u32 {
-    race.frame.error_list().list.get_u32(0x20 * n + offset)
+    race.frame.error_list().get_u32(0x20 * n + offset)
 }
 
 fn set_kept(race: &Race, n: usize, offset: usize, v: u32) {
-    race.frame.error_list().list.set_u32(0x20 * n + offset, v);
+    race.frame.error_list_mut().set_u32(0x20 * n + offset, v);
 }
 
 /// The fixed-point (16.16) figure with a drag; true when changed.
@@ -321,7 +321,7 @@ fn lights(race: &Race, ui: &Ui) {
     }
     ui.text_disabled("One place a pair: the left light is the right's x negated");
     // The model's table is 0x22 models long; a model past it shows nothing.
-    let table = &race.course.lights_data().lights;
+    let table = &mut race.course.lights_table_mut();
     let base = (kind * 12 + light) * 12;
     for (k, label) in ["xoff", "yoff", "zoff"].iter().enumerate() {
         let at = base + 4 * k;

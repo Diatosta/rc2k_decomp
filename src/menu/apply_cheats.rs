@@ -49,7 +49,7 @@ pub fn apply_cheats(
 ) -> Result<(), BadInput> {
     let play = &menus.play;
     {
-        let cheats: u32 = play.cheats.cheats.get();
+        let cheats: u32 = play.cheats.read().cheats;
         let list = |l: List<'_>| -> Result<car_lists::List, BadInput> {
             Ok(car_lists::List {
                 cars: read_list(l)?,
@@ -65,7 +65,7 @@ pub fn apply_cheats(
             CHEATS[bit].1.map_or(0, crate::menu::cars_store::car_handle)
         })?;
         // Nothing has been written or logged up to here.
-        play.cheats.cheats.set(a.cheats);
+        play.cheats.write().cheats = a.cheats;
         if first.changed {
             write_list(first_list(&menus.cars.lists), &first.cars);
         }

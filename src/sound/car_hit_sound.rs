@@ -16,7 +16,7 @@ use crate::sound::sets_store::SoundRequest;
 /// The waiting hit sound of object `so`, through `request`.
 pub(super) fn car_hit_sound(
     so: &crate::sound::store::SoundObject,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     owner: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
@@ -35,15 +35,15 @@ pub(super) fn car_hit_sound(
         return Ok(());
     }
     so.hit_sound.set(waiting);
-    request.sound.set(sound);
+    request.sound = sound;
     match turn {
         OneOff::Nothing | OneOff::Quiet { .. } => Ok(()),
         OneOff::Stop { .. } => crate::sound::turn_parts::stop(request, audio),
         OneOff::Play { volume, rate } => {
-            request.volume.set(from_int(volume as i32));
-            request.pitch.set(from_int(rate as i32));
-            for (cell, place) in request.place.iter().zip(&so.hit_place) {
-                cell.set(place.get());
+            request.volume = from_int(volume as i32);
+            request.pitch = from_int(rate as i32);
+            for (to, from) in request.place.iter_mut().zip(&so.hit_place) {
+                *to = from.get();
             }
             crate::sound::turn_parts::placed(request, owner, audio)
         }

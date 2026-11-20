@@ -38,7 +38,7 @@ fn put_cursor(
     let mut tail = Vec::new();
     push_string(so, &mut tail, CURSOR_STRING)?;
     tail.push(0);
-    let len = screens.loop_flags.text_length.get() as i32;
+    let len = screens.loop_flags.read().text_length as i32;
     name.add(len as u32).write(&tail, "the setup name")?;
     Ok(())
 }
@@ -50,7 +50,7 @@ fn put_char(name: crate::memory::place::BytePlace, at: i32, c: u8) -> Result<(),
 
 /// The name cut at its length.
 fn end_name(screens: &Screens, name: crate::memory::place::BytePlace) -> Result<(), BadInput> {
-    put_char(name, screens.loop_flags.text_length.get() as i32, 0)
+    put_char(name, screens.loop_flags.read().text_length as i32, 0)
 }
 
 pub fn edit_setup_name(
@@ -72,8 +72,8 @@ pub fn edit_setup_name(
     let typed = crate::input::typed_text::take();
     // A character: appended unless the name is full, and taken off again when too wide.
     let mut append = |c: u8| -> Result<(), Refused> {
-        let len = screens.loop_flags.text_length.get() as i32;
-        if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
+        let len = screens.loop_flags.read().text_length as i32;
+        if entry::appends(c, len, screens.loop_flags.read().text_max as i32) {
             put_char(name, len, c)?;
             set_length(menus, len.wrapping_add(1));
             // x is the length before this character.
@@ -93,15 +93,15 @@ pub fn edit_setup_name(
         Key::None => {}
         Key::Escape => {
             restore_text(menus, name)?;
-            screens.entry.typing.set(false);
+            screens.entry.write().typing = false;
             return Ok(());
         }
         Key::Enter => {
-            if (screens.loop_flags.text_length.get() as i32) == 0 {
+            if (screens.loop_flags.read().text_length as i32) == 0 {
                 restore_text(menus, name)?;
                 add_text_length(menus, name)?;
             }
-            screens.entry.typing.set(false);
+            screens.entry.write().typing = false;
             end_name(screens, name)?;
             if !write_setup_slot(menus, service, slot)? {
                 // Not written: the list keeps the name from before.

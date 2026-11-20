@@ -32,7 +32,7 @@ pub(super) fn edit_player_name(
     // Everything that could be refused, before the key is taken.
     let at = name_place(menus)?;
     let name = at.place(menus);
-    let len = { screens.loop_flags.text_length.get() } as i32;
+    let len = { screens.loop_flags.read().text_length } as i32;
     if !(0..TEXT_LEN as i32).contains(&len) {
         return Err(BadInput("an entry length outside 0 .. 0x1F").into());
     }
@@ -41,8 +41,8 @@ pub(super) fn edit_player_name(
     let typed = crate::input::typed_text::take();
     // A character: appended unless the name is full, and taken off again when too wide.
     let mut append = |c: u8| -> Result<(), Refused> {
-        let len = screens.loop_flags.text_length.get() as i32;
-        if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
+        let len = screens.loop_flags.read().text_length as i32;
+        if entry::appends(c, len, screens.loop_flags.read().text_max as i32) {
             name.add(len as u32).write(&[c], "a player's name")?;
             set_length(menus, len.wrapping_add(1));
             let measured = measure_text_at(MEASURING_FONT, &at.tail(&menus.play), len, canvas)?;
@@ -60,13 +60,13 @@ pub(super) fn edit_player_name(
         Key::None => {}
         Key::Escape => {
             bring_back_name(menus, name)?;
-            screens.entry.typing.set(false);
+            screens.entry.write().typing = false;
         }
         Key::Enter => {
             if len == 0 {
                 bring_back_name(menus, name)?;
             }
-            screens.entry.typing.set(false);
+            screens.entry.write().typing = false;
         }
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_name(menus, name)?,

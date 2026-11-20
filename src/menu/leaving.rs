@@ -8,37 +8,38 @@ use rc2k_core::menu::leaving::{Leaving, Question};
 
 pub fn leaving(menus: &Menus) -> Leaving {
     let screens = &menus.screens;
-    let flags = &screens.loop_flags;
+    let flags = screens.loop_flags.read();
     Leaving {
-        event_left: flags.event_left.is_set(),
-        leave_screen: flags.leave_screen.is_set(),
-        left_with_carry: flags.left_with_carry.is_set(),
-        ask_leave: flags.ask_leave.is_set(),
+        event_left: flags.event_left,
+        leave_screen: flags.leave_screen,
+        left_with_carry: flags.left_with_carry,
+        ask_leave: flags.ask_leave,
         result: screens.draw_work.read().leave_result,
     }
 }
 
 fn put_leaving(menus: &Menus, l: &Leaving) {
     let screens = &menus.screens;
-    let flags = &screens.loop_flags;
-    flags.event_left.set(l.event_left);
-    flags.leave_screen.set(l.leave_screen);
-    flags.left_with_carry.set(l.left_with_carry);
-    flags.ask_leave.set(l.ask_leave);
+    let mut flags = screens.loop_flags.write();
+    flags.event_left = l.event_left;
+    flags.leave_screen = l.leave_screen;
+    flags.left_with_carry = l.left_with_carry;
+    flags.ask_leave = l.ask_leave;
+    drop(flags);
     screens.draw_work.write().leave_result = l.result;
 }
 
 pub fn question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables) -> Question {
     Question {
-        asking: flow.asking.is_set(),
-        answer: pages.yes_no_answer.get(),
+        asking: flow.read().asking,
+        answer: pages.read().yes_no_answer,
         answered: captions.left_by_key.is_set(),
     }
 }
 
 fn put_question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables, q: &Question) {
-    flow.asking.set(q.asking);
-    pages.yes_no_answer.set(q.answer);
+    flow.write().asking = q.asking;
+    pages.write().yes_no_answer = q.answer;
     captions.left_by_key.set(q.answered);
 }
 

@@ -118,27 +118,27 @@ fn emit_particle_1(
         }
         let flags = wheel.flags.get();
         let p = pace(effects, wheel)?;
-        ring.work.whole.set(p.grown.0 as u32);
+        ring.work.borrow_mut().whole = p.grown.0 as u32;
         wheel.pace.set(p.grown.1.to_bits());
         let Some((kept, under)) = p.strength else {
             return Ok(());
         };
         let rest = p.grown.0 % STEP;
-        ring.work.whole.set(rest as u32);
+        ring.work.borrow_mut().whole = rest as u32;
         wheel.pace.set(x87::from_int(rest).to_bits());
-        ring.work.whole.set(kept);
+        ring.work.borrow_mut().whole = kept;
         if under {
             return Ok(());
         }
         let one = effects.setup.floats.one;
         if x87::compare_status(kept, one) != 0x100 {
-            ring.work.whole.set(one.to_bits());
+            ring.work.borrow_mut().whole = one.to_bits();
         }
-        let strength: u32 = ring.work.whole.get();
+        let strength: u32 = ring.work.borrow().whole;
         let life = x87::times_plus_to_int(strength, life_k(effects)[0], life_k(effects)[1]);
-        ring.work.life.set(life as u32);
+        ring.work.borrow_mut().life = life as u32;
         let fade = x87::mul(strength, effects.setup.floats.two_fifty_five);
-        ring.work.fade.set(fade);
+        ring.work.borrow_mut().fade = fade;
         if next_entry(ring)?.is_none() {
             return Ok(());
         }

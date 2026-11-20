@@ -76,7 +76,7 @@ fn turn(menus: &Menus, on: bool) {
     menus.screens.carousel.direction.set(c.turn.way);
     menus.screens.carousel.angle.set(c.turn.step);
     menus.screens.event.shown.car.set(c.shown);
-    menus.screens.loop_flags.leave_screen.set(false);
+    menus.screens.loop_flags.write().leave_screen = false;
 }
 
 pub fn next_choice_car(menus: &Menus) {

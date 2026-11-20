@@ -41,7 +41,7 @@ pub(super) fn best_class_scores(
         if menus.screens.event.trial.any_qualified.is_set() {
             menus.screens.event.shown.class.set(class);
             run_screen(ScreenId::BestClassScores, entry)?;
-            if menus.tables.pages.yes_no_answer.get() == 1 {
+            if menus.tables.pages.read().yes_no_answer == 1 {
                 break;
             }
         }

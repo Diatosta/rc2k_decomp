@@ -350,7 +350,7 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         screen_frames(o.gfx),
         u32::from(course.numbers.get().in_race.is_set()),
         screens.loop_flags.menu.get().ok(),
-        screens.loop_flags.item.get(),
+        screens.loop_flags.read().item,
         o.system.session.flags.window_focused.get(),
         CAR.speed.get(),
         CAR.stage_time.get(),
@@ -771,7 +771,7 @@ pub fn shots_loading(
     // step's start: the held clock's from here.
     race.shared.physics_tables.get().scene_clock.set(0x10000u32);
     // The frame rate's text measures the host: not drawn.
-    race.frame.counter().show.set(0);
+    race.frame.counter_mut().show = 0;
 }
 
 /// The speed asked for with `RC2K_SPEED=N` (1 when unset or not a number from 2 to 100000):

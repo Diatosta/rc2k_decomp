@@ -8,7 +8,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87_float::{X, ld, st, stf};
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::PlainFloat;
 use crate::sound::sets_store::{SoundRequest, SoundSet};
 use crate::sound::store::{SoundObject, SurfaceSounds};
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
@@ -17,7 +17,7 @@ use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
 pub fn revs_sound(
     so: &SoundObject,
     kind: u32,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
@@ -25,14 +25,12 @@ pub fn revs_sound(
     let set = if computers(object) {
         sound.race.kinds.get().computers_set()
     } else {
-        &sound.race.kinds.get().record(kind)?.revs
+        sound.race.kinds.get().record(kind)?.revs
     };
-    request
-        .sound
-        .set(revs_sound_number(object, set.sound.get()));
+    request.sound = revs_sound_number(object, set.sound);
     send_engine_sound(
         so,
-        set,
+        &set,
         &so.revs_input,
         EnginePlace::Ahead,
         request,
@@ -59,7 +57,7 @@ pub(super) fn send_engine_sound(
     set: &SoundSet,
     volume_input: &PlainFloat,
     side: EnginePlace,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
@@ -84,23 +82,23 @@ pub(super) fn fill_request(
     volume_input: &PlainFloat,
     side: EnginePlace,
     surface: &SurfaceSounds,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
 ) {
     fill_pitch_and_volume(
         so,
         set,
         &so.revs_input,
         volume_input,
-        &surface.revs_gain,
+        surface.constants.revs_gain,
         request,
     );
     for n in 0..3 {
         let place = ld(so.place[n].get());
         let motion = ld(so.motion[n].get());
-        request.place[n].set(stf(match side {
+        request.place[n] = stf(match side {
             EnginePlace::Ahead => place + motion,
             EnginePlace::Behind => place - motion,
-        }));
+        });
     }
 }
 
@@ -113,32 +111,30 @@ pub(super) fn fill_pitch_and_volume(
     set: &SoundSet,
     pitch_input: &PlainFloat,
     volume_input: &PlainFloat,
-    gain: &PlainFloat,
-    request: &SoundRequest,
+    gain: f32,
+    request: &mut SoundRequest,
 ) {
-    request
-        .pitch
-        .set(st(linear(pitch_input, &set.pitch_scale, &set.pitch_low)));
-    let volume = linear(volume_input, &set.volume_scale, &set.volume_low);
+    request.pitch = st(linear(pitch_input, set.pitch_scale, set.pitch_low));
+    let volume = linear(volume_input, set.volume_scale, set.volume_low);
     if so.view_flag.get() == 0 {
         // On the road the surface's gain scales the volume, before it is rounded.
-        request.volume.set(st(volume * ld(gain.get())));
+        request.volume = st(volume * ld(gain));
     } else {
-        request.volume.set(st(volume));
+        request.volume = st(volume);
     }
 }
 
 /// `input * slope + start`, left on the x87 stack unrounded.
-fn linear(input: &PlainFloat, slope: &PlainDword, start: &PlainDword) -> X {
-    ld(input.get()) * ld(slope.get()) + ld(start.get())
+fn linear(input: &PlainFloat, slope: u32, start: u32) -> X {
+    ld(input.get()) * ld(slope) + ld(start)
 }
 
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
     use crate::math::x87_mem::view;
-    use crate::sound::asm_layout::{Laid, with_laid};
-    use crate::sound::store::{SoundObject, SurfaceSounds};
+    use crate::sound::asm_layout::{Laid, SURFACE_EXTENT, with_laid, with_request, with_surface};
+    use crate::sound::store::SoundObject;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     // The blocks: the pitch, the volume (on the road: times the surface's gain), the place.
@@ -181,15 +177,16 @@ mod reference_vectors {
                     with_laid::<SoundObject, _>(a[0], |bx| {
                         let set = view::<SoundSet>(a[1], 0);
                         bx.view_flag.set(1);
-                        let request = view::<SoundRequest>(a[2], 0);
-                        fill_request(
-                            bx,
-                            set,
-                            &bx.revs_input,
-                            EnginePlace::Ahead,
-                            crate::test_support::own::sound().race.surface.get(),
-                            request,
-                        );
+                        with_request(a[2], |request| {
+                            fill_request(
+                                bx,
+                                set,
+                                &bx.revs_input,
+                                EnginePlace::Ahead,
+                                crate::test_support::own::sound().race.surface.get(),
+                                request,
+                            );
+                        });
                     });
                 },
             },
@@ -215,7 +212,7 @@ mod reference_vectors {
                         writes: &[],
                     },
                     Operand::Sized {
-                        len: SurfaceSounds::EXTENT,
+                        len: SURFACE_EXTENT,
                         reads: &[(0x28, In::F)],
                         writes: &[],
                     },
@@ -233,11 +230,19 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     with_laid::<SoundObject, _>(a[0], |bx| {
-                        with_laid::<SurfaceSounds, _>(a[2], |sf| {
+                        with_surface(a[2], |sf| {
                             let set = view::<SoundSet>(a[1], 0);
                             bx.view_flag.set(0);
-                            let request = view::<SoundRequest>(a[3], 0);
-                            fill_request(bx, set, &bx.revs_input, EnginePlace::Ahead, sf, request);
+                            with_request(a[3], |request| {
+                                fill_request(
+                                    bx,
+                                    set,
+                                    &bx.revs_input,
+                                    EnginePlace::Ahead,
+                                    sf,
+                                    request,
+                                );
+                            });
                         });
                     });
                 },

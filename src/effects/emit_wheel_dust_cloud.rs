@@ -110,7 +110,7 @@ pub(super) fn emit_wheel_dust_cloud(
             &wheel.local_velocity_z,
             &particles.kind6_set.rate_k,
         )?;
-        ring.work.rate.set(g.rate as u32);
+        ring.work.borrow_mut().rate = g.rate as u32;
         if let Some(count) = g.count {
             wheel.pace.set(count);
         }

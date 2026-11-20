@@ -35,7 +35,7 @@ fn prepare(
         }
         record.driven_speed.set(0.0);
         let chance = x87::mul_to_int(&record.chance, effects.setup.floats.fixed_16_scale);
-        ring.work.whole.set(chance as u32);
+        ring.work.borrow_mut().whole = chance as u32;
         let r = next_c5(&effects.kinds.emitter.body_random);
         if ((r & 0xFFFF) as i32) < chance {
             record.take_surface();

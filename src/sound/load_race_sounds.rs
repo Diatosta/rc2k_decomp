@@ -157,7 +157,7 @@ pub fn load_race_sounds(
             let kind = kind(car)?;
             let record = sound.race.kinds.get().record(kind as u32)?;
             for set in [&record.revs, &record.throttle, &record.speed] {
-                send(SoundList::One(player_sound(car, set.sound.get())));
+                send(SoundList::One(player_sound(car, set.sound)));
             }
         }
     }
@@ -202,7 +202,7 @@ pub fn load_race_sounds(
             }
             let record = sound.race.kinds.get().record(model)?;
             for set in [&record.revs, &record.throttle, &record.speed] {
-                send(SoundList::One(player_sound(car as u32, set.sound.get())));
+                send(SoundList::One(player_sound(car as u32, set.sound)));
             }
         }
     }

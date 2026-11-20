@@ -33,7 +33,7 @@ pub fn edit_mode(menus: &Menus) -> bool {
 }
 
 pub fn menu_item(menus: &Menus) -> u32 {
-    menus.screens.loop_flags.item.get()
+    menus.screens.loop_flags.read().item
 }
 
 pub fn blink_on(menus: &Menus) -> bool {
@@ -46,7 +46,7 @@ pub const ITEM_COUNT: u32 = 20;
 
 /// The highlighted menu item, if it has a flag.
 pub(super) fn flagged_item(screens: &Screens) -> Result<u32, BadInput> {
-    let item = screens.loop_flags.item.get();
+    let item = screens.loop_flags.read().item;
     if item < ITEM_COUNT {
         Ok(item)
     } else {

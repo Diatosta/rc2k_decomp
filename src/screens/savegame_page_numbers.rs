@@ -13,7 +13,7 @@ pub fn savegame_page_numbers(
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::captions::savegame_numbers`.
-    let page = pages.save_page.get();
+    let page = pages.read().save_page;
     let (caption, numbers) = rc2k_core::screens::captions::savegame_numbers(page)?;
     let buffers = text;
     buffers.caption.write_at(0, &caption, "the caption")?;

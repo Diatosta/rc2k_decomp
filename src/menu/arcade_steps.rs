@@ -168,7 +168,7 @@ pub(super) fn enter_arcade_stage_time(
     let (_, player) = current(menus)?;
     name_player(&player.get())?;
     let course = record.record(&system.records().stage_tables)?.event_slot();
-    let cheats = menus.play.cheats.cheats.get();
+    let cheats = menus.play.cheats.read().cheats;
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, course)?;
     let seal = bests::Seal { cheats, sealed };
     let best = new_best(

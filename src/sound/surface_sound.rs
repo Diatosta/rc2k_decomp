@@ -11,7 +11,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::math::x87_float::{ld, st};
-use crate::memory::session::Cell32;
 use crate::sound::sample_settings::{OWN, record, sample_settings};
 use crate::sound::sets_store::{ListIn, SoundRequest};
 use rc2k_core::sound::surfaces;
@@ -20,7 +19,7 @@ use rc2k_core::sound::surfaces;
 pub fn surface_sound(
     o: &crate::sound::store::SoundObject,
     set: ListIn<'_, 392>,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     owner: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
@@ -40,16 +39,16 @@ pub fn surface_sound(
     if sound != playing.get() {
         let old = playing.get();
         playing.set(sound);
-        request.sound.set(old);
+        request.sound = old;
         crate::sound::turn_parts::stop(request, audio)?;
     }
     let sound = playing.get();
-    request.sound.set(sound);
+    request.sound = sound;
     let (_, rate) = sample_settings(audio, sound, OWN, OWN)?;
-    request.pitch.set(from_int(rate as i32).to_bits());
-    x87_1(owner.race.surface.get(), &request.volume);
-    for (cell, place) in request.place.iter().zip(&o.place) {
-        cell.set(place.get());
+    request.pitch = from_int(rate as i32).to_bits();
+    x87_1(owner.race.surface.get(), &mut request.volume);
+    for (to, from) in request.place.iter_mut().zip(&o.place) {
+        *to = from.get();
     }
     crate::sound::turn_parts::placed(request, owner, audio)
 }
@@ -58,17 +57,17 @@ pub fn surface_sound(
 
 /// An x87-precision run in plain Rust over `X`: the request's volume is the sound set's
 /// `volume`.
-fn x87_1(sf: &crate::sound::store::SurfaceSounds, volume: &impl Cell32) {
-    let t0 = ld(sf.volume.get());
-    volume.set_bits(st(t0));
+fn x87_1(sf: &crate::sound::store::SurfaceSounds, volume: &mut u32) {
+    let t0 = ld(sf.work.borrow().volume);
+    *volume = st(t0);
 }
 
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
     use crate::math::x87_mem::HostCell;
-    use crate::sound::asm_layout::{Laid, with_laid};
-    use crate::sound::store::SurfaceSounds;
+    use crate::memory::session::Cell32;
+    use crate::sound::asm_layout::{SURFACE_EXTENT, with_surface};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -76,7 +75,7 @@ mod reference_vectors {
             name: "surface_sound line 52",
             operands: vec![
                 Operand::Sized {
-                    len: SurfaceSounds::EXTENT,
+                    len: SURFACE_EXTENT,
                     reads: &[(0x40, In::F)],
                     writes: &[],
                 },
@@ -87,7 +86,12 @@ mod reference_vectors {
             ],
             ulps: 0,
             plain: |a| {
-                with_laid::<SurfaceSounds, _>(a[0], |sf| x87_1(sf, &HostCell(a[1] + 8)));
+                with_surface(a[0], |sf| {
+                    let volume = HostCell(a[1] + 8);
+                    let mut bits = volume.bits();
+                    x87_1(sf, &mut bits);
+                    volume.set_bits(bits);
+                });
             },
         }]
     }

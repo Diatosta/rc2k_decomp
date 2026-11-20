@@ -32,7 +32,7 @@ pub(super) fn camera_low_switch(c: &CameraGroundInputs<'_>) -> Result<(), Refuse
     }
     if !is_low(over(
         c.car.camera_position[1].get(),
-        c.ground.ground_height.get(),
+        c.search.borrow().height,
     )) {
         return Ok(());
     }

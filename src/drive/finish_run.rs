@@ -1,5 +1,5 @@
 //! The championship's finish routine played. The car is lifted (`car_lift` x 65536 added to its
-//! height); the clock restarted into `clock_a`; 0x20 dwords at `marks` and `play_end` -1; the
+//! height); the clock restarted and the sound tick clock set to it; `play_end` -1; the
 //! start `start_clock`. Each frame: the lead car's revs 0, `input::update`, the time
 //! (`drive::finish_timing`); until the time reaches the length (`finish_lengths[finished]`) or
 //! Esc or key 0x1C is down: the car's `camera_view` 6, the first car loaded
@@ -28,17 +28,8 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     let (scene, sound, input) = (o.scene, o.sound, o.input);
     lift_car(race);
     restart_clock(race, &o.system.session.picture_clock);
-    race.frame
-        .clock_ticks()
-        .clock_a
-        .set(race.shared.physics_tables.get().scene_clock.get());
-    race.frame
-        .clock_ticks()
-        .sound_tick_last
-        .set(race.shared.physics_tables.get().scene_clock.get());
-    for mark in &race.frame.clock_ticks().marks {
-        mark.set(u32::MAX);
-    }
+    race.frame.clock_ticks_mut().sound_tick_last =
+        race.shared.physics_tables.get().scene_clock.get();
     race.replay.replay_view().play_end.set(u32::MAX);
     restart_clock(race, &o.system.session.picture_clock);
     race.replay.finish_mut().start_clock = race.shared.physics_tables.get().scene_clock.get();

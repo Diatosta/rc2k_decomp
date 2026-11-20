@@ -96,7 +96,7 @@ mod old {
         view_matrix: &[crate::memory::session::PlainFloat; 16],
         ring: &Ring,
         e: u32,
-        dw: &DrawWork,
+        dw: &mut DrawWork,
     ) {
         let t0 = ld(ring, e, |en| en.place[2]);
         let t1 = ld(ring, e, |en| en.place[1]);
@@ -128,9 +128,9 @@ mod old {
         let t27 = t26 + t24;
         let t28 = t22 + t27;
         let t29 = t28 + view_matrix[14].ld();
-        dw.turned[0].st(t11);
-        dw.turned[1].st(t20);
-        dw.turned[2].st(t29);
+        dw.turned[0] = bh::stf(t11);
+        dw.turned[1] = bh::stf(t20);
+        dw.turned[2] = bh::stf(t29);
     }
 }
 
@@ -179,10 +179,10 @@ mod same_as_old {
         let kept_turned: Vec<u32> = effects()
             .frame
             .draw_work
+            .borrow()
             .turned
-            .iter()
-            .map(crate::memory::session::Cell32::bits)
-            .collect();
+            .map(f32::to_bits)
+            .to_vec();
         let mut state = 0x9E37_79B9_7F4A_7C15u64;
         for case in 0..12_000 {
             for c in view_matrix {
@@ -196,20 +196,27 @@ mod same_as_old {
             let mut results = Vec::new();
             for which in 0..2 {
                 ring.entries.with(|r| r[0] = entry).unwrap();
-                let turned = &effects().frame.draw_work.turned;
-                for c in turned.iter() {
-                    c.set_bits(0xAAAA_AAAA);
-                }
+                effects().frame.draw_work.borrow_mut().turned = [f32::from_bits(0xAAAA_AAAA); 3];
                 match (case % 3, which) {
                     (0, 0) => old::first_frame_x87(view_matrix, ring, 1, &clock, gain),
                     (0, _) => first_frame_x87(view_matrix, ring, 1, &clock, gain),
                     (1, 0) => old::move_x87(ring, 1, &clock, gain),
                     (1, _) => move_x87(ring, 1, &clock, gain),
-                    (_, 0) => old::turn_place_x87(view_matrix, ring, 1, &effects().frame.draw_work),
-                    (_, _) => turn_place_x87(view_matrix, ring, 1, &effects().frame.draw_work),
+                    (_, 0) => old::turn_place_x87(
+                        view_matrix,
+                        ring,
+                        1,
+                        &mut effects().frame.draw_work.borrow_mut(),
+                    ),
+                    (_, _) => turn_place_x87(
+                        view_matrix,
+                        ring,
+                        1,
+                        &mut effects().frame.draw_work.borrow_mut(),
+                    ),
                 }
                 let mut bytes = ring.entries.with(|r| r[0].words().to_vec()).unwrap();
-                bytes.extend(turned.iter().map(crate::memory::session::Cell32::bits));
+                bytes.extend(effects().frame.draw_work.borrow().turned.map(f32::to_bits));
                 results.push(bytes);
             }
             let same_but_for_nan_payloads = results[0].len() == results[1].len()
@@ -225,8 +232,15 @@ mod same_as_old {
         for (c, w) in view_matrix.iter().zip(kept_matrix) {
             c.set_bits(w);
         }
-        for (c, w) in effects().frame.draw_work.turned.iter().zip(kept_turned) {
-            c.set_bits(w);
+        for (c, w) in effects()
+            .frame
+            .draw_work
+            .borrow_mut()
+            .turned
+            .iter_mut()
+            .zip(kept_turned)
+        {
+            *c = f32::from_bits(w);
         }
         ring.entries.give_back();
         crate::memory::with_figures(|f| *f = figures);
@@ -411,7 +425,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_ribbons.turn_place_x87", &SPEC, |b| {
-            with_laid::<DrawWork, _>(b[1], |dw| {
+            with_laid::<std::cell::RefCell<DrawWork>, _>(b[1], |dw| {
                 crate::effects::ring_entries::with_entry_at(ring, b[2], 0x10, 0x1C, |e| {
                     super::turn_place_x87(
                         &crate::test_support::own::race()
@@ -421,7 +435,7 @@ mod reference_vectors {
                             .view_matrix,
                         ring,
                         e,
-                        dw,
+                        &mut dw.borrow_mut(),
                     );
                 });
             });

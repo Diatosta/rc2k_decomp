@@ -37,13 +37,13 @@ pub fn draw_turned_sprite(
     }
     {
         let place = place.map(rounded_value);
-        let near = effects.frame.draw_work.near.get();
+        let near = effects.frame.draw_work.borrow().near;
         // clip_quad's refusal (no settings) before anything is written.
         if !x87::bits_at_or_below(place[2], near) && effects.setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         for (n, v) in place.into_iter().enumerate() {
-            effects.frame.draw_work.turned[n].set(v);
+            effects.frame.draw_work.borrow_mut().turned[n] = v;
         }
         if x87::bits_at_or_below(place[2], near) {
             return Ok(());
@@ -52,6 +52,7 @@ pub fn draw_turned_sprite(
         let k = effects
             .frame
             .draw_work
+            .borrow()
             .view_k(scene.scratch.front_end_polygon());
         let sin = crate::math::engine_tables::sine(engine_tables, angle as usize).get();
         let cos = crate::math::engine_tables::cosine(engine_tables, angle as usize).get();
@@ -67,7 +68,7 @@ pub fn draw_turned_sprite(
         }
         // The half sides as floats in the cells that hold whole numbers for the other sprites.
         for (n, v) in sq[2..6].iter().enumerate() {
-            effects.frame.draw_work.sprite_half[n].set(v.to_bits());
+            effects.frame.draw_work.borrow_mut().sprite_half[n] = v.to_bits();
         }
         if clip_quad(buffer, scene, effects)? {
             return Ok(());

@@ -13,8 +13,8 @@ pub fn flip_gearing(
     text_buffers: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), crate::errors::BadInput> {
     use rc2k_core::menu::steps::{flip, gearing_switch_text};
-    let kept = flip(screens.flow.shown_gearing.get());
-    screens.flow.shown_gearing.set(kept);
+    let kept = flip(screens.flow.read().shown_gearing);
+    screens.flow.write().shown_gearing = kept;
     let mut text = Vec::new();
     push_string(so, &mut text, gearing_switch_text(kept))?;
     text.push(0);

@@ -152,7 +152,7 @@ pub(super) fn emit_twin(
     slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
     slot.put(|en| &mut en.cell, set.flags & 0x3F)?;
     let size = (r.rotate_right(0x14) & 0x4000) + 0x4000;
-    ring.work.whole.set(size);
+    ring.work.borrow_mut().whole = size;
     slot.put(|en| &mut en.size, x87::from_int(size as i32).to_bits())?;
     let life: u32 = masks.surface.borrow().lives_by_level[level as usize];
     slot.put(|en| &mut en.life, life)?;

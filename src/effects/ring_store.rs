@@ -4,64 +4,78 @@ use crate::memory::owned::Owned;
 use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The ring's work: its list, cursor and count, the emitters' and the draws' integers.
-#[derive(rc2k_derive::Cells)]
 pub struct RingWork {
     /// The ring's memory list (`memory::List`, 16 bytes: `effects::set_up_surface` takes the
     /// 0x25000-byte ring on it).
-    pub list: crate::memory::ListCells,
+    pub list: crate::memory::MemoryList,
     /// The ring's next entry to take (an entry number + 1, 0 none; see `ring_entries`).
-    pub cursor: PlainDword,
+    pub cursor: u32,
     /// The ring's first entry (an entry number + 1, as the entries' links).
-    pub block: PlainDword,
+    pub block: u32,
     /// An entry's `place[1]` against it ends the box kinds' draw (`effects::run_ring`).
-    pub top: PlainFloat,
+    pub top: f32,
     /// `effects::emit_rolling_dust`'s fade (the strength times a factor).
-    pub fade: PlainFloat,
+    pub fade: f32,
     /// `effects::emit_rolling_dust`'s life.
-    pub life: PlainDword,
+    pub life: u32,
     /// The box's |x| and |z| (`effects::run_ring`, rounded).
-    pub extent: [PlainDword; 2],
+    pub extent: [u32; 2],
     /// `effects::emit_wheel_grit_bursts`' direction.
-    pub direction: [PlainFloat; 3],
+    pub direction: [f32; 3],
     /// `effects::emit_wheel_grit_bursts`' two halves' strengths.
-    pub strength: [PlainFloat; 2],
+    pub strength: [f32; 2],
     /// The emitters' rate (`effects::emitters::gate`).
-    pub rate: PlainDword,
+    pub rate: u32,
     /// The entry's way dotted with the object's (`effects::run_ring`).
-    pub facing: PlainFloat,
+    pub facing: f32,
     /// The place's length less a constant (`effects::run_ring`).
-    pub near: PlainFloat,
+    pub near: f32,
     /// The work integer of the emitters and the ring's draws (a strength, a count, a chance, a
     /// size, a depth, an alpha).
-    pub whole: PlainDword,
+    pub whole: u32,
     /// The entries taken.
-    pub count: PlainDword,
+    pub count: u32,
     /// The place less the object's (`effects::run_ring`).
-    pub away: [PlainFloat; 3],
+    pub away: [f32; 3],
     /// The same turned by the object's matrix.
-    pub turned: [PlainFloat; 3],
+    pub turned: [f32; 3],
 }
 
 impl RingWork {
     pub const fn new() -> Self {
         RingWork {
-            list: crate::memory::ListCells::empty(),
-            cursor: PlainDword::new(0x0),
-            block: PlainDword::new(0x0),
-            top: PlainFloat::new(-32768.0),
-            fade: PlainFloat::new(0.0),
-            life: PlainDword::new(0x0),
-            extent: [const { PlainDword::new(0x0) }; 2],
-            direction: [const { PlainFloat::new(0.0) }; 3],
-            strength: [const { PlainFloat::new(0.0) }; 2],
-            rate: PlainDword::new(0x0),
-            facing: PlainFloat::new(0.0),
-            near: PlainFloat::new(0.0),
-            whole: PlainDword::new(0x0),
-            count: PlainDword::new(0x0),
-            away: [const { PlainFloat::new(0.0) }; 3],
-            turned: [const { PlainFloat::new(0.0) }; 3],
+            list: crate::memory::MemoryList {
+                head: 0,
+                total: 0,
+                cursor: 0,
+                remaining: 0,
+            },
+            cursor: 0,
+            block: 0,
+            top: -32768.0,
+            fade: 0.0,
+            life: 0,
+            extent: [0; 2],
+            direction: [0.0; 3],
+            strength: [0.0; 2],
+            rate: 0,
+            facing: 0.0,
+            near: 0.0,
+            whole: 0,
+            count: 0,
+            away: [0.0; 3],
+            turned: [0.0; 3],
         }
+    }
+}
+
+/// The list is the one the work holds.
+impl crate::memory::HeldList for std::cell::RefCell<RingWork> {
+    fn get(&self) -> crate::memory::MemoryList {
+        self.borrow().list
+    }
+    fn set(&self, list: crate::memory::MemoryList) {
+        self.borrow_mut().list = list;
     }
 }
 
@@ -95,7 +109,7 @@ impl PictureNames {
 pub struct Ring {
     pub entries: Owned<Vec<Entry>>,
     pub pool: RingPool,
-    pub work: RingWork,
+    pub work: std::cell::RefCell<RingWork>,
     pub names: PictureNames,
     pub kinds: RingKinds,
     pub colours: Colours257,
@@ -106,7 +120,7 @@ impl Ring {
         Ring {
             entries: Owned::new("no marks ring"),
             pool: RingPool::new(),
-            work: RingWork::new(),
+            work: std::cell::RefCell::new(RingWork::new()),
             names: PictureNames::new(),
             kinds: RingKinds::new(),
             colours: Colours257::new(),

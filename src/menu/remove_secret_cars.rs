@@ -64,7 +64,7 @@ pub fn remove_secret_cars(menus: &Menus) -> Result<(), BadInput> {
                 scratch.0[n].set(car);
             }
             write_list(list, cars);
-            menus.play.cheats.cheats.set(0u32);
+            menus.play.cheats.write().cheats = 0u32;
         }
         Ok(())
     }

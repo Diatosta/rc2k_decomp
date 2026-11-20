@@ -7,7 +7,7 @@ use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::ground_probe_store::GroundProbe;
-use crate::physics::ground_store::GroundWork;
+use crate::physics::ground_query::GroundSearch;
 use crate::physics::step_inputs::StepInputs;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::frame_store::FrameWork;
@@ -53,7 +53,7 @@ pub struct GroundInputs<'a> {
     pub tables: &'a PhysicsTables,
     pub course: &'a Course,
     pub contact: &'a ContactWork,
-    pub ground: &'a GroundWork,
+    pub search: &'a RefCell<GroundSearch>,
     pub probe: &'a GroundProbe,
     pub engine_tables: &'a crate::math::engine_tables::EngineTables,
 }
@@ -65,7 +65,7 @@ pub struct CameraGroundInputs<'a> {
     pub car: &'a Car,
     pub course: &'a Course,
     pub camera: &'a RefCell<CameraWork>,
-    pub ground: &'a GroundWork,
+    pub search: &'a RefCell<GroundSearch>,
     pub probe: &'a GroundProbe,
 }
 
@@ -171,7 +171,7 @@ pub struct CheckpointInputs<'a> {
 pub struct LightingInputs<'a> {
     pub car: &'a Car,
     pub course: &'a Course,
-    pub ground: &'a GroundWork,
+    pub search: &'a RefCell<GroundSearch>,
     pub probe: &'a GroundProbe,
     pub vars: &'a RaceVars,
     pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
@@ -200,7 +200,7 @@ pub struct SlotInputs<'a> {
     pub course: &'a Course,
     pub work: &'a RaceWork,
     pub matrices: &'a SceneMatrices,
-    pub ground: &'a GroundWork,
+    pub search: &'a RefCell<GroundSearch>,
     pub probe: &'a GroundProbe,
 }
 
@@ -231,7 +231,7 @@ impl<'a> StepInputs<'a> {
             car: self.car,
             course: self.course,
             camera: self.physics.camera_cell(),
-            ground: self.physics.ground(),
+            search: self.physics.ground_search(),
             probe: self.physics.ground_probe.get(),
         }
     }
@@ -259,7 +259,7 @@ impl<'a> StepInputs<'a> {
             tables: self.tables,
             course: self.course,
             contact: self.physics.contact.get(),
-            ground: self.physics.ground(),
+            search: self.physics.ground_search(),
             probe: self.physics.ground_probe.get(),
             engine_tables: &self.shared.buffers.reads.get().engine_tables,
         }
@@ -334,7 +334,7 @@ impl<'a> StepInputs<'a> {
         LightingInputs {
             car: self.car,
             course: self.course,
-            ground: self.physics.ground(),
+            search: self.physics.ground_search(),
             probe: self.physics.ground_probe.get(),
             vars: self.vars,
             polygon_tables: &self.shared.buffers.reads.get().polygon_tables,
@@ -361,7 +361,7 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             work: self.work,
             matrices: self.frame.matrices.get(),
-            ground: self.physics.ground(),
+            search: self.physics.ground_search(),
             probe: self.physics.ground_probe.get(),
         }
     }

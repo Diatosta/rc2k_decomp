@@ -293,7 +293,7 @@ fn run_arcade(o: Owners<'static>, launch: &Launch) -> Result<(), Refused> {
         play.arcade.start_level(0);
     } else {
         let level = shown - 1;
-        if !level_open(play.cheats.cheats.get(), || {
+        if !level_open(play.cheats.read().cheats, || {
             play.arcade.opened(level as usize - 1)
         }) {
             let marks: Vec<String> = (0..ARCADE_LEVELS as usize - 1)
@@ -653,7 +653,7 @@ impl GameAnswers<'_> {
             let gearing = self.gearbox(choice)?;
             record.update(|p| p.gearing = gearing);
         }
-        menus.screens.flow.shown_gearing.set(record.get().gearing);
+        menus.screens.flow.write().shown_gearing = record.get().gearing;
         Ok(list)
     }
 

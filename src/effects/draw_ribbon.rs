@@ -24,7 +24,12 @@ fn ribbon(
     effects: &crate::effects::owner::Effects,
 ) {
     let frame = &effects.frame;
-    ribbon_x87(front, buffer, &frame.draw_work, &frame.view_vars);
+    ribbon_x87(
+        front,
+        buffer,
+        &mut frame.draw_work.borrow_mut(),
+        &mut frame.view_vars.borrow_mut(),
+    );
 }
 
 /// Draws a ribbon piece of `colour` and `alpha` and `width`, with the texture places of
@@ -51,7 +56,7 @@ pub(super) fn draw_ribbon(
             return Err(BadInput("no marks settings").into());
         }
         // A whole number in the float cell.
-        effects.frame.draw_work.half[0].set_bits(width >> 1);
+        effects.frame.draw_work.borrow_mut().half[0] = f32::from_bits(width >> 1);
         let colour = (alpha << 24) | colour;
         for item in buffer.vertices.iter().take(4) {
             item.colour.set(colour);
@@ -68,10 +73,10 @@ pub(super) fn draw_ribbon(
             buffer.vertices[n].v.set(v);
         }
         for depth in [
-            effects.frame.draw_work.turned[2].get(),
-            effects.frame.draw_work.second[2].get(),
+            effects.frame.draw_work.borrow().turned[2],
+            effects.frame.draw_work.borrow().second[2],
         ] {
-            if x87::bits_at_or_below(depth, effects.frame.draw_work.near.get()) {
+            if x87::bits_at_or_below(depth, effects.frame.draw_work.borrow().near) {
                 return Ok(());
             }
         }
@@ -98,96 +103,96 @@ use crate::math::x87_float::ld;
 fn ribbon_x87(
     front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
-    dw: &DrawWork,
-    vv: &ViewVars,
+    dw: &mut DrawWork,
+    vv: &mut ViewVars,
 ) {
     let t0 = ld(front.window.view_scale.get());
-    let t1 = t0 / dw.turned[2].ld();
-    let t2 = t1 * dw.turned[0].ld();
-    let t3 = t1 * dw.turned[1].ld();
+    let t1 = t0 / bh::ld(dw.turned[2]);
+    let t2 = t1 * bh::ld(dw.turned[0]);
+    let t3 = t1 * bh::ld(dw.turned[1]);
     let t4 = -t3;
     let t5 = t4 + front.window.view_centre[1].ld();
-    dw.turned[1].st(t5);
+    dw.turned[1] = bh::stf(t5);
     let t6 = t2 + front.window.view_centre[0].ld();
-    dw.turned[0].st(t6);
-    dw.ends_scale[0].st(t1);
+    dw.turned[0] = bh::stf(t6);
+    dw.ends_scale[0] = bh::stf(t1);
     let t7 = ld(front.window.view_scale.get());
-    let t8 = t7 / dw.second[2].ld();
-    let t9 = t8 * dw.second[0].ld();
-    let t10 = t8 * dw.second[1].ld();
+    let t8 = t7 / bh::ld(dw.second[2]);
+    let t9 = t8 * bh::ld(dw.second[0]);
+    let t10 = t8 * bh::ld(dw.second[1]);
     let t11 = -t10;
     let t12 = t11 + front.window.view_centre[1].ld();
-    dw.second[1].st(t12);
+    dw.second[1] = bh::stf(t12);
     let t13 = t9 + front.window.view_centre[0].ld();
-    dw.second[0].st(t13);
-    dw.ends_scale[1].st(t8);
-    let t14 = dw.second[0].ld();
-    let t15 = t14 - dw.turned[0].ld();
-    vv.ribbon_way[0].st(t15);
-    let t16 = dw.second[1].ld();
-    let t17 = t16 - dw.turned[1].ld();
-    vv.ribbon_way[1].st(t17);
-    let t18 = vv.ribbon_way[0].ld();
+    dw.second[0] = bh::stf(t13);
+    dw.ends_scale[1] = bh::stf(t8);
+    let t14 = bh::ld(dw.second[0]);
+    let t15 = t14 - bh::ld(dw.turned[0]);
+    vv.ribbon_way[0] = bh::stf(t15);
+    let t16 = bh::ld(dw.second[1]);
+    let t17 = t16 - bh::ld(dw.turned[1]);
+    vv.ribbon_way[1] = bh::stf(t17);
+    let t18 = bh::ld(vv.ribbon_way[0]);
     let t19 = t18 * t18;
-    let t20 = vv.ribbon_way[1].ld();
+    let t20 = bh::ld(vv.ribbon_way[1]);
     let t21 = t20 * t20;
     let t22 = t19 + t21;
     let t23 = t22.sqrt();
     let t24 = bh::ONE;
     let t25 = t24 / t23;
-    let t26 = vv.ribbon_way[0].ld();
-    let t27 = vv.ribbon_way[1].ld();
+    let t26 = bh::ld(vv.ribbon_way[0]);
+    let t27 = bh::ld(vv.ribbon_way[1]);
     let t28 = t27 * t25;
-    vv.ribbon_way[0].st(t28);
+    vv.ribbon_way[0] = bh::stf(t28);
     let t29 = t25 * t26;
     let t30 = -t29;
-    vv.ribbon_way[1].st(t30);
-    let t31 = vv.ribbon_way[0].ld();
-    let t32 = t31 * bh::int(dw.half[0].bits() as i32);
-    let t33 = t32 * dw.ends_scale[0].ld();
-    vv.first_end_half_width[0].st(t33);
-    let t34 = vv.ribbon_way[1].ld();
-    let t35 = t34 * bh::int(dw.half[0].bits() as i32);
-    let t36 = t35 * dw.ends_scale[0].ld();
-    vv.first_end_half_width[1].st(t36);
-    let t37 = vv.ribbon_way[0].ld();
-    let t38 = t37 * bh::int(dw.half[0].bits() as i32);
-    let t39 = t38 * dw.ends_scale[1].ld();
-    vv.second_end_half_width[0].st(t39);
-    let t40 = vv.ribbon_way[1].ld();
-    let t41 = t40 * bh::int(dw.half[0].bits() as i32);
-    let t42 = t41 * dw.ends_scale[1].ld();
-    vv.second_end_half_width[1].st(t42);
-    let t43 = dw.turned[0].ld();
-    let t44 = t43 - vv.first_end_half_width[0].ld();
+    vv.ribbon_way[1] = bh::stf(t30);
+    let t31 = bh::ld(vv.ribbon_way[0]);
+    let t32 = t31 * bh::int(dw.half[0].to_bits() as i32);
+    let t33 = t32 * bh::ld(dw.ends_scale[0]);
+    vv.first_end_half_width[0] = bh::stf(t33);
+    let t34 = bh::ld(vv.ribbon_way[1]);
+    let t35 = t34 * bh::int(dw.half[0].to_bits() as i32);
+    let t36 = t35 * bh::ld(dw.ends_scale[0]);
+    vv.first_end_half_width[1] = bh::stf(t36);
+    let t37 = bh::ld(vv.ribbon_way[0]);
+    let t38 = t37 * bh::int(dw.half[0].to_bits() as i32);
+    let t39 = t38 * bh::ld(dw.ends_scale[1]);
+    vv.second_end_half_width[0] = bh::stf(t39);
+    let t40 = bh::ld(vv.ribbon_way[1]);
+    let t41 = t40 * bh::int(dw.half[0].to_bits() as i32);
+    let t42 = t41 * bh::ld(dw.ends_scale[1]);
+    vv.second_end_half_width[1] = bh::stf(t42);
+    let t43 = bh::ld(dw.turned[0]);
+    let t44 = t43 - bh::ld(vv.first_end_half_width[0]);
     st_cell(&buffer.vertices[0].x, t44);
-    let t45 = dw.turned[1].ld();
-    let t46 = t45 - vv.first_end_half_width[1].ld();
+    let t45 = bh::ld(dw.turned[1]);
+    let t46 = t45 - bh::ld(vv.first_end_half_width[1]);
     st_cell(&buffer.vertices[0].y, t46);
-    let t47 = dw.turned[0].ld();
-    let t48 = t47 + vv.first_end_half_width[0].ld();
+    let t47 = bh::ld(dw.turned[0]);
+    let t48 = t47 + bh::ld(vv.first_end_half_width[0]);
     st_cell(&buffer.vertices[1].x, t48);
-    let t49 = dw.turned[1].ld();
-    let t50 = t49 + vv.first_end_half_width[1].ld();
+    let t49 = bh::ld(dw.turned[1]);
+    let t50 = t49 + bh::ld(vv.first_end_half_width[1]);
     st_cell(&buffer.vertices[1].y, t50);
-    let t51 = dw.second[0].ld();
-    let t52 = t51 + vv.second_end_half_width[0].ld();
+    let t51 = bh::ld(dw.second[0]);
+    let t52 = t51 + bh::ld(vv.second_end_half_width[0]);
     st_cell(&buffer.vertices[2].x, t52);
-    let t53 = dw.second[1].ld();
-    let t54 = t53 + vv.second_end_half_width[1].ld();
+    let t53 = bh::ld(dw.second[1]);
+    let t54 = t53 + bh::ld(vv.second_end_half_width[1]);
     st_cell(&buffer.vertices[2].y, t54);
-    let t55 = dw.second[0].ld();
-    let t56 = t55 - vv.second_end_half_width[0].ld();
+    let t55 = bh::ld(dw.second[0]);
+    let t56 = t55 - bh::ld(vv.second_end_half_width[0]);
     st_cell(&buffer.vertices[3].x, t56);
-    let t57 = dw.second[1].ld();
-    let t58 = t57 - vv.second_end_half_width[1].ld();
+    let t57 = bh::ld(dw.second[1]);
+    let t58 = t57 - bh::ld(vv.second_end_half_width[1]);
     st_cell(&buffer.vertices[3].y, t58);
-    let t59 = dw.turned[2].ld();
-    let t60 = t59 * dw.z_k.ld();
+    let t59 = bh::ld(dw.turned[2]);
+    let t60 = t59 * bh::ld(dw.z_k);
     st_cell(&buffer.vertices[0].z, t60);
     st_cell(&buffer.vertices[1].z, t60);
-    let t61 = dw.second[2].ld();
-    let t62 = t61 * dw.z_k.ld();
+    let t61 = bh::ld(dw.second[2]);
+    let t62 = t61 * bh::ld(dw.z_k);
     st_cell(&buffer.vertices[2].z, t62);
     st_cell(&buffer.vertices[3].z, t62);
 }

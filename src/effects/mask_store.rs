@@ -42,41 +42,82 @@ impl GroundNames {
 }
 
 /// The mask blocks' lists and pointers.
-#[derive(rc2k_derive::Cells)]
 pub struct MaskBlocks {
     /// The last mask switch seen by `swap_mask` (-1 once the masks are loaded)
-    pub seen: PlainDword,
+    pub seen: u32,
     /// The block `swap_mask` last drew from (`Mask::Plain` 1 or `Mask::Bordered` 2, 0
     /// none yet)
-    pub chosen: PlainDword,
+    pub chosen: u32,
     /// The list the first mask block is taken on
-    pub list_a: crate::memory::ListCells,
+    pub list_a: crate::memory::MemoryList,
     /// The first mask block (0x20000 bytes; unused: the pixels are `Masks::mask`)
-    pub mask: PlainDword,
+    pub mask: u32,
     /// The list the second mask block is taken on
-    pub list_b: crate::memory::ListCells,
+    pub list_b: crate::memory::MemoryList,
     /// The second mask block (0x20000 bytes; unused: the pixels are `Masks::bmask`)
-    pub bmask: PlainDword,
+    pub bmask: u32,
     /// "rse " repeated, then a NUL (unreferenced)
-    pub junk: PlainBytes<44>,
+    pub junk: [u8; 44],
 }
 
 /// The mask blocks' lists.
 impl MaskBlocks {
     pub const fn new() -> Self {
         MaskBlocks {
-            seen: PlainDword::new(0xFFFFFFFF),
-            chosen: PlainDword::new(0x0),
-            list_a: crate::memory::ListCells::empty(),
-            mask: PlainDword::new(0x0),
-            list_b: crate::memory::ListCells::empty(),
-            bmask: PlainDword::new(0x0),
-            junk: PlainBytes::new([
+            seen: 0xFFFFFFFF,
+            chosen: 0x0,
+            list_a: crate::memory::MemoryList {
+                head: 0,
+                total: 0,
+                cursor: 0,
+                remaining: 0,
+            },
+            mask: 0x0,
+            list_b: crate::memory::MemoryList {
+                head: 0,
+                total: 0,
+                cursor: 0,
+                remaining: 0,
+            },
+            bmask: 0x0,
+            junk: [
                 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73,
                 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20,
                 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73,
                 0x65, 0x00,
-            ]),
+            ],
+        }
+    }
+}
+
+/// One of the mask blocks' two lists, as a list the allocator's functions take.
+pub struct MaskBlockList<'a> {
+    blocks: &'a core::cell::RefCell<MaskBlocks>,
+    bordered: bool,
+}
+
+impl<'a> MaskBlockList<'a> {
+    /// The first mask's list (`bordered` false) or the second's.
+    pub fn new(blocks: &'a core::cell::RefCell<MaskBlocks>, bordered: bool) -> Self {
+        MaskBlockList { blocks, bordered }
+    }
+}
+
+impl crate::memory::HeldList for MaskBlockList<'_> {
+    fn get(&self) -> crate::memory::MemoryList {
+        let blocks = self.blocks.borrow();
+        if self.bordered {
+            blocks.list_b
+        } else {
+            blocks.list_a
+        }
+    }
+    fn set(&self, list: crate::memory::MemoryList) {
+        let mut blocks = self.blocks.borrow_mut();
+        if self.bordered {
+            blocks.list_b = list;
+        } else {
+            blocks.list_a = list;
         }
     }
 }
@@ -85,12 +126,12 @@ impl MaskBlocks {
 /// reads them; `effects::owner::Effects::masks` holds the one instance.
 pub struct Masks {
     pub ground_names: GroundNames,
-    pub blocks: MaskBlocks,
+    pub blocks: core::cell::RefCell<MaskBlocks>,
     /// The first mask's pixels, on `blocks.list_a`.
     pub mask: crate::memory::owned::Owned<MaskPixels>,
     /// The second mask's pixels, on `blocks.list_b`.
     pub bmask: crate::memory::owned::Owned<MaskPixels>,
-    pub picture_copy: PictureCopy,
+    pub picture_copy: core::cell::RefCell<PictureCopy>,
     /// The masks' work block.
     pub work: crate::memory::owned::Owned<Vec<u32>>,
     pub list: MaskList,
@@ -105,10 +146,10 @@ impl Masks {
     pub const fn new() -> Self {
         Masks {
             ground_names: GroundNames::new(),
-            blocks: MaskBlocks::new(),
+            blocks: core::cell::RefCell::new(MaskBlocks::new()),
             mask: crate::memory::owned::Owned::new("no marks mask"),
             bmask: crate::memory::owned::Owned::new("no marks bordered mask"),
-            picture_copy: PictureCopy::new(),
+            picture_copy: core::cell::RefCell::new(PictureCopy::new()),
             work: crate::memory::owned::Owned::new("no mask work"),
             list: MaskList::new(),
             surface: core::cell::RefCell::new(crate::effects::surface_store::SurfaceTables::new()),
@@ -143,31 +184,45 @@ impl Mask {
 }
 
 /// The picture copy's list and pointer, and the mask paths.
-#[derive(rc2k_derive::Cells)]
 pub struct PictureCopy {
     /// The list the 0x80000-byte picture copy is taken on
-    pub list: crate::memory::ListCells,
+    pub list: crate::memory::MemoryList,
     /// The picture copy block (0x80000 bytes; unused, the copy is Rust's)
-    pub copy: PlainDword,
+    pub copy: u32,
     /// `files\m\mask00.pcx`, then `files\m\bmask00.pcx`, then `files\m\bdata00.pcx`, each
     /// NUL-ended (the digits are patched per picture kind)
-    pub paths: PlainBytes<60>,
+    pub paths: [u8; 60],
 }
 
 /// The picture copy's list.
 impl PictureCopy {
     pub const fn new() -> Self {
         PictureCopy {
-            list: crate::memory::ListCells::empty(),
-            copy: PlainDword::new(0x0),
-            paths: PlainBytes::new([
+            list: crate::memory::MemoryList {
+                head: 0,
+                total: 0,
+                cursor: 0,
+                remaining: 0,
+            },
+            copy: 0x0,
+            paths: [
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x6D, 0x61, 0x73, 0x6B, 0x30, 0x30,
                 0x2E, 0x70, 0x63, 0x78, 0x00, 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x62,
                 0x6D, 0x61, 0x73, 0x6B, 0x30, 0x30, 0x2E, 0x70, 0x63, 0x78, 0x00, 0x66, 0x69, 0x6C,
                 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x62, 0x64, 0x61, 0x74, 0x61, 0x30, 0x30, 0x2E, 0x70,
                 0x63, 0x78, 0x00, 0x00,
-            ]),
+            ],
         }
+    }
+}
+
+/// The picture copy's list is the one the copy holds.
+impl crate::memory::HeldList for core::cell::RefCell<PictureCopy> {
+    fn get(&self) -> crate::memory::MemoryList {
+        self.borrow().list
+    }
+    fn set(&self, list: crate::memory::MemoryList) {
+        self.borrow_mut().list = list;
     }
 }
 

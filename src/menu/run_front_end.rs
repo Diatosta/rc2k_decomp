@@ -51,17 +51,15 @@ pub(super) fn back_at_main_menu(o: Owners<'static>, reason: &str) {
 /// question and the event's end.
 fn clear_screen_state(menus: &crate::menu::owner::Menus) {
     let screens = &menus.screens;
-    let flags = &screens.loop_flags;
-    for flag in [
-        &flags.event_left,
-        &flags.leave_screen,
-        &flags.left_with_carry,
-        &flags.ask_leave,
-    ] {
-        flag.set(false);
+    {
+        let mut flags = screens.loop_flags.write();
+        flags.event_left = false;
+        flags.leave_screen = false;
+        flags.left_with_carry = false;
+        flags.ask_leave = false;
     }
     screens.event.event_over.set(false);
-    screens.flow.asking.set(false);
+    screens.flow.write().asking = false;
     screens.draw_work.write().escape_pressed = false;
 }
 

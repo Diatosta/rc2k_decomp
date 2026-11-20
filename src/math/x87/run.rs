@@ -43,12 +43,9 @@ pub struct FaceDifferences<S: Flt> {
     pub scale: S,
 }
 
-/// What `face_shares` leaves: the three cross products, the two quotients with the whole
-/// numbers they give times the scale.
+/// What `face_shares` leaves: the two quotients with the whole numbers they give times the
+/// scale.
 pub struct FaceShares {
-    pub share_a: f32,
-    pub share_b: f32,
-    pub share_c: f32,
     pub plane_f: f32,
     pub share_s: i32,
     pub plane_g: f32,
@@ -69,9 +66,6 @@ pub fn face_shares<S: Flt>(d: &FaceDifferences<S>) -> FaceShares {
     let mut o = [0u32; 7];
     face_shares_bits(&i, &mut o);
     FaceShares {
-        share_a: f32::from_bits(o[0]),
-        share_b: f32::from_bits(o[1]),
-        share_c: f32::from_bits(o[2]),
         plane_f: f32::from_bits(o[3]),
         share_s: o[4] as i32,
         plane_g: f32::from_bits(o[5]),

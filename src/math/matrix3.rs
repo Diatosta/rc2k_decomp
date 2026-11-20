@@ -140,6 +140,20 @@ pub fn turn_matrix3(axis: Axis, m: &(impl Cells + ?Sized), angle: [u8; 10]) -> R
     Ok(())
 }
 
+/// `turn_matrix3` on nine plain floats.
+pub fn turn_matrix3_plain(axis: Axis, m: &mut [f32; 9], angle: [u8; 10]) -> Result<(), Refused> {
+    turnable(&angle)?;
+    let order = match axis {
+        Axis::X => TURN_X,
+        Axis::Y => TURN_Y,
+        Axis::Z => TURN_Z,
+    };
+    for (cell, value) in order.into_iter().zip(turn_values(angle)) {
+        m[cell] = stf(value);
+    }
+    Ok(())
+}
+
 /// A turn's stores as cell numbers: the 1.0, the four zeros, the two cosines, the sine and
 /// minus the sine.
 type Stores = [usize; 9];
@@ -152,10 +166,11 @@ const TURN_Y: Stores = [4, 1, 3, 5, 7, 0, 8, 2, 6];
 /// The turn about z (see `TURN_X`).
 const TURN_Z: Stores = [8, 2, 5, 6, 7, 0, 4, 1, 3];
 
-fn turn(stores: Stores, angle: [u8; 10], m: &(impl Cells + ?Sized)) {
+/// A turn's nine values: the 1.0, the four zeros, the two cosines, the sine and minus the sine.
+fn turn_values(angle: [u8; 10]) -> [X; 9] {
     let t0 = from_f80(angle);
     let (sine, cosine) = (t0.sin(), t0.cos());
-    let values = [
+    [
         ONE,
         X(0.0),
         X(0.0),
@@ -165,8 +180,11 @@ fn turn(stores: Stores, angle: [u8; 10], m: &(impl Cells + ?Sized)) {
         cosine,
         sine,
         -sine,
-    ];
-    for (cell, value) in stores.into_iter().zip(values) {
+    ]
+}
+
+fn turn(stores: Stores, angle: [u8; 10], m: &(impl Cells + ?Sized)) {
+    for (cell, value) in stores.into_iter().zip(turn_values(angle)) {
         m.set_float(cell, stf(value));
     }
 }

@@ -109,12 +109,15 @@ pub fn move_slot(c: &SlotInputs<'_>, s: &RaceSlot, number: usize) -> Result<(), 
         s.place[k].set(s.place[k].get().wrapping_add(d));
     }
     s.motion[1].st(-(c.tables.gravity.ld() * bh::ld(dt)) + s.motion[1].ld());
-    c.ground.ground_x.set(s.place[0].get());
-    c.ground.ground_z.set(s.place[2].get());
-    c.course.course.get().ground_face_last.set(s.car_word.get());
+    {
+        let mut search = c.search.borrow_mut();
+        search.x = s.place[0].get();
+        search.z = s.place[2].get();
+        search.last = s.car_word.get();
+    }
     c.probe.settle_mark.set(0x80);
-    crate::physics::find_ground::find_ground(c.probe, c.ground, c.course)?;
-    let face: u32 = c.course.course.get().ground_slot.get();
+    crate::physics::find_ground::find_ground(c.probe, c.search, c.course)?;
+    let face: u32 = c.search.borrow().slot;
     if face == u32::MAX {
         copy_place(&c.work.slot_place, &s.place);
         for cell in s.motion.iter().chain(&s.spin) {
@@ -123,7 +126,7 @@ pub fn move_slot(c: &SlotInputs<'_>, s: &RaceSlot, number: usize) -> Result<(), 
         return Ok(());
     }
     s.car_word.set(face);
-    let height: u32 = c.ground.ground_height.get();
+    let height: u32 = c.search.borrow().height;
     if (s.place[1].get().wrapping_sub(height) as i32) >= 0 {
         return Ok(());
     }

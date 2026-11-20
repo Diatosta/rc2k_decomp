@@ -20,13 +20,8 @@ pub(super) fn show_intro(o: Owners<'static>) -> Result<(), Refused> {
 }
 
 pub(super) fn previous_save_page(tables: &Tables) {
-    tables
-        .pages
-        .save_page
-        .set(rc2k_core::menu::steps::savegame_page(
-            tables.pages.save_page.get(),
-            false,
-        ));
+    tables.pages.write().save_page =
+        rc2k_core::menu::steps::savegame_page(tables.pages.read().save_page, false);
 }
 
 /// The steering (page 3) or brake (page 4) box.

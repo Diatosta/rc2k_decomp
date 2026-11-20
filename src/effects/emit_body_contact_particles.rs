@@ -52,8 +52,8 @@ pub fn emit_body_contact_particles(
 ) -> Result<(), Refused> {
     {
         let (count, n) = count(effects, record)?;
-        ring.work.whole.set(n as u32);
-        ring.work.whole.set(count as u32);
+        ring.work.borrow_mut().whole = n as u32;
+        ring.work.borrow_mut().whole = count as u32;
         let mut left = count;
         // The first entry's tag is the object's, each next one's the entry before's.
         let mut before: Option<u32> = None;

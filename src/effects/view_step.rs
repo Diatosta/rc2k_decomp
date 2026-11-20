@@ -5,12 +5,12 @@
 use crate::math::x87;
 
 pub fn view_step(effects: &crate::effects::owner::Effects) {
-    let k = &effects.frame.kept_view;
+    let mut k = effects.frame.kept_view.borrow_mut();
     // now: `kept_a`'s scaled vector (`KeptView.kept_a.scaled[0]` ..)
     for n in 0..3 {
-        k.step[n].set(x87::negated(x87::sub(&k.kept_a.scaled[n], &k.last[n])));
+        k.step[n] = x87::negated(x87::sub(k.kept_a.scaled[n], k.last[n]));
     }
     for n in 0..3 {
-        k.last[n].set(k.kept_a.scaled[n].get());
+        k.last[n] = k.kept_a.scaled[n];
     }
 }

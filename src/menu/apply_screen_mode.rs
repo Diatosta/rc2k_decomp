@@ -43,7 +43,7 @@ pub fn apply_screen_mode(o: Owners<'static>) -> Result<(), Refused> {
     crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
     crate::sound::play_tune_4::play_tune_4(o);
     let applied = applied_mode(taken);
-    screens.loop_flags.item.set(applied.item);
+    screens.loop_flags.write().item = applied.item;
     screens.items.current[slot::VISUAL_OPTIONS].set(applied.item);
     crate::sound::play_menu_sound::play_menu_sound(
         o.sound,

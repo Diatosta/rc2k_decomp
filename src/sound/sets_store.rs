@@ -8,7 +8,7 @@
 //! Structs of atomic cells with the game's starting values (`tests`). The race's sets are named
 //! lists; the read-on order of `RaceField` is what the sound hash's list words rely on.
 
-use crate::memory::session::{Bytes, Cell32, Dword, PlainBytes, PlainDword, PlainFloat, with_runs};
+use crate::memory::session::{Bytes, Dword, with_runs};
 use rc2k_core::audio::commands::RaceField;
 
 /// Handle of the race's sets: in place of a list's address the table holds
@@ -81,65 +81,60 @@ pub struct SoundSets {
 }
 
 /// The ten dwords the race's sounds are sent with (`sound::play_placed_sound`,
-/// `sound::stop_sound`); a work area each turn fills again. The game thread's
-/// (`sound::owner::RaceSoundState::request`). Laid out as the 1999 variables: the recorded
-/// assembly's tests lay it over raw bytes.
-#[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
+/// `sound::stop_sound`); a work area each turn fills again. The game thread's, behind one
+/// `RefCell` (`sound::owner::RaceSoundState::request`) that a turn's parts borrow once and pass
+/// down. The words keep the order the sound command's dwords had (`set_word` names them by
+/// number).
+#[derive(Clone, Copy, Default)]
 pub struct SoundRequest {
     /// The sound (bit 0x8000: none).
-    pub sound: PlainDword,
-    /// The pitch, a float (`sound::revs_sound::fill_pitch_and_volume`), then the whole number
-    /// sent.
-    pub pitch: PlainDword,
-    /// The volume, a float, then (without 3D) the whole number sent.
-    pub volume: PlainDword,
+    pub sound: u32,
+    /// The pitch, a float's bits (`sound::revs_sound::fill_pitch_and_volume`), then the whole
+    /// number sent.
+    pub pitch: u32,
+    /// The volume, a float's bits, then (without 3D) the whole number sent.
+    pub volume: u32,
     /// Where the sound is, three floats.
-    pub place: [PlainFloat; 3],
+    pub place: [f32; 3],
     /// Without 3D, the angle (the arctangent of the place's third float over its first).
-    pub angle: PlainDword,
+    pub angle: u32,
     /// Without 3D, the place between left and right (a whole number).
-    pub pan: PlainDword,
+    pub pan: u32,
     /// The pitch's factor, a float.
-    pub pitch_factor: PlainFloat,
+    pub pitch_factor: f32,
     /// The volume's factor, a float.
-    pub volume_factor: PlainFloat,
+    pub volume_factor: f32,
 }
 
 impl SoundRequest {
     /// The request as the game starts: all 0.
     pub const fn new() -> Self {
         Self {
-            sound: PlainDword::new(0),
-            pitch: PlainDword::new(0),
-            volume: PlainDword::new(0),
-            place: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            angle: PlainDword::new(0),
-            pan: PlainDword::new(0),
-            pitch_factor: PlainFloat::new(0.0),
-            volume_factor: PlainFloat::new(0.0),
+            sound: 0,
+            pitch: 0,
+            volume: 0,
+            place: [0.0; 3],
+            angle: 0,
+            pan: 0,
+            pitch_factor: 0.0,
+            volume_factor: 0.0,
         }
     }
 
-    /// Stores `bits` in dword `n` (+4n bytes in the 1999 layout), for the cores that name the words
+    /// Stores `bits` in dword `n` (the sound command's order), for the cores that name the words
     /// by number; None past the ten.
-    pub fn set_word(&self, n: usize, bits: u32) -> Option<()> {
-        let cell: &dyn Cell32 = match n {
-            0 => &self.sound,
-            1 => &self.pitch,
-            2 => &self.volume,
-            3..=5 => &self.place[n - 3],
-            6 => &self.angle,
-            7 => &self.pan,
-            8 => &self.pitch_factor,
-            9 => &self.volume_factor,
+    pub fn set_word(&mut self, n: usize, bits: u32) -> Option<()> {
+        match n {
+            0 => self.sound = bits,
+            1 => self.pitch = bits,
+            2 => self.volume = bits,
+            3..=5 => self.place[n - 3] = f32::from_bits(bits),
+            6 => self.angle = bits,
+            7 => self.pan = bits,
+            8 => self.pitch_factor = f32::from_bits(bits),
+            9 => self.volume_factor = f32::from_bits(bits),
             _ => return None,
-        };
-        cell.set_bits(bits);
+        }
         Some(())
     }
 }
@@ -487,29 +482,29 @@ impl CueLists {
 /// whole number until the tables are made ready. Laid out as the 1999 variables: the recorded
 /// assembly's tests lay it over raw bytes.
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
+#[derive(Clone, Copy)]
 pub struct SoundSet {
     /// The sound's number, added to the object's `sound_offset`.
-    pub sound: PlainDword,
+    pub sound: u32,
     /// Read by no sound code and 0 in every set of the shipped data, so not converted to a
     /// float (a spare word, probably an input range's start).
-    pub unused_float_04: PlainDword,
+    pub unused_float_04: u32,
     /// As `unused_float_04` (probably the range's end).
-    pub unused_float_08: PlainDword,
+    pub unused_float_08: u32,
     /// As `unused_float_04` (probably the range's span).
-    pub unused_float_0c: PlainDword,
+    pub unused_float_0c: u32,
     /// The pitch at input 0.
-    pub pitch_low: PlainDword,
+    pub pitch_low: u32,
     /// The pitch's end (the span's second value).
-    pub pitch_high: PlainDword,
+    pub pitch_high: u32,
     /// The pitch span, `pitch_high - pitch_low`: the pitch's slope.
-    pub pitch_scale: PlainDword,
+    pub pitch_scale: u32,
     /// The volume at input 0.
-    pub volume_low: PlainDword,
+    pub volume_low: u32,
     /// The volume's end.
-    pub volume_high: PlainDword,
+    pub volume_high: u32,
     /// The volume span: the volume's slope.
-    pub volume_scale: PlainDword,
+    pub volume_scale: u32,
 }
 
 const SOUND_SET_LEN: usize = 0x28;
@@ -517,8 +512,8 @@ const SOUND_SET_LEN: usize = 0x28;
 impl SoundSet {
     /// The set in `b` from byte `at` (each dword little-endian).
     const fn from_slice(b: &[u8], at: usize) -> Self {
-        const fn word(b: &[u8], at: usize) -> PlainDword {
-            PlainDword::new(u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]]))
+        const fn word(b: &[u8], at: usize) -> u32 {
+            u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]])
         }
         Self {
             sound: word(b, at),
@@ -537,16 +532,16 @@ impl SoundSet {
     /// The set in `d` from dword `at`.
     const fn from_words(d: &[u32], at: usize) -> Self {
         Self {
-            sound: PlainDword::new(d[at]),
-            unused_float_04: PlainDword::new(d[at + 1]),
-            unused_float_08: PlainDword::new(d[at + 2]),
-            unused_float_0c: PlainDword::new(d[at + 3]),
-            pitch_low: PlainDword::new(d[at + 4]),
-            pitch_high: PlainDword::new(d[at + 5]),
-            pitch_scale: PlainDword::new(d[at + 6]),
-            volume_low: PlainDword::new(d[at + 7]),
-            volume_high: PlainDword::new(d[at + 8]),
-            volume_scale: PlainDword::new(d[at + 9]),
+            sound: d[at],
+            unused_float_04: d[at + 1],
+            unused_float_08: d[at + 2],
+            unused_float_0c: d[at + 3],
+            pitch_low: d[at + 4],
+            pitch_high: d[at + 5],
+            pitch_scale: d[at + 6],
+            volume_low: d[at + 7],
+            volume_high: d[at + 8],
+            volume_scale: d[at + 9],
         }
     }
 
@@ -554,22 +549,39 @@ impl SoundSet {
     const fn from_runs(runs: &[(usize, &[u8])]) -> Self {
         Self::from_slice(&with_runs::<SOUND_SET_LEN>(runs), 0)
     }
+
+    /// The ten dwords in order (the starting bytes' checksum test).
+    #[cfg(test)]
+    fn words(&self) -> [u32; 10] {
+        [
+            self.sound,
+            self.unused_float_04,
+            self.unused_float_08,
+            self.unused_float_0c,
+            self.pitch_low,
+            self.pitch_high,
+            self.pitch_scale,
+            self.volume_low,
+            self.volume_high,
+            self.volume_scale,
+        ]
+    }
 }
 
 /// A sound kind's record (0x88 bytes): the revs' range and slope, then the engine's three sets.
 /// Laid out as the 1999 variables: the recorded assembly's tests lay it over raw bytes.
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
+#[derive(Clone, Copy)]
 pub struct KindRecord {
     /// The kind's flags (`sound::car_engine_state`'s `state` reads them).
-    pub flags: PlainDword,
+    pub flags: u32,
     /// The revs the engine's input starts from (a whole number made a float).
-    pub revs_low: PlainDword,
+    pub revs_low: u32,
     /// The revs' end.
-    pub revs_high: PlainDword,
+    pub revs_high: u32,
     /// First the span (`revs_high - revs_low`), then its reciprocal (`race::sound_tables`): the
     /// engine input's slope.
-    pub revs_scale: PlainDword,
+    pub revs_scale: u32,
     /// The engine's revs sound (`sound::revs_sound`).
     pub revs: SoundSet,
     /// The throttle sound (`sound::throttle_sound`).
@@ -582,10 +594,10 @@ impl KindRecord {
     /// A record from its 34 dwords.
     const fn from_words(d: &[u32; 34]) -> Self {
         Self {
-            flags: PlainDword::new(d[0]),
-            revs_low: PlainDword::new(d[1]),
-            revs_high: PlainDword::new(d[2]),
-            revs_scale: PlainDword::new(d[3]),
+            flags: d[0],
+            revs_low: d[1],
+            revs_high: d[2],
+            revs_scale: d[3],
             revs: SoundSet::from_words(d, 4),
             throttle: SoundSet::from_words(d, 14),
             speed: SoundSet::from_words(d, 24),
@@ -601,6 +613,16 @@ impl KindRecord {
             n += 1;
         }
         records
+    }
+
+    /// The 34 dwords in order (the starting bytes' checksum test).
+    #[cfg(test)]
+    fn words(&self) -> Vec<u32> {
+        let mut words = vec![self.flags, self.revs_low, self.revs_high, self.revs_scale];
+        for set in [&self.revs, &self.throttle, &self.speed] {
+            words.extend(set.words());
+        }
+        words
     }
 }
 
@@ -746,20 +768,19 @@ const KIND_ROWS: [[u32; 34]; 34] = [
     ],
 ];
 
-/// The car sound kinds' records, the computer cars' set and the sine table.
-#[derive(rc2k_derive::Cells)]
+/// The car sound kinds' records and the computer cars' set.
 pub struct SoundKinds {
     /// Each sound kind's record, by its number (`sound::car_engine_state`).
-    pub kinds: [PlainDword; 36],
-    /// The sound kinds' records of 0x88 bytes (`race::sound_tables` works the floats out).
-    pub records: [KindRecord; 34],
+    pub kinds: [u32; 36],
+    /// The sound kinds' records (`race::sound_tables` works the floats out once, when the race's
+    /// sound objects are first set up); the game thread's, borrowed for a statement at a time.
+    pub records: std::cell::RefCell<[KindRecord; KIND_RECORDS]>,
     /// The computer's cars' set (`sound::revs_sound`).
     pub computers: SoundSet,
-    /// 0x40 floats, 1 + 0.05 sin x (`race::sound_tables`).
-    pub sines: [PlainFloat; 64],
-    /// Padding that fills the record to its 16-byte alignment.
-    pub _tail: PlainBytes<8>,
 }
+
+/// The number of kind records.
+const KIND_RECORDS: usize = 34;
 
 /// The starting values of `kinds`.
 #[rustfmt::skip]
@@ -771,8 +792,8 @@ const KIND_NUMBERS: [u32; 36] = [
 impl SoundKinds {
     pub const fn new() -> Self {
         SoundKinds {
-            kinds: PlainDword::array(KIND_NUMBERS),
-            records: KindRecord::rows(&KIND_ROWS),
+            kinds: KIND_NUMBERS,
+            records: std::cell::RefCell::new(KindRecord::rows(&KIND_ROWS)),
             computers: SoundSet::from_runs(&[
                 (0, b"\x8a"),
                 (
@@ -780,30 +801,43 @@ impl SoundKinds {
                     b"`jF\x00|\x92G\x00`jG\x00\x00\x80A\x00\x00\x80B\x00\x00@B",
                 ),
             ]),
-            sines: [const { PlainFloat::new(0.0) }; 64],
-            _tail: PlainBytes::new([0; 8]),
         }
     }
-}
 
-impl SoundKinds {
-    /// Kind `n`'s record. The kind past the table, or a table entry off the records, is
-    /// refused.
-    pub fn record(&self, n: u32) -> Result<&KindRecord, crate::errors::BadInput> {
-        let cell = self
+    /// The place in `records` of kind `n`'s record. The kind past the table, or a table entry
+    /// off the records, is refused.
+    fn record_place(&self, n: u32) -> Result<usize, crate::errors::BadInput> {
+        let number = *self
             .kinds
             .get(n as usize)
             .ok_or(crate::errors::BadInput("a sound kind past the table"))?;
-        self.records
-            .get(cell.get() as usize)
-            .ok_or(crate::errors::BadInput(
+        if number as usize >= KIND_RECORDS {
+            return Err(crate::errors::BadInput(
                 "a sound table's entry off its piece",
-            ))
+            ));
+        }
+        Ok(number as usize)
     }
 
-    /// The computers' cars' set (40 bytes).
-    pub(super) fn computers_set(&self) -> &SoundSet {
-        &self.computers
+    /// A copy of kind `n`'s record (refused as `record_place` says).
+    pub fn record(&self, n: u32) -> Result<KindRecord, crate::errors::BadInput> {
+        Ok(self.records.borrow()[self.record_place(n)?])
+    }
+
+    /// Kind `n`'s record changed by `change` (refused as `record_place` says, before anything).
+    pub fn update_record(
+        &self,
+        n: u32,
+        change: impl FnOnce(&mut KindRecord),
+    ) -> Result<(), crate::errors::BadInput> {
+        let place = self.record_place(n)?;
+        change(&mut self.records.borrow_mut()[place]);
+        Ok(())
+    }
+
+    /// The computers' cars' set.
+    pub(super) fn computers_set(&self) -> SoundSet {
+        self.computers
     }
 }
 
@@ -848,17 +882,17 @@ impl SurfaceSets {
 }
 
 /// The spot voices.
-#[repr(align(16))]
-#[derive(rc2k_derive::Cells)]
 pub struct SpotVoices {
-    /// 0x48 records of 0x50 bytes (`sound::spot_voices`).
-    pub voices: [crate::sound::spot_voices::SpotVoice; 72],
+    /// 0x48 records (`sound::spot_voices`), the game thread's, borrowed for a statement at a time.
+    pub voices: std::cell::RefCell<[crate::sound::spot_voices::SpotVoice; 72]>,
 }
 
 impl SpotVoices {
     pub const fn new() -> Self {
         SpotVoices {
-            voices: [const { crate::sound::spot_voices::SpotVoice::free() }; 72],
+            voices: std::cell::RefCell::new(
+                [const { crate::sound::spot_voices::SpotVoice::free() }; 72],
+            ),
         }
     }
 }
@@ -891,8 +925,17 @@ mod tests {
         cue_bytes.extend(cues.table.iter().flat_map(|w| w.to_le_bytes()));
         cue_bytes.extend(cues.lists);
         assert_eq!(fnv(cue_bytes), (1296, 0x801b_361e_3c58_d21a));
+        let kinds = SoundKinds::new();
+        let kind_words: Vec<u32> = kinds
+            .kinds
+            .iter()
+            .copied()
+            .chain(kinds.records.borrow().iter().flat_map(KindRecord::words))
+            .chain(kinds.computers.words())
+            .chain([0; 66])
+            .collect();
         assert_eq!(
-            fnv(flatten(&SoundKinds::new())),
+            fnv(kind_words.iter().flat_map(|w| w.to_le_bytes()).collect()),
             (5072, 0x318f_fbc9_6e4c_8c24)
         );
         let surfaces = SurfaceSets::new();
@@ -901,12 +944,30 @@ mod tests {
         surface_bytes.extend(surfaces.lists);
         surface_bytes.extend([0; 4]);
         assert_eq!(fnv(surface_bytes), (464, 0x82c0_ea45_99e5_7e4d));
+        let voices = SpotVoices::new();
+        let voice_bytes: Vec<u8> = voices
+            .voices
+            .borrow()
+            .iter()
+            .flat_map(|v| v.to_words())
+            .flat_map(u32::to_le_bytes)
+            .collect();
+        assert_eq!(fnv(voice_bytes), (5760, 0xd258_8b64_db91_c525));
+        let request = SoundRequest::new();
+        let request_words = [
+            request.sound,
+            request.pitch,
+            request.volume,
+            request.place[0].to_bits(),
+            request.place[1].to_bits(),
+            request.place[2].to_bits(),
+            request.angle,
+            request.pan,
+            request.pitch_factor.to_bits(),
+            request.volume_factor.to_bits(),
+        ];
         assert_eq!(
-            fnv(flatten(&SpotVoices::new())),
-            (5760, 0xd258_8b64_db91_c525)
-        );
-        assert_eq!(
-            fnv(flatten(&SoundRequest::new())),
+            fnv(request_words.iter().flat_map(|w| w.to_le_bytes()).collect()),
             (40, 0x40d6_9e0c_f0f6_5c45)
         );
     }
@@ -1060,9 +1121,5 @@ mod tests {
         for n in 0..36 {
             kinds.record(n).unwrap();
         }
-        // The records follow the table of their 36 addresses, in the record's field order.
-        let table = crate::test_support::paths::field_start(kinds, ".kinds").unwrap();
-        let records = crate::test_support::paths::field_start(kinds, ".records").unwrap();
-        assert!(records - table >= 36 * 4);
     }
 }

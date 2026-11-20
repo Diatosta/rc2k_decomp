@@ -5,15 +5,15 @@
 use crate::memory::session::{DrawShared, GameThread};
 use crate::race::course_lists_store::CourseLists;
 use crate::race::course_store::CourseWork;
-use crate::race::flares_store::FlareTables;
 use crate::race::kind_records_store::KindRecords;
 use crate::race::league_store::League;
 use crate::race::level_grid_store::LevelGrid;
 use crate::race::level_paths_store::LevelPaths;
-use crate::race::lights_store::LightsData;
+use crate::race::lights_store::{LightsData, LightsTable};
 use crate::race::numbers_store::Numbers;
 use crate::race::prefs_store::StagePrefs;
 use crate::race::stage_data_store::StageData;
+use std::cell::{Ref, RefCell, RefMut};
 
 /// The race's course state.
 pub struct Course {
@@ -55,8 +55,8 @@ pub struct CourseReads<'a> {
 struct CourseMain {
     level_paths: LevelPaths,
     lights_data: LightsData,
-    flare_tables: FlareTables,
-    league: League,
+    lights_table: RefCell<LightsTable>,
+    league: RefCell<League>,
 }
 
 impl Course {
@@ -72,8 +72,8 @@ impl Course {
             main: GameThread::new(CourseMain {
                 level_paths: LevelPaths::new(),
                 lights_data: LightsData::new(),
-                flare_tables: FlareTables::new(),
-                league: League::new(),
+                lights_table: RefCell::new(LightsTable::new()),
+                league: RefCell::new(League::new()),
             }),
         }
     }
@@ -109,11 +109,23 @@ impl Course {
         &self.main.get().lights_data
     }
 
-    pub fn flare_tables(&self) -> &FlareTables {
-        &self.main.get().flare_tables
+    /// The lights' data read from the stage's file, read: no write borrow may be held.
+    pub fn lights_table(&self) -> Ref<'_, LightsTable> {
+        self.main.get().lights_table.borrow()
     }
 
-    pub fn league(&self) -> &League {
-        &self.main.get().league
+    /// The lights' data, to write: no other borrow may be held.
+    pub fn lights_table_mut(&self) -> RefMut<'_, LightsTable> {
+        self.main.get().lights_table.borrow_mut()
+    }
+
+    /// The league's kept times, read: no write borrow may be held.
+    pub fn league(&self) -> Ref<'_, League> {
+        self.main.get().league.borrow()
+    }
+
+    /// The league's kept times, to write: no other borrow may be held.
+    pub fn league_mut(&self) -> RefMut<'_, League> {
+        self.main.get().league.borrow_mut()
     }
 }

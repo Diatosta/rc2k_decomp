@@ -14,7 +14,7 @@ use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
 
 // Core: `rc2k_core::physics::splits::compare_split`.
 pub fn compare_split_times(
-    league: &League,
+    league: &mut League,
     work: &RaceWork,
     state: &RaceState,
     car: &Car,
@@ -23,14 +23,14 @@ pub fn compare_split_times(
         return Err(BadInput("a split past 27").into());
     }
     let time = car.stage_time.get();
-    league.car_time.set(time);
+    league.car_time = time;
     // Splits 16 .. 27 read past the sixteen rows (a slip kept as is).
     let first = car.splits_recorded.get().wrapping_mul(10) as usize;
     let mut kept = [0u32; 10];
     for (k, part) in kept.iter_mut().enumerate() {
         *part = league.kept_time(first + k)?;
     }
-    let c = compare_split(time, &kept, |c| league.names[c].get());
+    let c = compare_split(time, &kept, |c| league.names[c]);
     let f = c.figures;
     for (k, v) in [
         f.place,

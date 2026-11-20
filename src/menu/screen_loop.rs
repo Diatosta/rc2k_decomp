@@ -100,7 +100,7 @@ impl ScreenVar {
             ScreenVar::ArcadeLevel => menus.play.arcade.read().level,
             ScreenVar::ArcadeStage => menus.play.arcade.read().stage,
             ScreenVar::StageMode => menus.play.champ_view.stage_mode.get(),
-            ScreenVar::NoticeDue => menus.play.cheats.notice_due.get(),
+            ScreenVar::NoticeDue => menus.play.cheats.read().notice_due,
             ScreenVar::ActionMode => screens.draw_work.read().action_mode,
             ScreenVar::ClearsEscapeFlag => screens.event.clears_escape_flag.get(),
             ScreenVar::CurrentPlayer => screens.event.current_player.get(),
@@ -110,11 +110,11 @@ impl ScreenVar {
             ScreenVar::StageGroup => screens.event.stage.group.get(),
             ScreenVar::StageNumber => screens.event.stage.number.get(),
             ScreenVar::StageSub => screens.event.stage.sub.get(),
-            ScreenVar::LeftService => screens.flow.left_service.get(),
-            ScreenVar::Quiet => screens.flow.quiet.get(),
-            ScreenVar::Highlight => screens.loop_flags.item.get(),
+            ScreenVar::LeftService => screens.flow.read().left_service,
+            ScreenVar::Quiet => screens.flow.read().quiet,
+            ScreenVar::Highlight => screens.loop_flags.read().item,
             ScreenVar::SavedItem(slot) => screens.items.current[slot].get(),
-            ScreenVar::YesNoAnswer => menus.tables.pages.yes_no_answer.get(),
+            ScreenVar::YesNoAnswer => menus.tables.pages.read().yes_no_answer,
         }
     }
 
@@ -125,7 +125,7 @@ impl ScreenVar {
             ScreenVar::ArcadeLevel => menus.play.arcade.write().level = value,
             ScreenVar::ArcadeStage => menus.play.arcade.write().stage = value,
             ScreenVar::StageMode => menus.play.champ_view.stage_mode.set(value),
-            ScreenVar::NoticeDue => menus.play.cheats.notice_due.set(value),
+            ScreenVar::NoticeDue => menus.play.cheats.write().notice_due = value,
             ScreenVar::ActionMode => screens.draw_work.write().action_mode = value,
             ScreenVar::ClearsEscapeFlag => screens.event.clears_escape_flag.set(value),
             ScreenVar::CurrentPlayer => screens.event.current_player.set(value),
@@ -135,11 +135,11 @@ impl ScreenVar {
             ScreenVar::StageGroup => screens.event.stage.group.set(value),
             ScreenVar::StageNumber => screens.event.stage.number.set(value),
             ScreenVar::StageSub => screens.event.stage.sub.set(value),
-            ScreenVar::LeftService => screens.flow.left_service.set(value),
-            ScreenVar::Quiet => screens.flow.quiet.set(value),
-            ScreenVar::Highlight => screens.loop_flags.item.set(value),
+            ScreenVar::LeftService => screens.flow.write().left_service = value,
+            ScreenVar::Quiet => screens.flow.write().quiet = value,
+            ScreenVar::Highlight => screens.loop_flags.write().item = value,
             ScreenVar::SavedItem(slot) => screens.items.current[slot].set(value),
-            ScreenVar::YesNoAnswer => menus.tables.pages.yes_no_answer.set(value),
+            ScreenVar::YesNoAnswer => menus.tables.pages.write().yes_no_answer = value,
         }
     }
 }
@@ -176,11 +176,11 @@ impl ScreenFlag {
         match self {
             ScreenFlag::EscapePressed => screens.draw_work.read().escape_pressed,
             ScreenFlag::EventOver => screens.event.event_over.is_set(),
-            ScreenFlag::Asking => screens.flow.asking.is_set(),
-            ScreenFlag::AskLeave => screens.loop_flags.ask_leave.is_set(),
-            ScreenFlag::EventLeft => screens.loop_flags.event_left.is_set(),
-            ScreenFlag::LeaveScreen => screens.loop_flags.leave_screen.is_set(),
-            ScreenFlag::LeftWithCarry => screens.loop_flags.left_with_carry.is_set(),
+            ScreenFlag::Asking => screens.flow.read().asking,
+            ScreenFlag::AskLeave => screens.loop_flags.read().ask_leave,
+            ScreenFlag::EventLeft => screens.loop_flags.read().event_left,
+            ScreenFlag::LeaveScreen => screens.loop_flags.read().leave_screen,
+            ScreenFlag::LeftWithCarry => screens.loop_flags.read().left_with_carry,
             ScreenFlag::SkipEditValues => screens.state.menus.skip_edit_values.is_set(),
             ScreenFlag::StandingsShown => screens.state.menus.standings_shown.is_set(),
             ScreenFlag::LeftByKey => menus.tables.captions.left_by_key.is_set(),
@@ -193,11 +193,11 @@ impl ScreenFlag {
         match self {
             ScreenFlag::EscapePressed => screens.draw_work.write().escape_pressed = on,
             ScreenFlag::EventOver => screens.event.event_over.set(on),
-            ScreenFlag::Asking => screens.flow.asking.set(on),
-            ScreenFlag::AskLeave => screens.loop_flags.ask_leave.set(on),
-            ScreenFlag::EventLeft => screens.loop_flags.event_left.set(on),
-            ScreenFlag::LeaveScreen => screens.loop_flags.leave_screen.set(on),
-            ScreenFlag::LeftWithCarry => screens.loop_flags.left_with_carry.set(on),
+            ScreenFlag::Asking => screens.flow.write().asking = on,
+            ScreenFlag::AskLeave => screens.loop_flags.write().ask_leave = on,
+            ScreenFlag::EventLeft => screens.loop_flags.write().event_left = on,
+            ScreenFlag::LeaveScreen => screens.loop_flags.write().leave_screen = on,
+            ScreenFlag::LeftWithCarry => screens.loop_flags.write().left_with_carry = on,
             ScreenFlag::SkipEditValues => screens.state.menus.skip_edit_values.set(on),
             ScreenFlag::StandingsShown => screens.state.menus.standings_shown.set(on),
             ScreenFlag::LeftByKey => menus.tables.captions.left_by_key.set(on),
@@ -949,7 +949,7 @@ fn clear_escape(screens: &Screens) -> bool {
     let pressed = screens.draw_work.read().escape_pressed;
     if pressed {
         screens.draw_work.write().escape_pressed = false;
-        screens.loop_flags.leave_screen.set(false);
+        screens.loop_flags.write().leave_screen = false;
     }
     pressed
 }
@@ -1090,10 +1090,8 @@ impl ScreenHost for MenuHost<'_> {
     fn restore_highlight(&mut self) {
         let menus = self.entry.menus;
         menus.tables.captions.left_by_key.set(false);
-        self.screens()
-            .loop_flags
-            .item
-            .set(ScreenVar::SavedItem(self.screen.saved_item).get(menus));
+        self.screens().loop_flags.write().item =
+            ScreenVar::SavedItem(self.screen.saved_item).get(menus);
         clear_escape(self.screens());
     }
 
@@ -1115,7 +1113,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn clear_leave_screen(&mut self) {
-        self.screens().loop_flags.leave_screen.set(false);
+        self.screens().loop_flags.write().leave_screen = false;
     }
 
     fn draw_set_up_frame(&mut self) -> Result<(), Refused> {
@@ -1222,7 +1220,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn highlight(&self) -> u32 {
-        self.screens().loop_flags.item.get()
+        self.screens().loop_flags.read().item
     }
 
     fn keep_action_item(&mut self, item: u32) {
@@ -1248,11 +1246,11 @@ impl ScreenHost for MenuHost<'_> {
 
     fn restore_action_item(&mut self) {
         let kept = self.action_item().get(self.entry.menus);
-        self.screens().loop_flags.item.set(kept);
+        self.screens().loop_flags.write().item = kept;
     }
 
     fn clear_answer(&mut self) {
-        self.entry.menus.tables.pages.yes_no_answer.set(0u32);
+        self.entry.menus.tables.pages.write().yes_no_answer = 0u32;
     }
 
     fn take_key(&mut self) -> Result<(), Refused> {
@@ -1295,7 +1293,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn answered_yes(&self) -> bool {
-        self.entry.menus.tables.pages.yes_no_answer.get() == 1
+        self.entry.menus.tables.pages.read().yes_no_answer == 1
     }
 
     fn save_leave_item(&mut self) {
@@ -1304,7 +1302,7 @@ impl ScreenHost for MenuHost<'_> {
             .screen
             .leave_saved_item
             .unwrap_or(self.screen.saved_item);
-        ScreenVar::SavedItem(kept).set(menus, self.screens().loop_flags.item.get());
+        ScreenVar::SavedItem(kept).set(menus, self.screens().loop_flags.read().item);
     }
 }
 
@@ -1332,7 +1330,7 @@ pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
             if o.system.session.flags.quitting.is_set() {
                 // The window was closed: leaving is the answer. Fixed bug (`wiki/Fixed-bugs.md`,
                 // the "leave?" question loops once the game is quitting).
-                o.menus.tables.pages.yes_no_answer.set(1u32);
+                o.menus.tables.pages.write().yes_no_answer = 1u32;
                 return;
             }
             asked = run_screen(ScreenId::LeaveQuestion, &Entry::new(o)).map(|_| ());

@@ -741,14 +741,14 @@ const DUMPS: [(&str, &str, DumpWord, usize, usize); 4] = [
     (
         "League: the ten records' names (g_leagueNames)",
         "`race::copy_league_table` fills them; `physics::compare_split_times` reads them.",
-        |race, n| race.course.league().names[n].get(),
+        |race, n| race.course.league().names[n],
         1,
         10,
     ),
     (
         "League: kept times, sixteen rows of ten (g_leagueRows)",
         "A row a split, a column a record; hundredths of a second.",
-        |race, n| race.course.league().rows[n].get(),
+        |race, n| race.course.league().rows[n],
         10,
         16,
     ),

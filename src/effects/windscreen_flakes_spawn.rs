@@ -9,7 +9,6 @@ use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::effects::windscreen_flakes::pick_windscreen_flake;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
-use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::race::owner_shared::RaceShared;
 
@@ -19,7 +18,7 @@ const MOST: i32 = 0x80;
 fn rate(drops: &WindscreenDrops, fl: &WindscreenFlakes, effects: &crate::effects::owner::Effects) {
     rate_x87(
         drops,
-        &effects.frame.kept_view,
+        &effects.frame.kept_view.borrow(),
         &mut fl.timing.borrow_mut(),
         &fl.state.borrow(),
         &effects.setup.work,
@@ -80,7 +79,7 @@ fn rate_x87(
     ss: &WindscreenFlakeState,
     work: &crate::effects::work_store::MarksWork,
 ) {
-    let t0 = kv.first_angle.ld();
+    let t0 = bh::ld(kv.first_angle);
     let t1 = t0 + bh::ld(drops.tilt.borrow().tilt);
     let t2 = t1.sin();
     let t3 = t2 * bh::ld(sti.rate);
@@ -88,7 +87,7 @@ fn rate_x87(
     let t4 = bh::ld(sti.rate);
     let t5 = t4 * bh::ld(drops.tilt.borrow().point[2]);
     let t6 = -t5;
-    let t7 = kv.first_angle.ld();
+    let t7 = bh::ld(kv.first_angle);
     let t8 = t7 + bh::ld(drops.tilt.borrow().tilt);
     let t9 = t8.cos();
     let t10 = t6 * t9;

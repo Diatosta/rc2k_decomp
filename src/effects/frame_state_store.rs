@@ -5,64 +5,46 @@
 use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// The marks' sprites' and profiles' work places.
-#[derive(rc2k_derive::Cells)]
 pub struct DrawWork {
     /// The profile tables' running values (`effects::make_profiles`; as bits).
-    pub profile_work: [PlainFloat; 11],
+    pub profile_work: [f32; 11],
     /// Half a sprite's size across and along (whole numbers; `effects::scale_corners` leaves a
     /// corner's two sides here).
-    pub half: [PlainFloat; 2],
+    pub half: [f32; 2],
     /// A sprite's half sides turned (whole numbers at first, floats once worked on).
-    pub sprite_half: [PlainDword; 4],
+    pub sprite_half: [u32; 4],
     /// The two ends' scales of a ribbon piece (`effects::draw_ribbon`).
-    pub ends_scale: [PlainFloat; 2],
+    pub ends_scale: [f32; 2],
     /// The place turned into the view's frame (x, y, depth).
-    pub turned: [PlainFloat; 3],
+    pub turned: [f32; 3],
     /// A ribbon piece's second place in the view's frame (x, y, depth).
-    pub second: [PlainFloat; 3],
+    pub second: [f32; 3],
     /// A flare part's sides (`effects::draw_flare_part`).
-    pub sides: [PlainFloat; 2],
+    pub sides: [f32; 2],
     /// The view's step since the last frame (`effects::view_motion`).
-    pub step: [PlainFloat; 3],
+    pub step: [f32; 3],
     /// A depth at or below it (compared as a signed whole number of the float's bits) is not drawn.
-    pub near: PlainFloat,
+    pub near: f32,
     /// 1 / 65536, what a cell's words are multiplied by to make texture places.
-    pub uv_k: PlainFloat,
+    pub uv_k: f32,
     /// 1 over the view's farthest depth (`effects::begin_quads`), what depths are multiplied by.
-    pub z_k: PlainFloat,
+    pub z_k: f32,
 }
 
 impl DrawWork {
     pub const fn new() -> Self {
         Self {
-            profile_work: [const { PlainFloat::new(0.0) }; 11],
-            half: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            sprite_half: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-            ends_scale: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            turned: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            second: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            sides: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            step: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            near: PlainFloat::new(65536.0),
-            uv_k: PlainFloat::new(0.000015258789),
-            z_k: PlainFloat::new(0.0),
+            profile_work: [0.0; 11],
+            half: [0.0, 0.0],
+            sprite_half: [0x0, 0x0, 0x0, 0x0],
+            ends_scale: [0.0, 0.0],
+            turned: [0.0, 0.0, 0.0],
+            second: [0.0, 0.0, 0.0],
+            sides: [0.0, 0.0],
+            step: [0.0, 0.0, 0.0],
+            near: 65536.0,
+            uv_k: 0.000015258789,
+            z_k: 0.0,
         }
     }
 }
@@ -76,53 +58,46 @@ impl DrawWork {
             window.view_scale.get(),
             window.view_centre[0].get(),
             window.view_centre[1].get(),
-            self.z_k.get(),
+            self.z_k,
         ]
     }
 }
 
 /// The marks' view heading, step and ribbon work.
-#[derive(rc2k_derive::Cells)]
 pub struct ViewVars {
     /// The view's heading (`effects::view_heading`).
-    pub heading: PlainFloat,
+    pub heading: f32,
     /// The frame's step, of 8 (`effects::draw_frame`).
-    pub step: PlainDword,
+    pub step: u32,
     /// The view's third row dotted with its step (`effects::view_motion`).
-    pub facing: PlainFloat,
+    pub facing: f32,
     /// 0 at each frame's start (`effects::draw_frame`); `effects::draw_flare_part` adds one for
     /// each part it draws.
-    pub cleared: PlainDword,
+    pub cleared: u32,
     /// A ribbon piece's way turned a quarter (`effects::draw_ribbon`).
-    pub ribbon_way: [PlainFloat; 2],
+    pub ribbon_way: [f32; 2],
     /// The ribbon's screen-space half-width offset (x, y) at its first end: the way turned a
     /// quarter times the half width times the first end's perspective scale; the quad's corners 0
     /// and 1 are the first end's point less / plus it (`effects::draw_ribbon`).
-    pub first_end_half_width: [PlainFloat; 2],
+    pub first_end_half_width: [f32; 2],
     /// The same half-width offset at the second end (its own perspective scale); corners 2 and 3
     /// are the second end's point plus / less it.
-    pub second_end_half_width: [PlainFloat; 2],
+    pub second_end_half_width: [f32; 2],
     /// Three points turned by the view matrix (`effects::draw_frame`; x, y, z each).
-    pub turned_points: [[PlainFloat; 3]; 3],
+    pub turned_points: [[f32; 3]; 3],
 }
 
 impl ViewVars {
     pub const fn new() -> Self {
         Self {
-            heading: PlainFloat::new(0.0),
-            step: PlainDword::new(0x0),
-            facing: PlainFloat::new(0.0),
-            cleared: PlainDword::new(0x0),
-            ribbon_way: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            first_end_half_width: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            second_end_half_width: [PlainFloat::new(0.0), PlainFloat::new(0.0)],
-            turned_points: [const {
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ]
-            }; 3],
+            heading: 0.0,
+            step: 0x0,
+            facing: 0.0,
+            cleared: 0x0,
+            ribbon_way: [0.0, 0.0],
+            first_end_half_width: [0.0, 0.0],
+            second_end_half_width: [0.0, 0.0],
+            turned_points: [[0.0; 3]; 3],
         }
     }
 }
