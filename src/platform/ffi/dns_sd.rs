@@ -12,6 +12,7 @@ use std::sync::Mutex;
 
 type ServiceRef = *mut c_void;
 
+/// `kDNSServiceFlagsAdd`: the reply adds an answer (without it, it removes one).
 const FLAGS_ADD: u32 = 0x2;
 const FLAGS_SHARE_CONNECTION: u32 = 0x4000;
 const PROTOCOL_IPV4: u32 = 0x1;
@@ -354,7 +355,7 @@ unsafe extern "C" fn on_resolve(
 /// A host's address: the service noted there, the query ended and its context freed.
 unsafe extern "C" fn on_address(
     sd: ServiceRef,
-    _flags: u32,
+    flags: u32,
     _interface: u32,
     error: i32,
     _host: *const c_char,
@@ -362,6 +363,11 @@ unsafe extern "C" fn on_address(
     _ttl: u32,
     context: *mut c_void,
 ) {
+    // A reply that says an address went (no "add" flag) is not one to note: the query goes on
+    // for the one that comes.
+    if error == 0 && flags & FLAGS_ADD == 0 {
+        return;
+    }
     // SAFETY: the query this reply is for, ended once (allowed inside its own reply), and the
     // box `on_resolve` gave it, taken back once here.
     let pending = unsafe {

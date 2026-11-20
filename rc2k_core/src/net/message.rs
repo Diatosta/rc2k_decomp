@@ -8,6 +8,7 @@ use crate::net::messages::{
     READY_ANSWER,
 };
 use crate::net::players::System;
+use crate::net::protocol::MESSAGE_MOST;
 use crate::net::race::Kind;
 
 /// A race message's bytes after its sequence byte.
@@ -75,6 +76,12 @@ impl Payload {
         }
     }
 }
+
+/// The longest chat text (without its NUL) that goes between machines: the host's relayed
+/// line, the longest frame of the three, is one kind byte, two numbers and the text, and a
+/// message past `MESSAGE_MOST` is dropped by the host. Whoever sends or relays a chat line cuts
+/// it to this.
+pub const CHAT_TEXT_MOST: usize = MESSAGE_MOST - 1 - 4 - 4;
 
 /// A message as it goes between machines.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -394,6 +401,21 @@ mod tests {
             Payload::Unknown(b"JGSNabcd".to_vec())
         );
         assert_eq!(Payload::parse(b"JGS"), Payload::Truncated(b"JGS".to_vec()));
+    }
+
+    #[test]
+    fn the_longest_relayed_chat_line_fits_the_longest_message() {
+        let line = Message::ChatRelayed {
+            sequence: 1,
+            author: 2,
+            text: vec![b'x'; CHAT_TEXT_MOST],
+        };
+        assert_eq!(line.encode().len(), MESSAGE_MOST);
+        assert_eq!(Message::parse(&line.encode()), line);
+        assert_eq!(
+            Message::Chat(vec![b'x'; CHAT_TEXT_MOST]).encode().len(),
+            MESSAGE_MOST - 8
+        );
     }
 
     #[test]

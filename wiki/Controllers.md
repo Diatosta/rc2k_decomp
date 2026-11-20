@@ -216,7 +216,8 @@ another button.
 
 ### Profiles
 
-Each player keeps a **profile for every controller** they have used: what its axes, buttons and
+Each player keeps a **profile for every controller** they have used (the 16 most recently used; a
+17th makes the one used longest ago go): what its axes, buttons and
 hat directions do, so changing from a pad to a wheel and back needs no new set-up. A profile is
 made the first time a player uses a controller:
 

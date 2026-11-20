@@ -38,8 +38,6 @@ pub struct GearFigures {
     pub test_gears: [PlainInt; 256],
     /// The engine power factor the test drive sets (`physics::acceleration_figures`).
     pub test_power_factor: PlainFloat,
-    /// A busy flag set around the copy of the "demof" file; no code names it.
-    pub demo_copy_busy: PlainDword,
 }
 
 impl GearFigures {

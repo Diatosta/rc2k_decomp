@@ -465,6 +465,33 @@ pub mod pad_axes {
     pub const RIGHT_TRIGGER: u8 = 5;
 }
 
+/// How many profiles a player keeps: one for each of this many most recently used controllers.
+pub const PROFILES_MOST: usize = 16;
+
+/// The profile in `list` for `device`, made with `kind`'s defaults when there is none. The
+/// profile used moves to the end of the list, so the front is the least recently used; a list
+/// that would pass `PROFILES_MOST` drops from the front first.
+pub fn use_profile<'a>(
+    list: &'a mut Vec<Profile>,
+    device: &DeviceId,
+    kind: Kind,
+) -> &'a mut Profile {
+    match list.iter().position(|p| p.device == *device) {
+        Some(at) => {
+            let used = list.remove(at);
+            list.push(used);
+        }
+        None => {
+            if list.len() >= PROFILES_MOST {
+                list.drain(..=list.len() - PROFILES_MOST);
+            }
+            list.push(Profile::new(device.clone(), kind));
+        }
+    }
+    let last = list.len() - 1;
+    &mut list[last]
+}
+
 /// One player's profile for one controller.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Profile {
@@ -1310,6 +1337,36 @@ mod tests {
             serial: None,
             nth: 1,
         }
+    }
+
+    fn pad_number(nth: u32) -> DeviceId {
+        DeviceId { nth, ..id() }
+    }
+
+    #[test]
+    fn a_players_profiles_stop_at_the_most_and_drop_the_least_recently_used() {
+        let mut list = Vec::new();
+        for nth in 0..PROFILES_MOST as u32 + 5 {
+            use_profile(&mut list, &pad_number(nth), Kind::Pad);
+            // the first controller is used again at each step: it must survive
+            use_profile(&mut list, &pad_number(0), Kind::Pad);
+        }
+        assert_eq!(list.len(), PROFILES_MOST);
+        assert_eq!(list.last().map(|p| &p.device), Some(&pad_number(0)));
+        assert!(list.iter().any(|p| p.device == pad_number(0)));
+        // controller 1 was the least recently used and went; the newest are all there
+        assert!(!list.iter().any(|p| p.device == pad_number(1)));
+        assert!(
+            list.iter()
+                .any(|p| p.device == pad_number(PROFILES_MOST as u32 + 4))
+        );
+        // a list from an options file that is over the most is cut at its next new controller
+        let mut long: Vec<Profile> = (100..140)
+            .map(|nth| Profile::new(pad_number(nth), Kind::Pad))
+            .collect();
+        use_profile(&mut long, &pad_number(500), Kind::Pad);
+        assert_eq!(long.len(), PROFILES_MOST);
+        assert_eq!(long.last().map(|p| &p.device), Some(&pad_number(500)));
     }
 
     fn raw(axis: usize, v: i32) -> RawInput {

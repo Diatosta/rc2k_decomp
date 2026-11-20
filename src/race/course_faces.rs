@@ -31,24 +31,20 @@ pub(super) fn face_depth_test_off(
     face: &FaceWork,
     part: &crate::scene::scratch_store::PartScratch,
 ) {
-    {
-        if !rc2k_core::race::faces::depth_test_off(face.texture_a.get(), face.polygon_mode.get()) {
-            return;
-        }
-        crate::scene::depth_test_off::depth_test_off(part);
-        face.depth_test.set(1u32);
+    if !rc2k_core::race::faces::depth_test_off(face.texture_a.get(), face.polygon_mode.get()) {
+        return;
     }
+    crate::scene::depth_test_off::depth_test_off(part);
+    face.depth_test.set(1u32);
 }
 
 /// Turns depth writing back on when `face_depth_test_off` turned it off (`depth_test` set), then
 /// sets `depth_test` 0.
 fn face_depth_test_on(face: &FaceWork, part: &crate::scene::scratch_store::PartScratch) {
-    {
-        if rc2k_core::race::faces::depth_test_on(face.depth_test.get()) {
-            crate::scene::depth_test_on::depth_test_on(part);
-        }
-        face.depth_test.set(0u32);
+    if rc2k_core::race::faces::depth_test_on(face.depth_test.get()) {
+        crate::scene::depth_test_on::depth_test_on(part);
     }
+    face.depth_test.set(0u32);
 }
 
 /// Puts a face's four points into the view scratch's corner list, the fourth -1 when it is the
@@ -105,49 +101,45 @@ fn turned_to_view(
     place: &[PlainFloat; 3],
 ) -> Result<u32, BadInput> {
     use crate::math::x87_float::{X, compare, int, ld};
-    {
-        if switches.scene_set_up.get() == 0 {
-            return Ok(0);
-        }
-        let p = f.point(1 + triangle);
-        let normal = f.normal(triangle);
-        let at = crate::race::scene_points::point_number(course, points, p)?;
-        let along = |k: usize, view_at: &PlainFloat, normal: u32| -> Result<_, BadInput> {
-            Ok((int(at[k] as i32) - view_at.ld()) * ld(normal))
-        };
-        let (x, y, z) = (
-            along(0, &place[0], normal[0])?,
-            along(1, &place[1], normal[1])?,
-            along(2, &place[2], normal[2])?,
-        );
-        Ok(u32::from(compare(X(0.0), x + (y + z)) & 0x0100 != 0))
+    if switches.scene_set_up.get() == 0 {
+        return Ok(0);
     }
+    let p = f.point(1 + triangle);
+    let normal = f.normal(triangle);
+    let at = crate::race::scene_points::point_number(course, points, p)?;
+    let along = |k: usize, view_at: &PlainFloat, normal: u32| -> Result<_, BadInput> {
+        Ok((int(at[k] as i32) - view_at.ld()) * ld(normal))
+    };
+    let (x, y, z) = (
+        along(0, &place[0], normal[0])?,
+        along(1, &place[1], normal[1])?,
+        along(2, &place[2], normal[2])?,
+    );
+    Ok(u32::from(compare(X(0.0), x + (y + z)) & 0x0100 != 0))
 }
 
 /// Which of face `face`'s triangles face the view: `face_turned` the first's, `face_turned[1]` the
 /// second's, or 1 when the face has no second triangle (`corners[3]` is -1).
 fn face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
     let work = &ctx.view.face;
-    {
-        work.turned[0].set(turned_to_view(
+    work.turned[0].set(turned_to_view(
+        ctx.reads.course(),
+        ctx.reads.switches,
+        &ctx.part.points,
+        face,
+        0,
+        &ctx.view.vars.view_place_f,
+    )?);
+    work.turned[1].set(1u32);
+    if work.corners[3].get() != u32::MAX {
+        work.turned[1].set(turned_to_view(
             ctx.reads.course(),
             ctx.reads.switches,
             &ctx.part.points,
             face,
-            0,
+            1,
             &ctx.view.vars.view_place_f,
         )?);
-        work.turned[1].set(1u32);
-        if work.corners[3].get() != u32::MAX {
-            work.turned[1].set(turned_to_view(
-                ctx.reads.course(),
-                ctx.reads.switches,
-                &ctx.part.points,
-                face,
-                1,
-                &ctx.view.vars.view_place_f,
-            )?);
-        }
     }
     Ok(())
 }
@@ -170,39 +162,37 @@ fn frame_of(
 /// kind) go into `order_a` / `back_a` and `order_b` / `back_b`.
 pub(super) fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
     let work = &ctx.view.face;
-    {
-        let clock: u32 = ctx.reads.frame_cars.car(0)?.step_clock.get();
-        let (k1, k2) = (ctx.reads.numbers.ten.get(), ctx.reads.numbers.quarter.get());
-        let texture = |object: u32| -> Result<u32, BadInput> {
-            let speed = table_byte(
-                &ctx.reads.stage_prefs.face_speeds,
-                object,
-                "the face speeds",
-            )?;
-            if speed == 0 {
-                return Ok(object);
-            }
-            let n = frame_of(
-                clock,
-                ctx.reads.course_lists.face_key_factors[speed as usize].get(),
-                k1,
-                k2,
-            );
-            let (_, place) = rc2k_core::race::faces::frame_place(object, n);
-            table_byte(&ctx.reads.stage_prefs.face_places, place, "the face places")
-        };
-        // The frame's rounding is the x87's (`rc2k_core::race::faces::{frame_place,
-        // material_bits}`).
-        use rc2k_core::race::faces::material_bits;
-        work.texture_a.set(texture(face.object() as u32)?);
-        let (order, back) = material_bits(face.kind());
-        work.order_a.set(order);
-        work.back_a.set(back);
-        work.texture_b.set(texture(face.second_object() as u32)?);
-        let (order, back) = material_bits(face.second_kind());
-        work.order_b.set(order);
-        work.back_b.set(back);
-    }
+    let clock: u32 = ctx.reads.frame_cars.car(0)?.step_clock.get();
+    let (k1, k2) = (ctx.reads.numbers.ten.get(), ctx.reads.numbers.quarter.get());
+    let texture = |object: u32| -> Result<u32, BadInput> {
+        let speed = table_byte(
+            &ctx.reads.stage_prefs.face_speeds,
+            object,
+            "the face speeds",
+        )?;
+        if speed == 0 {
+            return Ok(object);
+        }
+        let n = frame_of(
+            clock,
+            ctx.reads.course_lists.face_key_factors[speed as usize].get(),
+            k1,
+            k2,
+        );
+        let (_, place) = rc2k_core::race::faces::frame_place(object, n);
+        table_byte(&ctx.reads.stage_prefs.face_places, place, "the face places")
+    };
+    // The frame's rounding is the x87's (`rc2k_core::race::faces::{frame_place,
+    // material_bits}`).
+    use rc2k_core::race::faces::material_bits;
+    work.texture_a.set(texture(face.object() as u32)?);
+    let (order, back) = material_bits(face.kind());
+    work.order_a.set(order);
+    work.back_a.set(back);
+    work.texture_b.set(texture(face.second_object() as u32)?);
+    let (order, back) = material_bits(face.second_kind());
+    work.order_b.set(order);
+    work.back_b.set(back);
     Ok(())
 }
 
@@ -227,12 +217,10 @@ fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// Sets `polygon_sides` and the next polygon flag to 1 when the face's first / second texture is
 /// animated (`texture_a` / `texture_b` not 0), else 0.
 fn face_switches(poly: &crate::scene::polygon_work_store::PolygonWork, work: &FaceWork) {
-    {
-        let [first, second] =
-            rc2k_core::race::faces::switches([work.texture_a.get(), work.texture_b.get()]);
-        poly.polygon_sides[0].set(first);
-        poly.polygon_sides[1].set(second);
-    }
+    let [first, second] =
+        rc2k_core::race::faces::switches([work.texture_a.get(), work.texture_b.get()]);
+    poly.polygon_sides[0].set(first);
+    poly.polygon_sides[1].set(second);
 }
 
 /// The light at scene point `n` (`light_colour_at`), 0 for -1.
@@ -479,39 +467,37 @@ pub(super) fn face_texture_coordinates(
     set: &TextureSet<'_>,
 ) -> Result<(), BadInput> {
     use rc2k_core::race::faces::{TextureInfo, texture_coordinates};
-    {
-        let texture: u32 = set.texture.get();
-        let texture_info = TextureInfo {
-            size: u32::from_le_bytes(info_bytes(&buffers.polygon_tables, texture, 0x20)?),
-            mapping: i8::from_le_bytes(info_bytes(&buffers.polygon_tables, texture, 0x2D)?),
-        };
-        let order: u32 = set.order.get();
-        let mut pairs = [(0u16, 0u16); 4];
-        for (k, pair_out) in pairs.iter_mut().enumerate() {
-            let table = race_view.corner_uv_offsets[(order << 2) as usize + k].get();
-            *pair_out = (
-                u16::from_le_bytes(info_bytes(&buffers.polygon_tables, texture, table)?),
-                u16::from_le_bytes(info_bytes(
-                    &buffers.polygon_tables,
-                    texture,
-                    table.wrapping_add(2),
-                )?),
-            );
-        }
-        let trap = Trap::new();
-        let c = texture_coordinates(texture_info, pairs, |k| {
-            let n: u32 = work.corners[k].get();
-            crate::race::scene_points::point_xz(course, points, n).unwrap_or_else(|e| {
-                trap.keep(e);
-                (0, 0)
-            })
-        });
-        trap.finish()?;
-        set.size.set(c.size);
-        set.mapping.set(c.mapping);
-        set.plain.set(c.plain);
-        crate::memory::session::write_bits(set.uv, c.uv);
+    let texture: u32 = set.texture.get();
+    let texture_info = TextureInfo {
+        size: u32::from_le_bytes(info_bytes(&buffers.polygon_tables, texture, 0x20)?),
+        mapping: i8::from_le_bytes(info_bytes(&buffers.polygon_tables, texture, 0x2D)?),
+    };
+    let order: u32 = set.order.get();
+    let mut pairs = [(0u16, 0u16); 4];
+    for (k, pair_out) in pairs.iter_mut().enumerate() {
+        let table = race_view.corner_uv_offsets[(order << 2) as usize + k].get();
+        *pair_out = (
+            u16::from_le_bytes(info_bytes(&buffers.polygon_tables, texture, table)?),
+            u16::from_le_bytes(info_bytes(
+                &buffers.polygon_tables,
+                texture,
+                table.wrapping_add(2),
+            )?),
+        );
     }
+    let trap = Trap::new();
+    let c = texture_coordinates(texture_info, pairs, |k| {
+        let n: u32 = work.corners[k].get();
+        crate::race::scene_points::point_xz(course, points, n).unwrap_or_else(|e| {
+            trap.keep(e);
+            (0, 0)
+        })
+    });
+    trap.finish()?;
+    set.size.set(c.size);
+    set.mapping.set(c.mapping);
+    set.plain.set(c.plain);
+    crate::memory::session::write_bits(set.uv, c.uv);
     Ok(())
 }
 
@@ -521,25 +507,23 @@ pub(super) fn face_texture_coordinates(
 /// points.
 fn face_corners_to_new_points(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let work = &ctx.view.face;
-    {
-        crate::race::frame_draw::points_there(ctx)?;
-        let count: u32 = ctx.reads.course_work.scene_point_count.get();
-        let corners: [u32; 4] = crate::memory::session::read_bits(&work.corners);
-        let (marked, copies) = rc2k_core::race::faces::new_points(count, corners);
-        for n in marked {
-            crate::scene::point_records::put_field(
-                ctx.part,
-                crate::scene::point_records::at_offset(n << 5),
-                0,
-                u32::MAX,
-            )?;
-        }
-        for (k, (from, to)) in copies.into_iter().enumerate() {
-            crate::race::scene_points::copy_point(ctx.reads.course(), &ctx.part.points, from, to)?;
-            work.corners[k].set(to);
-        }
-        Ok(())
+    crate::race::frame_draw::points_there(ctx)?;
+    let count: u32 = ctx.reads.course_work.scene_point_count.get();
+    let corners: [u32; 4] = crate::memory::session::read_bits(&work.corners);
+    let (marked, copies) = rc2k_core::race::faces::new_points(count, corners);
+    for n in marked {
+        crate::scene::point_records::put_field(
+            ctx.part,
+            crate::scene::point_records::at_offset(n << 5),
+            0,
+            u32::MAX,
+        )?;
     }
+    for (k, (from, to)) in copies.into_iter().enumerate() {
+        crate::race::scene_points::copy_point(ctx.reads.course(), &ctx.part.points, from, to)?;
+        work.corners[k].set(to);
+    }
+    Ok(())
 }
 
 /// The work table's entry `slot`.
@@ -556,18 +540,16 @@ fn fill_entry(
     slot: u32,
     corner: u32,
 ) -> Result<(), BadInput> {
-    {
-        let e = entry(polygon_work, slot);
-        let c = corner as usize;
-        e.point.set(work.corners[c].get());
-        e.u.set(work.uv_a[2 * c].get());
-        e.v.set(work.uv_a[2 * c + 1].get());
-        e.light.set(work.corner_colours[c].get());
-        e.lamp_light.set(work.corner_lights[c].get());
-        e.u2.set(work.uv_b[2 * c].get());
-        e.v2.set(work.uv_b[2 * c + 1].get());
-        e.amount.set(work.corner_alphas[c].get() as u8);
-    }
+    let e = entry(polygon_work, slot);
+    let c = corner as usize;
+    e.point.set(work.corners[c].get());
+    e.u.set(work.uv_a[2 * c].get());
+    e.v.set(work.uv_a[2 * c + 1].get());
+    e.light.set(work.corner_colours[c].get());
+    e.lamp_light.set(work.corner_lights[c].get());
+    e.u2.set(work.uv_b[2 * c].get());
+    e.v2.set(work.uv_b[2 * c + 1].get());
+    e.amount.set(work.corner_alphas[c].get() as u8);
     Ok(())
 }
 
@@ -587,14 +569,12 @@ fn plain_list(
     count: u32,
     next: u32,
 ) {
-    {
-        poly.polygon_vertex_count.set(count);
-        for k in 0..count {
-            crate::scene::polygon::list_cell(polygon_work, k as usize).set(k);
-        }
-        crate::scene::polygon::list_cell(polygon_work, count as usize).set(0);
-        poly.polygon_next_entry.set(next);
+    poly.polygon_vertex_count.set(count);
+    for k in 0..count {
+        crate::scene::polygon::list_cell(polygon_work, k as usize).set(k);
     }
+    crate::scene::polygon::list_cell(polygon_work, count as usize).set(0);
+    poly.polygon_next_entry.set(next);
 }
 
 /// Draws the face as one quad when it can be: the entries 1, 2, 3, 0 from corners 0, 1, 3, 2. It
@@ -984,29 +964,27 @@ fn face_colours(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
 /// order by `turned_corner_order` (its bit 3 kept); `draw_back_face` does this twice.
 fn turn_over(ctx: &DrawCtx<'_>) -> Result<(), BadInput> {
     let work = &ctx.view.face;
-    {
-        let swap = |a: usize, b: usize| {
-            let (x, y) = (work.corners[a].get(), work.corners[b].get());
-            work.corners[a].set(y);
-            work.corners[b].set(x);
-        };
-        use rc2k_core::race::face_drawing::{turned_order, turns_last_pair};
-        swap(0, 1);
-        if turns_last_pair(work.corners[3].get()) {
-            swap(2, 3);
-        }
-        let order: u32 = work.order_a.get();
-        let trap = Trap::new();
-        let turned = turned_order(order, |n| {
-            // `turned_order` asks 0 ..= 7.
-            byte_of(&ctx.reads.view.turned_corner_order, n as usize).unwrap_or_else(|| {
-                trap.keep(BadInput("past the turned corner order"));
-                0
-            })
-        });
-        trap.finish()?;
-        work.order_a.set(turned);
+    let swap = |a: usize, b: usize| {
+        let (x, y) = (work.corners[a].get(), work.corners[b].get());
+        work.corners[a].set(y);
+        work.corners[b].set(x);
+    };
+    use rc2k_core::race::face_drawing::{turned_order, turns_last_pair};
+    swap(0, 1);
+    if turns_last_pair(work.corners[3].get()) {
+        swap(2, 3);
     }
+    let order: u32 = work.order_a.get();
+    let trap = Trap::new();
+    let turned = turned_order(order, |n| {
+        // `turned_order` asks 0 ..= 7.
+        byte_of(&ctx.reads.view.turned_corner_order, n as usize).unwrap_or_else(|| {
+            trap.keep(BadInput("past the turned corner order"));
+            0
+        })
+    });
+    trap.finish()?;
+    work.order_a.set(turned);
     Ok(())
 }
 

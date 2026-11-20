@@ -27,7 +27,7 @@ use crate::net::receive_message::receive_message;
 use crate::net::store::inbox_of;
 use crate::net::store_received::store_received;
 use crate::net::system_message::system_message;
-use rc2k_core::net::message::Message;
+use rc2k_core::net::message::{CHAT_TEXT_MOST, Message};
 use rc2k_core::net::messages;
 
 /// The players the blocks have room for.
@@ -93,7 +93,7 @@ pub(super) fn take_messages(
                     .receiver
                     .receive_data
                     .set((m.size as usize).min(ROOM as usize - 1), 0);
-                text.truncate(ROOM as usize - 2);
+                text.truncate((ROOM as usize - 2).min(CHAT_TEXT_MOST));
                 text.push(0);
                 // Added to the chat by the game's thread (`net::drain_chat`), which owns the fonts.
                 net.queue_chat(player, text, None);

@@ -241,13 +241,19 @@ pub(crate) fn driving(race: &crate::race::owner::Race) -> bool {
     race.course.numbers.get().in_race.is_set() && race.shared.replay_file().hold_car_revs.get() == 0
 }
 
-/// Whether the race's own touch controls are live: a race is driven and no pause or question
-/// (`drive::pause_until_key`, `drive::quit_question`, which set `scene_switch`) waits for an
-/// answer. While one does, a finger is the menus' gestures: a tap is Enter (any key, yes), a
-/// double tap Escape (no).
+/// Whether the race's own touch controls are live: a race is driven by a player (not the
+/// credits' demonstration race between the films, nor a replay played back) and no pause or
+/// question (`drive::pause_until_key`, `drive::quit_question`, which set `scene_switch`) waits
+/// for an answer. While one does, a finger is the menus' gestures: a tap is Enter (any key, yes),
+/// a double tap Escape (no).
 #[cfg(touch_screen)]
 pub(crate) fn touch_controls_live(race: &crate::race::owner::Race) -> bool {
-    driving(race) && race.shared.vars.get().scene_switch.get() == 0
+    driving(race)
+        && !race.shared.work.get().in_credits.is_set()
+        && !rc2k_core::drive::replay_frames::plays_inputs(
+            race.course.numbers.get().replay_mode.get(),
+        )
+        && race.shared.vars.get().scene_switch.get() == 0
 }
 
 /// What the race waits for while its touch controls are off: the quit question's yes and no, or

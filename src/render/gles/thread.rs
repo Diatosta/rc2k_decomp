@@ -313,7 +313,7 @@ pub fn start_on_window(
     start_with(move || Gles::open_window(window).map_err(|(why, window)| (why, Some(window))));
     let runs = backend::gl_runs();
     if runs {
-        *WINDOW.lock().unwrap() = Some(handle);
+        *window_lock() = Some(handle);
     }
     runs
 }
@@ -325,10 +325,18 @@ pub fn start_on_window(
 pub(super) static WINDOW: std::sync::Mutex<Option<crate::platform::ffi::sdl::Window>> =
     std::sync::Mutex::new(None);
 
+/// `WINDOW` locked (a panic elsewhere does not stop the game's thread here).
+#[cfg(not(handheld))]
+fn window_lock() -> std::sync::MutexGuard<'static, Option<crate::platform::ffi::sdl::Window>> {
+    WINDOW
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 /// The window the OpenGL backend shows its frames on, while it runs.
 #[cfg(not(handheld))]
 pub fn window() -> Option<crate::platform::ffi::sdl::Window> {
-    *WINDOW.lock().unwrap()
+    *window_lock()
 }
 
 /// The OpenGL backend stopped, if it runs: the jobs' end is waited for, both threads are
@@ -345,7 +353,7 @@ pub fn stop() -> bool {
             }
         }
     };
-    *WINDOW.lock().unwrap() = None;
+    *window_lock() = None;
     crate::render::gpu_stopped();
     let Front { jobs, threads, .. } = front;
     // The batching thread ends with the game's side, the GL's with the batching thread.
@@ -404,13 +412,25 @@ pub(super) fn start_with(open: impl FnOnce() -> Result<Gles, Failed> + Send + 's
     };
     // The GL's thread, without its batches' sender, ends when this does not start.
     let outcome = outcome.and_then(|gl| {
-        std::thread::Builder::new()
+        let spawned = std::thread::Builder::new()
             .name("GL batches".into())
             .spawn(move || {
                 crate::render::gl_batching::run(to_batch, batched, same_array, bench::enabled());
-            })
-            .map(|batching| Threads { batching, gl })
-            .map_err(|why| why.to_string())
+            });
+        match spawned {
+            Ok(batching) => Ok(Threads { batching, gl }),
+            Err(why) => {
+                // The closure, with the batches' sender, is gone, so the GL's thread ends; its
+                // window is destroyed here as in the failed start above.
+                #[cfg(not(handheld))]
+                if let Ok(Some(window)) = gl.join() {
+                    window.destroy();
+                }
+                #[cfg(handheld)]
+                let _ = gl.join();
+                Err(why.to_string())
+            }
+        }
     });
     match outcome {
         Ok(threads) => {

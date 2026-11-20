@@ -65,9 +65,6 @@ pub struct LightWork {
     /// The material phases' four bases, four random parts and a 0 (200, 400, 200, 400, 400,
     /// 400, 400, 400, 0); nothing reads them and nothing writes them (0 from the start).
     pub phase_lengths: [PlainDword; 9],
-    /// The clock when `scene::set_object_material` was last here (read by nothing, no longer
-    /// written).
-    pub phase_clock: PlainDword,
     /// Faces in the list (`scene::list_object_face`, `scene::draw_object_faces`,
     /// `scene::sort_listed_faces`).
     pub listed_face_count: PlainDword,

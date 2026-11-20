@@ -9,7 +9,7 @@
 
 use crate::input::owner::Input;
 use rc2k_core::input::device_id::id_of;
-use rc2k_core::input::profile::{Profile, RawInput};
+use rc2k_core::input::profile::{PROFILES_MOST, Profile, RawInput, use_profile};
 use std::sync::MutexGuard;
 use std::sync::atomic::Ordering;
 
@@ -31,6 +31,11 @@ pub fn keep(input: &Input, mut profiles: [Vec<Profile>; 4]) {
         .iter_mut()
         .flatten()
         .for_each(rc2k_core::input::touch::give_lights);
+    // A file with more than a player keeps (an older one) loses the least recently used first.
+    for list in &mut profiles {
+        let extra = list.len().saturating_sub(PROFILES_MOST);
+        list.drain(..extra);
+    }
     *all(input) = profiles;
 }
 
@@ -62,14 +67,7 @@ pub fn with_profile<R>(
     let (id, info) = identity(input, controller)?;
     let mut all = all(input);
     let list = all.get_mut(player as usize)?;
-    let at = match list.iter().position(|p| p.device == id) {
-        Some(at) => at,
-        None => {
-            list.push(Profile::new(id, info.kind));
-            list.len() - 1
-        }
-    };
-    Some(f(&mut list[at]))
+    Some(f(use_profile(list, &id, info.kind)))
 }
 
 /// What player `player`'s buttons on the controller at place `controller` are drawn with: the

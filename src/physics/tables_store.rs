@@ -291,8 +291,8 @@ pub struct PhysicsTables {
     pub reserved_8b8: PlainDword,
     /// The two lever pushes (`physics::lever_push`).
     pub lever_pushes: [PlainDword; 2],
-    /// Time marks that nothing reads and nothing writes any more.
-    pub time_marks: [PlainDword; 2],
+    /// Unused (the image's two time marks).
+    pub reserved_8c4: [PlainDword; 2],
     /// `physics::add_drive_forces`'.
     pub drive_force_scale: PlainFloat,
     /// The engine's lowest speed (`physics::load_car_specs`).

@@ -275,13 +275,13 @@ fn stick(words: &[&str]) -> Option<String> {
             Some("ok".to_string())
         }
         ["axis", n, value] => {
-            let (_, joystick) = (*held)?;
+            let (_, joystick) = held.as_ref()?;
             joystick
                 .set_virtual_axis(n.parse().ok()?, value.parse().ok()?)
                 .then(|| "ok".to_string())
         }
         ["button", n, down @ ("0" | "1")] => {
-            let (_, joystick) = (*held)?;
+            let (_, joystick) = held.as_ref()?;
             joystick
                 .set_virtual_button(n.parse().ok()?, *down == "1")
                 .then(|| "ok".to_string())
@@ -292,7 +292,7 @@ fn stick(words: &[&str]) -> Option<String> {
         }
         ["detach"] => {
             let (id, joystick) = held.take()?;
-            joystick.close();
+            drop(joystick);
             sdl_input::detach_virtual_stick(id).then(|| "ok".to_string())
         }
         _ => None,

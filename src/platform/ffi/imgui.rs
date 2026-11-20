@@ -40,23 +40,29 @@ impl Renderer {
     pub fn output_size(self) -> (i32, i32) {
         let (mut w, mut h) = (0, 0);
         // SAFETY: the window's renderer, two integers to fill.
-        unsafe { SDL_GetRenderOutputSize(self.0, &raw mut w, &raw mut h) };
+        unsafe { SDL_GetRenderOutputSize(self.raw(), &raw mut w, &raw mut h) };
         (w, h)
     }
 
     /// The clip rectangle set, or cleared with none.
     pub fn set_clip_rect(self, clip: Option<&SDL_Rect>) {
         // SAFETY: the window's renderer; a rectangle read during the call, or null (clear).
-        unsafe { SDL_SetRenderClipRect(self.0, clip.map_or(std::ptr::null(), std::ptr::from_ref)) };
+        unsafe {
+            SDL_SetRenderClipRect(
+                self.raw(),
+                clip.map_or(std::ptr::null(), std::ptr::from_ref),
+            )
+        };
     }
 
     /// Triangles drawn from `vertices[first..]` (Dear ImGui's vertex records: positions
     /// `xy[first..]` already in pixels, colours `colours[first..]`, texture coordinates from the
     /// records) by `indices` (16-bit, into those vertices; SDL checks them against the count).
-    /// `texture_id` is a `Texture::id`.
+    /// `texture` is the texture to draw with (borrowed for the call, so alive), none for
+    /// untextured triangles.
     pub fn draw_geometry(
         self,
-        texture_id: u64,
+        texture: Option<&Texture>,
         xy: &[[f32; 2]],
         colours: &[SDL_FColor],
         vertices: &[DrawVert],
@@ -68,15 +74,19 @@ impl Renderer {
         if first >= vertices.len() || xy.len() < vertices.len() || colours.len() < vertices.len() {
             return;
         }
-        let texture = std::ptr::with_exposed_provenance_mut::<SDL_Texture>(texture_id as usize);
+        // A texture of another renderer, or of one destroyed, is not drawn with.
+        if texture.is_some_and(|t| t.renderer != self.generation() || !t.renderer_alive()) {
+            return;
+        }
+        let texture = texture.map_or(std::ptr::null_mut(), |texture| texture.raw);
         let stride = size_of::<DrawVert>() as i32;
         // SAFETY: the vertices from `first` on (`count` of them, checked above for each of the
         // three arrays), `indices.len()` 16-bit indices that SDL checks against `count`, the
-        // texture one `Texture::create` made (or null); the texture coordinates are the
+        // texture one `Texture::create` made and `texture` borrows (or null); the texture coordinates are the
         // records' second pair of floats, at their stride.
         unsafe {
             SDL_RenderGeometryRaw(
-                self.0,
+                self.raw(),
                 texture,
                 xy[first..].as_ptr().cast(),
                 8,
@@ -96,6 +106,8 @@ impl Renderer {
 /// An SDL texture of Dear ImGui's, with its width (the bytes a row of its pixels takes).
 pub struct Texture {
     raw: *mut SDL_Texture,
+    /// The renderer it was made on (`Renderer::generation`); SDL frees the texture with it.
+    renderer: u64,
     width: i32,
 }
 
@@ -113,7 +125,7 @@ impl Texture {
         // SAFETY: the window's renderer.
         let sdl = unsafe {
             SDL_CreateTexture(
-                renderer.0,
+                renderer.raw(),
                 SDL_PIXELFORMAT_ABGR8888,
                 SDL_TEXTUREACCESS_STATIC,
                 width,
@@ -123,7 +135,11 @@ impl Texture {
         if sdl.is_null() {
             return Err("SDL makes no texture".into());
         }
-        let texture = Self { raw: sdl, width };
+        let texture = Self {
+            raw: sdl,
+            renderer: renderer.generation(),
+            width,
+        };
         if !texture.update(None, height, rows, pitch) {
             texture.destroy();
             return Err("SDL's texture is given too few pixels".into());
@@ -142,7 +158,8 @@ impl Texture {
         // The call reads the rectangle's rows (the texture's, with none): as wide as the
         // rectangle, as many as it is high, `pitch` bytes apart.
         let (width, rows_read) = rect.map_or((self.width, height), |r| (r.w, r.h));
-        if pitch < 0
+        if !self.renderer_alive()
+            || pitch < 0
             || height < 0
             || width < 0
             || rows_read > height
@@ -169,15 +186,24 @@ impl Texture {
         true
     }
 
-    /// The number Dear ImGui carries for this texture (`Renderer::draw_geometry` takes it).
+    /// The number Dear ImGui carries for this texture (the owner of the textures looks a drawn
+    /// id up among them, and hands `Renderer::draw_geometry` the texture it names).
     pub fn id(&self) -> u64 {
         self.raw.expose_provenance() as u64
     }
 
-    /// Destroyed; no id of it is drawn after.
+    /// Whether the renderer it was made on is alive.
+    fn renderer_alive(&self) -> bool {
+        super::sdl::is_live(self.renderer)
+    }
+
+    /// Destroyed; no id of it is drawn after. One whose renderer was destroyed first has gone
+    /// with it already: nothing is done.
     pub fn destroy(self) {
-        // SAFETY: a texture `create` made, destroyed once.
-        unsafe { SDL_DestroyTexture(self.raw) };
+        if self.renderer_alive() {
+            // SAFETY: a texture `create` made, destroyed once, its renderer alive (checked).
+            unsafe { SDL_DestroyTexture(self.raw) };
+        }
     }
 }
 

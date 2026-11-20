@@ -282,9 +282,7 @@ mod backend {
             note("the path is not usable");
             return;
         };
-        let Ok(mut state) = STATE.lock() else {
-            return;
-        };
+        let mut state = lock_state();
         state.paths.push_back(text);
         if !state.busy {
             state.busy = true;
@@ -335,13 +333,21 @@ mod backend {
     }
 
     /// Main thread: with the permission known, finds the album and asks for the change.
+    /// `STATE` locked. A panic elsewhere must not leave `busy` set for good (no later picture
+    /// would be saved): the queue is plain data, so it is used as it stands.
+    fn lock_state() -> std::sync::MutexGuard<'static, State> {
+        STATE
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     fn proceed(status: isize) {
         if status != STATUS_AUTHORIZED && status != STATUS_LIMITED {
             note("no read-write access to the photos");
             finish_failed();
             return;
         }
-        let Some(path) = STATE.lock().ok().and_then(|s| s.paths.front().cloned()) else {
+        let Some(path) = lock_state().paths.front().cloned() else {
             return;
         };
         let album = find_album();
@@ -478,15 +484,13 @@ mod backend {
         if album != 0 {
             send0(album as Id, c"release");
         }
-        let (done, more) = match STATE.lock() {
-            Ok(mut state) => {
-                let done = state.paths.pop_front();
-                if state.paths.is_empty() {
-                    state.busy = false;
-                }
-                (done, state.busy)
+        let (done, more) = {
+            let mut state = lock_state();
+            let done = state.paths.pop_front();
+            if state.paths.is_empty() {
+                state.busy = false;
             }
-            Err(_) => return,
+            (done, state.busy)
         };
         if let Some(path) = done {
             if LAST_OK.load(Ordering::SeqCst) {

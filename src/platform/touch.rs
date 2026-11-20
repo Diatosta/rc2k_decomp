@@ -121,7 +121,7 @@ pub fn take_source_change() -> bool {
 /// drives player 1 from now on. The virtual gamepad's own events are not that.
 pub(super) fn pad_used(id: SDL_JoystickID) {
     let mut st = state();
-    if st.pad.is_some_and(|(ours, _)| ours == id) {
+    if st.pad.as_ref().is_some_and(|(ours, _)| *ours == id) {
         return;
     }
     if id.0 != 0 {
@@ -152,7 +152,7 @@ pub(super) fn attach_at_start() {
 /// SDL has found a joystick: a real one (not the virtual gamepad) hides the overlay.
 pub(super) fn pad_added(id: SDL_JoystickID) {
     let mut st = state();
-    if st.pad.is_some_and(|(ours, _)| ours == id) {
+    if st.pad.as_ref().is_some_and(|(ours, _)| *ours == id) {
         return;
     }
     if sdl_input::is_gamepad(id) {
@@ -163,7 +163,7 @@ pub(super) fn pad_added(id: SDL_JoystickID) {
 /// A joystick has gone.
 pub(super) fn pad_removed(id: SDL_JoystickID) {
     let mut st = state();
-    if st.pad.is_some_and(|(ours, _)| ours == id) {
+    if st.pad.as_ref().is_some_and(|(ours, _)| *ours == id) {
         return;
     }
     st.real_pads = st.real_pads.saturating_sub(1);
@@ -206,7 +206,7 @@ pub fn update(driving: bool, now: u64) {
     if out == st.sent {
         return;
     }
-    let Some((_, pad)) = st.pad else {
+    let Some((_, pad)) = st.pad.as_ref() else {
         return;
     };
     // A virtual gamepad's trigger rests at the axis's minimum (0 is half pressed).

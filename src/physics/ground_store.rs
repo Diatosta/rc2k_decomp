@@ -37,8 +37,6 @@ pub struct GroundWork {
     pub face_share_c: PlainFloat,
     /// A float `physics::face_shares` leaves (a reading, output 0) (`physics::ground`).
     pub face_share_a: PlainFloat,
-    /// Nothing reads or writes it (the 1999 program's SSE path kept a reciprocal here).
-    pub face_share_scale: PlainFloat,
     /// A share as a whole number from `physics::face_shares`; read by `physics::car_lighting`,
     /// copied on.
     pub share_s: PlainDword,

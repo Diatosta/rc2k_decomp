@@ -90,20 +90,16 @@ impl Gpu {
 
     /// The colour target, for showing it, and the number of its set of targets (a new
     /// target may be made at an old one's address).
-    pub fn colour_texture(&self) -> (*mut SDL_GPUTexture, u64, (u32, u32)) {
+    pub fn colour_texture(&self) -> (Texture, u64, (u32, u32)) {
         if self.high_shown
             && let Some(high) = &self.menu_high
         {
             // A made-again set of the larger targets is another number, past any of the
             // screen's sets.
             let number = (self.targets_made << 20) + self.high_made;
-            return (high.shown.as_raw(), number, high.size);
+            return (high.shown, number, high.size);
         }
-        (
-            self.colour.as_raw(),
-            self.targets_made,
-            (self.width, self.height),
-        )
+        (self.colour, self.targets_made, (self.width, self.height))
     }
 
     /// Draws the commands over the target: the retained background first if one is noted, then

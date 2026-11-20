@@ -512,6 +512,44 @@ fn a_frame_of_an_unknown_kind_is_passed_over() {
     host.close();
 }
 
+/// A `PONG` counts only for a ping the machine was sent and has not answered: any other makes
+/// the host send nothing.
+#[test]
+fn a_pong_without_a_ping_is_passed_over() {
+    let (host, port) = wire_host();
+    let mut peer = connect(port);
+    write_frame(&mut peer, &[vec![JOIN], MAGIC.to_vec()].concat()).unwrap();
+    host_frame(&mut peer).expect("the welcome");
+    let pong = |stamp: u32| [vec![PONG], le(&[stamp])].concat();
+    // Whether the host sent a `PINGS` within `wait`, and the stamp of the last ping it sent (the
+    // host remembers only the latest few, so the answer goes at once).
+    let listen = |peer: &mut TcpStream, wait: Duration| {
+        peer.set_read_timeout(Some(Duration::from_millis(20)))
+            .unwrap();
+        let (mut told, mut stamp) = (false, None);
+        let until = Instant::now() + wait;
+        while Instant::now() < until {
+            if let Ok(frame) = read_frame(peer) {
+                told |= frame[0] == PINGS;
+                if frame[0] == PING {
+                    stamp = Some(u32::from_le_bytes(frame[1..5].try_into().unwrap()));
+                }
+            }
+        }
+        (told, stamp)
+    };
+    write_frame(&mut peer, &pong(0x1234_5678)).unwrap();
+    let (told, stamp) = listen(&mut peer, Duration::from_millis(300));
+    assert!(!told, "an unasked PONG was answered");
+    let stamp = stamp.expect("a ping");
+    // The ping's own answer counts once.
+    write_frame(&mut peer, &pong(stamp)).unwrap();
+    assert!(listen(&mut peer, Duration::from_millis(300)).0);
+    write_frame(&mut peer, &pong(stamp)).unwrap();
+    assert!(!listen(&mut peer, Duration::from_millis(300)).0);
+    host.close();
+}
+
 /// A connection whose writes block until it is released or cut: a machine that reads nothing.
 #[derive(Clone)]
 struct Stalled {

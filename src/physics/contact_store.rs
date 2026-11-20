@@ -10,17 +10,6 @@ use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ContactWork {
-    /// The x of the middle of a face's second and third points, which nothing reads (a local
-    /// now).
-    pub eax_mid_x: PlainFloat,
-    /// The z of that middle (unused likewise).
-    pub eax_mid_z: PlainFloat,
-    /// A scene point's x less car 0's, never read: unused.
-    pub eax_point_x: PlainDword,
-    /// The z of the same, never read: unused.
-    pub eax_point_z: PlainDword,
-    /// A face weight's distance, never read: unused.
-    pub eax_distance: PlainFloat,
     /// The numerator of the share `physics::contact_force` makes (a reading).
     pub contact_share_numerator: PlainFloat,
     /// The factor on the normal part `physics::contact_force` adds (a reading).

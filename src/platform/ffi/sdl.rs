@@ -11,7 +11,10 @@
 
 #![allow(unsafe_code)]
 
+#[cfg(not(handheld))]
+use super::sdl_gpu;
 use sdl3_sys::everything::*;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// How a window is shown on its display.
 #[cfg_attr(handheld, allow(dead_code))] // the handheld's panel is always the whole screen
@@ -31,14 +34,54 @@ pub enum FullScreen {
 #[derive(Clone, Copy)]
 pub struct Window(pub(super) *mut SDL_Window);
 
-/// A window's renderer.
+/// A window's renderer. The handle is a copy: it carries the number the renderer was made
+/// under, which `destroy` and `destroy_renderer` retire, so a copy kept after that is refused
+/// (its calls end the program with a message; a second destroy does nothing) instead of
+/// reaching a freed SDL object.
 #[derive(Clone, Copy)]
-pub struct Renderer(pub(super) *mut SDL_Renderer);
+pub struct Renderer(*mut SDL_Renderer, Generation);
+
+/// The number a renderer is made under; zero is none.
+type Generation = u64;
+
+/// The generations of the renderers alive. A program has one or two at a time.
+static LIVE_RENDERERS: [AtomicU64; 8] = [const { AtomicU64::new(0) }; 8];
+static NEXT_GENERATION: AtomicU64 = AtomicU64::new(1);
+
+/// A new generation noted as alive; none when all the places are taken.
+fn make_live() -> Option<Generation> {
+    let generation = NEXT_GENERATION.fetch_add(1, Ordering::Relaxed);
+    LIVE_RENDERERS
+        .iter()
+        .any(|slot| {
+            slot.compare_exchange(0, generation, Ordering::AcqRel, Ordering::Relaxed)
+                .is_ok()
+        })
+        .then_some(generation)
+}
+
+/// Whether the renderer made under `generation` is still alive.
+pub(super) fn is_live(generation: Generation) -> bool {
+    generation != 0
+        && LIVE_RENDERERS
+            .iter()
+            .any(|slot| slot.load(Ordering::Acquire) == generation)
+}
+
+/// `generation` noted as no longer alive; false when it already was not.
+fn retire(generation: Generation) -> bool {
+    LIVE_RENDERERS.iter().any(|slot| {
+        slot.compare_exchange(generation, 0, Ordering::AcqRel, Ordering::Relaxed)
+            .is_ok()
+    })
+}
 
 /// A streaming texture of a renderer (its size kept for the upload's check).
 #[cfg_attr(handheld, allow(dead_code))] // the handheld shows frames on its framebuffer
 pub struct Texture {
     raw: *mut SDL_Texture,
+    /// The renderer it was made on; SDL frees the texture with the renderer.
+    renderer: Generation,
     width: usize,
     height: usize,
 }
@@ -335,10 +378,26 @@ impl Window {
 }
 
 impl Renderer {
+    /// The SDL renderer. A handle kept after the renderer was destroyed ends the program here:
+    /// the object is gone.
+    pub(super) fn raw(self) -> *mut SDL_Renderer {
+        assert!(
+            is_live(self.1),
+            "a renderer used after it was destroyed (platform bug)"
+        );
+        self.0
+    }
+
+    /// The number the renderer lives under, for the textures made on it.
+    #[cfg(debug_ui)]
+    pub(super) fn generation(self) -> u64 {
+        self.1
+    }
+
     /// The name of SDL's driver the renderer runs on (`gpu`, `opengl`, `software`, ...).
     pub fn name(self) -> String {
         // SAFETY: the renderer SDL made; the name is SDL's own constant text, copied at once.
-        let name = unsafe { SDL_GetRendererName(self.0) };
+        let name = unsafe { SDL_GetRendererName(self.raw()) };
         if name.is_null() {
             return "unnamed".into();
         }
@@ -352,8 +411,8 @@ impl Renderer {
     pub fn clear_black(self) {
         // SAFETY: the renderer SDL made, alive while the screen holds it.
         unsafe {
-            SDL_SetRenderDrawColor(self.0, 0, 0, 0, 255);
-            SDL_RenderClear(self.0);
+            SDL_SetRenderDrawColor(self.raw(), 0, 0, 0, 255);
+            SDL_RenderClear(self.raw());
         }
     }
 
@@ -363,7 +422,7 @@ impl Renderer {
         let mut interval = 0;
         // SAFETY: the renderer SDL made, alive while the screen holds it; SDL writes the one
         // integer.
-        unsafe { SDL_GetRenderVSync(self.0, &raw mut interval) && interval != 0 }
+        unsafe { SDL_GetRenderVSync(self.raw(), &raw mut interval) && interval != 0 }
     }
 
     #[cfg_attr(
@@ -376,7 +435,7 @@ impl Renderer {
     /// Everything drawn from now on magnified `factor` times (the first-run page's text).
     pub fn set_scale(self, factor: f32) {
         // SAFETY: the renderer SDL made.
-        unsafe { SDL_SetRenderScale(self.0, factor, factor) };
+        unsafe { SDL_SetRenderScale(self.raw(), factor, factor) };
     }
 
     #[cfg_attr(
@@ -390,8 +449,8 @@ impl Renderer {
     pub fn clear(self, [r, g, b]: [u8; 3]) {
         // SAFETY: the renderer SDL made.
         unsafe {
-            SDL_SetRenderDrawColor(self.0, r, g, b, 255);
-            SDL_RenderClear(self.0);
+            SDL_SetRenderDrawColor(self.raw(), r, g, b, 255);
+            SDL_RenderClear(self.raw());
         }
     }
 
@@ -407,8 +466,8 @@ impl Renderer {
         let rect = SDL_FRect { x, y, w, h };
         // SAFETY: the renderer SDL made; a rectangle that lives over the call.
         unsafe {
-            SDL_SetRenderDrawColor(self.0, r, g, b, 255);
-            SDL_RenderFillRect(self.0, &raw const rect);
+            SDL_SetRenderDrawColor(self.raw(), r, g, b, 255);
+            SDL_RenderFillRect(self.raw(), &raw const rect);
         }
     }
 
@@ -419,10 +478,10 @@ impl Renderer {
         // SAFETY: the renderer SDL made; a rectangle that lives over the call. The blend mode is
         // put back so that the frame's own drawing after this stays opaque.
         unsafe {
-            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_BLEND);
-            SDL_SetRenderDrawColor(self.0, r, g, b, a);
-            SDL_RenderFillRect(self.0, &raw const rect);
-            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_NONE);
+            SDL_SetRenderDrawBlendMode(self.raw(), SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(self.raw(), r, g, b, a);
+            SDL_RenderFillRect(self.raw(), &raw const rect);
+            SDL_SetRenderDrawBlendMode(self.raw(), SDL_BLENDMODE_NONE);
         }
     }
 
@@ -437,13 +496,13 @@ impl Renderer {
         // put back to what it was.
         unsafe {
             let (mut sx, mut sy) = (1.0, 1.0);
-            SDL_GetRenderScale(self.0, &raw mut sx, &raw mut sy);
-            SDL_SetRenderScale(self.0, scale, scale);
-            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_BLEND);
-            SDL_SetRenderDrawColor(self.0, r, g, b, a);
-            SDL_RenderDebugText(self.0, x / scale, y / scale, text.as_ptr());
-            SDL_SetRenderDrawBlendMode(self.0, SDL_BLENDMODE_NONE);
-            SDL_SetRenderScale(self.0, sx, sy);
+            SDL_GetRenderScale(self.raw(), &raw mut sx, &raw mut sy);
+            SDL_SetRenderScale(self.raw(), scale, scale);
+            SDL_SetRenderDrawBlendMode(self.raw(), SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(self.raw(), r, g, b, a);
+            SDL_RenderDebugText(self.raw(), x / scale, y / scale, text.as_ptr());
+            SDL_SetRenderDrawBlendMode(self.raw(), SDL_BLENDMODE_NONE);
+            SDL_SetRenderScale(self.raw(), sx, sy);
         }
     }
 
@@ -461,8 +520,8 @@ impl Renderer {
         };
         // SAFETY: the renderer SDL made; a NUL-ended text read during the call.
         unsafe {
-            SDL_SetRenderDrawColor(self.0, r, g, b, 255);
-            SDL_RenderDebugText(self.0, x, y, text.as_ptr());
+            SDL_SetRenderDrawColor(self.raw(), r, g, b, 255);
+            SDL_RenderDebugText(self.raw(), x, y, text.as_ptr());
         }
     }
 
@@ -475,7 +534,7 @@ impl Renderer {
         // one, and both are destroyed after their rows are copied (rows of `pitch` bytes,
         // `width` pixels of four in each).
         unsafe {
-            let read = SDL_RenderReadPixels(self.0, std::ptr::null());
+            let read = SDL_RenderReadPixels(self.raw(), std::ptr::null());
             if read.is_null() {
                 return None;
             }
@@ -506,7 +565,7 @@ impl Renderer {
     /// What was drawn put on the window.
     pub fn present(self) {
         // SAFETY: as `clear_black`.
-        unsafe { SDL_RenderPresent(self.0) };
+        unsafe { SDL_RenderPresent(self.raw()) };
     }
 
     /// The texture drawn over the whole target.
@@ -515,7 +574,7 @@ impl Renderer {
         // SAFETY: the renderer and the texture made by it, both alive (null rectangles
         // mean the whole texture and the whole target).
         unsafe {
-            SDL_RenderTexture(self.0, texture.raw, std::ptr::null(), std::ptr::null());
+            SDL_RenderTexture(self.raw(), texture.raw, std::ptr::null(), std::ptr::null());
         }
     }
 
@@ -525,7 +584,7 @@ impl Renderer {
         let (mut width, mut height) = (0, 0);
         // SAFETY: the renderer SDL made; SDL writes the two integers.
         let known =
-            unsafe { SDL_GetCurrentRenderOutputSize(self.0, &raw mut width, &raw mut height) };
+            unsafe { SDL_GetCurrentRenderOutputSize(self.raw(), &raw mut width, &raw mut height) };
         (known && width > 0 && height > 0).then_some((width as u32, height as u32))
     }
 
@@ -544,7 +603,7 @@ impl Renderer {
         // during the call (a null source means the whole texture).
         unsafe {
             SDL_RenderTexture(
-                self.0,
+                self.raw(),
                 texture.raw,
                 part.as_ref().map_or(std::ptr::null(), std::ptr::from_ref),
                 &raw const to,
@@ -557,24 +616,27 @@ impl Renderer {
         // SAFETY: the renderer SDL made; the arguments are plain values.
         let raw = unsafe {
             SDL_CreateTexture(
-                self.0,
+                self.raw(),
                 SDL_PIXELFORMAT_XRGB8888,
                 SDL_TEXTUREACCESS_STREAMING,
                 width as i32,
                 height as i32,
             )
         };
-        (!raw.is_null()).then_some(Texture { raw, width, height })
+        (!raw.is_null()).then_some(Texture {
+            raw,
+            renderer: self.1,
+            width,
+            height,
+        })
     }
 
     /// A texture that shows the GPU's colour target `colour` (ARGB8888, no blending).
-    /// `colour` is a texture of the GPU device the renderer shares; nothing in Rust
-    /// dereferences it.
-    #[allow(clippy::not_unsafe_ptr_arg_deref)] // an opaque handle only SDL reads
-    #[cfg_attr(handheld, allow(dead_code))] // the handheld shows frames on its framebuffer
+    /// `colour` is a texture of the GPU device the renderer shares.
+    #[cfg(not(handheld))] // the handheld shows frames on its framebuffer
     pub fn create_gpu_view(
         self,
-        colour: *mut SDL_GPUTexture,
+        colour: sdl_gpu::Texture,
         width: usize,
         height: usize,
     ) -> Option<Texture> {
@@ -586,7 +648,7 @@ impl Renderer {
             SDL_SetPointerProperty(
                 properties,
                 SDL_PROP_TEXTURE_CREATE_GPU_TEXTURE_POINTER,
-                colour.cast(),
+                colour.as_raw().cast(),
             );
             SDL_SetNumberProperty(
                 properties,
@@ -603,7 +665,7 @@ impl Renderer {
                 SDL_PROP_TEXTURE_CREATE_HEIGHT_NUMBER,
                 height as i64,
             );
-            let made = SDL_CreateTextureWithProperties(self.0, properties);
+            let made = SDL_CreateTextureWithProperties(self.raw(), properties);
             SDL_DestroyProperties(properties);
             if made.is_null() {
                 return None;
@@ -611,6 +673,7 @@ impl Renderer {
             SDL_SetTextureBlendMode(made, SDL_BLENDMODE_NONE);
             Some(Texture {
                 raw: made,
+                renderer: self.1,
                 width,
                 height,
             })
@@ -627,7 +690,10 @@ impl Texture {
         } else {
             SDL_SCALEMODE_LINEAR
         };
-        // SAFETY: the texture SDL made, alive while `self` is.
+        if !is_live(self.renderer) {
+            return;
+        }
+        // SAFETY: the texture SDL made, alive while `self` and its renderer are (checked).
         unsafe { SDL_SetTextureScaleMode(self.raw, mode) };
     }
 
@@ -638,6 +704,9 @@ impl Texture {
         let Some(row_bytes) = self.width.checked_mul(4) else {
             return false;
         };
+        if !is_live(self.renderer) {
+            return false;
+        }
         let (true, Ok(pitch_in_call)) = (
             rows_fit(frame.len(), pitch, row_bytes, self.height),
             i32::try_from(pitch),
@@ -659,8 +728,11 @@ impl Texture {
 
 impl Drop for Texture {
     fn drop(&mut self) {
-        // SAFETY: the texture SDL made, owned by this value alone.
-        unsafe { SDL_DestroyTexture(self.raw) };
+        // SDL frees a renderer's textures with it: one whose renderer is gone is not freed again.
+        if is_live(self.renderer) {
+            // SAFETY: the texture SDL made, owned by this value alone, its renderer alive.
+            unsafe { SDL_DestroyTexture(self.raw) };
+        }
     }
 }
 
@@ -905,19 +977,27 @@ pub fn set_app_identifier(id: &std::ffi::CStr) {
 )]
 /// A window and its renderer given back (the first-run page's, before the game's own window).
 pub fn destroy(window: Window, renderer: Renderer) {
-    // SAFETY: both made by SDL here and not used again by the caller.
-    unsafe {
-        SDL_DestroyRenderer(renderer.0);
-        SDL_DestroyWindow(window.0);
+    destroy_renderer(renderer);
+    // SAFETY: made by SDL here and not used again by the caller.
+    unsafe { SDL_DestroyWindow(window.0) };
+}
+
+/// The window's renderer destroyed, the window kept (the 3D's renderer is swapped). The
+/// textures made on it go with it (a `Texture` of it that is dropped later frees nothing), and
+/// the handle, with its copies, is refused from now on. Destroying one twice does nothing.
+pub fn destroy_renderer(renderer: Renderer) {
+    if retire(renderer.1) {
+        // Alive until this call (its number was live); its textures and copies are refused
+        // from here on.
+        destroy_sdl_renderer(renderer.0);
     }
 }
 
-/// The window's renderer destroyed, the window kept (the 3D's renderer is swapped). Every
-/// texture made on it must be gone first; it is not used again.
-#[cfg(not(handheld))]
-pub fn destroy_renderer(renderer: Renderer) {
-    // SAFETY: a renderer SDL made here, which the caller says nothing uses.
-    unsafe { SDL_DestroyRenderer(renderer.0) };
+/// SDL's renderer `raw` destroyed, with its textures; the caller holds the only reference
+/// to it and uses none of them after.
+fn destroy_sdl_renderer(raw: *mut SDL_Renderer) {
+    // SAFETY: a renderer SDL made here, destroyed once (the callers' rule above).
+    unsafe { SDL_DestroyRenderer(raw) };
 }
 
 /// The window's own renderer (SDL's choice of driver; the browser's is the software one, whose
@@ -930,17 +1010,28 @@ pub fn create_renderer(window: Window) -> Option<Renderer> {
     let name = std::ptr::null();
     // SAFETY: the window SDL made; a null name lets SDL choose, else a constant C text.
     let raw = unsafe { SDL_CreateRenderer(window.0, name) };
-    (!raw.is_null()).then_some(Renderer(raw))
+    renderer_made(raw)
 }
 
-/// The window's renderer on the GPU device the 3D shares. `device` is the GPU module's
-/// device; nothing in Rust dereferences it.
+/// A new renderer's handle, noted as alive. SDL's object is destroyed again when the places for
+/// live renderers are taken (as it is when there is none).
+fn renderer_made(raw: *mut SDL_Renderer) -> Option<Renderer> {
+    if raw.is_null() {
+        return None;
+    }
+    let Some(generation) = make_live() else {
+        destroy_sdl_renderer(raw);
+        return None;
+    };
+    Some(Renderer(raw, generation))
+}
+
+/// The window's renderer on the GPU device the 3D shares (the GPU module's device).
 #[cfg(not(handheld))]
-#[allow(clippy::not_unsafe_ptr_arg_deref)] // an opaque handle only SDL reads
-pub fn create_gpu_renderer(device: *mut SDL_GPUDevice, window: Window) -> Option<Renderer> {
+pub fn create_gpu_renderer(device: sdl_gpu::Device, window: Window) -> Option<Renderer> {
     // SAFETY: a live GPU device (the caller made it) and the window SDL made.
-    let raw = unsafe { SDL_CreateGPURenderer(device, window.0) };
-    (!raw.is_null()).then_some(Renderer(raw))
+    let raw = unsafe { SDL_CreateGPURenderer(device.as_raw(), window.0) };
+    renderer_made(raw)
 }
 
 // ---- events ----
@@ -1169,14 +1260,21 @@ static MIXER: std::sync::OnceLock<Mixer> = std::sync::OnceLock::new();
 /// A mixer: the bytes wanted in, the samples out.
 pub type Mixer = fn(wanted_bytes: i32) -> Option<Vec<i16>>;
 
+/// The bytes of `pcm` as SDL counts them (an `i32`); none for more than it can count.
+fn pcm_byte_count(pcm: &[i16]) -> Option<i32> {
+    i32::try_from(pcm.len().checked_mul(2)?).ok()
+}
+
 /// SDL's audio callback: what `MIXER` makes goes to the stream.
 extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, wanted: i32, _: i32) {
     let Some(mixer) = MIXER.get() else {
         return;
     };
-    if let Some(pcm) = mixer(wanted) {
+    if let Some(pcm) = mixer(wanted)
+        && let Some(bytes) = pcm_byte_count(&pcm)
+    {
         // SAFETY: the stream SDL called back with; `pcm`'s bytes, their count.
-        unsafe { SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), (pcm.len() * 2) as i32) };
+        unsafe { SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), bytes) };
     }
 }
 
@@ -1380,6 +1478,9 @@ impl PlayedSound {
     /// `pcm` (16-bit, `channels` interleaved, at `hz`) made ready on the default device, paused
     /// until `resume`; None when SDL's audio or the stream cannot be had.
     pub fn start(pcm: &[i16], hz: u32, channels: usize) -> Option<Self> {
+        // A sound SDL cannot count the bytes of is not played (a negative count it would
+        // refuse, leaving a silent stream).
+        let bytes = pcm_byte_count(pcm)?;
         // SAFETY: SDL's audio started; a spec SDL copies; the stream checked for null; `pcm`
         // copied into it whole (its bytes and their count).
         unsafe {
@@ -1401,7 +1502,7 @@ impl PlayedSound {
                 SDL_QuitSubSystem(SDL_INIT_AUDIO);
                 return None;
             }
-            SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), (pcm.len() * 2) as i32);
+            SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), bytes);
             SDL_FlushAudioStream(stream);
             Some(Self {
                 stream,
@@ -1451,7 +1552,30 @@ pub enum JoystickInput {
 
 #[cfg(test)]
 mod tests {
-    use super::rows_fit;
+    use super::{is_live, make_live, retire, rows_fit};
+
+    #[test]
+    fn the_bytes_of_a_sound_are_counted_as_sdl_does() {
+        assert_eq!(super::pcm_byte_count(&[0; 8]), Some(16));
+        assert_eq!(super::pcm_byte_count(&[]), Some(0));
+    }
+
+    #[test]
+    fn a_retired_renderer_number_is_refused_and_never_comes_back() {
+        let first = make_live().expect("a free place");
+        assert!(is_live(first));
+        assert!(retire(first));
+        assert!(!is_live(first));
+        // Retiring it again does nothing (a second destroy must not free SDL's object twice).
+        assert!(!retire(first));
+        // A new renderer is another number, even when it takes the same place.
+        let second = make_live().expect("a free place");
+        assert_ne!(first, second);
+        assert!(is_live(second) && !is_live(first));
+        assert!(retire(second));
+        // Zero stands for a free place, not for a renderer.
+        assert!(!is_live(0));
+    }
 
     #[test]
     fn rows_fit_checks_the_slice_against_the_rows_and_never_wraps() {

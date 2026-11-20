@@ -8,7 +8,7 @@ use crate::gfx::owner::Gfx;
 use crate::net::add_chat_line::{add_chat_line, text_in};
 use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
-use rc2k_core::net::message::Message;
+use rc2k_core::net::message::{CHAT_TEXT_MOST, Message};
 pub(super) fn send_chat(
     net: &Net,
     gfx: &'static Gfx,
@@ -17,6 +17,7 @@ pub(super) fn send_chat(
 ) -> Result<(), Refused> {
     crate::net::drain_chat::drain_chat(net, gfx)?;
     let text = text_in(message)?;
+    let text = &text[..text.len().min(CHAT_TEXT_MOST)];
     if net.vars.own.state().is_host() {
         {
             let _received = net.lock_received();

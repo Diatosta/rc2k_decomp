@@ -130,3 +130,11 @@ fn a_texture_of_no_size_reads_as_one_texel_and_does_not_panic() {
         }
     }
 }
+
+#[test]
+#[should_panic(expected = "a frame larger than its buffers")]
+fn a_frame_whose_size_overflows_is_refused_not_wrapped() {
+    let (mut pixels, mut depth) = ([0u32; 4], [0f32; 4]);
+    // `pitch * (height - 1)` wraps to a small number for these: it must not pass the check.
+    let _ = Frame::new(&mut pixels, usize::MAX / 2 + 2, 1, 3, &mut depth);
+}

@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(dirname "$0")/env.sh"
 abi=${1:?x86_64 or arm64}
 d=$([ "$abi" = arm64 ] && echo arm64-v8a || echo "$abi")
-src=$(echo ~/.cargo/registry/src/*/sdl3-src-3.4.18/SDL)
+src=$(sdl_source_dir)
 out=$RC2K_ANDROID_HOME/sdl3build/$d
 mkdir -p "$out" && cd "$out"
 cmake -G Ninja "$src" -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \

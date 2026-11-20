@@ -120,28 +120,43 @@ pub fn is_gamepad(id: SDL_JoystickID) -> bool {
     unsafe { SDL_IsGamepad(id) }
 }
 
-/// An open joystick.
-#[derive(Clone, Copy)]
-pub struct Joystick(*mut SDL_Joystick);
+/// An open joystick, as it is read and driven: borrowed from the value that closes it (a
+/// `Joystick`, or the `Gamepad` it belongs to), so it cannot be used after the close.
+#[repr(transparent)]
+pub struct JoystickRef(*mut SDL_Joystick);
 
 // SAFETY: SDL's joystick functions take SDL's own lock.
-unsafe impl Send for Joystick {}
+unsafe impl Send for JoystickRef {}
+
+/// An open joystick, closed when it is dropped; it reads through `JoystickRef`.
+pub struct Joystick(JoystickRef);
 
 impl Joystick {
     /// The joystick opened, or none.
     pub fn open(id: SDL_JoystickID) -> Option<Self> {
         // SAFETY: an id SDL listed; null (failure) checked.
         let joystick = unsafe { SDL_OpenJoystick(id) };
-        (!joystick.is_null()).then_some(Self(joystick))
+        (!joystick.is_null()).then_some(Self(JoystickRef(joystick)))
     }
+}
 
-    /// Closed; the handle is not used after.
-    pub fn close(self) {
-        // SAFETY: the handle `open` made, closed once by its owner.
-        unsafe { SDL_CloseJoystick(self.0) };
+impl std::ops::Deref for Joystick {
+    type Target = JoystickRef;
+    fn deref(&self) -> &JoystickRef {
+        &self.0
     }
+}
 
-    pub fn name(self) -> String {
+impl Drop for Joystick {
+    fn drop(&mut self) {
+        // SAFETY: the handle `open` made, closed once, here; the borrows of it (`JoystickRef`)
+        // end before the drop.
+        unsafe { SDL_CloseJoystick((self.0).0) };
+    }
+}
+
+impl JoystickRef {
+    pub fn name(&self) -> String {
         // SAFETY: the name SDL returns (null checked) lives until its next call; copied.
         unsafe {
             let name = SDL_GetJoystickName(self.0);
@@ -154,56 +169,56 @@ impl Joystick {
     }
 
     /// The product GUID's 16 bytes.
-    pub fn guid(self) -> [u8; 16] {
+    pub fn guid(&self) -> [u8; 16] {
         // SAFETY: an open joystick.
         unsafe { SDL_GetJoystickGUID(self.0).data }
     }
 
-    pub fn axis_count(self) -> i32 {
+    pub fn axis_count(&self) -> i32 {
         // SAFETY: an open joystick.
         unsafe { SDL_GetNumJoystickAxes(self.0) }
     }
 
     /// Whether SDL's type for the joystick is a steering wheel.
-    pub fn is_wheel(self) -> bool {
+    pub fn is_wheel(&self) -> bool {
         // SAFETY: an open joystick.
         unsafe { SDL_GetJoystickType(self.0) == SDL_JOYSTICK_TYPE_WHEEL }
     }
 
-    pub fn button_count(self) -> i32 {
+    pub fn button_count(&self) -> i32 {
         // SAFETY: an open joystick.
         unsafe { SDL_GetNumJoystickButtons(self.0) }
     }
 
-    pub fn hat_count(self) -> i32 {
+    pub fn hat_count(&self) -> i32 {
         // SAFETY: an open joystick.
         unsafe { SDL_GetNumJoystickHats(self.0) }
     }
 
-    pub fn connected(self) -> bool {
+    pub fn connected(&self) -> bool {
         // SAFETY: an open joystick.
         unsafe { SDL_JoystickConnected(self.0) }
     }
 
-    pub fn axis(self, n: i32) -> i16 {
+    pub fn axis(&self, n: i32) -> i16 {
         // SAFETY: an open joystick; SDL answers 0 for an axis it does not have.
         unsafe { SDL_GetJoystickAxis(self.0, n) }
     }
 
-    pub fn button(self, n: i32) -> bool {
+    pub fn button(&self, n: i32) -> bool {
         // SAFETY: as `axis`.
         unsafe { SDL_GetJoystickButton(self.0, n) }
     }
 
     /// A hat's SDL bits (up 1, right 2, down 4, left 8).
-    pub fn hat(self, n: i32) -> u8 {
+    pub fn hat(&self, n: i32) -> u8 {
         // SAFETY: as `axis`.
         unsafe { SDL_GetJoystickHat(self.0, n) }
     }
 
     /// The haptic device of this joystick, opened, when it has one.
     /// Its serial number, when it reports one (a DualSense: its Bluetooth address).
-    pub fn serial(self) -> Option<String> {
+    pub fn serial(&self) -> Option<String> {
         // SAFETY: the text SDL returns (null checked) lives with the joystick; copied.
         unsafe {
             let serial = SDL_GetJoystickSerial(self.0);
@@ -216,7 +231,7 @@ impl Joystick {
     }
 
     /// Whether SDL can rumble it (a gamepad's two motors).
-    pub fn has_rumble(self) -> bool {
+    pub fn has_rumble(&self) -> bool {
         // SAFETY: an open joystick; its properties' id (0 on failure) is only read here.
         unsafe {
             let props = SDL_GetJoystickProperties(self.0);
@@ -226,14 +241,14 @@ impl Joystick {
 
     /// Its motors at `low` and `high` (0 .. 65535: the slow, heavy one and the fast, light one)
     /// for `ms` milliseconds, or until the next call.
-    pub fn rumble(self, low: u16, high: u16, ms: u32) {
+    pub fn rumble(&self, low: u16, high: u16, ms: u32) {
         // SAFETY: an open joystick; SDL answers false (ignored) when it cannot.
         unsafe {
             SDL_RumbleJoystick(self.0, low, high, ms);
         }
     }
 
-    pub fn open_haptic(self) -> Option<Haptic> {
+    pub fn open_haptic(&self) -> Option<Haptic> {
         // SAFETY: an open joystick; null (no haptic device) checked.
         unsafe {
             if !SDL_IsJoystickHaptic(self.0) {
@@ -246,14 +261,14 @@ impl Joystick {
 
     /// A virtual joystick's axis set (the remote driver's stand-in stick).
     #[cfg(any(feature = "remote", phone))]
-    pub fn set_virtual_axis(self, axis: i32, value: i16) -> bool {
+    pub fn set_virtual_axis(&self, axis: i32, value: i16) -> bool {
         // SAFETY: an open joystick; SDL refuses one that is not virtual.
         unsafe { SDL_SetJoystickVirtualAxis(self.0, axis, value) }
     }
 
     /// A virtual joystick's button set.
     #[cfg(any(feature = "remote", phone))]
-    pub fn set_virtual_button(self, button: i32, down: bool) -> bool {
+    pub fn set_virtual_button(&self, button: i32, down: bool) -> bool {
         // SAFETY: an open joystick; SDL refuses one that is not virtual.
         unsafe { SDL_SetJoystickVirtualButton(self.0, button, down) }
     }
@@ -338,12 +353,23 @@ pub fn detach_virtual_stick(id: SDL_JoystickID) -> bool {
     unsafe { SDL_DetachVirtualJoystick(id) }
 }
 
-/// An open gamepad (its joystick is its own, closed with it).
-#[derive(Clone, Copy)]
-pub struct Gamepad(*mut SDL_Gamepad);
+/// An open gamepad (its joystick is its own, closed with it), closed when dropped.
+pub struct Gamepad {
+    raw: *mut SDL_Gamepad,
+    /// The gamepad's joystick, lent by `joystick`.
+    joystick: Option<JoystickRef>,
+}
 
 // SAFETY: SDL's gamepad functions take SDL's own lock.
 unsafe impl Send for Gamepad {}
+
+impl Drop for Gamepad {
+    fn drop(&mut self) {
+        // SAFETY: the handle `open` made, closed once, here (its joystick with it: the
+        // borrows of that end first).
+        unsafe { SDL_CloseGamepad(self.raw) };
+    }
+}
 
 impl Gamepad {
     /// The gamepad opened, or none.
@@ -351,44 +377,50 @@ impl Gamepad {
         // SAFETY: an id SDL listed; null (failure) checked. SDL counts the opens, so each
         // needs its own close.
         let pad = unsafe { SDL_OpenGamepad(id) };
-        (!pad.is_null()).then_some(Self(pad))
-    }
-
-    /// Closed; the handle (and its joystick) is not used after.
-    pub fn close(self) {
-        // SAFETY: the handle `open` made, closed once by its owner.
-        unsafe { SDL_CloseGamepad(self.0) };
+        if pad.is_null() {
+            return None;
+        }
+        // SAFETY: the gamepad just opened; null checked.
+        let joystick = unsafe { SDL_GetGamepadJoystick(pad) };
+        Some(Self {
+            raw: pad,
+            joystick: (!joystick.is_null()).then_some(JoystickRef(joystick)),
+        })
     }
 
     /// The gamepad's joystick, which is closed with the gamepad (never by itself).
-    pub fn joystick(self) -> Option<Joystick> {
-        // SAFETY: an open gamepad; null checked.
-        let joystick = unsafe { SDL_GetGamepadJoystick(self.0) };
-        (!joystick.is_null()).then_some(Joystick(joystick))
+    pub fn joystick(&self) -> Option<&JoystickRef> {
+        self.joystick.as_ref()
     }
 
-    pub fn connected(self) -> bool {
+    pub fn connected(&self) -> bool {
         // SAFETY: an open gamepad.
-        unsafe { SDL_GamepadConnected(self.0) }
+        unsafe { SDL_GamepadConnected(self.raw) }
     }
 
-    pub fn axis(self, axis: SDL_GamepadAxis) -> i16 {
+    pub fn axis(&self, axis: SDL_GamepadAxis) -> i16 {
         // SAFETY: an open gamepad.
-        unsafe { SDL_GetGamepadAxis(self.0, axis) }
+        unsafe { SDL_GetGamepadAxis(self.raw, axis) }
     }
 
-    pub fn button(self, button: SDL_GamepadButton) -> bool {
+    pub fn button(&self, button: SDL_GamepadButton) -> bool {
         // SAFETY: an open gamepad.
-        unsafe { SDL_GetGamepadButton(self.0, button) }
+        unsafe { SDL_GetGamepadButton(self.raw, button) }
     }
 }
 
-/// An open haptic (force feedback) device.
-#[derive(Clone, Copy)]
+/// An open haptic (force feedback) device, closed when dropped.
 pub struct Haptic(*mut SDL_Haptic);
 
 // SAFETY: SDL's haptic functions take SDL's own lock.
 unsafe impl Send for Haptic {}
+
+impl Drop for Haptic {
+    fn drop(&mut self) {
+        // SAFETY: the handle `open_haptic` made, closed once, here.
+        unsafe { SDL_CloseHaptic(self.0) };
+    }
+}
 
 /// A blank haptic effect, all zero (every member of its union is plain integers).
 pub fn blank_haptic_effect() -> SDL_HapticEffect {
@@ -397,56 +429,53 @@ pub fn blank_haptic_effect() -> SDL_HapticEffect {
 }
 
 impl Haptic {
-    /// Closed; the handle is not used after.
-    pub fn close(self) {
-        // SAFETY: the handle `open_haptic` made, closed once by its owner.
-        unsafe { SDL_CloseHaptic(self.0) };
-    }
+    /// Closed (the same as dropping it).
+    pub fn close(self) {}
 
     /// SDL's bit set of the effects and settings the device has.
-    pub fn features(self) -> u32 {
+    pub fn features(&self) -> u32 {
         // SAFETY: an open haptic.
         unsafe { SDL_GetHapticFeatures(self.0) }
     }
 
     /// An effect made on the device, or SDL's error text.
-    pub fn create_effect(self, effect: &SDL_HapticEffect) -> Result<SDL_HapticEffectID, String> {
+    pub fn create_effect(&self, effect: &SDL_HapticEffect) -> Result<SDL_HapticEffectID, String> {
         // SAFETY: an open haptic and a valid effect, read during the call.
         let id = unsafe { SDL_CreateHapticEffect(self.0, effect) };
         if id.0 < 0 { Err(last_error()) } else { Ok(id) }
     }
 
-    pub fn update_effect(self, id: SDL_HapticEffectID, effect: &SDL_HapticEffect) {
+    pub fn update_effect(&self, id: SDL_HapticEffectID, effect: &SDL_HapticEffect) {
         // SAFETY: an open haptic, an effect made on it, a valid effect read during the call.
         unsafe { SDL_UpdateHapticEffect(self.0, id, effect) };
     }
 
-    pub fn run_effect(self, id: SDL_HapticEffectID, iterations: u32) {
+    pub fn run_effect(&self, id: SDL_HapticEffectID, iterations: u32) {
         // SAFETY: an open haptic and an effect made on it (SDL refuses others).
         unsafe { SDL_RunHapticEffect(self.0, id, iterations) };
     }
 
-    pub fn stop_effect(self, id: SDL_HapticEffectID) {
+    pub fn stop_effect(&self, id: SDL_HapticEffectID) {
         // SAFETY: as `run_effect`.
         unsafe { SDL_StopHapticEffect(self.0, id) };
     }
 
-    pub fn destroy_effect(self, id: SDL_HapticEffectID) {
+    pub fn destroy_effect(&self, id: SDL_HapticEffectID) {
         // SAFETY: as `run_effect`.
         unsafe { SDL_DestroyHapticEffect(self.0, id) };
     }
 
-    pub fn stop_effects(self) {
+    pub fn stop_effects(&self) {
         // SAFETY: an open haptic.
         unsafe { SDL_StopHapticEffects(self.0) };
     }
 
-    pub fn set_gain(self, gain: i32) {
+    pub fn set_gain(&self, gain: i32) {
         // SAFETY: an open haptic.
         unsafe { SDL_SetHapticGain(self.0, gain) };
     }
 
-    pub fn set_autocenter(self, percent: i32) {
+    pub fn set_autocenter(&self, percent: i32) {
         // SAFETY: an open haptic.
         unsafe { SDL_SetHapticAutocenter(self.0, percent) };
     }

@@ -125,9 +125,6 @@ pub struct CameraWork {
     /// The car's faded bits, -1 after; the drawing's is the view's (`race::face_work`), this one
     /// is not used.
     pub faded_bits: PlainDword,
-    /// 1 while the car body is drawn (`race::car_draw`); read by nothing, no
-    /// longer written.
-    pub drawing_car: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of

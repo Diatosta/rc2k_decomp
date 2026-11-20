@@ -20,7 +20,7 @@ pub(super) static WINDOW_DEVICE: Mutex<Option<crate::platform::ffi::sdl_gpu::Dev
 pub(crate) fn make_view(
     renderer: sdl::Renderer,
     (colour, targets_made, (width, height)): (
-        *mut sdl3_sys::everything::SDL_GPUTexture,
+        crate::platform::ffi::sdl_gpu::Texture,
         u64,
         (u32, u32),
     ),
@@ -145,7 +145,7 @@ pub(super) fn start_gpu_renderer(window: sdl::Window) -> Option<sdl::Renderer> {
     let renderer = if crate::render::choice::forced_failure("gpu_renderer") {
         None
     } else {
-        sdl::create_gpu_renderer(device.as_raw(), window)
+        sdl::create_gpu_renderer(device, window)
     };
     let Some(renderer) = renderer else {
         log(&format!(

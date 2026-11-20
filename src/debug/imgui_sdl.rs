@@ -318,6 +318,11 @@ fn render(
         .reconcile_texture_feedback(feedback)
         .map_err(|e| e.to_string())?;
     let data = frame.draw_data();
+    // The textures by the number ImGui carries for each: a draw command names one of them.
+    let by_id: HashMap<u64, &SdlTexture> = textures
+        .values()
+        .map(|texture| (texture.sdl.id(), &texture.sdl))
+        .collect();
     let origin = data.display_pos();
     let scale = data.framebuffer_scale();
     for list in data.draw_lists() {
@@ -366,15 +371,17 @@ fn render(
             if first >= vertices.len() {
                 return Err("a draw command past its vertices".into());
             }
+            // Zero is "no texture"; any other number must be one of ours.
+            let id = cmd_params.texture_id.id();
+            let texture = if id == 0 {
+                None
+            } else if let Some(&texture) = by_id.get(&id) {
+                Some(texture)
+            } else {
+                return Err("a draw command names a texture that was not made".into());
+            };
             renderer.set_clip_rect(Some(&clip));
-            renderer.draw_geometry(
-                cmd_params.texture_id.id(),
-                &xy,
-                &colours,
-                vertices,
-                first,
-                index,
-            );
+            renderer.draw_geometry(texture, &xy, &colours, vertices, first, index);
         }
     }
     renderer.set_clip_rect(None);

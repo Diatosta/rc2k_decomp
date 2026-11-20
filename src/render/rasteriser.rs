@@ -65,13 +65,20 @@ impl<'a> Frame<'a> {
         height: usize,
         depth: &'a mut [f32],
     ) -> Self {
+        // A size that overflows is larger than any buffer: refused like one that is too big.
         let rows = if height == 0 {
-            0
+            Some(0)
         } else {
-            pitch * (height - 1) + width
+            pitch
+                .checked_mul(height - 1)
+                .and_then(|rows| rows.checked_add(width))
         };
         assert!(
-            pitch >= width && pixels.len() >= rows && depth.len() >= width * height,
+            pitch >= width
+                && rows.is_some_and(|rows| pixels.len() >= rows)
+                && width
+                    .checked_mul(height)
+                    .is_some_and(|area| depth.len() >= area),
             "rasteriser: a frame larger than its buffers"
         );
         Self {

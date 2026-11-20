@@ -8,9 +8,6 @@ use crate::memory::session::{PlainBytes, PlainDword};
 pub struct PaceNotes {
     /// The distance's word by tens, the first 41 bytes used (`race::pace_notes`).
     pub distance_words: PlainBytes<0x1034>,
-    /// A table indexed by a distance word, read once (`race::pace_notes`) with its result thrown
-    /// away; no other use.
-    pub discarded_distance_table: [PlainDword; 41],
     /// How many pace notes there are.
     pub note_count: PlainDword,
     /// The pace note groups (`physics::queue_pace_note`).
@@ -38,25 +35,12 @@ pub struct PaceNotes {
 impl PaceNotes {
     pub const fn new() -> Self {
         use crate::memory::cells::ZeroCells;
-        use crate::memory::session::{PlainBytes, PlainDword, with_runs};
+        use crate::memory::session::{PlainBytes, with_runs};
         Self {
             distance_words: PlainBytes::new(with_runs::<4148>(&[(
                 1,
                 b"    !!\"\"\"#####$$$$$%%%%%&&&&&''''''''''((((((((((",
             )])),
-            discarded_distance_table: {
-                let mut v: [PlainDword; 41] = ZeroCells::ZERO;
-                v[32] = PlainDword::new(30);
-                v[33] = PlainDword::new(50);
-                v[34] = PlainDword::new(70);
-                v[35] = PlainDword::new(100);
-                v[36] = PlainDword::new(150);
-                v[37] = PlainDword::new(200);
-                v[38] = PlainDword::new(250);
-                v[39] = PlainDword::new(0x12C);
-                v[40] = PlainDword::new(0x190);
-                v
-            },
             ..ZeroCells::ZERO
         }
     }

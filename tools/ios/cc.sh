@@ -2,9 +2,10 @@
 # The iOS C compiler and linker for the Linux-hosted build (tools/ios/README.md): clang for iOS
 # (arm64, the device) against the SDK in SDKROOT, linked by ld64.lld with clang's iOS runtime
 # (`@available` needs its __isPlatformVersionAtLeast) when RC2K_IOS_TOOLS holds it.
+set -eu
 SDK=${SDKROOT:?SDKROOT: the iPhoneOS SDK (source tools/ios/env.sh)}
 TOOLS=${RC2K_IOS_TOOLS:-$HOME/.cache/rc2k_ios}
-args=() link=1
+args=() link=1 skip=
 for a in "$@"; do
     # The target below names the architecture.
     [ "$a" = "-arch" ] && skip=1 && continue

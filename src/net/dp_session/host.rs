@@ -258,7 +258,11 @@ impl Session {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&machine);
-        self.lock().pings.remove(&machine);
+        {
+            let mut s = self.lock();
+            s.pings.remove(&machine);
+            s.pings_outstanding.remove(&machine);
+        }
         let gone: Vec<Id> = {
             let s = self.lock();
             s.world
@@ -284,6 +288,15 @@ impl Session {
         let trip = self.clock_ms().wrapping_sub(stamp);
         let bytes = {
             let mut s = self.lock();
+            // An answer to a ping this machine was never sent (or already answered) is passed
+            // over: otherwise a machine could make the host send the whole list at will.
+            let Some(waiting) = s.pings_outstanding.get_mut(&machine) else {
+                return;
+            };
+            let Some(at) = waiting.iter().position(|&sent| sent == stamp) else {
+                return;
+            };
+            waiting.remove(at);
             let average = s
                 .pings
                 .get(&machine)
@@ -536,12 +549,17 @@ pub(super) fn moving_average(old: u32, trip: u32) -> u32 {
     ((u64::from(old) * 3 + u64::from(trip)) / 4) as u32
 }
 
+/// How many unanswered pings the host remembers per machine (a slower link than that many
+/// ping periods is not measured).
+const PINGS_OUTSTANDING_MOST: usize = 8;
+
 /// The host's thread that pings every machine every `every` until the session closes or goes.
 fn ping_machines(session: &std::sync::Weak<Session>, stop: &Closing, every: Duration) {
     // A closing ends the wait at once; a session dropped unclosed is noticed at the next ping.
     while !stop.wait(every) {
         let Some(s) = session.upgrade() else { return };
-        let ping = W::default().u8(PING).u32(s.clock_ms()).0;
+        let stamp = s.clock_ms();
+        let ping = W::default().u8(PING).u32(stamp).0;
         let machines: Vec<u32> = s
             .links
             .lock()
@@ -550,6 +568,14 @@ fn ping_machines(session: &std::sync::Weak<Session>, stop: &Closing, every: Dura
             .copied()
             .collect();
         for m in machines {
+            {
+                let mut shared = s.lock();
+                let waiting = shared.pings_outstanding.entry(m).or_default();
+                if waiting.len() == PINGS_OUTSTANDING_MOST {
+                    waiting.remove(0);
+                }
+                waiting.push(stamp);
+            }
             s.to_machine(m, &ping);
         }
     }

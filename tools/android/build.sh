@@ -24,7 +24,7 @@ done
 
 BT=$ANDROID_HOME/build-tools/35.0.1
 JAR=$ANDROID_HOME/platforms/android-35/android.jar
-SDL_JAVA=$(echo ~/.cargo/registry/src/*/sdl3-src-3.4.18/SDL/android-project/app/src/main/java)
+SDL_JAVA=$(sdl_source_dir)/android-project/app/src/main/java
 WORK=${RC2K_ANDROID_WORK:-$RC2K_ANDROID_HOME/work}
 OUT=dist/android
 export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$PWD/target/android}

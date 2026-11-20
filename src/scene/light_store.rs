@@ -45,16 +45,10 @@ pub struct LightState {
     pub face_bits: PlainDword,
     /// The faded flag; the drawing's is the view's (`race::face_work`), this one not used.
     pub faded: PlainDword,
-    /// The fog's next step, now each view's (`scene::fog::Fog::next`); unused.
-    pub fog_next: PlainDword,
     /// 0x1000 bytes of fog levels, now each view's (`scene::fog::Fog`); unused.
     pub fog_table: [PlainDword; 1024],
     /// Now each view's (`scene::fog::Fog::length`); unused.
     pub fog_table_length: PlainDword,
-    /// The four corners, then the x blends, of the noise map: `race::sample_noise`'s own steps,
-    /// read by nothing else; no longer written (`rc2k_core::race::view::sample_noise` returns
-    /// the value).
-    pub noise_samples: [PlainDword; 6],
     /// The camera shake's first component, added to view A's / view B's camera offset
     /// (`physics::take_first_view`, `physics::take_second_view`). Never written (0 from the
     /// start): the shake is all in `camera_shake_y`. Probably x.

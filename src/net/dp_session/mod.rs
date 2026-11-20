@@ -103,6 +103,9 @@ struct Shared {
     /// Each machine's round trip to the host in ms, a moving average: measured by the host,
     /// told by it to every machine.
     pings: HashMap<u32, u32>,
+    /// The host's pings each machine has not answered yet (their stamps, oldest first, at most
+    /// `PINGS_OUTSTANDING_MOST`): a `PONG` counts only for one of these.
+    pings_outstanding: HashMap<u32, Vec<u32>>,
 }
 
 impl Shared {
@@ -246,6 +249,7 @@ impl Session {
                 lost: false,
                 dropped: false,
                 pings: HashMap::new(),
+                pings_outstanding: HashMap::new(),
             }),
             answered: Condvar::new(),
             signal,

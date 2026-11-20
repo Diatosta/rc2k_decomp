@@ -6,7 +6,7 @@
 use crate::errors::Refused;
 use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
-use rc2k_core::net::message::Message;
+use rc2k_core::net::message::{CHAT_TEXT_MOST, Message};
 
 /// `text` (without its NUL), written by the player with DirectPlay id `author`, sent to every
 /// player but this machine's own.
@@ -14,7 +14,7 @@ pub(super) fn relay_chat(net: &Net, author: u32, text: &[u8]) -> Result<(), Refu
     let line = Message::ChatRelayed {
         sequence: net.next_chat_sequence(),
         author,
-        text: text.to_vec(),
+        text: text[..text.len().min(CHAT_TEXT_MOST)].to_vec(),
     }
     .encode();
     for n in 0..net.race_slot.players() {

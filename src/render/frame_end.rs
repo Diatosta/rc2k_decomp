@@ -169,7 +169,7 @@ pub fn video_read_last(spare: Vec<u8>) -> Option<Vec<u8>> {
 pub fn finish_frame(
     racing: bool,
     target: &Target,
-) -> Option<(*mut sdl3_sys::everything::SDL_GPUTexture, u64, (u32, u32))> {
+) -> Option<(crate::platform::ffi::sdl_gpu::Texture, u64, (u32, u32))> {
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
     }

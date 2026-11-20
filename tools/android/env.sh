@@ -23,3 +23,17 @@ android_cargo_env() {
     export RC2K_ANDROID_SDL_LIB=$RC2K_ANDROID_HOME/sdl3build/$abi
     export ANDROID_ABI=$abi
 }
+
+# The source of the `sdl3-src` crate the Rust build uses (the version is the lockfile's, the one
+# place it is named): sdl_source_dir prints its `SDL` folder; the crate must have been fetched.
+sdl_source_dir() {
+    local lock version dir
+    lock="$(dirname "${BASH_SOURCE[0]}")/../../Cargo.lock"
+    version=$(grep -A1 '^name = "sdl3-src"$' "$lock" | sed -n 's/^version = "\(.*\)"$/\1/p')
+    [ -n "$version" ] || { echo "no sdl3-src in $lock" >&2; return 1; }
+    for dir in "$HOME"/.cargo/registry/src/*/"sdl3-src-$version"/SDL; do
+        [ -d "$dir" ] && { echo "$dir"; return 0; }
+    done
+    echo "sdl3-src-$version is not fetched (cargo fetch)" >&2
+    return 1
+}
