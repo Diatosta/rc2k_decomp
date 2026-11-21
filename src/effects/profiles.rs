@@ -106,7 +106,7 @@ pub(super) fn make_profiles(
             COURSE_CORNERS,
             CORNERS_LEN,
         )?;
-        crate::memory::cells::Store::store(&effects.blocks.corners, 0, &corners)?;
+        effects.blocks.corners.set_from_bytes(&corners)?;
         crate::effects::blocks::allocate_links(scene, effects)?;
         crate::effects::blocks::reset_settings_blocks(effects)?;
     }

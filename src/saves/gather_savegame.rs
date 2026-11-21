@@ -14,8 +14,9 @@
 //! Refuses, before anything is written: a missing player or a car without that pointer.
 
 use crate::errors::BadInput;
-use crate::memory::cells::Store;
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::menu::owner::{Menus, Play};
+use crate::saves::write_savegame_slot::FILE_LEN;
 
 /// The seven variables at the start, in the order they are saved.
 #[derive(Clone, Copy)]
@@ -100,12 +101,16 @@ pub fn cars(play: &Play) -> Result<[&dyn crate::memory::session::PlayerSlot; CAR
 }
 
 /// The saved game's bytes put into `file` from byte `base` on.
-pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(), BadInput> {
+pub fn gather_savegame(
+    menus: &Menus,
+    file: &PlainBuffer<FILE_LEN>,
+    base: usize,
+) -> Result<(), BadInput> {
     use rc2k_core::saves::savegame::{RECORDS_AT, car_at};
     let cars = cars(&menus.play)?;
     for (n, at) in head(menus).into_iter().enumerate() {
         // The savegame is a file's bytes.
-        file.store(base + 4 * n, &at.get().to_le_bytes())?;
+        file.write_at(base + 4 * n, &at.get().to_le_bytes(), "the savegame's head")?;
     }
     let (start_section, start_section_a8) = {
         let flow = menus.screens.flow.read();
@@ -121,11 +126,11 @@ pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(
             crate::menu::player_names::name_of(&car.get())?,
         );
         car.update(|p| p.name_copy = name);
-        file.store(base + car_at(n), &car.get().to_file_bytes())?;
+        file.write_at(base + car_at(n), &car.get().to_file_bytes(), "a saved car")?;
     }
     let records = menus.cars.drivers.to_bytes();
     debug_assert_eq!(records.len(), RECORDS_LEN);
-    file.store(base + RECORDS_AT, &records)?;
+    file.write_at(base + RECORDS_AT, &records, "the saved drivers")?;
     Ok(())
 }
 

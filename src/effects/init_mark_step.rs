@@ -105,11 +105,16 @@ mod tests {
                 cell.set(0x1000 * k as u32 + g as u32);
             }
         }
+        let laid = crate::memory::cells::flatten(&records.records);
         for kind in -3..40 {
             let row = (0x6C + race::kind_row(kind)) as u32 as usize;
             for group in SLOT_KIND_GROUPS {
                 let offset = 4 * group;
-                let old = crate::memory::cells::load_value::<u32>(&records.records, row + offset);
+                let old = laid
+                    .get(row + offset..)
+                    .and_then(|rest| rest.first_chunk::<4>())
+                    .map(|bytes| u32::from_le_bytes(*bytes))
+                    .ok_or(crate::errors::BadInput("past the end of a record"));
                 assert_eq!(kind_row_word(&records, kind, group), old, "{kind} {offset}");
             }
         }

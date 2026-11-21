@@ -1,7 +1,8 @@
 //! The saves' owner: the saved games' and best times' stores in one struct, handed by reference
 //! to the code that uses them.
 
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::PlainDword;
 use crate::saves::best_times::BestTables;
 use crate::saves::best_times_store::{BestTimes, RallyTimes};
 use crate::saves::preview_store::SavegamePreview;
@@ -10,9 +11,9 @@ use crate::saves::write_savegame_slot::SaveGames;
 /// The file names and kept values that belong to no larger store.
 pub struct Files {
     /// The saved game's file name, the number's two digits last.
-    pub savegame_template: PlainBytes<27>,
+    pub savegame_template: PlainBuffer<27>,
     /// The options file's name.
-    pub options_path: PlainBytes<12>,
+    pub options_path: PlainBuffer<12>,
     /// Four dwords the options file keeps (the third is -1 at start; here and in
     /// `saves::save_options`); nothing else of the game reads them (a table of the developers'
     /// variables names the first). The fifth is a gap.
@@ -22,8 +23,8 @@ pub struct Files {
 impl Files {
     pub const fn new() -> Self {
         Files {
-            savegame_template: PlainBytes::new(*b"savedata\\savegame\\svgame00\0"),
-            options_path: PlainBytes::new(*b"var\\ral.dat\0"),
+            savegame_template: PlainBuffer::new(*b"savedata\\savegame\\svgame00\0"),
+            options_path: PlainBuffer::new(*b"var\\ral.dat\0"),
             options_kept: [
                 PlainDword::new(0),
                 PlainDword::new(0),

@@ -3,7 +3,6 @@
 //! and, as `course_info`, 0x400000 bytes where the texture and mark info files are read.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::cells::Store;
 use crate::memory::session::TextPlace;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -133,8 +132,11 @@ pub(super) fn build_texture_infos(race: &Race) -> Result<(), Refused> {
         }
         // One byte of the record's seventh dword and three of its twelfth are stored inside those
         // dwords.
-        out[7].store(0, &[t.byte])?;
-        out[11].store(0, &t.bytes)?;
+        out[7].set(out[7].get() & !0xFF | u32::from(t.byte));
+        out[11].set(
+            out[11].get() & !0x00FF_FFFF
+                | u32::from_le_bytes([t.bytes[0], t.bytes[1], t.bytes[2], 0]),
+        );
         for (k, &value) in t.first.iter().enumerate() {
             out[k].set(value);
         }

@@ -44,24 +44,6 @@ pub fn cstring_in(bytes: &[u8]) -> Result<Vec<u8>, crate::errors::BadInput> {
     }
 }
 
-/// The text at byte `offset` of the store, read within its next `len` bytes.
-fn cstring_from(
-    store: &dyn crate::memory::cells::Store,
-    offset: usize,
-    len: usize,
-) -> Result<Vec<u8>, crate::errors::BadInput> {
-    let mut bytes = vec![0u8; len];
-    store.load(offset, &mut bytes)?;
-    cstring_in(&bytes)
-}
-
-pub fn cstring(
-    at: &dyn crate::memory::cells::Store,
-    _what: &str,
-) -> Result<Vec<u8>, crate::errors::BadInput> {
-    cstring_from(at, 0, at.size())
-}
-
 /// A path in the game's bytes (no NUL) as a `PathBuf`: the one place a game path becomes the
 /// system's. A numbered instance (`--instance`) finds its `var` and `savedata` folders under
 /// `instances/<n>/` (`instance::path`).

@@ -10,7 +10,7 @@ use crate::memory::session::{PlainDword, PlainFloat};
 use crate::test_support::own::race;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewerPanelBlock {
     /// 16-bit text ids of the camera names, read and written by `menu::replay_viewer::panel`
     /// and the camera actions; reached through `camera_name`, not by this field.
@@ -282,8 +282,10 @@ impl ViewerPanelBlock {
     /// The text id of camera `camera` (47 of them; a number past them reads on in the block).
     pub fn camera_name(&self, camera: usize) -> u16 {
         // The names are the block's first bytes.
-        crate::memory::cells::load_value::<u16>(self, 2 * camera)
-            .unwrap_or_else(|e| crate::memory::host_hooks::end("a camera's name", e))
+        let mut name = [0; 2];
+        crate::memory::cells::load_walked(self, 2 * camera, &mut name)
+            .unwrap_or_else(|e| crate::memory::host_hooks::end("a camera's name", e));
+        u16::from_le_bytes(name)
     }
 
     /// The rectangle of the picture `n` in switch table `table` (0 `switch_pictures_a`, 1
@@ -331,7 +333,11 @@ impl ViewerPanelBlock {
 
     /// The rectangle (four dwords) at byte `offset` of the panel.
     pub fn rectangle_at(&self, offset: usize) -> Result<[u32; 4], crate::errors::BadInput> {
-        crate::memory::cells::load_value(self, offset)
+        let mut bytes = [0; 16];
+        crate::memory::cells::load_walked(self, offset, &mut bytes)?;
+        Ok(std::array::from_fn(|k| {
+            u32::from_le_bytes(bytes.as_chunks::<4>().0[k])
+        }))
     }
 
     /// The dword at byte `at` of the tail: unaligned, so made of the two cells it spans.

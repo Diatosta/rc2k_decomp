@@ -39,13 +39,13 @@ pub fn date_text(system: &crate::system::owner::System) -> Result<Vec<u8>, BadIn
 
 /// The text at the cursor, and after it CR, LF and two NULs. Returns the
 /// text with the CR and LF (what a read up to the first NUL finds there).
-pub(super) fn write_date_text(
+pub(super) fn write_date_text<const N: usize>(
     system: &crate::system::owner::System,
-    at: &dyn crate::memory::cells::Store,
+    at: &crate::memory::plain_buffer::PlainBuffer<N>,
 ) -> Result<Vec<u8>, BadInput> {
     let text = date_text(system)?;
-    at.store(0, &text)?;
-    crate::memory::cells::store_value(at, text.len(), 0x0A0Du32)?;
+    at.write_at(0, &text, "the start date")?;
+    at.write_at(text.len(), &0x0A0Du32.to_le_bytes(), "the start date")?;
     let mut line = text;
     line.extend_from_slice(b"\r\n");
     Ok(line)

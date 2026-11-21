@@ -20,7 +20,7 @@ fn file_len() -> usize {
 /// True if the file was written.
 pub(super) fn save_options(
     o: Owners<'static>,
-    path: &dyn crate::memory::cells::Store,
+    path: &crate::memory::plain_buffer::PlainBuffer<12>,
 ) -> Result<bool, Refused> {
     let file = &o.system.work().files.buffer;
     let owned = capture(o)?.to_pieces();
@@ -28,7 +28,7 @@ pub(super) fn save_options(
     let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);
     file.write_at(0, &bytes, "the scratch buffer")?;
     Ok(write_file_from_buffer(
-        &crate::files::cstring(path, "the options file's path")?,
+        &crate::files::cstring_in(&path.read())?,
         file,
         file_len() as u32,
     )?

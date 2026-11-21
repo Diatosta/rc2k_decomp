@@ -55,10 +55,7 @@ impl Store for Disk {
 fn paths(saves: &Saves) -> Result<Paths, Refused> {
     Ok(Paths {
         new: crate::files::host_path(b"var\\rc2k.toml"),
-        old: crate::files::host_path(&crate::files::cstring(
-            &saves.files.options_path,
-            "the options file's path",
-        )?),
+        old: crate::files::host_path(&crate::files::cstring_in(&saves.files.options_path.read())?),
     })
 }
 

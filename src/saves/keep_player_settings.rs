@@ -6,16 +6,17 @@
 //! Refuses (before anything) a missing player or a null buffer.
 
 use crate::errors::Refused;
-use crate::memory::cells::Store;
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::menu::owner::Menus;
 use crate::menu::player::PLAYERS;
+use crate::saves::write_savegame_slot::FILE_LEN;
 
 const CAR_LEN: usize = rc2k_core::saves::cars::SAVED_CAR_LEN;
 
 /// `file` is the savegame file; the saved cars start at byte `cars`.
 pub(super) fn keep_player_settings(
     menus: &Menus,
-    file: &dyn Store,
+    file: &PlainBuffer<FILE_LEN>,
     cars: usize,
 ) -> Result<(), Refused> {
     for n in 0..PLAYERS {
@@ -25,7 +26,7 @@ pub(super) fn keep_player_settings(
         let mut kept = Vec::new();
         rc2k_core::saves::cars::keep_settings(&player, &mut |at, b| kept.push((at, b)))?;
         for (at, b) in kept {
-            file.store(to + at, &[b])?;
+            file.write_at(to + at, &[b], "a saved car's setting")?;
         }
     }
     Ok(())

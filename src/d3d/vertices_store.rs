@@ -26,6 +26,23 @@ pub struct Vertex<K: CellKind = PlainCells> {
     pub v: K::Float,
 }
 
+impl Vertex {
+    /// The vertex's eight 32-bit words, in the order Direct3D takes them (x, y, z, rhw, colour,
+    /// specular, u, v).
+    pub fn words(&self) -> crate::d3d::Vertex {
+        [
+            self.x.bits(),
+            self.y.bits(),
+            self.z.bits(),
+            self.rhw.bits(),
+            self.colour.get(),
+            self.specular.get(),
+            self.u.bits(),
+            self.v.bits(),
+        ]
+    }
+}
+
 /// The vertices of the polygon being drawn: a drawing part's own (`scene::scratch_store::PartScratch`), on
 /// plain cells, reached by the one thread that draws the part.
 #[cfg_attr(test, repr(C))]

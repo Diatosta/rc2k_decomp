@@ -51,8 +51,6 @@ pub fn compare_split_times(
         _ => return Ok(()),
     };
     // From the record's data on, and no further than the record.
-    let at = std::mem::offset_of!(crate::race::state_store::RaceResult, data)
-        + 4 * car.splits_recorded.get() as usize;
-    crate::memory::cells::Store::store(times, at, &time.to_le_bytes())?;
+    times.set_split_time(car.splits_recorded.get() as usize, time)?;
     Ok(())
 }

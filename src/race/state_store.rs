@@ -134,7 +134,7 @@ impl core::ops::Deref for RaceCar {
 
 /// A car's result as the race leaves it.
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceResult {
     /// The car's time.
     pub time: PlainDword,
@@ -148,6 +148,28 @@ pub struct RaceResult {
     pub data: PlainBytes<64>,
     /// The car's eight impact marks, from and back to `Player::impact_marks`.
     pub impact_marks: [PlainDword; 8],
+}
+
+impl RaceResult {
+    /// The car's time at split `split` kept in the record from its data on: sixteen words in
+    /// `data`, then on into the impact marks; a split whose word is past the record is refused
+    /// and nothing is written.
+    pub fn set_split_time(&self, split: usize, time: u32) -> Result<(), crate::errors::BadInput> {
+        let data_words = 16; // `data` is 0x40 bytes
+        if split < data_words {
+            for (k, byte) in time.to_le_bytes().into_iter().enumerate() {
+                self.data.set(4 * split + k, byte);
+            }
+            return Ok(());
+        }
+        self.impact_marks
+            .get(split - data_words)
+            .ok_or(crate::errors::BadInput(
+                "a split's time past the result's record",
+            ))?
+            .set(time);
+        Ok(())
+    }
 }
 
 /// The first twenty words of the race's settings: the mode, the stage, the direction and the

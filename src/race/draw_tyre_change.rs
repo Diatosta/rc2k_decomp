@@ -77,7 +77,7 @@ fn fill(
     crate::gfx::rect::fill_rect(
         panel.texture_rect.each_ref().map(|c| c.get() as i32),
         0,
-        crate::gfx::rect::Palette::Of(&crate::memory::session::PlainBytes::new([0; 4])),
+        crate::gfx::rect::Palette::Of(&[crate::memory::session::PlainDword::new(0)]),
         gfx,
     )
 }

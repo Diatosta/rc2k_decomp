@@ -11,7 +11,6 @@
 //! last line's end. Refuses (before anything) more than 64 vertices.
 
 use crate::errors::BadInput;
-use crate::memory::cells::Store;
 
 /// A value as the dump shows it.
 #[derive(Clone, Copy)]
@@ -104,7 +103,7 @@ const PT: &std::ffi::CStr = c"pt";
 pub fn log_bad_polygon(
     view: &crate::race::view_scratch::ViewScratch,
     screen: &crate::memory::session::Screen,
-    vertices: &dyn Store,
+    vertices: &[crate::d3d::vertices_store::Vertex],
 ) -> Result<(), BadInput> {
     let count: u32 = view.polygon.scalars.borrow().polygon_vertex_count;
     if count > MOST {
@@ -126,17 +125,15 @@ pub fn log_bad_polygon(
         return Ok(());
     }
     for n in 0..count {
-        let mut words = [0u8; 0x20];
-        vertices.load(0x20 * n as usize, &mut words)?;
+        let words = vertices
+            .get(n as usize)
+            .ok_or(BadInput("a vertex past the buffer"))?
+            .words();
         write(PT);
         log(Shown::Int(n as i32));
         for (label, part, offset) in VERTEX {
             write(label);
-            let dword = u32::from_le_bytes(
-                words[offset as usize..offset as usize + 4]
-                    .try_into()
-                    .unwrap(),
-            );
+            let dword = words[offset as usize / 4];
             log(match part {
                 Part::Float => Shown::Float(f32::from_bits(dword)),
                 Part::Hex8 => Shown::Hex8(dword),

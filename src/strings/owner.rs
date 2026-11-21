@@ -2,7 +2,7 @@
 //! one struct, handed by reference to the code that uses them.
 
 use crate::memory::plain_buffer::PlainBuffer;
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::session::PlainDword;
 use crate::strings::format_seal_code::SEAL_TEXT_LEN;
 use crate::strings::lexicon_memory::{EMPTY_MESSAGE_LEN, LexiconMemory, WORK_LEN};
 use crate::strings::locale::{LOCALE_INIT, LOCALE_LEN, PLAIN_LETTERS_INIT};
@@ -99,15 +99,15 @@ pub(super) const NAMES_SIZE: usize = NAMES_LEN + POOL_ROOM;
 /// The driver names' work areas (`settings::read_driver_names`).
 pub struct Drivers {
     /// The key, made in place (8 bytes).
-    pub key: PlainBytes<8>,
-    pub names: PlainBytes<NAMES_SIZE>,
+    pub key: PlainBuffer<8>,
+    pub names: PlainBuffer<NAMES_SIZE>,
 }
 
 impl Drivers {
     pub const fn new() -> Self {
         Drivers {
-            key: PlainBytes::new(*b"name000\0"),
-            names: PlainBytes::new([0; NAMES_SIZE]),
+            key: PlainBuffer::new(*b"name000\0"),
+            names: PlainBuffer::new([0; NAMES_SIZE]),
         }
     }
 }

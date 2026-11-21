@@ -1281,31 +1281,16 @@ plain_record!(
     rc2k_core::menu::player::Player = 0x28C,
 );
 
-/// One of the game's stores: a static whose every byte is a cell, read and written by
-/// offset through its own cells (`load_cells`, `store_cells`).
-///
-/// # Safety
-/// `first()` is the store's first byte and `size()` bytes behind it are the store's own, laid
-/// out as it says (`slice` reaches them from `first()`).
-pub unsafe trait Store {
-    /// Its length in bytes.
-    fn size(&self) -> usize;
-    /// Its first byte: a checked place's bytes are found from it (`place_of`), inside `size()`.
-    fn first(&self) -> *const u8;
+/// A record whose every byte is a cell, read and written by byte offset through its own cells
+/// (`load_cells`, `store_cells`): the tests' reference for the typed reads.
+#[cfg(test)]
+pub trait Store {
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput>;
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput>;
 }
 
-// SAFETY: `first` is the record's first byte and `size` its size.
-unsafe impl<T: ByteView> Store for T {
-    fn size(&self) -> usize {
-        size_of::<T>()
-    }
-
-    fn first(&self) -> *const u8 {
-        std::ptr::from_ref(self).cast()
-    }
-
+#[cfg(test)]
+impl<T: ByteView> Store for T {
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
         load_cells(self, offset, to)
     }
@@ -1516,23 +1501,46 @@ fn dwords_as<D: DwordCell, T: ByteView, const N: usize>(cells: &T, at: usize) ->
     unsafe { &*first.cast() }
 }
 
-/// A store's bytes as a reader (`rc2k_core::strings::bytes::Bytes`): the field's own bytes, none
-/// past its end.
-pub struct StoreBytes<'a>(pub &'a dyn Store);
-
-impl rc2k_core::strings::bytes::Bytes for StoreBytes<'_> {
-    fn byte(&self, at: usize) -> Option<u8> {
-        let mut byte = [0];
-        self.copy_run(at, &mut byte)?;
-        Some(byte[0])
+/// `to.len()` bytes of a `#[repr(C)]` record of 32-bit cells with no padding, from byte `offset`
+/// of its fields taken in order: a read that reaches on from one field into the next, as the
+/// record's layout has them. A read past the record's end is refused.
+pub fn load_walked<T: Cells>(record: &T, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
+    let end = record_end::<T>(offset, to.len())?;
+    /// The bytes of every run that overlaps the wanted range, copied out.
+    struct Walk<'a> {
+        at: usize,
+        offset: usize,
+        end: usize,
+        to: &'a mut [u8],
     }
-    fn copy_run(&self, at: usize, out: &mut [u8]) -> Option<()> {
-        let end = at.checked_add(out.len())?;
-        (end <= self.0.size() && self.0.load(at, out).is_ok()).then_some(())
+    impl CellVisitor for Walk<'_> {
+        fn enter(&mut self, _: &'static str) {}
+        fn index(&mut self, _: usize) {}
+        fn leave(&mut self) {}
+        fn leaf(&mut self, _: &[u8]) {}
+        fn run(&mut self, run: CellRun<'_>) {
+            let (start, upto) = (self.at, self.at + run.len());
+            self.at = upto;
+            let (from, to) = (start.max(self.offset), upto.min(self.end));
+            if from < to {
+                run.load(
+                    from - start,
+                    &mut self.to[from - self.offset..to - self.offset],
+                );
+            }
+        }
     }
+    record.visit(&mut Walk {
+        at: 0,
+        offset,
+        end,
+        to,
+    });
+    Ok(())
 }
 
 /// The `T` at byte `offset` of `store` (any alignment; a run past the store is refused).
+#[cfg(test)]
 pub fn load_value<T: Plain>(store: &dyn Store, offset: usize) -> Result<T, BadInput> {
     let mut value = zeroed::<T>();
     store.load(offset, bytes_mut(&mut value))?;
@@ -1540,6 +1548,7 @@ pub fn load_value<T: Plain>(store: &dyn Store, offset: usize) -> Result<T, BadIn
 }
 
 /// `value` written at byte `offset` of `store` (a run past the store is refused).
+#[cfg(test)]
 pub fn store_value<T: Plain>(store: &dyn Store, offset: usize, value: T) -> Result<(), BadInput> {
     store.store(offset, bytes_of(&value))
 }

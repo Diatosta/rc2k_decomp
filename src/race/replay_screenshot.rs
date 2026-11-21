@@ -11,7 +11,6 @@
 //! next.
 
 use crate::errors::Refused;
-use crate::memory::cells::Store;
 
 pub fn replay_screenshot(
     race: &crate::race::owner::Race,
@@ -30,11 +29,18 @@ pub fn replay_screenshot(
     let name = &panel.picture_name;
     // Logic in `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
     // The name is a text: its digits are bytes inside it.
+    let mut text = [0u8; 12];
+    for (bytes, word) in text.as_chunks_mut::<4>().0.iter_mut().zip(name) {
+        *bytes = word.get().to_le_bytes();
+    }
     let mut digits = [0u8; 6];
-    Store::load(name, 4, &mut digits)?;
+    digits.copy_from_slice(&text[4..10]);
     let (counted, _, _) = rc2k_core::race::viewer::count_up(digits);
-    Store::store(name, 4, &counted)?;
-    let name = crate::files::cstring(name, "the picture name")?;
+    text[4..10].copy_from_slice(&counted);
+    for (bytes, word) in text.as_chunks::<4>().0.iter().zip(name) {
+        word.set(u32::from_le_bytes(*bytes));
+    }
+    let name = crate::files::cstring_in(&text)?;
     // The surface locked (the carry says it was not), the picture written, the surface
     // unlocked.
     crate::gfx::with_locked_surface::with_locked_surface(

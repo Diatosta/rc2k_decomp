@@ -10,7 +10,7 @@ use crate::memory::session::{PlainDword, PlainFlag};
 use crate::race::viewer_list_store::{ITEMS, ViewerItem, ViewerList};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayViewBlock {
     /// The 16-byte frame that pads a block's end, zeros (`race::replay`,
     /// `race::add_replay_frame`).
@@ -160,7 +160,7 @@ const ITEM_PLACES: usize = 0x68;
 impl ReplayViewBlock {
     /// Where the list's key table is.
     pub fn key_table() -> BytePlace {
-        BytePlace::Store(&RECTANGLES, 0)
+        BytePlace::In(&RECTANGLES, 0)
     }
 
     /// Where item `index`'s screen rectangle is.
@@ -169,7 +169,7 @@ impl ReplayViewBlock {
         index: u32,
     ) -> Result<BytePlace, crate::errors::BadInput> {
         Self::item(view, index)?;
-        Ok(BytePlace::Store(
+        Ok(BytePlace::In(
             &RECTANGLES,
             ITEM_PLACES + 16 * index as usize,
         ))

@@ -216,9 +216,9 @@ pub fn load_game_map(
     if !crate::files::file_exists::file_exists(&picture.text("a map picture's path")?)? {
         // The packed path: "files\" at the start, the picture's path after 3 bytes with its last
         // four bytes made ".sq" and a NUL.
-        let path = &crate::memory::session::Bytes::<{ crate::files::state::PACKED_PATH_LEN }>::new(
-            [0; crate::files::state::PACKED_PATH_LEN],
-        );
+        let path = &crate::memory::plain_buffer::PlainBuffer::<
+            { crate::files::state::PACKED_PATH_LEN },
+        >::new([0; crate::files::state::PACKED_PATH_LEN]);
         let text = picture.text("a text to append")?;
         let len = text.len() as u32;
         path.write_at(3, &text, "a text to append")?;
@@ -231,11 +231,7 @@ pub fn load_game_map(
         )?;
         path.write_at(0, b"files\\", "the packed map's path")?;
         // The packed path is built in the buffer.
-        return load_packed_game_map(
-            &crate::files::cstring(path, "the packed map's path")?,
-            system,
-            gfx,
-        );
+        return load_packed_game_map(&crate::files::cstring_in(&path.read())?, system, gfx);
     }
     let (bytes, format) = take_format(gfx)?;
     let mut loaded = LoadedMap::empty(bytes);

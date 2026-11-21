@@ -239,10 +239,11 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     let race = crate::test_support::own::race();
     let _lock = crate::test_support::test_lock();
     byte_view_stores! {
-        *race.course.stage_prefs.get(),
-        *race.replay.replay_view(),
+        race.shared.replay_file().index,
     }
     cells_stores! {
+        *race.course.stage_prefs.get(),
+        *race.replay.replay_view(),
         *race.shared.car(),
         audio.state,
         audio.sample_records,

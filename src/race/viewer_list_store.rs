@@ -12,7 +12,7 @@ pub const ITEMS: u32 = 26;
 
 /// One button of the list.
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewerItem {
     /// The kind (low nibble) and the marks (high bits).
     pub first: PlainByte,
@@ -28,10 +28,11 @@ impl ViewerItem {
 
 /// The viewer's list.
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewerList {
     pub items: [ViewerItem; ITEMS as usize],
-    /// Keeps the list's size a multiple of four (a byte view has no padding).
+    /// Keeps the list's size a multiple of four: a record of cells in a `#[repr(C)]` record has
+    /// no padding.
     spare: [PlainByte; 2],
 }
 

@@ -3,6 +3,7 @@
 
 use crate::files::scratch::Scratch as FileScratch;
 use crate::logfile::numeric::SCRATCH_LEN;
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{
     Clocks, DrawShared, GameThread, HostShared, KeyClock, Machine, PlainBytes, Screen,
     WindowLoopState, WindowShared,
@@ -66,14 +67,14 @@ impl Start {
 pub struct Work {
     pub files: FileScratch,
     /// Where a number's text is made.
-    pub numbers: PlainBytes<SCRATCH_LEN>,
+    pub numbers: PlainBuffer<SCRATCH_LEN>,
 }
 
 impl Work {
     pub const fn new() -> Self {
         Work {
             files: FileScratch::new(),
-            numbers: PlainBytes::new([0; SCRATCH_LEN]),
+            numbers: PlainBuffer::new([0; SCRATCH_LEN]),
         }
     }
 }

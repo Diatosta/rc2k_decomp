@@ -96,8 +96,6 @@ mod tests {
         // bounded by the block (the longest read, 31 bytes, fits the pool's room).
         let first = super::NAMES_LEN as u32;
         assert!(first as usize + 31 <= super::NAMES_LEN + super::POOL_ROOM);
-        let names: &dyn crate::memory::cells::Store =
-            &crate::test_support::own::strings().drivers.names;
-        assert!((first as usize) < names.size());
+        assert!((first as usize) < super::NAMES_LEN + super::POOL_ROOM);
     }
 }

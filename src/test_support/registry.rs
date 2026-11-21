@@ -358,7 +358,7 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!(
             "owners.system.work.numbers",
-            on_game(&o.system.work().numbers),
+            on_buffer(&o.system.work().numbers),
         ),
         listed!(
             "owners.race.shared.random.state",
@@ -411,11 +411,11 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("memory.state.TURNOVER", &crate::memory::state::TURNOVER),
         listed!(
             "owners.strings.drivers.key",
-            on_game(&o.strings.drivers.key),
+            on_buffer(&o.strings.drivers.key),
         ),
         listed!(
             "owners.strings.drivers.names",
-            on_game(&o.strings.drivers.names),
+            on_buffer(&o.strings.drivers.names),
         ),
         listed!(
             "owners.gfx.fonts.blended_palette",
@@ -638,7 +638,22 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.net.button.get().tiles),
         ),
         listed!("owners.net.button.item", on_game(&o.net.button.get().item),),
-        listed!("owners.saves.save_games", on_game(&o.saves.save_games),),
+        listed!(
+            "owners.saves.save_games.kept_a",
+            on_game(&o.saves.save_games.kept_a),
+        ),
+        listed!(
+            "owners.saves.save_games.file",
+            on_buffer(&o.saves.save_games.file),
+        ),
+        listed!(
+            "owners.saves.save_games.names",
+            on_game(&o.saves.save_games.names),
+        ),
+        listed!(
+            "owners.saves.save_games.kept_b",
+            on_game(&o.saves.save_games.kept_b),
+        ),
         listed!(
             "owners.menus.service.set_ups",
             on_game(&o.menus.service.set_ups),
@@ -650,11 +665,11 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.install.texts", &o.install.texts,),
         listed!(
             "owners.saves.files.options_path",
-            on_game(&o.saves.files.options_path),
+            on_buffer(&o.saves.files.options_path),
         ),
         listed!(
             "owners.saves.files.savegame_template",
-            on_game(&o.saves.files.savegame_template),
+            on_buffer(&o.saves.files.savegame_template),
         ),
         listed!(
             "owners.menus.service.template",

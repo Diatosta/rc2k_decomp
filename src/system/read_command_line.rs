@@ -27,7 +27,7 @@ fn show_version_and_leave(start: &Start) -> ! {
     crate::fatal::state::TEXT
         .write_at(0, &kept, "the version's text")
         .unwrap_or_else(|e| leave(e));
-    let caption = crate::files::cstring(caption, "the caption").unwrap_or_else(|e| leave(e));
+    let caption = crate::files::cstring_in(&caption.read()).unwrap_or_else(|e| leave(e));
     crate::platform::os::message_box(crate::platform::os::Icon::Information, &caption, &text);
     crate::standalone::finish("the version was shown", 0)
 }

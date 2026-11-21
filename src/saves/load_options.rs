@@ -8,7 +8,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file_to_buffer;
-use crate::memory::cells::Store;
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::owners::Owners;
 use crate::saves::options_state;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
@@ -26,11 +26,11 @@ pub struct Places<'a> {
     pub rebuild_car_lists: &'a mut dyn FnMut() -> Result<(), BadInput>,
 }
 
-pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refused> {
+pub fn load_options(path: &PlainBuffer<12>, places: &mut Places) -> Result<bool, Refused> {
     (places.set_loaded)(false);
     let file = places.file;
     let read = read_file_to_buffer(
-        &crate::files::cstring(path, "the options file's path")?,
+        &crate::files::cstring_in(&path.read())?,
         file,
         TEXT_ROOM + 1,
         0,

@@ -3,7 +3,6 @@
 //! (`&INSTALLER_PATHS.installed`, `&TEXT_BUFFER.text`).
 
 use crate::errors::BadInput;
-use crate::memory::cells::Store;
 use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{Bytes, PlainBytes, PlainDword};
 
@@ -69,9 +68,6 @@ impl Run for PlainDword {
 pub enum BytePlace {
     /// Byte `.1` of a typed buffer.
     In(&'static dyn Run, usize),
-    /// Byte `.1` of a record's bytes (a store): reads and writes run on inside the record, as
-    /// far as its end.
-    Store(&'static dyn Store, usize),
 }
 
 impl<const N: usize> From<&'static Bytes<N>> for BytePlace {
@@ -96,7 +92,6 @@ impl core::fmt::Debug for BytePlace {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             BytePlace::In(_, at) => write!(f, "BytePlace::In(+{at:#x})"),
-            BytePlace::Store(_, at) => write!(f, "BytePlace::Store(+{at:#x})"),
         }
     }
 }
@@ -129,7 +124,6 @@ impl BytePlace {
                     .unwrap_or_else(|e| crate::memory::host_hooks::end("place", e));
                 core::ptr::from_ref(b).cast::<u8>().wrapping_add(at)
             }
-            BytePlace::Store(s, at) => s.first().wrapping_add(at),
         }
     }
 
@@ -137,7 +131,6 @@ impl BytePlace {
     /// 64-bit builds reach the same byte.
     pub fn add(self, n: u32) -> BytePlace {
         match self {
-            BytePlace::Store(s, at) => BytePlace::Store(s, (at as u32).wrapping_add(n) as usize),
             BytePlace::In(b, at) => BytePlace::In(b, (at as u32).wrapping_add(n) as usize),
         }
     }
@@ -167,11 +160,6 @@ impl BytePlace {
                 Self::inside(b, at, len)?;
                 Ok((0..len).map(|k| b.get(at + k)).collect())
             }
-            BytePlace::Store(s, at) => {
-                let mut bytes = vec![0; len];
-                s.load(at, &mut bytes)?;
-                Ok(bytes)
-            }
         }
     }
 
@@ -193,7 +181,6 @@ impl BytePlace {
                 }
                 Ok(())
             }
-            BytePlace::Store(s, at) => s.store(at, data),
         }
     }
 
@@ -208,18 +195,6 @@ impl BytePlace {
                     .ok_or(BadInput("a text without its end in its buffer"))?;
                 Ok((at..end).map(|k| b.get(k)).collect())
             }
-            BytePlace::Store(s, at) => {
-                let mut text = Vec::new();
-                for k in at..s.size() {
-                    let mut byte = [0];
-                    s.load(k, &mut byte)?;
-                    if byte[0] == 0 {
-                        return Ok(text);
-                    }
-                    text.push(byte[0]);
-                }
-                Err(BadInput("a text without its end in its record"))
-            }
         }
     }
 
@@ -232,7 +207,6 @@ impl BytePlace {
                 Self::inside(b, at, 0)?;
                 PlaceBytes::In(b, at)
             }
-            BytePlace::Store(s, at) => PlaceBytes::Store(s, at),
         })
     }
 }
@@ -242,8 +216,6 @@ impl BytePlace {
 pub enum PlaceBytes {
     /// From byte `.1` of a typed buffer.
     In(&'static dyn Run, usize),
-    /// From byte `.1` of a record's bytes.
-    Store(&'static dyn Store, usize),
 }
 
 impl rc2k_core::strings::bytes::Bytes for PlaceBytes {
@@ -252,11 +224,6 @@ impl rc2k_core::strings::bytes::Bytes for PlaceBytes {
             PlaceBytes::In(b, from) => {
                 let k = from.checked_add(at)?;
                 (k < b.len()).then(|| b.get(k))
-            }
-            PlaceBytes::Store(s, from) => {
-                let k = from.checked_add(at)?;
-                let mut byte = [0];
-                (k < s.size() && s.load(k, &mut byte).is_ok()).then_some(byte[0])
             }
         }
     }

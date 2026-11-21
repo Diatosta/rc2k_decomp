@@ -12,7 +12,7 @@ use crate::test_support::own::race;
 
 /// One model's record.
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightRecord {
     /// Eleven dwords (the camera's and the car's figures, read by `physics::update_camera`,
     /// `race::car_draw` and `drive::share_car_state`).

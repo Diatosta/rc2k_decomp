@@ -120,22 +120,6 @@ pub fn course_present<E>(
     Ok(false)
 }
 
-// ---- the lights' data ----
-
-/// The lights' records: 0x22 of 0x134 bytes, each taking 0x90 bytes of data after a 0xA4-byte head.
-pub const LIGHT_RECORDS: usize = 0x22;
-pub const LIGHT_RECORD: usize = 0x134;
-pub(crate) const LIGHT_DATA: usize = 0x90;
-pub(crate) const LIGHT_DATA_AT: usize = 0xA4;
-
-/// Lays the data's records into the lights' records.
-pub fn lay_lights(data: &[u8], records: &mut [u8]) {
-    for n in 0..LIGHT_RECORDS {
-        let to = n * LIGHT_RECORD + LIGHT_DATA_AT;
-        records[to..to + LIGHT_DATA].copy_from_slice(&data[n * LIGHT_DATA..(n + 1) * LIGHT_DATA]);
-    }
-}
-
 // ---- the crash matrix ----
 
 /// The crash matrix's turns (x, y, z) from the three angles (y, x, z; whole part in the top
@@ -180,13 +164,6 @@ mod tests {
         assert_eq!((found, asked), (Ok(true), vec![0, 1]));
         assert_eq!(course_present(2, |_| Ok::<u32, ()>(0)), Ok(false));
         assert_eq!(course_present(2, |_| Err::<u32, u8>(5)), Err(5));
-        let data: Vec<u8> = (0..LIGHT_RECORDS * LIGHT_DATA).map(|n| n as u8).collect();
-        let mut records = vec![0xAAu8; LIGHT_RECORDS * LIGHT_RECORD];
-        lay_lights(&data, &mut records);
-        assert_eq!(records[0xA3], 0xAA);
-        assert_eq!(records[0xA4], 0);
-        assert_eq!(records[LIGHT_RECORD + 0xA4], LIGHT_DATA as u8);
-        assert_eq!(records[LIGHT_RECORD + 0xA4 + LIGHT_DATA], 0xAA);
         assert_eq!(crash_turns([0x10000, 0x20000, 0x3FFFF]), [2, 1, 3]);
     }
 }

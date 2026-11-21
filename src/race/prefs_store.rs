@@ -7,11 +7,11 @@
 //! parts through their `scene::workers::DrawReads`.
 //!
 
-use crate::memory::cells::ZeroCells;
+use crate::memory::cells::{CellRun, CellVisitor, Cells, ZeroCells};
 use crate::memory::session::PlainDword;
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct StagePrefs {
     /// The first 0x100 bytes of `stage_prefs`, the stage's `localdat` (0x206C bytes read in
     /// place; `race::stage_prefs`); not used by name.
@@ -160,6 +160,42 @@ crate::memory::cells::plain_cells_only!(StagePrefs);
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
+
+/// The prefs as the stage's `localdat` file lays them out: the fields in order, each dword
+/// little-endian (the layout of `rc2k_core::race::stage_files`).
+impl StagePrefs {
+    /// The whole record in the file's layout.
+    pub fn to_le_bytes(&self) -> Vec<u8> {
+        crate::memory::cells::flatten(self)
+    }
+
+    /// The whole record set from `bytes` in the file's layout.
+    ///
+    /// # Errors
+    /// When `bytes` is not exactly the record's size; nothing is written then.
+    pub fn set_from_le_bytes(&self, bytes: &[u8]) -> Result<(), crate::errors::BadInput> {
+        if bytes.len() != size_of::<Self>() {
+            return Err(crate::errors::BadInput(
+                "stage preferences of the wrong size",
+            ));
+        }
+        /// Each run of cells taken from the next bytes.
+        struct Fill<'a>(&'a [u8]);
+        impl CellVisitor for Fill<'_> {
+            fn enter(&mut self, _: &'static str) {}
+            fn index(&mut self, _: usize) {}
+            fn leave(&mut self) {}
+            fn leaf(&mut self, _: &[u8]) {}
+            fn run(&mut self, run: CellRun<'_>) {
+                let (now, rest) = self.0.split_at(run.len());
+                run.store(0, now);
+                self.0 = rest;
+            }
+        }
+        self.visit(&mut Fill(bytes));
+        Ok(())
+    }
+}
 
 /// The piece (a field of `race::owner::Race::course`), with its first values.
 impl StagePrefs {

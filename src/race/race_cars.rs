@@ -138,9 +138,14 @@ fn set_player_car_kinds(race: &Race) {
     }
 }
 
-/// The cars' data text from its start (read on past the buffer's end too).
-fn text_data(shared: &RaceShared) -> crate::memory::cells::StoreBytes<'_> {
-    crate::memory::cells::StoreBytes(&shared.tables().car_data_text)
+/// The cars' data text from its start, as the bytes of its dwords.
+fn text_data(shared: &RaceShared) -> Vec<u8> {
+    shared
+        .tables()
+        .car_data_text
+        .iter()
+        .flat_map(|word| word.get().to_le_bytes())
+        .collect()
 }
 
 /// Runs `reset_car_blocks`, `drop_absent_player` and `set_player_car_kinds`.

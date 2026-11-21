@@ -49,20 +49,9 @@ impl PoolBlock {
             _ => Err(BadInput("a read or write past a lent block")),
         }
     }
-}
 
-// SAFETY: `first` and `size` are the block's own pages; every read and write takes `load` and
-// `store`, which reach them inside its length.
-unsafe impl crate::memory::cells::Store for PoolBlock {
-    fn size(&self) -> usize {
-        self.len()
-    }
-
-    fn first(&self) -> *const u8 {
-        self.as_ptr()
-    }
-
-    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
+    /// `to` filled from byte `offset` of the block; a run past its end is refused.
+    pub fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
         self.check(offset, to.len())?;
         // SAFETY: inside the block (checked), whole pages so 4-aligned, reached only by word
         // copies; `to` is Rust's.
@@ -70,7 +59,8 @@ unsafe impl crate::memory::cells::Store for PoolBlock {
         Ok(())
     }
 
-    fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
+    /// `from` written at byte `offset` of the block; a run past its end is refused.
+    pub fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
         self.check(offset, from.len())?;
         // SAFETY: as `load`'s.
         unsafe {
@@ -105,7 +95,7 @@ pub fn take(len: usize) -> &'static PoolBlock {
     if let Some((block, zeroed)) = reused {
         if !zeroed {
             for at in (0..block.len()).step_by(PAGE) {
-                let _ = crate::memory::cells::Store::store(block, at, &[0; PAGE]);
+                let _ = block.store(at, &[0; PAGE]);
             }
         }
         return block;
@@ -178,7 +168,8 @@ impl WrittenRows {
 impl PoolBytes {
     pub fn from_vec(bytes: Vec<u8>) -> Self {
         let block = take(bytes.len());
-        crate::memory::cells::Store::store(block, 0, &bytes)
+        block
+            .store(0, &bytes)
             .unwrap_or_else(|e| crate::fatal::raise::end("pool::PoolBytes", e));
         Self {
             block,
@@ -245,7 +236,7 @@ impl PoolBytes {
             return Err(BadInput("past the end of a field"));
         }
         let mut bytes = vec![0; len];
-        crate::memory::cells::Store::load(self.block, offset as usize, &mut bytes)?;
+        self.block.load(offset as usize, &mut bytes)?;
         Ok(bytes)
     }
 
@@ -268,18 +259,15 @@ impl PoolBytes {
         if let Some(rows) = &self.rows {
             rows.note(offset as usize, data.len());
         }
-        crate::memory::cells::Store::store(self.block, offset as usize, data)
+        self.block.store(offset as usize, data)
     }
 
     /// The `T` at byte `offset`; a read past the bytes' end is refused.
     pub fn read_value<T: Plain>(&self, offset: u32, what: &str) -> Result<T, BadInput> {
         self.within(offset, size_of::<T>(), what)?;
         let mut value = crate::memory::cells::zeroed::<T>();
-        crate::memory::cells::Store::load(
-            self.block,
-            offset as usize,
-            crate::memory::cells::bytes_mut(&mut value),
-        )?;
+        self.block
+            .load(offset as usize, crate::memory::cells::bytes_mut(&mut value))?;
         Ok(value)
     }
 
@@ -292,11 +280,8 @@ impl PoolBytes {
         if let Some(rows) = &self.rows {
             rows.note(offset as usize, size_of::<T>());
         }
-        crate::memory::cells::Store::store(
-            self.block,
-            offset as usize,
-            crate::memory::cells::bytes_of(&value),
-        )
+        self.block
+            .store(offset as usize, crate::memory::cells::bytes_of(&value))
     }
 
     /// Whether `len` bytes from `offset` lie inside the bytes.
@@ -317,7 +302,8 @@ impl PoolBytes {
     /// A copy of the bytes.
     pub fn to_vec(&self) -> Vec<u8> {
         let mut bytes = vec![0; self.len];
-        crate::memory::cells::Store::load(self.block, 0, &mut bytes)
+        self.block
+            .load(0, &mut bytes)
             .unwrap_or_else(|e| crate::fatal::raise::end("pool::PoolBytes", e));
         bytes
     }
@@ -346,7 +332,6 @@ impl Drop for PoolBytes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory::cells::Store;
 
     #[test]
     fn blocks_are_zeroed_reused_and_bounded() {

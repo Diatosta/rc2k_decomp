@@ -23,9 +23,8 @@ pub fn start_frame_pictures(
     }
     panel.set_picture_time(picture_time(picture_ms, rate));
     // Whether the folder was made does not matter.
-    crate::files::directories::make_directory(&crate::files::cstring(
-        &panel.picture_folder,
-        "the pictures folder",
+    crate::files::directories::make_directory(&crate::files::cstring_in(
+        &panel.picture_folder.get().to_le_bytes(),
     )?);
     panel.replay_recording.set(1);
     clock.started.set(0);

@@ -226,13 +226,15 @@ fn shadow_hull(work: &ShadowWork) -> Result<(), Refused> {
     let at = |n: usize| point_at(work, n as u32);
     let mut records: Vec<Record> = Vec::new();
     for n in 0..hull_records(count) {
-        records.push(crate::memory::cells::load_value::<Record>(at(n)?, 0)?);
+        records.push(at(n)?.words().map(PlainDword::get));
     }
     let before = records.clone();
     let h = hull(&mut records, count)?;
     for (n, (now, was)) in records.iter().zip(&before).enumerate() {
         if now != was {
-            crate::memory::cells::store_value(at(n)?, 0, *now)?;
+            for (word, value) in at(n)?.words().into_iter().zip(*now) {
+                word.set(value);
+            }
         }
     }
     work.hull_count.set(h.count);

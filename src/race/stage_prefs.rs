@@ -4,7 +4,6 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::memory::cells::Store;
 use crate::memory::session::DrawPlain;
 use crate::physics::car_store::Car;
 use crate::race::matrices_store::SceneMatrices;
@@ -19,7 +18,8 @@ fn prefs_paths(course: &Course) -> Result<[Vec<u8>; 2], crate::errors::BadInput>
         crate::files::cstring_in(&p.localdat_src)?,
     ])
 }
-const LIGHT_RECORD_COUNT: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
+/// The bytes of one model's lights' data in the lights' table.
+const LIGHT_DATA: usize = 0x90;
 
 /// Loads the stage's preferences: `files\levels\levelxx\localdat`, then `srclvls\levelxx\localdat`
 /// laid over what the preferences hold, then the stage's texture swap, tweak and the cleared
@@ -28,7 +28,7 @@ pub(super) fn load_prefs(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{PREFS_SIZE, StagePrefsFile};
     let course = &race.course;
     let held = course.stage_prefs.get();
-    let mut prefs = StagePrefsFile::from_held(&crate::memory::cells::flatten(held))?;
+    let mut prefs = StagePrefsFile::from_held(&held.to_le_bytes())?;
     for path in prefs_paths(course)? {
         let mut file = vec![0u8; PREFS_SIZE];
         let read = crate::files::read_whole_file::read_whole_file_len(&path, &mut file)?;
@@ -38,7 +38,7 @@ pub(super) fn load_prefs(race: &Race) -> Result<(), Refused> {
     prefs.swap_stage_texture(stage);
     prefs.tweak_stage(stage);
     prefs.clear_precipitation_range(race.shared.work.get().no_precipitation.get() != 0);
-    crate::memory::cells::store_cells(held, 0, prefs.bytes())?;
+    held.set_from_le_bytes(prefs.bytes())?;
     Ok(())
 }
 
@@ -67,16 +67,17 @@ pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::copy_lights_data`: copies 0x22 records of 0x90 bytes from the lights' data into the lights' part of
-/// the 0x134-byte light records.
+/// Copies the lights' data (0x90 bytes for each of the 0x22 models) into the lights' part of each
+/// model's light record.
 pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
-    use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
     let records = &race.light_records().records;
     let source = race.course.lights_table().lights;
-    let mut laid = vec![0; LIGHT_RECORD_COUNT as usize * LIGHT_RECORD];
-    Store::load(records, 0, &mut laid)?;
-    lay_lights(&source, &mut laid);
-    Store::store(records, 0, &laid)
+    for (record, data) in records.iter().zip(source.as_chunks::<LIGHT_DATA>().0) {
+        for (word, bytes) in record.lights.iter().zip(data.as_chunks::<4>().0) {
+            word.set(u32::from_le_bytes(*bytes));
+        }
+    }
+    Ok(())
 }
 
 /// `race::load_lights_data`: reads `files\s\data\ldata` (0x1320 bytes at most) into the lights'

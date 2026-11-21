@@ -18,7 +18,6 @@ use crate::gfx::glyph_tables::{
     begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
 use crate::gfx::owner::Gfx;
-use crate::memory::cells::Store;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::strings::owner::Strings;
 use crate::system::owner::System;
@@ -47,7 +46,6 @@ impl Source {
         }
     }
 }
-const PALETTE_BYTES: usize = 0x400;
 /// The four font sheets and where each one's table is kept.
 fn font_sheets(gfx: &Gfx) -> [(&'static [u8], &Cell<u32>); 4] {
     let fonts = &gfx.fonts;
@@ -226,9 +224,15 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
     gfx.fonts.font_block.font27_glyphs.set(vars.table.get());
     palette_to_pixels(palettes.get(), gfx, system)?;
     // The palette sheet is a copy of the decoder's palette (256 dwords).
-    let mut palette = [0u8; PALETTE_BYTES];
-    gfx.pictures.decoder.palette.load(0, &mut palette)?;
-    gfx.fonts.font_block.palette_sheet.store(0, &palette)?;
+    for (sheet, decoded) in gfx
+        .fonts
+        .font_block
+        .palette_sheet
+        .iter()
+        .zip(&gfx.pictures.decoder.palette)
+    {
+        sheet.set(decoded.get());
+    }
     for (sheet, kept) in font_sheets(gfx) {
         begin_glyph_table(&gfx.fonts, vars, list)?;
         build_glyphs(vars, sheet, list, gfx, system, strings)?;

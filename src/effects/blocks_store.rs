@@ -186,3 +186,20 @@ impl MarkCorners {
         }
     }
 }
+
+impl MarkCorners {
+    /// The corner records' words from `bytes` (16-bit, little-endian), the whole table; a run of
+    /// another length is refused.
+    pub fn set_from_bytes(&self, bytes: &[u8]) -> Result<(), crate::errors::BadInput> {
+        if bytes.len() != 0x100 * 0x80 {
+            return Err(crate::errors::BadInput(
+                "the corner table's bytes are not its size",
+            ));
+        }
+        let words = self.corners.iter().flat_map(|corner| corner.words.iter());
+        for (word, pair) in words.zip(bytes.as_chunks::<2>().0) {
+            word.set(u16::from_le_bytes(*pair));
+        }
+        Ok(())
+    }
+}

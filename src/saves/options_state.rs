@@ -6,7 +6,6 @@
 //! model is read through.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::cells::Store;
 use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{DwordLike, PlayerSlot, Run};
 use crate::menu::player::Player;
@@ -15,6 +14,9 @@ use crate::records::stages_store::{RECORD_LEN, Record};
 use crate::saves::best_times_store::TimeEntry;
 use rc2k_core::options::Options;
 use std::sync::atomic::Ordering::Relaxed;
+
+/// A best-time entry's name field, in bytes.
+const NAME_LEN: usize = 0x20;
 
 /// The options as the game's stores hold them now.
 pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
@@ -180,7 +182,6 @@ trait Move {
     fn words(&mut self, run: &dyn Run) -> Result<(), BadInput>;
     /// A dword of a plain store.
     fn value(&mut self, get: &dyn Fn() -> u32, set: &dyn Fn(u32)) -> Result<(), BadInput>;
-    fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput>;
     fn bytes(
         &mut self,
         len: usize,
@@ -209,12 +210,6 @@ impl Move for Put {
             self.0.extend_from_slice(&run.bits(i).to_le_bytes());
         }
         Ok(())
-    }
-
-    fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput> {
-        let at = self.0.len();
-        self.0.resize(at + len, 0);
-        cells.load(from, &mut self.0[at..])
     }
 
     fn bytes(
@@ -272,10 +267,6 @@ impl Move for Take<'_> {
         Ok(())
     }
 
-    fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput> {
-        cells.store(from, self.next(len)?)
-    }
-
     fn bytes(
         &mut self,
         len: usize,
@@ -310,7 +301,11 @@ fn time_entry(entry: &TimeEntry, m: &mut impl Move) -> Result<(), BadInput> {
     ] {
         m.dword(field)?;
     }
-    m.text(&entry.name, 0, entry.name.size())?;
+    m.bytes(NAME_LEN, &|| entry.name.read().to_vec(), &|bytes| {
+        let mut name = [0u8; NAME_LEN];
+        name.copy_from_slice(bytes);
+        entry.name.write(&name);
+    })?;
     m.dword(&entry.is_player)?;
     m.dword(&entry.figure)?;
     for field in entry

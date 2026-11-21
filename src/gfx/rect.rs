@@ -35,26 +35,28 @@ fn core_surface(gfx: &Gfx) -> rc2k_core::gfx::raster::Surface {
 pub enum Palette<'a> {
     /// A font's palette as the game's data keeps it: a place of `gfx::glyph_store`.
     Held(u32),
-    /// A palette of Rust's game state: a store, bounded by it.
-    Of(&'a dyn crate::memory::cells::Store),
+    /// A palette of Rust's game state: its dwords, bounded by them.
+    Of(&'a [crate::memory::session::PlainDword]),
 }
 
 impl Palette<'_> {
     /// Entry `colour`.
     fn entry(self, fonts: &crate::gfx::owner::FontStores, colour: u32) -> u32 {
         let what = "a palette entry";
-        let bytes = match self {
+        match self {
             Palette::Held(place) => {
-                crate::gfx::glyph_store::read_bytes(fonts, place, 4 * colour, 4, what)
+                match crate::gfx::glyph_store::read_bytes(fonts, place, 4 * colour, 4, what) {
+                    Ok(b) => u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
+                    Err(e) => crate::fatal::raise::end(what, e),
+                }
             }
-            Palette::Of(store) => {
-                let mut entry = vec![0; 4];
-                store.load(4 * colour as usize, &mut entry).map(|()| entry)
-            }
-        };
-        match bytes {
-            Ok(b) => u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
-            Err(e) => crate::fatal::raise::end(what, e),
+            Palette::Of(dwords) => match dwords.get(colour as usize) {
+                Some(dword) => dword.get(),
+                None => crate::fatal::raise::end(
+                    what,
+                    crate::errors::BadInput("a palette entry past the palette"),
+                ),
+            },
         }
     }
 }
