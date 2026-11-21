@@ -44,6 +44,12 @@ fn kept_plain(name: &str) -> Option<Box<dyn Fn() + 'static>> {
                 *super::own::race().frame.frame_work.borrow_mut() = copy;
             }))
         }
+        "owners.race.frame.shadow_skids" => {
+            let copy = super::own::race().frame.shadow_skids.borrow().clone();
+            Some(Box::new(move || {
+                *super::own::race().frame.shadow_skids.borrow_mut() = copy.clone();
+            }))
+        }
         "owners.scene.line_and_shake" => {
             let copy = *super::own::scene().line_and_shake();
             Some(Box::new(move || {

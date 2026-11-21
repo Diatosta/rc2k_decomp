@@ -10,7 +10,6 @@
 //! Refuses a split or a split count past 0x40, a divisor of 0 or a quotient past a dword; what was
 //! written is put back.
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::physics::fill_rival_table::fill_rival_table;
 use crate::physics::split_tables_store::SplitTables;
 use crate::race::overlay_store::OverlayBlock;
@@ -19,12 +18,11 @@ use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 use rc2k_core::saves::name_id::NameId;
 
-/// A name into `text` (eight blanks first), its first eight bytes into `to`.
+/// A name into `text` (eight blanks first), its first eight bytes.
 fn name(
     o: crate::owners::Owners<'static>,
     name: NameId,
-    to: &[PlainDword; 2],
-) -> Result<(), crate::errors::BadInput> {
+) -> Result<[u32; 2], crate::errors::BadInput> {
     let strings = o.strings;
     let text = &strings.text.buffer.text;
     strings.text.buffer.text.set_u32(0, 0x2020_2020);
@@ -41,16 +39,17 @@ fn name(
             written += bytes.len() as u32;
         },
     )?;
-    to[0].set(strings.text.buffer.text.get_u32(0));
-    to[1].set(strings.text.buffer.text.get_u32(4));
-    Ok(())
+    Ok([
+        strings.text.buffer.text.get_u32(0),
+        strings.text.buffer.text.get_u32(4),
+    ])
 }
 
 // Core: `rc2k_core::physics::splits::{split_scale, scaled_time, rank, gap}`.
 pub fn rank_split_time(
     o: crate::owners::Owners<'static>,
     split_tables: &mut SplitTables,
-    overlay: &OverlayBlock,
+    overlay: &std::cell::RefCell<OverlayBlock>,
     shared: &RaceShared,
 ) -> Result<(), Refused> {
     let (split, count) = (
@@ -64,9 +63,10 @@ pub fn rank_split_time(
     for k in 0..5 {
         shared.car().split_gaps[k].set(u32::MAX);
     }
-    for label in [&overlay.label_behind, &overlay.label_ahead] {
-        label[0].set(0x2020_2020);
-        label[1].set(0x2020_2020);
+    {
+        let mut overlay = overlay.borrow_mut();
+        overlay.label_behind = [0x2020_2020; 2];
+        overlay.label_ahead = [0x2020_2020; 2];
     }
     let base = split_tables.checkpoints[1 + split as usize];
     let d = split_tables.checkpoints[count as usize];
@@ -87,7 +87,8 @@ pub fn rank_split_time(
         shared.car().split_gaps[3].set(split_tables.rival_cars[c - 2]);
         let id = split_tables.rival_names[c - 2];
         shared.car().split_gaps[5].set(id.to_file());
-        name(o, id, &overlay.label_ahead)?;
+        let label = name(o, id)?;
+        overlay.borrow_mut().label_ahead = label;
     }
     if c != RIVALS {
         // The one behind: rival c - 1.
@@ -95,7 +96,8 @@ pub fn rank_split_time(
         shared.car().split_gaps[4].set(split_tables.rival_cars[c - 1]);
         let id = split_tables.rival_names[c - 1];
         shared.car().split_gaps[6].set(id.to_file());
-        name(o, id, &overlay.label_behind)?;
+        let label = name(o, id)?;
+        overlay.borrow_mut().label_behind = label;
     }
     Ok(())
 }

@@ -1,7 +1,7 @@
 //! The sound samples' file names: the text pool the sample records' keys point into and the
 //! speech lists `sound::load_race_sounds` names.
 
-use crate::memory::session::{Bytes, with_runs};
+use crate::memory::session::with_runs;
 
 /// The effects', engine, surface and ambience samples' names.
 const EFFECTS_LEN: usize = 3502;
@@ -119,31 +119,30 @@ impl SampleName {
 #[cfg(test)]
 const POOL_LEN: usize = EFFECTS_LEN + 2 * SPEECH_LEN + RALLY_LEN + MENU_LEN;
 
-/// The sound samples' file names.
-#[derive(rc2k_derive::Cells)]
+/// The sound samples' file names: constants both the audio and the game's thread read.
 pub struct SampleNames {
     /// The effects', engine, surface and ambience samples' file names (`files\d\snd\..`).
-    pub effects: Bytes<EFFECTS_LEN>,
+    pub effects: [u8; EFFECTS_LEN],
     /// The male co-driver's 95 file names (`files\%speech\m\..`; `sound::load_race_sounds`).
-    pub male_speech: Bytes<SPEECH_LEN>,
+    pub male_speech: [u8; SPEECH_LEN],
     /// The female co-driver's 95 file names (`..\f\..`).
-    pub female_speech: Bytes<SPEECH_LEN>,
+    pub female_speech: [u8; SPEECH_LEN],
     /// The menu speech's file names (`;3files\%speech\rally\..`).
-    pub rally_speech: Bytes<RALLY_LEN>,
+    pub rally_speech: [u8; RALLY_LEN],
     /// ";3files\%speech\rally\st1.wav", the settings page's speech (`menu::option_steps`); the
     /// names go on to the end.
-    pub menu_speech_st1: Bytes<MENU_LEN>,
+    pub menu_speech_st1: [u8; MENU_LEN],
 }
 
 impl SampleNames {
     /// A byte of `list`.
     pub fn byte(&self, list: NameList, at: usize) -> u8 {
         match list {
-            NameList::Effects => self.effects.get(at),
-            NameList::MaleSpeech => self.male_speech.get(at),
-            NameList::FemaleSpeech => self.female_speech.get(at),
-            NameList::RallySpeech => self.rally_speech.get(at),
-            NameList::MenuSpeech => self.menu_speech_st1.get(at),
+            NameList::Effects => self.effects[at],
+            NameList::MaleSpeech => self.male_speech[at],
+            NameList::FemaleSpeech => self.female_speech[at],
+            NameList::RallySpeech => self.rally_speech[at],
+            NameList::MenuSpeech => self.menu_speech_st1[at],
         }
     }
 }
@@ -151,18 +150,18 @@ impl SampleNames {
 impl SampleNames {
     pub const fn new() -> Self {
         SampleNames {
-            effects: Bytes::new(with_runs::<EFFECTS_LEN>(&[(0, EFFECTS_NAMES)])),
-            male_speech: Bytes::new(with_runs::<SPEECH_LEN>(&[(0, MALE_SPEECH_NAMES)])),
-            female_speech: Bytes::new(with_runs::<SPEECH_LEN>(&[(0, FEMALE_SPEECH_NAMES)])),
-            rally_speech: Bytes::new(with_runs::<RALLY_LEN>(&[(0, RALLY_SPEECH_NAMES)])),
-            menu_speech_st1: Bytes::new(with_runs::<MENU_LEN>(&[
+            effects: with_runs::<EFFECTS_LEN>(&[(0, EFFECTS_NAMES)]),
+            male_speech: with_runs::<SPEECH_LEN>(&[(0, MALE_SPEECH_NAMES)]),
+            female_speech: with_runs::<SPEECH_LEN>(&[(0, FEMALE_SPEECH_NAMES)]),
+            rally_speech: with_runs::<RALLY_LEN>(&[(0, RALLY_SPEECH_NAMES)]),
+            menu_speech_st1: with_runs::<MENU_LEN>(&[
                 (0, MENU_SPEECH_NAMES),
                 (4369, b"@\x00\x00\x00XiP\x00\x00\x00\x80?@"),
                 (4389, b"D\xac"),
                 (4405, b"\xff\xff\xff\xff"),
                 (4433, b"@\x00\x00\x00XiP\x00\x00\x00\x80?@"),
                 (4453, b"D\xac"),
-            ])),
+            ]),
         }
     }
 }

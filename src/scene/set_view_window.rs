@@ -63,7 +63,7 @@ pub fn set_view_window_reaching(
     let middle = [width >> 1, height >> 1];
     let offsets: [u32; 2] = window.borrow().view_offset;
     // top, bottom, left, right
-    let edges = if course.number_vars.in_race.is_set() {
+    let edges = if course.number_vars.in_race() {
         [0, height, 0, width]
     } else {
         [
@@ -136,7 +136,7 @@ pub fn set_view_window_plain(
         reach: course.stage_prefs.read(|p| p.grid_reach),
         size,
         offsets,
-        in_race: course.number_vars.in_race.is_set(),
+        in_race: course.number_vars.in_race(),
         screen_width: rc2k_core::scene::view_window::design_width(design.0, design.1),
         scale: (vars.view_scale.get(), zoom, scale_factor.get()),
         nearer: course.stage_prefs.read(|p| p.nearer),

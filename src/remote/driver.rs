@@ -329,7 +329,7 @@ fn driven_car<'a>(race: &'a Race, course: &Course) -> &'a crate::physics::car_st
         .car_blocks()
         .of(race.shared.view.get().view_blocks[0].get());
     match viewed {
-        Some(car) if course.number_vars.get().in_race.is_set() => car,
+        Some(car) if course.in_race() => car,
         _ => race.shared.car(),
     }
 }
@@ -354,7 +354,7 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         crate::render::running_wish(),
         o.gfx.drawing.draw_surface.frames.get(),
         screen_frames(o.gfx),
-        u32::from(course.number_vars.get().in_race.is_set()),
+        u32::from(course.in_race()),
         screens.loop_flags.menu.get().ok(),
         screens.loop_flags.read().item,
         o.system.session.flags.window_focused.get(),
@@ -638,7 +638,7 @@ static SCREEN: std::sync::Mutex<(Option<crate::menu::menus_store::MenuId>, u32, 
 /// The screen's identity: its menu (none outside the menus) and the race flag.
 fn screen_now(menus: &Menus, course: &Course) -> (Option<crate::menu::menus_store::MenuId>, u32) {
     let menu = menus.screens.loop_flags.menu.get().ok();
-    (menu, u32::from(course.number_vars.get().in_race.is_set()))
+    (menu, u32::from(course.in_race()))
 }
 
 /// A change of screen noted at its first frame.
@@ -723,7 +723,7 @@ fn note_slow_frame(race: &Race, gfx: &Gfx, course: &Course, now: Instant) {
     let before = last.replace(now);
     let Some(before) = before else { return };
     let ms = now.duration_since(before).as_millis();
-    if ms > limit && course.number_vars.get().in_race.is_set() {
+    if ms > limit && course.in_race() {
         let car = driven_car(race, course);
         crate::program_log::log(&format!(
             "remote: slow frame {ms} ms at checkpoint {} (frame {})",
@@ -866,7 +866,7 @@ fn reseed(random: &crate::math::next_random::Randoms, effects: &crate::effects::
 /// A race frame drawn (`drive::race_frame`): the held clock 10 ms on, unless the game is
 /// recording pictures itself (`race::replay_screenshot` moves it then).
 pub fn shot_frame_drawn(race: &Race, picture_clock: &crate::clock::tick_count::PictureClock) {
-    if held_race() && race.course.number_vars.get().in_race.is_set() {
+    if held_race() && race.course.in_race() {
         use std::sync::atomic::Ordering::Relaxed;
         let held = HELD_CLOCK.load(Relaxed);
         let next = if held == 0 {

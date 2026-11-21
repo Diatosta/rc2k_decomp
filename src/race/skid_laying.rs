@@ -32,24 +32,24 @@ fn offsets(
 pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
     use rc2k_core::race::skids::{Link, POINTS, Point, Ring, add_skid_point, next_point};
     /// The ring over the race's two tables: an entry is read or written alone.
-    struct Tables<'a>(&'a crate::race::shadow_skids_store::ShadowSkids);
+    struct Tables<'a>(&'a mut crate::race::shadow_skids_store::ShadowSkids);
     impl Ring for Tables<'_> {
         fn capacity(&self) -> usize {
             POINTS as usize
         }
         fn point(&self, index: usize) -> Point {
-            std::array::from_fn(|i| self.0.skid_points.get_u32(0x18 * index + 4 * i))
+            std::array::from_fn(|i| self.0.point_word(0x18 * index + 4 * i))
         }
         fn set_point(&mut self, index: usize, point: Point) {
             for (i, v) in point.iter().enumerate() {
-                self.0.skid_points.set_u32(0x18 * index + 4 * i, *v);
+                self.0.set_point_word(0x18 * index + 4 * i, *v);
             }
         }
         fn link(&self, index: usize) -> Link {
             let half = |at: usize| {
                 u16::from_le_bytes([
-                    self.0.skid_links.get(8 * index + at),
-                    self.0.skid_links.get(8 * index + at + 1),
+                    self.0.skid_links[8 * index + at],
+                    self.0.skid_links[8 * index + at + 1],
                 ])
             };
             Link {
@@ -65,26 +65,27 @@ pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
                 .enumerate()
             {
                 for (j, b) in v.to_le_bytes().into_iter().enumerate() {
-                    self.0.skid_links.set(8 * index + 2 * i + j, b);
+                    self.0.skid_links[8 * index + 2 * i + j] = b;
                 }
             }
         }
     }
-    let skids = race.frame.shadow_skids.get();
-    let n = skids.skid_next.get();
+    let mut skids = race.frame.shadow_skids.borrow_mut();
+    let n = skids.skid_next;
     let last = slot.get();
-    let place = crate::memory::session::read_bits(&skids.skid_place);
+    let place = skids.skid_place;
+    let cars = skids.skid_cars as u16;
     add_skid_point(
-        Tables(skids),
+        Tables(&mut skids),
         n,
         last,
         place,
-        skids.skid_cars.get() as u16,
+        cars,
         |first, second| crate::scene::angle_between::angle_of(&race.course, first, second),
         |angle, y| offsets(race.engine_tables(), angle, y),
     )?;
     slot.set(n);
-    skids.skid_next.set(next_point(skids.skid_next.get()));
+    skids.skid_next = next_point(skids.skid_next);
     Ok(())
 }
 
@@ -107,7 +108,7 @@ fn cars_refuse(shared: &RaceShared) -> Result<(), Refused> {
 /// turned by the car's crash matrix (`scene::rotate_point`, rounded). Otherwise the wheel's skid
 /// slot is set to -1. Refuses (before anything) a car without its block.
 pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
-    let skids = race.frame.shadow_skids.get();
+    let skids = &race.frame.shadow_skids;
     let shared = &race.shared;
     use crate::race::skidmarks::int_80;
     cars_refuse(&race.shared)?;
@@ -115,10 +116,10 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
     if count == 0 {
         return Ok(());
     }
-    let grip = skids.skid_grip.get();
+    let grip = skids.borrow().skid_grip;
     let zero = int_80(0);
     for c in 0..count {
-        skids.skid_cars.set(1 << (c & 31));
+        skids.borrow_mut().skid_cars = 1 << (c & 31);
         // The skid slots are the drawing's own (in the block); the wheels, the physics'.
         let slots = &shared.race_car(c as usize)?.skid_slots;
         let car = race
@@ -140,7 +141,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
                 &car.wheel_ground_z,
             ];
             for (i, run) in place.into_iter().enumerate() {
-                skids.skid_place[i].set(run[wheel].get());
+                skids.borrow_mut().skid_place[i] = run[wheel].get();
             }
             let side = if wheel % 2 == 0 {
                 0x1555u32
@@ -153,15 +154,21 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
             );
             for (i, v) in t.into_iter().enumerate() {
                 let n = crate::math::x87::tbyte_to_int(v);
-                skids.skid_place[i].set(skids.skid_place[i].get().wrapping_add(n));
+                let mut skids = skids.borrow_mut();
+                skids.skid_place[i] = skids.skid_place[i].wrapping_add(n);
             }
             // The wheel has not moved since its last point: that point stands for the place, and
             // the strip goes on from it (see `rc2k_core::race::skids::is_repeat`).
             let last = slot.get();
             if last < rc2k_core::race::skids::POINTS {
                 let at = 0x18 * last as usize;
-                let last_point = std::array::from_fn(|k| skids.skid_points.get_u32(at + 4 * k));
-                let place = crate::memory::session::read_bits(&skids.skid_place);
+                let (last_point, place) = {
+                    let skids = skids.borrow();
+                    (
+                        std::array::from_fn(|k| skids.point_word(at + 4 * k)),
+                        skids.skid_place,
+                    )
+                };
                 if rc2k_core::race::skids::is_repeat(&last_point, place) {
                     continue;
                 }

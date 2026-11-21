@@ -8,7 +8,7 @@ use crate::race::owner::Race;
 pub(super) fn record_inputs_if(race: &Race, net: &Net) -> Result<(), crate::errors::BadInput> {
     let shared = &race.shared;
     let records = rc2k_core::drive::replay_frames::records_inputs(
-        race.course.number_vars.get().replay_mode.get(),
+        race.course.replay_mode(),
         shared.work.get().current_car.get(),
         || {
             if net.race_slot.is_on() {

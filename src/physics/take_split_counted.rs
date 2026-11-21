@@ -26,7 +26,7 @@ pub(super) fn take_split_counted(
     physics: &Physics,
     league: &mut League,
     frame_work: &FrameWorkStore,
-    overlay: &OverlayBlock,
+    overlay: &std::cell::RefCell<OverlayBlock>,
     shared: &RaceShared,
     car_blocks: &crate::race::blocks_store::CarBlocks,
 ) -> Result<(), Refused> {

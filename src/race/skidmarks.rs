@@ -85,18 +85,20 @@ fn turn_skid_point(
     n: u32,
 ) -> Result<Turned, BadInput> {
     {
-        let points = &ctx.reads.shadow_skids.skid_points;
         let at = n as usize * 0xC;
-        if at + 0xC > 0x6000 {
+        if at + 0xC > crate::race::shadow_skids_store::POINTS_LEN {
             return Err(BadInput("a skidmark point past the table"));
         }
-        let lift = ctx.reads.shadow_skids.skid_lift.get();
+        let (words, lift) = ctx
+            .reads
+            .shadow_skids
+            .read(|skids| ([0, 4, 8].map(|k| skids.point_word(at + k)), skids.skid_lift));
         use crate::math::x87_float::{Rounds, at_rounding};
         let turned = at_rounding!(|r| {
             let point = [
-                r.int(points.get_u32(at) as i32),
-                r.int(points.get_u32(at + 4) as i32) + r.ld(lift),
-                r.int(points.get_u32(at + 8) as i32),
+                r.int(words[0] as i32),
+                r.int(words[1] as i32) + r.ld(lift),
+                r.int(words[2] as i32),
             ];
             crate::scene::rotate_point::turned(r, &matrix[..], point).map(|v| r.st(v))
         });
@@ -161,13 +163,14 @@ fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Re
     let mut last: Option<(u32, Turned, Turned)> = None;
     for n in 0..0x400u32 {
         let link = |at: u32| -> Result<u16, BadInput> {
-            let table = &ctx.reads.shadow_skids.skid_links;
             let at = at as usize;
             // A link is -1 (the table's start values) or a point of the ring: the links are written
             // only by `init_skidmarks` and `add_skid_point`, which refuses one outside the 0x400
             // points, so `before * 8 + 6` ends inside the table's 0x2000 bytes.
-            if at + 2 <= size_of_val(table) {
-                Ok(u16::from_le_bytes([table.get(at), table.get(at + 1)]))
+            if at + 2 <= crate::race::shadow_skids_store::LINKS_LEN {
+                Ok(ctx.reads.shadow_skids.read(|skids| {
+                    u16::from_le_bytes([skids.skid_links[at], skids.skid_links[at + 1]])
+                }))
             } else {
                 Err(BadInput("a skid link past the links' table"))
             }

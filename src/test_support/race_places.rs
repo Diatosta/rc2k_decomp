@@ -37,7 +37,7 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x1C5E2C, "owners.race.course.numbers", ".k256"),
     (0x1C5E34, "owners.race.course.numbers", ".k10000"),
     (0x1C5E40, "owners.race.course.numbers", ".half"),
-    (0x1C5E48, "owners.race.course.number_vars", ".grip_change"),
+    (0x1C5E48, "owners.race.course.grip_change", ""),
     (0x1CB958, "owners.race.physics.gear", ".shift_up_point"),
     (0x1CB95C, "owners.race.physics.gear", ".shift_down_point"),
     (0x1CB960, "owners.race.physics.gear", ".shift_down_clutch_point"),

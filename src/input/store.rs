@@ -24,7 +24,8 @@ use crate::input::guids::EffectGuid;
 use crate::input::types::{Controller, ForceEffect, InputDevice};
 use crate::memory::cells::ZeroCells;
 use crate::memory::plain_buffer::PlainBuffer;
-use crate::memory::session::{Byte, Bytes, Dword, Float, PlainDword};
+use crate::memory::session::{Byte, Bytes, ConstFloat, Dword, PlainDword};
+use std::cell::Cell;
 
 // ---- the devices ----
 
@@ -312,41 +313,39 @@ _unused_826c: PlainDword::new(0),
 }
 
 /// The mouse's position, clicks and buttons.
-#[derive(rc2k_derive::Cells)]
 pub struct Mouse {
     /// The mouse's x and y (signed).
-    pub x: PlainDword,
-    pub y: PlainDword,
+    pub x: Cell<u32>,
+    pub y: Cell<u32>,
     /// Last frame's x and y.
-    pub last_x: PlainDword,
-    pub last_y: PlainDword,
+    pub last_x: Cell<u32>,
+    pub last_y: Cell<u32>,
     /// The left and right clicks.
-    pub left_click: PlainDword,
-    pub right_click: PlainDword,
+    pub left_click: Cell<u32>,
+    pub right_click: Cell<u32>,
     /// The buttons' bits (bit 0 left, bit 1 right).
-    pub buttons: PlainDword,
-    pub left_button: PlainDword,
-    pub right_button: PlainDword,
+    pub buttons: Cell<u32>,
+    pub left_button: Cell<u32>,
+    pub right_button: Cell<u32>,
 }
 
 impl Mouse {
     pub const fn new() -> Self {
         Mouse {
-            x: PlainDword::new(0),
-            y: PlainDword::new(0),
-            last_x: PlainDword::new(0),
-            last_y: PlainDword::new(0),
-            left_click: PlainDword::new(0),
-            right_click: PlainDword::new(0),
-            buttons: PlainDword::new(0),
-            left_button: PlainDword::new(0),
-            right_button: PlainDword::new(0),
+            x: Cell::new(0),
+            y: Cell::new(0),
+            last_x: Cell::new(0),
+            last_y: Cell::new(0),
+            left_click: Cell::new(0),
+            right_click: Cell::new(0),
+            buttons: Cell::new(0),
+            left_button: Cell::new(0),
+            right_button: Cell::new(0),
         }
     }
 }
 
 /// The force-feedback effects' clock, surface kinds and constants.
-#[derive(rc2k_derive::Cells)]
 pub struct ForceFeedback {
     /// The force-feedback effects' last clock.
     pub last_time: Dword,
@@ -355,15 +354,15 @@ pub struct ForceFeedback {
     /// The effects run in a race.
     pub race_on: Dword,
     /// A surface's effect kind, 16 of them.
-    pub surface_effect_kinds: [Dword; 16],
+    pub surface_effect_kinds: [u32; 16],
     /// 10.0.
-    pub effect_ten: Float,
+    pub effect_ten: ConstFloat,
     /// 162.97.
-    pub effect_angle_scale: Float,
+    pub effect_angle_scale: ConstFloat,
     /// 256.0.
-    pub effect_full: Float,
+    pub effect_full: ConstFloat,
     /// 0.1.
-    pub effect_tenth: Float,
+    pub effect_tenth: ConstFloat,
 }
 
 impl ForceFeedback {
@@ -373,28 +372,11 @@ impl ForceFeedback {
             rate: Dword::new(0),
             steps: Dword::new(0),
             race_on: Dword::new(0),
-            surface_effect_kinds: [
-                Dword::new(0),
-                Dword::new(1),
-                Dword::new(2),
-                Dword::new(3),
-                Dword::new(6),
-                Dword::new(9),
-                Dword::new(4),
-                Dword::new(0xD),
-                Dword::new(0xC),
-                Dword::new(8),
-                Dword::new(0xA),
-                Dword::new(7),
-                Dword::new(0xB),
-                Dword::new(0),
-                Dword::new(0),
-                Dword::new(0),
-            ],
-            effect_ten: Float::new(10.0),
-            effect_angle_scale: Float::new(162.97466),
-            effect_full: Float::new(256.0),
-            effect_tenth: Float::new(0.1),
+            surface_effect_kinds: [0, 1, 2, 3, 6, 9, 4, 0xD, 0xC, 8, 0xA, 7, 0xB, 0, 0, 0],
+            effect_ten: ConstFloat::new(10.0),
+            effect_angle_scale: ConstFloat::new(162.97466),
+            effect_full: ConstFloat::new(256.0),
+            effect_tenth: ConstFloat::new(0.1),
         }
     }
 }

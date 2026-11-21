@@ -135,7 +135,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         race.shared.car(),
         race.shared.physics_tables.get(),
         &race.course.numbers,
-        &race.course.number_vars.get().grip_change,
+        race.course.grip_change(),
         race.engine_tables(),
         scene,
     );

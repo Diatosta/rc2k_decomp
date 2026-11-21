@@ -640,16 +640,20 @@ mod tests {
     #[test]
     fn hashing_scheme_is_frozen() {
         let _lock = crate::test_support::test_lock();
-        let numbers = crate::race::numbers_store::NumberVars::new();
-        let zero = record_hash(&numbers);
-        assert_eq!(
-            zero,
-            record_hash(&crate::race::numbers_store::NumberVars::new())
-        );
+        #[derive(rc2k_derive::Cells)]
+        #[repr(C)]
+        struct Fresh {
+            mode: crate::memory::session::PlainDword,
+            on: crate::memory::session::PlainFlag,
+            change: crate::memory::session::PlainFloat,
+        }
+        let fresh = || -> Fresh { crate::memory::cells::zeroed_cells() };
+        let zero = record_hash(&fresh());
+        assert_eq!(zero, record_hash(&fresh()));
         assert_eq!(bytes_hash(&[]), 0xa8c7_f832_281a_39c5);
         assert_eq!(bytes_hash(&[1, 2, 3]), bytes_hash(&[1, 2, 3]));
         assert_ne!(bytes_hash(&[1, 2, 3]), bytes_hash(&[1, 2, 4]));
-        eprintln!("numbers record fresh hash {zero:016x}");
+        eprintln!("fresh record hash {zero:016x}");
     }
 
     /// A taken table shows as its bytes' hash, a given-back one as "none".

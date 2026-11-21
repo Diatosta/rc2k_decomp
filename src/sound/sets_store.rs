@@ -8,7 +8,7 @@
 //! Structs of atomic cells with the game's starting values (`tests`). The race's sets are named
 //! lists; the read-on order of `RaceField` is what the sound hash's list words rely on.
 
-use crate::memory::session::{Bytes, Dword, with_runs};
+use crate::memory::session::{Dword, with_runs};
 use rc2k_core::audio::commands::RaceField;
 
 /// Handle of the race's sets: in place of a list's address the table holds
@@ -31,25 +31,34 @@ fn race_list_of(handle: u32) -> Option<(RaceField, u32)> {
     ((entry as usize) < field.dwords()).then_some((field, entry))
 }
 
-/// The settings page's menu sounds list.
-#[derive(rc2k_derive::Cells)]
+/// The settings page's menu sounds list: constants both the game's thread and the audio thread read.
 pub struct MenuSounds {
-    /// The list `sound::apply_settings` passes as the menu sounds' third argument.
-    pub list: Bytes<40>,
+    /// The list `sound::apply_settings` passes as the menu sounds' third argument: nine sound
+    /// numbers, then -1.
+    pub list: [u32; 10],
 }
 
 impl MenuSounds {
     pub const fn new() -> Self {
         MenuSounds {
-    list: Bytes::new(with_runs::<40>(&[(0, b"\xc7\x01\x00\x00\xc8\x01\x00\x00\xc9\x01\x00\x00\xca\x01\x00\x00c\x01\x00\x00\x97\x01\x00\x00\xcb\x01\x00\x00\xe4\x00\x00\x00\xcc\x01\x00\x00\xff\xff\xff\xff")])),
+            list: [
+                0x1c7,
+                0x1c8,
+                0x1c9,
+                0x1ca,
+                0x163,
+                0x197,
+                0x1cb,
+                0xe4,
+                0x1cc,
+                0xffff_ffff,
+            ],
         }
     }
-}
 
-impl MenuSounds {
     /// Entry `n` of the list, none past its ten dwords (it ends in -1 at the tenth).
     pub fn sound(&self, n: usize) -> Option<u32> {
-        (n < self.list.atomics().len() / 4).then(|| self.list.get_u32(4 * n))
+        self.list.get(n).copied()
     }
 }
 
@@ -913,7 +922,11 @@ mod tests {
             (bytes.len(), hash)
         };
         assert_eq!(
-            fnv(flatten(&MenuSounds::new())),
+            fnv(MenuSounds::new()
+                .list
+                .iter()
+                .flat_map(|w| w.to_le_bytes())
+                .collect()),
             (40, 0xea1e_8bf9_7ac9_6646)
         );
         assert_eq!(

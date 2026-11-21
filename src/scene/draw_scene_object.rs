@@ -37,7 +37,7 @@ fn texture_set(
         let object: u32 = cars.borrow().object_number;
         let t = rc2k_core::scene::shown::texture_set(
             object,
-            reads.number_vars.in_race.is_set(),
+            reads.number_vars.in_race(),
             |object| reads.object_tables.object_kind(object),
             |car| {
                 reads.work.has_car_block(car as usize).then(|| {
@@ -89,7 +89,7 @@ pub fn draw_scene_object_in_game(
         &mut |way| match way {
             Way::Shown => {
                 // Outside a race the faces pick the menus' marks (`scene::car_marks`).
-                let ctx = &if ctx.reads.number_vars.in_race.is_set() {
+                let ctx = &if ctx.reads.number_vars.in_race() {
                     *ctx
                 } else {
                     crate::race::view_scratch::DrawCtx {

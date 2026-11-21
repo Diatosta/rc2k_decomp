@@ -158,7 +158,7 @@ fn begin_level(
         direction ^= 1;
     }
     race.shared.work.get().stage_direction.set(direction);
-    race.course.number_vars.get().in_race.set(true);
+    race.course.set_in_race(true);
     crate::scene::workers::set_game_part_racing(&scene.scratch, true);
     o.audio.racing.set(true);
     s.mark(0)?;

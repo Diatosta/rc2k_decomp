@@ -6,7 +6,7 @@ use crate::memory::session::Dword;
 
 /// The picture clock: while the replay viewer saves its frames as pictures
 /// (`race::replay_screenshot`) the game's clock is `clock` (ms) instead of the host's.
-#[derive(rc2k_derive::Cells)]
+/// Atomic cells: the audio, input and network threads read the game's clock too.
 pub struct PictureClock {
     /// 1 when the override is on.
     pub started: Dword,

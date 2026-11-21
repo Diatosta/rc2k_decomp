@@ -10,16 +10,11 @@ use crate::race::owner::Race;
 use crate::system::owner::System;
 
 pub(super) fn play_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
-    let Some(whole) = rc2k_core::drive::race_steps::play_frame(
-        race.course.number_vars.get().replay_mode.get(),
-        || {
-            race.replay.replay_frames_mut().step_block =
-                race.replay.replay_view().replay_block.get();
-            race.replay.replay_frames_mut().step_frame =
-                race.replay.replay_view().replay_frame.get();
-            race.replay.replay_frames().step_frame
-        },
-    ) else {
+    let Some(whole) = rc2k_core::drive::race_steps::play_frame(race.course.replay_mode(), || {
+        race.replay.replay_frames_mut().step_block = race.replay.replay_view().replay_block.get();
+        race.replay.replay_frames_mut().step_frame = race.replay.replay_view().replay_frame.get();
+        race.replay.replay_frames().step_frame
+    }) else {
         return Ok(());
     };
     if whole {

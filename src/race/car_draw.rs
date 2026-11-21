@@ -230,8 +230,7 @@ fn shown_groups(masks: &[u32; 18], switches: u32) -> u32 {
 pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Result<(), Refused> {
     let race = ctx.race;
     let n: u32 = ctx.view.state.borrow().drawn_car;
-    if ctx.reads.number_vars.in_race.is_set() && n < 8 && !ctx.reads.work.has_car_block(n as usize)
-    {
+    if ctx.reads.number_vars.in_race() && n < 8 && !ctx.reads.work.has_car_block(n as usize) {
         return Err(BadInput("the drawn car without its block").into());
     }
     // The car's marks, its own while it is drawn.

@@ -340,14 +340,7 @@ pub(super) fn forget_view_textures(
             field(blocks[v], |car| car.notice_counter.get()),
             slot_of(196 + v),
         ),
-        Forget::Extra(n) => (
-            [
-                &frame.overlay.get().forget_flag_0,
-                &frame.overlay.get().forget_flag_1,
-            ][n]
-                .get(),
-            slot_of(220 + n),
-        ),
+        Forget::Extra(n) => (frame.overlay().forget_flags[n], slot_of(220 + n)),
     };
     let mirror = mirror_on(
         u32::from(frame.frame_work.borrow().mirror_wanted),

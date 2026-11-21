@@ -32,7 +32,7 @@ fn choose_at(
         player_cars,
         player_count: players.len().min(8) as u32,
         players: view.players.get(),
-        replay_mode: race.course.number_vars.get().replay_mode.get(),
+        replay_mode: race.course.replay_mode(),
         layout: view.view_switch.get(),
         network: u32::from(network),
         local_car: view.local_car.get(),

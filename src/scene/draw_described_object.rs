@@ -15,12 +15,12 @@ use crate::errors::{BadInput, Refused};
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`in_race`) a car
 /// (0x50 ..) without its block.
 fn check_object(
-    numbers: &crate::race::numbers_store::NumberVars,
+    numbers: crate::race::numbers_store::NumberVarsRef,
     work: &crate::race::work_store::RaceWork,
     object: u32,
 ) -> Result<(), Refused> {
     let car = object.wrapping_sub(0x50);
-    if numbers.in_race.is_set() && car < 0xA0 && !work.has_car_block((car / 0x14) as usize) {
+    if numbers.in_race() && car < 0xA0 && !work.has_car_block((car / 0x14) as usize) {
         return Err(BadInput("a car without its block").into());
     }
     Ok(())

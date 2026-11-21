@@ -15,7 +15,7 @@ const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"];
 pub fn credits_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let frame = &race.frame;
     crate::program_log::log("race::credits_race: the demonstration starts");
-    race.course.number_vars.get().replay_mode.set(0);
+    race.course.set_replay_mode(0);
     race.shared.replay_file().hold_car_revs.set(0);
     race.shared.tables().noise_seed.set(0x1234_5678);
     race.physics.split_tables_mut().arcade_kind = 2;

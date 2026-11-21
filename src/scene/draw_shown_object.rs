@@ -64,7 +64,7 @@ pub fn draw_shown_object(
     cars: &crate::race::car_draw_state::CarDrawState,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<bool, Refused> {
-    let in_race = reads.number_vars.in_race.is_set();
+    let in_race = reads.number_vars.in_race();
     if in_race && cars.borrow().object_number >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }

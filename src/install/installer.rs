@@ -7,28 +7,28 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::memory::place::BytePlace;
+use crate::memory::plain_buffer::PlainBuffer;
 
 /// The installer's constant texts.
-#[derive(rc2k_derive::Cells)]
 pub struct InstallTexts {
     /// ".".
-    pub dot: crate::memory::session::Bytes<2>,
+    pub dot: PlainBuffer<2>,
     /// "..".
-    pub dotdot: crate::memory::session::Bytes<3>,
+    pub dotdot: PlainBuffer<3>,
     /// "*.*".
-    pub star: crate::memory::session::Bytes<4>,
+    pub star: PlainBuffer<4>,
     /// The installation's record.
-    pub record_path: crate::memory::session::Bytes<12>,
+    pub record_path: PlainBuffer<12>,
 }
 
 /// The installer's texts.
 impl InstallTexts {
     pub const fn new() -> Self {
         InstallTexts {
-            dot: crate::memory::session::Bytes::new(*b".\0"),
-            dotdot: crate::memory::session::Bytes::new(*b"..\0"),
-            star: crate::memory::session::Bytes::new(*b"*.*\0"),
-            record_path: crate::memory::session::Bytes::new(*b"var\\ral.zog\0"),
+            dot: PlainBuffer::new(*b".\0"),
+            dotdot: PlainBuffer::new(*b"..\0"),
+            star: PlainBuffer::new(*b"*.*\0"),
+            record_path: PlainBuffer::new(*b"var\\ral.zog\0"),
         }
     }
 }

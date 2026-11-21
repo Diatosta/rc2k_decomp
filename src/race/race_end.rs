@@ -294,7 +294,7 @@ fn tidy_stage(
     s.log(STAGE_WORDS[8]);
     s.indent(3);
     s.forgive(free(race, &scene.scratch, &OBJECT_POINTS))?;
-    race.course.number_vars.get().in_race.set(false);
+    race.course.set_in_race(false);
     crate::scene::workers::set_game_part_racing(&scene.scratch, false);
     audio.racing.set(false);
     race.frame
@@ -369,7 +369,7 @@ pub(super) fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused>
             .set(race.shared.random.next_random());
     }
     race.shared.switches.borrow_mut().editor_mode = 0u32;
-    race.course.number_vars.get().replay_mode.set(1u32);
+    race.course.set_replay_mode(1u32);
     crate::race::settings_copy::copy_settings_in(race, o.gfx, &o.saves.best_tables)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     race.shared.vars.get().settings_words[1].set(1u32);

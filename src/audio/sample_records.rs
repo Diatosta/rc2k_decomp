@@ -22,7 +22,6 @@ const SAMPLE_COUNT: usize = SAMPLES as usize;
 /// set it, `sample_settings` of the game's thread reads it). The other twelve are constants
 /// (`SAMPLE_CONSTANTS`, read by both threads), so `record` gives a whole `SampleRecord` made of
 /// both.
-#[derive(rc2k_derive::Cells)]
 pub struct SampleRecords {
     data_keys: [Dword; SAMPLE_COUNT],
     first_voices: [Dword; SAMPLE_COUNT],

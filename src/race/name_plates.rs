@@ -73,18 +73,15 @@ fn draw_time_plate(frame: &Frame, slot: u32, gfx: &'static Gfx) -> Result<(), Re
     crate::gfx::rows::clear_surface_rows(start, time_rows(line), gfx)?;
     // A label is eight bytes (spaces after each split, no NUL): its text runs on into the
     // dword after it, which ends it.
-    let overlay = &frame.overlay.get();
-    for ((label, after), (x, y)) in [
-        (&overlay.label_behind, &overlay.reserved_334),
-        (&overlay.label_ahead, &overlay.reserved_340),
-    ]
-    .into_iter()
-    .zip(time_places(line))
-    {
+    let labels = {
+        let overlay = frame.overlay();
+        [overlay.label_behind, overlay.label_ahead]
+    };
+    for (label, (x, y)) in labels.into_iter().zip(time_places(line)) {
         let text: Vec<u8> = label
             .iter()
-            .chain(std::iter::once(after))
-            .flat_map(|d| d.get().to_le_bytes())
+            .chain(std::iter::once(&0))
+            .flat_map(|d| d.to_le_bytes())
             .collect();
         gfx.fonts.font_block.game_fonts[3].update(|f| f.box_width = TIME_BOX);
         draw_bytes_in_game(&gfx.fonts.font_block.game_fonts[3], &text, x, y, gfx)?;
@@ -119,39 +116,29 @@ pub(super) fn update_name_plates(
     let blocks = [a, b];
     // Logic in `rc2k_core::race::plates::{times_changed, NameAsk}`.
     use rc2k_core::race::plates::{NameAsk, times_changed};
-    let now = [
-        frame.overlay.get().label_behind[0].get(),
-        frame.overlay.get().label_behind[1].get(),
-        frame.overlay.get().label_ahead[0].get(),
-        frame.overlay.get().label_ahead[1].get(),
-    ];
-    let kept = [
-        frame.overlay.get().kept_behind[0].get(),
-        frame.overlay.get().kept_behind[1].get(),
-        frame.overlay.get().kept_ahead[0].get(),
-        frame.overlay.get().kept_ahead[1].get(),
-    ];
+    let (now, kept) = {
+        let overlay = frame.overlay();
+        (
+            [
+                overlay.label_behind[0],
+                overlay.label_behind[1],
+                overlay.label_ahead[0],
+                overlay.label_ahead[1],
+            ],
+            [
+                overlay.kept_behind[0],
+                overlay.kept_behind[1],
+                overlay.kept_ahead[0],
+                overlay.kept_ahead[1],
+            ],
+        )
+    };
     if times_changed(now, kept) {
         draw_time_plate(frame, textures.first_textures()[196], gfx)?;
-        for (from, to) in [
-            (
-                &frame.overlay.get().label_behind[0],
-                &frame.overlay.get().kept_behind[0],
-            ),
-            (
-                &frame.overlay.get().label_behind[1],
-                &frame.overlay.get().kept_behind[1],
-            ),
-            (
-                &frame.overlay.get().label_ahead[0],
-                &frame.overlay.get().kept_ahead[0],
-            ),
-            (
-                &frame.overlay.get().label_ahead[1],
-                &frame.overlay.get().kept_ahead[1],
-            ),
-        ] {
-            to.set(from.get());
+        {
+            let mut overlay = frame.overlay_mut();
+            overlay.kept_behind = overlay.label_behind;
+            overlay.kept_ahead = overlay.label_ahead;
         }
         for &b in &blocks {
             b.notice_counter.set(1);

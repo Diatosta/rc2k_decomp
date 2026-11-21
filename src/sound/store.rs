@@ -434,7 +434,6 @@ pub struct RaceSounds {
 /// The two race sound values the input thread reads (its force-feedback effects follow the
 /// objects in use and the player count); the game's thread writes them, the rest of the race
 /// sounds stays with it alone (`RaceSounds`).
-#[derive(rc2k_derive::Cells)]
 pub struct SoundShared {
     /// 1 when one player races.
     pub one_player: Dword,
@@ -846,7 +845,6 @@ impl SpotKinds {
 
 /// The kept sound options. The tune turn is the audio thread's too and lives in
 /// `audio::store::AudioShared`.
-#[derive(rc2k_derive::Cells)]
 pub struct SoundOptions {
     /// Kept in `var\ral.dat` (`saves::load_options`), 1 at start; no other code uses it, so what
     /// it sets is unknown.

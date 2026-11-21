@@ -1,7 +1,6 @@
 //! The race panel: the HUD values, the start lights and the sound spots shared with the audio side.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::RaceShared;
@@ -11,11 +10,11 @@ use crate::race::tables_store::Listed;
 /// The panel's seven-byte label " CAR nn" for the neighbouring car: `car_number`'s two digits (tens
 /// and units, each + '0' as a byte), or seven spaces when `neighbour` is -1 (no car there). The
 /// label's eighth byte is kept.
-pub fn car_label(label_at: &[PlainDword; 2], car_number: u32, neighbour: u32) {
+pub fn car_label(label_at: &mut [u32; 2], car_number: u32, neighbour: u32) {
     let label = rc2k_core::race::start::car_label(car_number, neighbour == u32::MAX);
-    let kept = label_at[1].get().to_le_bytes()[3];
-    label_at[0].set(u32::from_le_bytes([label[0], label[1], label[2], label[3]]));
-    label_at[1].set(u32::from_le_bytes([label[4], label[5], label[6], kept]));
+    let kept = label_at[1].to_le_bytes()[3];
+    label_at[0] = u32::from_le_bytes([label[0], label[1], label[2], label[3]]);
+    label_at[1] = u32::from_le_bytes([label[4], label[5], label[6], kept]);
 }
 
 /// Sets the first `count` of the car's `colours` to 0xC (not reached); then for each of the car
@@ -26,7 +25,7 @@ pub fn car_label(label_at: &[PlainDword; 2], car_number: u32, neighbour: u32) {
 pub fn split_colours(
     cars: &crate::race::frame_view::FrameCars,
     car: usize,
-    colours: &[PlainDword; 64],
+    colours: &mut [u32; 64],
     count: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::race::frame::{SPLIT_UNREACHED, check_split_colours, split_colours};
@@ -36,8 +35,8 @@ pub fn split_colours(
     if n as i32 > 0 && n as usize > block.split_times.len() {
         return Err(BadInput("more splits than a block's times").into());
     }
-    for cell in &colours[..count as usize] {
-        cell.set(SPLIT_UNREACHED);
+    for cell in &mut colours[..count as usize] {
+        *cell = SPLIT_UNREACHED;
     }
     if n as i32 <= 0 {
         return Ok(());
@@ -47,8 +46,8 @@ pub fn split_colours(
         .map(crate::memory::session::Dword::get)
         .collect();
     let wanted = split_colours(&splits);
-    for (cell, &c) in colours.iter().zip(wanted.iter()) {
-        cell.set(c);
+    for (cell, &c) in colours.iter_mut().zip(wanted.iter()) {
+        *cell = c;
     }
     Ok(())
 }
@@ -568,19 +567,13 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     let number = behind.car_kind.get();
     let back = neighbour_number(place == shared.tables().arcade_cars.get(), number);
     frame.panel.borrow_mut().view_a.back = back;
-    car_label(
-        &frame.overlay.get().label_behind,
-        on(Listed::ArcadeCarNumbers, place)?,
-        back,
-    );
+    let number_behind = on(Listed::ArcadeCarNumbers, place)?;
+    car_label(&mut frame.overlay_mut().label_behind, number_behind, back);
     frame.panel.borrow_mut().view_a.split2 = a.pace_gaps_eased[1].get();
     let front = neighbour_number(place == 1, ahead.car_kind.get());
     frame.panel.borrow_mut().view_a.front = front;
-    car_label(
-        &frame.overlay.get().label_ahead,
-        on(Listed::NumberBeforeFirst, place)?,
-        front,
-    );
+    let number_ahead = on(Listed::NumberBeforeFirst, place)?;
+    car_label(&mut frame.overlay_mut().label_ahead, number_ahead, front);
     frame.panel.borrow_mut().view_a.negated = a.pace_gaps_eased[0].get().wrapping_neg();
     Ok(())
 }
@@ -683,21 +676,16 @@ fn marks_of_view_mut(panel: &mut Panel, view: usize) -> &mut Marks {
     }
 }
 
-/// One view's start lights: `view` the view's light fields, `block` the view's car block, `flag`
-/// where a "step" flag goes.
-pub fn countdown_lights(
-    frame: &Frame,
-    view: usize,
-    block: usize,
-    flag: &PlainDword,
-) -> Result<(), BadInput> {
+/// One view's start lights: `view` the view's light fields and forget flag, `block` the view's
+/// car block.
+pub fn countdown_lights(frame: &Frame, view: usize, block: usize) -> Result<(), BadInput> {
     {
         {
             let mut panel = frame.panel.borrow_mut();
             panel.lights[view].width = 0;
             panel.lights[view].drop = 0;
         }
-        flag.set(0);
+        frame.overlay_mut().forget_flags[view] = 0;
         if frame.cars.car(block)?.false_start_count.get() != 0 {
             return Ok(());
         }
@@ -712,12 +700,11 @@ pub fn countdown_lights(
         ) else {
             return Ok(());
         };
-        frame.overlay.get().start_lights_lit.set(l.shown);
         let mut panel = frame.panel.borrow_mut();
         let lights = &mut panel.lights[view];
         lights.lit = l.lit;
         if l.whole {
-            flag.set(1);
+            frame.overlay_mut().forget_flags[view] = 1;
         }
         lights.alpha = l.alpha;
         lights.width = l.width;
@@ -726,29 +713,15 @@ pub fn countdown_lights(
     Ok(())
 }
 
-/// Runs `countdown_lights` for the first view and the second (fields 0x10,
-/// `race().frame.overlay.forget_flag_1`).
+/// Runs `countdown_lights` for the first view and the second.
 fn both_countdown_lights(race: &Race) -> Result<(), BadInput> {
     let frame = &race.frame;
     {
-        for (view, flag) in [
-            (0, &frame.overlay.get().forget_flag_0),
-            (1, &frame.overlay.get().forget_flag_1),
-        ] {
-            countdown_lights(frame, view, race.shared.view.get().view_number(view)?, flag)?;
+        for view in 0..2 {
+            countdown_lights(frame, view, race.shared.view.get().view_number(view)?)?;
         }
     }
     Ok(())
-}
-
-/// The two views' colour buffers for `split_colours`:
-/// `race().frame.overlay.overlay_part_kinds_a`,
-/// `race().frame.overlay.overlay_part_kinds_b`.
-fn colour_buffers(frame: &Frame) -> [&'_ [PlainDword; 64]; 2] {
-    [
-        &frame.overlay.get().overlay_part_kinds_a,
-        &frame.overlay.get().overlay_part_kinds_b,
-    ]
 }
 
 /// `split_colours`' refusal, for both views, before anything is written.
@@ -771,13 +744,16 @@ pub fn check_split_colours(race: &Race) -> Result<(), Refused> {
 /// `overlay_part_kinds_b`. Refused (before anything) as `split_colours` would for either.
 fn both_split_colours(race: &Race) -> Result<(), Refused> {
     check_split_colours(race)?;
-    for (view, buffer) in (0..2).zip(colour_buffers(&race.frame)) {
-        split_colours(
-            &race.frame.cars,
-            race.shared.view.get().view_number(view)?,
-            buffer,
-            race.physics.split_tables().split_colour_count,
-        )?;
+    for view in 0..2 {
+        let car = race.shared.view.get().view_number(view)?;
+        let count = race.physics.split_tables().split_colour_count;
+        let mut overlay = race.frame.overlay_mut();
+        let buffer = if view == 0 {
+            &mut overlay.overlay_part_kinds_a
+        } else {
+            &mut overlay.overlay_part_kinds_b
+        };
+        split_colours(&race.frame.cars, car, buffer, count)?;
     }
     Ok(())
 }

@@ -43,7 +43,7 @@ pub fn follow(o: crate::owners::Owners<'static>, now: u64) {
     if !crate::platform::ffi::sdl::RESIZABLE || !settled(LAST_EVENT.load(Relaxed), now) {
         return;
     }
-    let racing = o.race.course.number_vars.get().in_race.is_set();
+    let racing = o.race.course.in_race();
     let (size, frame_is_race) = {
         let Ok(mut screen) = crate::platform::SCREEN.lock() else {
             return;

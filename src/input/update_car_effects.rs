@@ -106,7 +106,7 @@ fn update_car_effects_with(
     o.borrow_mut().knock_in = [0.0; 4];
     // The surface effect: the surface's kind and the speed; nearly still, the engine's shake
     // unless the player has switched it off.
-    let table_kind = effects.surface_effect_kinds[surface as usize].get();
+    let table_kind = effects.surface_effect_kinds[surface as usize];
     let shake = surface_effect(
         table_kind,
         o.borrow().sum_a,

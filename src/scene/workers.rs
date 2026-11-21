@@ -110,8 +110,7 @@ pub struct Lent<'s> {
     ground_probe: crate::physics::ground_probe_store::GroundProbe,
     /// The scene's clock as the scope opened.
     scene_clock: u32,
-    shadow_skids:
-        crate::memory::session::PhaseRead<'s, crate::race::shadow_skids_store::ShadowSkids>,
+    shadow_skids: crate::memory::session::ArcRead<crate::race::shadow_skids_store::ShadowSkids>,
     light_records: crate::memory::session::ArcRead<crate::race::light_records_store::LightRecords>,
     /// The finish state's "no place" switch as the frame began.
     no_place: u32,
@@ -134,7 +133,7 @@ pub struct Lent<'s> {
     stage: &'s crate::race::stage_data_store::StageData,
     kind_records: crate::memory::session::PlainRead<crate::race::kind_records_store::KindRecords>,
     numbers: &'s crate::race::numbers_store::Numbers,
-    number_vars: crate::memory::session::PhaseRead<'s, crate::race::numbers_store::NumberVars>,
+    number_vars: crate::memory::session::PlainRead<crate::race::numbers_store::NumberVars>,
     switches: crate::memory::session::PlainRead<crate::race::switches_store::FrameSwitches>,
     checkpoints: crate::memory::session::ArcRead<crate::race::checkpoints_store::Checkpoints>,
     vars: crate::race::vars_store::DrawnVars,
@@ -176,7 +175,7 @@ impl<'s> Lent<'s> {
             // The race's stores.
             ground_probe: *race.physics.ground_probe().borrow(),
             scene_clock: race.shared.run().scene_clock,
-            shadow_skids: PhaseRead::lend(&race.frame.shadow_skids, scope),
+            shadow_skids: crate::memory::session::ArcRead::lend(&race.frame.shadow_skids, scope),
             light_records: crate::memory::session::ArcRead::lend(&race.frame.light_records, scope),
             no_place: race.replay.no_place(),
             // The frame's work and the panel.
@@ -200,7 +199,7 @@ impl<'s> Lent<'s> {
                 scope,
             ),
             numbers: &race.course.numbers,
-            number_vars: PhaseRead::lend(&race.course.number_vars, scope),
+            number_vars: crate::memory::session::PlainRead::lend(&race.course.number_vars, scope),
             switches: crate::memory::session::PlainRead::lend(&race.shared.switches, scope),
             checkpoints: crate::memory::session::ArcRead::lend(&race.shared.checkpoints, scope),
             vars: race.shared.vars.get().drawn(),
@@ -231,7 +230,7 @@ impl<'s> Lent<'s> {
             // The race's stores.
             ground_probe: self.ground_probe,
             scene_clock: self.scene_clock,
-            shadow_skids: &self.shadow_skids,
+            shadow_skids: (&self.shadow_skids).into(),
             light_records: (&self.light_records).into(),
             no_place: self.no_place,
             // The frame's work and the panel.
@@ -252,7 +251,7 @@ impl<'s> Lent<'s> {
             stage: self.stage,
             kind_records: (&self.kind_records).into(),
             numbers: self.numbers,
-            number_vars: &self.number_vars,
+            number_vars: (&self.number_vars).into(),
             switches: (&self.switches).into(),
             checkpoints: (&self.checkpoints).into(),
             vars: crate::race::vars_store::DrawnVarsRef::Copy(&self.vars),
@@ -298,7 +297,7 @@ pub struct DrawReads<'a> {
     /// The scene's clock (`race::owner_shared::RaceShared::run`), as it was when the reads were made.
     pub scene_clock: u32,
     /// The skid marks' links and points (`race::owner_frame::Frame::shadow_skids`).
-    pub shadow_skids: &'a crate::race::shadow_skids_store::ShadowSkids,
+    pub shadow_skids: crate::race::shadow_skids_store::ShadowSkidsRef<'a>,
     /// The models' light records (`race::owner_frame::Frame::light_records`).
     pub light_records: crate::race::light_records_store::LightRecordsRef<'a>,
     /// The finish state's "no place" switch (`race::owner_replay::Replay::no_place`).
@@ -341,8 +340,8 @@ pub struct DrawReads<'a> {
     /// The game's numbers: its float constants, the replay's mode, `in_race`, the grip change
     /// (`race::owner_course::Course::numbers`).
     pub numbers: &'a crate::race::numbers_store::Numbers,
-    /// The replay's mode, `in_race` and the grip change (`race::owner_course::Course::number_vars`).
-    pub number_vars: &'a crate::race::numbers_store::NumberVars,
+    /// The replay's mode and `in_race` (`race::owner_course::Course::number_vars`).
+    pub number_vars: crate::race::numbers_store::NumberVarsRef<'a>,
     /// The frame switches (`race::owner_shared::RaceShared::switches`): the scene set-up flag,
     /// the mask kind, the marker object.
     pub switches: crate::race::switches_store::FrameSwitchesRef<'a>,
@@ -420,7 +419,9 @@ impl<'a> DrawReads<'a> {
             // The race's stores.
             ground_probe: *race.physics.ground_probe().borrow(),
             scene_clock: race.shared.run().scene_clock,
-            shadow_skids: race.frame.shadow_skids.get(),
+            shadow_skids: crate::race::shadow_skids_store::ShadowSkidsRef::Store(
+                &race.frame.shadow_skids,
+            ),
             light_records: race.light_records(),
             no_place: race.replay.no_place(),
             // The frame's work and the panel.
@@ -445,7 +446,7 @@ impl<'a> DrawReads<'a> {
                 race.course.kind_records(),
             ),
             numbers: &race.course.numbers,
-            number_vars: race.course.number_vars.get(),
+            number_vars: crate::race::numbers_store::NumberVarsRef::Store(&race.course.number_vars),
             switches: crate::race::switches_store::FrameSwitchesRef::Store(&race.shared.switches),
             checkpoints: race.shared.checkpoints(),
             vars: crate::race::vars_store::DrawnVarsRef::Store(race.shared.vars.get()),
@@ -669,7 +670,7 @@ fn draw_parts(
     begin_list();
     let control = crate::math::x87::control_word();
     // Whether a race is on, as the parts' noted drawing reads it inside the scope (`in_race`).
-    let racing = owners.race.course.number_vars.get().in_race.is_set();
+    let racing = owners.race.course.in_race();
     let screen = owners.system.session.screen.get();
     let screen_size = [screen.width.get(), screen.height.get(), screen.bits.get()];
     for scratch in scratch_owner.all_parts_on_game_thread() {

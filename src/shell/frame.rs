@@ -20,7 +20,7 @@ use std::sync::atomic::Ordering;
 
 fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(), &'static str> {
     let race = o.race;
-    let racing = race.course.number_vars.get().in_race.is_set();
+    let racing = race.course.in_race();
     // The frame's length (`with_frame`), checked before anything is shown.
     if screen.pixels.len() < screen.width * screen.height * 4 {
         return Err("the frame is smaller than the screen");

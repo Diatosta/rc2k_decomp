@@ -34,14 +34,6 @@ macro_rules! listed {
     };
 }
 
-/// A part of a record of cells, from the field `first` on: a listed store that starts inside a
-/// record (the panel past its two lead bytes).
-/// Reads and writes go through the whole record's cells by field path.
-struct RecordFrom<T: Cells + Sync + 'static> {
-    whole: &'static T,
-    first: &'static str,
-}
-
 /// A part of a game-thread owner (`session::GameThread`) as a listed store, from the field
 /// `first` on (empty: the whole record): the record's cells are `!Sync`, so each access checks
 /// the thread in debug builds, as `GameThread::get` does.
@@ -112,36 +104,6 @@ impl<T: Cells> Walk for T {
 
     fn keep(&self) -> Box<dyn Fn() + '_> {
         kept(self)
-    }
-}
-
-impl<T: Cells + Sync + 'static> Walk for RecordFrom<T> {
-    fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
-        super::paths::bytes(self.whole, path)
-    }
-
-    fn set_path_bytes(&self, path: &str, bytes: &[u8]) -> bool {
-        super::paths::set_bytes(self.whole, path, bytes)
-    }
-
-    fn range_bytes(&self, path: &str, length: usize) -> Vec<u8> {
-        super::paths::field_range(self.whole, path, length)
-    }
-
-    fn set_range_bytes(&self, path: &str, bytes: &[u8]) -> bool {
-        super::paths::set_field_range(self.whole, path, bytes)
-    }
-
-    fn first_addr(&self, path: &str) -> Option<usize> {
-        super::paths::first_addr(self.whole, path)
-    }
-
-    fn keep(&self) -> Box<dyn Fn() + '_> {
-        kept(self.whole)
-    }
-
-    fn first_field(&self) -> &'static str {
-        self.first
     }
 }
 
@@ -328,11 +290,6 @@ fn on_game<S: Cells>(whole: &'static S) -> &'static OnGame<S> {
 /// A game-thread owner's part from the field `first` on as a listed store.
 fn on_game_from<S: Cells>(whole: &'static S, first: &'static str) -> &'static OnGame<S> {
     Box::leak(Box::new(OnGame { whole, first }))
-}
-
-/// A record of atomic cells from the field `first` on as a listed store.
-fn record_from<T: Cells + Sync>(whole: &'static T, first: &'static str) -> &'static RecordFrom<T> {
-    Box::leak(Box::new(RecordFrom { whole, first }))
 }
 
 /// Every store, by the path of its owner (the static the store is a field of); a name repeats
@@ -647,14 +604,21 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.saves.save_games.kept_b),
         ),
         listed!(
-            "owners.menus.service.set_ups",
-            on_game(&o.menus.service.set_ups),
+            "owners.menus.service.set_ups.file",
+            on_buffer(&o.menus.service.set_ups.file),
+        ),
+        listed!(
+            "owners.menus.service.set_ups.names",
+            on_buffer(&o.menus.service.set_ups.names),
+        ),
+        listed!(
+            "owners.menus.service.set_ups.kept",
+            on_game(&o.menus.service.set_ups.kept),
         ),
         listed!(
             "owners.race.shared.replays",
             on_game(o.race.shared.replays()),
         ),
-        listed!("owners.install.texts", &o.install.texts,),
         listed!(
             "owners.saves.files.options_path",
             on_buffer(&o.saves.files.options_path),
@@ -682,22 +646,14 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.system.session.key_clock",
             &o.system.session.key_clock,
         ),
-        listed!(
-            "owners.system.session.picture_clock",
-            &o.system.session.picture_clock,
-        ),
         listed!("owners.system.window_loop", on_game(o.system.window_loop()),),
         listed!("owners.system.machine", on_game(o.system.machine()),),
         listed!("owners.system.clocks", on_game(o.system.clocks()),),
         listed!("owners.audio.state", &o.audio.state,),
-        listed!("owners.audio.sample_records", &o.audio.sample_records,),
         listed!(
             "owners.saves.files.options_kept",
             on_game(&o.saves.files.options_kept),
         ),
-        listed!("owners.sound.race.shared", &o.sound.threads.shared,),
-        listed!("owners.input.force_feedback", &o.input.force_feedback,),
-        listed!("owners.sound.menu.options", &o.sound.menu.options,),
         listed!("owners.input.devices", &o.input.devices,),
         listed!(
             "owners.input.keyboard.silent_keys",
@@ -723,7 +679,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.input.keyboard.unused",
             on_game(&o.input.keyboard()._unused_826c),
         ),
-        listed!("owners.input.mouse", on_game(o.input.mouse()),),
         listed!(
             "owners.sound.menu.next_sound_time",
             on_game(o.sound.menu.next_sound_time.get()),
@@ -753,25 +708,18 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.saves.best_times.loaded),
         ),
         listed!(
-            "owners.system.start.texts",
-            on_game(&o.system.start().texts),
+            "owners.system.start.texts.version",
+            on_buffer(&o.system.start().texts.version),
         ),
         listed!(
-            "owners.sound.menu.menu_sounds",
-            record_from(&o.sound.threads.menu_sounds, ".list"),
-            0x28,
+            "owners.system.start.texts.copyright",
+            on_buffer(&o.system.start().texts.copyright),
         ),
         listed!("owners.sound.race.sets", &o.sound.threads.sets, 0x9ac,),
         listed!(
             "owners.system.work.files",
             on_buffer(&o.system.work().files.buffer),
         ),
-        listed!(
-            "owners.gfx.drawing.draw_surface",
-            on_game(&o.gfx.drawing.draw_surface),
-        ),
-        listed!("owners.gfx.d3d.cards", on_game(o.gfx.d3d.cards.get()),),
-        listed!("owners.audio.sample_names", &o.audio.sample_names,),
         listed!(
             "owners.race.shared.buffers.reads",
             on_game(o.race.shared.buffers.reads.get()),
@@ -839,14 +787,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.race.shared.car_parts",
             on_game(o.race.shared.car_parts.get()),
-        ),
-        listed!(
-            "owners.race.frame.overlay",
-            on_game(o.race.frame.overlay.get()),
-        ),
-        listed!(
-            "owners.race.frame.shadow_skids",
-            on_game(o.race.frame.shadow_skids.get()),
         ),
         listed!(
             "owners.race.shared.replay_file.replays_on",
@@ -949,8 +889,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.shared.replay_file().index.block_places),
         ),
         listed!(
-            "owners.race.course.number_vars",
-            on_game(o.race.course.number_vars.get()),
+            "owners.race.course.grip_change",
+            on_game(o.race.course.grip_change()),
         ),
         listed!("owners.race.shared.tables", on_game(o.race.shared.tables()),),
         listed!(

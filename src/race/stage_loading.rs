@@ -106,7 +106,6 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     let clock: u32 = race.shared.run().scene_clock;
     race.shared.run_mut().race_clock_now = clock;
     race.shared.run_mut().race_clock_base = clock;
-    race.frame.overlay.get().start_lights_lit.set(0);
     race.frame.panel.borrow_mut().lights[0].lit = u32::MAX;
     race.frame.panel.borrow_mut().lights[1].lit = u32::MAX;
     for car in &race.car_blocks().cars[..8] {

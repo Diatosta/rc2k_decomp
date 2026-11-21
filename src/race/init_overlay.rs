@@ -60,19 +60,19 @@ pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> R
                     let half = half_length(end, start);
                     scene.draw_work_mut().scratch = half;
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
-                    race.frame.overlay.get().overlay_part_miles[n as usize].set(miles);
+                    race.frame.overlay_mut().overlay_part_miles[n as usize] = miles;
                     let value = x87::add(miles, race.frame.panel.borrow().overlay_miles).to_bits();
                     race.frame.panel.borrow_mut().overlay_miles = value;
-                    race.frame.overlay.get().overlay_part_kinds_a[n as usize].set(0);
-                    race.frame.overlay.get().overlay_part_kinds_b[n as usize].set(0);
+                    race.frame.overlay_mut().overlay_part_kinds_a[n as usize] = 0;
+                    race.frame.overlay_mut().overlay_part_kinds_b[n as usize] = 0;
                 }
             }
             None => {
                 race.frame.panel.borrow_mut().overlay_parts = 1;
-                race.frame.overlay.get().overlay_part_miles[0].set(1.0);
+                race.frame.overlay_mut().overlay_part_miles[0] = 1.0;
                 race.frame.panel.borrow_mut().overlay_miles = ONE;
-                race.frame.overlay.get().overlay_part_kinds_a[0].set(0);
-                race.frame.overlay.get().overlay_part_kinds_b[0].set(0);
+                race.frame.overlay_mut().overlay_part_kinds_a[0] = 0;
+                race.frame.overlay_mut().overlay_part_kinds_b[0] = 0;
             }
         }
         // The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`).

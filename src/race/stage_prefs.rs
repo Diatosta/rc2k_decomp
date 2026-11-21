@@ -60,11 +60,11 @@ pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
         for n in 0..2 {
             reset_skid_slots(&race.car_blocks().cars[n]);
         }
-        let links = &frame.shadow_skids.get().skid_links;
+        let mut skids = frame.shadow_skids.borrow_mut();
         for n in 0..0x400 {
-            links.set_u32(8 * n, u32::MAX);
+            skids.set_link_word(8 * n, u32::MAX);
         }
-        frame.shadow_skids.get().skid_next.set(0);
+        skids.skid_next = 0;
     }
     Ok(())
 }

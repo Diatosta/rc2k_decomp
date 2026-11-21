@@ -11,14 +11,12 @@ use rc2k_core::drive::replay_frames::{PLAYING, RECORDING, frame_and_tenth};
 pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
     race.replay.replay_frames_mut().frame = 0;
     race.replay.replay_frames_mut().tenth = 0;
-    if race.course.number_vars.get().replay_mode.get() != PLAYING {
+    if race.course.replay_mode() != PLAYING {
         let (frame, tenth) = frame_and_tenth(race.car_blocks().cars[0].step_clock.get());
         race.replay.replay_frames_mut().frame = frame;
         race.replay.replay_frames_mut().tenth = tenth;
     }
-    if race.replay.replay_frames().tenth == 0
-        && race.course.number_vars.get().replay_mode.get() == RECORDING
-    {
+    if race.replay.replay_frames().tenth == 0 && race.course.replay_mode() == RECORDING {
         crate::drive::save_replay_cars::save_replay_cars(race);
     }
     Ok(())

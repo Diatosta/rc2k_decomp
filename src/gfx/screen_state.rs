@@ -31,8 +31,7 @@ impl ScreenMode {
     }
 }
 
-/// The surface the screen is drawn on.
-#[derive(rc2k_derive::Cells)]
+/// The surface the screen is drawn on (atomic cells: the drawing threads read it).
 pub struct DrawSurface {
     /// The presented picture's row pitch (`platform`).
     pub present_pitch: Dword,

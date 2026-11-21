@@ -6,7 +6,6 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::hud::pen::Pen;
-use crate::memory::session::PlainDword;
 use crate::race::owner_frame::Frame;
 
 /// The record's corners (left, top, right, bottom) and, with `Some`, its colour; a quad.
@@ -43,13 +42,13 @@ pub fn bars(
     frame: &Frame,
     hud: &mut Hud,
     pen: Pen,
-    kinds: &[&[PlainDword]],
+    kinds: &[&[u32]],
     dy: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;
     let count = frame.panel.borrow().overlay_parts;
     sb::check(count, kinds.len() as u32, |p, n| {
-        kinds[p as usize][n as usize].get()
+        kinds[p as usize][n as usize]
     })?;
     hud.block.quad.alpha = sb::SOLID;
     for (colour, c) in sb::frame(dy, kinds.len() == 2) {
@@ -68,10 +67,10 @@ pub fn bars(
         // four colours, though not always a whole one).
         let colours: Vec<u32> = kinds
             .iter()
-            .map(|&k| stage_colour_at(&hud.block.stage_colours, k[n as usize].get() as usize))
+            .map(|&k| stage_colour_at(&hud.block.stage_colours, k[n as usize] as usize))
             .collect::<Result<_, crate::errors::BadInput>>()?;
         let end = sb::part_end(
-            frame.overlay.get().overlay_part_miles[n as usize].get(),
+            frame.overlay().overlay_part_miles[n as usize],
             hud.block.ends[1],
             left == 1,
             total,
@@ -93,13 +92,8 @@ pub fn bars(
 }
 
 pub fn draw_stage_bar(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
-    bars(
-        frame,
-        hud,
-        pen,
-        &[&frame.overlay.get().overlay_part_kinds_a],
-        0,
-    )
+    let kinds = frame.overlay().overlay_part_kinds_a;
+    bars(frame, hud, pen, &[&kinds[..]], 0)
 }
 
 #[cfg(test)]

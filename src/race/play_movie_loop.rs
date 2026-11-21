@@ -36,7 +36,7 @@ pub(super) fn play_movie_loop(
     log_number(race.replay.replay_view().replay_block.get());
     log_text(TEXTS[2], false);
     log_number(race.replay.replay_view().play_end.get());
-    race.course.number_vars.get().replay_mode.set(2);
+    race.course.set_replay_mode(2);
     // A replay rendered to a video runs on the video's clock from here on.
     crate::video::race_loop_begins();
     race_parts::restart_clock(race, &o.system.session.picture_clock);

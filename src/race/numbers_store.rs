@@ -1,11 +1,10 @@
 //! The game's numbers: its float constants (1.0, 65536.0, pi, the tenths, ...), named by value,
-//! with three variables among them (the replay's mode, `in_race`, the grip change) kept apart.
+//! with two variables among them (the replay's mode, `in_race`) kept apart.
 //! The constants are a plain `Copy` value every reader holds by reference; the variables are
-//! plain cells, a drawing store (`session::DrawShared`), written on the game's thread between
-//! frames and read by the drawing parts through their `scene::workers::DrawReads`.
+//! a plain record (`session::DrawPlain`), written on the game's thread between frames; the
+//! drawing parts read a copy through their `scene::workers::DrawReads`.
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::{ConstFloat, PlainDword, PlainFlag, PlainFloat};
+use crate::memory::session::{ConstFloat, DrawPlain, PlainRead};
 
 /// The game's float constants (a plain value: nothing writes them).
 #[derive(Clone, Copy)]
@@ -151,25 +150,49 @@ pub struct Numbers {
     pub step_time: ConstFloat,
 }
 
-/// The three variables among the game's numbers, read by the drawing parts and written on the
-/// game's thread between frames.
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// The two variables among the game's numbers the game's thread writes between frames
+/// (`owner_course::Course::number_vars`); the drawing parts get a copy (`NumberVarsRef`). The
+/// third, the grip change, is a cell of its own (`Course::grip_change`): the grip forces' x87
+/// code loads and stores it as an operand.
+#[derive(Clone, Copy)]
 pub struct NumberVars {
     /// The replay's mode, 1 recording, 2 playing (`drive::keep_replay_frame`; the scene skips
     /// the tyre screen while 2).
-    pub replay_mode: PlainDword,
+    pub replay_mode: u32,
     /// `in_race`.
-    pub in_race: PlainFlag,
-    /// The grip forces' sum's change, eased to 0 (`physics::drive_grip_forces`).
-    pub grip_change: PlainFloat,
+    pub in_race: bool,
 }
-
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
 
 impl NumberVars {
     pub const fn new() -> Self {
-        Self::ZERO
+        Self {
+            replay_mode: 0,
+            in_race: false,
+        }
+    }
+}
+
+/// The variables as one reader finds them: the game's thread's own (read through the store when
+/// used), or a drawing part's copy.
+#[derive(Clone, Copy)]
+pub enum NumberVarsRef<'a> {
+    Store(&'a DrawPlain<NumberVars>),
+    Copy(&'a NumberVars),
+}
+
+impl NumberVarsRef<'_> {
+    /// Whether the race is on.
+    pub fn in_race(self) -> bool {
+        match self {
+            Self::Store(store) => store.borrow().in_race,
+            Self::Copy(vars) => vars.in_race,
+        }
+    }
+}
+
+impl<'a> From<&'a PlainRead<NumberVars>> for NumberVarsRef<'a> {
+    fn from(copy: &'a PlainRead<NumberVars>) -> Self {
+        Self::Copy(copy)
     }
 }
 

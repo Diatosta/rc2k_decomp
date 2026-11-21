@@ -13,10 +13,7 @@ pub(super) fn flush_replay_if(
     system: &System,
     net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
-    if flush_due(
-        race.course.number_vars.get().replay_mode.get(),
-        race.replay.replay_frames().tenth,
-    ) {
+    if flush_due(race.course.replay_mode(), race.replay.replay_frames().tenth) {
         return crate::drive::flush_replay::flush_replay(race, system, net);
     }
     Ok(())

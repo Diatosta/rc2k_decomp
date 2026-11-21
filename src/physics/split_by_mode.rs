@@ -17,7 +17,7 @@ pub(super) fn split_by_mode(
     o: crate::owners::Owners<'static>,
     split_tables: &mut SplitTables,
     league: &mut League,
-    overlay: &OverlayBlock,
+    overlay: &std::cell::RefCell<OverlayBlock>,
     shared: &RaceShared,
     car_blocks: &crate::race::blocks_store::CarBlocks,
 ) -> Result<(), Refused> {

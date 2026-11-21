@@ -10,6 +10,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{PlainBytes, PlainDword};
 use crate::service::owner::Service;
 
@@ -18,12 +19,11 @@ pub const SLOT_COUNT: u32 = 100;
 pub const NAME_LEN: usize = 0x20;
 
 /// The car set-ups' buffers.
-#[derive(rc2k_derive::Cells)]
 pub struct SetUps {
     /// The head of a set-up file as it is read or written.
-    pub file: PlainBytes<SETUP_FILE_LEN>,
+    pub file: PlainBuffer<SETUP_FILE_LEN>,
     /// The set-ups' names, 100 of 0x20 bytes.
-    pub names: PlainBytes<{ SLOT_COUNT as usize * NAME_LEN }>,
+    pub names: PlainBuffer<{ SLOT_COUNT as usize * NAME_LEN }>,
     /// A value the options file keeps; nothing else reads it.
     pub kept: PlainDword,
 }
@@ -32,8 +32,8 @@ pub struct SetUps {
 impl SetUps {
     pub const fn new() -> Self {
         SetUps {
-            file: PlainBytes::new([0; SETUP_FILE_LEN]),
-            names: PlainBytes::new([0; SLOT_COUNT as usize * NAME_LEN]),
+            file: PlainBuffer::new([0; SETUP_FILE_LEN]),
+            names: PlainBuffer::new([0; SLOT_COUNT as usize * NAME_LEN]),
             kept: PlainDword::new(0),
         }
     }

@@ -15,15 +15,15 @@ pub fn lets_race(o: Owners<'static>) -> Result<(u32, u32), Refused> {
     }
     crate::net::set_hud_options::set_hud_options(race, o.net, o.gfx)?;
     // The race is recorded as a single race is: every car's inputs, the cars' state each frame.
-    let kept_mode = race.course.number_vars.get().replay_mode.get();
-    race.course.number_vars.get().replay_mode.set(1);
+    let kept_mode = race.course.replay_mode();
+    race.course.set_replay_mode(1);
     crate::race::race_end::record_replay_header(race);
     crate::race::replay::open_replay(race, o)?;
     crate::net::left::begin_race();
     let played = { crate::drive::play_race::play_race(race, o) };
     crate::net::left::end_race();
     crate::race::replay::close_replay(race, o.system)?;
-    race.course.number_vars.get().replay_mode.set(kept_mode);
+    race.course.set_replay_mode(kept_mode);
     played?;
     crate::net::keep_hud_options::keep_hud_options(&race.shared, o.net)?;
     let block = race

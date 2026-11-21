@@ -52,13 +52,11 @@ pub struct Frame {
     pub matrices: DrawPlain<SceneMatrices>,
     /// The views' matrices kept for what is drawn or heard after them (short borrows); the game's thread's.
     pub view_kept: DrawPlain<ViewKept>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing only reads it.
-    pub shadow_skids: DrawShared<ShadowSkids>,
+    /// One record, lent to the drawing parts as a shared pointer (`scene::workers::DrawReads`): the drawing only reads it.
+    pub shadow_skids: DrawArc<ShadowSkids>,
     /// A plain record, lent to the drawing parts as a copy (`scene::workers::DrawReads`): the mirror's
     /// window reads one field; the hud and the race write it on the game's thread (short borrows).
     pub panel: DrawPlain<Panel>,
-    /// The stage bar's parts, the start lights and the position labels: the game's thread's.
-    pub overlay: GameThread<OverlayBlock>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it. Each
     /// view draws on its own view variables (`ViewScratch::vars`).
     pub view_and_records: DrawShared<ViewAndRecords>,
@@ -74,6 +72,8 @@ pub struct Frame {
 
 /// What only the game's thread reaches (no drawing part and no other thread touches it).
 struct FrameMain {
+    /// The stage bar's parts, the forget flags and the position labels.
+    overlay: RefCell<OverlayBlock>,
     scratch: RefCell<FrameScratch>,
     counter: RefCell<FrameCounter>,
     clock_ticks: RefCell<ClockTicks>,
@@ -97,13 +97,13 @@ impl Frame {
             frame_work: DrawPlain::new(FrameWork::new()),
             matrices: DrawPlain::new(SceneMatrices::new()),
             view_kept: DrawPlain::new(ViewKept::new()),
-            shadow_skids: DrawShared::new(ShadowSkids::new()),
+            shadow_skids: DrawArc::new(ShadowSkids::new),
             panel: DrawPlain::new(Panel::new()),
-            overlay: GameThread::new(OverlayBlock::new()),
             view_and_records: DrawShared::new(ViewAndRecords::new()),
             light_records: DrawArc::new(LightRecords::new),
             cars: crate::race::frame_view::FrameCars::new(),
             main: GameThread::new(FrameMain {
+                overlay: RefCell::new(OverlayBlock::new()),
                 scratch: RefCell::new(FrameScratch::new()),
                 counter: RefCell::new(FrameCounter::new()),
                 clock_ticks: RefCell::new(ClockTicks::new()),
@@ -120,6 +120,22 @@ impl Frame {
     /// The work vector, read.
     pub fn scratch(&self) -> Ref<'_, FrameScratch> {
         self.main.get().scratch.borrow()
+    }
+
+    /// The stage bar's parts, the forget flags and the position labels, read: no write borrow
+    /// may be held.
+    pub fn overlay(&self) -> Ref<'_, OverlayBlock> {
+        self.main.get().overlay.borrow()
+    }
+
+    /// The overlay, to write: no other borrow may be held.
+    pub fn overlay_mut(&self) -> RefMut<'_, OverlayBlock> {
+        self.main.get().overlay.borrow_mut()
+    }
+
+    /// The overlay's cell, for a caller that borrows it itself (short borrows).
+    pub fn overlay_cell(&self) -> &RefCell<OverlayBlock> {
+        &self.main.get().overlay
     }
 
     /// The work vector, to write: no other borrow may be held.

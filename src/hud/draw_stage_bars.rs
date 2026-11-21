@@ -15,14 +15,9 @@ pub(super) const STAGE_BARS_DROP_2: u32 = 0x11E;
 
 /// The two players' bars `dy` lower (see the header).
 pub fn draw_stage_bars(frame: &Frame, hud: &mut Hud, pen: Pen, dy: u32) -> Result<(), Refused> {
-    bars(
-        frame,
-        hud,
-        pen,
-        &[
-            &frame.overlay.get().overlay_part_kinds_a,
-            &frame.overlay.get().overlay_part_kinds_b,
-        ],
-        dy,
-    )
+    let (a, b) = {
+        let overlay = frame.overlay();
+        (overlay.overlay_part_kinds_a, overlay.overlay_part_kinds_b)
+    };
+    bars(frame, hud, pen, &[&a[..], &b[..]], dy)
 }

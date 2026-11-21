@@ -699,7 +699,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         o.strings,
     )?;
     crate::race::part_notices::take_asked(race);
-    if race.course.number_vars.get().replay_mode.get() != 2 {
+    if race.course.replay_mode() != 2 {
         crate::drive::tyre_change_screen::tyre_change_screen(race, input, system, scene)?;
     }
     blended.finish(scene)

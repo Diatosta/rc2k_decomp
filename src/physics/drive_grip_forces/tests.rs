@@ -505,7 +505,7 @@ fn blocks() -> Vec<Block> {
                     race().shared.car(),
                     race().shared.physics_tables.get(),
                     &crate::test_support::race_places::numbers(),
-                    &race().course.number_vars.get().grip_change,
+                    race().course.grip_change(),
                     HostCell(a[1]).bits(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );

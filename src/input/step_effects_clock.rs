@@ -36,9 +36,7 @@ pub fn step_effects_clock(
     effects.steps.set(effects.steps.get().wrapping_add(1));
     // A replay shakes no pad: its cars are not driven by the players. The effects running when
     // it began are stopped once; the race after it starts them again.
-    let replaying = rc2k_core::drive::replay_frames::plays_inputs(
-        race.course.number_vars.get().replay_mode.get(),
-    );
+    let replaying = rc2k_core::drive::replay_frames::plays_inputs(race.course.replay_mode());
     if replaying {
         if !STOPPED_FOR_REPLAY.swap(true, Relaxed) {
             crate::input::stop_effects::stop_effects(input)?;

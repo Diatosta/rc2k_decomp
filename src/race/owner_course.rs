@@ -2,14 +2,14 @@
 //! data and lists, level grid and paths, kind and light records, flares, marks settings, stage
 //! preferences, numbers, league.
 
-use crate::memory::session::{DrawArc, DrawPlain, DrawShared, GameThread};
+use crate::memory::session::{DrawArc, DrawPlain, GameThread};
 use crate::race::course_lists_store::{CourseLists, CourseListsRef, CourseMemory, TurnWork};
 use crate::race::course_store::{CourseWork, CourseWorkRef};
 use crate::race::kind_records_store::{KindRecords, KindRecordsRef};
 use crate::race::league_store::League;
 use crate::race::level_paths_store::LevelPaths;
 use crate::race::lights_store::{LightsData, LightsTable};
-use crate::race::numbers_store::{NumberVars, Numbers};
+use crate::race::numbers_store::{NumberVars, NumberVarsRef, Numbers};
 use crate::race::prefs_store::{StagePrefs, StagePrefsRef};
 use crate::race::stage_data_store::StageData;
 use std::cell::{Ref, RefCell, RefMut};
@@ -26,9 +26,9 @@ pub struct Course {
     pub stage_prefs: DrawArc<StagePrefs>,
     /// The game's float constants (a plain value, read by reference everywhere).
     pub numbers: Numbers,
-    /// The replay's mode, `in_race` and the grip change: one copy, lent to the drawing parts
+    /// The replay's mode and `in_race`: a copy is lent to the drawing parts
     /// (`scene::workers::DrawReads`); no part writes it.
-    pub number_vars: DrawShared<NumberVars>,
+    pub number_vars: DrawPlain<NumberVars>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the ground search under a
     /// car's shadow reads it; no part writes it.
     kind_records: DrawPlain<KindRecords>,
@@ -47,13 +47,16 @@ pub struct CourseReads<'a> {
     pub lists: CourseListsRef<'a>,
     pub stage_prefs: StagePrefsRef<'a>,
     pub numbers: &'a Numbers,
-    pub number_vars: &'a NumberVars,
+    pub number_vars: NumberVarsRef<'a>,
     pub kind_records: KindRecordsRef<'a>,
     pub stage: &'a StageData,
 }
 
 /// What only the game's thread reaches (no drawing part and no other thread touches it).
 struct CourseMain {
+    /// The grip forces' sum's change, eased to 0 (`physics::drive_grip_forces`): a cell, since
+    /// that code loads and stores it as an operand.
+    grip_change: crate::memory::session::PlainFloat,
     memory: CourseMemory,
     turn_work: TurnWork,
     level_paths: RefCell<LevelPaths>,
@@ -69,10 +72,11 @@ impl Course {
             lists: DrawPlain::new(CourseLists::new()),
             stage_prefs: DrawArc::new(StagePrefs::new),
             numbers: Numbers::new(),
-            number_vars: DrawShared::new(NumberVars::new()),
+            number_vars: DrawPlain::new(NumberVars::new()),
             kind_records: DrawPlain::new(KindRecords::new()),
             stage: StageData::new(),
             main: GameThread::new(CourseMain {
+                grip_change: crate::memory::session::PlainFloat::new(0.0),
                 memory: CourseMemory::new(),
                 turn_work: TurnWork::new(),
                 level_paths: RefCell::new(LevelPaths::new()),
@@ -90,10 +94,33 @@ impl Course {
             lists: CourseListsRef::Store(&self.lists),
             stage_prefs: StagePrefsRef::Store(&self.stage_prefs),
             numbers: &self.numbers,
-            number_vars: self.number_vars.get(),
+            number_vars: NumberVarsRef::Store(&self.number_vars),
             kind_records: KindRecordsRef::Store(&self.kind_records),
             stage: &self.stage,
         }
+    }
+
+    /// Whether the race is on.
+    pub fn in_race(&self) -> bool {
+        self.number_vars.borrow().in_race
+    }
+
+    pub fn set_in_race(&self, on: bool) {
+        self.number_vars.borrow_mut().in_race = on;
+    }
+
+    /// The replay's mode: 1 recording, 2 playing.
+    pub fn replay_mode(&self) -> u32 {
+        self.number_vars.borrow().replay_mode
+    }
+
+    pub fn set_replay_mode(&self, mode: u32) {
+        self.number_vars.borrow_mut().replay_mode = mode;
+    }
+
+    /// The grip forces' sum's change.
+    pub fn grip_change(&self) -> &crate::memory::session::PlainFloat {
+        &self.main.get().grip_change
     }
 
     /// The course's memory lists.
