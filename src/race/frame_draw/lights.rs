@@ -92,7 +92,7 @@ pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     let place =
         crate::race::scene_points::point_number(ctx.reads.course(), &ctx.part.points, point)?;
     view.object.borrow_mut().place = place;
-    let matrix: [u32; 16] = crate::memory::session::read_bits(&view.matrices.view_matrix);
+    let matrix: [u32; 16] = view.matrices.borrow().view_matrix.map(f32::to_bits);
     let out = crate::math::x87::rotate_rounding_z(place.map(|v| v as i32), &matrix);
     view.object.borrow_mut().place[0] = out[0];
     view.object.borrow_mut().place[1] = out[1];

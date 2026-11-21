@@ -49,8 +49,8 @@ impl<'a> ListenerView<'a> {
     pub fn of(view: &'a crate::race::view_scratch::ViewScratch, race: &Race) -> Self {
         Self {
             drawn_view: view.drawn_view(race),
-            view_matrix: matrix_of(&view.matrices.view_matrix),
-            view_turn_matrix: matrix_of(&view.matrices.view_turn_matrix),
+            view_matrix: view.matrices.borrow().view_matrix,
+            view_turn_matrix: view.matrices.borrow().view_turn_matrix,
             view_place: view.state.borrow().view_place,
             sun: &view.polygon.sun,
         }

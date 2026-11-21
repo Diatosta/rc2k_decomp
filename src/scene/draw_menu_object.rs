@@ -46,7 +46,7 @@ pub fn draw_menu_object_in_game(
                 let view_turn = race.frame.view_kept.borrow().view_turn_matrix;
                 make_object_matrix(
                     &ctx.reads.buffers.engine_tables,
-                    &ctx.view.matrices,
+                    &mut ctx.view.matrices.borrow_mut(),
                     &view_turn,
                     &ctx.view.light,
                     &ctx.view.object,

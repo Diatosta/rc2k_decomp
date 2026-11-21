@@ -5,7 +5,7 @@ use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::view_state::ViewState;
-use crate::scene::draw_described_object::Description;
+use crate::scene::draw_described_object::{DescribedMatrix, Description};
 use crate::scene::view_matrices::ViewMatrices;
 
 /// `race::draw_distance_settings`: the draw distance's level
@@ -250,26 +250,31 @@ pub fn place_view(
 pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     use crate::scene::matrix;
     let angle = (ctx.reads.stage_prefs.sky_turn.get() << 8).wrapping_neg();
-    let m = &ctx.view.matrices;
+    let mut kept = ctx.view.matrices.borrow_mut();
+    let m = &mut *kept;
     matrix::set_turn_y(
         &ctx.reads.buffers.engine_tables,
-        &m.turn_y_matrix,
-        &m.turn_y_work,
+        &mut m.turn_y_matrix,
+        &mut m.turn_y_work,
         angle,
     );
     let height = ctx.reads.stage_prefs.sky_height.get() << 8;
     ctx.view.object.borrow_mut().place[0] = 0u32;
     ctx.view.object.borrow_mut().place[2] = 0u32;
     ctx.view.object.borrow_mut().place[1] = height;
-    matrix::set_place(&m.placed_matrix, [0, height, 0]);
-    matrix::copy_matrix_with_place(&m.turn_y_matrix, &m.placed_matrix, &m.turned_matrix);
+    matrix::set_place(&mut m.placed_matrix, [0, height, 0]);
+    matrix::copy_matrix_with_place(&m.turn_y_matrix, &m.placed_matrix, &mut m.turned_matrix);
     let size = ctx.view.polygon.window.borrow().farthest_scaled << 4;
     ctx.view.object.borrow_mut().size = size;
     let scale = crate::math::x87::int_over_16(size as i32);
-    for cell in &m.turned_matrix {
-        cell.set(crate::math::x87::mul(cell, scale));
+    for cell in &mut m.turned_matrix {
+        *cell = crate::math::x87::mul(*cell, scale);
     }
-    matrix::multiply_matrices(&m.turned_matrix, &m.view_turn_matrix, &m.made_object_matrix);
+    matrix::multiply_matrices(
+        &m.turned_matrix,
+        &m.view_turn_matrix,
+        &mut m.made_object_matrix,
+    );
     Ok(())
 }
 
@@ -282,10 +287,16 @@ fn view_place_tail(
 ) -> Result<(), BadInput> {
     use crate::scene::{matrix, view_matrix};
     let p = state.view_place.map(u32::wrapping_neg);
-    matrix::set_place(&m.placed_matrix, p);
-    crate::math::cells::copy_cells(&m.placed_matrix, &m.view_place_matrix, 16);
-    matrix::multiply_matrices(&m.placed_matrix, &m.view_turn_matrix, &m.view_matrix);
-    view_matrix::invert_turn(course, &m.view_turn_matrix, &m.view_back_matrix);
+    let mut kept = m.borrow_mut();
+    let kept = &mut *kept;
+    matrix::set_place(&mut kept.placed_matrix, p);
+    kept.view_place_matrix = kept.placed_matrix;
+    matrix::multiply_matrices(
+        &kept.placed_matrix,
+        &kept.view_turn_matrix,
+        &mut kept.view_matrix,
+    );
+    kept.view_back_matrix = view_matrix::inverted_turn(course, &kept.view_turn_matrix);
     Ok(())
 }
 
@@ -320,12 +331,12 @@ pub fn view_matrices(
 /// game's thread, once the view is drawn, in the views' order (`race::draw_race_scene`'s
 /// `view_drawn`; no drawing part reads them).
 pub fn hand_on_view_matrices(race: &Race, m: &ViewMatrices) {
-    use crate::scene::matrix::matrix_of;
+    let own = m.borrow();
     let mut shared = race.frame.view_kept.borrow_mut();
-    shared.view_turn_matrix = matrix_of(&m.view_turn_matrix);
-    shared.view_place_matrix = matrix_of(&m.view_place_matrix);
-    shared.view_matrix = matrix_of(&m.view_matrix);
-    shared.view_back_matrix = matrix_of(&m.view_back_matrix);
+    shared.view_turn_matrix = own.view_turn_matrix;
+    shared.view_place_matrix = own.view_place_matrix;
+    shared.view_matrix = own.view_matrix;
+    shared.view_back_matrix = own.view_back_matrix;
 }
 
 /// `view_matrices` into the view's own matrices.
@@ -336,28 +347,21 @@ fn view_own_matrices(
     car: &crate::physics::car_store::ViewCar,
     mirrored: bool,
 ) -> Result<(), BadInput> {
-    use crate::scene::matrix::multiply_matrices;
-    use crate::scene::view_matrix::{Axis, invert_turn, set_fine_turn};
-    let (view_turn, turn_y, turn_x, turn_z) = (
-        &m.view_turn_matrix,
-        &m.turn_y_matrix,
-        &m.turn_x_matrix,
-        &m.turn_z_matrix,
-    );
-    let (turned, lit) = (&m.turned_matrix, &m.lit_matrix);
+    use crate::scene::matrix::{matrix_of, multiply_matrices};
+    use crate::scene::view_matrix::{Axis, inverted_turn, set_fine_turn};
     if mirrored {
-        crate::math::cells::copy_cells(&m.view_turn_copy, view_turn, 16);
+        {
+            let mut kept = m.borrow_mut();
+            kept.view_turn_matrix = kept.view_turn_copy;
+        }
         return view_place_tail(course, m, state);
     }
     let view: u32 = car.camera_view.get();
     if view <= 3 {
-        invert_turn(course, &car.crash_matrix, view_turn);
+        m.borrow_mut().view_turn_matrix = inverted_turn(course, &matrix_of(&car.crash_matrix));
     } else {
-        crate::math::cells::copy_cells(
-            &crate::race::matrices_store::identity_matrix(),
-            &view_turn,
-            16,
-        );
+        m.borrow_mut().view_turn_matrix =
+            matrix_of(&crate::race::matrices_store::identity_matrix());
         for angles in [[0usize, 1, 2], [3, 4, 5]] {
             set_fine_turn(
                 course,
@@ -377,15 +381,19 @@ fn view_own_matrices(
                 Axis::Z,
                 state.view_angles[angles[2]].wrapping_neg(),
             );
-            multiply_matrices(view_turn, turn_y, turned);
-            multiply_matrices(turned, turn_x, lit);
-            multiply_matrices(lit, turn_z, view_turn);
+            let mut kept = m.borrow_mut();
+            let k = &mut *kept;
+            multiply_matrices(&k.view_turn_matrix, &k.turn_y_matrix, &mut k.turned_matrix);
+            multiply_matrices(&k.turned_matrix, &k.turn_x_matrix, &mut k.lit_matrix);
+            multiply_matrices(&k.lit_matrix, &k.turn_z_matrix, &mut k.view_turn_matrix);
         }
     }
     if view == 1 || view == 2 {
         set_fine_turn(course, m, Axis::Z, rolled_angle(course.numbers, car));
-        multiply_matrices(view_turn, turn_z, turned);
-        crate::math::cells::copy_cells(&turned, &view_turn, 16);
+        let mut kept = m.borrow_mut();
+        let k = &mut *kept;
+        multiply_matrices(&k.view_turn_matrix, &k.turn_z_matrix, &mut k.turned_matrix);
+        k.view_turn_matrix = k.turned_matrix;
     }
     view_place_tail(course, m, state)
 }
@@ -475,12 +483,15 @@ pub fn camera_view(
         }
         crate::memory::session::read_bits(&view.car.camera_position)
     } else {
-        crate::scene::matrix::multiply_matrices(
-            &crate::race::matrices_store::mirror_work_matrix(),
-            &view.car.crash_matrix,
-            &m.turned_matrix,
+        let mut kept = m.borrow_mut();
+        kept.turned_matrix = crate::scene::matrix::product(
+            &crate::scene::matrix::matrix_of(&crate::race::matrices_store::mirror_work_matrix()),
+            &crate::scene::matrix::matrix_of(&view.car.crash_matrix),
+            kept.turned_matrix,
         );
-        crate::scene::view_matrix::invert_turn(reads.course(), &m.turned_matrix, &m.view_turn_copy);
+        kept.view_turn_copy =
+            crate::scene::view_matrix::inverted_turn(reads.course(), &kept.turned_matrix);
+        drop(kept);
         let kept = &view.car.kept_focus_point;
         kept[0].set(view.car.position[0].get());
         kept[1].set(view.car.position[1].get().wrapping_add(0x8000));
@@ -548,11 +559,10 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
         return Ok(());
     }
     sky_matrix(ctx)?;
-    crate::math::cells::copy_cells(
-        &ctx.view.matrices.made_object_matrix,
-        &ctx.view.matrices.object_matrix_slots,
-        16,
-    );
+    {
+        let mut kept = ctx.view.matrices.borrow_mut();
+        kept.object_matrix_slots = kept.made_object_matrix.map(f32::to_bits);
+    }
     ctx.view.cars.object_number.set(1);
     ctx.view.light.borrow_mut().view_kind = 4;
     ctx.view.light.borrow_mut().light_lowest = 0xFF;
@@ -566,8 +576,9 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     // The matrix is taken where its copy was left: past `made_object_matrix`.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
-        Some(Description::PlainCells(
-            &ctx.view.matrices.object_matrix_slots,
+        Some(Description::Floats(
+            &ctx.view.matrices,
+            DescribedMatrix::SkyCopy,
         )),
     )?;
     crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
@@ -613,8 +624,8 @@ fn place_sun(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused
     );
     // The direction and the turned point are locals: nothing reads `FrameWork.sun_floats` or
     // `sun_points`.
-    let turned = crate::scene::rotate_point::rotate_point(
-        &ctx.view.matrices.made_object_matrix,
+    let turned = crate::scene::rotate_point::rotate_point_by(
+        &ctx.view.matrices.borrow().made_object_matrix,
         [to_tbyte(dir[0]), to_tbyte(dir[1]), to_tbyte(dir[2])],
     );
     let place = turned.map(tbyte_to_int);

@@ -393,11 +393,7 @@ fn mark_far_cells_with<R: crate::math::x87_float::Rounds>(
     }
     let half: u32 = grid.half;
     // Nothing in the loop writes the matrix: its floats read once.
-    let matrix = scratch
-        .matrices
-        .view_turn_matrix
-        .each_ref()
-        .map(crate::memory::session::PlainFloat::get);
+    let matrix = scratch.matrices.borrow().view_turn_matrix;
     let two = numbers.two.get();
     let zero = numbers.zero.get();
     // The cone to the sides is as much wider as the view is wider than 4:3.

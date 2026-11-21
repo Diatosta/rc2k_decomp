@@ -25,6 +25,20 @@ pub fn merge_run<T: Copy + PartialEq>(mine: &mut [T], now: &[T], start: &[T]) {
     }
 }
 
+/// A float field merged by its bits.
+pub fn merge_float(mine: &mut f32, now: &f32, start: &f32) {
+    if now.to_bits() != start.to_bits() {
+        *mine = *now;
+    }
+}
+
+/// A run of float fields merged by their bits.
+pub fn merge_floats(mine: &mut [f32], now: &[f32], start: &[f32]) {
+    for ((m, n), s) in mine.iter_mut().zip(now).zip(start) {
+        merge_float(m, n, s);
+    }
+}
+
 /// One view's record. Borrows are held for one statement, never across a call that borrows it.
 pub struct PlainSlot<T: Merge>(RefCell<T>);
 

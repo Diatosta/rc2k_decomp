@@ -34,8 +34,21 @@ pub enum Description<'a> {
     Material(u32),
     /// The view's own cells (the object matrix slots, or a sort list from a flare's entry on).
     PlainCells(&'a [crate::memory::session::PlainDword]),
-    /// A matrix's floats, read as the bytes they are.
-    Floats(&'a [crate::memory::session::PlainFloat]),
+    /// One of a view's matrices, its floats read as the bytes they are when the description is
+    /// read (not before: the drawing writes them).
+    Floats(
+        &'a crate::scene::view_matrices::ViewMatrices,
+        DescribedMatrix,
+    ),
+}
+
+/// Which of a view's matrices describes an object.
+#[derive(Clone, Copy)]
+pub enum DescribedMatrix {
+    Turned,
+    Lit,
+    /// The copy of the made object matrix the sky is described by.
+    SkyCopy,
 }
 
 /// The bytes of a description that the drawing reads: nothing lies past them.
@@ -81,11 +94,15 @@ impl Description<'_> {
                 len,
                 "a described object past its cells",
             ),
-            Description::Floats(cells) => Self::from_words(
-                cells.iter().map(crate::memory::session::PlainFloat::bits),
-                len,
-                "a described object past its matrix",
-            ),
+            Description::Floats(view, which) => {
+                let kept = view.borrow();
+                let words: [u32; 16] = match which {
+                    DescribedMatrix::Turned => kept.turned_matrix.map(f32::to_bits),
+                    DescribedMatrix::Lit => kept.lit_matrix.map(f32::to_bits),
+                    DescribedMatrix::SkyCopy => kept.object_matrix_slots,
+                };
+                Self::from_words(words.into_iter(), len, "a described object past its matrix")
+            }
         }
     }
 }

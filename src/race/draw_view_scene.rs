@@ -51,7 +51,7 @@ pub fn draw_view_scene(
     use crate::race::frame_draw::*;
     view.begin();
     let ctx = DrawCtx::new(race, scene, input, view, part, reads);
-    let _held = view.matrices.hold(reads.matrices, part);
+    let _held = crate::scene::view_matrices::hold(&view.matrices, reads.matrices, part);
     // The shine is the stage's, as the frame's first view has it; each later view used to get the
     // previous one's last car's (fixed: "Each view lit by what the view before it left" in
     // `wiki/Fixed-bugs.md`).

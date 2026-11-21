@@ -4,7 +4,9 @@
 //! `ViewScratch::begin` keeps it, as the window is set before a view's scene begins); the menus and
 //! the front end's 3D use the front end's.
 
-use crate::race::plain_slot::{Merge, PlainSlot, merge_run, merge_value};
+use crate::race::plain_slot::{
+    Merge, PlainSlot, merge_float, merge_floats, merge_run, merge_value,
+};
 
 /// A view's window, behind a `RefCell`: borrows are held for one statement.
 pub type ViewWindow = PlainSlot<WindowValues>;
@@ -61,20 +63,6 @@ impl WindowValues {
             clip_farthest: 0,
             view_depth: [0; 2],
         }
-    }
-}
-
-/// A float field merged by its bits.
-fn merge_float(mine: &mut f32, now: &f32, start: &f32) {
-    if now.to_bits() != start.to_bits() {
-        *mine = *now;
-    }
-}
-
-/// A run of float fields merged by their bits.
-fn merge_floats(mine: &mut [f32], now: &[f32], start: &[f32]) {
-    for ((m, n), s) in mine.iter_mut().zip(now).zip(start) {
-        merge_float(m, n, s);
     }
 }
 

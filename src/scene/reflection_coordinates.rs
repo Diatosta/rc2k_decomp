@@ -10,7 +10,7 @@
 //! coordinate. Refuses when there are no records and what `math::normalise_vector` refuses.
 
 use crate::errors::BadInput;
-use crate::math::normalise_vector::normalise_vector;
+use crate::math::normalise_vector::normalise_bits;
 use crate::math::x87;
 use crate::math::x87_mem::{Base, cells, fistp, fld, fstp};
 use crate::scene::reflect_vector::reflect_vector;
@@ -63,31 +63,40 @@ pub fn reflection_coordinates(
     let table = crate::scene::reading::PointRecords::new(reads.course_lists, part)?;
     let normal = table.place(object.borrow().reflection_normal_number)?;
     let point = table.place(object.borrow().reflection_point_number.wrapping_neg())?;
-    crate::memory::session::write_bits(&m.reflect_vector, normal);
-    crate::memory::session::write_first(&m.work_vector, &point.map(negated));
-    normalise_vector(
+    // The normalising refuses without writing anything: the work vector is set once both
+    // have been made.
+    let (roots, exponent_roots) = (
         &reads.course_lists.root_table,
         &reads.course_lists.exponent_root_table,
-        &m.work_vector,
-    )?;
-    let to_eye: [u32; 3] = crate::memory::session::read_first(&m.work_vector);
-    crate::memory::session::write_bits(&m.reflect_normal, to_eye);
-    reflect_vector(m, &m.view_back_matrix);
-    let mirrored: [u32; 3] = crate::memory::session::read_bits(&m.reflect_vector);
-    crate::memory::session::write_first(
-        &m.work_vector,
-        &[
-            x87::loaded(mirrored[0]).to_bits(),
-            x87::add(mirrored[1], reads.numbers.one).to_bits(),
-            x87::loaded(mirrored[2]).to_bits(),
-        ],
     );
-    normalise_vector(
-        &reads.course_lists.root_table,
-        &reads.course_lists.exponent_root_table,
-        &m.work_vector,
-    )?;
-    let looks: [u32; 3] = crate::memory::session::read_first(&m.work_vector);
+    let mut kept = m.borrow_mut();
+    kept.reflect_vector = normal.map(f32::from_bits);
+    let mut vector = [
+        negated(point[0]),
+        negated(point[1]),
+        negated(point[2]),
+        kept.work_vector[3],
+    ];
+    kept.work_vector = vector;
+    normalise_bits(roots, exponent_roots, &mut vector)?;
+    kept.work_vector = vector;
+    kept.reflect_normal = [vector[0], vector[1], vector[2]].map(f32::from_bits);
+    let mirrored = reflect_vector(
+        kept.reflect_vector.map(f32::to_bits),
+        kept.reflect_normal.map(f32::to_bits),
+        &kept.view_back_matrix,
+    );
+    kept.reflect_vector = mirrored.map(f32::from_bits);
+    vector[..3].copy_from_slice(&[
+        x87::loaded(mirrored[0]).to_bits(),
+        x87::add(mirrored[1], reads.numbers.one).to_bits(),
+        x87::loaded(mirrored[2]).to_bits(),
+    ]);
+    kept.work_vector = vector;
+    normalise_bits(roots, exponent_roots, &mut vector)?;
+    kept.work_vector = vector;
+    let looks = [vector[0], vector[1], vector[2]];
+    drop(kept);
     let half = reads.numbers.half.get();
     let scales = [reads.numbers.k65536.get(), reads.numbers.k256.get()];
     object.borrow_mut().reflection_coordinates = [

@@ -129,7 +129,7 @@ pub fn face_faces_away(
             table.place(points[2])?,
         ]);
         ctx.view.object.borrow_mut().normal_work = triangle.work;
-        crate::memory::session::write_first(&ctx.view.matrices.work_vector, &triangle.cross);
+        ctx.view.matrices.borrow_mut().work_vector[..3].copy_from_slice(&triangle.cross);
         if !triangle.faces_away() {
             return Ok(false);
         }

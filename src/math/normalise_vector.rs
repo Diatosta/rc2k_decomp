@@ -6,11 +6,11 @@
 //! times 1 over that; a component that comes out as minus zero is made zero. A length that
 //! compares equal to `Numbers.zero` (0.0), or is no number, is refused.
 //!
-//! Three callers.
+//! One caller: `scene::reflection_coordinates`.
 
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::PlainFloat;
 
 // The work vector (the race's) and the root tables
 // (`scene::fill_engine_tables` makes them) are the game's; the squares and the length are
@@ -42,13 +42,14 @@ pub(crate) fn scaled_by_inverse(
     (v.map(|k| st(ld(k) * inverse)), st(inverse))
 }
 
-/// Normalises the work vector: gives the squares' sum (the bits of a float).
-pub fn normalise_vector(
+/// The work vector's bits `work` normalised (its first three words are replaced; nothing
+/// is written when it refuses).
+pub fn normalise_bits(
     root_table: &[PlainFloat; 256],
     exponent_root_table: &[PlainFloat; 256],
-    work: &[PlainDword; 4],
+    work: &mut [u32; 4],
 ) -> Result<u32, BadInput> {
-    let v: [u32; 4] = crate::memory::session::read_bits(work);
+    let v = *work;
     let sum = squares_sum([v[0], v[1], v[2]]);
     let root: f32 = root_table[((sum >> 15) & 0xFF) as usize].get();
     let exponent_root: f32 = exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].get();
@@ -60,6 +61,6 @@ pub fn normalise_vector(
     let (scaled, inverse) = scaled_by_inverse([v[0], v[1], v[2]], root, exponent_root);
     let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
     let _ = inverse;
-    crate::memory::session::write_first(work, &scaled.map(unsigned_zero));
+    work[..3].copy_from_slice(&scaled.map(unsigned_zero));
     Ok(sum)
 }

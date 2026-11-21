@@ -24,8 +24,7 @@ impl HeardTurn {
 
     /// After car 0's view: keeps its turn (`view`, its own) for the sounds.
     pub fn keep(&self, view: &crate::scene::view_matrices::ViewMatrices) {
-        self.turn
-            .set(crate::scene::matrix::matrix_of(&view.view_turn_matrix));
+        self.turn.set(view.borrow().view_turn_matrix);
         self.kept.set(true);
     }
 

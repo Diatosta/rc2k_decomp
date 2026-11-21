@@ -55,7 +55,7 @@ impl<'a> EffectsView<'a> {
     pub fn of(race: &'a Race, view: &'a crate::race::view_scratch::ViewScratch) -> Self {
         Self {
             fog: &view.fog,
-            view_matrix: crate::scene::matrix::matrix_of(&view.matrices.view_matrix),
+            view_matrix: view.matrices.borrow().view_matrix,
             light: view.light.borrow().view_light,
             engine_tables: race.engine_tables(),
         }

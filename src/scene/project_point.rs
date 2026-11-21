@@ -181,15 +181,7 @@ pub(crate) fn make_scene_record(
     let mut r = point_records::get(part, record)?;
     r[0] = point;
     let place = crate::race::scene_points::point_number(reads.course(), &part.points, point)?;
-    rotate(
-        &place,
-        &view
-            .matrices
-            .view_matrix
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get),
-        &mut r,
-    );
+    rotate(&place, &view.matrices.borrow().view_matrix, &mut r);
     r[3] = 0;
     r[7] = 0;
     if f32::from_bits(r[6]) >= NEAR {

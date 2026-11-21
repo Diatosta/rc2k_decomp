@@ -11,60 +11,160 @@
 //! from view to view: the view matrix, the view turn and its copy, the view's place, the view back
 //! matrix, the identity, the frame draw's two work matrices, and the listener's matrix.
 
-use crate::memory::session::{Cell32, PlainDword, PlainFloat};
 use crate::race::matrices_store::{SceneMatrices, SceneMatricesRef};
-use crate::scene::matrix::Matrix;
+use crate::race::plain_slot::{Merge, PlainSlot, merge_floats, merge_run, merge_value};
+use crate::scene::matrix::{Matrix, PLACED_BASE, TURN_X_BASE, TURN_Y_BASE, TURN_Z_BASE};
 
-#[derive(rc2k_derive::Cells)]
-pub struct ViewMatrices {
+/// A view's matrices and turning work, behind a `RefCell`: borrows are held for one statement.
+pub type ViewMatrices = PlainSlot<MatrixValues>;
+
+/// The values; the floats merge by their bits.
+#[derive(Clone, Copy)]
+pub struct MatrixValues {
     /// The model last set up for drawing (`scene::load_object`, `race::car_draw`).
-    pub known_object: PlainDword,
+    pub known_object: u32,
     /// Rotation about x (`scene::matrix`).
-    pub turn_x_matrix: [PlainFloat; 16],
+    pub turn_x_matrix: [f32; 16],
     /// Rotation about y.
-    pub turn_y_matrix: [PlainFloat; 16],
+    pub turn_y_matrix: [f32; 16],
     /// Rotation about z.
-    pub turn_z_matrix: [PlainFloat; 16],
+    pub turn_z_matrix: [f32; 16],
     /// A matrix with its place.
-    pub placed_matrix: [PlainFloat; 16],
+    pub placed_matrix: [f32; 16],
     /// The car body's turn matrix copied from the car (`race::car_parts`).
-    pub body_turn_matrix: [PlainFloat; 16],
+    pub body_turn_matrix: [f32; 16],
     /// The turned matrix.
-    pub turned_matrix: [PlainFloat; 16],
+    pub turned_matrix: [f32; 16],
     /// The lit matrix.
-    pub lit_matrix: [PlainFloat; 16],
+    pub lit_matrix: [f32; 16],
     /// The matrix made for an object.
-    pub made_object_matrix: [PlainFloat; 16],
-    /// A block whose first 0x40 bytes receive a copy of the made object matrix, drawn
-    /// described from there (`race::frame_draw`).
-    pub object_matrix_slots: [PlainDword; 32],
+    pub made_object_matrix: [f32; 16],
+    /// The made object matrix's bits as the sky's draw left them, the sky's description
+    /// (`race::frame_draw`).
+    pub object_matrix_slots: [u32; 16],
     /// The vector reflected (`scene::reflect_vector`).
-    pub reflect_vector: [PlainFloat; 3],
+    pub reflect_vector: [f32; 3],
     /// The normal (`scene::reflect_vector`).
-    pub reflect_normal: [PlainFloat; 3],
+    pub reflect_normal: [f32; 3],
     /// The object's turn matrix (`race::frame_draw`).
-    pub object_turn_matrix: [PlainFloat; 16],
+    pub object_turn_matrix: [f32; 16],
     /// The matrix the view's place is moved into (`race::frame_draw`).
-    pub matrix_scratch: [PlainFloat; 16],
+    pub matrix_scratch: [f32; 16],
     /// The work vector the reflection and the faces' facing work in.
-    pub work_vector: [PlainDword; 4],
+    pub work_vector: [u32; 4],
     /// The x turning's sine and cosine (`scene::set_turn_x`).
-    pub turn_x_work: [PlainFloat; 2],
+    pub turn_x_work: [f32; 2],
     /// The y turning's.
-    pub turn_y_work: [PlainFloat; 2],
+    pub turn_y_work: [f32; 2],
     /// The z turning's.
-    pub turn_z_work: [PlainFloat; 2],
+    pub turn_z_work: [f32; 2],
     /// The view matrix, each view's own (written by `race::camera_view`; the shared one is kept
     /// for the effects drawn after the views).
-    pub view_matrix: [PlainFloat; 16],
+    pub view_matrix: [f32; 16],
     /// The view's turn, each view's own.
-    pub view_turn_matrix: [PlainFloat; 16],
+    pub view_turn_matrix: [f32; 16],
     /// The view turned back, each view's own.
-    pub view_back_matrix: [PlainFloat; 16],
+    pub view_back_matrix: [f32; 16],
     /// The view's place matrix, each view's own.
-    pub view_place_matrix: [PlainFloat; 16],
+    pub view_place_matrix: [f32; 16],
     /// The inverted view turn kept for the mirror, each view's own.
-    pub view_turn_copy: [PlainFloat; 16],
+    pub view_turn_copy: [f32; 16],
+}
+
+impl Merge for MatrixValues {
+    fn merge_changes(&mut self, now: &Self, start: &Self) {
+        merge_value(
+            &mut self.known_object,
+            &now.known_object,
+            &start.known_object,
+        );
+        merge_floats(
+            &mut self.turn_x_matrix,
+            &now.turn_x_matrix,
+            &start.turn_x_matrix,
+        );
+        merge_floats(
+            &mut self.turn_y_matrix,
+            &now.turn_y_matrix,
+            &start.turn_y_matrix,
+        );
+        merge_floats(
+            &mut self.turn_z_matrix,
+            &now.turn_z_matrix,
+            &start.turn_z_matrix,
+        );
+        merge_floats(
+            &mut self.placed_matrix,
+            &now.placed_matrix,
+            &start.placed_matrix,
+        );
+        merge_floats(
+            &mut self.body_turn_matrix,
+            &now.body_turn_matrix,
+            &start.body_turn_matrix,
+        );
+        merge_floats(
+            &mut self.turned_matrix,
+            &now.turned_matrix,
+            &start.turned_matrix,
+        );
+        merge_floats(&mut self.lit_matrix, &now.lit_matrix, &start.lit_matrix);
+        merge_floats(
+            &mut self.made_object_matrix,
+            &now.made_object_matrix,
+            &start.made_object_matrix,
+        );
+        merge_run(
+            &mut self.object_matrix_slots,
+            &now.object_matrix_slots,
+            &start.object_matrix_slots,
+        );
+        merge_floats(
+            &mut self.reflect_vector,
+            &now.reflect_vector,
+            &start.reflect_vector,
+        );
+        merge_floats(
+            &mut self.reflect_normal,
+            &now.reflect_normal,
+            &start.reflect_normal,
+        );
+        merge_floats(
+            &mut self.object_turn_matrix,
+            &now.object_turn_matrix,
+            &start.object_turn_matrix,
+        );
+        merge_floats(
+            &mut self.matrix_scratch,
+            &now.matrix_scratch,
+            &start.matrix_scratch,
+        );
+        merge_run(&mut self.work_vector, &now.work_vector, &start.work_vector);
+        merge_floats(&mut self.turn_x_work, &now.turn_x_work, &start.turn_x_work);
+        merge_floats(&mut self.turn_y_work, &now.turn_y_work, &start.turn_y_work);
+        merge_floats(&mut self.turn_z_work, &now.turn_z_work, &start.turn_z_work);
+        merge_floats(&mut self.view_matrix, &now.view_matrix, &start.view_matrix);
+        merge_floats(
+            &mut self.view_turn_matrix,
+            &now.view_turn_matrix,
+            &start.view_turn_matrix,
+        );
+        merge_floats(
+            &mut self.view_back_matrix,
+            &now.view_back_matrix,
+            &start.view_back_matrix,
+        );
+        merge_floats(
+            &mut self.view_place_matrix,
+            &now.view_place_matrix,
+            &start.view_place_matrix,
+        );
+        merge_floats(
+            &mut self.view_turn_copy,
+            &now.view_turn_copy,
+            &start.view_turn_copy,
+        );
+    }
 }
 
 /// The fourth columns (cells 3, 7, 11, 15) of the turned, lit and made-object matrices, held from
@@ -104,21 +204,25 @@ fn held_mut(m: &mut SceneMatrices) -> [&mut Matrix; 3] {
     ]
 }
 
-fn view_held(m: &ViewMatrices) -> [&[PlainFloat; 16]; 3] {
+fn view_held(m: &MatrixValues) -> [&Matrix; 3] {
     [&m.turned_matrix, &m.lit_matrix, &m.made_object_matrix]
 }
 
-fn read_columns<C: Cell32>(from: [&[C; 16]; 3]) -> Columns {
-    Columns(std::array::from_fn(|n| from[n / 4][CELLS[n % 4]].bits()))
+fn view_held_mut(m: &mut MatrixValues) -> [&mut Matrix; 3] {
+    [
+        &mut m.turned_matrix,
+        &mut m.lit_matrix,
+        &mut m.made_object_matrix,
+    ]
 }
 
 fn plain_columns(from: [&Matrix; 3]) -> Columns {
     Columns(std::array::from_fn(|n| from[n / 4][CELLS[n % 4]].to_bits()))
 }
 
-fn write_columns<C: Cell32>(c: &Columns, to: [&[C; 16]; 3]) {
+fn write_columns(c: &Columns, to: [&mut Matrix; 3]) {
     for (n, &value) in c.0.iter().enumerate() {
-        to[n / 4][CELLS[n % 4]].set_bits(value);
+        to[n / 4][CELLS[n % 4]] = f32::from_bits(value);
     }
 }
 
@@ -202,27 +306,21 @@ pub fn merge_columns(
     }
 }
 
-impl ViewMatrices {
-    /// The shared turned, lit and made-object matrices' fourth columns (`part`'s own in a
-    /// part other than the first) taken into the view's until the returned hold is dropped.
-    pub fn hold<'a>(
-        &'a self,
-        store: SceneMatricesRef<'a>,
-        part: &'a crate::scene::scratch_store::PartScratch,
-    ) -> Held<'a> {
-        let c = part.columns.get().unwrap_or_else(|| columns(&store.get()));
-        write_columns(&c, view_held(self));
-        Held {
-            view: self,
-            store,
-            part,
-        }
-    }
+/// The shared turned, lit and made-object matrices' fourth columns (`part`'s own in a
+/// part other than the first) taken into `view`'s until the returned hold is dropped.
+pub fn hold<'a>(
+    view: &'a ViewMatrices,
+    store: SceneMatricesRef<'a>,
+    part: &'a crate::scene::scratch_store::PartScratch,
+) -> Held<'a> {
+    let c = part.columns.get().unwrap_or_else(|| columns(&store.get()));
+    write_columns(&c, view_held_mut(&mut view.borrow_mut()));
+    Held { view, store, part }
 }
 
 impl Drop for Held<'_> {
     fn drop(&mut self) {
-        let c = read_columns(view_held(self.view));
+        let c = plain_columns(view_held(&self.view.borrow()));
         if self.part.columns.get().is_some() {
             self.part.columns.set(Some(c));
         } else {
@@ -244,43 +342,33 @@ impl Drop for Held<'_> {
     }
 }
 
-impl ViewMatrices {
+impl MatrixValues {
     /// With the image's first values (an identity's floats in the turning matrices).
     pub const fn new() -> Self {
-        /// A matrix of zeros but for the ones at `ones`.
-        const fn ones_at<const N: usize>(ones: [usize; N]) -> [PlainFloat; 16] {
-            let mut a = [const { PlainFloat::new(0.0) }; 16];
-            let mut k = 0;
-            while k < N {
-                a[ones[k]] = PlainFloat::new(1.0);
-                k += 1;
-            }
-            a
-        }
         Self {
-            known_object: PlainDword::new(0),
-            turn_x_matrix: ones_at([0, 15]),
-            turn_y_matrix: ones_at([5, 15]),
-            turn_z_matrix: ones_at([10, 15]),
-            placed_matrix: ones_at([0, 5, 10, 15]),
-            body_turn_matrix: [const { PlainFloat::new(0.0) }; 16],
-            turned_matrix: [const { PlainFloat::new(0.0) }; 16],
-            lit_matrix: [const { PlainFloat::new(0.0) }; 16],
-            made_object_matrix: [const { PlainFloat::new(0.0) }; 16],
-            object_matrix_slots: [const { PlainDword::new(0) }; 32],
-            reflect_vector: [const { PlainFloat::new(0.0) }; 3],
-            reflect_normal: [const { PlainFloat::new(0.0) }; 3],
-            object_turn_matrix: [const { PlainFloat::new(0.0) }; 16],
-            matrix_scratch: [const { PlainFloat::new(0.0) }; 16],
-            work_vector: [const { PlainDword::new(0) }; 4],
-            turn_x_work: [const { PlainFloat::new(0.0) }; 2],
-            turn_y_work: [const { PlainFloat::new(0.0) }; 2],
-            turn_z_work: [const { PlainFloat::new(0.0) }; 2],
-            view_matrix: [const { PlainFloat::new(0.0) }; 16],
-            view_turn_matrix: [const { PlainFloat::new(0.0) }; 16],
-            view_back_matrix: [const { PlainFloat::new(0.0) }; 16],
-            view_place_matrix: [const { PlainFloat::new(0.0) }; 16],
-            view_turn_copy: [const { PlainFloat::new(0.0) }; 16],
+            known_object: 0,
+            turn_x_matrix: TURN_X_BASE,
+            turn_y_matrix: TURN_Y_BASE,
+            turn_z_matrix: TURN_Z_BASE,
+            placed_matrix: PLACED_BASE,
+            body_turn_matrix: [0.0; 16],
+            turned_matrix: [0.0; 16],
+            lit_matrix: [0.0; 16],
+            made_object_matrix: [0.0; 16],
+            object_matrix_slots: [0; 16],
+            reflect_vector: [0.0; 3],
+            reflect_normal: [0.0; 3],
+            object_turn_matrix: [0.0; 16],
+            matrix_scratch: [0.0; 16],
+            work_vector: [0; 4],
+            turn_x_work: [0.0; 2],
+            turn_y_work: [0.0; 2],
+            turn_z_work: [0.0; 2],
+            view_matrix: [0.0; 16],
+            view_turn_matrix: [0.0; 16],
+            view_back_matrix: [0.0; 16],
+            view_place_matrix: [0.0; 16],
+            view_turn_copy: [0.0; 16],
         }
     }
 }

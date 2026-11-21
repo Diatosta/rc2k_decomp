@@ -11,8 +11,8 @@ use crate::race::light_records_store::LightRecords;
 use crate::race::owner_course::CourseReads;
 use crate::race::view_vars_store::ViewVars;
 use crate::race::work_store::RaceWork;
-use crate::scene::draw_described_object::Description;
-use crate::scene::matrix::{Matrix, matrix_of, product, store_matrix};
+use crate::scene::draw_described_object::{DescribedMatrix, Description};
+use crate::scene::matrix::{Matrix, matrix_of, product};
 use crate::scene::view_matrices::ViewMatrices;
 
 /// The drawn car's turn (`placed_matrices`, the block's `place_matrix`), the view's own.
@@ -29,25 +29,16 @@ pub fn part_matrices(cars: &CarDrawState) -> [&'_ [PlainFloat]; 4] {
 /// times the car's turn (`placed_matrices`) into `lit_matrix`, times `view_matrix` into
 /// `made_object_matrix`. There is one such function for each of the four parts.
 fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &Matrix) {
-    let turned = product(
-        a,
-        &matrix_of(&m.body_turn_matrix),
-        matrix_of(&m.turned_matrix),
-    );
-    store_matrix(&m.turned_matrix, &turned);
-    let lit = product(
-        &turned,
+    let mut kept = m.borrow_mut();
+    let kept = &mut *kept;
+    kept.turned_matrix = product(a, &kept.body_turn_matrix, kept.turned_matrix);
+    kept.lit_matrix = product(
+        &kept.turned_matrix,
         &matrix_of(car_turn(cars)),
-        matrix_of(&m.lit_matrix),
+        kept.lit_matrix,
     );
-    store_matrix(&m.lit_matrix, &lit);
     // Times the view's matrix.
-    let made = product(
-        &lit,
-        &matrix_of(&m.view_matrix),
-        matrix_of(&m.made_object_matrix),
-    );
-    store_matrix(&m.made_object_matrix, &made);
+    kept.made_object_matrix = product(&kept.lit_matrix, &kept.view_matrix, kept.made_object_matrix);
 }
 
 /// Car body matrix: the turns about x and z by 0 (`set_fine_turn`)
@@ -56,12 +47,11 @@ fn car_body_matrix(course: CourseReads<'_>, cars: &CarDrawState, m: &ViewMatrice
     use crate::scene::view_matrix::{Axis, set_fine_turn};
     set_fine_turn(course, m, Axis::X, 0);
     set_fine_turn(course, m, Axis::Z, 0);
-    let lit = product(
-        &matrix_of(&m.turn_x_matrix),
-        &matrix_of(&m.turn_z_matrix),
-        matrix_of(&m.lit_matrix),
-    );
-    store_matrix(&m.lit_matrix, &lit);
+    let lit = {
+        let mut kept = m.borrow_mut();
+        kept.lit_matrix = product(&kept.turn_x_matrix, &kept.turn_z_matrix, kept.lit_matrix);
+        kept.lit_matrix
+    };
     car_part_matrix(cars, m, &lit);
 }
 
@@ -261,14 +251,14 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     {
         crate::math::cells::copy_cells(from, to, 16);
     }
-    crate::math::cells::copy_cells(&c.body_matrix, &ctx.view.matrices.body_turn_matrix, 16);
+    ctx.view.matrices.borrow_mut().body_turn_matrix = matrix_of(&c.body_matrix);
     crate::math::cells::copy_cells(&c.place_matrix, car_turn(&ctx.view.cars), 16);
     ctx.view
         .cars
         .groups_which
         .set(ctx.reads.car_blocks.cars[car].mode_on.get());
     let model = ctx.reads.frame_cars.car(car)?.car_kind.get();
-    ctx.view.matrices.known_object.set(model);
+    ctx.view.matrices.borrow_mut().known_object = model;
     set_group_masks(
         &ctx.reads.lights_and_gear.light_records,
         &ctx.view.cars.group_masks,
@@ -374,12 +364,16 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     };
     place();
     ctx.view.object.borrow_mut().size = 0x10;
-    crate::scene::matrix::set_light_direction(
-        &ctx.reads.buffers.engine_tables,
-        &ctx.view.matrices,
-        &crate::scene::matrix::matrix_of(&ctx.view.matrices.view_turn_matrix),
-        &ctx.view.light,
-    );
+    {
+        let mut kept = ctx.view.matrices.borrow_mut();
+        let view_turn = kept.view_turn_matrix;
+        crate::scene::matrix::set_light_direction(
+            &ctx.reads.buffers.engine_tables,
+            &mut kept,
+            &view_turn,
+            &ctx.view.light,
+        );
+    }
     place();
     ctx.view.object.borrow_mut().car_switches = switches;
     ctx.view.light.borrow_mut().other_light = 0;
@@ -397,7 +391,10 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     crate::race::frame_draw::start_kept_reflections(ctx.view);
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
-        Some(Description::Floats(&ctx.view.matrices.lit_matrix)),
+        Some(Description::Floats(
+            &ctx.view.matrices,
+            DescribedMatrix::Lit,
+        )),
     )?;
     crate::race::frame_draw::end_kept_reflections(ctx.view);
     ctx.view.light.borrow_mut().light_kind_extra = 1;
@@ -414,7 +411,10 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
                 car_part_matrix(&ctx.view.cars, &ctx.view.matrices, &matrix_of(matrix));
                 crate::scene::draw_scene_object::draw_scene_object_in_game(
                     ctx,
-                    Some(Description::Floats(&ctx.view.matrices.lit_matrix)),
+                    Some(Description::Floats(
+                        &ctx.view.matrices,
+                        DescribedMatrix::Lit,
+                    )),
                 )?;
             }
         }
@@ -500,8 +500,8 @@ pub fn draw_car_entry(
     ctx.view.vars.drawn_car.set(n);
     ctx.view.state.borrow_mut().drawn_car = n;
     ctx.view.light.borrow_mut().car_light = ctx.reads.frame_cars.car(car)?.light_colour.get();
-    let t = crate::scene::rotate_point::rotate_point(
-        &ctx.view.matrices.view_matrix,
+    let t = crate::scene::rotate_point::rotate_point_by(
+        &ctx.view.matrices.borrow().view_matrix,
         [
             int_80(ctx.reads.frame_cars.car(car)?.position[0].get()),
             int_80(ctx.reads.frame_cars.car(car)?.position[1].get()),

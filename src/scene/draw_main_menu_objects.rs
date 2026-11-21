@@ -39,6 +39,6 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         o.scene.scratch.game_scratch(),
         crate::scene::workers::DrawReads::on_game_thread(crate::scene::workers::LentOwners::of(o)),
     );
-    let _held = ctx.view.matrices.hold(ctx.reads.matrices, ctx.part);
+    let _held = crate::scene::view_matrices::hold(&ctx.view.matrices, ctx.reads.matrices, ctx.part);
     draw_main_menu_carousel(menus, &ctx, count)
 }

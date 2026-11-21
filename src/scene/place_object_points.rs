@@ -118,7 +118,7 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     }
     // A copy: nothing the loop writes is the matrix (it is always the object's own,
     // `made_object_matrix`, which is never written here).
-    let matrix: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
+    let matrix: [f32; 16] = ctx.view.matrices.borrow().made_object_matrix;
     let move_by: u32 = ctx.view.object.borrow().move_by;
     let fraction = f32::from_bits(ctx.view.object.borrow().move_fraction);
     let mut number = object.first;

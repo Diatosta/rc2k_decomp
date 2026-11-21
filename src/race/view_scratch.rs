@@ -167,7 +167,7 @@ impl ViewScratch {
             light: PlainSlot::new(crate::scene::object_light::ObjectLightValues::new()),
             face: crate::race::face_work::FaceWork::new(),
             cars: crate::race::car_draw_state::CarDrawState::new(),
-            matrices: crate::scene::view_matrices::ViewMatrices::new(),
+            matrices: PlainSlot::new(crate::scene::view_matrices::MatrixValues::new()),
             polygon: crate::scene::polygon_work_store::PolygonWork::new(),
             grid: PlainSlot::new(crate::race::view_grid::ViewGrid::new()),
             course: crate::race::view_course::ViewCourse::new(),
@@ -221,7 +221,7 @@ impl ViewScratch {
         self.cars
             .copy_from(&crate::race::car_draw_state::CarDrawState::new());
         self.matrices
-            .copy_from(&crate::scene::view_matrices::ViewMatrices::new());
+            .reset(crate::scene::view_matrices::MatrixValues::new());
         // What the view's set-up gave before its scene is kept: the mirror's flag
         // (`race::mirror_view_window`), the view's value (`race::fetch_view_value`) and its
         // window (`scene::view_window`). The fresh copy is made beside and copied in whole, so the
