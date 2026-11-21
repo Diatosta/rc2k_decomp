@@ -28,7 +28,7 @@ pub(super) fn split_by_mode(
         }
         SplitFigure::Rank => rank_split_time(o, split_tables, overlay, shared),
         SplitFigure::Compare => {
-            compare_split_times(league, shared.work.get(), &shared.state, shared.car())
+            compare_split_times(o, league, shared.work.get(), &shared.state, shared.car())
         }
         SplitFigure::Nothing => Ok(()),
     }

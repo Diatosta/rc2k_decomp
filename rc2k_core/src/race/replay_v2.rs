@@ -478,11 +478,45 @@ impl CarEntry {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Extension {
     pub cars: Vec<CarEntry>,
+    /// The rivals a split's place was ranked against in the race (`RIVL`); none in a file
+    /// written before it was kept.
+    pub rivals: Option<Vec<Rival>>,
+    /// The league table a split's time was compared against in the race (`LEAG`); none in a
+    /// file written before it was kept.
+    pub league: Option<LeagueTable>,
 }
+
+/// The ten drivers a car's time at a split is compared against (a time trial's or a
+/// championship's): their names (as the best-times files number them) and, for each of the
+/// sixteen splits, their ten times.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LeagueTable {
+    pub names: [u32; LEAGUE_DRIVERS],
+    pub rows: [u32; LEAGUE_DRIVERS * LEAGUE_SPLITS],
+}
+
+/// The league table's drivers.
+pub const LEAGUE_DRIVERS: usize = 10;
+/// The league table's splits.
+pub const LEAGUE_SPLITS: usize = 16;
+
+/// One of the rivals a car's time at a split is ranked against: its name (as the best-times
+/// files number it), car and time over the stage in hundredths.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Rival {
+    pub name: u32,
+    pub car: u32,
+    pub time: u32,
+}
+
+/// The most rivals a file's table holds.
+pub const MOST_RIVALS: usize = 0x5A;
 
 const TAG_CARS: [u8; 4] = *b"CARS";
 const TAG_BLKS: [u8; 4] = *b"BLKS";
 const TAG_NEXT: [u8; 4] = *b"NEXT";
+const TAG_RIVL: [u8; 4] = *b"RIVL";
+const TAG_LEAG: [u8; 4] = *b"LEAG";
 
 /// What the sound for more than two cars and the split-screen replay use, in words: kept in the
 /// file as the `NEXT` section so that a reader sees it. Every car's engine, gear and speed
@@ -525,6 +559,24 @@ impl Extension {
             blks.extend(v.to_le_bytes());
         }
         put_section(&mut out, TAG_BLKS, &blks);
+        if let Some(rivals) = &self.rivals {
+            let mut body = (rivals.len() as u32).to_le_bytes().to_vec();
+            for r in rivals {
+                for v in [r.name, r.car, r.time] {
+                    body.extend(v.to_le_bytes());
+                }
+            }
+            put_section(&mut out, TAG_RIVL, &body);
+        }
+        if let Some(league) = &self.league {
+            let body: Vec<u8> = league
+                .names
+                .iter()
+                .chain(&league.rows)
+                .flat_map(|v| v.to_le_bytes())
+                .collect();
+            put_section(&mut out, TAG_LEAG, &body);
+        }
         put_section(&mut out, TAG_NEXT, NEXT_TEXT);
         out
     }
@@ -533,7 +585,7 @@ impl Extension {
     /// cars are missing or damaged, or the block's layout is not this program's.
     pub fn parse(bytes: &[u8]) -> Option<Self> {
         let mut at = 0;
-        let (mut cars, mut layout_ok) = (None, false);
+        let (mut cars, mut layout_ok, mut rivals, mut league) = (None, false, None, None);
         while at + 8 <= bytes.len() {
             let tag: [u8; 4] = bytes[at..at + 4].try_into().ok()?;
             let len = u32::from_le_bytes(bytes[at + 4..at + 8].try_into().ok()?) as usize;
@@ -552,10 +604,17 @@ impl Extension {
                         && w(2) as usize == STEPS
                         && w(4) as usize == STATES_CAP;
                 }
+                // A damaged table is left out: the race's own rivals are used, as for an older file.
+                TAG_RIVL => rivals = parse_rivals(body),
+                TAG_LEAG => league = parse_league(body),
                 _ => {}
             }
         }
-        let ext = Extension { cars: cars? };
+        let ext = Extension {
+            cars: cars?,
+            rivals,
+            league,
+        };
         layout_ok.then_some(ext)
     }
 
@@ -657,6 +716,35 @@ pub const SPLIT_LAYOUT_BYTE: u8 = SPLIT_LAYOUT as u8;
 /// (the same numbers as the extra tape's replays use for the third and fourth car).
 pub fn layout_of_player(k: u32) -> u32 {
     if k < 2 { k } else { k + 2 }
+}
+
+fn parse_rivals(body: &[u8]) -> Option<Vec<Rival>> {
+    let n = u32::from_le_bytes(body.get(..4)?.try_into().ok()?) as usize;
+    if n > MOST_RIVALS || body.len() < 4 + 12 * n {
+        return None;
+    }
+    let dword = |at: usize| u32::from_le_bytes(body[at..at + 4].try_into().expect("4"));
+    Some(
+        (0..n)
+            .map(|k| Rival {
+                name: dword(4 + 12 * k),
+                car: dword(8 + 12 * k),
+                time: dword(12 + 12 * k),
+            })
+            .collect(),
+    )
+}
+
+fn parse_league(body: &[u8]) -> Option<LeagueTable> {
+    let (words, rest) = body.as_chunks::<4>();
+    let words: Vec<u32> = words.iter().map(|w| u32::from_le_bytes(*w)).collect();
+    if !rest.is_empty() || words.len() != LEAGUE_DRIVERS * (1 + LEAGUE_SPLITS) {
+        return None;
+    }
+    Some(LeagueTable {
+        names: words[..LEAGUE_DRIVERS].try_into().ok()?,
+        rows: words[LEAGUE_DRIVERS..].try_into().ok()?,
+    })
 }
 
 fn parse_cars(body: &[u8]) -> Option<Vec<CarEntry>> {
@@ -977,6 +1065,8 @@ mod tests {
     #[test]
     fn the_extension_round_trips_and_skips_what_it_does_not_know() {
         let ext = Extension {
+            rivals: None,
+            league: None,
             cars: vec![
                 entry(5, flag::PLAYER | flag::LOCAL | flag::OWN, "Ann"),
                 entry(7, flag::PLAYER | flag::STATES, "Bob"),
@@ -999,8 +1089,47 @@ mod tests {
     }
 
     #[test]
+    fn the_rival_tables_round_trip_and_a_damaged_one_is_left_out() {
+        let rivals: Vec<Rival> = (0..MOST_RIVALS as u32)
+            .map(|c| Rival {
+                name: 0x5A5 + c,
+                car: c % 23,
+                time: 5000 + 7 * c,
+            })
+            .collect();
+        let ext = Extension {
+            cars: vec![entry(5, flag::PLAYER | flag::LOCAL | flag::OWN, "Ann")],
+            rivals: Some(rivals),
+            league: Some(LeagueTable {
+                names: std::array::from_fn(|n| 0x5A5 + n as u32),
+                rows: std::array::from_fn(|n| 1000 + n as u32),
+            }),
+        };
+        let bytes = ext.to_bytes();
+        assert_eq!(Extension::parse(&bytes), Some(ext.clone()));
+        // A file without the table (written before it was kept) has none.
+        let without = Extension {
+            rivals: None,
+            league: None,
+            ..ext.clone()
+        };
+        assert_eq!(Extension::parse(&without.to_bytes()), Some(without.clone()));
+        // A count past the table's room: the table is left out, the rest is read.
+        let mut damaged = bytes.clone();
+        let at = damaged.windows(4).position(|w| w == b"RIVL").expect("RIVL") + 8;
+        damaged[at..at + 4].copy_from_slice(&(MOST_RIVALS as u32 + 1).to_le_bytes());
+        assert_eq!(Extension::parse(&damaged).map(|e| e.rivals), Some(None));
+        // A league table of the wrong size: left out too.
+        let mut short = without.to_bytes();
+        put_section(&mut short, TAG_LEAG, &[0; 8]);
+        assert_eq!(Extension::parse(&short), Some(without));
+    }
+
+    #[test]
     fn a_layout_names_the_player_never_a_computer_car() {
         let ext = Extension {
+            rivals: None,
+            league: None,
             cars: vec![
                 entry(1, flag::COMPUTER | flag::LOCAL, "C"),
                 entry(2, flag::PLAYER | flag::LOCAL, "A"),
@@ -1015,6 +1144,8 @@ mod tests {
         assert_eq!(ext.layout_player(5), None);
         // Three players: each alone, then the first two together, round and round.
         let three = Extension {
+            rivals: None,
+            league: None,
             cars: vec![
                 entry(1, flag::PLAYER, "a"),
                 entry(1, flag::COMPUTER, "x"),
@@ -1042,6 +1173,8 @@ mod tests {
     #[test]
     fn a_local_split_screen_race_has_a_layout_that_shows_every_player() {
         let local = |players: usize, computers: usize| Extension {
+            rivals: None,
+            league: None,
             cars: (0..players)
                 .map(|n| entry(n as u32, flag::PLAYER | flag::LOCAL, "p"))
                 .chain((0..computers).map(|n| entry(n as u32, flag::COMPUTER | flag::LOCAL, "c")))
@@ -1095,6 +1228,8 @@ mod tests {
     #[test]
     fn a_file_of_the_own_format_round_trips_with_every_section() {
         let extension = Extension {
+            rivals: None,
+            league: None,
             cars: vec![
                 entry(5, flag::PLAYER | flag::LOCAL | flag::OWN, "Ann"),
                 entry(7, flag::PLAYER | flag::STATES, "Bob"),
@@ -1128,6 +1263,8 @@ mod tests {
             format: FileFormat::Own,
             header: header(MAGIC, VERSION),
             extension: Some(Extension {
+                rivals: None,
+                league: None,
                 cars: vec![entry(5, flag::PLAYER | flag::LOCAL, "Ann")],
             }),
             blocks: vec![vec![0u8; BLOCK_BYTES]],

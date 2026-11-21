@@ -1066,3 +1066,12 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **In game**: another player in the lobby could end every machine's game by sending lines of narrow characters (a modified client; the stock one types at most 64 characters).
 - **Seen or read**: read in the code, not seen in play.
 - **Fix**: when the lines do not all fit, the oldest lines are emptied until they do (`rc2k_core::net::chat::scrolled`); the chat still has eight lines.
+
+## A saved replay showed other places at the checkpoints than the race
+
+*Original*: `physics::fill_rival_table`, `physics::rank_split_time`, `physics::compare_split_times`. *Fixed*: 2026-11-21.
+
+- **What**: at each checkpoint a car's time is placed against a table of rivals: in a championship, the 90 drivers of the player's class (the standings summary; otherwise a default table of 12 seconds and one more per rival); in a time trial, the league table's ten drivers and their times at each split. A replay kept neither table, so a replay opened later placed the same times against whatever the game held then: the default table, or an empty league.
+- **In game**: a car that passed a checkpoint 1st showed something like 46th there in the replay, with other rivals' names before and after it (a time trial's replay showed no place at all). Watched just after the race it was right, since the race's tables were still loaded.
+- **Seen or read**: seen in play; the original's code places the same way.
+- **Fix**: a replay of the own format keeps both tables in its extension, the 90 rivals (name, car, time) as a `RIVL` section and the league table as `LEAG` (`rc2k_core::race::replay_v2::Extension::{rivals, league}`), and plays back against them. A replay written before has neither and plays as before.

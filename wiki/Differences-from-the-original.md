@@ -246,6 +246,11 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
 
 ## Replays
 
+- **A saved replay shows the race's places at the checkpoints.** The original placed a replay's
+  checkpoint times against whatever rivals the game held when the replay was watched, so a replay opened
+  later showed other places than the race (46th for a 1st, or none in a time trial). A replay of the own
+  format keeps the race's rivals and league table and shows the race's places; see
+  [Fixed bugs](Fixed-bugs#a-saved-replay-showed-other-places-at-the-checkpoints-than-the-race).
 - **The viewer names the highlighted button.** The original's viewer has only pictures on its buttons. Here,
   when the highlight moves to another button (the arrows, the pad, and when the viewer opens on its play
   button), the button's name shows centred just under the render button, so it hides nothing of the panel, in the
