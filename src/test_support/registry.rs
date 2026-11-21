@@ -431,10 +431,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.saves.files.options_kept),
         ),
         listed!("owners.sound.race.shared", &o.sound.threads.shared,),
-        listed!(
-            "owners.sound.race.sounds",
-            on_game(o.sound.race.sounds.get()),
-        ),
         listed!("owners.input.force_feedback", &o.input.force_feedback,),
         listed!("owners.sound.menu.options", &o.sound.menu.options,),
         listed!("owners.input.devices", &o.input.devices,),
@@ -469,10 +465,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.menus.tables.menus.labels",
             on_game(&o.menus.tables.menus.labels),
-        ),
-        listed!(
-            "owners.race.shared.tyre_change",
-            on_game(o.race.shared.tyre_change()),
         ),
         listed!(
             "owners.system.start.texts",
@@ -551,10 +543,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.race.shared.car_blocks",
             on_game(o.race.shared.car_blocks.get()),
-        ),
-        listed!(
-            "owners.race.replay.replay_work",
-            on_game(o.race.replay.replay_work()),
         ),
         listed!(
             "race.groups_store.PANEL_TAIL",
@@ -638,10 +626,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.race.physics.contact",
             on_game(o.race.physics.contact.get()),
-        ),
-        listed!(
-            "owners.race.replay.staging",
-            on_game(o.race.replay.staging()),
         ),
         listed!("owners.race.shared.car", on_game(o.race.shared.car()),),
         listed!("owners.race.shared.work", on_game(o.race.shared.work.get()),),

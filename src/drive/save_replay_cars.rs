@@ -10,7 +10,7 @@ use crate::race::owner::Race;
 /// `replay_extra`'s run, field by field (`drive::replay_state`), and put in the replay's frame.
 pub fn save_replay_cars(race: &Race) {
     let frame = gather(&race.car_blocks().cars, race.shared.work.get());
-    race.replay.staging().set_start(&frame);
+    race.replay.staging_mut().set_start(&frame);
     if race.viewer_buffers().v2.is_set() {
         let mut v2 = race.replay.v2().lock();
         v2.tail.keyframes = gather_tail(&race.car_blocks().cars);

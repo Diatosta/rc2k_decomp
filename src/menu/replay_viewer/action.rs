@@ -186,8 +186,8 @@ pub fn views_choosable(race: &Race) -> bool {
         return ext.layouts_choosable();
     }
     rc2k_core::race::viewer::views_choosable(
-        race.replay_work().header_one_player.get() == 1,
-        race.replay_work().header_cars.get(),
+        race.replay_work().header_one_player == 1,
+        race.replay_work().header_cars,
     )
 }
 
@@ -201,14 +201,10 @@ fn cycle_byte(race: &Race, byte: usize) -> Result<(), Refused> {
     }
     let at = crate::race::viewer::camera_byte((byte as u32).wrapping_add(block.wrapping_mul(8)));
     let old: u8 = at.read(race, "a replay block's camera byte")?;
-    let whole_cycle = race.replay_work().header_one_player.get() == 1;
+    let whole_cycle = race.replay_work().header_one_player == 1;
     // The players beyond two of a replay with the extra tape each add a layout of their own car.
     let extra_cars = if race.viewer_buffers().extra_tape.is_set() {
-        race.replay_work()
-            .header_players
-            .get()
-            .saturating_sub(2)
-            .min(2)
+        race.replay_work().header_players.saturating_sub(2).min(2)
     } else {
         0
     };

@@ -416,13 +416,10 @@ fn finish_level(
         race.shared.switches.get().marker_object.set(marker);
     }
     // `camera_last_frame` cleared.
-    for cell in race
-        .replay_work()
-        .camera_last_frame
-        .iter()
-        .chain(&race.replay_work().camera_last_frame_extra)
     {
-        cell.set(0);
+        let mut work = race.replay_work_mut();
+        work.camera_last_frame = [0; 2];
+        work.camera_last_frame_extra = [0; 2];
     }
     s.indent(-3);
     s.log(Word::Finis);

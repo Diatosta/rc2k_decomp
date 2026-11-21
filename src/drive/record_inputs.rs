@@ -33,11 +33,13 @@ pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
             .ok_or(BadInput("a tape entry past the frame's tenths"))?;
         entry[car as usize - 4] = [ebx, packed];
     } else {
-        let entry = replay
-            .staging()
-            .entry(replay.replay_frames().tenth, car, extended)?;
-        entry.input.set(ebx);
-        entry.packed.set(packed);
+        let tenth = replay.replay_frames().tenth;
+        replay.staging_mut().set_entry(
+            tenth,
+            car,
+            extended,
+            crate::race::replay_staging_store::TapeEntry { input: ebx, packed },
+        )?;
     }
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(packed);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {

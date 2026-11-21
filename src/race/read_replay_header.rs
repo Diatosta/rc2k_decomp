@@ -6,7 +6,7 @@
 
 use crate::memory::session::DwordLike;
 use crate::race::owner::Race;
-use crate::race::race_end::{header_cell, setting_cell};
+use crate::race::race_end::{header_word, setting_cell};
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
 use rc2k_core::race::replay_v2::MAX_CARS;
 
@@ -49,7 +49,7 @@ pub(super) fn read_replay_header(race: &Race) {
     log_text(TITLE, true);
     for s in HEADER_SETTINGS {
         for to in targets(race, s) {
-            to.set(header_cell(race, s).get());
+            to.set(header_word(race, s));
         }
     }
     // The header names four cars' models; a replay of the own format names every car's in its
@@ -62,6 +62,6 @@ pub(super) fn read_replay_header(race: &Race) {
     }
     for (&text, &s) in NAMES.iter().zip(read_logged()) {
         log_text(text, false);
-        crate::logfile::log_int::log_int(header_cell(race, s).get() as i32, true, 1);
+        crate::logfile::log_int::log_int(header_word(race, s) as i32, true, 1);
     }
 }

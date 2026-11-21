@@ -1198,10 +1198,7 @@ pub fn sim_hash_step(race: &Race) {
     }
     let mut groups = crate::drive::sim_hash::car_blocks_groups(race.shared.car_blocks.get());
     let staging = race.replay.staging();
-    let mut bytes = vec![0; core::mem::size_of_val(staging)];
-    if crate::memory::cells::load_cells(staging, 0, &mut bytes).is_err() {
-        return;
-    }
+    let bytes = staging.to_bytes();
     groups.push(crate::drive::sim_hash::staging_group(&bytes));
     let tick = TICKS.fetch_add(1, Relaxed);
     if std::env::var_os("RC2K_SIM_FIELDS").is_some() && tick < 40 {

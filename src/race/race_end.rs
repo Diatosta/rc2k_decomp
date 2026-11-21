@@ -4,6 +4,7 @@
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::race::owner::Race;
+use crate::race::replay_work_store::ReplayWork;
 use rc2k_core::audio::commands::Command;
 
 /// Where a header setting lives in the race's variables (its first place).
@@ -27,28 +28,29 @@ pub(super) fn setting_cell(
 }
 
 /// Where a header setting lives in the replay's car header (from `header_stage` on).
-pub(super) fn header_cell(
-    race: &Race,
-    s: rc2k_core::race::replay::Setting,
-) -> &crate::memory::session::PlainDword {
-    let work = race.replay_work();
+fn header_field(work: &mut ReplayWork, s: rc2k_core::race::replay::Setting) -> &mut u32 {
     use rc2k_core::race::replay::Setting::*;
     match s {
-        Stage => &work.header_stage,
-        Mode => &work.header_mode,
-        Players => &work.header_players,
-        Cars => &work.header_cars,
-        Kind(0) => &work.header_kind_0,
-        Kind(1) => &work.header_kind_1,
-        Kind(2) => &work.header_kind_2,
-        Kind(3) => &work.header_kind_3,
-        StartPlace => &work.header_start_place,
-        ArcadeCars => &work.header_arcade_cars,
-        Seed => &work.header_seed,
-        GameOver(0) => &work.header_game_over_0,
-        GameOver(1) => &work.header_game_over_1,
+        Stage => &mut work.header_stage,
+        Mode => &mut work.header_mode,
+        Players => &mut work.header_players,
+        Cars => &mut work.header_cars,
+        Kind(0) => &mut work.header_kind_0,
+        Kind(1) => &mut work.header_kind_1,
+        Kind(2) => &mut work.header_kind_2,
+        Kind(3) => &mut work.header_kind_3,
+        StartPlace => &mut work.header_start_place,
+        ArcadeCars => &mut work.header_arcade_cars,
+        Seed => &mut work.header_seed,
+        GameOver(0) => &mut work.header_game_over_0,
+        GameOver(1) => &mut work.header_game_over_1,
         Kind(_) | GameOver(_) => unreachable!("the header holds four kinds and two flags"),
     }
+}
+
+/// The header setting `s`'s value.
+pub(super) fn header_word(race: &Race, s: rc2k_core::race::replay::Setting) -> u32 {
+    *header_field(&mut race.replay_work_mut(), s)
 }
 
 /// "[replayheader.arcrandom]" .. "[replayheader.gameoverflag2]", logged in the order of
@@ -75,11 +77,12 @@ pub fn record_replay_header(race: &Race) {
     // Logic in `rc2k_core::race::replay::HEADER_SETTINGS`.
     use rc2k_core::race::replay::HEADER_SETTINGS;
     for s in HEADER_SETTINGS {
-        header_cell(race, s).set(setting_cell(race, s).get());
+        let value = setting_cell(race, s).get();
+        *header_field(&mut race.replay_work_mut(), s) = value;
     }
     for (n, &s) in HEADER_SETTINGS.iter().enumerate() {
         crate::logfile::log_write::log_nul(&REPLAY_WORDS[n], false, 1);
-        crate::logfile::log_int::log_int(header_cell(race, s).get() as i32, true, 1);
+        crate::logfile::log_int::log_int(header_word(race, s) as i32, true, 1);
     }
 }
 

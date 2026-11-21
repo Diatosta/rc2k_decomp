@@ -266,7 +266,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.frame.draw_batches(),
         *race.frame.frame_work.get(),
         *race.shared.car_blocks.get(),
-        *race.replay.replay_work(),
         *race.frame.lights_and_gear.get(),
         *race.frame.panel_and_overlay.get(),
         race.replay.viewer_and_kinds,

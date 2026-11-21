@@ -213,32 +213,11 @@ pub fn open_viewed_replay(
 /// the header's settings, the sealed part, the patch switches and the unread rest, a dword each
 /// with no gap, up to the camera wishes.
 fn put_header_stage(race: &Race, header: &[u8]) {
-    let w = race.replay_work();
-    let singles = [
-        &w.header_stage,
-        &w.header_mode,
-        &w.header_players,
-        &w.header_cars,
-        &w.header_kind_0,
-        &w.header_kind_1,
-        &w.header_kind_2,
-        &w.header_kind_3,
-        &w.header_one_player,
-        &w.header_codriver_sex_0,
-        &w.header_codriver_sex_1,
-        &w.header_start_place,
-        &w.header_arcade_cars,
-        &w.header_seed,
-        &w.header_game_over_0,
-        &w.header_game_over_1,
-    ];
-    let cells = singles
-        .into_iter()
-        .chain(&w.sealed_header)
-        .chain(std::iter::once(&w.patches_in_header))
-        .chain(&w.header_patches)
-        .chain(&w.after_header);
-    for (dword, bytes) in cells.zip(header.as_chunks::<4>().0) {
-        dword.set(u32::from_le_bytes(*bytes));
-    }
+    race.replay_work_mut().set_header_words(
+        header
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|bytes| u32::from_le_bytes(*bytes)),
+    );
 }

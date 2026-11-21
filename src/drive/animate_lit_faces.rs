@@ -17,6 +17,16 @@ use rc2k_core::drive::lit_faces::{
 
 const MOST: u32 = 0x100;
 
+/// The blink's brightness levels by step, four to a word (the low byte first).
+const BLINK_LEVELS: [u32; 6] = [
+    0xFEFD_FEFF,
+    0x0201_00FF,
+    0x0001_0203,
+    0x00FF_FEFF,
+    0x0001_0201,
+    0x0001_00FF,
+];
+
 /// Field `o` of course face `f` (by number), and its writes.
 fn at(course: &Course, f: u32, o: u32) -> Result<u32, BadInput> {
     crate::race::course_places::face_field(course.reads(), f, o)
@@ -117,9 +127,8 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             match kind {
                 1 | 9 => {
                     blink(&mut bytes, |n| {
-                        // `blink_levels`: the step is below 0x18 (`BLINK_STEPS`).
-                        (race.physics.contact.get().blink_levels[n as usize / 4].get()
-                            >> (8 * (n % 4))) as u8
+                        // The step is below 0x18 (`BLINK_STEPS`).
+                        (BLINK_LEVELS[n as usize / 4] >> (8 * (n % 4))) as u8
                     })
                     .is_none()
                 }

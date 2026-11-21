@@ -19,6 +19,7 @@ use crate::race::view_store::RaceView;
 use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::race::work_store::RaceWork;
 use rc2k_core::net::net_race::NetRace;
+use std::cell::{Ref, RefCell, RefMut};
 
 /// The race's stores the menus, the network and the audio side read too.
 pub struct RaceShared {
@@ -56,7 +57,7 @@ pub struct RaceShared {
 /// thread touches them).
 struct SharedMain {
     tables: RaceTables,
-    tyre_change: TyreChange,
+    tyre_change: RefCell<TyreChange>,
     replay_file: ReplayFileBlock,
     replays: Replays,
     /// `race::viewer_buffers_store`: the replay viewer's buffers.
@@ -81,7 +82,7 @@ impl RaceShared {
             random: crate::math::next_random::Randoms::new(),
             main: GameThread::new(SharedMain {
                 tables: RaceTables::new(),
-                tyre_change: TyreChange::new(),
+                tyre_change: RefCell::new(TyreChange::new()),
                 replay_file: ReplayFileBlock::new(),
                 replays: Replays::new(),
                 viewer: ViewerBuffers::new(),
@@ -104,8 +105,14 @@ impl RaceShared {
         &self.main.get().tables
     }
 
-    pub fn tyre_change(&self) -> &TyreChange {
-        &self.main.get().tyre_change
+    /// The tyre change's variables, read: no write borrow may be held.
+    pub fn tyre_change(&self) -> Ref<'_, TyreChange> {
+        self.main.get().tyre_change.borrow()
+    }
+
+    /// The tyre change's variables, to write: no other borrow may be held.
+    pub fn tyre_change_mut(&self) -> RefMut<'_, TyreChange> {
+        self.main.get().tyre_change.borrow_mut()
     }
 
     pub fn replay_file(&self) -> &ReplayFileBlock {

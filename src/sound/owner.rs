@@ -17,7 +17,7 @@ use crate::sound::store::{
 ///
 /// All of it is the game thread's; what other threads read is in `SoundForThreads`.
 pub struct RaceSoundState {
-    pub sounds: GameThread<RaceSounds>,
+    sounds: GameThread<RefCell<RaceSounds>>,
     /// The eight race sound objects, each borrowed for a statement at a time.
     pub objects: GameThread<[RefCell<SoundObject>; 8]>,
     pub clock: GameThread<RefCell<RaceClock>>,
@@ -40,7 +40,7 @@ pub struct RaceSoundState {
 impl RaceSoundState {
     pub const fn new() -> Self {
         RaceSoundState {
-            sounds: GameThread::new(RaceSounds::new()),
+            sounds: GameThread::new(RefCell::new(RaceSounds::new())),
             objects: GameThread::new(initial_objects()),
             clock: GameThread::new(RefCell::new(RaceClock::new())),
             surface: GameThread::new(SurfaceSounds::new()),
@@ -55,6 +55,16 @@ impl RaceSoundState {
             car_stream: GameThread::new(RefCell::new(CarStream::new())),
             sounds_on: GameThread::new(PlainDword::new(1)),
         }
+    }
+
+    /// The cars the race sounds follow, read: no write borrow may be held.
+    pub fn sounds(&self) -> std::cell::Ref<'_, RaceSounds> {
+        self.sounds.get().borrow()
+    }
+
+    /// The cars the race sounds follow, to write: no other borrow may be held.
+    pub fn sounds_mut(&self) -> std::cell::RefMut<'_, RaceSounds> {
+        self.sounds.get().borrow_mut()
     }
 }
 

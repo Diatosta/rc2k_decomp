@@ -34,8 +34,8 @@ pub struct Replay {
 /// What only the game's thread reaches (no drawing part and no other thread touches it).
 struct ReplayMain {
     replay_frames: RefCell<ReplayFrames>,
-    replay_work: ReplayWork,
-    staging: ReplayStaging,
+    replay_work: RefCell<ReplayWork>,
+    staging: RefCell<ReplayStaging>,
     replay_view: ReplayViewBlock,
     snapshot: PlainBytes<26>,
     /// The replay header's checksum, kept as the key the stage time is sealed with.
@@ -55,8 +55,8 @@ impl Replay {
             viewer_tip: crate::race::viewer_tip::ViewerTip::new(),
             main: GameThread::new(ReplayMain {
                 replay_frames: RefCell::new(ReplayFrames::new()),
-                replay_work: ReplayWork::new(),
-                staging: ReplayStaging::new(),
+                replay_work: RefCell::new(ReplayWork::new()),
+                staging: RefCell::new(ReplayStaging::new()),
                 replay_view: ReplayViewBlock::new(),
                 snapshot: PlainBytes::new(*b"savedata\\snapshot\\000.png\0"),
                 seal_key: Cell::new(0),
@@ -92,13 +92,23 @@ impl Replay {
     }
 
     /// The replay's work (`race::replay_work_store`).
-    pub fn replay_work(&self) -> &ReplayWork {
-        &self.main.get().replay_work
+    pub fn replay_work(&self) -> Ref<'_, ReplayWork> {
+        self.main.get().replay_work.borrow()
+    }
+
+    /// The replay's work, to write: no other borrow may be held.
+    pub fn replay_work_mut(&self) -> RefMut<'_, ReplayWork> {
+        self.main.get().replay_work.borrow_mut()
     }
 
     /// The replay's frame as the race keeps it (`race::replay_staging_store`).
-    pub fn staging(&self) -> &ReplayStaging {
-        &self.main.get().staging
+    pub fn staging(&self) -> Ref<'_, ReplayStaging> {
+        self.main.get().staging.borrow()
+    }
+
+    /// The replay's frame, to write: no other borrow may be held.
+    pub fn staging_mut(&self) -> RefMut<'_, ReplayStaging> {
+        self.main.get().staging.borrow_mut()
     }
 
     pub fn replay_view(&self) -> &ReplayViewBlock {

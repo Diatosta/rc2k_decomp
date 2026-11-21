@@ -195,7 +195,7 @@ pub(super) fn draw_text_in_game(
 }
 
 /// As `draw_text_in_game`, the text's bytes in hand.
-fn draw_bytes_in_game(
+pub(super) fn draw_bytes_in_game(
     font: &crate::gfx::typefaces::FontObject,
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,

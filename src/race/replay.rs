@@ -10,6 +10,7 @@ use crate::memory::session::{PlainBytes, PlainDword};
 use crate::menu::owner::Menus;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
+use crate::race::replay_work_store::ReplayWork;
 use crate::system::owner::System;
 #[cfg(test)]
 use crate::test_support::own::menus;
@@ -75,18 +76,17 @@ pub(super) fn seal_replay_header(
     use rc2k_core::race::replay::{SEAL_KEY, SEAL_VERSION, chained, seal_checksum};
     // The sealed header is the file's bytes: the version byte and the name sit inside its dwords.
     let replay = &race.replay;
-    let sealed = &race.replay_work().sealed_header;
-    put_header(sealed, VERSION_AT, &[SEAL_VERSION])?;
+    let mut work = race.replay_work_mut();
+    put_header(&mut work.sealed_header, VERSION_AT, &[SEAL_VERSION])?;
     let name: [u8; 0x20] = menus.play.slots.names.player_names.read()[..0x20]
         .try_into()
         .expect("0x20 bytes");
     let printable = crate::strings::copy_printable::printable(&name, 0x20)?;
-    put_header(sealed, PLAYER_NAME_AT, &printable)?;
-    copy_header_settings_of(race, menus, strings, sealed)?;
-    let sealed_dwords = &race.replay_work().sealed_header;
-    let dwords: Vec<u32> = (1..0x40).map(|n| sealed_dwords[n].get()).collect();
-    let sum = seal_checksum(&dwords);
-    sealed_dwords[0].set(sum);
+    put_header(&mut work.sealed_header, PLAYER_NAME_AT, &printable)?;
+    copy_header_settings_of(race, menus, strings, &mut work)?;
+    let sealed_dwords = &mut work.sealed_header;
+    let sum = seal_checksum(&sealed_dwords[1..]);
+    sealed_dwords[0] = sum;
     replay.set_seal_key(sum);
     let mut w = replay.seal_work_mut();
     let key = w.key;
@@ -94,17 +94,14 @@ pub(super) fn seal_replay_header(
     let (mut a, mut b) = (0u32, 0u32);
     for n in 0..0x20u32 {
         let at = 2 * n as usize;
-        let [x, y] = chained(
-            [sealed_dwords[at].get(), sealed_dwords[at + 1].get()],
-            [a, b],
-        );
+        let [x, y] = chained([sealed_dwords[at], sealed_dwords[at + 1]], [a, b]);
         w.block = [x, y];
         // `seal_block` works on the cipher's dwords.
         crate::race::save_seal::seal_block(&mut w);
         a = w.sealed[0];
-        sealed_dwords[at].set(a);
+        sealed_dwords[at] = a;
         b = w.sealed[1];
-        sealed_dwords[at + 1].set(b);
+        sealed_dwords[at + 1] = b;
     }
     w.key = key;
     Ok(())
@@ -116,14 +113,13 @@ const PLAYER_NAME_AT: usize = 0xD;
 
 /// `bytes` written into the sealed header from byte `at` (the file's bytes: the dwords hold them
 /// little-endian, whatever the alignment).
-fn put_header(sealed: &[PlainDword; 64], at: usize, bytes: &[u8]) -> Result<(), BadInput> {
+fn put_header(sealed: &mut [u32], at: usize, bytes: &[u8]) -> Result<(), BadInput> {
     if at + bytes.len() > sealed.len() * 4 {
         return Err(BadInput("past the replay's sealed header"));
     }
     for (i, &b) in bytes.iter().enumerate() {
         let (dword, shift) = ((at + i) / 4, 8 * ((at + i) % 4));
-        let kept = sealed[dword].get() & !(0xFF << shift);
-        sealed[dword].set(kept | u32::from(b) << shift);
+        sealed[dword] = sealed[dword] & !(0xFF << shift) | u32::from(b) << shift;
     }
     Ok(())
 }
@@ -132,12 +128,12 @@ fn put_header(sealed: &[PlainDword; 64], at: usize, bytes: &[u8]) -> Result<(), 
 /// the first car's race number also goes to the first dword of `after_header`, outside the header
 /// (a slip kept as is).
 #[cfg(test)]
-fn copy_header_settings(sealed: &[PlainDword; 64]) -> Result<(), BadInput> {
+fn copy_header_settings(work: &mut ReplayWork) -> Result<(), BadInput> {
     copy_header_settings_of(
         crate::test_support::own::race(),
         menus(),
         crate::test_support::own::strings(),
-        sealed,
+        work,
     )
 }
 
@@ -146,7 +142,7 @@ fn copy_header_settings_of(
     race: &Race,
     menus: &Menus,
     strings: &crate::strings::owner::Strings,
-    sealed: &[PlainDword; 64],
+    work: &mut ReplayWork,
 ) -> Result<(), BadInput> {
     let shared = &race.shared;
     let settings = &shared.state.settings;
@@ -201,11 +197,11 @@ fn copy_header_settings_of(
         (2, 0x5E, patches[11].get()),
     ];
     for (size, at, value) in cells {
-        put_header(sealed, at, &value.to_le_bytes()[..size])?;
+        put_header(&mut work.sealed_header, at, &value.to_le_bytes()[..size])?;
     }
     // The viewer's first car number, kept outside the header.
-    let door = &race.replay_work().after_header[0];
-    door.set(door.get() & !0xFF | (car.race_number.get() & 0xFF));
+    let door = &mut work.after_header[0];
+    *door = *door & !0xFF | (car.race_number.get() & 0xFF);
     Ok(())
 }
 
@@ -393,7 +389,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     // block with the extra tape for cars 2 and 3, and the tail for the other cars.
     race.viewer_buffers().extra_tape.set(true);
     race.viewer_buffers().v2.set(true);
-    replay.staging().clear_extra_tape();
+    replay.staging_mut().clear_extra_tape();
     let extension = crate::race::replay_v2_cars::cars_of_race(race, o.net, o.menus);
     {
         let mut v2 = replay.v2().lock();
@@ -420,50 +416,29 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     for (k, &w) in HEADER_NAME.iter().enumerate() {
         header.set_u32(0x10 + 4 * k, w);
     }
-    let w = race.replay_work();
-    w.header_one_player
-        .set(o.sound.threads.shared.one_player.get());
-    w.header_codriver_sex_0
-        .set(shared.state.settings.cars[0].codriver_sex.get());
-    w.header_codriver_sex_1
-        .set(shared.state.settings.cars[1].codriver_sex.get());
-    w.patches_in_header.set(6);
-    for (to, from) in w
-        .header_patches
-        .iter()
-        .zip(crate::race::replay_patches::switches(shared))
     {
-        to.set(from.get());
+        let mut w = race.replay_work_mut();
+        w.header_one_player = o.sound.threads.shared.one_player.get();
+        w.header_codriver_sex_0 = shared.state.settings.cars[0].codriver_sex.get();
+        w.header_codriver_sex_1 = shared.state.settings.cars[1].codriver_sex.get();
+        w.patches_in_header = 6;
+        for (to, from) in w
+            .header_patches
+            .iter_mut()
+            .zip(crate::race::replay_patches::switches(shared))
+        {
+            *to = from.get();
+        }
     }
     seal_replay_header(race, o.menus, o.strings)?;
     // The car header (0x400 bytes from the stage setting on through the sealed part, the patch
     // switches and the door: all the dwords of the stretch) copied into the file's header after its first 0x30 bytes.
-    let w = race.replay_work();
-    let stage: Vec<u8> = [
-        &w.header_stage,
-        &w.header_mode,
-        &w.header_players,
-        &w.header_cars,
-        &w.header_kind_0,
-        &w.header_kind_1,
-        &w.header_kind_2,
-        &w.header_kind_3,
-        &w.header_one_player,
-        &w.header_codriver_sex_0,
-        &w.header_codriver_sex_1,
-        &w.header_start_place,
-        &w.header_arcade_cars,
-        &w.header_seed,
-        &w.header_game_over_0,
-        &w.header_game_over_1,
-    ]
-    .into_iter()
-    .chain(&w.sealed_header)
-    .chain(std::iter::once(&w.patches_in_header))
-    .chain(&w.header_patches)
-    .chain(&w.after_header)
-    .flat_map(|d| d.get().to_le_bytes())
-    .collect();
+    let stage: Vec<u8> = race
+        .replay_work()
+        .header_words()
+        .into_iter()
+        .flat_map(u32::to_le_bytes)
+        .collect();
     debug_assert_eq!(stage.len(), 0x400);
     shared
         .replays()
@@ -629,10 +604,10 @@ mod header_tests {
                     walk.path_bytes(path).expect("a field of the store")[..size].to_vec()
                 }
             };
-            let work = race().replay_work();
+            let mut work = race().replay_work_mut();
             match to {
-                Sealed(at) => crate::memory::cells::Store::store(&work.sealed_header, at, &bytes)?,
-                Door => crate::memory::cells::Store::store(&work.after_header[0], 0, &bytes)?,
+                Sealed(at) => put_header(&mut work.sealed_header, at, &bytes)?,
+                Door => put_header(&mut work.after_header[..1], 0, &bytes)?,
             }
         }
         Ok(())
@@ -679,14 +654,14 @@ mod header_tests {
         );
         let locale = &crate::test_support::own::strings().language.locale;
         let header = &shared.replays().header;
-        let sealed = &crate::test_support::own::race().replay_work().sealed_header;
-        let door = &crate::test_support::own::race().replay_work().after_header[0];
         let kept_cells: Vec<u32> = cells.iter().map(|c| c.get()).collect();
         let kept_cheats = menus().play.cheats.read().cheats;
         let kept_locale = locale.get(8);
         let kept_header: Vec<u8> = (0..16).map(|i| header.get(i)).collect();
-        let kept_sealed: Vec<u32> = sealed.iter().map(PlainDword::get).collect();
-        let kept_door = door.get();
+        let (kept_sealed, kept_door) = {
+            let work = race().replay_work();
+            (work.sealed_header, work.after_header[0])
+        };
         for seed in 1..=8u64 {
             let mut state = seed;
             for c in &cells {
@@ -698,17 +673,19 @@ mod header_tests {
                 header.set(i, next(&mut state) as u8);
             }
             let run = |typed: bool| {
-                for d in sealed.iter() {
-                    d.set(0xAAAA_AAAA);
+                {
+                    let mut work = race().replay_work_mut();
+                    work.sealed_header = [0xAAAA_AAAA; 64];
+                    work.after_header[0] = 0x5555_5555;
                 }
-                door.set(0x5555_5555);
                 if typed {
-                    copy_header_settings(sealed).unwrap();
+                    copy_header_settings(&mut race().replay_work_mut()).unwrap();
                 } else {
                     old_copy().unwrap();
                 }
-                let mut out: Vec<u32> = sealed.iter().map(PlainDword::get).collect();
-                out.push(door.get());
+                let work = race().replay_work();
+                let mut out: Vec<u32> = work.sealed_header.to_vec();
+                out.push(work.after_header[0]);
                 out
             };
             let old = run(false);
@@ -724,9 +701,8 @@ mod header_tests {
         for (i, b) in kept_header.into_iter().enumerate() {
             header.set(i, b);
         }
-        for (d, v) in sealed.iter().zip(kept_sealed) {
-            d.set(v);
-        }
-        door.set(kept_door);
+        let mut work = race().replay_work_mut();
+        work.sealed_header = kept_sealed;
+        work.after_header[0] = kept_door;
     }
 }

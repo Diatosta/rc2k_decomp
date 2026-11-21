@@ -4,10 +4,10 @@
 //! the point `lowest_point` gives (from `probe_x`, `probe_ground_height`, `probe_z`) becomes
 //! the car's contact point and `contact_found` = 1; the contact is taken (`take_contact`: the
 //! car's speed, the face's normal, the turn speed, the point); the car's up vector (0, 1, 0
-//! turned by the crash matrix) goes into `crash_car_up`, minus its dot with the normal into
-//! `crash_up_dot`, and from that the slide limit `contact_slide_limit`;
+//! turned by the crash matrix) is dotted with the normal (negated), and from that comes the slide limit
+//! `contact_slide_limit`;
 //! `physics::contact_force` runs into force record 21, then `physics::place_sound_e5`; the
-//! force goes into `ground_force` and the record's point is 0; `crash_ground_scale` =
+//! force goes into `ground_force` and the record's point is 0; the ground scale =
 //! (wheel-load figure + 64) / 64 held at most 1, times the car's spin figure; the car's
 //! `contact_value` is the contact work's.
 //!
@@ -19,7 +19,7 @@ use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87::neg_rounded;
 use crate::math::x87::{loaded, mul};
-use crate::memory::session::FloatLike;
+use crate::memory::session::{FloatLike, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
@@ -108,14 +108,15 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
             [extended(0), extended(0x3F80_0000), extended(0)],
         )
     };
+    // Made and read within this contact.
+    let car_up = PlainFloat::array([0.0; 3]);
+    let up_dot = PlainFloat::new(0.0);
+    let ground_scale = PlainFloat::new(0.0);
     for (k, e) in up.iter().enumerate() {
-        c.contact.crash_car_up[k].set(rounded_value(*e));
+        car_up[k].set(rounded_value(*e));
     }
-    c.contact.crash_up_dot.set_float(neg_rounded(dot_product(
-        &c.contact.crash_car_up,
-        &c.contact.contact_normal,
-    )));
-    x87_1(c.contact, c.tables, c.numbers);
+    up_dot.set_float(neg_rounded(dot_product(&car_up, &c.contact.contact_normal)));
+    x87_1(&up_dot, c.contact, c.tables, c.numbers);
     contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.forces[21]);
     { place_sound_e5(&c.sound) }?;
     for k in 0..3 {
@@ -124,9 +125,9 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     for cell in &c.tables.forces[21].point {
         cell.set(0.0);
     }
-    x87_2(c.contact, c.car, c.numbers);
-    hold_high(&c.contact.crash_ground_scale, &c.numbers.one);
-    c.car.spin[1].set(mul(&c.contact.crash_ground_scale, &c.car.spin[1]));
+    x87_2(&ground_scale, c.car, c.numbers);
+    hold_high(&ground_scale, &c.numbers.one);
+    c.car.spin[1].set(mul(&ground_scale, &c.car.spin[1]));
     c.car.contact_value.set_float(c.contact.contact_value.get());
     Ok(())
 }
@@ -140,8 +141,8 @@ pub fn crash_contact(c: &ContactInputs<'_>) -> Result<(), Refused> {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// A long formula, covered by the tests.
-fn x87_1(contact: &ContactWork, tables: &PhysicsTables, numbers: &Numbers) {
-    let t0 = contact.crash_up_dot.ld();
+fn x87_1(up_dot: &PlainFloat, contact: &ContactWork, tables: &PhysicsTables, numbers: &Numbers) {
+    let t0 = up_dot.ld();
     let t1 = numbers.one.ld();
     let t2 = t0 + t1;
     let t3 = numbers.two.ld();
@@ -160,13 +161,13 @@ fn x87_1(contact: &ContactWork, tables: &PhysicsTables, numbers: &Numbers) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_2(contact: &ContactWork, car: &Car, numbers: &Numbers) {
+fn x87_2(ground_scale: &PlainFloat, car: &Car, numbers: &Numbers) {
     let t0 = car.crash_matrix[5].ld();
     let t1 = numbers.sixty_four.ld();
     let t2 = t0 + t1;
     let t3 = numbers.sixty_four.ld();
     let t4 = t2 / t3;
-    contact.crash_ground_scale.st(t4);
+    ground_scale.st(t4);
 }
 
 #[cfg(test)]
@@ -178,21 +179,31 @@ mod reference_vectors {
         vec![
             Block {
                 name: "crash_contact line 103",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[
-                        (0x1C5D38, In::F),
-                        (0x1C5D3C, In::F),
-                        (0x21388C, In::F),
-                        (0x213FC8, In::F),
-                        (0x214170, In::F),
-                        (0x214294, In::F),
-                        (0x2D31D0, In::F),
-                    ],
-                    writes: &[(0x2D3100, Out::F)],
-                }],
+                operands: vec![
+                    Operand::RaceBlock {
+                        reads: &[
+                            (0x1C5D38, In::F),
+                            (0x1C5D3C, In::F),
+                            (0x21388C, In::F),
+                            (0x213FC8, In::F),
+                            (0x214170, In::F),
+                            (0x214294, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0, In::F)],
+                        writes: &[],
+                    },
+                    Operand::RaceBlock {
+                        reads: &[],
+                        writes: &[(0x2D3100, Out::F)],
+                    },
+                ],
                 ulps: 0,
-                plain: |_| {
+                plain: |a| {
                     x87_1(
+                        crate::math::x87_mem::view::<PlainFloat>(a[1], 0),
                         crate::test_support::own::race().physics.contact.get(),
                         crate::test_support::own::race().shared.physics_tables.get(),
                         crate::test_support::own::race().course.numbers.get(),
@@ -201,14 +212,20 @@ mod reference_vectors {
             },
             Block {
                 name: "crash_contact line 120",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x1C5D60, In::F), (0x31A0A0, In::F)],
-                    writes: &[(0x2D3014, Out::F)],
-                }],
+                operands: vec![
+                    Operand::RaceBlock {
+                        reads: &[(0x1C5D60, In::F), (0x31A0A0, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::F)],
+                    },
+                ],
                 ulps: 0,
-                plain: |_| {
+                plain: |a| {
                     x87_2(
-                        crate::test_support::own::race().physics.contact.get(),
+                        crate::math::x87_mem::view::<PlainFloat>(a[1], 0),
                         crate::test_support::own::race().shared.car(),
                         crate::test_support::own::race().course.numbers.get(),
                     );

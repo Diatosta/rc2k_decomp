@@ -78,7 +78,7 @@ fn fill(
     crate::gfx::rect::fill_rect(
         panel.texture_rect.each_ref().map(|c| c.get() as i32),
         0,
-        crate::gfx::rect::Palette::Of(&race.shared.tyre_change().palette),
+        crate::gfx::rect::Palette::Of(&crate::memory::session::PlainBytes::new([0; 4])),
         gfx,
     )
 }
@@ -224,7 +224,10 @@ fn draw_prompt(
 ) -> Result<(), Refused> {
     use rc2k_core::drive::tyre_screen::{TITLE_BOX, TITLE_WIDE_BOX, prompt_row};
     let gfx = o.gfx;
-    let tyre = race.shared.tyre_change();
+    let (title_texture, title_device_texture) = {
+        let tyre = race.shared.tyre_change();
+        (tyre.title_texture, tyre.title_device_texture)
+    };
     let canvas = crate::text::draw_text::GameCanvas::new(gfx);
     let font_now = font(gfx).get();
     let (ink_top, size) =
@@ -240,8 +243,8 @@ fn draw_prompt(
     let box_width = if wide { TITLE_WIDE_BOX } else { TITLE_BOX };
     with_locked_texture(
         gfx,
-        tyre.title_texture.get(),
-        tyre.title_device_texture.get(),
+        title_texture,
+        title_device_texture,
         CopyWhen::Locked,
         |locked| {
             if !locked {
@@ -309,7 +312,7 @@ fn draw_prompt(
             drawn
         },
     )?;
-    tyre.prompt_width[half as usize].set(total.max(1) as u32);
+    race.shared.tyre_change_mut().prompt_width[half as usize] = total.max(1) as u32;
     Ok(())
 }
 
@@ -325,15 +328,18 @@ fn draw_title(
     shared: &RaceShared,
 ) -> Result<(), Refused> {
     use rc2k_core::drive::tyre_screen::{TITLE_BOX, TITLE_WIDE_BOX};
-    let tyre = shared.tyre_change();
+    let (title_texture, title_device_texture) = {
+        let tyre = shared.tyre_change();
+        (tyre.title_texture, tyre.title_device_texture)
+    };
     let mut title = crate::text::draw_string_by_id::string_text(so, 0x129)?;
     title.pop();
     let width = text_width(gfx, &title).max(0) as u32;
     let wide = width > TITLE_BOX;
     with_locked_texture(
         gfx,
-        tyre.title_texture.get(),
-        tyre.title_device_texture.get(),
+        title_texture,
+        title_device_texture,
         CopyWhen::Locked,
         |locked| {
             if !locked {
@@ -367,7 +373,7 @@ fn draw_title(
             drawn
         },
     )?;
-    tyre.title_width.set(width);
+    shared.tyre_change_mut().title_width = width;
     Ok(())
 }
 
@@ -385,17 +391,17 @@ pub fn draw_tyre_change(
         clip(&gfx.drawing.blit.clip.right),
     );
     let done = (|| -> Result<(), Refused> {
-        if shared.tyre_change().drawn.get() != 1 {
+        if shared.tyre_change().drawn != 1 {
             draw_title(so, gfx, shared)?;
         }
-        let half = u32::from(shared.tyre_change().player.get() != 0);
-        let prompt_shown = with_locked_texture(
-            gfx,
-            shared.tyre_change().texture.get(),
-            shared.tyre_change().device_texture.get(),
-            CopyWhen::Always,
-            |locked| {
-                if locked && shared.tyre_change().drawn.get() != 1 {
+        let half = u32::from(shared.tyre_change().player != 0);
+        let (texture, device_texture) = {
+            let tyre = shared.tyre_change();
+            (tyre.texture, tyre.device_texture)
+        };
+        let prompt_shown =
+            with_locked_texture(gfx, texture, device_texture, CopyWhen::Always, |locked| {
+                if locked && shared.tyre_change().drawn != 1 {
                     set_clip(&gfx.drawing.blit.clip.left, 0x80);
                     let mut y = 0u32;
                     for (n, (id, font, x)) in [
@@ -419,20 +425,16 @@ pub fn draw_tyre_change(
                 }
                 set_clip(&gfx.drawing.blit.clip.left, 0x80);
                 fill(race, 0x80, 0x32, 0x80, 0x4B, gfx)?;
-                { build_text(so, strings, 0x12E, Some(shared.tyre_change().record.get())) }?;
+                let record = shared.tyre_change().record;
+                { build_text(so, strings, 0x12E, Some(record)) }?;
                 three_times(gfx, strings, 0x84, 0x32)?;
                 set_clip(&gfx.drawing.blit.clip.left, 0);
                 fill(race, 0, 0x99, 0x100, 0x19, gfx)?;
                 gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = 0xF8);
-                text(
-                    font(gfx),
-                    &race.shared.tyre_change().record_name,
-                    4,
-                    0x99,
-                    gfx,
-                )?;
+                let name = shared.tyre_change().record_name;
+                crate::race::name_plates::draw_bytes_in_game(font(gfx), &name[..], 4, 0x99, gfx)?;
                 let mut prompt_shown = None;
-                let x = if shared.tyre_change().player.get() == 0 {
+                let x = if shared.tyre_change().player == 0 {
                     set_clip(&gfx.drawing.blit.clip.right, 0x7F);
                     0
                 } else {
@@ -444,21 +446,21 @@ pub fn draw_tyre_change(
                     let time = device.clock.get();
                     { build_text(so, strings, 0x12D, Some(time)) }?;
                     three_times(gfx, strings, x.wrapping_add(4), 0xB2)?;
-                    shared.tyre_change().prompt_width[half as usize].set(0);
+                    shared.tyre_change_mut().prompt_width[half as usize] = 0;
                 } else {
                     // The prompt has room on the title texture, drawn once the texture here is
                     // done.
                     let prompt = build_text(so, strings, 0x12C, None)?;
-                    let picture = stop_picture(o, shared.tyre_change().player.get());
+                    let player = shared.tyre_change().player;
+                    let picture = stop_picture(o, player);
                     prompt_shown = Some((prompt, picture));
                 }
                 Ok(prompt_shown)
-            },
-        )?;
+            })?;
         if let Some((prompt, picture)) = prompt_shown {
             draw_prompt(o, race, &prompt, picture, half)?;
         }
-        shared.tyre_change().drawn.set(1);
+        shared.tyre_change_mut().drawn = 1;
         Ok(())
     })();
     set_clip(&gfx.drawing.blit.clip.left, clips.0);

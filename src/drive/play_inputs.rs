@@ -28,7 +28,7 @@ pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
         let entry = replay
             .staging()
             .entry(replay.replay_frames().step_frame, car, extended)?;
-        (entry.input.get(), entry.packed.get())
+        (entry.input, entry.packed)
     };
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
@@ -59,7 +59,7 @@ mod tests {
         let kept_car = car_cell.get();
         let kept_tenth = race.replay.replay_frames().tenth;
         race.viewer_buffers().extra_tape.set(true);
-        race.replay.staging().clear_extra_tape();
+        race.replay.staging_mut().clear_extra_tape();
         race.replay.replay_frames_mut().tenth = 37;
         let value = |car: u32, k: u32| (car + 1) * 0x101 + k * 0x20;
         for car in 0..4u32 {
@@ -76,10 +76,7 @@ mod tests {
         }
         // The frame goes to the block and back, as a recording is written and a replay read.
         crate::race::replay_staging_store::store_in_block(race);
-        for e in race.replay.staging().extra_tape.iter().flatten() {
-            e.input.set(0);
-            e.packed.set(0);
-        }
+        race.replay.staging_mut().clear_extra_tape();
         crate::race::replay_staging_store::load_from_block(race);
         for car in 0..4u32 {
             car_cell.set(car);
@@ -97,7 +94,7 @@ mod tests {
         play_inputs(race).unwrap();
         assert_eq!(words[1].get(), 77);
         race.viewer_buffers().extra_tape.set(kept_flag);
-        race.replay.staging().clear_extra_tape();
+        race.replay.staging_mut().clear_extra_tape();
         car_cell.set(kept_car);
         race.replay.replay_frames_mut().tenth = kept_tenth;
         for (w, v) in words.iter().zip(kept) {

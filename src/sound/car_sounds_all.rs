@@ -43,20 +43,16 @@ pub fn car_sounds_all(
             crate::sound::car_sounds::car_sounds(n, sound, race, system, audio)?;
             continue;
         }
-        x87_1(o, &sound.race.sounds.get().nearest_distance);
-        nearest.consider(n, sound.race.sounds.get().nearest_distance.get());
+        nearest.consider(n, x87_1(o));
     }
-    let (first, second) = nearest.kept(
-        sound.race.sounds.get().nearest.get(),
-        sound.race.sounds.get().next.get(),
-    );
-    sound.race.sounds.get().nearest.set(first);
-    sound.race.sounds.get().next.set(second);
-    for (which, mark) in [
-        (&sound.race.sounds.get().nearest, NEAREST_MARK),
-        (&sound.race.sounds.get().next, NEXT_MARK),
-    ] {
-        let n = which.get();
+    let (first, second) = {
+        let mut sounds = sound.race.sounds_mut();
+        let (first, second) = nearest.kept(sounds.nearest, sounds.next);
+        sounds.nearest = first;
+        sounds.next = second;
+        (first, second)
+    };
+    for (n, mark) in [(first, NEAREST_MARK), (second, NEXT_MARK)] {
         if (n as i32) < 0 {
             continue;
         }
@@ -73,7 +69,7 @@ pub fn car_sounds_all(
 
 /// An x87-precision run in plain Rust over `X`, written as the expression it computes:
 /// `nearest_distance = (place[0] * place[0]) + ((place[1] * place[1]) + (place[2] * place[2]))`
-fn x87_1(si: &SoundObjectCell, nearest_distance: &crate::memory::session::PlainFloat) {
+fn x87_1(si: &SoundObjectCell) -> f32 {
     let t0 = ld(si.borrow().place[0]);
     let t1 = ld(si.borrow().place[0]);
     let t2 = t0 * t1;
@@ -85,7 +81,7 @@ fn x87_1(si: &SoundObjectCell, nearest_distance: &crate::memory::session::PlainF
     let t8 = t6 * t7;
     let t9 = t5 + t8;
     let t10 = t2 + t9;
-    nearest_distance.set(stf(t10));
+    stf(t10)
 }
 
 #[cfg(test)]
@@ -112,12 +108,9 @@ mod reference_vectors {
             plain: |a| {
                 // The distance sits in the race sounds' 1999 layout, as the recorded block expects.
                 with_object(a[0], |so| {
-                    x87_1(
-                        so,
-                        crate::math::x87_mem::view::<crate::memory::session::PlainFloat>(
-                            a[1], 0x2578,
-                        ),
-                    );
+                    let distance = x87_1(so);
+                    crate::math::x87_mem::view::<crate::memory::session::PlainFloat>(a[1], 0x2578)
+                        .set(distance);
                 });
             },
         }]

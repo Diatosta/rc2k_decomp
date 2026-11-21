@@ -1,6 +1,6 @@
-//! `physics::probe_ground`, then its three whole-number lists (x, y, z; 0xC0 dwords) and the probe
+//! `physics::probe_ground`, then its x and z whole-number lists and the probe
 //! points' faces (`probe_point_face`, 0x40 dwords) are copied: the probe lists as they were before
-//! the step (`saved_probe_x` ..), read by `crossed_edge_contact`.
+//! the step (`saved_probe_x`, `saved_probe_z`), read by `crossed_edge_contact`.
 //!
 //! Refuses what `probe_ground` refuses (nothing written).
 
@@ -14,9 +14,6 @@ fn probe_and_keep_at(c: &GroundInputs<'_>) -> Result<(), Refused> {
     probe_ground(c, c.car)?;
     for k in 0..64 {
         contact.saved_probe_x[k].set(contact.probe_x[k].get());
-    }
-    for k in 0..64 {
-        contact.saved_probe_y[k].set(contact.probe_y[k].get());
     }
     for k in 0..64 {
         contact.saved_probe_z[k].set(contact.probe_z[k].get());

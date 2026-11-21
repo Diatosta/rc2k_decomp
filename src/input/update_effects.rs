@@ -19,7 +19,7 @@ use crate::system::owner::System;
 /// The variables it reads (the game's or a test's).
 #[derive(Clone, Copy)]
 pub struct Vars<'a> {
-    pub cars: &'a [crate::memory::session::PlainDword; 2],
+    pub cars: [u32; 2],
     pub one_player: &'a Dword,
     pub count: &'a Dword,
     pub devices: &'a [Dword; 4],
@@ -37,7 +37,7 @@ impl<'a> Vars<'a> {
     pub fn game(input: &'a Input, sound: &'a Sound, race: &'a Race) -> Self {
         Self {
             // Player A's and B's cars, the one-player flag and the sound object count.
-            cars: &sound.race.sounds.get().player_cars,
+            cars: sound.race.sounds().player_cars,
             one_player: &sound.threads.shared.one_player,
             count: &sound.threads.shared.count,
             devices: &input.devices.input_devices,
@@ -58,10 +58,7 @@ fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Result<(
         return Ok(());
     }
     let p = Players {
-        cars: v
-            .cars
-            .each_ref()
-            .map(crate::memory::session::PlainDword::get),
+        cars: v.cars,
         one_player: v.one_player.get() == 1,
         // the devices by handle: the core only asks whether one is none (0)
         // (the force feedback is for the first two players' devices)

@@ -22,20 +22,20 @@ use crate::race::owner::Race;
 const DOOR_TEXT: &std::ffi::CStr = c"doornr=";
 
 /// The header's settings as (to, from).
-fn settings(race: &Race) -> [(&dyn DwordLike, &crate::memory::session::PlainDword); 5] {
+fn settings(race: &Race) -> [(&dyn DwordLike, u32); 5] {
     let shared = &race.shared;
     let work = race.replay_work();
     [
-        (&shared.state.settings.run_kind, &work.header_mode),
-        (&shared.state.settings.car_kind_current, &work.header_kind_0),
-        (&shared.state.settings.car_kind_first, &work.header_kind_1),
+        (&shared.state.settings.run_kind, work.header_mode),
+        (&shared.state.settings.car_kind_current, work.header_kind_0),
+        (&shared.state.settings.car_kind_first, work.header_kind_1),
         (
             &shared.state.settings.cars[0].codriver_sex,
-            &work.header_codriver_sex_0,
+            work.header_codriver_sex_0,
         ),
         (
             &shared.state.settings.cars[1].codriver_sex,
-            &work.header_codriver_sex_1,
+            work.header_codriver_sex_1,
         ),
     ]
 }
@@ -64,14 +64,14 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
 
         crate::menu::show_loading_picture::show_loading_picture_in(o)?;
         for (to, from) in settings(race) {
-            to.set(from.get());
+            to.set(from);
         }
         // The sound module's `one_player` takes the header's setting too.
         sound
             .threads
             .shared
             .one_player
-            .set(race.replay_work().header_one_player.get());
+            .set(race.replay_work().header_one_player);
         shared.state.settings.cars[0].controls.controller.set(0);
         shared.state.settings.cars[1].controls.controller.set(0);
         shared
@@ -80,7 +80,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
             .race_mode
             .set(sound.threads.shared.one_player.get());
         // The door number is the low byte of the first dword of `after_header`.
-        let door = race.replay_work().after_header[0].get() & 0xFF;
+        let door = race.replay_work().after_header[0] & 0xFF;
         shared.state.settings.cars[0].race_number.set(door);
         race.car_blocks().cars[0].start_slot_value.set(door);
         crate::logfile::log_write::log_nul(&DOOR_TEXT, false, 1);
@@ -88,8 +88,8 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
 
         // A network race's replay is a one-player one with a car for each machine: its sound
         // objects serve both of the first two cars, as a two-player race's.
-        let both_cars = race.replay_work().header_one_player.get() == 1
-            && race.replay_work().header_cars.get() >= 2;
+        let both_cars =
+            race.replay_work().header_one_player == 1 && race.replay_work().header_cars >= 2;
         // A replay of more than two cars (the own format's) is heard with every car.
         let every_car = every_car_kinds(race);
         sound_tables::set_up_viewer_race_sound_objects(

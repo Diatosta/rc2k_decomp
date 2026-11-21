@@ -247,13 +247,12 @@ fn set_up_objects(
             },
         );
         if arcade {
-            sound.race.sounds.get().mark_car_voices.set(1);
+            sound.race.sounds_mut().mark_car_voices = 1;
         }
         sound.threads.shared.count.set(count);
-        sound.race.sounds.get().player_cars[0].set(0);
-        sound.race.sounds.get().player_cars[1].set(1);
+        sound.race.sounds_mut().player_cars = [0, 1];
         if let Some(net_race) = net_race {
-            sound.race.sounds.get().player_cars[0].set(net_race.player);
+            sound.race.sounds_mut().player_cars[0] = net_race.player;
             sound
                 .threads
                 .shared
@@ -263,18 +262,13 @@ fn set_up_objects(
         for (n, o) in v.objects.iter().enumerate() {
             o.borrow_mut().sound_offset = object_mark(n as u32);
         }
-        let first = crate::sound::store::SoundObject::of(
-            sound,
-            sound.race.sounds.get().player_cars[0].get(),
-        )?;
+        let player_cars = sound.race.sounds().player_cars;
+        let first = crate::sound::store::SoundObject::of(sound, player_cars[0])?;
         first.borrow_mut().sound_offset = 0;
         first.borrow_mut().kind = shared.state.settings.car_kind_current.get();
         first.borrow_mut().cue_queue.first = shared.state.settings.cars[0].codriver_sex.get();
         if sound.threads.shared.one_player.get() != 1 {
-            let second = crate::sound::store::SoundObject::of(
-                sound,
-                sound.race.sounds.get().player_cars[1].get(),
-            )?;
+            let second = crate::sound::store::SoundObject::of(sound, player_cars[1])?;
             second.borrow_mut().sound_offset = 1;
             second.borrow_mut().kind = shared.state.settings.car_kind_first.get();
             second.borrow_mut().cue_queue.first = shared.state.settings.cars[1].codriver_sex.get();
@@ -295,7 +289,7 @@ fn set_up_objects(
         for o in v.objects {
             set_up_object(o);
         }
-        shared.tyre_change().drawn.set(0);
+        shared.tyre_change_mut().drawn = 0;
         restart_race_sounds(o)?;
     }
     Ok(())
@@ -308,6 +302,6 @@ pub fn clear_race_sound_objects(o: crate::owners::Owners<'static>) -> Result<(),
     silence_race_sounds(o)?;
     sound.threads.shared.one_player.set(0);
     sound.threads.shared.count.set(0);
-    sound.race.sounds.get().mark_car_voices.set(0);
+    sound.race.sounds_mut().mark_car_voices = 0;
     Ok(())
 }

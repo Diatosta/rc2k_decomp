@@ -58,8 +58,13 @@ impl Race {
     }
 
     /// The replay's work area.
-    pub fn replay_work(&self) -> &ReplayWork {
+    pub fn replay_work(&self) -> std::cell::Ref<'_, ReplayWork> {
         self.replay.replay_work()
+    }
+
+    /// The replay's work area, to write: no other borrow may be held.
+    pub fn replay_work_mut(&self) -> std::cell::RefMut<'_, ReplayWork> {
+        self.replay.replay_work_mut()
     }
 
     /// The effects' settings.

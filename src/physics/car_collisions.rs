@@ -21,6 +21,18 @@ fn cars(view: &RaceView) -> u32 {
     view.race_cars.get().max(1)
 }
 
+/// The eight corners of the box around a car, in its own frame (the sign of each axis by corner).
+const CORNERS: [[f32; 3]; 8] = [
+    [-0.9, -0.8, -1.8],
+    [0.9, -0.8, -1.8],
+    [-0.9, 0.8, -1.8],
+    [0.9, 0.8, -1.8],
+    [-0.9, -0.8, 1.8],
+    [0.9, -0.8, 1.8],
+    [-0.9, 0.8, 1.8],
+    [0.9, 0.8, 1.8],
+];
+
 pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
     let (physics, work, car_now) = (c.contact.contact, c.contact.work, c.contact.car);
     if !matches!(c.vars.run_kind.get(), 0 | 2) {
@@ -61,10 +73,10 @@ pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
                 &block.car_inverse_matrix,
                 &physics.corner_matrix,
             );
-            for k in 0..8 {
-                physics.corner_in[0].set(physics.corner_x[k].get());
-                physics.corner_in[1].set(physics.corner_y[k].get());
-                physics.corner_in[2].set(physics.corner_z[k].get());
+            for corner in CORNERS {
+                for (cell, value) in physics.corner_in.iter().zip(corner) {
+                    cell.set(value);
+                }
                 { corner_hits_car(&c.contact, block) }?;
             }
         }

@@ -195,22 +195,14 @@ pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     use crate::race::tyre_change_gauge::tyre_change_gauge;
     use rc2k_core::scene::texture_levels::TYRE_TITLE_TEXTURE;
     let car = &race.car_blocks().cars[0];
-    shared
-        .tyre_change()
-        .texture
-        .set(textures.first_textures()[599]);
-    shared
-        .tyre_change()
-        .device_texture
-        .set(textures.kinds.get().kind_first_slots[599].get());
-    shared
-        .tyre_change()
-        .title_texture
-        .set(textures.first_textures()[TYRE_TITLE_TEXTURE as usize]);
-    shared
-        .tyre_change()
-        .title_device_texture
-        .set(textures.kinds.get().kind_first_slots[TYRE_TITLE_TEXTURE as usize].get());
+    {
+        let mut tyre = shared.tyre_change_mut();
+        tyre.texture = textures.first_textures()[599];
+        tyre.device_texture = textures.kinds.get().kind_first_slots[599].get();
+        tyre.title_texture = textures.first_textures()[TYRE_TITLE_TEXTURE as usize];
+        tyre.title_device_texture =
+            textures.kinds.get().kind_first_slots[TYRE_TITLE_TEXTURE as usize].get();
+    }
     if car.parts_present.get() & 0x1E != 0x1E
         && car.tyre_change_state.get() == 0
         && car.stopped_steps.get() >= 0x12C

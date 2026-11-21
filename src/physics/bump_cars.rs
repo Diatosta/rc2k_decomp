@@ -1,9 +1,9 @@
 //! Bumps the work car against another (`other_car_block`, number `other_car_number`): the corner
 //! met goes into `contact_point`; contact record 6's
 //! force is zeroed and both cars' contact flags set; the relative speed goes into
-//! `bump_relative_speed` (its length into `bump_speed_length`); the speeds are shared out
-//! (`bump_share_a` / `bump_share_b`), the places' difference / 65536 times the push scale becomes
-//! `bump_push`, times `three`, added to the work car's speed and taken from the other's; both
+//! the relative speed (its length into `bump_speed_length`); the speeds are shared out
+//! (`SHARE_A` / `SHARE_B`), the places' difference / 65536 times the push scale becomes
+//! the push, times `three`, added to the work car's speed and taken from the other's; both
 //! speeds are turned into the cars' frames; finally `physics::place_sound_e1_other`.
 //!
 //! The straight float runs are plain Rust over `X` in the named helpers below.
@@ -13,8 +13,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
+use crate::math::x87_float::X;
+use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
-use crate::physics::contact_store::ContactWork;
 use crate::physics::step_families::ContactInputs;
 use crate::race::numbers_store::Numbers;
 
@@ -37,7 +38,17 @@ fn turn_speed(block: &Car) {
     }
 }
 
+/// How much of each car's speed the other's share takes: the first car keeps `SHARE_B` of its own
+/// and takes `SHARE_A` of the other's.
+const SHARE_A: f32 = 0.4;
+const SHARE_B: f32 = 0.6;
+/// The places' difference over 65536 is scaled by this into the push.
+const PUSH_SCALE: f32 = 0.5;
+
 fn steps(c: &ContactInputs<'_>, other_car: &Car) -> Result<(), Refused> {
+    // The relative speed and the push: each is made before it is read, within this bump.
+    let relative: [PlainFloat; 3] = PlainFloat::array([0.0; 3]);
+    let push: [PlainFloat; 3] = PlainFloat::array([0.0; 3]);
     for k in 0..3 {
         c.contact.contact_point[k].set(loaded(&c.contact.corner_turned[k]));
     }
@@ -46,17 +57,28 @@ fn steps(c: &ContactInputs<'_>, other_car: &Car) -> Result<(), Refused> {
     }
     c.car.contact_flag.set(1);
     other_car.contact_flag.set(1);
-    relative_speed(c.car, c.contact, &other_car.velocity);
+    relative_speed(c.car, &relative, &other_car.velocity);
     c.contact
         .bump_speed_length
-        .set(rounded_value(vector_length(&c.contact.bump_relative_speed)));
+        .set(rounded_value(vector_length(&relative)));
     // The car `other_car_block` names is `other_car`.
-    share_out_speeds(c.car, c.contact, &other_car.velocity);
+    share_out_speeds(
+        c.car,
+        crate::math::x87_float::ld(SHARE_A.to_bits()),
+        crate::math::x87_float::ld(SHARE_B.to_bits()),
+        &other_car.velocity,
+    );
     // Pushed apart by the places' difference.
-    push_apart(c.car, c.contact, c.numbers, &other_car.position);
+    push_apart(
+        c.car,
+        crate::math::x87_float::ld(PUSH_SCALE.to_bits()),
+        &push,
+        c.numbers,
+        &other_car.position,
+    );
     let factor = extended(c.numbers.three.get());
-    scale_vector(&c.contact.bump_push, factor);
-    add_push(c.car, c.contact, &other_car.velocity);
+    scale_vector(&push, factor);
+    add_push(c.car, &push, &other_car.velocity);
     turn_speed(other_car);
     turn_speed(c.car);
     { crate::physics::place_sound_e1_other::place_sound_e1_other(&c.sound) }?;
@@ -74,31 +96,31 @@ pub fn bump_cars(c: &ContactInputs<'_>, other_car: &Car) -> Result<(), Refused> 
 // ---- the x87 arithmetic ----
 
 /// the work car's speed less `d` (the other car's), on each axis, into the relative speed.
-fn relative_speed(car: &Car, contact: &ContactWork, d: &[impl FloatLike; 3]) {
+fn relative_speed(car: &Car, relative: &[PlainFloat; 3], d: &[impl FloatLike; 3]) {
     for (k, other) in d.iter().enumerate() {
         let t0 = car.velocity[k].ld();
         let t1 = other.ld();
         let t2 = t0 - t1;
-        contact.bump_relative_speed[k].st(t2);
+        relative[k].st(t2);
     }
 }
 
 /// the two cars' speeds shared out on each axis, with a the work car's speed and b the other's
 /// (`s`): `a' = a x share_a + b x share_b`, `b' = a x share_b + b x share_a`.
-fn share_out_speeds(car: &Car, contact: &ContactWork, s: &[impl FloatLike; 3]) {
+fn share_out_speeds(car: &Car, share_a: X, share_b: X, s: &[impl FloatLike; 3]) {
     for (k, other) in s.iter().enumerate() {
         let t0 = car.velocity[k].ld();
-        let t1 = contact.bump_share_b.ld();
+        let t1 = share_b;
         let t2 = t0 * t1;
         let t3 = other.ld();
-        let t4 = contact.bump_share_a.ld();
+        let t4 = share_a;
         let t5 = t3 * t4;
         let t6 = t2 + t5;
         let t7 = car.velocity[k].ld();
-        let t8 = contact.bump_share_a.ld();
+        let t8 = share_a;
         let t9 = t7 * t8;
         let t10 = other.ld();
-        let t11 = contact.bump_share_b.ld();
+        let t11 = share_b;
         let t12 = t10 * t11;
         let t13 = t9 + t12;
         car.velocity[k].st(t13);
@@ -108,30 +130,36 @@ fn share_out_speeds(car: &Car, contact: &ContactWork, s: &[impl FloatLike; 3]) {
 
 /// the push on each axis: the places' difference (the work car's less `d`'s) over 65536 times the
 /// push scale.
-fn push_apart(car: &Car, contact: &ContactWork, numbers: &Numbers, d: &[impl DwordLike; 3]) {
+fn push_apart(
+    car: &Car,
+    push_scale: X,
+    push: &[PlainFloat; 3],
+    numbers: &Numbers,
+    d: &[impl DwordLike; 3],
+) {
     for (k, other) in d.iter().enumerate() {
         let t0 = int(car.position[k].get() as i32);
         let t1 = int(other.get() as i32);
         let t2 = t0 - t1;
         let t3 = numbers.k65536.ld();
         let t4 = t2 / t3;
-        let t5 = contact.bump_push_scale.ld();
+        let t5 = push_scale;
         let t6 = t4 * t5;
-        contact.bump_push[k].st(t6);
+        push[k].st(t6);
     }
 }
 
 /// the push added to the work car's speed on each axis, then taken from `d`'s.
-fn add_push(car: &Car, contact: &ContactWork, d: &[impl FloatLike; 3]) {
+fn add_push(car: &Car, push: &[PlainFloat; 3], d: &[impl FloatLike; 3]) {
     for k in 0..3 {
         let t0 = car.velocity[k].ld();
-        let t1 = contact.bump_push[k].ld();
+        let t1 = push[k].ld();
         let t2 = t0 + t1;
         car.velocity[k].st(t2);
     }
     for (k, other) in d.iter().enumerate() {
         let t9 = other.ld();
-        let t10 = contact.bump_push[k].ld();
+        let t10 = push[k].ld();
         let t11 = t9 - t10;
         other.st(t11);
     }

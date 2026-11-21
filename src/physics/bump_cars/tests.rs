@@ -1,7 +1,13 @@
 use super::*;
 use crate::math::x87_mem::view;
+use crate::memory::session::PlainFloat;
 use crate::test_support::own::race;
 use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
+
+/// Three floats of a test buffer at `off`.
+fn three(base: usize, off: usize) -> &'static [PlainFloat; 3] {
+    view::<[PlainFloat; 3]>(base, off)
+}
 
 fn blocks() -> Vec<Block> {
     vec![
@@ -10,7 +16,11 @@ fn blocks() -> Vec<Block> {
             operands: vec![
                 Operand::RaceBlock {
                     reads: &[(0x31A170, In::F), (0x31A174, In::F), (0x31A178, In::F)],
-                    writes: &[(0x2D3CD8, Out::F), (0x2D3CDC, Out::F), (0x2D3CE0, Out::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[],
+                    writes: &[(0, Out::F), (4, Out::F), (8, Out::F)],
                 },
                 Operand::Buffer {
                     reads: &[(0x198, In::F), (0x19C, In::F), (0x1A0, In::F)],
@@ -21,22 +31,20 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 relative_speed(
                     race().shared.car(),
-                    race().physics.contact.get(),
-                    view::<[crate::memory::session::Float; 3]>(a[1], 0x198),
+                    three(a[1], 0),
+                    view::<[crate::memory::session::Float; 3]>(a[2], 0x198),
                 );
             },
         },
         Block {
             name: "bump_cars line 80",
             operands: vec![
+                Operand::Buffer {
+                    reads: &[(0, In::F), (4, In::F)],
+                    writes: &[],
+                },
                 Operand::RaceBlock {
-                    reads: &[
-                        (0x2D3BAC, In::F),
-                        (0x2D3BB0, In::F),
-                        (0x31A170, In::F),
-                        (0x31A174, In::F),
-                        (0x31A178, In::F),
-                    ],
+                    reads: &[(0x31A170, In::F), (0x31A174, In::F), (0x31A178, In::F)],
                     writes: &[(0x31A170, Out::F), (0x31A174, Out::F), (0x31A178, Out::F)],
                 },
                 Operand::Buffer {
@@ -48,8 +56,9 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 share_out_speeds(
                     race().shared.car(),
-                    race().physics.contact.get(),
-                    view::<[crate::memory::session::Float; 3]>(a[1], 0x198),
+                    view::<PlainFloat>(a[0], 0).ld(),
+                    view::<PlainFloat>(a[0], 4).ld(),
+                    view::<[crate::memory::session::Float; 3]>(a[2], 0x198),
                 );
             },
         },
@@ -57,14 +66,20 @@ fn blocks() -> Vec<Block> {
             name: "bump_cars line 121",
             operands: vec![
                 Operand::RaceBlock {
-                    reads: &[
-                        (0x1C5D98, In::F),
-                        (0x2D3B88, In::F),
-                        (0x31A10C, In::I),
-                        (0x31A110, In::I),
-                        (0x31A114, In::I),
-                    ],
-                    writes: &[(0x2D3B9C, Out::F), (0x2D3BA0, Out::F), (0x2D3BA4, Out::F)],
+                    reads: &[(0x1C5D98, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[(0, In::F)],
+                    writes: &[],
+                },
+                Operand::RaceBlock {
+                    reads: &[(0x31A10C, In::I), (0x31A110, In::I), (0x31A114, In::I)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[],
+                    writes: &[(0, Out::F), (4, Out::F), (8, Out::F)],
                 },
                 Operand::Buffer {
                     reads: &[(0x134, In::I), (0x138, In::I), (0x13C, In::I)],
@@ -75,24 +90,22 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 push_apart(
                     crate::test_support::own::race().shared.car(),
-                    crate::test_support::own::race().physics.contact.get(),
+                    view::<PlainFloat>(a[1], 0).ld(),
+                    three(a[3], 0),
                     crate::test_support::own::race().course.numbers.get(),
-                    view::<[crate::memory::session::Dword; 3]>(a[1], 0x134),
+                    view::<[crate::memory::session::Dword; 3]>(a[4], 0x134),
                 );
             },
         },
         Block {
             name: "bump_cars line 142",
             operands: vec![
+                Operand::Buffer {
+                    reads: &[(0, In::F), (4, In::F), (8, In::F)],
+                    writes: &[],
+                },
                 Operand::RaceBlock {
-                    reads: &[
-                        (0x2D3B9C, In::F),
-                        (0x2D3BA0, In::F),
-                        (0x2D3BA4, In::F),
-                        (0x31A170, In::F),
-                        (0x31A174, In::F),
-                        (0x31A178, In::F),
-                    ],
+                    reads: &[(0x31A170, In::F), (0x31A174, In::F), (0x31A178, In::F)],
                     writes: &[(0x31A170, Out::F), (0x31A174, Out::F), (0x31A178, Out::F)],
                 },
                 Operand::Buffer {
@@ -104,8 +117,8 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 add_push(
                     race().shared.car(),
-                    race().physics.contact.get(),
-                    view::<[crate::memory::session::Float; 3]>(a[1], 0x198),
+                    three(a[0], 0),
+                    view::<[crate::memory::session::Float; 3]>(a[2], 0x198),
                 );
             },
         },

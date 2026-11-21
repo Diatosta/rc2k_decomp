@@ -15,7 +15,7 @@
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
 //! game thread's.
 
-use crate::memory::session::{Dword, PlainDword, PlainFloat};
+use crate::memory::session::Dword;
 use rc2k_core::sound::cars::CueQueue;
 use std::cell::RefCell;
 
@@ -420,18 +420,15 @@ pub(crate) const fn initial_object(sound_offset: u32) -> SoundObject {
 }
 
 /// The cars the race sounds follow (the objects are `RaceSoundState::objects`).
-#[derive(rc2k_derive::Cells)]
 pub struct RaceSounds {
     /// The object numbers of the first and second player's cars.
-    pub player_cars: [PlainDword; 2],
+    pub player_cars: [u32; 2],
     /// The nearest computer car (an object number, -1 for none).
-    pub nearest: PlainDword,
+    pub nearest: u32,
     /// The next nearest.
-    pub next: PlainDword,
-    /// The squared distance `sound::car_sounds_all` works out.
-    pub nearest_distance: PlainFloat,
+    pub next: u32,
     /// 1 when the cars' voices are marked (`sound::mark_car_voices`).
-    pub mark_car_voices: PlainDword,
+    pub mark_car_voices: u32,
 }
 
 /// The two race sound values the input thread reads (its force-feedback effects follow the
@@ -458,11 +455,10 @@ impl SoundShared {
 impl RaceSounds {
     pub const fn new() -> Self {
         RaceSounds {
-            player_cars: [PlainDword::new(0), PlainDword::new(1)],
-            nearest: PlainDword::new(0),
-            next: PlainDword::new(0),
-            nearest_distance: PlainFloat::new(0.0),
-            mark_car_voices: PlainDword::new(0),
+            player_cars: [0, 1],
+            nearest: 0,
+            next: 0,
+            mark_car_voices: 0,
         }
     }
 }

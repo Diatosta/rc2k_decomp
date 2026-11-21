@@ -34,7 +34,7 @@ pub(super) fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::viewer_flow::patches_change;
     let shared = &race.shared;
     if patches_change(
-        race.replay_work().patches_in_header.get(),
+        race.replay_work().patches_in_header,
         race.viewer_panel().patches_in_force.get(),
         false,
     ) {
@@ -43,7 +43,9 @@ pub(super) fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
             race.viewer_panel().kept_patch_switches.iter(),
             switches(shared),
         );
-        move_dwords(switches(shared), race.replay_work().header_patches.iter());
+        for (to, from) in switches(shared).zip(race.replay_work().header_patches) {
+            to.set(from);
+        }
         shared.work.get().patches_applied.set(0);
         crate::physics::apply_patches::apply_patches(
             race.shared.physics_tables.get(),
@@ -60,7 +62,7 @@ pub(super) fn restore_replay_patches(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::viewer_flow::patches_change;
     let shared = &race.shared;
     if patches_change(
-        race.replay_work().patches_in_header.get(),
+        race.replay_work().patches_in_header,
         race.viewer_panel().patches_in_force.get(),
         true,
     ) {

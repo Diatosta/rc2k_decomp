@@ -1,41 +1,39 @@
 use super::*;
 use crate::math::x87_mem::{Base, view};
+use crate::memory::session::PlainDword;
 use crate::test_support::own::race;
 use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
+
+/// Three floats of a test buffer at `off`.
+fn three(base: usize, off: usize) -> &'static [PlainFloat; 3] {
+    view::<[PlainFloat; 3]>(base, off)
+}
+
+/// One float of a test buffer at `off`.
+fn one(base: usize, off: usize) -> &'static PlainFloat {
+    view::<PlainFloat>(base, off)
+}
 
 fn blocks() -> Vec<Block> {
     vec![
         Block {
             name: "contact_force line 50",
-            operands: vec![Operand::RaceBlock {
-                reads: &[
-                    (0x2D30A8, In::F),
-                    (0x2D30AC, In::F),
-                    (0x2D30B0, In::F),
-                    (0x2D30C0, In::F),
-                    (0x2D30C4, In::F),
-                    (0x2D30C8, In::F),
-                ],
-                writes: &[(0x2D30CC, Out::F), (0x2D30D0, Out::F), (0x2D30D4, Out::F)],
-            }],
+            operands: vec![
+                Operand::RaceBlock {
+                    reads: &[(0x2D30A8, In::F), (0x2D30AC, In::F), (0x2D30B0, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[(0, In::F), (4, In::F), (8, In::F)],
+                    writes: &[(12, Out::F), (16, Out::F), (20, Out::F)],
+                },
+            ],
             ulps: 0,
-            plain: |_| {
+            plain: |a| {
                 x87_1(
-                    &crate::test_support::own::race()
-                        .physics
-                        .contact
-                        .get()
-                        .contact_turn_cross,
-                    &crate::test_support::own::race()
-                        .physics
-                        .contact
-                        .get()
-                        .contact_car_speed,
-                    &crate::test_support::own::race()
-                        .physics
-                        .contact
-                        .get()
-                        .contact_point_speed,
+                    three(a[1], 0),
+                    &race().physics.contact.get().contact_car_speed,
+                    three(a[1], 12),
                 );
             },
         },
@@ -56,45 +54,53 @@ fn blocks() -> Vec<Block> {
         },
         Block {
             name: "contact_force line 86",
-            operands: vec![Operand::RaceBlock {
-                reads: &[
-                    (0x1C5D38, In::F),
-                    (0x2D1DF4, In::F),
-                    (0x2D31D8, In::F),
-                    (0x2D31DC, In::F),
-                    (0x2D31E0, In::F),
-                ],
-                writes: &[(0x2D31E0, Out::F), (0x2D3204, Out::F)],
-            }],
+            operands: vec![
+                Operand::RaceBlock {
+                    reads: &[(0x1C5D38, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[(0, In::F), (4, In::F), (8, In::F), (12, In::F)],
+                    writes: &[(12, Out::F), (16, Out::F)],
+                },
+            ],
             ulps: 0,
-            plain: |_| {
+            plain: |a| {
                 x87_3(
-                    crate::test_support::own::race().physics.contact.get(),
-                    crate::test_support::own::race().course.numbers.get(),
+                    one(a[1], 0).ld(),
+                    race().course.numbers.get(),
+                    one(a[1], 4),
+                    one(a[1], 8),
+                    one(a[1], 12),
+                    one(a[1], 16),
                 );
             },
         },
         Block {
             name: "contact_force line 107",
-            operands: vec![Operand::RaceBlock {
+            operands: vec![Operand::Buffer {
                 reads: &[
-                    (0x2D30E4, In::F),
-                    (0x2D30E8, In::F),
-                    (0x2D30EC, In::F),
-                    (0x2D30F0, In::F),
-                    (0x2D30F4, In::F),
-                    (0x2D30F8, In::F),
+                    (0, In::F),
+                    (4, In::F),
+                    (8, In::F),
+                    (12, In::F),
+                    (16, In::F),
+                    (20, In::F),
                 ],
-                writes: &[(0x2D30F0, Out::F), (0x2D30F4, Out::F), (0x2D30F8, Out::F)],
+                writes: &[(12, Out::F), (16, Out::F), (20, Out::F)],
             }],
             ulps: 0,
-            plain: |_| x87_4(crate::test_support::own::race().physics.contact.get()),
+            plain: |a| x87_4(three(a[0], 12), three(a[0], 0)),
         },
         Block {
             name: "contact_force line 126",
             operands: vec![
                 Operand::RaceBlock {
-                    reads: &[(0x214148, In::I), (0x21414C, In::I), (0x2D1DF8, In::F)],
+                    reads: &[(0x214148, In::I), (0x21414C, In::I)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[(0, In::F)],
                     writes: &[],
                 },
                 Operand::Buffer {
@@ -104,60 +110,34 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                a[1].set_tbyte(
+                a[2].set_tbyte(
                     0,
-                    x87_5(
-                        race().physics.contact.get(),
-                        race().shared.physics_tables.get(),
-                    ),
+                    x87_5(one(a[1], 0).ld(), race().shared.physics_tables.get()),
                 );
             },
         },
         Block {
             name: "contact_force line 137",
-            operands: vec![Operand::RaceBlock {
+            operands: vec![Operand::Buffer {
                 reads: &[
-                    (0x2D3130, In::F),
-                    (0x2D3134, In::F),
-                    (0x2D3138, In::F),
-                    (0x2D3160, In::F),
-                    (0x2D3164, In::F),
-                    (0x2D3168, In::F),
+                    (0, In::F),
+                    (4, In::F),
+                    (8, In::F),
+                    (12, In::F),
+                    (16, In::F),
+                    (20, In::F),
                 ],
-                writes: &[(0x2D3130, Out::F), (0x2D3134, Out::F), (0x2D3138, Out::F)],
+                writes: &[(0, Out::F), (4, Out::F), (8, Out::F)],
             }],
             ulps: 0,
-            plain: |_| {
-                x87_1(
-                    &crate::test_support::own::race()
-                        .physics
-                        .contact
-                        .get()
-                        .contact_normal_push,
-                    &crate::test_support::own::race()
-                        .physics
-                        .contact
-                        .get()
-                        .contact_extra,
-                    &crate::test_support::own::race()
-                        .physics
-                        .contact
-                        .get()
-                        .contact_normal_push,
-                );
-            },
+            plain: |a| x87_1(three(a[0], 0), three(a[0], 12), three(a[0], 0)),
         },
         Block {
             name: "contact_force line 160",
             operands: vec![
-                Operand::RaceBlock {
-                    reads: &[
-                        (0x2D30FC, In::F),
-                        (0x2D3140, In::F),
-                        (0x2D3144, In::F),
-                        (0x2D3148, In::F),
-                    ],
-                    writes: &[(0x22400C, Out::F)],
+                Operand::Buffer {
+                    reads: &[(0, In::F), (4, In::F), (8, In::F), (12, In::F)],
+                    writes: &[(16, Out::F)],
                 },
                 Operand::Buffer {
                     reads: &[],
@@ -168,82 +148,46 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 a[1].set_word(
                     0,
-                    x87_6(
-                        crate::test_support::own::race().physics.contact.get(),
-                        &crate::test_support::own::scene().scratch_cell(),
-                    ),
+                    x87_6(three(a[0], 4), one(a[0], 0), view::<PlainDword>(a[0], 16)),
                 );
             },
         },
         Block {
             name: "contact_force line 176",
-            operands: vec![Operand::RaceBlock {
-                reads: &[
-                    (0x22400C, In::F),
-                    (0x2D30FC, In::F),
-                    (0x2D3140, In::F),
-                    (0x2D3144, In::F),
-                    (0x2D3148, In::F),
-                ],
-                writes: &[
-                    (0x22400C, Out::F),
-                    (0x2D3140, Out::F),
-                    (0x2D3144, Out::F),
-                    (0x2D3148, Out::F),
-                ],
+            operands: vec![Operand::Buffer {
+                reads: &[(0, In::F), (4, In::F), (8, In::F), (12, In::F), (16, In::F)],
+                writes: &[(0, Out::F), (8, Out::F), (12, Out::F), (16, Out::F)],
             }],
             ulps: 0,
-            plain: |_| {
-                x87_7(
-                    crate::test_support::own::race().physics.contact.get(),
-                    &crate::test_support::own::scene().scratch_cell(),
-                );
+            plain: |a| {
+                x87_7(one(a[0], 4), three(a[0], 8), view::<PlainDword>(a[0], 0));
             },
         },
         Block {
             name: "contact_force line 193",
-            operands: vec![Operand::RaceBlock {
+            operands: vec![Operand::Buffer {
                 reads: &[
-                    (0x2D3130, In::F),
-                    (0x2D3134, In::F),
-                    (0x2D3138, In::F),
-                    (0x2D3140, In::F),
-                    (0x2D3144, In::F),
-                    (0x2D3148, In::F),
+                    (0, In::F),
+                    (4, In::F),
+                    (8, In::F),
+                    (12, In::F),
+                    (16, In::F),
+                    (20, In::F),
                 ],
-                writes: &[(0x2D3150, Out::F), (0x2D3154, Out::F), (0x2D3158, Out::F)],
+                writes: &[(24, Out::F), (28, Out::F), (32, Out::F)],
             }],
             ulps: 0,
-            plain: |_| {
-                x87_1(
-                    &crate::test_support::own::race()
-                        .physics
-                        .contact
-                        .get()
-                        .contact_slide,
-                    &crate::test_support::own::race()
-                        .physics
-                        .contact
-                        .get()
-                        .contact_normal_push,
-                    &crate::test_support::own::race()
-                        .physics
-                        .contact
-                        .get()
-                        .contact_total,
-                );
-            },
+            plain: |a| x87_1(three(a[0], 12), three(a[0], 0), three(a[0], 24)),
         },
         Block {
             name: "contact_force line 207",
             operands: vec![
                 Operand::RaceBlock {
-                    reads: &[
-                        (0x21388C, In::F),
-                        (0x2D3150, In::F),
-                        (0x2D3154, In::F),
-                        (0x2D3158, In::F),
-                    ],
+                    reads: &[(0x21388C, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[(0, In::F), (4, In::F), (8, In::F)],
                     writes: &[],
                 },
                 Operand::Buffer {
@@ -254,9 +198,9 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 x87_8(
-                    race().physics.contact.get(),
+                    three(a[1], 0),
                     race().shared.physics_tables.get(),
-                    view(a[1], 0),
+                    three(a[2], 0),
                 );
             },
         },

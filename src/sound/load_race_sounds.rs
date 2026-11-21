@@ -25,7 +25,6 @@
 
 use crate::audio::names_store::{NameList, SampleNames};
 use crate::errors::BadInput;
-use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::sound::sets_store::NamedSet;
 use rc2k_core::audio::commands::{Command, SoundList};
@@ -69,15 +68,14 @@ pub fn load_race_sounds(
     let send = |list: SoundList| {
         crate::sound::senders::send(audio, Command::Load(Some(list)));
     };
-    let r = sound.race.sounds.get();
-    let object = |number: &PlainDword| -> Result<u32, BadInput> {
-        let number = number.get();
+    let r = sound.race.sounds();
+    let object = |number: u32| -> Result<u32, BadInput> {
         if number >= OBJECTS {
             return Err(BadInput("a car's number past the sound objects"));
         }
         Ok(number)
     };
-    let (first, second) = (object(&r.player_cars[0])?, object(&r.player_cars[1])?);
+    let (first, second) = (object(r.player_cars[0])?, object(r.player_cars[1])?);
     let kind = |object: u32| match crate::sound::store::SoundObject::of(sound, object)?
         .borrow()
         .kind
@@ -152,7 +150,7 @@ pub fn load_race_sounds(
     }
     // The third and fourth cars of a larger split screen: their own copies of the engine sounds
     // of their kinds (the first two cars' are in the kinds' sets).
-    if kinds.is_some() && r.mark_car_voices.get() == 0 {
+    if kinds.is_some() && r.mark_car_voices == 0 {
         for car in 2..other_count.min(4) {
             let kind = kind(car)?;
             let record = sound.race.kinds.get().record(kind as u32)?;

@@ -22,14 +22,22 @@ pub fn tyre_screen_parts(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
-    let parts = std::array::from_fn(|k| shared.tyre_change().parts[k].get());
-    let wheel = std::array::from_fn(|k| shared.tyre_change().wheel[k].get());
+    let (parts, wheel, title_width, main_texture, title_texture, half, prompt_width) = {
+        let tyre = shared.tyre_change();
+        let half = u32::from(tyre.player != 0);
+        (
+            tyre.parts,
+            tyre.wheel,
+            tyre.title_width,
+            tyre.device_texture,
+            tyre.title_device_texture,
+            half,
+            tyre.prompt_width[half as usize],
+        )
+    };
     let part = scene.scratch.game_scratch();
-    let title = title_parts(parts, shared.tyre_change().title_width.get());
-    let main_texture = shared.tyre_change().device_texture.get();
-    crate::drive::tyre_parts::set_texture(part, shared.tyre_change().title_device_texture.get());
-    let half = u32::from(shared.tyre_change().player.get() != 0);
-    let prompt_width = shared.tyre_change().prompt_width[half as usize].get();
+    let title = title_parts(parts, title_width);
+    crate::drive::tyre_parts::set_texture(part, title_texture);
     let mut quads = fixed_parts(parts, wheel, half != 0).to_vec();
     // The prompt, when it is the one shown, is on the title texture in place of the three strips
     // of the tyre change texture.

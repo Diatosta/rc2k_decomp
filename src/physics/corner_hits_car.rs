@@ -1,6 +1,6 @@
 //! Whether a corner of another car (`corner_in`, floats) lies inside the work car: the corner
 //! times 65536 (`k65536`, unrounded) turned by `corner_matrix` and divided by 65536 into
-//! `corner_turned`. Inside when each part's size is below the box's (`box_size`; unordered counts
+//! `corner_turned`. Inside when each part's size is below the box's (`BOX_SIZE`; unordered counts
 //! as below): `corner_inside` = 1, then `physics::restore_saved_car` and `physics::bump_cars`.
 //!
 //! Takes: the other car's block (passed to `bump_cars`).
@@ -12,11 +12,14 @@ use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::extended;
 use crate::math::x87::{abs_compare, ext_times};
 use crate::math::x87_float::from_f80;
-use crate::memory::session::Cell32;
+use crate::memory::session::{Cell32, PlainFloat};
 use crate::physics::contact_store::ContactWork;
 use crate::physics::step_families::ContactInputs;
 use crate::race::numbers_store::Numbers;
 use crate::scene::rotate_point::rotate_point;
+
+/// The box's half size on each axis, in the work car's frame.
+const BOX_SIZE: [f32; 3] = [0.9, 0.8, 1.8];
 
 /// Whether the corner is inside (`corner_turned` .. written either way).
 pub(super) fn corner_inside(contact: &ContactWork, numbers: &Numbers) -> bool {
@@ -29,7 +32,8 @@ pub(super) fn corner_inside(contact: &ContactWork, numbers: &Numbers) -> bool {
     for (n, e) in turned.iter().enumerate() {
         x87_1(numbers, e, &contact.corner_turned[n]);
     }
-    (0..3).all(|n| abs_compare(&contact.corner_turned[n], &contact.box_size[n]) & 0x100 != 0)
+    let box_size = PlainFloat::array(BOX_SIZE);
+    (0..3).all(|n| abs_compare(&contact.corner_turned[n], &box_size[n]) & 0x100 != 0)
 }
 
 /// `block` the other car's block.

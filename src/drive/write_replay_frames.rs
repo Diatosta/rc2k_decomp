@@ -40,7 +40,7 @@ pub fn write_replay_frames(
             network_view(net.race_slot.player())
         };
         cell.set(cell.get() & !0xFF00 | u32::from(v) << 8);
-    } else if race.replay_work().header_one_player.get() != 1 {
+    } else if race.replay_work().header_one_player != 1 {
         // the header's byte 5 (the second dword's second byte)
         let cell = &race.viewer_buffers().block[1];
         let v = if race.viewer_buffers().v2.is_set() && race.shared.view.get().views.get() > 2 {

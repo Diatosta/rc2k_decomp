@@ -18,8 +18,8 @@ pub fn play_cue_queues(
     }
     // The logic is `rc2k_core::sound::turn::cue_cars`.
     let cars = rc2k_core::sound::turn::cue_cars(
-        sound.race.sounds.get().player_cars[0].get(),
-        || sound.race.sounds.get().player_cars[1].get(),
+        sound.race.sounds().player_cars[0],
+        || sound.race.sounds().player_cars[1],
         sound.threads.shared.one_player.get(),
     );
     if cars.iter().any(|&n| n > 7) {

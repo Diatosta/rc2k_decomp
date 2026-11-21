@@ -34,7 +34,7 @@ fn pairs<'a>(
 
 /// The logic is `rc2k_core::sound::cars::voice_mark`.
 pub fn mark_car_voices(sound: &crate::sound::owner::Sound, race: &Race) -> Result<(), Refused> {
-    if sound.race.sounds.get().mark_car_voices.get() != 1 {
+    if sound.race.sounds().mark_car_voices != 1 {
         return Ok(());
     }
     for (n, (o, car)) in pairs(sound, race)?.into_iter().enumerate() {

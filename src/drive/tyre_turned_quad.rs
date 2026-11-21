@@ -8,39 +8,34 @@ use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
 use crate::math::x87_float::{int, ld, stf};
-use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::owner_shared::RaceShared;
 use crate::race::tyre_store::TyreChange;
 
-/// The turn's arithmetic: `ty` the tyre change's variables (the constants and results), `e`
-/// the input device, `d` the rectangle (floats), `v` the vertices, `t` the scratch float
-/// holding 2 pi.
-fn turn(ty: &TyreChange, e: &InputDevice, d: &[PlainFloat; 4], v: &[Vertex], t: &PlainDword) {
-    let angle = int(e.gauge.get() as i32) * ld(ty.gauge_unit.get()) * ld(t.get());
+/// The turn's arithmetic: `ty` the tyre change's variables (the constants and results), `gauge`
+/// the input device's gauge, `d` the rectangle (floats), `v` the vertices, `two_pi` the scratch
+/// float's bits holding 2 pi.
+fn turn(ty: &mut TyreChange, gauge: u32, d: [f32; 4], v: &[Vertex], two_pi: u32) {
+    let angle = int(gauge as i32) * ld(ty.gauge_unit) * ld(two_pi);
     let (sin, cos) = angle.sin_cos();
-    ty.turn_cos.set(stf(cos));
-    ty.turn_sin.set(stf(sin));
-    ty.half_h_sin
-        .set(stf(ld(d[3].get()) * ld(ty.turn_sin.get())));
-    ty.neg_half_h_cos
-        .set(stf(-(ld(d[3].get()) * ld(ty.turn_cos.get()))));
-    ty.half_w_cos
-        .set(stf(ld(d[2].get()) * ld(ty.turn_cos.get())));
-    ty.half_w_sin
-        .set(stf(ld(d[2].get()) * ld(ty.turn_sin.get())));
-    let (wheel_x, wheel_y) = (int(ty.wheel[0].get() as i32), int(ty.wheel[1].get() as i32));
-    let x = -ld(ty.half_w_cos.get()) + ld(d[0].get()) + wheel_x;
+    ty.turn_cos = stf(cos);
+    ty.turn_sin = stf(sin);
+    ty.half_h_sin = stf(ld(d[3]) * ld(ty.turn_sin));
+    ty.neg_half_h_cos = stf(-(ld(d[3]) * ld(ty.turn_cos)));
+    ty.half_w_cos = stf(ld(d[2]) * ld(ty.turn_cos));
+    ty.half_w_sin = stf(ld(d[2]) * ld(ty.turn_sin));
+    let (wheel_x, wheel_y) = (int(ty.wheel[0] as i32), int(ty.wheel[1] as i32));
+    let x = -ld(ty.half_w_cos) + ld(d[0]) + wheel_x;
     v[2].x.set(stf(x));
-    v[0].x.set(stf(x + ld(ty.half_h_sin.get())));
-    let x = ld(ty.half_w_cos.get()) + ld(d[0].get()) + wheel_x;
+    v[0].x.set(stf(x + ld(ty.half_h_sin)));
+    let x = ld(ty.half_w_cos) + ld(d[0]) + wheel_x;
     v[3].x.set(stf(x));
-    v[1].x.set(stf(x + ld(ty.half_h_sin.get())));
-    let y = -ld(ty.half_w_sin.get()) + ld(d[1].get()) + wheel_y;
+    v[1].x.set(stf(x + ld(ty.half_h_sin)));
+    let y = -ld(ty.half_w_sin) + ld(d[1]) + wheel_y;
     v[2].y.set(stf(y));
-    v[0].y.set(stf(y + ld(ty.neg_half_h_cos.get())));
-    let y = ld(ty.half_w_sin.get()) + ld(d[1].get()) + wheel_y;
+    v[0].y.set(stf(y + ld(ty.neg_half_h_cos)));
+    let y = ld(ty.half_w_sin) + ld(d[1]) + wheel_y;
     v[3].y.set(stf(y));
-    v[1].y.set(stf(y + ld(ty.neg_half_h_cos.get())));
+    v[1].y.set(stf(y + ld(ty.neg_half_h_cos)));
 }
 
 /// The texture rectangle `uv`, the screen rectangle `rect`, the colour `colour`, the input device
@@ -52,7 +47,7 @@ fn turn(ty: &TyreChange, e: &InputDevice, d: &[PlainFloat; 4], v: &[Vertex], t: 
 pub fn tyre_turned_quad(
     shared: &RaceShared,
     uv: [u32; 4],
-    rect: &[PlainFloat; 4],
+    rect: [f32; 4],
     colour: u32,
     device: &InputDevice,
     system: &crate::system::owner::System,
@@ -62,11 +57,11 @@ pub fn tyre_turned_quad(
     let buffer = &part.vertices;
     system.machine().scratch.set(0x40C9_0FDB);
     turn(
-        shared.tyre_change(),
-        device,
+        &mut shared.tyre_change_mut(),
+        device.gauge.get(),
         rect,
         &buffer.vertices[..4],
-        &system.machine().scratch,
+        system.machine().scratch.get(),
     );
     quad_words(buffer, colour);
     quad_tail(buffer, uv, panel, system, Spread::Centred);
@@ -91,16 +86,15 @@ mod reference_vectors {
         u32::from_le_bytes(buf[off..off + 4].try_into().unwrap())
     }
 
-    fn zeroed() -> Box<TyreChange> {
-        // SAFETY: atomic cells and byte arrays only: all-zero is valid.
-        Box::new(unsafe { std::mem::zeroed() })
+    fn fresh() -> Box<TyreChange> {
+        Box::new(TyreChange::new())
     }
 
     fn bytes(ty: &TyreChange) -> &[u8] {
         const { assert!(WINDOW_END <= size_of::<TyreChange>()) };
         // SAFETY: the record's first `WINDOW_END` bytes (inside it, asserted above), all of them
-        // plain cells' (`PlainDword`s, `PlainFloat`s, `PlainBytes`: no padding, any bits a
-        // byte); read only while the slice lives, which borrows `ty`.
+        // `u32`s, `f32`s and bytes (no padding under the test's `repr(C)`, any bits a byte); read only
+        // while the slice lives, which borrows `ty`.
         unsafe {
             std::slice::from_raw_parts(
                 std::ptr::from_ref::<TyreChange>(ty).cast::<u8>(),
@@ -109,17 +103,19 @@ mod reference_vectors {
         }
     }
 
-    fn put_ty(ty: &TyreChange, off: usize, v: u32) {
+    fn put_ty(ty: &mut TyreChange, off: usize, v: u32) {
         assert!(
             off.is_multiple_of(4) && off + 4 <= size_of::<TyreChange>(),
             "a dword of the record"
         );
         // SAFETY: a whole dword of the record (asserted above), 4-aligned as the record is, inside
-        // its plain cells (`UnsafeCell`s: writable through a shared reference), and no other
-        // reference to those bytes is read meanwhile.
+        // fields that are `u32`s, `f32`s or bytes (any bits valid); `ty` is borrowed for the write.
         unsafe {
-            (std::ptr::from_ref::<TyreChange>(ty).cast::<u8>().add(off) as *mut u32)
-                .write_unaligned(v);
+            std::ptr::from_mut::<TyreChange>(ty)
+                .cast::<u8>()
+                .add(off)
+                .cast::<u32>()
+                .write(v);
         }
     }
 
@@ -131,7 +127,7 @@ mod reference_vectors {
         let _g = crate::test_support::test_lock();
         let saved = control_word();
         let mut rng = Rng::new(206);
-        let (ty_a, ty_b) = (zeroed(), zeroed());
+        let (mut ty_a, mut ty_b) = (fresh(), fresh());
         let (mut e_a, mut e_b) = (vec![0u8; 0x4F0 + 16], vec![0u8; 0x4F0 + 16]);
         let (mut d_a, mut d_b) = (vec![0u8; 32], vec![0u8; 32]);
         let (mut v_a, mut v_b) = (vec![0u8; 0x90], vec![0u8; 0x90]);
@@ -143,7 +139,7 @@ mod reference_vectors {
             set_control_word(cw);
             for n in 0..1000 {
                 for off in (WINDOW..WINDOW_END).step_by(4) {
-                    put_ty(&ty_a, off, 0xAAAA_AAAA);
+                    put_ty(&mut ty_a, off, 0xAAAA_AAAA);
                 }
                 v_a.fill(0xAA);
                 put(&mut e_a, 0x4EC, rng.small() as u32);
@@ -152,15 +148,15 @@ mod reference_vectors {
                     1 => rng.unit() * 1e-4,
                     _ => (rng.small() as f32) * 1e-6,
                 };
-                put_ty(&ty_a, 0x8, factor.to_bits());
+                put_ty(&mut ty_a, 0x8, factor.to_bits());
                 put(&mut t_a, 0, 0x40C9_0FDB);
                 for off in [0, 4, 8, 0xC] {
                     put(&mut d_a, off, rng.moderate());
                 }
-                put_ty(&ty_a, 0x20, rng.small() as u32);
-                put_ty(&ty_a, 0x24, rng.small() as u32);
+                put_ty(&mut ty_a, 0x20, rng.small() as u32);
+                put_ty(&mut ty_a, 0x24, rng.small() as u32);
                 for off in (WINDOW..WINDOW_END).step_by(4) {
-                    put_ty(&ty_b, off, get(bytes(&ty_a), off));
+                    put_ty(&mut ty_b, off, get(bytes(&ty_a), off));
                 }
                 v_b.copy_from_slice(&v_a);
                 e_b.copy_from_slice(&e_a);
@@ -172,18 +168,10 @@ mod reference_vectors {
                 file.input(&d_a[..16]);
                 file.input(&t_a[..4]);
                 let expected = file.results(&before, || unreachable!("replayed"));
-                // SAFETY: the buffers are the operands' (the device's record, four floats,
-                // four vertices, a dword), aligned; the device's record is
-                // `0x4F0 + 16` bytes, its `gauge` at 0x4EC.
-                unsafe {
-                    turn(
-                        &ty_b,
-                        &*e_b.as_ptr().cast::<InputDevice>(),
-                        &*d_b.as_ptr().cast::<[PlainFloat; 4]>(),
-                        &*v_b.as_ptr().cast::<[Vertex; 4]>(),
-                        &*t_b.as_ptr().cast::<PlainDword>(),
-                    );
-                }
+                let floats: [f32; 4] = std::array::from_fn(|k| f32::from_bits(get(&d_b, 4 * k)));
+                // SAFETY: the buffer is four vertices' (`0x90` bytes), aligned.
+                let vertices = unsafe { &*v_b.as_ptr().cast::<[Vertex; 4]>() };
+                turn(&mut ty_b, get(&e_b, 0x4EC), floats, vertices, get(&t_b, 0));
                 let (want_ty, want_v) = expected.split_at(WINDOW_END);
                 let mut places: Vec<(&str, usize, &[u8], &[u8])> = Vec::new();
                 for off in (WINDOW..WINDOW_END).step_by(4) {

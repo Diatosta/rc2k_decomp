@@ -23,7 +23,7 @@ pub(super) fn cue_car_sound(
         crate::sound::cue_players::count(),
         |which| match which {
             // The split screen's third and fourth cars are their own sound objects.
-            0 | 1 => sound.race.sounds.get().player_cars[which as usize].get(),
+            0 | 1 => sound.race.sounds().player_cars[which as usize],
             other => other,
         },
         |car| car,

@@ -28,12 +28,12 @@ use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 /// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit, log_two_ten}` and
 /// `one`.
 fn constants(race: &Race) -> [f32; 5] {
-    let shared = &race.shared;
+    let tyre = race.shared.tyre_change();
     [
-        shared.tyre_change().time_base.get(),
-        shared.tyre_change().time_scale.get(),
-        shared.tyre_change().gauge_unit.get(),
-        shared.tyre_change().log_two_ten.get(),
+        tyre.time_base,
+        tyre.time_scale,
+        tyre.gauge_unit,
+        tyre.log_two_ten,
         race.viewer_panel().one.get(),
     ]
 }
@@ -87,19 +87,16 @@ impl Io for GameIo {
         press_time(self.race, s as i32) as u32
     }
     fn record(&mut self) -> u32 {
-        self.race.shared.tyre_change().record.get()
+        self.race.shared.tyre_change().record
     }
     fn beaten(&mut self, time: u32) {
-        let shared = &self.race.shared;
-        shared.tyre_change().record.set(time);
+        let mut tyre = self.race.shared.tyre_change_mut();
+        tyre.record = time;
         // The 30 bytes of the player's name in `Names.player_names`: the first player's, or the
         // second's for player 1.
-        let from = 0x20 * (shared.tyre_change().player.get() != 0) as usize;
-        for n in 0..30 {
-            shared
-                .tyre_change()
-                .record_name
-                .set(n, self.o.menus.play.slots.names.player_names.get(from + n));
+        let from = 0x20 * (tyre.player != 0) as usize;
+        for (n, byte) in tyre.record_name[..30].iter_mut().enumerate() {
+            *byte = self.o.menus.play.slots.names.player_names.get(from + n);
         }
     }
 }
@@ -113,7 +110,7 @@ pub fn tyre_change_gauge(o: Owners<'static>, start: bool, player: u32) -> Result
     let Some(d) = input.devices.input_device(player as usize)? else {
         return Err(BadInput("a tyre change player without a device").into());
     };
-    race.shared.tyre_change().player.set(player);
+    race.shared.tyre_change_mut().player = player;
     let mut io = GameIo { o, race, device: d };
     let mut gauge = Gauge {
         gauge: d.gauge.get(),
@@ -141,21 +138,21 @@ mod reference_vectors {
     fn constants() -> [f32; 5] {
         let tyre = race().shared.tyre_change();
         [
-            tyre.time_base.get(),
-            tyre.time_scale.get(),
-            tyre.gauge_unit.get(),
-            tyre.log_two_ten.get(),
+            tyre.time_base,
+            tyre.time_scale,
+            tyre.gauge_unit,
+            tyre.log_two_ten,
             VIEWER_PANEL.one.get(),
         ]
     }
 
     /// The five constants set.
     fn set_constants(v: [f32; 5]) {
-        let tyre = race().shared.tyre_change();
-        tyre.time_base.set(v[0]);
-        tyre.time_scale.set(v[1]);
-        tyre.gauge_unit.set(v[2]);
-        tyre.log_two_ten.set(v[3]);
+        let mut tyre = race().shared.tyre_change_mut();
+        tyre.time_base = v[0];
+        tyre.time_scale = v[1];
+        tyre.gauge_unit = v[2];
+        tyre.log_two_ten = v[3];
         VIEWER_PANEL.one.set(v[4]);
     }
 

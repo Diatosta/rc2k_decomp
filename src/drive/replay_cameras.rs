@@ -6,7 +6,6 @@
 //! (everything written put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::race::replay_work_store::ReplayWork;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
@@ -26,8 +25,18 @@ fn wish_of(replay_work: &ReplayWork, byte: usize) -> Result<u32, BadInput> {
         .iter()
         .chain(&replay_work.camera_last_frame)
         .nth(byte)
-        .map(PlainDword::get)
+        .copied()
         .ok_or(BadInput("a replay camera wish past the replay work"))
+}
+
+/// Car `c`'s last camera draw frame set to `frame`.
+fn set_last_frame(race: &Race, c: usize, frame: u32) {
+    let mut work = race.replay_work_mut();
+    if c < 2 {
+        work.camera_last_frame[c] = frame;
+    } else {
+        work.camera_last_frame_extra[c - 2] = frame;
+    }
 }
 
 fn steps(race: &Race) -> Result<(), Refused> {
@@ -44,19 +53,21 @@ fn steps(race: &Race) -> Result<(), Refused> {
     };
     for c in 0..cars {
         let car = &race.car_blocks().cars[c];
-        let (byte, last) = match c {
-            0 | 1 => (c, &race.replay_work().camera_last_frame[c]),
-            _ => (c + 4, &race.replay_work().camera_last_frame_extra[c - 2]),
+        let byte = if c < 2 { c } else { c + 4 };
+        let last = {
+            let work = race.replay_work();
+            if c < 2 {
+                work.camera_last_frame[c]
+            } else {
+                work.camera_last_frame_extra[c - 2]
+            }
         };
-        let wish = wish_of(race.replay_work(), head_byte(race, byte) as usize)?;
-        match wish_step(
-            wish,
-            replay.replay_view().replay_block.get(),
-            last.get(),
-            || car.camera_view.get(),
-        ) {
+        let wish = wish_of(&race.replay_work(), head_byte(race, byte) as usize)?;
+        match wish_step(wish, replay.replay_view().replay_block.get(), last, || {
+            car.camera_view.get()
+        }) {
             WishStep::Draw(_) => {
-                last.set(replay.replay_view().replay_block.get());
+                set_last_frame(race, c, replay.replay_view().replay_block.get());
                 // `Draw` comes only for the wishes that draw: the mode is there.
                 if let Some(mode) =
                     { crate::drive::pick_replay_camera::pick_replay_camera(race, wish) }?
@@ -73,7 +84,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
                 car.camera_view.set(wish);
                 car.camera_switch_active.set(0);
                 car.camera_switch_clock.set(car.step_clock.get());
-                last.set(0);
+                set_last_frame(race, c, 0);
             }
         }
     }
@@ -118,10 +129,10 @@ mod tests {
 
     #[test]
     fn a_wish_stays_inside_the_replay_work() {
-        assert!(wish_of(crate::test_support::own::race().replay_work(), 46).is_ok());
+        assert!(wish_of(&crate::test_support::own::race().replay_work(), 46).is_ok());
         // The two dwords after the table are the replay work's own.
-        assert!(wish_of(crate::test_support::own::race().replay_work(), 48).is_ok());
-        assert!(wish_of(crate::test_support::own::race().replay_work(), 255).is_err());
+        assert!(wish_of(&crate::test_support::own::race().replay_work(), 48).is_ok());
+        assert!(wish_of(&crate::test_support::own::race().replay_work(), 255).is_err());
     }
 
     /// Each byte of the head, as the byte-offset read gave it.

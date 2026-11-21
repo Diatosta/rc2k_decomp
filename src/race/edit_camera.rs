@@ -48,8 +48,8 @@ pub fn step_camera(race: &Race, step: i8) -> Result<(), Refused> {
     let old: u8 = at.read(race, "a replay camera byte")?;
     use rc2k_core::race::viewer::{camera_skipped, every_camera, step_camera};
     let every = every_camera(
-        race.replay_work().header_one_player.get() == 1,
-        race.replay_work().header_kind_0.get(),
+        race.replay_work().header_one_player == 1,
+        race.replay_work().header_kind_0,
     );
     let new_camera = step_camera(old, step > 0, every, |n| camera_skipped(name_of(race, n)))?;
     at.write(race, new_camera, "a replay camera byte")?;
