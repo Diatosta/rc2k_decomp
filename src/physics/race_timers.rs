@@ -23,10 +23,8 @@ pub(super) fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Res
         &race.course.numbers,
         &mut race.course.league_mut(),
     );
-    let (frame_work, panel_and_overlay) = (
-        &race.frame.frame_work.get(),
-        &race.frame.panel_and_overlay.get(),
-    );
+    let (frame_work, panel_and_overlay) =
+        (&race.frame.frame_work, &race.frame.panel_and_overlay.get());
     let (shared, car_blocks) = (&race.shared, race.car_blocks());
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
     shared.physics_tables.get().weight.set(1.0f32);

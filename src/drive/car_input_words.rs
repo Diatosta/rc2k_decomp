@@ -25,7 +25,7 @@ pub fn car_input_words(
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
     let car = race_owner.shared.work.get().current_car.get();
     check_car(car)?;
-    let mut device = frame.frame_work.get().listed_car_sounds[car as usize].get();
+    let mut device = frame.frame_work.borrow().listed_car_sounds[car as usize];
     // A replay that hears every car lists each by its own number, which names no device.
     if crate::race::heard_cars::is_on(&race_owner.shared) {
         device = NO_DEVICE;

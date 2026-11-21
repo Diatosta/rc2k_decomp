@@ -545,7 +545,7 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
             if current > 7 {
                 return Err(BadInput("g_currentCar past the eight").into());
             }
-            let view: u32 = race.frame.frame_work.get().listed_car_sounds[current as usize].get();
+            let view: u32 = race.frame.frame_work.borrow().listed_car_sounds[current as usize];
             if view != u32::MAX {
                 wake = true;
             }

@@ -9,7 +9,7 @@ pub fn copy_screen_to_texture(
     scene: &Scene,
     screen: &crate::memory::session::Screen,
 ) {
-    if frame.frame_work.get().mirror_wanted.is_set() {
+    if frame.frame_work.borrow().mirror_wanted {
         crate::d3d::device::copy_screen_to_system_texture(
             scene.drawing.scene.borrow().mirror_picture,
             screen,

@@ -561,7 +561,7 @@ mod vector_tests {
     fn state() -> [u32; 5] {
         let race = race();
         [
-            race.frame.frame_work.get().car_depth.get(),
+            race.frame.frame_work.borrow().car_depth,
             race.shared.work.get().car_nearness.get().to_bits(),
             SHINE.get(),
             ZERO_AND_ONE.get()[0],
@@ -573,11 +573,7 @@ mod vector_tests {
         let race = race();
         scene().draw_work_mut().scratch = 0xAAAA_AAAAu32;
         // the depth is a whole number around the view's reach
-        race.frame
-            .frame_work
-            .get()
-            .car_depth
-            .set((r.int() as u32) & 0x3F_FFFF);
+        race.frame.frame_work.borrow_mut().car_depth = (r.int() as u32) & 0x3F_FFFF;
         race.shared
             .work
             .get()
@@ -601,8 +597,7 @@ mod vector_tests {
     fn plain() -> Vec<u32> {
         let race = race();
         let cars = CarDrawState::new();
-        cars.car_depth
-            .set(race.frame.frame_work.get().car_depth.get());
+        cars.car_depth.set(race.frame.frame_work.borrow().car_depth);
         let mine = crate::race::view_course::ViewCourse::new();
         mine.shine.set(SHINE.get());
         let [zero, one] = ZERO_AND_ONE.get();

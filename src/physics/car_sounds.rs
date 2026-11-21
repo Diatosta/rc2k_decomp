@@ -14,7 +14,7 @@ use crate::math::x87_float::{f80, int};
 use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::physics::step_families::SoundInputs;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::numbers_store::Numbers;
 use crate::scene::matrix::Matrix;
 use crate::scene::rotate_point::rotate_point_by;
@@ -22,11 +22,11 @@ use crate::sound::store::SoundObjectCell;
 use rc2k_core::physics::sound_places::{FIRST, PLAY, SECOND, Slot};
 
 /// Whether car `car` (a number) is listed; refused past 7.
-pub fn listed(frame_work: &FrameWork, car: u32) -> Result<bool, Refused> {
+pub fn listed(frame_work: &FrameWorkStore, car: u32) -> Result<bool, Refused> {
     if car > 7 {
         return Err(BadInput("a car number past 7").into());
     }
-    Ok(frame_work.listed_car_sounds[car as usize].get() != u32::MAX)
+    Ok(frame_work.borrow().listed_car_sounds[car as usize] != u32::MAX)
 }
 
 /// The current car's sound object.

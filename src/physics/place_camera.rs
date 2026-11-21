@@ -9,7 +9,7 @@
 use crate::math::engine_tables::EngineTables;
 use crate::math::x87_float::{f80, int, ld};
 use crate::physics::camera_store::CameraWork;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
@@ -33,7 +33,7 @@ fn place_with(
     camera: &CameraWork,
     lights_data: &LightsData,
     view_records: &ViewAndRecords,
-    frame_work: &FrameWork,
+    frame_work: &FrameWorkStore,
     shared: &RaceShared,
     turns: Turns,
     second: &dyn Fn() -> [i32; 3],
@@ -119,11 +119,7 @@ fn place_with(
     shared.car().camera_position[2].set(z);
     // The second offset, turned with the car.
     let whole = second();
-    let car = [
-        frame_work.camera_car[0].get(),
-        frame_work.camera_car[1].get(),
-        frame_work.camera_car[2].get(),
-    ];
+    let car = frame_work.borrow().camera_car;
     let place = [
         shared.car().camera_position[0].get(),
         shared.car().camera_position[1].get(),
@@ -141,7 +137,7 @@ pub fn place_camera(
     lights_data: &LightsData,
     view_records: &ViewAndRecords,
     numbers: &Numbers,
-    frame_work: &FrameWork,
+    frame_work: &FrameWorkStore,
     shared: &RaceShared,
 ) {
     use crate::math::{rotate_point_about_y, rotate_point_about_y_ebx, rotate_point_about_y_ecx};

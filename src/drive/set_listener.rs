@@ -146,7 +146,7 @@ pub fn set_listener(
         }
     }
     let switches = listener::switches(
-        race.frame.frame_work.get().mirror_wanted.is_set(),
+        race.frame.frame_work.borrow().mirror_wanted,
         car.surface_noise_a.get(),
         car.surface_noise_b.get(),
     );

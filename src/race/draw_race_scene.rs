@@ -558,16 +558,13 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .panel
         .flat
         .set(race.frame.panel_and_overlay.get().panel.hud_flags[0].get() & 0x40);
-    race.frame.frame_work.get().mirror_wanted.set(false);
+    race.frame.frame_work.borrow_mut().mirror_wanted = false;
     if race.course.stage_prefs.get().precipitation_range[0].get()
         | race.course.stage_prefs.get().precipitation_range[1].get()
         != 0
     {
-        race.frame
-            .frame_work
-            .get()
-            .mirror_wanted
-            .set(race.frame.cars.car(blocks[0])?.camera_mode_is_2_or_3.get() != 0);
+        let wanted = race.frame.cars.car(blocks[0])?.camera_mode_is_2_or_3.get() != 0;
+        race.frame.frame_work.borrow_mut().mirror_wanted = wanted;
     }
     scene.objects.tables.borrow_mut().d3d_drawing_on = 1;
     // The frame's one sound turn (`sound::race_turn`, when 20 ms of the scene clock have passed
@@ -627,7 +624,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .set(0);
     crate::race::frame_views::forget_view_textures(race, scene, system, o.gfx)?;
     crate::race::mud_frame::mud_frame(race, scene, o.gfx, o.system)?;
-    race.frame.frame_work.get().kind_textures_done.set(0);
+    race.frame.frame_work.borrow_mut().kind_textures_done = 0;
     crate::scene::assign_kind_textures::assign_kind_textures(scene)?;
     assign_light_textures(race, scene)?;
     crate::scene::map_texture_places::map_texture_places(scene);

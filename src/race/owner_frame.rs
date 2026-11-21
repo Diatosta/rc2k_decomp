@@ -41,9 +41,9 @@ pub struct Frame {
     pub overview_picture: std::sync::Mutex<Option<Vec<Option<u32>>>>,
     /// The whole nanosecond count at the last frame-rate measure.
     pub last_frame_nanos: std::sync::atomic::AtomicU64,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it (the two
-    /// counters nobody reads stay atomic).
-    pub frame_work: DrawShared<FrameWork>,
+    /// A plain record, lent to the drawing parts as a copy (`scene::workers::DrawReads`): no part
+    /// writes it (short borrows on the game's thread).
+    pub frame_work: DrawPlain<FrameWork>,
     /// A plain record, lent to the drawing parts as a copy (`scene::workers::DrawReads`): no part
     /// writes it (the held columns are each part's own, `scene::view_matrices::Held`, merged in
     /// the parts' order).
@@ -88,7 +88,7 @@ impl Frame {
             blend: crate::race::blend::Blend::new(),
             overview_picture: std::sync::Mutex::new(None),
             last_frame_nanos: std::sync::atomic::AtomicU64::new(0),
-            frame_work: DrawShared::new(FrameWork::new()),
+            frame_work: DrawPlain::new(FrameWork::new()),
             matrices: DrawPlain::new(SceneMatrices::new()),
             view_kept: DrawPlain::new(ViewKept::new()),
             shadow_skids: DrawShared::new(ShadowSkids::new()),

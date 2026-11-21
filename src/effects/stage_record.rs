@@ -11,6 +11,6 @@ use crate::race::view_vars_store::{ViewRecord, ViewVars};
 /// The record.
 // The logic is in `rc2k_core::effects::race::stage_record`
 pub fn stage_record(frame: &Frame) -> Result<&ViewRecord, Refused> {
-    let n = rc2k_core::effects::race::stage_record(frame.frame_work.get().lead_kept[0].get())?;
+    let n = rc2k_core::effects::race::stage_record(frame.frame_work.borrow().lead_kept[0])?;
     Ok(ViewVars::record_of(frame.view_and_records.get(), n)?)
 }

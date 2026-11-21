@@ -26,7 +26,7 @@ fn put(v: &[&dyn DwordLike], k: usize, x: u32) {
 /// On the variables at `v` (`game`'s order).
 fn choose_at(
     v: &[&dyn DwordLike],
-    listed: &[PlainDword],
+    listed: &mut [u32; 8],
     players: &[usize],
     heard_cars: u32,
 ) -> Result<(), Refused> {
@@ -60,9 +60,7 @@ fn choose_at(
     // (the cars are below eight: `choose` refuses a network car above 7)
     put(v, 9, crate::race::blocks_store::BLOCK_TAG | shown.cars[0]);
     put(v, 10, crate::race::blocks_store::BLOCK_TAG | shown.cars[1]);
-    for (k, &x) in shown.listed.iter().enumerate() {
-        listed[k].set(x);
-    }
+    *listed = shown.listed;
     Ok(())
 }
 
@@ -103,10 +101,8 @@ pub fn choose_shown_cars_in(race: &Race, net: &crate::net::owner::Net) -> Result
     } else {
         (Vec::new(), 0)
     };
-    choose_at(
-        &game(race, &network),
-        &race.frame.frame_work.get().listed_car_sounds,
-        &players,
-        heard,
-    )
+    let mut listed = race.frame.frame_work.borrow().listed_car_sounds;
+    choose_at(&game(race, &network), &mut listed, &players, heard)?;
+    race.frame.frame_work.borrow_mut().listed_car_sounds = listed;
+    Ok(())
 }

@@ -9,7 +9,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::owner_physics::Physics;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
@@ -26,7 +26,7 @@ const WORDS: [&std::ffi::CStr; 4] = [c"!!! invalid pace data", c"data", c"ecx", 
 )]
 pub fn queue_pace_note(
     physics: &Physics,
-    frame_work: &FrameWork,
+    frame_work: &FrameWorkStore,
     work: &RaceWork,
     scene_clock: u32,
     car: &Car,

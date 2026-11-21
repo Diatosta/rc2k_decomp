@@ -246,7 +246,7 @@ fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Re
 pub(super) fn draw_skidmarks_if_on(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
-    if ctx.reads.frame_work.drawing.get() != 0 {
+    if ctx.reads.frame_work.drawing() != 0 {
         return Ok(());
     }
     draw_skidmarks(ctx)

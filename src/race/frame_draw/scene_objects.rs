@@ -40,7 +40,7 @@ fn draw_slot_object(
     let mode: u32 = ctx.reads.vars.run_kind.get();
     if ctx.reads.view.players.get() != 1 && mode != 0 && mode != 2 {
         let n = object.wrapping_sub(0x50);
-        if ctx.reads.frame_work.listed_car_sounds[((n / 0x14) & 7) as usize].get()
+        if ctx.reads.frame_work.listed_car_sounds()[((n / 0x14) & 7) as usize]
             != ctx.view.drawn_view(race)
         {
             return Ok(());
@@ -371,13 +371,8 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     }
     if ctx.reads.switches.mask_kind.get() == 8 {
         ctx.view.object.borrow_mut().size = 2u32;
-        let point = [
-            ctx.reads.frame_work.part_place[0].get(),
-            ctx.reads.frame_work.part_place[1]
-                .get()
-                .wrapping_sub(GROUND_DROP),
-            ctx.reads.frame_work.part_place[2].get(),
-        ];
+        let place = ctx.reads.frame_work.part_place();
+        let point = [place[0], place[1].wrapping_sub(GROUND_DROP), place[2]];
         ctx.view.light.borrow_mut().other_light = 0x00F0_F0F0u32;
         place_flare(ctx, car, point)?;
         // the pair's other light, as `light_pair` (the debug UI).

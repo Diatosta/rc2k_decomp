@@ -11,7 +11,7 @@ use crate::errors::Refused;
 use crate::physics::flag_current_car_listed::flag_current_car_listed;
 use crate::physics::split_by_mode::split_by_mode;
 use crate::physics::splits::put_split_time;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::groups_store::PanelAndOverlay;
 use crate::race::league_store::League;
 use crate::race::owner_physics::Physics;
@@ -25,7 +25,7 @@ pub(super) fn take_split_counted(
     o: crate::owners::Owners<'static>,
     physics: &Physics,
     league: &mut League,
-    frame_work: &FrameWork,
+    frame_work: &FrameWorkStore,
     panel_and_overlay: &PanelAndOverlay,
     shared: &RaceShared,
     car_blocks: &crate::race::blocks_store::CarBlocks,

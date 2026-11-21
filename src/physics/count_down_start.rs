@@ -9,12 +9,12 @@
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::listed_car_flags::set_flag;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::start::{CarStart, StartCount};
 
 pub fn count_down_start(
-    frame_work: &FrameWork,
+    frame_work: &FrameWorkStore,
     work: &RaceWork,
     car: &Car,
     sound: &crate::sound::owner::Sound,

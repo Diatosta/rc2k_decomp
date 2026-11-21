@@ -117,7 +117,7 @@ pub struct Lent<'s> {
     /// The finish state's "no place" switch as the frame began.
     no_place: u32,
     // The frame's work and the panel and overlay.
-    frame_work: crate::memory::session::PhaseRead<'s, crate::race::frame_store::FrameWork>,
+    frame_work: crate::memory::session::PlainRead<crate::race::frame_store::FrameWork>,
     frame_cars: &'s crate::race::frame_view::FrameCars,
     panel_and_overlay:
         crate::memory::session::PhaseRead<'s, crate::race::groups_store::PanelAndOverlay>,
@@ -181,7 +181,7 @@ impl<'s> Lent<'s> {
             lights_and_gear: PhaseRead::lend(&race.frame.lights_and_gear, scope),
             no_place: race.replay.no_place(),
             // The frame's work and the panel and overlay.
-            frame_work: PhaseRead::lend(&race.frame.frame_work, scope),
+            frame_work: crate::memory::session::PlainRead::lend(&race.frame.frame_work, scope),
             frame_cars: &race.frame.cars,
             panel_and_overlay: PhaseRead::lend(&race.frame.panel_and_overlay, scope),
             // The cars' blocks and the view variables.
@@ -234,7 +234,7 @@ impl<'s> Lent<'s> {
             lights_and_gear: &self.lights_and_gear,
             no_place: self.no_place,
             // The frame's work and the panel and overlay.
-            frame_work: &self.frame_work,
+            frame_work: (&self.frame_work).into(),
             frame_cars: self.frame_cars,
             panel_and_overlay: &self.panel_and_overlay,
             // The cars' blocks and the view variables.
@@ -303,7 +303,7 @@ pub struct DrawReads<'a> {
     pub no_place: u32,
     // The frame's work and the panel and overlay.
     /// The frame's draw work (`race::owner_frame::Frame::frame_work`).
-    pub frame_work: &'a crate::race::frame_store::FrameWork,
+    pub frame_work: crate::race::frame_store::FrameWorkRef<'a>,
     /// The cars' snapshot for this frame's drawing (`race::frame_view`).
     pub frame_cars: &'a crate::race::frame_view::FrameCars,
     /// The hud's panel and the race's overlay (`race::owner_frame::Frame::panel_and_overlay`).
@@ -418,7 +418,7 @@ impl<'a> DrawReads<'a> {
             lights_and_gear: race.frame.lights_and_gear.get(),
             no_place: race.replay.no_place(),
             // The frame's work and the panel and overlay.
-            frame_work: race.frame.frame_work.get(),
+            frame_work: (&race.frame.frame_work).into(),
             frame_cars: &race.frame.cars,
             panel_and_overlay: race.frame.panel_and_overlay.get(),
             // The cars' blocks and the view variables.

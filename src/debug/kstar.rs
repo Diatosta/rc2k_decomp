@@ -331,7 +331,7 @@ fn lights(race: &Race, ui: &Ui) {
             table.set_u32(at, v as u32);
         }
         // The place where `car_light_flares` reads it.
-        frame.frame_work.get().part_place[k].set(if readable { table.get_u32(at) } else { 0 });
+        frame.frame_work.borrow_mut().part_place[k] = if readable { table.get_u32(at) } else { 0 };
     }
 }
 

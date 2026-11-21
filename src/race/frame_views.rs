@@ -238,11 +238,11 @@ fn copy_mirror_picture(
     }
     // The surfaces' pixels by handle (kept, never read back).
     let from_pixels = crate::gfx::surface::handle(gfx)?;
-    frame.frame_work.get().view_kept[0].set(from_pixels);
+    frame.frame_work.borrow_mut().view_kept[0] = from_pixels;
     let from_pitch = gfx_drawing.draw_surface.pitch.get();
     if lock_texture_in(gfx, to)? {
         let to_pixels = crate::gfx::surface::handle(gfx)?;
-        frame.frame_work.get().view_kept[1].set(to_pixels);
+        frame.frame_work.borrow_mut().view_kept[1] = to_pixels;
         let format = gfx_drawing.draw_surface.format.get();
         if format == 0 {
             return Err(BadInput("a surface without its format").into());
@@ -354,8 +354,8 @@ pub(super) fn forget_view_textures(
         ),
     };
     let mirror = mirror_on(
-        u32::from(frame.frame_work.get().mirror_wanted.is_set()),
-        frame.frame_work.get().mirror_switch.get(),
+        u32::from(frame.frame_work.borrow().mirror_wanted),
+        frame.frame_work.borrow().mirror_switch,
     );
     let mut slots: Vec<u32> = FORGET_ORDER
         .iter()
@@ -368,7 +368,7 @@ pub(super) fn forget_view_textures(
     }
     trap.finish()?;
     check_slots(&slots)?;
-    frame.frame_work.get().view_textures_forgotten.set(0);
+    frame.frame_work.borrow_mut().view_textures_forgotten = 0;
     for (f, bit) in FORGET_ORDER {
         let (switch, slot) = source(f);
         if !forgets(switch) {
@@ -384,11 +384,7 @@ pub(super) fn forget_view_textures(
                 .get()
                 .wrapping_add(FORGET_COST),
         );
-        frame
-            .frame_work
-            .get()
-            .view_textures_forgotten
-            .set(frame.frame_work.get().view_textures_forgotten.get() | bit);
+        frame.frame_work.borrow_mut().view_textures_forgotten |= bit;
         if let Forget::Counted(v) = f {
             let counter = &race.car_blocks().cars[blocks[v]].notice_counter;
             counter.set(counter.get().wrapping_sub(1));
@@ -397,11 +393,7 @@ pub(super) fn forget_view_textures(
     if !mirror {
         return Ok(());
     }
-    frame
-        .frame_work
-        .get()
-        .view_textures_forgotten
-        .set(frame.frame_work.get().view_textures_forgotten.get() | MIRROR_BIT);
+    frame.frame_work.borrow_mut().view_textures_forgotten |= MIRROR_BIT;
     copy_mirror_picture(frame, scene, system, gfx)?;
     forget_slot_texture(textures.first_textures()[200], scene)?;
     frame.panel_and_overlay.get().panel.texture_changes.set(
@@ -455,7 +447,7 @@ pub(super) fn draw_screen_tint(
             glare_colour(ctx.reads.stage_prefs.lamp_table_c.get(), byte(0), byte(1));
         done = crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
-    race.frame.frame_work.get().sun_on_screen.set(sun);
+    race.frame.frame_work.borrow_mut().sun_on_screen = sun;
     done
 }
 
@@ -650,7 +642,7 @@ pub fn run_view_marks(
     }
     // No register is read or left.
     let done = crate::effects::frame_marks::frame_marks(race, scene, effects).and_then(|_| {
-        if race.frame.frame_work.get().drawing.get() == 0 {
+        if race.frame.frame_work.borrow().drawing == 0 {
             crate::effects::run_frame::run_frame(
                 &ctx.part.vertices,
                 race,

@@ -11,7 +11,7 @@ use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_query::GroundSearch;
 use crate::physics::step_inputs::StepInputs;
 use crate::physics::tables_store::PhysicsTables;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::lights_store::LightsData;
 use crate::race::matrices_store::SceneMatrices;
@@ -34,7 +34,7 @@ pub struct SoundInputs<'a> {
     pub listener: &'a Car,
     pub numbers: &'a Numbers,
     pub work: &'a RaceWork,
-    pub frame_work: &'a FrameWork,
+    pub frame_work: &'a FrameWorkStore,
     pub matrices: &'a DrawPlain<SceneMatrices>,
     pub view_turn: crate::scene::matrix::Matrix,
     pub heard_turn: &'a crate::race::heard_turn::HeardTurn,
@@ -82,7 +82,7 @@ pub struct CameraInputs<'a> {
     pub still: u32,
     pub race_tables: &'a RaceTables,
     pub shared: &'a RaceShared,
-    pub frame_work: &'a FrameWork,
+    pub frame_work: &'a FrameWorkStore,
     pub view_records: &'a ViewAndRecords,
     pub lights_data: &'a LightsData,
     pub step_first: u32,
@@ -160,7 +160,7 @@ pub struct CheckpointInputs<'a> {
     pub tables: &'a PhysicsTables,
     pub work: &'a RaceWork,
     pub vars: &'a RaceVars,
-    pub frame_work: &'a FrameWork,
+    pub frame_work: &'a FrameWorkStore,
     /// The finish state's "no place" switch.
     pub no_place: u32,
     pub checkpoints: &'a crate::race::checkpoints_store::Checkpoints,
@@ -216,7 +216,7 @@ impl<'a> StepInputs<'a> {
             still: self.physics.split_tables().still,
             race_tables: self.race_tables,
             shared: self.shared,
-            frame_work: self.frame.frame_work.get(),
+            frame_work: &self.frame.frame_work,
             view_records: self.frame.view_and_records.get(),
             lights_data: self.course.lights_data(),
             step_first: self.step_first,
@@ -243,7 +243,7 @@ impl<'a> StepInputs<'a> {
             listener: crate::race::heard_cars::listener(self.shared, self.car),
             numbers: self.numbers,
             work: self.work,
-            frame_work: self.frame.frame_work.get(),
+            frame_work: &self.frame.frame_work,
             matrices: &self.frame.matrices,
             view_turn: self.frame.view_kept.borrow().view_turn_matrix,
             heard_turn: self.shared.heard_turn.get(),
@@ -327,7 +327,7 @@ impl<'a> StepInputs<'a> {
             tables: self.tables,
             work: self.work,
             vars: self.vars,
-            frame_work: self.frame.frame_work.get(),
+            frame_work: &self.frame.frame_work,
             no_place: self.replay.no_place(),
             checkpoints: &self.shared.buffers.reads.get().checkpoints,
         }

@@ -309,14 +309,13 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     // A step that set only flags nobody reads is left out.
     // The step's three callers run it for the cars from 0 up to the race's car count, at most 8.
     let car = race.shared.work.get().current_car.get() as usize;
-    let listed = race
+    let listed = *race
         .frame
         .frame_work
-        .get()
+        .borrow()
         .listed_car_sounds
         .get(car)
-        .ok_or(BadInput("a car number past the eight"))?
-        .get();
+        .ok_or(BadInput("a car number past the eight"))?;
     if listed != u32::MAX {
         ph::camera_frame::camera_frame(&inputs.camera(), scene)?;
     }

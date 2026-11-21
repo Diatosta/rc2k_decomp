@@ -13,7 +13,7 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::physics::figures::{OFF_LINE_DISTANCE, OFF_LINE_WORD};
 use crate::physics::tables_store::PhysicsTables;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::replay_file_store::ReplayFileBlock;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::progress::{
@@ -58,7 +58,7 @@ fn store(car: &Car, w: &Warnings) {
     reason = "the race's tables the warnings read, and the owners"
 )]
 pub fn off_line_warnings(
-    frame_work: &FrameWork,
+    frame_work: &FrameWorkStore,
     work: &RaceWork,
     replay_file: &ReplayFileBlock,
     physics_tables: &PhysicsTables,

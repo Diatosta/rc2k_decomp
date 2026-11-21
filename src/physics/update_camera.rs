@@ -114,7 +114,7 @@ fn fixed_camera(c: &CameraInputs<'_>, second: bool) -> Result<(), crate::errors:
 pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::physics::camera_low_switch::camera_low_switch(&c.ground)?;
     for k in 0..3 {
-        c.frame_work.camera_car[k].set(c.car.position[k].get());
+        c.frame_work.borrow_mut().camera_car[k] = c.car.position[k].get();
     }
     let car = c.car.car_kind.get();
     // The car kind's light record (a kind one past the 34 would read on into the gear figures:

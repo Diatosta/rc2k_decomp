@@ -22,14 +22,10 @@ pub fn load_slot_texture(
         return Ok(());
     };
     crate::d3d::device::load_texture(wanted, slot);
-    frame.frame_work.get().kind_textures_done.set(
-        frame
-            .frame_work
-            .get()
-            .kind_textures_done
-            .get()
-            .wrapping_add(1),
-    );
+    {
+        let mut work = frame.frame_work.borrow_mut();
+        work.kind_textures_done = work.kind_textures_done.wrapping_add(1);
+    }
     scene.texture_places_mut().slot_loaded[slot as usize] = wanted;
     Ok(())
 }

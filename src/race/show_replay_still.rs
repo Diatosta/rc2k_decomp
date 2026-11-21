@@ -24,7 +24,7 @@ pub fn show_replay_still(race: &Race, o: crate::owners::Owners<'static>) -> Resu
         return Err(BadInput("a cars' count of 0 or past 8").into());
     }
     race.physics.split_tables_mut().still = 1;
-    race.frame.frame_work.get().replay_still_on.set(1);
+    race.frame.frame_work.borrow_mut().replay_still_on = 1;
     load_frame(race);
     load_replay_cars::load_replay_cars(race);
     replay_cameras::replay_cameras(race)?;
@@ -63,13 +63,13 @@ pub fn show_replay_still(race: &Race, o: crate::owners::Owners<'static>) -> Resu
     }
     race.shared.view.get().view_on[0].set(0);
     race.shared.view.get().view_on[1].set(0);
-    race.frame.frame_work.get().drawing.set(1);
+    race.frame.frame_work.borrow_mut().drawing = 1;
     let kept = race.shared.vars.get().scene_switch.get();
     race.shared.vars.get().scene_switch.set(1);
     crate::race::draw_race_scene::draw_race_scene(race, o)?;
     race.shared.vars.get().scene_switch.set(kept);
-    race.frame.frame_work.get().drawing.set(0);
-    race.frame.frame_work.get().replay_still_on.set(0);
+    race.frame.frame_work.borrow_mut().drawing = 0;
+    race.frame.frame_work.borrow_mut().replay_still_on = 0;
     race.physics.split_tables_mut().still = 0;
     Ok(())
 }

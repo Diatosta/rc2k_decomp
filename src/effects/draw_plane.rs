@@ -129,7 +129,7 @@ pub fn draw_plane(
     if !drops.state.borrow().facing.is_sign_negative() {
         return Ok(());
     }
-    if race.frame.frame_work.get().lead_kept[7].get() == 0 {
+    if race.frame.frame_work.borrow().lead_kept[7] == 0 {
         return Ok(());
     }
     if corner >= 0x100 {

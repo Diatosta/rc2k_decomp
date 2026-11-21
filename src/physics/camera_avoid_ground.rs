@@ -21,7 +21,7 @@ use crate::physics::camera_store::CameraWork;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
 use crate::physics::step_families::CameraInputs;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
@@ -35,7 +35,7 @@ fn place(
     lights_data: &LightsData,
     view_records: &ViewAndRecords,
     numbers: &Numbers,
-    frame_work: &FrameWork,
+    frame_work: &FrameWorkStore,
     shared: &RaceShared,
 ) {
     crate::physics::place_camera::place_camera(
