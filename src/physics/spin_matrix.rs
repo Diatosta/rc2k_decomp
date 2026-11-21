@@ -14,7 +14,7 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner_course::Course;
-use crate::scene::matrix::multiply_matrices;
+use crate::scene::matrix::{matrix_of, product, store_matrix};
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 pub fn spin_matrix(
@@ -35,7 +35,12 @@ pub fn spin_matrix(
             .set(x87::mul(&car.spin_length, physics_tables.step_time.get()));
         axis_turn_matrix(course, turn);
         square_matrix(course.reads(), turn);
-        multiply_matrices(&car.crash_matrix, turn, turned);
+        let crashed = product(
+            &matrix_of(&car.crash_matrix),
+            &matrix_of(turn),
+            matrix_of(turned),
+        );
+        store_matrix(turned, &crashed);
         for k in 0..16 {
             car.crash_matrix[k].set(matrices.turned_matrix[k].get());
         }

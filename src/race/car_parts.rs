@@ -8,7 +8,10 @@ use crate::math::cells::copy_cells;
 use crate::memory::session::PlainFloat;
 use crate::physics::figures::GROUND_DROP;
 use crate::race::owner::Race;
-use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
+use crate::scene::matrix::{
+    PLACED_BASE, TURN_X_BASE, TURN_Y_BASE, matrix_of, placed, product, store_matrix, turned_x,
+    turned_y,
+};
 
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
 /// (`LightsAndGear.light_records.records[0].axles[0]` .. of its 0x134-byte record) and the lift.
@@ -103,19 +106,16 @@ fn car_part_matrices(
     {
         *weight = force.get();
     }
-    set_place(
-        &race.frame.matrices.get().placed_matrix,
+    let matrices = race.frame.matrices.get();
+    let car_place = placed(
+        PLACED_BASE,
         [
             p.position[0].get(),
             p.position[1].get(),
             p.position[2].get(),
         ],
     );
-    crate::math::cells::copy_cells(
-        &race.frame.matrices.get().placed_matrix,
-        &race.frame.frame_work.get().placed_matrices,
-        16,
-    );
+    store_matrix(&race.frame.frame_work.get().placed_matrices, &car_place);
     // (x, z, the x turn, the height, the matrix): the four wheels.
     // The loop below writes part value 2, so the values it reads are copied first.
     let (c, o) = (*race.physics.camera(), *scene.object_work());
@@ -156,33 +156,26 @@ fn car_part_matrices(
         if n == 2 {
             scene.object_work_mut().part_values[2] = 0;
         }
-        set_place(
-            &race.frame.matrices.get().placed_matrix,
+        let back = placed(
+            PLACED_BASE,
             [
                 x.wrapping_neg(),
                 c.axle_rear_lift.wrapping_neg(),
                 z.wrapping_neg(),
             ],
         );
-        set_turn_x(
+        let (turn_x, _) = turned_x(race.engine_tables(), TURN_X_BASE, spin);
+        let turned = product(&back, &turn_x, matrix_of(&matrices.turned_matrix));
+        store_matrix(&matrices.turned_matrix, &turned);
+        let (turn_y, _) = turned_y(
             race.engine_tables(),
-            &race.frame.matrices.get().turn_x_matrix,
-            &crate::scene::matrix::unread_turn_work(),
-            spin,
-        );
-        let placed = &race.frame.matrices.get().placed_matrix;
-        let turned = &race.frame.matrices.get().turned_matrix;
-        let lit = &race.frame.matrices.get().lit_matrix;
-        multiply_matrices(placed, &race.frame.matrices.get().turn_x_matrix, turned);
-        set_turn_y(
-            race.engine_tables(),
-            &race.frame.matrices.get().turn_y_matrix,
-            &crate::scene::matrix::unread_turn_work(),
+            TURN_Y_BASE,
             scene.object_work().part_values[2],
         );
-        multiply_matrices(turned, &race.frame.matrices.get().turn_y_matrix, lit);
-        set_place(&race.frame.matrices.get().placed_matrix, [x, lift, z]);
-        multiply_matrices(lit, placed, out);
+        let lit = product(&turned, &turn_y, matrix_of(&matrices.lit_matrix));
+        store_matrix(&matrices.lit_matrix, &lit);
+        let at_axle = placed(back, [x, lift, z]);
+        store_matrix(out, &product(&lit, &at_axle, matrix_of(out)));
     }
     Ok(())
 }
@@ -230,11 +223,12 @@ pub(super) fn ready_car_parts(
             }
             copy_cells(&frame.matrices.get().body_turn_matrix, kept[4], 16);
             copy_cells(&work.placed_matrices[..16], kept[5], 16);
-            multiply_matrices(
-                &frame.matrices.get().body_turn_matrix,
-                &frame.frame_work.get().placed_matrices,
-                &frame.matrices.get().view_place,
+            let whole = product(
+                &matrix_of(&frame.matrices.get().body_turn_matrix),
+                &matrix_of(&frame.frame_work.get().placed_matrices),
+                matrix_of(&frame.matrices.get().view_place),
             );
+            store_matrix(&frame.matrices.get().view_place, &whole);
             copy_cells(&frame.matrices.get().view_place, &block.whole_matrix, 16);
         }
         c += 1;

@@ -14,7 +14,7 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::corner_hits_car::{CornerWork, corner_hits_car};
 use crate::physics::step_families::CollisionInputs;
 use crate::race::view_store::RaceView;
-use crate::scene::matrix::{multiply_matrices, set_place};
+use crate::scene::matrix::{PLACED_BASE, matrix_of, placed, product, store_matrix};
 
 /// The cars looked at: the race's car count, at least one (the loop runs once).
 fn cars(view: &RaceView) -> u32 {
@@ -61,17 +61,19 @@ pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
                     .get()
                     .wrapping_sub(block.position[k].get())
             });
-            set_place(&c.matrices.placed_matrix, place);
-            multiply_matrices(
-                &car_now.crash_matrix,
-                &c.matrices.placed_matrix,
-                &c.matrices.turned_matrix,
+            let at_place = placed(PLACED_BASE, place);
+            let turned = product(
+                &matrix_of(&car_now.crash_matrix),
+                &at_place,
+                matrix_of(&c.matrices.turned_matrix),
             );
-            multiply_matrices(
-                &c.matrices.turned_matrix,
-                &block.car_inverse_matrix,
-                &corner_work.matrix,
+            store_matrix(&c.matrices.turned_matrix, &turned);
+            let between = product(
+                &turned,
+                &matrix_of(&block.car_inverse_matrix),
+                matrix_of(&corner_work.matrix),
             );
+            store_matrix(&corner_work.matrix, &between);
             for corner in CORNERS {
                 for (cell, value) in corner_work.corner_in.iter().zip(corner) {
                     cell.set(value);

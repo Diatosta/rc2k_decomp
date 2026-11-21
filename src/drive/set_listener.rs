@@ -14,7 +14,7 @@ use crate::memory::session::PlainFloat;
 use crate::physics::figures::GROUND_DROP;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::scene::matrix::multiply_matrices;
+use crate::scene::matrix::{matrix_of, product, store_matrix};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::listener;
 use rc2k_core::net::net_race::NetRace;
@@ -118,32 +118,24 @@ pub fn set_listener(
     for (k, &v) in f.iter().enumerate() {
         physics.camera_mut().listener_points[k] = v as u32;
     }
-    // The car block 0's body matrix.
-    for (cell, body) in race
-        .frame
-        .matrices
-        .get()
-        .turned_matrix
-        .iter()
-        .zip(&car.body_matrix)
-    {
-        cell.set(body.get());
-    }
-    multiply_matrices(
-        &race.frame.matrices.get().turned_matrix,
-        &car.place_matrix,
-        &race.frame.matrices.get().lit_matrix,
+    // The car block 0's body matrix, turned by the car's turn and then by the view's matrix.
+    let matrices = race.frame.matrices.get();
+    let turned = matrix_of(&car.body_matrix);
+    store_matrix(&matrices.turned_matrix, &turned);
+    let lit = product(
+        &turned,
+        &matrix_of(&car.place_matrix),
+        matrix_of(&matrices.lit_matrix),
     );
-    multiply_matrices(
-        &race.frame.matrices.get().lit_matrix,
-        view.view_matrix,
-        &race.frame.matrices.get().made_object_matrix,
+    store_matrix(&matrices.lit_matrix, &lit);
+    let made_matrix = product(
+        &lit,
+        &matrix_of(view.view_matrix),
+        matrix_of(&matrices.made_object_matrix),
     );
-    for k in 0..16 {
-        race.frame.matrices.get().listener_matrix[k]
-            .set(race.frame.matrices.get().made_object_matrix[k].get());
-    }
-    let made = &race.frame.matrices.get().made_object_matrix;
+    store_matrix(&matrices.made_object_matrix, &made_matrix);
+    store_matrix(&matrices.listener_matrix, &made_matrix);
+    let made = &matrices.made_object_matrix;
     for (first, out, negate) in [
         (0, &race.effects_settings().light_point_a_negated, true),
         (0, &race.effects_settings().light_point_a, false),

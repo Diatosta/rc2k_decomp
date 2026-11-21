@@ -23,10 +23,121 @@ fn sine_cosine(tables: &EngineTables, angle: u32) -> (f32, f32) {
     )
 }
 
-/// The sine and cosine a turn's caller has no use for (the sources of the work words the
-/// callers outside the view's own matrices never read).
-pub fn unread_turn_work() -> [crate::memory::session::PlainFloat; 2] {
-    [const { crate::memory::session::PlainFloat::new(0.0) }; 2]
+/// A 4x4 matrix as sixteen floats, rows four apart.
+pub type Matrix = [f32; 16];
+
+/// Zeros with the floats `ones` set to one: what a turn matrix or the placed matrix is before its
+/// turn or place is set (a turn sets four floats, a place three, the rest stay).
+const fn ones_at(ones: &[usize]) -> Matrix {
+    let mut matrix = [0.0; 16];
+    let mut k = 0;
+    while k < ones.len() {
+        matrix[ones[k]] = 1.0;
+        k += 1;
+    }
+    matrix
+}
+
+/// The turn about x before its angle is set: `turned_x`'s base.
+pub const TURN_X_BASE: Matrix = ones_at(&[0, 15]);
+/// The turn about y before its angle is set: `turned_y`'s base.
+pub const TURN_Y_BASE: Matrix = ones_at(&[5, 15]);
+/// The turn about z before its angle is set: `turned_z_16`'s base.
+pub const TURN_Z_BASE: Matrix = ones_at(&[10, 15]);
+/// The placed matrix before its place is set: `placed`'s base.
+pub const PLACED_BASE: Matrix = ones_at(&[0, 5, 10, 15]);
+
+/// The sixteen floats `cells` hold.
+pub fn matrix_of(cells: &(impl Cells + ?Sized)) -> Matrix {
+    std::array::from_fn(|n| cells.float(n))
+}
+
+/// `matrix` into the sixteen cells `cells`.
+pub fn store_matrix(cells: &(impl Cells + ?Sized), matrix: &Matrix) {
+    for (n, &value) in matrix.iter().enumerate() {
+        cells.set_float(n, value);
+    }
+}
+
+/// `matrix` turned about x by `angle` (`scene::set_turn_x`): its fifth, sixth, tenth and eleventh
+/// floats set; with the sine and the cosine.
+pub fn turned_x(tables: &EngineTables, mut matrix: Matrix, angle: u32) -> (Matrix, [f32; 2]) {
+    let (sine, cosine) = sine_cosine(tables, angle);
+    matrix[5] = cosine;
+    matrix[6] = sine;
+    matrix[9] = -sine;
+    matrix[10] = cosine;
+    (matrix, [sine, cosine])
+}
+
+/// `matrix` turned about y by `angle` (`scene::set_turn_y`), with the sine and the cosine.
+pub fn turned_y(tables: &EngineTables, mut matrix: Matrix, angle: u32) -> (Matrix, [f32; 2]) {
+    let (sine, cosine) = sine_cosine(tables, angle);
+    matrix[0] = cosine;
+    matrix[2] = -sine;
+    matrix[8] = sine;
+    matrix[10] = cosine;
+    (matrix, [sine, cosine])
+}
+
+/// `matrix` turned about z by `angle`, sixteen bits a turn (`scene::set_turn_z_16`), with the
+/// sine and the cosine.
+pub fn turned_z_16(tables: &EngineTables, mut matrix: Matrix, angle: u32) -> (Matrix, [f32; 2]) {
+    let (sine, cosine) = sine_cosine(tables, angle);
+    matrix[0] = cosine;
+    matrix[1] = sine;
+    matrix[4] = -sine;
+    matrix[5] = cosine;
+    (matrix, [sine, cosine])
+}
+
+/// `matrix` with the place `place` in its fourth row (`scene::set_place`).
+pub fn placed(mut matrix: Matrix, place: [u32; 3]) -> Matrix {
+    for (n, part) in place.into_iter().enumerate() {
+        matrix[12 + n] = f32::from_bits(x87::from_int(part as i32).to_bits());
+    }
+    matrix
+}
+
+/// `scene::multiply_matrices`: `out` with its first three columns replaced, column by column,
+/// each row of `a` times that column of `b`, `b`'s fourth row added to the fourth. `out` is none of
+/// `a` and `b` (the cells' version, `multiply_matrices`, works on one that is).
+pub fn product(a: &Matrix, b: &Matrix, mut out: Matrix) -> Matrix {
+    bh::at_rounding!(|r| product_with(r, a, b, &mut out));
+    out
+}
+
+/// `product` at the rounding `r`.
+fn product_with<R: bh::Rounds>(r: R, a: &Matrix, b: &Matrix, out: &mut Matrix) {
+    for column in 0..3 {
+        for row in 0..4 {
+            // `x87::row_times_column`: a's row times b's column, p1 + (p2 + p3).
+            let p = |k: usize| r.ld(a[row * 4 + k]) * r.ld(b[k * 4 + column]);
+            let (p1, p2, p3) = (p(0), p(1), p(2));
+            out[row * 4 + column] = r.stf(p1 + (p2 + p3));
+        }
+        let sum = r.ld(b[12 + column]) + r.ld(out[12 + column]);
+        out[12 + column] = r.stf(sum);
+    }
+}
+
+/// `scene::copy_matrix_with_place`: `from`, the first three floats of `other`'s fourth row added
+/// to its own (`other` is not the matrix the result goes to).
+pub fn copied_with_place(from: &Matrix, other: &Matrix) -> Matrix {
+    let mut out = *from;
+    for n in 12..15 {
+        let sum = bh::ld(other[n]) + bh::ld(out[n]);
+        out[n] = bh::stf(sum);
+    }
+    out
+}
+
+/// `matrix` with every float times `factor`.
+pub fn scaled(mut matrix: Matrix, factor: f32) -> Matrix {
+    for value in &mut matrix {
+        *value = x87::mul(*value, factor);
+    }
+    matrix
 }
 
 /// `scene::set_turn_x`: `turn_x` the matrix, `work` its sine and cosine.
@@ -36,13 +147,10 @@ pub fn set_turn_x(
     work: &[impl FloatLike; 2],
     angle: u32,
 ) {
-    let (sine, cosine) = sine_cosine(tables, angle);
+    let (matrix, [sine, cosine]) = turned_x(tables, matrix_of(turn_x), angle);
     work[0].set(sine);
     work[1].set(cosine);
-    turn_x[5].set(cosine);
-    turn_x[6].set(sine);
-    turn_x[9].set(-sine);
-    turn_x[10].set(cosine);
+    store_matrix(turn_x, &matrix);
 }
 
 /// `scene::set_turn_y`.
@@ -52,13 +160,10 @@ pub fn set_turn_y(
     work: &[impl FloatLike; 2],
     angle: u32,
 ) {
-    let (sine, cosine) = sine_cosine(tables, angle);
+    let (matrix, [sine, cosine]) = turned_y(tables, matrix_of(turn_y), angle);
     work[0].set(sine);
     work[1].set(cosine);
-    turn_y[0].set(cosine);
-    turn_y[2].set(-sine);
-    turn_y[8].set(sine);
-    turn_y[10].set(cosine);
+    store_matrix(turn_y, &matrix);
 }
 
 /// `scene::set_turn_z_16`: as `set_turn_x`, about the z axis (the matrix and
@@ -69,13 +174,10 @@ pub fn set_turn_z_16(
     work: &[impl FloatLike; 2],
     angle: u32,
 ) {
-    let (sine, cosine) = sine_cosine(tables, angle);
+    let (matrix, [sine, cosine]) = turned_z_16(tables, matrix_of(turn_z), angle);
     work[0].set(sine);
     work[1].set(cosine);
-    turn_z[0].set(cosine);
-    turn_z[1].set(sine);
-    turn_z[4].set(-sine);
-    turn_z[5].set(cosine);
+    store_matrix(turn_z, &matrix);
 }
 
 /// `scene::set_place`, on the placed matrix.
@@ -123,11 +225,7 @@ pub fn copy_matrix_with_place(
     other: &(impl Cells + ?Sized),
     out: &(impl Cells + ?Sized),
 ) {
-    crate::math::cells::copy_cells(from, out, 0x10);
-    for n in 12..15 {
-        let sum = bh::ld(other.float(n)) + bh::ld(out.float(n));
-        out.set_float(n, bh::stf(sum));
-    }
+    store_matrix(out, &copied_with_place(&matrix_of(from), &matrix_of(other)));
 }
 
 /// `scene::set_light_direction`: in the view's matrices `v`, turned by the view's
@@ -193,4 +291,69 @@ pub fn make_object_matrix(
         cell.set(x87::mul(cell, factor));
     }
     copy_matrix_with_place(&v.turned_matrix, &v.placed_matrix, &v.made_object_matrix);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::memory::session::PlainFloat;
+
+    /// Sixteen floats from a seed, some negative and fractional.
+    fn matrix_from(seed: u32) -> Matrix {
+        std::array::from_fn(|n| {
+            let k = seed
+                .wrapping_mul(2_654_435_761)
+                .wrapping_add(n as u32 * 40_503);
+            (k >> 8) as f32 / 65_536.0 - 100.0
+        })
+    }
+
+    #[test]
+    fn the_value_product_matches_the_cells_product() {
+        for seed in 0..64 {
+            let (a, b, out) = (
+                matrix_from(seed),
+                matrix_from(seed + 100),
+                matrix_from(seed + 200),
+            );
+            let cells = PlainFloat::array(out);
+            multiply_matrices(&PlainFloat::array(a), &PlainFloat::array(b), &cells);
+            let expected: Vec<u32> = cells.iter().map(|c| c.get().to_bits()).collect();
+            let got: Vec<u32> = product(&a, &b, out).iter().map(|v| v.to_bits()).collect();
+            assert_eq!(got, expected, "seed {seed}");
+        }
+    }
+
+    #[test]
+    fn a_copy_with_place_adds_the_other_matrixs_place_to_the_copy() {
+        for seed in 0..64 {
+            let (from, other, out) = (
+                matrix_from(seed),
+                matrix_from(seed + 100),
+                matrix_from(seed + 200),
+            );
+            let cells = PlainFloat::array(out);
+            copy_matrix_with_place(&PlainFloat::array(from), &PlainFloat::array(other), &cells);
+            let mut expected = from;
+            for n in 12..15 {
+                expected[n] = (f64::from(other[n]) + f64::from(from[n])) as f32;
+            }
+            assert_eq!(
+                matrix_of(&cells).map(f32::to_bits),
+                expected.map(f32::to_bits)
+            );
+            assert_eq!(copied_with_place(&from, &other), expected);
+        }
+    }
+
+    #[test]
+    fn a_place_sets_the_fourth_row_and_keeps_the_rest() {
+        let base = matrix_from(7);
+        let at = placed(base, [3, 0xFFFF_FFFF, 0x1_0000]);
+        assert_eq!(at[..12], base[..12]);
+        assert_eq!(at[15].to_bits(), base[15].to_bits());
+        assert_eq!(at[12], 3.0);
+        assert_eq!(at[13], -1.0);
+        assert_eq!(at[14], 65_536.0);
+    }
 }

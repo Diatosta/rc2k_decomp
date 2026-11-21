@@ -29,7 +29,7 @@ use crate::memory::session::{FloatLike, PlainDword, PlainFloat};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::step_families::SlotInputs;
 use crate::race::work_store::{RaceSlot, RaceWork};
-use crate::scene::matrix::multiply_matrices;
+use crate::scene::matrix::{matrix_of, product, store_matrix};
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 /// A place (three whole numbers) copied.
@@ -97,11 +97,12 @@ pub fn move_slot(c: &SlotInputs<'_>, s: &RaceSlot, number: usize) -> Result<(), 
             .set(x87::mul(&s.spin_length, dt));
         axis_turn_matrix(c.course, &c.course.lists.get().turn_matrix);
         square_matrix(c.course.reads(), &c.course.lists.get().turn_matrix);
-        multiply_matrices(
-            &s.matrix,
-            &c.course.lists.get().turn_matrix,
-            &c.matrices.turned_matrix,
+        let turned = product(
+            &matrix_of(&s.matrix),
+            &matrix_of(&c.course.lists.get().turn_matrix),
+            matrix_of(&c.matrices.turned_matrix),
         );
+        store_matrix(&c.matrices.turned_matrix, &turned);
         copy_matrix(&c.matrices.turned_matrix, &s.matrix);
     }
     for k in [1, 0, 2] {

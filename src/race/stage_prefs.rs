@@ -105,39 +105,21 @@ pub fn get_mat_crash(
     car: &Car,
     scene: &crate::scene::owner::Scene,
 ) {
-    use crate::scene::matrix;
+    use crate::scene::matrix::{
+        TURN_X_BASE, TURN_Y_BASE, TURN_Z_BASE, matrix_of, product, store_matrix, turned_x,
+        turned_y, turned_z_16,
+    };
     let turns = rc2k_core::race::stage_objects::crash_turns([
         car.car_heading.get(),
         car.car_pitch.get(),
         car.car_roll.get(),
     ]);
     scene.object_work_mut().angles = turns;
-    matrix::set_turn_x(
-        engine_tables,
-        &matrices.turn_x_matrix,
-        &crate::scene::matrix::unread_turn_work(),
-        turns[0],
-    );
-    matrix::set_turn_y(
-        engine_tables,
-        &matrices.turn_y_matrix,
-        &crate::scene::matrix::unread_turn_work(),
-        turns[1],
-    );
-    matrix::set_turn_z_16(
-        engine_tables,
-        &matrices.turn_z_matrix,
-        &crate::scene::matrix::unread_turn_work(),
-        turns[2],
-    );
-    matrix::multiply_matrices(
-        &matrices.turn_z_matrix,
-        &matrices.turn_x_matrix,
-        &matrices.lit_matrix,
-    );
-    matrix::multiply_matrices(
-        &matrices.lit_matrix,
-        &matrices.turn_y_matrix,
-        &car.crash_matrix,
-    );
+    let (turn_x, _) = turned_x(engine_tables, TURN_X_BASE, turns[0]);
+    let (turn_y, _) = turned_y(engine_tables, TURN_Y_BASE, turns[1]);
+    let (turn_z, _) = turned_z_16(engine_tables, TURN_Z_BASE, turns[2]);
+    let lit = product(&turn_z, &turn_x, matrix_of(&matrices.lit_matrix));
+    store_matrix(&matrices.lit_matrix, &lit);
+    let crash = product(&lit, &turn_y, matrix_of(&car.crash_matrix));
+    store_matrix(&car.crash_matrix, &crash);
 }

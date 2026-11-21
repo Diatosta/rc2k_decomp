@@ -5,7 +5,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
-use crate::math::cells::Cells;
 use crate::memory::session::PlainFloat;
 use crate::race::car_draw_state::CarDrawState;
 use crate::race::light_records_store::LightRecords;
@@ -13,7 +12,7 @@ use crate::race::owner_course::CourseReads;
 use crate::race::view_vars_store::ViewVars;
 use crate::race::work_store::RaceWork;
 use crate::scene::draw_described_object::Description;
-use crate::scene::matrix::multiply_matrices;
+use crate::scene::matrix::{Matrix, matrix_of, product, store_matrix};
 use crate::scene::view_matrices::ViewMatrices;
 
 /// The drawn car's turn (`placed_matrices`, the block's `place_matrix`), the view's own.
@@ -29,14 +28,26 @@ pub fn part_matrices(cars: &CarDrawState) -> [&'_ [PlainFloat]; 4] {
 /// Car part matrix: matrix `a` times the body's turn (`body_turn_matrix`) into `turned_matrix`,
 /// times the car's turn (`placed_matrices`) into `lit_matrix`, times `view_matrix` into
 /// `made_object_matrix`. There is one such function for each of the four parts.
-fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &(impl Cells + ?Sized)) {
-    multiply_matrices(a, &m.body_turn_matrix, &m.turned_matrix);
-    multiply_matrices(&m.turned_matrix, car_turn(cars), &m.lit_matrix);
-    multiply_matrices(
-        &m.lit_matrix,
-        &m.view_matrix, // the view's matrix
-        &m.made_object_matrix,
+fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &Matrix) {
+    let turned = product(
+        a,
+        &matrix_of(&m.body_turn_matrix),
+        matrix_of(&m.turned_matrix),
     );
+    store_matrix(&m.turned_matrix, &turned);
+    let lit = product(
+        &turned,
+        &matrix_of(car_turn(cars)),
+        matrix_of(&m.lit_matrix),
+    );
+    store_matrix(&m.lit_matrix, &lit);
+    // Times the view's matrix.
+    let made = product(
+        &lit,
+        &matrix_of(&m.view_matrix),
+        matrix_of(&m.made_object_matrix),
+    );
+    store_matrix(&m.made_object_matrix, &made);
 }
 
 /// Car body matrix: the turns about x and z by 0 (`set_fine_turn`)
@@ -45,8 +56,13 @@ fn car_body_matrix(course: CourseReads<'_>, cars: &CarDrawState, m: &ViewMatrice
     use crate::scene::view_matrix::{Axis, set_fine_turn};
     set_fine_turn(course, m, Axis::X, 0);
     set_fine_turn(course, m, Axis::Z, 0);
-    multiply_matrices(&m.turn_x_matrix, &m.turn_z_matrix, &m.lit_matrix);
-    car_part_matrix(cars, m, &m.lit_matrix);
+    let lit = product(
+        &matrix_of(&m.turn_x_matrix),
+        &matrix_of(&m.turn_z_matrix),
+        matrix_of(&m.lit_matrix),
+    );
+    store_matrix(&m.lit_matrix, &lit);
+    car_part_matrix(cars, m, &lit);
 }
 
 /// The byte at `offset` of the number texture names. The table holds 32 names of 0x30 bytes; kinds
@@ -395,7 +411,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
                 .object_number
                 .set(ctx.view.cars.object_number.get().wrapping_add(1));
             if ctx.view.object.borrow().car_switches & bit != 0 {
-                car_part_matrix(&ctx.view.cars, &ctx.view.matrices, matrix);
+                car_part_matrix(&ctx.view.cars, &ctx.view.matrices, &matrix_of(matrix));
                 crate::scene::draw_scene_object::draw_scene_object_in_game(
                     ctx,
                     Some(Description::Floats(&ctx.view.matrices.lit_matrix)),
