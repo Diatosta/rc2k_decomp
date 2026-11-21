@@ -8,20 +8,21 @@
 //! (`files::swap_missing_extension`).
 
 use crate::audio::names_store::{NameList, SampleName};
-use crate::memory::session::{PlainBytes, with_runs};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::with_runs;
 
 /// Declares `MenuTexts` over its texts, each a field named for the text and holding its bytes
 /// and a NUL; `MenuTexts::new` fills each one from its literal.
 macro_rules! menu_texts_struct {
     ($($(#[$doc:meta])* $field:ident: $text:literal,)*) => {
         pub struct MenuTexts {
-            $($(#[$doc])* pub $field: PlainBytes<{ $text.len() + 1 }>,)*
+            $($(#[$doc])* pub $field: PlainBuffer<{ $text.len() + 1 }>,)*
         }
 
         impl MenuTexts {
             pub const fn new() -> Self {
                 MenuTexts {
-                    $($field: PlainBytes::new(with_runs::<{ $text.len() + 1 }>(&[(0, $text)])),)*
+                    $($field: PlainBuffer::new(with_runs::<{ $text.len() + 1 }>(&[(0, $text)])),)*
                 }
             }
         }

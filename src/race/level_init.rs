@@ -122,24 +122,24 @@ pub(super) fn build_texture_infos(race: &Race) -> Result<(), Refused> {
         )
     });
     trap.finish()?;
-    for (n, t) in infos?.iter().enumerate() {
-        let out = &race.polygon_tables().texture_infos[n].words;
-        out[9].set(t.row);
-        out[8].set(t.group);
+    let infos = infos?;
+    let mut tables = race.shared.buffers.polygon_tables.borrow_mut();
+    for (n, t) in infos.iter().enumerate() {
+        let out = &mut tables.texture_infos[n].words;
+        out[9] = t.row;
+        out[8] = t.group;
         for (k, &value) in t.values.iter().enumerate() {
-            out[4 + k].set(value);
+            out[4 + k] = value;
         }
         // One byte of the record's seventh dword and three of its twelfth are stored inside those
         // dwords.
-        out[7].set(out[7].get() & !0xFF | u32::from(t.byte));
-        out[11].set(
-            out[11].get() & !0x00FF_FFFF
-                | u32::from_le_bytes([t.bytes[0], t.bytes[1], t.bytes[2], 0]),
-        );
+        out[7] = out[7] & !0xFF | u32::from(t.byte);
+        out[11] =
+            out[11] & !0x00FF_FFFF | u32::from_le_bytes([t.bytes[0], t.bytes[1], t.bytes[2], 0]);
         for (k, &value) in t.first.iter().enumerate() {
-            out[k].set(value);
+            out[k] = value;
         }
-        out[10].set(t.marked);
+        out[10] = t.marked;
     }
     Ok(())
 }

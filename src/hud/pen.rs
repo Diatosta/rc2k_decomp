@@ -14,7 +14,7 @@ pub struct Pen<'a> {
     pub system: &'a crate::system::owner::System,
     pub scene: &'a crate::scene::owner::Scene,
     /// The sine tables the dials turn by (`math::engine_tables`).
-    pub engine_tables: &'a crate::math::engine_tables::EngineTables,
+    pub engine_tables: crate::math::engine_tables::EngineTablesRef<'a>,
     /// The part of a split screen being drawn into (none: the whole screen).
     pub scope: PartScope,
 }

@@ -49,26 +49,21 @@ pub fn pool_start() -> u32 {
 /// texture infos' tail), and a read can run on into the next record. A read past the tables is
 /// refused.
 pub fn material_run(
-    tables: &crate::scene::polygon_store::PolygonTables,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
     kind: u32,
     offset: u32,
     bytes: &mut [u8],
 ) -> Result<(), BadInput> {
     // The materials follow the texture infos, so kind -1 is the infos' last record.
-    let at = (size_of_val(&tables.texture_infos) as u32)
+    let at = (256 * 0x40u32)
         .wrapping_add(kind.wrapping_mul(0x80))
         .wrapping_add(offset);
-    crate::memory::session::read_run_bytes(
-        &[&tables.texture_infos, &tables.object_materials],
-        at as usize,
-        bytes,
-        "a material record's bytes",
-    )
+    tables.read(|t| t.read_bytes(at as usize, bytes, "a material record's bytes"))
 }
 
 /// The byte at `offset` of object kind `kind`'s material record (as `material_run`).
 pub fn material_run_byte(
-    tables: &crate::scene::polygon_store::PolygonTables,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
     kind: u32,
     offset: u32,
 ) -> Result<u8, BadInput> {
@@ -80,7 +75,7 @@ pub fn material_run_byte(
 /// The little-endian word at `offset` of object kind `kind`'s material record (as
 /// `material_run`).
 pub fn material_run_word(
-    tables: &crate::scene::polygon_store::PolygonTables,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
     kind: u32,
     offset: u32,
 ) -> Result<u16, BadInput> {
@@ -89,30 +84,24 @@ pub fn material_run_word(
     Ok(u16::from_le_bytes(word))
 }
 
-/// The byte `offset` into the run `field` (one of the polygon tables' arrays of records); the
-/// field's end is the limit, a read on into the next record inside it.
-fn field_byte(
-    field: &dyn crate::memory::session::Run,
-    offset: u32,
-    what: &'static str,
-) -> Result<u8, BadInput> {
-    let mut byte = [0u8];
-    crate::memory::session::read_run_bytes(&[field], offset as usize, &mut byte, what)
-        .map_err(|_| BadInput(what))?;
-    Ok(byte[0])
-}
-
 /// Byte `offset` of texture info `n`: an offset past the record reads on into the next.
 pub fn texture_info_byte(
-    tables: &crate::scene::polygon_store::PolygonTables,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
     n: u32,
     offset: u32,
 ) -> Result<u8, BadInput> {
-    field_byte(
-        &tables.texture_infos,
-        n.wrapping_mul(0x40).wrapping_add(offset),
-        "a texture info's byte past the table",
-    )
+    let what = "a texture info's byte past the table";
+    let mut byte = [0u8];
+    tables
+        .read(|t| {
+            t.read_info_bytes(
+                n.wrapping_mul(0x40).wrapping_add(offset) as usize,
+                &mut byte,
+                what,
+            )
+        })
+        .map_err(|_| BadInput(what))?;
+    Ok(byte[0])
 }
 
 /// A polygon's entries: on the stack for all but the largest polygons.

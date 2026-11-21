@@ -71,8 +71,9 @@ fn car_part_matrices(
     });
     c.marks_on.set(s.marks_on);
     part.mode_on.set(s.mode_on);
-    part.part_switches
-        .write_at(0, &s.bytes, "a car block's switches")?;
+    for (k, &byte) in s.bytes.iter().enumerate() {
+        part.part_switches.set(k, byte);
+    }
     let slow = below_or_unordered(p.electrics_damage.get(), race.course.numbers.hundred.get());
     part.marks_count.set(marks_bytes(s.count, slow, on));
     c.shown_steering.set(steering(p.steer_angle_visual.get()));

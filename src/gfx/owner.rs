@@ -34,7 +34,8 @@ use crate::gfx::texture_upload::Textures;
 use crate::gfx::typefaces::FontObjects;
 use crate::gfx::upload::Upload;
 use crate::gfx::windscreen_drop_batch::WindscreenDrops;
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::PlainDword;
 
 /// The PNG reader's state: the file being decoded, its header and the setting that turns PNG files
 /// off.
@@ -93,7 +94,7 @@ pub struct Pictures {
     pub decoder: Decoder,
     pub pcx: Pcx,
     /// The planes of the row being written (a buffer, zero at the start).
-    pub planes: PlainBytes<PLANES_LEN>,
+    pub planes: PlainBuffer<PLANES_LEN>,
     /// 1 while a picture is being shown.
     pub showing: PlainDword,
     /// The picture buffers (`gfx::picture`).
@@ -106,7 +107,7 @@ impl Pictures {
             picture: Picture::new(),
             decoder: Decoder::new(),
             pcx: Pcx::new(),
-            planes: PlainBytes::new([0; PLANES_LEN]),
+            planes: PlainBuffer::new([0; PLANES_LEN]),
             showing: PlainDword::new(0),
             buffers: PictureBuffers::new(),
         }
@@ -157,7 +158,7 @@ pub struct Drawing {
     /// Each row of a picture (602 of them), zero at the start: its offset in the decoded buffer.
     pub row_table: [PlainDword; ROW_TABLE_ROOM as usize],
     /// n / 3 for the sums of three components (zero until filled).
-    pub thirds: PlainBytes<TABLE_LEN>,
+    pub thirds: PlainBuffer<TABLE_LEN>,
     /// The picture buffer's number while it is the surface (`gfx::picture_as_surface`), else 0.
     pub on_picture: std::sync::atomic::AtomicU32,
 }
@@ -170,7 +171,7 @@ impl Drawing {
             draw_surface: DrawSurface::new(),
             surfaces: Surfaces::new(),
             row_table: [const { PlainDword::new(0) }; ROW_TABLE_ROOM as usize],
-            thirds: PlainBytes::new([0; TABLE_LEN]),
+            thirds: PlainBuffer::new([0; TABLE_LEN]),
             on_picture: std::sync::atomic::AtomicU32::new(0),
         }
     }

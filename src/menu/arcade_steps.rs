@@ -239,7 +239,7 @@ pub(super) fn take_arcade_stage_best(
     tables: &BestTables,
 ) -> Result<(), Refused> {
     let line = with_course_times(play, system, tables, |ten| ten[0].line())?;
-    race.shared.state.results.results[0].data.write(&line);
+    race.shared.state.results.results[0].set_data_bytes(&line);
     Ok(())
 }
 

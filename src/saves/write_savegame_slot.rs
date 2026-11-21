@@ -11,7 +11,7 @@ use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::write_file::write_file_from;
 use crate::memory::plain_buffer::PlainBuffer;
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::session::PlainDword;
 use crate::menu::name_lists::NAME_LEN;
 use crate::menu::owner::Menus;
 use crate::saves::gather_savegame::gather_savegame;
@@ -30,7 +30,7 @@ pub struct SaveGames {
     /// The saved game as it is read or written (`FILE_LEN` bytes).
     pub file: PlainBuffer<FILE_LEN>,
     /// The saved games' names, 100 of 0x20 bytes (ten to a page).
-    pub names: PlainBytes<{ SLOTS as usize * NAME_BYTES }>,
+    pub names: PlainBuffer<{ SLOTS as usize * NAME_BYTES }>,
     /// A value the options file keeps; nothing else reads it.
     pub kept_b: PlainDword,
 }
@@ -41,7 +41,7 @@ impl SaveGames {
         SaveGames {
             kept_a: PlainDword::new(0),
             file: PlainBuffer::new([0; FILE_LEN]),
-            names: PlainBytes::new([0; SLOTS as usize * NAME_BYTES]),
+            names: PlainBuffer::new([0; SLOTS as usize * NAME_BYTES]),
             kept_b: PlainDword::new(0),
         }
     }

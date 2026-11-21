@@ -321,7 +321,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.shared.random.state",
             &o.race.shared.random.state
         ),
-        listed!("owners.system.start.kept", on_game(&o.system.start().kept),),
         listed!(
             "owners.strings.text.show_hours",
             on_game(&o.strings.text.show_hours),
@@ -405,11 +404,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.gfx.drawing.row_table",
             on_game(&o.gfx.drawing.row_table),
-        ),
-        listed!("owners.gfx.drawing.thirds", on_game(&o.gfx.drawing.thirds),),
-        listed!(
-            "owners.gfx.pictures.planes",
-            on_game(&o.gfx.pictures.planes),
         ),
         listed!("owners.net.vars.receive_done", &o.net.vars.receive_done,),
         listed!("owners.net.vars.chat", &o.net.vars.chat,),
@@ -596,10 +590,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_buffer(&o.saves.save_games.file),
         ),
         listed!(
-            "owners.saves.save_games.names",
-            on_game(&o.saves.save_games.names),
-        ),
-        listed!(
             "owners.saves.save_games.kept_b",
             on_game(&o.saves.save_games.kept_b),
         ),
@@ -614,10 +604,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.menus.service.set_ups.kept",
             on_game(&o.menus.service.set_ups.kept),
-        ),
-        listed!(
-            "owners.race.shared.replays",
-            on_game(o.race.shared.replays()),
         ),
         listed!(
             "owners.saves.files.options_path",
@@ -719,10 +705,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.system.work.files",
             on_buffer(&o.system.work().files.buffer),
-        ),
-        listed!(
-            "owners.race.shared.buffers.reads",
-            on_game(o.race.shared.buffers.reads.get()),
         ),
         listed!(
             "owners.race.shared.viewer",

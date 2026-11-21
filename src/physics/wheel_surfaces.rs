@@ -42,7 +42,7 @@ use std::cmp::Ordering;
 
 /// Byte `offset` of texture info `n`.
 fn info_byte(
-    tables: &crate::scene::polygon_store::PolygonTables,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
     n: u32,
     offset: u32,
 ) -> Result<u32, Refused> {
@@ -98,39 +98,39 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
         {
             let e = c.tables.surface_firsts[cc].get();
             c.car.wheel_surface_a[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t1,
                 e.wrapping_add(0x10),
             )?);
             c.car.wheel_cell_a_byte18[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t1,
                 e.wrapping_add(0x18),
             )?);
             c.car.wheel_cell_a_byte14[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t1,
                 e.wrapping_add(0x14),
             )?);
             let t2 = face_byte(0x21)?;
             let e2 = c.tables.surface_seconds[cc].get();
             c.car.wheel_surface_b[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t2,
                 e2.wrapping_add(0x10),
             )?);
             c.car.wheel_cell_b_byte18[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t2,
                 e2.wrapping_add(0x18),
             )?);
             c.car.wheel_cell_b_byte14[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t2,
                 e2.wrapping_add(0x14),
             )?);
             c.car.wheel_surface_blend[cc].set(0.0);
-            let kind_index = info_byte(&c.shared.buffers.reads.get().polygon_tables, t2, 0x2C)?;
+            let kind_index = info_byte(c.shared.buffers.polygon_tables(), t2, 0x2C)?;
             // The index is a byte: past the four kinds it reads on (a slip kept as is).
             let kind = c.view.surface_kind(kind_index as usize)?;
             if kind != 5

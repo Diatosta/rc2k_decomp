@@ -17,7 +17,7 @@ const FACES: u32 = 0xC000;
 
 pub fn draw_object_faces(
     object_faces: &crate::scene::object_faces_store::ObjectFaces,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     poly: &crate::scene::polygon_work_store::PolygonWork,
     object: &crate::scene::object_place::ObjectPlace,
     work: &crate::race::face_work::FaceWork,
@@ -34,7 +34,7 @@ pub fn draw_object_faces(
         if number >= FACES {
             return Err(BadInput("a face's number past the table").into());
         }
-        let face = crate::scene::objects::face_cell(faces_table, number as usize).get() as usize;
+        let face = crate::scene::objects::face(faces_table, number as usize) as usize;
         if face == 0 {
             return Err(BadInput("a face that is not there").into());
         }

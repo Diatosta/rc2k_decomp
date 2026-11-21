@@ -3,6 +3,7 @@
 //! by entry and the list before a clip), the pool of point records the clip makes, the textures'
 //! records and the objects' materials.
 
+use crate::errors::BadInput;
 use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{PlainByte, PlainDword};
 
@@ -132,42 +133,16 @@ impl PolygonEntry {
 
 /// A texture's record (0x40 bytes: `scene::draw_polygon`, `race::course_faces`,
 /// `race::level_init`).
-#[derive(rc2k_derive::Cells)]
+#[derive(Clone)]
 pub struct TextureInfo {
-    pub words: [PlainDword; 16],
-}
-
-/// The record's dwords as a run.
-impl crate::memory::session::Run for TextureInfo {
-    fn count(&self) -> usize {
-        self.words.len()
-    }
-    fn bits(&self, i: usize) -> u32 {
-        self.words[i].get()
-    }
-    fn set_bits(&self, i: usize, v: u32) {
-        self.words[i].set(v);
-    }
+    pub words: [u32; 16],
 }
 
 /// An object kind's material record (0x80 bytes: `scene::set_object_material`,
 /// `physics::face_contact`).
-#[derive(rc2k_derive::Cells)]
+#[derive(Clone)]
 pub struct ObjectMaterial {
-    pub words: [PlainDword; 32],
-}
-
-/// The record's dwords as a run.
-impl crate::memory::session::Run for ObjectMaterial {
-    fn count(&self) -> usize {
-        self.words.len()
-    }
-    fn bits(&self, i: usize) -> u32 {
-        self.words[i].get()
-    }
-    fn set_bits(&self, i: usize, v: u32) {
-        self.words[i].set(v);
-    }
+    pub words: [u32; 32],
 }
 
 pub struct PolygonWork {
@@ -187,8 +162,10 @@ pub struct PolygonWork {
 }
 
 /// The textures' records and the objects' materials, after the work: shared by every drawing
-/// thread, unlike the work.
-#[derive(rc2k_derive::Cells)]
+/// thread, unlike the work. 0x29000 bytes, written when a stage's or the front end's objects are
+/// loaded (`race::level_init`, `scene::read_kind_records`), never while a drawing scope is open
+/// (`session::DrawArc`, read through `PolygonTablesRef`).
+#[derive(Clone)]
 pub struct PolygonTables {
     /// 256 records of 0x40 bytes (`scene::draw_polygon`, `race::course_faces`,
     /// `physics::wheel_surfaces`, `race::level_init`); word 8 of a record is the kind of the
@@ -216,18 +193,14 @@ impl PolygonWork {
 impl TextureInfo {
     /// A record of zeros.
     pub const fn new() -> Self {
-        Self {
-            words: [const { PlainDword::new(0) }; 16],
-        }
+        Self { words: [0; 16] }
     }
 }
 
 impl ObjectMaterial {
     /// A record of zeros.
     pub const fn new() -> Self {
-        Self {
-            words: [const { PlainDword::new(0) }; 32],
-        }
+        Self { words: [0; 32] }
     }
 }
 
@@ -238,5 +211,64 @@ impl PolygonTables {
             texture_infos: [const { TextureInfo::new() }; 256],
             object_materials: [const { ObjectMaterial::new() }; 1200],
         }
+    }
+}
+
+/// The tables as one reader finds them (the game's thread's own, or a drawing part's copy).
+pub type PolygonTablesRef<'a> = crate::memory::drawn_table::DrawnTable<'a, PolygonTables>;
+
+/// The dwords of the texture records.
+const INFO_WORDS: usize = 256 * 16;
+
+impl PolygonTables {
+    /// Dword `n` of the texture records followed by the material records, if there is one.
+    fn word(&self, n: usize) -> Option<u32> {
+        match n.checked_sub(INFO_WORDS) {
+            None => Some(self.texture_infos[n / 16].words[n % 16]),
+            Some(m) => self
+                .object_materials
+                .get(m / 32)
+                .map(|each| each.words[m % 32]),
+        }
+    }
+
+    /// The bytes from byte `at` of the texture records followed by the material records, into
+    /// `to` (little-endian within each dword). A byte past the materials is refused, and logged.
+    pub fn read_bytes(&self, at: usize, to: &mut [u8], what: &str) -> Result<(), BadInput> {
+        for (k, out) in to.iter_mut().enumerate() {
+            let byte = at
+                .checked_add(k)
+                .ok_or(BadInput("a byte past the fields of its record"))?;
+            let Some(word) = self.word(byte / 4) else {
+                crate::memory::host_hooks::log(&format!(
+                    "pointers: {what}: dword {}, past the {} dwords listed",
+                    byte / 4,
+                    INFO_WORDS + self.object_materials.len() * 32
+                ));
+                return Err(BadInput("a dword past the fields of its record"));
+            };
+            *out = word.to_le_bytes()[byte % 4];
+        }
+        Ok(())
+    }
+
+    /// As `read_bytes`, over the texture records alone.
+    pub fn read_info_bytes(&self, at: usize, to: &mut [u8], what: &str) -> Result<(), BadInput> {
+        for (k, out) in to.iter_mut().enumerate() {
+            let byte = at
+                .checked_add(k)
+                .ok_or(BadInput("a byte past the fields of its record"))?;
+            let Some(word) = (byte / 4 < INFO_WORDS)
+                .then(|| self.texture_infos[byte / 64].words[(byte / 4) % 16])
+            else {
+                crate::memory::host_hooks::log(&format!(
+                    "pointers: {what}: dword {}, past the {INFO_WORDS} dwords listed",
+                    byte / 4
+                ));
+                return Err(BadInput("a dword past the fields of its record"));
+            };
+            *out = word.to_le_bytes()[byte % 4];
+        }
+        Ok(())
     }
 }

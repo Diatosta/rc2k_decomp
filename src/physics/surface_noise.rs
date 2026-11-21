@@ -22,7 +22,7 @@ fn sample(
     shared: &crate::race::owner_shared::RaceShared,
     x: usize,
 ) -> Result<u32, crate::errors::BadInput> {
-    sample_noise(&shared.buffers.reads.get().engine_tables, shared.car(), x)
+    sample_noise(shared.buffers.engine_tables(), shared.car(), x)
 }
 
 // Core: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256 stays x87).

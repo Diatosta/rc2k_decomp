@@ -28,7 +28,7 @@ pub fn object_hits_car(
     contacts::check_object(number)?;
     {
         object_turn_matrix(
-            &c.shared.buffers.reads.get().engine_tables,
+            c.shared.buffers.engine_tables(),
             c.contact,
             c.sound.matrices,
             scene,

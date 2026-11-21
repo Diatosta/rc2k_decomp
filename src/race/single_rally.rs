@@ -303,7 +303,7 @@ fn give_outcome(p: &mut Player, result: &RaceResult) {
         p.result_word = result.word.get();
         let secs = crate::math::x87::to_int(&result.secs) as u32;
         p.figure = secs.wrapping_mul(10);
-        p.best_line = result.data.read();
+        p.best_line = result.data_bytes();
     }
 }
 

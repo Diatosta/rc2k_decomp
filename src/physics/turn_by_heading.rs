@@ -7,7 +7,7 @@ use crate::physics::car_store::Car;
 /// `point` is the three floats' bits (x, y, z); x and z are turned, y stays. `ebx` is the whole
 /// number the rotation takes in y's place (the original's register).
 pub(super) fn turn_by_heading(
-    engine_tables: &crate::math::engine_tables::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     car: &Car,
     point: [u32; 3],
     ebx: u32,

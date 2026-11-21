@@ -16,7 +16,7 @@ use crate::scene::matrix::{TURN_X_BASE, TURN_Y_BASE, product, scaled, turned_x, 
 use std::cell::RefCell;
 
 pub fn object_turn_matrix(
-    engine_tables: &crate::math::engine_tables::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     contact: &RefCell<ContactWork>,
     matrices: &DrawPlain<SceneMatrices>,
     scene: &crate::scene::owner::Scene,

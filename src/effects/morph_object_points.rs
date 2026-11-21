@@ -116,7 +116,7 @@ fn refusal(
 
 pub fn morph_object_points(
     course: &Course,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     paths: &Paths,
     scene: &Scene,
     effects: &crate::effects::owner::Effects,

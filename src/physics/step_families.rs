@@ -38,7 +38,7 @@ pub struct SoundInputs<'a> {
     pub matrices: &'a DrawPlain<SceneMatrices>,
     pub view_turn: crate::scene::matrix::Matrix,
     pub heard_turn: &'a crate::race::heard_turn::HeardTurn,
-    pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
+    pub polygon_tables: crate::scene::polygon_store::PolygonTablesRef<'a>,
     pub contact: &'a RefCell<ContactWork>,
     /// The sound owner, whose objects the cues are placed on.
     pub owner: &'a crate::sound::owner::Sound,
@@ -55,7 +55,7 @@ pub struct GroundInputs<'a> {
     pub probes: &'a RefCell<ProbeLists>,
     pub search: &'a RefCell<GroundSearch>,
     pub probe: &'a RefCell<GroundProbe>,
-    pub engine_tables: &'a crate::math::engine_tables::EngineTables,
+    pub engine_tables: crate::math::engine_tables::EngineTablesRef<'a>,
 }
 
 /// What the camera's ground checks read: the car's camera place, the ground search and
@@ -175,7 +175,7 @@ pub struct LightingInputs<'a> {
     pub search: &'a RefCell<GroundSearch>,
     pub probe: &'a RefCell<GroundProbe>,
     pub vars: &'a RaceVars,
-    pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
+    pub polygon_tables: crate::scene::polygon_store::PolygonTablesRef<'a>,
 }
 
 /// What the wheels' surfaces read: the car and the surface tables, the probe points' shares,
@@ -249,7 +249,7 @@ impl<'a> StepInputs<'a> {
             matrices: &self.frame.matrices,
             view_turn: self.frame.view_kept.borrow().view_turn_matrix,
             heard_turn: self.shared.heard_turn.get(),
-            polygon_tables: &self.shared.buffers.reads.get().polygon_tables,
+            polygon_tables: self.shared.buffers.polygon_tables(),
             contact: self.physics.contact(),
             owner,
         }
@@ -265,7 +265,7 @@ impl<'a> StepInputs<'a> {
             probes: self.physics.probes(),
             search: self.physics.ground_search(),
             probe: self.physics.ground_probe(),
-            engine_tables: &self.shared.buffers.reads.get().engine_tables,
+            engine_tables: self.shared.buffers.engine_tables(),
         }
     }
 
@@ -342,7 +342,7 @@ impl<'a> StepInputs<'a> {
             search: self.physics.ground_search(),
             probe: self.physics.ground_probe(),
             vars: self.vars,
-            polygon_tables: &self.shared.buffers.reads.get().polygon_tables,
+            polygon_tables: self.shared.buffers.polygon_tables(),
         }
     }
 

@@ -321,7 +321,7 @@ pub(super) fn light_pair(
     let switches = &ctx.reads.car_parts.cars[car].part_switches;
     let byte = |o: u32| -> Result<u32, BadInput> {
         let n = o.wrapping_sub(PART_SWITCHES) as usize;
-        if n >= switches.read().len() {
+        if n >= crate::race::car_parts_store::PART_SWITCHES_LEN {
             return Err(BadInput("a light byte past the part switches"));
         }
         Ok(u32::from(switches.get(n)))
@@ -507,7 +507,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         multiply_matrices, set_light_direction, set_turn_x, set_turn_y, set_turn_z_16,
     };
     use crate::scene::view_matrix::{Axis, set_fine_turn};
-    let tables = &ctx.reads.buffers.engine_tables;
+    let tables = ctx.reads.engine_tables;
     let object_place = &ctx.view.object;
     {
         let mut kept = ctx.view.matrices.borrow_mut();
@@ -552,8 +552,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     let number = ctx.view.cars.borrow().object_number;
     let kind = ctx.reads.object_tables.object_kind(number);
     // An object whose slot holds no kind (-1) takes the material record before the first.
-    let material =
-        crate::scene::polygon::material_run_byte(&ctx.reads.buffers.polygon_tables, kind, 0x20)?;
+    let material = crate::scene::polygon::material_run_byte(ctx.reads.polygon_tables, kind, 0x20)?;
     match material {
         1 | 2 => {
             let mut kept = ctx.view.matrices.borrow_mut();

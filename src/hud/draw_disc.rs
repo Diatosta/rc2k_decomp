@@ -37,7 +37,7 @@ pub fn draw_disc(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> 
             hud.block.disc_turn_a,
             hud.block.disc_turn_b,
         );
-        let table = |cell: &crate::memory::session::PlainFloat| x87::loaded(cell);
+        let table = |value: f32| x87::loaded(value);
         for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
             let n = k + 1;
             hud.block.ring_sines[n] = table(crate::math::engine_tables::sine(

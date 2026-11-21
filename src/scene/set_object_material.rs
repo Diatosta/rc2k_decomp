@@ -96,7 +96,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     }
     let kind: u32 = ctx.reads.object_tables.object_kind(object);
     let way = u32::from(crate::scene::polygon::material_run_byte(
-        &ctx.reads.buffers.polygon_tables,
+        ctx.reads.polygon_tables,
         kind,
         0x20,
     )?);

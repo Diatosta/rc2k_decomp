@@ -5,7 +5,7 @@ use crate::math::rotate_point_about_y::rotate_point_about_y;
 
 /// x', z' and the angle table's entry.
 pub fn rotate_point_about_y_ecx(
-    tables: &crate::math::engine_tables::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     x: i32,
     y: i32,
     z: i32,

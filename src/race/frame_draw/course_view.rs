@@ -157,8 +157,9 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
     let by = depth_by(kind, || {
         let object = trap.keep_read(face_field::<u8>(ctx.reads.course(), face, 1)) as u32;
         // A byte of the object's 0x40-byte texture info (`object` a byte: inside the 0x100).
-        ctx.reads.buffers.polygon_tables.texture_infos[object as usize].words[11]
-            .get()
+        ctx.reads
+            .polygon_tables
+            .read(|tables| tables.texture_infos[object as usize].words[11])
             .to_le_bytes()[2]
     });
     trap.finish()?;
@@ -340,7 +341,7 @@ pub fn face_hide_mask(
             numbers: reads.numbers,
             tables: reads.physics_tables,
             course: reads.course(),
-            engine_tables: &reads.buffers.engine_tables,
+            engine_tables: reads.engine_tables,
         },
         &view.car,
         &part.points,

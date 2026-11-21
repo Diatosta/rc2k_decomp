@@ -2,10 +2,12 @@
 build.ps1: builds rc2k.exe on Windows itself (without cargo-xwin) into dist\<target>\, and
 with -Deploy copies that folder into the game's folder. The Windows side of build.sh.
 
-    powershell -ExecutionPolicy Bypass -File build.ps1 [-Target windows|windows-x64] [-Deploy] [-GameDir <folder>] [-DebugBuild]
+    build [windows|windows-x64] [-Deploy] [-GameDir <folder>] [-DebugBuild]
+    (build.cmd runs this script whatever the machine's script policy is; or
+    powershell -ExecutionPolicy Bypass -File build.ps1 [-Target windows|windows-x64] ...)
 
-    -Target windows       32 bits (the default)       dist\windows\
-    -Target windows-x64   64 bits                     dist\windows-x64\
+    windows-x64           64 bits (the default)       dist\windows-x64\
+    windows               32 bits                     dist\windows\
     -Deploy               also copy dist\<target>\ into the game's folder: -GameDir, or the
                           line DEPLOY_WINDOWS=<folder> (DEPLOY_WINDOWS_X64 for 64 bits) of
                           deploy.local in the repository's root
@@ -29,7 +31,7 @@ Needs:
   - a checkout without line-ending conversion (.gitattributes asks for that).
 #>
 param(
-    [ValidateSet('windows', 'windows-x64')][string]$Target = 'windows',
+    [ValidateSet('windows', 'windows-x64')][string]$Target = 'windows-x64',
     [switch]$Deploy,
     [string]$GameDir = '',
     [switch]$DebugBuild

@@ -23,7 +23,7 @@ const ANGLES: u32 = 0x1000;
     reason = "the original's registers, the sine tables and the owners"
 )]
 pub fn draw_turned_sprite(
-    engine_tables: &crate::math::engine_tables::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     angle: u32,
     colour: u32,
@@ -54,8 +54,8 @@ pub fn draw_turned_sprite(
             .draw_work
             .borrow()
             .view_k(scene.scratch.front_end_polygon());
-        let sin = crate::math::engine_tables::sine(engine_tables, angle as usize).get();
-        let cos = crate::math::engine_tables::cosine(engine_tables, angle as usize).get();
+        let sin = crate::math::engine_tables::sine(engine_tables, angle as usize);
+        let cos = crate::math::engine_tables::cosine(engine_tables, angle as usize);
         let sq = x87::turned_sprite_floats(place, k, size as i32, sin, cos);
         for n in 0..4 {
             let v = &buffer.vertices[n];

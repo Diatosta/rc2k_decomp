@@ -11,7 +11,7 @@ use crate::errors::Refused;
 
 // Logic: `rc2k_core::scene::objects::object_faces`
 pub fn list_object_faces(
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     object: &crate::scene::object_place::ObjectPlace,
     work: &crate::race::face_work::FaceWork,
     faces_list: &mut crate::scene::face_list::FaceList,
@@ -21,7 +21,7 @@ pub fn list_object_faces(
         let (first, count): (u32, u32) = (object.borrow().first_face, object.borrow().face_count);
         // Every face is looked up before anything is written.
         let faces = rc2k_core::scene::objects::object_faces(first, count, |number| {
-            crate::scene::objects::face_cell(faces_table, number as usize).get()
+            crate::scene::objects::face(faces_table, number as usize)
         })?;
         faces_list.clear();
         // Room for every face at once: the list grows from nothing for each object otherwise.

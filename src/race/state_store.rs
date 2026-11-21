@@ -3,7 +3,7 @@
 //! `#[repr(C)]` structs of atomic cells, one static. Ends in unreferenced bytes up to the damage
 //! model.
 
-use crate::memory::session::{Bytes, Dword, GameThread, PlainBytes, PlainDword, PlainFloat};
+use crate::memory::session::{Bytes, Dword, GameThread, PlainDword, PlainFloat};
 
 /// A gap's first bytes: `runs` are (offset, bytes) of the non-zero ones.
 const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
@@ -144,22 +144,37 @@ pub struct RaceResult {
     pub secs: PlainFloat,
     /// The result: -1 none, -2 left.
     pub result: PlainDword,
-    /// The 0x40 bytes of data (the best line's text).
-    pub data: PlainBytes<64>,
+    /// The 0x40 bytes of data (the best line's text), as sixteen little-endian words: the car's
+    /// times at the splits too.
+    pub data: [PlainDword; 16],
     /// The car's eight impact marks, from and back to `Player::impact_marks`.
     pub impact_marks: [PlainDword; 8],
 }
 
 impl RaceResult {
+    /// The data's 0x40 bytes.
+    pub fn data_bytes(&self) -> [u8; 64] {
+        let mut bytes = [0u8; 64];
+        for (chunk, word) in bytes.as_chunks_mut::<4>().0.iter_mut().zip(&self.data) {
+            *chunk = word.get().to_le_bytes();
+        }
+        bytes
+    }
+
+    /// The data's 0x40 bytes put in.
+    pub fn set_data_bytes(&self, bytes: &[u8; 64]) {
+        for (word, chunk) in self.data.iter().zip(bytes.as_chunks::<4>().0) {
+            word.set(u32::from_le_bytes(*chunk));
+        }
+    }
+
     /// The car's time at split `split` kept in the record from its data on: sixteen words in
     /// `data`, then on into the impact marks; a split whose word is past the record is refused
     /// and nothing is written.
     pub fn set_split_time(&self, split: usize, time: u32) -> Result<(), crate::errors::BadInput> {
-        let data_words = 16; // `data` is 0x40 bytes
+        let data_words = self.data.len();
         if split < data_words {
-            for (k, byte) in time.to_le_bytes().into_iter().enumerate() {
-                self.data.set(4 * split + k, byte);
-            }
+            self.data[split].set(time);
             return Ok(());
         }
         self.impact_marks
@@ -452,7 +467,7 @@ const fn starting_result() -> RaceResult {
         word: PlainDword::new(0),
         secs: PlainFloat::new(0.0),
         result: PlainDword::new(0),
-        data: PlainBytes::new([0xff; 64]),
+        data: [const { PlainDword::new(0xffff_ffff) }; 16],
         impact_marks: [const { PlainDword::new(0) }; 8],
     }
 }

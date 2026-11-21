@@ -6,7 +6,7 @@
 //! turned by the crash matrix (`scene::rotate_point`), times 65536 and
 //! rounded, plus `camera_car`, and added to it.
 
-use crate::math::engine_tables::EngineTables;
+use crate::math::engine_tables::EngineTablesRef;
 use crate::math::x87_float::{f80, int, ld};
 use crate::physics::camera_store::CameraWork;
 use crate::race::frame_store::FrameWorkStore;
@@ -19,9 +19,9 @@ use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
 /// The turns: `math::rotate_point_about_y_ebx`, `_ecx` and `rotate_point_about_y`, exact or plain.
 type Turns = (
-    fn(&EngineTables, i32, i32, i32, u32) -> [u32; 3],
-    fn(&EngineTables, i32, i32, i32, u32) -> [u32; 3],
-    fn(&EngineTables, i32, i32, i32, u32) -> [u32; 4],
+    fn(EngineTablesRef, i32, i32, i32, u32) -> [u32; 3],
+    fn(EngineTablesRef, i32, i32, i32, u32) -> [u32; 3],
+    fn(EngineTablesRef, i32, i32, i32, u32) -> [u32; 4],
 );
 
 /// The steps both versions share; `second` the second offset turned with the car.
@@ -80,37 +80,16 @@ fn place_with(
         ),
     ] {
         let i = |v: u32| v as i32;
-        let [new_y, new_x, _] = {
-            turns.0(
-                &shared.buffers.reads.get().engine_tables,
-                i(y),
-                i(z),
-                i(x),
-                y_turn,
-            )
-        };
+        let [new_y, new_x, _] =
+            { turns.0(shared.buffers.engine_tables(), i(y), i(z), i(x), y_turn) };
         y = new_y;
         x = new_x;
-        let [new_z, new_y, _] = {
-            turns.1(
-                &shared.buffers.reads.get().engine_tables,
-                i(z),
-                i(x),
-                i(y),
-                z_turn,
-            )
-        };
+        let [new_z, new_y, _] =
+            { turns.1(shared.buffers.engine_tables(), i(z), i(x), i(y), z_turn) };
         z = new_z;
         y = new_y;
-        let [new_x, _, new_z, _] = {
-            turns.2(
-                &shared.buffers.reads.get().engine_tables,
-                i(x),
-                i(y),
-                i(z),
-                x_turn,
-            )
-        };
+        let [new_x, _, new_z, _] =
+            { turns.2(shared.buffers.engine_tables(), i(x), i(y), i(z), x_turn) };
         x = new_x;
         z = new_z;
     }

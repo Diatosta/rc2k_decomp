@@ -53,12 +53,7 @@ pub(super) fn point_hits_car(
         work.object_point_turned = work.object_point_scaled;
         work.object_point_turned
     };
-    let turned = turn_by_heading(
-        &c.shared.buffers.reads.get().engine_tables,
-        c.car,
-        scaled,
-        y,
-    );
+    let turned = turn_by_heading(c.shared.buffers.engine_tables(), c.car, scaled, y);
     let (x, z, kind) = {
         let mut work = c.contact.borrow_mut();
         work.object_point_turned = turned;

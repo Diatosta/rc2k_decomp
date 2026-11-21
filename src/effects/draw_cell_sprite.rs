@@ -39,7 +39,7 @@ fn turn(
 /// `DrawWork.sprite_half[1]` cell between its two stores.
 fn square(
     front: &crate::scene::polygon_work_store::PolygonWork,
-    engine_tables: &crate::math::engine_tables::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: u32,
     angle: u32,
@@ -138,7 +138,7 @@ pub(super) fn draw_cell_sprite(
 
 use crate::effects::blocks_store::CornerSlopes;
 use crate::effects::frame_state_store::DrawWork;
-use crate::effects::plain::{ld_cell, st_cell};
+use crate::effects::plain::st_cell;
 use crate::math::engine_tables::{cosine, sine};
 use crate::math::x87_float as bh;
 
@@ -201,7 +201,7 @@ fn slope_at(cs: &CornerSlopes, k: usize) -> f32 {
 /// table's cell (the cosine is the cell 0x400 on).
 fn square_x87(
     front: &crate::scene::polygon_work_store::PolygonWork,
-    engine_tables: &crate::math::engine_tables::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: usize,
     angle: usize,
@@ -228,24 +228,24 @@ fn square_x87(
     dw.sprite_half[2] = t9;
     let t10 = bh::ld(dw.sprite_half[0]);
     let t11 = bh::ld(dw.sprite_half[1]);
-    let t12 = t11 * ld_cell(cosine(engine_tables, angle));
-    let t13 = t10 * ld_cell(sine(engine_tables, angle));
+    let t12 = t11 * bh::ld(cosine(engine_tables, angle));
+    let t13 = t10 * bh::ld(sine(engine_tables, angle));
     let t14 = t12 + t13;
     dw.sprite_half[0] = bh::st(t14);
     let t15 = -t11;
-    let t16 = t15 * ld_cell(sine(engine_tables, angle));
-    let t17 = t10 * ld_cell(cosine(engine_tables, angle));
+    let t16 = t15 * bh::ld(sine(engine_tables, angle));
+    let t17 = t10 * bh::ld(cosine(engine_tables, angle));
     let t18 = t16 + t17;
     dw.sprite_half[1] = bh::st(t18);
     let t19 = bh::ld(dw.sprite_half[2]);
     let t20 = bh::ld(dw.sprite_half[3]);
-    let t21 = t20 * ld_cell(cosine(engine_tables, angle));
-    let t22 = t19 * ld_cell(sine(engine_tables, angle));
+    let t21 = t20 * bh::ld(cosine(engine_tables, angle));
+    let t22 = t19 * bh::ld(sine(engine_tables, angle));
     let t23 = t21 + t22;
     dw.sprite_half[2] = bh::st(t23);
     let t24 = -t20;
-    let t25 = t24 * ld_cell(sine(engine_tables, angle));
-    let t26 = t19 * ld_cell(cosine(engine_tables, angle));
+    let t25 = t24 * bh::ld(sine(engine_tables, angle));
+    let t26 = t19 * bh::ld(cosine(engine_tables, angle));
     let t27 = t25 + t26;
     dw.sprite_half[3] = bh::st(t27);
     let t28 = t1 * bh::ld(dw.turned[0]);

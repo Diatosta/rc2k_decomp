@@ -108,7 +108,7 @@ pub(super) fn load_lights_data(race: &Race) -> Result<(), Refused> {
 /// `angles`, makes the x, y and z turns of them, and multiplies Z x X into the lit matrix and that
 /// x Y into `crash_matrix`.
 pub fn get_mat_crash(
-    engine_tables: &crate::math::engine_tables::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     matrices: &DrawPlain<SceneMatrices>,
     car: &Car,
     scene: &crate::scene::owner::Scene,

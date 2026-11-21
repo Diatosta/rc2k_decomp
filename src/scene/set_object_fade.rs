@@ -32,7 +32,7 @@ fn record_at(
 /// The two words of the object's kind, and whether the object's place is looked at;
 /// None for an object's number past the tables.
 fn words(
-    tables: &crate::scene::polygon_store::PolygonTables,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
     reads: crate::scene::workers::DrawReads<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
     place: u32,
@@ -53,12 +53,8 @@ fn words(
 
 pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     let place: u32 = ctx.view.object.borrow().object_place;
-    let Some((other_kind, distance, needs_record)) = words(
-        &ctx.reads.buffers.polygon_tables,
-        ctx.reads,
-        &ctx.view.cars,
-        place,
-    )?
+    let Some((other_kind, distance, needs_record)) =
+        words(ctx.reads.polygon_tables, ctx.reads, &ctx.view.cars, place)?
     else {
         return Err(BadInput("an object's number past the tables"));
     };

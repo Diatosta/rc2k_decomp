@@ -4,7 +4,29 @@ use crate::effects::asm_test::{Op, Spec, recorded_writes};
 use crate::effects::blocks_store::CornerSlopes;
 use crate::effects::frame_state_store::DrawWork;
 use crate::effects::ring_store::RingWork;
-use crate::math::engine_tables::{cosine, sine};
+/// An entry of the engine's sine table, as a cell the staging writes and restores.
+struct SineEntry(usize);
+
+impl crate::memory::session::Cell32 for SineEntry {
+    fn bits(&self) -> u32 {
+        crate::test_support::own::race()
+            .shared
+            .buffers
+            .engine_tables
+            .borrow()
+            .sines[self.0]
+            .to_bits()
+    }
+
+    fn set_bits(&self, bits: u32) {
+        crate::test_support::own::race()
+            .shared
+            .buffers
+            .engine_tables
+            .borrow_mut()
+            .sines[self.0] = f32::from_bits(bits);
+    }
+}
 
 use crate::effects::asm_test::vertex_cell;
 
@@ -192,42 +214,17 @@ fn square_x87_matches() {
                 .collect();
                 let tables = b[1].wrapping_add(0xC3544);
                 let mut cells = vertices;
-                cells.push((
-                    sine(
-                        &crate::test_support::own::race()
-                            .shared
-                            .buffers
-                            .reads
-                            .get()
-                            .engine_tables,
-                        b[4].number() / 4,
-                    ),
-                    tables.wrapping_add(b[4].number()),
-                ));
-                cells.push((
-                    cosine(
-                        &crate::test_support::own::race()
-                            .shared
-                            .buffers
-                            .reads
-                            .get()
-                            .engine_tables,
-                        b[4].number() / 4,
-                    ),
-                    tables.wrapping_add(b[4].number() + 0x1000),
-                ));
+                let sine_entry = SineEntry(b[4].number() / 4);
+                let cosine_entry = SineEntry(b[4].number() / 4 + 0x400);
+                cells.push((&sine_entry, tables.wrapping_add(b[4].number())));
+                cells.push((&cosine_entry, tables.wrapping_add(b[4].number() + 0x1000)));
                 staged(&cells, || {
                     super::square_x87(
                         crate::owners::Owners::the()
                             .scene
                             .scratch
                             .front_end_polygon(),
-                        &crate::test_support::own::race()
-                            .shared
-                            .buffers
-                            .reads
-                            .get()
-                            .engine_tables,
+                        crate::test_support::own::race().engine_tables(),
                         &crate::d3d::vertices_store::VERTICES,
                         b[3].number(),
                         b[4].number() / 4,

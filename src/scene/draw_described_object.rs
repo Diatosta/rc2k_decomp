@@ -80,7 +80,7 @@ impl Description<'_> {
     /// tables `tables`), the rest of the array zero.
     pub fn read_bytes(
         &self,
-        tables: &crate::scene::polygon_store::PolygonTables,
+        tables: crate::scene::polygon_store::PolygonTablesRef,
         len: usize,
     ) -> Result<[u8; HEAD_LEN], BadInput> {
         match self {
@@ -114,9 +114,7 @@ pub fn draw_described_object(
     d: Option<Description<'_>>,
 ) -> Result<(), Refused> {
     let d = d.ok_or(BadInput("a described object without its description"))?;
-    draw_description(ctx, &|len| {
-        d.read_bytes(&ctx.reads.buffers.polygon_tables, len)
-    })
+    draw_description(ctx, &|len| d.read_bytes(ctx.reads.polygon_tables, len))
 }
 
 /// The same for course face `face` (kind 0xFF), its own description.
@@ -230,8 +228,7 @@ fn draw_description(
     ctx.view.light.borrow_mut().light_kind = 2u32;
     let object: u32 = ctx.view.cars.borrow().object_number;
     let kind: u32 = ctx.reads.object_tables.object_kind(object);
-    if crate::scene::polygon::material_run_byte(&ctx.reads.buffers.polygon_tables, kind, 0x1F)? != 0
-    {
+    if crate::scene::polygon::material_run_byte(ctx.reads.polygon_tables, kind, 0x1F)? != 0 {
         ctx.view.light.borrow_mut().light_kind = 1u32;
     }
     crate::scene::draw_scene_object::draw_scene_object_in_game(
@@ -251,12 +248,12 @@ mod tests {
     fn a_description_is_read_to_its_length_and_refused_past_its_cells() {
         let cells: Vec<PlainDword> = (1..=3).map(PlainDword::new).collect();
         let description = Description::PlainCells(&cells);
-        let tables: crate::scene::polygon_store::PolygonTables =
-            crate::memory::cells::zeroed_cells();
-        let head = description.read_bytes(&tables, 8).unwrap();
+        let tables = crate::scene::polygon_store::PolygonTables::new();
+        let tables = crate::scene::polygon_store::PolygonTablesRef::Copy(&tables);
+        let head = description.read_bytes(tables, 8).unwrap();
         assert_eq!(head[..8], [1, 0, 0, 0, 2, 0, 0, 0]);
         assert!(head[8..].iter().all(|&b| b == 0));
-        assert!(description.read_bytes(&tables, 16).is_err());
-        assert!(description.read_bytes(&tables, 12).is_ok());
+        assert!(description.read_bytes(tables, 16).is_err());
+        assert!(description.read_bytes(tables, 12).is_ok());
     }
 }

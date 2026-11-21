@@ -160,7 +160,7 @@ pub(super) fn work_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
 /// (the work block is on the list, which is freed with its own).
 pub(super) fn make_masks(
     course: &Course,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     masks: &Masks,
     drops: &WindscreenDrops,
     scene: &crate::scene::owner::Scene,

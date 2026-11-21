@@ -6,7 +6,7 @@
 //! The two turning matrices keep their other floats (an identity's).
 
 use crate::math::cells::Cells;
-use crate::math::engine_tables::EngineTables;
+use crate::math::engine_tables::EngineTablesRef;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::scene::project_point::rotate_at;
@@ -14,11 +14,11 @@ use crate::scene::view_matrices::MatrixValues;
 
 /// An angle's sine and cosine from the game's tables `tables`: sixteen bits a turn, the low
 /// four dropped.
-fn sine_cosine(tables: &EngineTables, angle: u32) -> (f32, f32) {
+fn sine_cosine(tables: EngineTablesRef, angle: u32) -> (f32, f32) {
     let place = ((angle & 0xFFFF) >> 4) as usize;
     (
-        crate::math::engine_tables::sine(tables, place).get(),
-        crate::math::engine_tables::cosine(tables, place).get(),
+        crate::math::engine_tables::sine(tables, place),
+        crate::math::engine_tables::cosine(tables, place),
     )
 }
 
@@ -60,7 +60,7 @@ pub fn store_matrix(cells: &(impl Cells + ?Sized), matrix: &Matrix) {
 
 /// `matrix` turned about x by `angle` (`scene::set_turn_x`): its fifth, sixth, tenth and eleventh
 /// floats set; with the sine and the cosine.
-pub fn turned_x(tables: &EngineTables, mut matrix: Matrix, angle: u32) -> (Matrix, [f32; 2]) {
+pub fn turned_x(tables: EngineTablesRef, mut matrix: Matrix, angle: u32) -> (Matrix, [f32; 2]) {
     let (sine, cosine) = sine_cosine(tables, angle);
     matrix[5] = cosine;
     matrix[6] = sine;
@@ -70,7 +70,7 @@ pub fn turned_x(tables: &EngineTables, mut matrix: Matrix, angle: u32) -> (Matri
 }
 
 /// `matrix` turned about y by `angle` (`scene::set_turn_y`), with the sine and the cosine.
-pub fn turned_y(tables: &EngineTables, mut matrix: Matrix, angle: u32) -> (Matrix, [f32; 2]) {
+pub fn turned_y(tables: EngineTablesRef, mut matrix: Matrix, angle: u32) -> (Matrix, [f32; 2]) {
     let (sine, cosine) = sine_cosine(tables, angle);
     matrix[0] = cosine;
     matrix[2] = -sine;
@@ -81,7 +81,7 @@ pub fn turned_y(tables: &EngineTables, mut matrix: Matrix, angle: u32) -> (Matri
 
 /// `matrix` turned about z by `angle`, sixteen bits a turn (`scene::set_turn_z_16`), with the
 /// sine and the cosine.
-pub fn turned_z_16(tables: &EngineTables, mut matrix: Matrix, angle: u32) -> (Matrix, [f32; 2]) {
+pub fn turned_z_16(tables: EngineTablesRef, mut matrix: Matrix, angle: u32) -> (Matrix, [f32; 2]) {
     let (sine, cosine) = sine_cosine(tables, angle);
     matrix[0] = cosine;
     matrix[1] = sine;
@@ -140,14 +140,14 @@ pub fn scaled(mut matrix: Matrix, factor: f32) -> Matrix {
 }
 
 /// `scene::set_turn_x`: `turn_x` the matrix, `work` its sine and cosine.
-pub fn set_turn_x(tables: &EngineTables, turn_x: &mut Matrix, work: &mut [f32; 2], angle: u32) {
+pub fn set_turn_x(tables: EngineTablesRef, turn_x: &mut Matrix, work: &mut [f32; 2], angle: u32) {
     let (matrix, sine_cosine) = turned_x(tables, *turn_x, angle);
     *work = sine_cosine;
     *turn_x = matrix;
 }
 
 /// `scene::set_turn_y`.
-pub fn set_turn_y(tables: &EngineTables, turn_y: &mut Matrix, work: &mut [f32; 2], angle: u32) {
+pub fn set_turn_y(tables: EngineTablesRef, turn_y: &mut Matrix, work: &mut [f32; 2], angle: u32) {
     let (matrix, sine_cosine) = turned_y(tables, *turn_y, angle);
     *work = sine_cosine;
     *turn_y = matrix;
@@ -155,7 +155,12 @@ pub fn set_turn_y(tables: &EngineTables, turn_y: &mut Matrix, work: &mut [f32; 2
 
 /// `scene::set_turn_z_16`: as `set_turn_x`, about the z axis (the matrix and
 /// the work of `scene::view_matrix::set_fine_turn`, whose angle is 32 bits a turn).
-pub fn set_turn_z_16(tables: &EngineTables, turn_z: &mut Matrix, work: &mut [f32; 2], angle: u32) {
+pub fn set_turn_z_16(
+    tables: EngineTablesRef,
+    turn_z: &mut Matrix,
+    work: &mut [f32; 2],
+    angle: u32,
+) {
     let (matrix, sine_cosine) = turned_z_16(tables, *turn_z, angle);
     *work = sine_cosine;
     *turn_z = matrix;
@@ -180,7 +185,7 @@ pub fn copy_matrix_with_place(from: &Matrix, other: &Matrix, out: &mut Matrix) {
 /// `scene::set_light_direction`: in the view's matrices `v`, turned by the view's
 /// turn `view_turn` (the view's parameter, kept in the shared pieces).
 pub fn set_light_direction(
-    tables: &EngineTables,
+    tables: EngineTablesRef,
     v: &mut MatrixValues,
     view_turn: &Matrix,
     light: &crate::scene::object_light::ObjectLight,
@@ -207,7 +212,7 @@ pub fn set_light_direction(
 
 /// `scene::make_object_matrix`.
 pub fn make_object_matrix(
-    tables: &EngineTables,
+    tables: EngineTablesRef,
     v: &mut MatrixValues,
     view_turn: &Matrix,
     light: &crate::scene::object_light::ObjectLight,

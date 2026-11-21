@@ -1,7 +1,7 @@
 //! The race's stores that sit inside its groups, as views from the owner.
 
 use crate::errors::BadInput;
-use crate::math::engine_tables::EngineTables;
+use crate::math::engine_tables::EngineTablesRef;
 use crate::physics::gear_store::GearFigures;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::checkpoints_store::CheckpointsRef;
@@ -12,8 +12,8 @@ use crate::race::owner::Race;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::scene::faces_store::Faces;
-use crate::scene::polygon_store::PolygonTables;
+use crate::scene::faces_store::FacesRef;
+use crate::scene::polygon_store::PolygonTablesRef;
 
 #[allow(dead_code, reason = "the call sites move to it in the M6 rounds")]
 impl Race {
@@ -78,8 +78,8 @@ impl Race {
     }
 
     /// The scene's faces.
-    pub fn faces(&self) -> &Faces {
-        &self.shared.buffers.reads.get().faces
+    pub fn faces(&self) -> FacesRef<'_> {
+        self.shared.buffers.faces()
     }
 
     /// The surface kinds' tables.
@@ -98,12 +98,12 @@ impl Race {
     }
 
     /// The engine tables.
-    pub fn engine_tables(&self) -> &EngineTables {
-        &self.shared.buffers.reads.get().engine_tables
+    pub fn engine_tables(&self) -> EngineTablesRef<'_> {
+        self.shared.buffers.engine_tables()
     }
 
     /// The polygon tables.
-    pub fn polygon_tables(&self) -> &PolygonTables {
-        &self.shared.buffers.reads.get().polygon_tables
+    pub fn polygon_tables(&self) -> PolygonTablesRef<'_> {
+        self.shared.buffers.polygon_tables()
     }
 }

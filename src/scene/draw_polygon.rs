@@ -334,7 +334,7 @@ fn choose_texture(
 
 /// Clears a switch by what the entries' `amount` bytes hold.
 fn clear_a_switch(
-    tables: &crate::scene::polygon_store::PolygonTables,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
     poly: &crate::scene::polygon_work_store::PolygonWork,
     face: &crate::race::face_work::FaceWork,
     entries: &[Listed],
@@ -345,12 +345,12 @@ fn clear_a_switch(
     let bytes = entries.iter().map(|&(_, entry)| entry.amount.get());
     let (all, any) = bytes.fold((0xFFu8, 0u8), |(all, any), b| (all & b, any | b));
     if all == 0xFF {
-        let info = tables
-            .texture_infos
-            .get(face.borrow().texture_b as usize)
+        let texture_b = face.borrow().texture_b as usize;
+        let word = tables
+            .read(|t| t.texture_infos.get(texture_b).map(|info| info.words[0xB]))
             .ok_or(BadInput("a texture past the records"))?;
         // the third byte of the record's word 0xB
-        if info.words[0xB].get().to_le_bytes()[2] == 0 {
+        if word.to_le_bytes()[2] == 0 {
             poly.scalars.borrow_mut().polygon_sides[0] = 0u32;
         }
     } else if any == 0 {
@@ -473,7 +473,7 @@ pub fn draw_polygon(
     // The mode, with its fallbacks.
     let mut mode: u32 = face.borrow().polygon_mode;
     if mode == 3 && reads.draw_switches.clears_switch != 0 {
-        clear_a_switch(&reads.buffers.polygon_tables, poly, face, &entries)?;
+        clear_a_switch(reads.polygon_tables, poly, face, &entries)?;
     }
     if matches!(mode, 3..=5) {
         let fallback = if poly.scalars.borrow().polygon_sides[1] == 0 {

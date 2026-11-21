@@ -244,7 +244,7 @@ fn shape_set_checks(
 /// tilt with no sine and cosine, before writing.
 fn make_shape_set(
     course: &Course,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     drops: &WindscreenDrops,
     object: u32,
     scene: &crate::scene::owner::Scene,
@@ -285,7 +285,7 @@ fn make_shape_set(
     let faces: u32 = scene.objects.slots.borrow().face_counts[object];
     let kinds: [u32; 2] = drops.tuning.borrow().face_kinds;
     for f in first..first + faces {
-        let face: u32 = crate::scene::objects::face_cell(faces_table, f as usize).get();
+        let face: u32 = crate::scene::objects::face(faces_table, f as usize);
         let kind = course.stage.object_faces.byte(face + 7)?;
         if kind == kinds[0] as u8 {
             collect_points(&course.stage.object_faces, drops, 0, face)?;
@@ -359,7 +359,7 @@ fn make_shape_set(
 /// `make_shape_set` refuses for any of them, before writing.
 pub(super) fn make_shape_sets(
     course: &Course,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     drops: &WindscreenDrops,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,

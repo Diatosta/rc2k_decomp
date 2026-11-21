@@ -773,14 +773,14 @@ const DUMPS: [(&str, &str, DumpWord, usize, usize); 4] = [
     (
         "Car 1's times at the splits",
         "Noted at each split; kept in the player's +0x20C after the race; hundredths of a second.",
-        |race, n| race.shared.state.results.results[0].data.get_u32(4 * n),
+        |race, n| race.shared.state.results.results[0].data[n].get(),
         1,
         16,
     ),
     (
         "Car 2's times at the splits",
         "As car 1's.",
-        |race, n| race.shared.state.results.results[1].data.get_u32(4 * n),
+        |race, n| race.shared.state.results.results[1].data[n].get(),
         1,
         16,
     ),

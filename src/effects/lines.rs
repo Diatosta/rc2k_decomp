@@ -185,7 +185,7 @@ fn measured(
 // stay x87: its `finit` between)
 pub fn measure_lines(
     course: &Course,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     paths: &Paths,
     scene: &Scene,
     effects: &crate::effects::owner::Effects,
@@ -220,10 +220,8 @@ pub fn measure_lines(
                 block.kind_counts[n].set(0);
             }
             for n in 0..(faces as i32).max(0) as u32 {
-                let from: u32 =
-                    crate::scene::objects::face_cell(faces_table, (first_a + n) as usize).get();
-                let to: u32 =
-                    crate::scene::objects::face_cell(faces_table, (first_b + n) as usize).get();
+                let from: u32 = crate::scene::objects::face(faces_table, (first_a + n) as usize);
+                let to: u32 = crate::scene::objects::face(faces_table, (first_b + n) as usize);
                 if course.stage.object_faces.byte(from + 6)? == 0x1C {
                     let kind = course.stage.object_faces.byte(from + 0xB)? as u32;
                     if (1..=6).contains(&kind) {
@@ -270,7 +268,7 @@ pub fn measure_lines(
 // The logic is in `rc2k_core::effects::lines::{measured, block_at}`
 fn measure_starting_sums(
     course: &Course,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     paths: &Paths,
     scene: &Scene,
     effects: &crate::effects::owner::Effects,
@@ -363,7 +361,7 @@ fn copy_block_points(
 // The logic is in `rc2k_core::effects::lines::{measured, block_at}`
 pub(super) fn set_up_blocks(
     course: &Course,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     paths: &Paths,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,

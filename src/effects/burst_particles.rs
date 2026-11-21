@@ -59,7 +59,7 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
 
 /// `record` is the particle it bursts from.
 pub(super) fn burst_particles(
-    engine_tables: &crate::math::engine_tables::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     particles: &Particles,
     ring: &Ring,
     record: u32,
@@ -84,8 +84,8 @@ pub(super) fn burst_particles(
         ring.pool.burst_radius.set(radius);
         ring.pool.kind.set((s & 7) * 0x400);
         ring.pool.nine.set((s.rotate_right(16) & 1) + 8);
-        let sine = |n: u32| crate::math::engine_tables::sine(engine_tables, n as usize).get();
-        let cosine = |n: u32| crate::math::engine_tables::cosine(engine_tables, n as usize).get();
+        let sine = |n: u32| crate::math::engine_tables::sine(engine_tables, n as usize);
+        let cosine = |n: u32| crate::math::engine_tables::cosine(engine_tables, n as usize);
         for _ in 0..ENTRIES {
             let used: u32 = ring.pool.used.get();
             if used == FULL {

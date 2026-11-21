@@ -70,7 +70,7 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
         |at| crate::race::course_places::face_field::<u32>(c.course.reads(), face, at);
     let (from, to) = (corner_point(first)?, corner_point(second)?);
     edge_normal(
-        &c.shared.buffers.reads.get().engine_tables,
+        c.shared.buffers.engine_tables(),
         c.contact,
         c.course,
         from,

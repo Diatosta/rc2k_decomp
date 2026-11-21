@@ -31,7 +31,7 @@ pub fn track_checkpoints(
     scene.line_and_shake_mut().line_place = checkpoint;
     {
         crate::physics::checkpoint_offset::checkpoint_offset(
-            &c.shared.buffers.reads.get().engine_tables,
+            c.shared.buffers.engine_tables(),
             c.course,
             c.vars,
             c.checkpoints,

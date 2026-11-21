@@ -10,7 +10,7 @@ use crate::errors::{BadInput, Refused};
 /// `scene::set_texture`, `scene::depth_test_off`, and with the settings' flare strength
 /// `draw_lens_flare`.
 pub(super) fn flare_frame(
-    engine_tables: &crate::math::engine_tables::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     paths: &Paths,
     scene: &crate::scene::owner::Scene,

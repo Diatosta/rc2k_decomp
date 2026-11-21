@@ -17,7 +17,8 @@ use crate::race::tint_to_mud_colour::tint_to_mud_colour;
 
 /// The place (x, y) of number `n` (its low 16 bits).
 pub fn shuffled_place(race: &Race, n: u32) -> (u32, u32) {
-    let word: u16 = race.engine_tables().shuffled_words[(n & 0xFFFF) as usize].get();
+    let word: u16 =
+        crate::math::engine_tables::shuffled_word(race.engine_tables(), (n & 0xFFFF) as usize);
     rc2k_core::race::mud::shuffled_place(word)
 }
 

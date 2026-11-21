@@ -79,7 +79,7 @@ pub fn draw_view_scene(
     )?;
     clear_point_records(&scene.scratch, part)?;
     set_up_fog(
-        &reads.buffers.engine_tables,
+        reads.engine_tables,
         reads.stage_prefs,
         &view.fog,
         &view.polygon,

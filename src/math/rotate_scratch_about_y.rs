@@ -16,7 +16,7 @@ pub struct Scratch {
 /// callers in modules not yet converted use, so that their own comparisons stay exact.
 /// Also returns the angle table's entry.
 pub fn rotate_scratch_about_y(
-    tables: &crate::math::engine_tables::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     point: &mut Scratch,
     angle: u32,
 ) -> u32 {
@@ -25,12 +25,12 @@ pub fn rotate_scratch_about_y(
     entry
 }
 
-fn x87_turn(tables: &crate::math::engine_tables::EngineTables, point: &mut Scratch, entry: u32) {
+fn x87_turn(tables: crate::math::engine_tables::EngineTablesRef, point: &mut Scratch, entry: u32) {
     use crate::math::engine_tables::{cosine, sine};
     let (mut x, mut z) = (point.x.to_bits(), point.z.to_bits());
     crate::math::x87::turn_in_place(
-        sine(tables, entry as usize).get(),
-        cosine(tables, entry as usize).get(),
+        sine(tables, entry as usize),
+        cosine(tables, entry as usize),
         &mut x,
         &mut z,
     );
@@ -41,7 +41,7 @@ fn x87_turn(tables: &crate::math::engine_tables::EngineTables, point: &mut Scrat
 /// The converted version (`rc2k_core::math::geometry`, plain floats): the one its callers
 /// use. Also returns the angle table's entry.
 pub(super) fn rotate_scratch_about_y_plain(
-    tables: &crate::math::engine_tables::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     point: &mut Scratch,
     angle: u32,
 ) -> u32 {
@@ -51,8 +51,8 @@ pub(super) fn rotate_scratch_about_y_plain(
         let (x, z) = geometry::turn_xz(
             point.x,
             point.z,
-            crate::math::engine_tables::sine(tables, entry as usize).get(),
-            crate::math::engine_tables::cosine(tables, entry as usize).get(),
+            crate::math::engine_tables::sine(tables, entry as usize),
+            crate::math::engine_tables::cosine(tables, entry as usize),
         );
         point.x = x;
         point.z = z;

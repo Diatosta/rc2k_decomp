@@ -32,7 +32,7 @@ pub fn draw_distance_settings(course: &Course) {
 /// corners are blended along x and then along z, each step a product shifted right by 16; the
 /// result shifted left 8 is returned.
 pub fn sample_noise(
-    tables: &crate::math::engine_tables::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     car: &crate::physics::car_store::Car<impl crate::memory::session::CellKind>,
     map: usize,
 ) -> Result<u32, BadInput> {
@@ -41,9 +41,8 @@ pub fn sample_noise(
         car.camera_position.bits_at(2),
     );
     let refused = std::cell::Cell::new(None);
-    let noise = &tables.noise_bytes;
     let s = rc2k_core::race::view::sample_noise(
-        |n| match noise.byte_at(map + n as usize, "a noise map") {
+        |n| match crate::math::engine_tables::noise_byte(tables, map + n as usize, "a noise map") {
             Ok(b) => b,
             Err(e) => {
                 refused.set(refused.take().or(Some(e)));
@@ -70,7 +69,7 @@ pub fn sample_noise(
 /// value (held). The step (`fog_step`) and the near value (`fog_near`) are not stored: nothing
 /// reads them. Refused (before anything): a table length of 0 or past 0x1000.
 pub fn fog_table(
-    tables: &crate::math::engine_tables::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     prefs: crate::race::prefs_store::StagePrefsRef<'_>,
     fog: &crate::scene::fog::Fog,
     car: &crate::physics::car_store::ViewCar,
@@ -112,7 +111,7 @@ pub fn fog_table(
 /// into the view's `fog`; the colour with 0xFF000000 goes to the device. Refused (before anything):
 /// what `fog_table` would refuse.
 pub fn set_up_fog(
-    tables: &crate::math::engine_tables::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     prefs: crate::race::prefs_store::StagePrefsRef<'_>,
     fog: &crate::scene::fog::Fog,
     poly: &crate::scene::polygon_work_store::PolygonWork,
@@ -150,7 +149,7 @@ pub fn set_up_fog(
 /// `race().frame.view_and_records.view_vars.view_angles[2]` ..
 /// `race().frame.view_and_records.view_vars.view_angles[5]` 0 both ways.
 pub fn place_view(
-    tables: &crate::math::engine_tables::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     course: crate::race::owner_course::CourseReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
@@ -234,7 +233,7 @@ pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Ba
     let mut kept = ctx.view.matrices.borrow_mut();
     let m = &mut *kept;
     matrix::set_turn_y(
-        &ctx.reads.buffers.engine_tables,
+        ctx.reads.engine_tables,
         &mut m.turn_y_matrix,
         &mut m.turn_y_work,
         angle,
@@ -444,7 +443,7 @@ pub fn camera_view(
         .set(view.car.camera_switch_share.get());
     view.vars.view_car_stage.set(view.car.camera_view.get());
     if reads.switches.scene_set_up() == 0 {
-        place_view(&reads.buffers.engine_tables, reads.course(), view)?;
+        place_view(reads.engine_tables, reads.course(), view)?;
         view_matrices(reads.course(), m, view)?;
         return Ok(());
     }

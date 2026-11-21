@@ -162,7 +162,7 @@ repository's top folder:
 | Linux, x86-64 | `./build.sh linux` | Linux | `dist/linux/rc2k` |
 | Windows, 64 bits | `./build.sh windows-x64` | Linux (cargo-xwin) | `dist/windows-x64/`: `rc2k.exe` and three DLLs |
 | Windows, 32 bits | `./build.sh windows` | Linux (cargo-xwin) | `dist/windows/`: `rc2k.exe` and three DLLs |
-| Windows, either | `build.ps1 -Target windows-x64` (or `windows`) | Windows | the same folders |
+| Windows, either | `build` (64 bits) or `build windows` (32 bits) | Windows | the same folders |
 | macOS | `./build.sh mac` | a Mac (or Linux, on a Mac over SSH) | `dist/mac/Rally Championship.app` |
 | Steam Deck (and older Linux systems) | `./build.sh deck` | Linux (Docker) | `dist/deck/`: `rc2k`, `rally.sh` |
 | Anbernic RG34XXSP | `./build.sh handheld` | Linux (Docker) | `dist/handheld/`: `rc2k`, `Rally.sh` |
@@ -190,14 +190,15 @@ What each target needs:
   downloaded (`tools/fetch_sdl3.sh`: a pinned version, checked by its hash). The 32-bit
   build has no debug window.
 - **Windows on Windows**: Visual Studio 2022 (or its Build Tools) with "Desktop
-  development with C++"; nothing else. In PowerShell:
+  development with C++"; nothing else. In a Command Prompt or PowerShell:
 
-  ```powershell
-  powershell -ExecutionPolicy Bypass -File build.ps1 -Target windows-x64
-  powershell -ExecutionPolicy Bypass -File build.ps1 -Target windows -GameDir C:\Games\Rally
+  ```bat
+  build
+  build windows -GameDir C:\Games\Rally
   ```
 
-  `-GameDir` (or `-Deploy` with a `DEPLOY_WINDOWS` line in `deploy.local`) also copies the
+  (`.\build` in PowerShell.) `build` builds 64 bits (`build windows`: 32 bits). `-GameDir` (or `-Deploy` with a
+  `DEPLOY_WINDOWS_X64` line in `deploy.local`) also copies the
   result into the game's folder. Not yet tried on a real Windows machine.
 - **macOS**: the Command Line Tools, rustup's two `apple-darwin` targets, and cmake.
   Both processors' programs are joined with `lipo` into one bundle, signed ad hoc

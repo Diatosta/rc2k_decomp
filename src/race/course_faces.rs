@@ -445,22 +445,20 @@ pub fn second_set() -> TextureSet {
 /// the mapping byte, the corner table's 0 .. 12 and two more), so the bytes lie in one record; a
 /// place past the records is refused.
 fn info_bytes<const N: usize>(
-    tables: &crate::scene::polygon_store::PolygonTables,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
     texture: u32,
     offset: u32,
 ) -> Result<[u8; N], BadInput> {
-    let infos = &tables.texture_infos;
     let at = (texture << 6).wrapping_add(offset) as usize;
     let (dword, byte) = (at / 4, at % 4);
-    if let Some(info) = infos.get(dword / 16)
-        && let Some(bytes) = info.words[dword % 16]
-            .get()
-            .to_le_bytes()
-            .get(byte..byte + N)
-    {
-        return Ok(bytes.try_into().expect("N bytes"));
-    }
-    Err(BadInput("a texture info's bytes past the texture infos"))
+    tables.read(|tables| {
+        if let Some(info) = tables.texture_infos.get(dword / 16)
+            && let Some(bytes) = info.words[dword % 16].to_le_bytes().get(byte..byte + N)
+        {
+            return Ok(bytes.try_into().expect("N bytes"));
+        }
+        Err(BadInput("a texture info's bytes past the texture infos"))
+    })
 }
 
 /// Sets the triangle's texture's size word (bit 31 set) and mapping and the four
@@ -471,7 +469,7 @@ fn info_bytes<const N: usize>(
 pub(super) fn face_texture_coordinates(
     course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
-    buffers: &crate::race::buffers_store::BufferReads,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
     work: &FaceWork,
     poly: &crate::scene::polygon_work_store::PolygonWork,
     set: TextureSet,
@@ -482,19 +480,15 @@ pub(super) fn face_texture_coordinates(
         (set.texture(&values), set.order(&values))
     };
     let texture_info = TextureInfo {
-        size: u32::from_le_bytes(info_bytes(&buffers.polygon_tables, texture, 0x20)?),
-        mapping: i8::from_le_bytes(info_bytes(&buffers.polygon_tables, texture, 0x2D)?),
+        size: u32::from_le_bytes(info_bytes(tables, texture, 0x20)?),
+        mapping: i8::from_le_bytes(info_bytes(tables, texture, 0x2D)?),
     };
     let mut pairs = [(0u16, 0u16); 4];
     for (k, pair_out) in pairs.iter_mut().enumerate() {
         let table = crate::race::view_store::CORNER_UV_OFFSETS[(order << 2) as usize + k];
         *pair_out = (
-            u16::from_le_bytes(info_bytes(&buffers.polygon_tables, texture, table)?),
-            u16::from_le_bytes(info_bytes(
-                &buffers.polygon_tables,
-                texture,
-                table.wrapping_add(2),
-            )?),
+            u16::from_le_bytes(info_bytes(tables, texture, table)?),
+            u16::from_le_bytes(info_bytes(tables, texture, table.wrapping_add(2))?),
         );
     }
     let trap = Trap::new();
@@ -704,11 +698,8 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let picked = || {
         // The record's kind byte picks one of the four surface kinds: 0 .. 3 in every texture info
         // file shipped; a byte past them is refused.
-        let pick = trap.keep_read(info_bytes::<1>(
-            &ctx.reads.buffers.polygon_tables,
-            second,
-            0x2C,
-        ))[0] as usize;
+        let pick =
+            trap.keep_read(info_bytes::<1>(ctx.reads.polygon_tables, second, 0x2C))[0] as usize;
         match crate::race::view_store::SURFACE_KINDS.get(pick) {
             Some(kind) => *kind,
             None => {
@@ -734,7 +725,7 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         face_texture_coordinates(
             ctx.reads.course(),
             &ctx.part.points,
-            ctx.reads.buffers,
+            ctx.reads.polygon_tables,
             &ctx.view.face,
             &ctx.view.polygon,
             first_set(),
@@ -747,7 +738,7 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         face_texture_coordinates(
             ctx.reads.course(),
             &ctx.part.points,
-            ctx.reads.buffers,
+            ctx.reads.polygon_tables,
             &ctx.view.face,
             &ctx.view.polygon,
             second_set(),

@@ -55,7 +55,7 @@ pub struct ProbeInputs<'a> {
     pub numbers: &'a crate::race::numbers_store::Numbers,
     pub tables: &'a crate::physics::tables_store::PhysicsTables,
     pub course: crate::race::owner_course::CourseReads<'a>,
-    pub engine_tables: &'a crate::math::engine_tables::EngineTables,
+    pub engine_tables: crate::math::engine_tables::EngineTablesRef<'a>,
 }
 
 impl<'a> ProbeInputs<'a> {
@@ -157,10 +157,12 @@ fn probe_points(
         let trap = crate::physics::cells::Trap::new();
         let noise = |i: u32| {
             trap.keep(
-                c.engine_tables
-                    .noise_bytes
-                    .byte_at(i as usize, "the ground noise table")
-                    .map(u32::from),
+                crate::math::engine_tables::noise_byte(
+                    c.engine_tables,
+                    i as usize,
+                    "the ground noise table",
+                )
+                .map(u32::from),
             )
         };
         let n = cell.corners.map(noise);

@@ -5,8 +5,9 @@
 //! record of cells beyond the few leaf types implemented below. Test code only.
 
 use crate::memory::PlainList;
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{
-    Cell32, PlainByte, PlainBytes, PlainDword, PlainFlag, PlainFloat, PlainInt, PlainWord,
+    Cell32, PlainByte, PlainDword, PlainFlag, PlainFloat, PlainInt, PlainWord,
 };
 
 /// A value held as bytes: a cell, an array of them, or a record listed with `plain_fields!`.
@@ -88,17 +89,17 @@ impl Leaf for PlainByte {
     }
 }
 
-impl<const N: usize> Leaf for PlainBytes<N> {
+impl<const N: usize> Leaf for PlainBuffer<N> {
     fn byte_len(&self) -> usize {
         N
     }
     fn dump(&self, out: &mut Vec<u8>) {
-        out.extend_from_slice(&PlainBytes::read(self));
+        out.extend_from_slice(&PlainBuffer::read(self));
     }
     fn load(&self, from: &mut &[u8]) {
         let (head, rest) = from.split_at(N);
         *from = rest;
-        PlainBytes::write(self, head.try_into().expect("N bytes"));
+        PlainBuffer::write(self, head.try_into().expect("N bytes"));
     }
 }
 

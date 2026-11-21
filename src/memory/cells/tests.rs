@@ -126,7 +126,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         audio.state,
         menus.play.slots.pointers,
         *race.shared.physics_tables.get(),
-        *race.shared.buffers.reads.get(),
         *race.shared.viewer_buffers(),
         *race.shared.car_blocks.get(),
         *race.shared.car_parts.get(),

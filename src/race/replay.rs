@@ -6,7 +6,7 @@
 //! primitives are `files::handle`'s.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainBytes;
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::menu::owner::Menus;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
@@ -33,15 +33,14 @@ pub const NAME_BYTES: usize = 0x20;
 pub const SLOTS: usize = 100;
 
 /// The replays' buffers.
-#[derive(rc2k_derive::Cells)]
 pub struct Replays {
     /// The file's header (a dword array, `HEADER_LEN` bytes).
-    pub header: PlainBytes<{ HEADER_LEN as usize }>,
+    pub header: PlainBuffer<{ HEADER_LEN as usize }>,
     /// The saved replays' names, 100 of 0x20 bytes (twenty to a page).
-    pub names: PlainBytes<{ SLOTS * NAME_BYTES }>,
+    pub names: PlainBuffer<{ SLOTS * NAME_BYTES }>,
     /// What each slot holds (`SLOT_NONE`, `SLOT_OLD`, `SLOT_NEW`): the replays list tags the
     /// names by it.
-    pub kinds: PlainBytes<SLOTS>,
+    pub kinds: PlainBuffer<SLOTS>,
 }
 
 /// A replay slot's kind: no file read (empty, or one that is damaged).
@@ -55,9 +54,9 @@ impl Replays {
     /// The replays' buffers; the first values are the image's (all zero).
     pub const fn new() -> Self {
         Replays {
-            header: PlainBytes::new([0; HEADER_LEN as usize]),
-            names: PlainBytes::new([0; SLOTS * NAME_BYTES]),
-            kinds: PlainBytes::new([0; SLOTS]),
+            header: PlainBuffer::new([0; HEADER_LEN as usize]),
+            names: PlainBuffer::new([0; SLOTS * NAME_BYTES]),
+            kinds: PlainBuffer::new([0; SLOTS]),
         }
     }
 }
@@ -489,7 +488,6 @@ mod header_tests {
     use crate::test_support::own::race;
 
     const LOCALE: &str = "owners.strings.language.locale";
-    const REPLAYS: &str = "owners.race.shared.replays";
     const SEASON_CODE: &str = "owners.race.shared.replay_file.season_code";
     const WORK: &str = "owners.race.shared.work";
     const STATE: &str = "owners.race.shared.state";
@@ -511,14 +509,16 @@ mod header_tests {
         Cell(&'static str),
         /// The cheats switched on (plain fields, not walked).
         Cheats,
+        /// The replay buffers' header (a plain buffer, not walked), from byte `offset`.
+        Header(usize),
     }
-    use Source::{Bytes, Cell, Cheats};
+    use Source::{Bytes, Cell, Cheats, Header};
 
     /// The header's copies: (bytes, where they are written, the store read and the field in it).
     /// The header's own layout is the file's, so the destinations stay byte positions.
     const HEADER_MOVES: [(usize, Dest, &str, Source); 31] = [
         (1, Sealed(0x2D), LOCALE, Bytes("", 8)),
-        (4, Sealed(0x5), REPLAYS, Bytes(".header", 0xC)),
+        (4, Sealed(0x5), "", Header(0xC)),
         (1, Sealed(0x32), STATE, Cell(".settings.car_kind_current")),
         (1, Sealed(0x33), STATE, Cell(".settings.stage")),
         (1, Sealed(0x34), STATE, Cell(".settings.direction")),
@@ -589,6 +589,7 @@ mod header_tests {
         for &(size, to, from, source) in &HEADER_MOVES {
             let bytes = match source {
                 Cheats => menus().play.cheats.read().cheats.to_le_bytes()[..size].to_vec(),
+                Header(skip) => race().shared.replays().header.read()[skip..skip + size].to_vec(),
                 Bytes(path, skip) => {
                     let walk = crate::test_support::state::walk(from);
                     walk.path_bytes(path).expect("a field of the store")[skip..skip + size].to_vec()

@@ -5,8 +5,8 @@ use crate::files::scratch::Scratch as FileScratch;
 use crate::logfile::numeric::SCRATCH_LEN;
 use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{
-    Clocks, DrawShared, GameThread, HostShared, KeyClock, Machine, PlainBytes, Screen,
-    WindowLoopState, WindowShared,
+    Clocks, DrawShared, GameThread, HostShared, KeyClock, Machine, Screen, WindowLoopState,
+    WindowShared,
 };
 use crate::records::stages_store::StageTables;
 use crate::system::keep_start_time::KEPT_LEN;
@@ -46,7 +46,7 @@ impl Session {
 /// the command line.
 pub struct Start {
     /// The nine bytes of the start's moment (`keep_start_time`).
-    pub kept: PlainBytes<KEPT_LEN>,
+    pub kept: PlainBuffer<KEPT_LEN>,
     pub run_count: RunCount,
     pub texts: StartTexts,
     pub command_line: CommandLine,
@@ -55,7 +55,7 @@ pub struct Start {
 impl Start {
     pub const fn new() -> Self {
         Start {
-            kept: PlainBytes::new([0; KEPT_LEN]),
+            kept: PlainBuffer::new([0; KEPT_LEN]),
             run_count: RunCount::new(),
             texts: StartTexts::new(),
             command_line: CommandLine::new(),

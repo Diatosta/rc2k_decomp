@@ -37,7 +37,7 @@ fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
 /// `one_over_two_pi` x 65536, & 0xFFFF) << 16 + 0x40000000 turns (0, 0, 1)
 /// (`math::rotate_float_point_about_y`) into `contact_normal`.
 pub(super) fn edge_normal(
-    engine_tables: &crate::math::engine_tables::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     contact: &RefCell<ContactWork>,
     course: &Course,
     first: u32,
@@ -89,7 +89,7 @@ pub fn steps(
     let n = probe;
     walls::check_probe(n)?;
     edge_normal(
-        &c.shared.buffers.reads.get().engine_tables,
+        c.shared.buffers.engine_tables(),
         c.contact,
         c.course,
         to,

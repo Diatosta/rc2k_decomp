@@ -52,7 +52,7 @@ fn settle_step(low: u32, high: u32, angle: &impl DwordLike, step: &impl DwordLik
 
 /// The matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`).
 fn matrix_and_wheels(
-    engine_tables: &crate::math::engine_tables::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     ground: &GroundInputs<'_>,
     matrices: &DrawPlain<SceneMatrices>,
     scene: &crate::scene::owner::Scene,
@@ -78,12 +78,7 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     shared.physics_tables.get().settle_steps[1].set(0x2000_0000u32);
     physics.ground_probe().borrow_mut().settle_mark = 0x80;
     for _ in 0..8 {
-        let w = matrix_and_wheels(
-            &shared.buffers.reads.get().engine_tables,
-            &c.ground,
-            c.matrices,
-            scene,
-        )?;
+        let w = matrix_and_wheels(shared.buffers.engine_tables(), &c.ground, c.matrices, scene)?;
         settle_step(
             w[0].wrapping_add(w[2]),
             w[1].wrapping_add(w[3]),
@@ -97,12 +92,7 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
             &shared.physics_tables.get().settle_steps[0],
         );
     }
-    let w = matrix_and_wheels(
-        &shared.buffers.reads.get().engine_tables,
-        &c.ground,
-        c.matrices,
-        scene,
-    )?;
+    let w = matrix_and_wheels(shared.buffers.engine_tables(), &c.ground, c.matrices, scene)?;
     let mut lowest = 0x64_0000u32;
     for &h in &w {
         if (h.wrapping_sub(lowest) as i32) < 0 {
@@ -175,7 +165,7 @@ pub fn reset_car_motion(
 /// writes first.
 fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
     let [x, _, z, _] = crate::math::rotate_point_about_y::rotate_point_about_y(
-        &shared.buffers.reads.get().engine_tables,
+        shared.buffers.engine_tables(),
         x as i32,
         0,
         z as i32,

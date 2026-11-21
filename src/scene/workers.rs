@@ -145,7 +145,9 @@ pub struct Lent<'s> {
     matrices: crate::memory::session::PlainRead<crate::race::matrices_store::SceneMatrices>,
     lit_faces: crate::memory::session::PlainRead<crate::physics::lit_faces_store::LitFaces>,
     // The race's buffers the parts read.
-    buffers: crate::memory::session::PhaseRead<'s, crate::race::buffers_store::BufferReads>,
+    faces: crate::memory::session::ArcRead<crate::scene::faces_store::Faces>,
+    polygon_tables: crate::memory::session::ArcRead<crate::scene::polygon_store::PolygonTables>,
+    engine_tables: crate::memory::session::ArcRead<crate::math::engine_tables::EngineTables>,
 }
 
 impl<'s> Lent<'s> {
@@ -210,7 +212,15 @@ impl<'s> Lent<'s> {
             matrices: crate::memory::session::PlainRead::lend(&race.frame.matrices, scope),
             lit_faces: crate::memory::session::PlainRead::lend(&race.physics.lit_faces, scope),
             // The race's buffers the parts read.
-            buffers: PhaseRead::lend(&race.shared.buffers.reads, scope),
+            faces: crate::memory::session::ArcRead::lend(&race.shared.buffers.faces, scope),
+            polygon_tables: crate::memory::session::ArcRead::lend(
+                &race.shared.buffers.polygon_tables,
+                scope,
+            ),
+            engine_tables: crate::memory::session::ArcRead::lend(
+                &race.shared.buffers.engine_tables,
+                scope,
+            ),
         }
     }
 
@@ -262,7 +272,9 @@ impl<'s> Lent<'s> {
             matrices: (&self.matrices).into(),
             lit_faces: (&self.lit_faces).into(),
             // The race's buffers the parts read.
-            buffers: &self.buffers,
+            faces: (&self.faces).into(),
+            polygon_tables: (&self.polygon_tables).into(),
+            engine_tables: (&self.engine_tables).into(),
         }
     }
 }
@@ -367,9 +379,13 @@ pub struct DrawReads<'a> {
     /// from them.
     pub lit_faces: crate::physics::lit_faces_store::LitFacesRef<'a>,
     // The race's buffers the parts read.
-    /// The polygon tables (the textures' records, the objects' materials), the faces and the
-    /// engine tables (`race::buffers_store::Buffers::reads`).
-    pub buffers: &'a crate::race::buffers_store::BufferReads,
+    /// The objects' faces (`race::buffers_store::Buffers::faces`).
+    pub faces: crate::scene::faces_store::FacesRef<'a>,
+    /// The polygon tables: the textures' records, the objects' materials
+    /// (`race::buffers_store::Buffers::polygon_tables`).
+    pub polygon_tables: crate::scene::polygon_store::PolygonTablesRef<'a>,
+    /// The engine tables (`race::buffers_store::Buffers::engine_tables`).
+    pub engine_tables: crate::math::engine_tables::EngineTablesRef<'a>,
 }
 
 impl<'a> DrawReads<'a> {
@@ -457,7 +473,9 @@ impl<'a> DrawReads<'a> {
             matrices: (&race.frame.matrices).into(),
             lit_faces: (&race.physics.lit_faces).into(),
             // The race's buffers the parts read.
-            buffers: race.shared.buffers.reads.get(),
+            faces: race.shared.buffers.faces(),
+            polygon_tables: race.shared.buffers.polygon_tables(),
+            engine_tables: race.shared.buffers.engine_tables(),
         }
     }
 }

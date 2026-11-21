@@ -226,9 +226,9 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x214C08, "owners.race.shared.physics_tables", ".handling[7]"),
     (0x214C0C, "owners.race.shared.physics_tables", ".handling[8]"),
     (0x214D04, "owners.race.shared.physics_tables", ".split_point_distance"),
-    (0x223AE4, "owners.race.shared.buffers.reads", ".engine_tables.sines[0]"),
-    (0x223AE8, "owners.race.shared.buffers.reads", ".engine_tables.sines[1]"),
-    (0x223AF4, "owners.race.shared.buffers.reads", ".engine_tables.sines[4]"),
+    (0x223AE4, "owners.race.shared.buffers.engine_tables", ".sines[0]"),
+    (0x223AE8, "owners.race.shared.buffers.engine_tables", ".sines[1]"),
+    (0x223AF4, "owners.race.shared.buffers.engine_tables", ".sines[4]"),
     (0x223DA8, "owners.race.shared.vars.mud_scale_a", "[0]"),
     (0x223DAC, "owners.race.shared.vars.mud_scale_a", "[1]"),
     (0x22400C, "owners.scene.draw_work", ".scratch"),
@@ -784,6 +784,17 @@ pub fn numbers() -> crate::race::numbers_store::Numbers {
     n
 }
 
+/// The engine tables (plain arrays, not cells): their registry name.
+const ENGINE_TABLES: &str = "owners.race.shared.buffers.engine_tables";
+
+/// The index of the sine table's entry a path `.sines[n]` names.
+fn sine_index(path: &str) -> Option<usize> {
+    path.strip_prefix(".sines[")?
+        .strip_suffix(']')?
+        .parse()
+        .ok()
+}
+
 /// The bytes of the field at `path` in the store `name` (the registry's, or a plain one).
 fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
     if name == CONTACT {
@@ -840,6 +851,11 @@ fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
                 .to_le_bytes()
                 .to_vec(),
         );
+    }
+    if name == ENGINE_TABLES {
+        let n = sine_index(path)?;
+        let tables = super::own::race().shared.buffers.engine_tables.borrow();
+        return Some(tables.sines.get(n)?.to_bits().to_le_bytes().to_vec());
     }
     if name == CAMERA {
         let (get, _) = camera_field(path)?;
@@ -959,6 +975,17 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
             &mut super::own::race().physics.probes().borrow_mut(),
             u32::from_le_bytes(word),
         );
+        return true;
+    }
+    if name == ENGINE_TABLES {
+        let (Some(n), Ok(word)) = (sine_index(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        let mut tables = super::own::race().shared.buffers.engine_tables.borrow_mut();
+        let Some(entry) = tables.sines.get_mut(n) else {
+            return false;
+        };
+        *entry = f32::from_bits(u32::from_le_bytes(word));
         return true;
     }
     if name == CAMERA {

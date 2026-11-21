@@ -25,17 +25,13 @@ pub fn read_kind_records(
     race: &crate::race::owner::Race,
     scene: &crate::scene::owner::Scene,
 ) -> Result<KindRecords, Refused> {
-    let held: Vec<u8> = race
-        .polygon_tables()
-        .object_materials
-        .iter()
-        .flat_map(|record| {
-            record
-                .words
-                .iter()
-                .flat_map(|word| word.get().to_le_bytes())
-        })
-        .collect();
+    let held: Vec<u8> = race.polygon_tables().read(|tables| {
+        tables
+            .object_materials
+            .iter()
+            .flat_map(|record| record.words.iter().flat_map(|word| word.to_le_bytes()))
+            .collect()
+    });
     let mut records = KindRecords::from_held(&held)?;
     for (range, path) in RANGES.into_iter().zip(PATHS) {
         let mut file = vec![0u8; range.kinds * RECORD_LEN];
@@ -53,16 +49,16 @@ pub fn store_kind_records(
     race: &crate::race::owner::Race,
     records: &KindRecords,
 ) -> Result<(), Refused> {
-    let tables = race.polygon_tables();
-    let words = tables
-        .object_materials
-        .iter()
-        .flat_map(|record| record.words.iter());
     if records.bytes().len() != KINDS * RECORD_LEN {
         return Err(BadInput("the kind records are not the table's size").into());
     }
+    let mut tables = race.shared.buffers.polygon_tables.borrow_mut();
+    let words = tables
+        .object_materials
+        .iter_mut()
+        .flat_map(|record| record.words.iter_mut());
     for (word, bytes) in words.zip(records.bytes().as_chunks::<4>().0) {
-        word.set(u32::from_le_bytes(*bytes));
+        *word = u32::from_le_bytes(*bytes);
     }
     Ok(())
 }

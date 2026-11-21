@@ -22,7 +22,7 @@
 //! up (0x80600010), and 0xC000 faces or more (0x80600012).
 
 use crate::errors::{FatalError, Refused};
-use crate::files::read_whole_file::read_whole_file_plain_bytes;
+use crate::files::read_whole_file::read_whole_file_plain_buffer;
 use crate::memory::session::TextPlace;
 use crate::physics::figures::GROUND_DROP;
 use crate::scene::add_object_shape::add_object_shape;
@@ -97,7 +97,7 @@ pub fn load_object(
     scene
         .path_text(name as usize + 7)
         .write_text_at(0, b"3", "an object's file name")?;
-    let bytes_read = read_whole_file_plain_bytes(
+    let bytes_read = read_whole_file_plain_buffer(
         &scene
             .path_text(scene.file_numbers().object_ro3_path as usize)
             .text("an object's file path")?,

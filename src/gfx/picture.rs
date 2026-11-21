@@ -244,6 +244,7 @@ mod tests {
         picture: Vec<u32>,
         png_file: Vec<u32>,
         png_header: Vec<u32>,
+        planes: Vec<u8>,
         registry: crate::test_support::state::Snapshot,
     }
 
@@ -256,8 +257,8 @@ mod tests {
                 picture: gfx.pictures.picture.values(),
                 png_file: gfx.png.file.values(),
                 png_header: gfx.png.header.values(),
+                planes: gfx.pictures.planes.read().to_vec(),
                 registry: crate::test_support::state::Snapshot::of(&[
-                    "owners.gfx.pictures.planes",
                     "owners.gfx.pictures.showing",
                     "owners.gfx.png.setting",
                 ]),
@@ -271,6 +272,10 @@ mod tests {
             gfx.pictures.picture.set_values(&self.picture);
             gfx.png.file.set_values(&self.png_file);
             gfx.png.header.set_values(&self.png_header);
+            gfx.pictures
+                .planes
+                .write_at(0, &self.planes, "kept planes")
+                .unwrap();
             self.registry.restore();
         }
     }

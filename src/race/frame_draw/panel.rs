@@ -206,18 +206,19 @@ pub fn object_bytes(
             .ok_or(BadInput("an object kind past the kinds' table"))
     };
     for n in 0..0x100usize {
-        let record = &reads.buffers.polygon_tables.texture_infos[n].words[8..];
-        let flags = record[3].get().to_le_bytes()[2];
-        let record_kind = kind(record[0].get())?;
+        let record: [u32; 8] = reads.polygon_tables.read(|tables| {
+            tables.texture_infos[n].words[8..]
+                .try_into()
+                .expect("eight words")
+        });
+        let flags = record[3].to_le_bytes()[2];
+        let record_kind = kind(record[0])?;
         let face_kind = if reads.object_slots.face_count(n) != 0 {
             let first = reads.object_slots.first_face(n) as usize;
             let face = reads
-                .buffers
                 .faces
-                .faces
-                .get(first)
-                .ok_or(BadInput("an object's first face past the faces"))?
-                .get();
+                .read(|table| table.faces.get(first).copied())
+                .ok_or(BadInput("an object's first face past the faces"))?;
             // The face is a place of `scene::object_faces_store`.
             let word = reads.stage.object_faces.array::<2>(face.wrapping_add(4))?;
             let word = u16::from_le_bytes(word);

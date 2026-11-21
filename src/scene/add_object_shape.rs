@@ -108,7 +108,7 @@ pub fn add_object_shape(
     let mut face_number = first_face;
     let mut out = (room.face_memory + room.face_cursor) as usize;
     for n in 0..shape.faces.len() {
-        crate::scene::objects::face_cell(race.faces(), face_number as usize).set(out as u32);
+        crate::scene::objects::set_face(race, face_number as usize, out as u32);
         let bytes = shape.face_bytes(n, first_point, first_normal);
         race.course.stage.object_faces.write(out as u32, &bytes)?;
         out += bytes.len();

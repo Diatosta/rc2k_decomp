@@ -5,8 +5,11 @@
 //! them.
 
 use crate::memory::plain_floats::PlainFloats;
-use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::memory::session::{Bytes, PlainDword, PlainFloat};
 use crate::race::blocks_store::{BLOCK_COUNT, block_number};
+
+/// The parts' switch bytes of a car.
+pub const PART_SWITCHES_LEN: usize = 0x11;
 
 /// One car's drawing state.
 #[derive(rc2k_derive::Cells)]
@@ -26,7 +29,7 @@ pub struct CarPartCells {
     /// The marks' count x 0x20 (0 with the lights off or the electrics damaged).
     pub marks_count: PlainDword,
     /// The parts' switch bytes.
-    pub part_switches: PlainBytes<0x11>,
+    pub part_switches: Bytes<PART_SWITCHES_LEN>,
 }
 
 impl CarPartCells {

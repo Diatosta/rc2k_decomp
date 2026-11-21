@@ -18,7 +18,7 @@
 //! over `X` in the named helpers below.
 
 use crate::math::cell_x87::CellX87;
-use crate::math::engine_tables::EngineTables;
+use crate::math::engine_tables::EngineTablesRef;
 use crate::math::x87;
 use crate::math::x87::mul_status;
 use crate::math::x87_float::int;
@@ -54,7 +54,7 @@ pub fn drive_grip_forces(
     tables: &PhysicsTables,
     numbers: &Numbers,
     grip_change: &crate::memory::session::PlainFloat,
-    engine_tables: &EngineTables,
+    engine_tables: EngineTablesRef,
     scene: &crate::scene::owner::Scene,
 ) {
     // The work value the steps below pass through; each is stored before it is read.
@@ -188,8 +188,8 @@ pub fn drive_grip_forces(
 // ---- the x87 arithmetic ----
 
 /// One straight x87 run as plain Rust over `X`.
-fn steer_sine_force(car: &Car, tables: &PhysicsTables, engine_tables: &EngineTables, e: usize) {
-    let t0 = engine_tables.sines[e].ld();
+fn steer_sine_force(car: &Car, tables: &PhysicsTables, engine_tables: EngineTablesRef, e: usize) {
+    let t0 = crate::math::x87_float::ld(crate::math::engine_tables::sine(engine_tables, e));
     let t1 = car.local_velocity.ld(2);
     let t2 = t0 * t1;
     let t3 = tables.spec_grip.ld();
@@ -267,7 +267,7 @@ fn ground_speed_into_scratch(car: &Car, scratch: &crate::memory::session::PlainD
 fn lean_force(
     car: &Car,
     numbers: &Numbers,
-    engine_tables: &EngineTables,
+    engine_tables: EngineTablesRef,
     e: usize,
     scratch: &crate::memory::session::PlainDword,
 ) {
@@ -276,7 +276,7 @@ fn lean_force(
     let t2 = t0 - t1;
     let t3 = numbers.grip_ramp.ld();
     let t4 = t2 / t3;
-    let t5 = engine_tables.sines[e].ld();
+    let t5 = crate::math::x87_float::ld(crate::math::engine_tables::sine(engine_tables, e));
     let t6 = t4 * t5;
     let t7 = int(car.handbrake.get() as i32);
     let t8 = t6 * t7;
@@ -362,12 +362,12 @@ fn yaw_force(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
-    engine_tables: &EngineTables,
+    engine_tables: EngineTablesRef,
     e: usize,
     scene: &crate::scene::owner::Scene,
     scratch: &crate::memory::session::PlainDword,
 ) {
-    let t0 = engine_tables.sines[e].ld();
+    let t0 = crate::math::x87_float::ld(crate::math::engine_tables::sine(engine_tables, e));
     let t1 = tables.spec_grip.ld();
     let t2 = t0 / t1;
     let t3 = int(car.throttle.get() as i32);

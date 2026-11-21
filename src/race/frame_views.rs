@@ -113,7 +113,7 @@ pub fn mirror_view_window(
         MIRROR_REACH,
     );
     crate::race::frame_draw::set_up_fog(
-        &reads.buffers.engine_tables,
+        reads.engine_tables,
         reads.stage_prefs,
         fog,
         poly,

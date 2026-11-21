@@ -359,7 +359,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
         let mut kept = ctx.view.matrices.borrow_mut();
         let view_turn = kept.view_turn_matrix;
         crate::scene::matrix::set_light_direction(
-            &ctx.reads.buffers.engine_tables,
+            ctx.reads.engine_tables,
             &mut kept,
             &view_turn,
             &ctx.view.light,

@@ -16,7 +16,7 @@ All commands are run from the repository's top folder. The repository and the cr
 | Linux, x86-64 | `./build.sh linux` | Linux | `dist/linux/rc2k` |
 | Windows, 64 bits | `./build.sh windows-x64` | Linux | `dist/windows-x64/`: `rc2k.exe`, `SDL3.dll` |
 | Windows, 32 bits | `./build.sh windows` | Linux | `dist/windows/`: the same two files |
-| Windows, 64 or 32 bits | `build.ps1 -Target windows-x64` or `-Target windows` | Windows | the same two folders |
+| Windows, 64 or 32 bits | `build` (64 bits) or `build windows` (32 bits) | Windows | the same two folders |
 | macOS | `./build.sh mac` | a Mac, or Linux with a Mac reached over SSH | `dist/mac/Rally Championship.app` |
 | iPhone / iPad | `./build.sh ios` | Linux, with Apple's iOS SDK from Xcode (`tools/ios/README.md`), or a Mac with Xcode | `dist/ios/Rally Championship.ipa`, unsigned |
 | Android | `tools/android/build.sh [x86_64] [arm64]` | Linux, with the Android SDK and NDK (`tools/android/README.md`) | `dist/android/rc2k-<abi>.apk` |
@@ -145,17 +145,23 @@ You need:
 - a checkout without line-ending conversion (the repository's `.gitattributes` asks git for
   that).
 
-Then, in PowerShell, from the repository's top folder:
+Then, in a Command Prompt or PowerShell, from the repository's top folder:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File build.ps1 -Target windows-x64
-powershell -ExecutionPolicy Bypass -File build.ps1 -Target windows -GameDir C:\Games\Rally
+```bat
+build
+build windows -GameDir C:\Games\Rally
 ```
+
+In PowerShell type `.\build` (it does not run programs from the current folder by name).
+`build` is `build.cmd`, which runs `build.ps1` for that one run whatever the machine's script
+policy is (Windows forbids running PowerShell scripts by default). With that policy lifted
+(`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`), `.\build.ps1 -Target windows-x64`
+does the same.
 
 | Switch | Meaning |
 | --- | --- |
-| `-Target windows` or `-Target windows-x64` | 32 or 64 bits. Without it, 32 bits. |
-| `-Deploy` | Also copy `dist\<target>\` into the game's folder: the one `-GameDir` names, or else the `DEPLOY_WINDOWS` line (`DEPLOY_WINDOWS_X64` for 64 bits) of `deploy.local`. |
+| `windows-x64` or `windows` (first) | 64 or 32 bits. Without it, 64 bits. |
+| `-Deploy` | Also copy `dist\<target>\` into the game's folder: the one `-GameDir` names, or else the `DEPLOY_WINDOWS_X64` line (`DEPLOY_WINDOWS` for 32 bits) of `deploy.local`. |
 | `-GameDir <folder>` | The game's folder. Naming it deploys there, with or without `-Deploy`. |
 | `-DebugBuild` | An unoptimised build. |
 

@@ -59,7 +59,7 @@ pub fn draw_object_in_game(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             Step::Points => place_object_points(ctx)?,
             Step::List => {
                 list_object_faces(
-                    &ctx.reads.buffers.faces,
+                    ctx.reads.faces,
                     &ctx.view.object,
                     &ctx.view.face,
                     &mut faces,
@@ -70,7 +70,7 @@ pub fn draw_object_in_game(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             Step::Faces => {
                 draw_object_faces(
                     &ctx.reads.stage.object_faces,
-                    &ctx.reads.buffers.faces,
+                    ctx.reads.faces,
                     &ctx.view.polygon,
                     &ctx.view.object,
                     &ctx.view.face,

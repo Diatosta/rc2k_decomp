@@ -47,7 +47,7 @@ pub struct EffectsView<'a> {
     pub fog: &'a crate::scene::fog::Fog,
     pub view_matrix: crate::scene::matrix::Matrix,
     pub light: u32,
-    pub engine_tables: &'a crate::math::engine_tables::EngineTables,
+    pub engine_tables: crate::math::engine_tables::EngineTablesRef<'a>,
 }
 
 impl<'a> EffectsView<'a> {

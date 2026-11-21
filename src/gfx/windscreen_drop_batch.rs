@@ -3,7 +3,7 @@
 //! `effects::windscreen_drops_top` / `windscreen_drops_frame` fill the records and ask
 //! `d3d::draw_marks_windscreen_drops` to draw.
 
-use crate::memory::session::PlainBytes;
+use crate::memory::plain_buffer::PlainBuffer;
 use std::cell::Cell;
 
 /// The fans' room: 0x40 fans of 4 triangles of 3 indices (words).
@@ -16,11 +16,11 @@ pub struct WindscreenDrops {
     /// The indices to draw.
     pub index_count: Cell<u32>,
     /// The indices (16 bits, a triangle list), the fans made once.
-    pub fans: PlainBytes<FANS_LEN>,
+    pub fans: PlainBuffer<FANS_LEN>,
     /// The vertices to draw.
     pub vertex_count: Cell<u32>,
     /// The batch's vertices (transformed and lit, 0x20 bytes each), as 0x40 records of 0xC0 bytes.
-    pub records: PlainBytes<RECORDS_LEN>,
+    pub records: PlainBuffer<RECORDS_LEN>,
 }
 
 impl WindscreenDrops {
@@ -28,9 +28,9 @@ impl WindscreenDrops {
     pub const fn new() -> Self {
         WindscreenDrops {
             index_count: Cell::new(0),
-            fans: PlainBytes::new([0; FANS_LEN]),
+            fans: PlainBuffer::new([0; FANS_LEN]),
             vertex_count: Cell::new(0),
-            records: PlainBytes::new([0; RECORDS_LEN]),
+            records: PlainBuffer::new([0; RECORDS_LEN]),
         }
     }
 }
