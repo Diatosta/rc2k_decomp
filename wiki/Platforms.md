@@ -10,7 +10,7 @@ What the program runs on, what each system needs, and what is different or missi
 | --- | --- |
 | Windows, 64 and 32 bits | Built and run (under Wine and Proton during development). |
 | Linux, x86-64 | Built and run. One program with SDL linked in. The `linux` build needs the glibc of the system it was built on; for older systems use the Steam Deck build. |
-| Steam Deck (SteamOS 3, and any x86-64 Linux with glibc 2.35 or later) | `./build.sh deck`: built in a container of Ubuntu 22.04, tuned for the Deck's Zen 2 processor, with Steam network play; released as `rc2k-deck.zip`. Not yet run on a real Deck. |
+| Steam Deck (SteamOS 3, and any x86-64 Linux with glibc 2.35 or later) | `./build.sh deck`: built in a container of Ubuntu 22.04, tuned for the Deck's Zen 2 processor, with Steam network play; released as `rc2k-deck.zip`. Run on a Steam Deck in gaming mode. |
 | macOS, Intel and Apple silicon | Builds as `Rally Championship.app`, one bundle for both processors. Tested less than the others. |
 | Anbernic RG34XXSP (handheld, 64-bit ARM Linux) | Built and run on Knulli and on the device's stock system. |
 | Android (phones and tablets, 64-bit ARM; x86-64 for the emulator) | Built and run on phones: menus, races with touch controls or a pad, network play. See [Android](Android). |

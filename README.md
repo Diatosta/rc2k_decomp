@@ -30,7 +30,8 @@ replays and save files. Where the original had bugs, they are fixed (see below).
 - The whole game: menus, every stage, single rallies, championships, the arcade mode,
   split screen, replays, pace notes, the intro films, 3D sound, controllers.
 - Network play, standalone to standalone, over TCP/IP or through Steam (lobbies, friends'
-  invites, no ports to open; needs Valve's Steam library beside the program and the Steam
+  invites, no ports to open; needs Valve's Steam library beside the program (from [the Steamworks SDK](https://partner.steamgames.com/downloads/list),
+  free with a Steam account, folder `redistributable_bin`) and the Steam
   client running: see the wiki's Network play page). The original's DirectPlay is replaced by a
   protocol of our own, so it does not play against the original program.
 - The installer and uninstaller, working from the files of the CD (or of a download of
@@ -48,7 +49,7 @@ Platforms:
 | Linux, x86-64 | Built and run. One program with SDL linked in; it needs only glibc. |
 | macOS, Intel and Apple silicon | Builds as `Rally Championship.app`. Tested less than the others. |
 | Anbernic RG34XXSP (handheld, 64-bit ARM Linux) | Built and run on Knulli and on the stock system. |
-| Steam Deck (and other x86-64 Linux with glibc 2.35 or later) | Built in a container of Ubuntu 22.04, for the Deck's processor. Not yet run on a real Deck. |
+| Steam Deck (and other x86-64 Linux with glibc 2.35 or later) | Built in a container of Ubuntu 22.04, for the Deck's processor. Run on a Steam Deck in gaming mode. |
 | Android (64-bit ARM; x86-64 for the emulator) | Built and run on phones, with touch controls. See [wiki: Android](wiki/Android.md). |
 | iPhone and iPad (iOS 13 or later) | Built and run on an iPhone, with touch controls. The app is not signed: the player sideloads it. See [wiki: iOS](wiki/iOS.md). |
 | Web (WebAssembly) | Experimental: menus and races play in a desktop browser (WebGL 2, gamepads, sound); no network play. |
@@ -162,7 +163,7 @@ start `rc2k` there, and the installer runs. Then, to start the game
 from gaming mode, add `rally.sh` from the installed folder
 (`~/.local/share/rally-championship` by default) to Steam with "Add a Non-Steam Game".
 The installer does not copy `rally.sh`: copy it into the installed folder yourself.
-This build has not yet been run on a real Deck. More:
+More:
 [Installing the game](wiki/Installing-the-game.md#steam-deck).
 
 ### Anbernic RG34XXSP (Knulli)

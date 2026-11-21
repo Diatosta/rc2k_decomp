@@ -143,8 +143,8 @@ works. The menu entries are not moved with it: they keep pointing at the old pla
 The Deck's build (`rc2k-deck.zip`, or `./build.sh deck`) is a Linux program made to run on
 SteamOS 3: built against an older C library than the `linux` build and for the Deck's
 processor. It holds `rc2k` and `rally.sh`, a small script that starts `rc2k` from the folder
-the script is in. **It has not yet been run on a real Deck**; the steps below are the Linux
-ones, which is what the build is.
+the script is in. It has been run on a Steam Deck in gaming mode; the steps below are the
+Linux ones, which is what the build is.
 
 1. Switch to desktop mode (the Steam button, Power, Switch to Desktop).
 2. Get the CD's files and the zip onto the Deck, and unzip `rc2k` and `rally.sh` into the
@@ -163,7 +163,8 @@ add `rally.sh` to Steam the same way.
 Not covered: the Deck's controls have not been set up or checked by the project (the game
 reads the Deck's pad through SDL like any other, see [Controllers](Controllers)), and network
 play through Steam needs Valve's library beside the program, which the released zip does not
-carry ([Network play](Network-play)).
+carry: take it from [the Steamworks SDK](https://partner.steamgames.com/downloads/list) (free with a Steam account, folder
+`redistributable_bin`; [Network play](Network-play)).
 
 The same build runs on any x86-64 Linux with glibc 2.35 or later and a processor with AVX2,
 so it is also the one for a Linux system too old for the `linux` build.

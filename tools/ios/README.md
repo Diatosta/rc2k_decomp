@@ -1,9 +1,9 @@
 # The iOS build (iPhone and iPad)
 
-Built, signed and installed from Linux, with no Mac, simulator or virtual machine: the owner's
-iPhone is the test. State on 2026-11-18: the program passes `cargo check --target
-aarch64-apple-ios` (and `-sim`) without the SDK; the link, the app and the phone are not yet
-run (they need Apple's SDK, step 2).
+Built, signed and installed from Linux, with no Mac, simulator or virtual machine, and run on an
+iPhone: installed over USB with xtool (below) or, as a player would, as the `.ipa` through AltStore
+(the wiki's iOS page). Without Apple's SDK (step 2) the program can still be checked with `cargo
+check --target aarch64-apple-ios` (and `-sim`).
 
 What the program does on iOS (`target_os = "ios"`): SDL3's UIKit and Metal backends (SDL is
 built from its source and linked in, `--features ios-sdl-source`); the GPU renderer on Metal
@@ -28,11 +28,11 @@ screen (the home indicator lies over its empty bottom strip) and centred across 
 blurred background filling the sides.
 A start logs "platform: the window is ... points, ... pixels, its safe area ..." and the renderer
 line (`SDL's gpu` and "3D on a GPU backend" on Metal) in the log in the Documents folder.
-The home-screen name is "Rally Championship" (iOS cuts a long label with an ellipsis; the owner accepts that) and the
-name is also in `tools/ios/en.lproj/InfoPlist.strings`, which iOS prefers for the label, so it keeps its space (the owner saw "RallyChampionship"; xtool's installer, read in its source, rewrites only the bundle identifier and derives no name, and the property list now has no leading comment, whatever a strict parser does with one). The
+The home-screen name is "Rally Championship" (iOS cuts a long label with an ellipsis) and the
+name is also in `tools/ios/en.lproj/InfoPlist.strings`, which iOS prefers for the label, so it keeps its space (without it the label read "RallyChampionship"; xtool's installer, read in its source, rewrites only the bundle identifier and derives no name, and the property list now has no leading comment, whatever a strict parser does with one). The
 icons are `assets/icon.png` scaled into `tools/ios/icons/`.
 
-**Re-install (owner):** `./build.sh ios`, then `tools/ios/install.sh`. The saved game stays (the
+**Re-install:** `./build.sh ios`, then `tools/ios/install.sh`. The saved game stays (the
 Documents folder is kept when an app is installed over itself); an options file kept from the
 first install holds the old 800 x 600, so the new default applies only after removing
 `var/rc2k.toml` (or choose the size on the graphics page). If the icon or name stays old, delete
@@ -48,7 +48,7 @@ command-line tools only help to compile, which clang and ld64.lld do here. So th
 real test. (A Mac, real or a VM, could host the Simulator: Big Sur takes Xcode 13.2.1 / iOS 15.2
 at most. Not used.)
 
-## The steps, in order (owner)
+## The steps, in order
 
 Packages to install (distribution's own): `clang lld llvm cmake python3 usbmuxd` and
 `libimobiledevice` tools (`ideviceinfo`, `idevicepair`; package names `libimobiledevice-utils`
@@ -61,11 +61,11 @@ repository's toolchain). Swift 6.3 or newer from swift.org (xtool needs it).
    packages, signs with an Apple ID and installs over USB (`xtool setup`, `auth`, `sdk`,
    `dev`, `devices`, `install`, `uninstall`, `launch`). Here it is used for the SDK, the
    Apple ID and the install; the app itself is built by `build.sh`.
-2. **The SDK and the Apple ID login** (the owner only: not done by anyone else). Sign in
+2. **The SDK and the Apple ID login** (done by whoever installs: the Apple ID is theirs). Sign in
    with the Apple ID at https://developer.apple.com/download/all/ (a free Apple ID is
    enough) and download `Xcode_<version>.xip` (Xcode 16 / 26; about 3 GB; the Apple
    Developer Agreement and the Xcode license apply: Apple's terms limit the SDK to
-   Apple-branded hardware, which this Linux build does not honour: the owner decides). Then
+   Apple-branded hardware, which this Linux build does not honour: whoever builds decides). Then
    `xtool setup` asks for the path of the `.xip` and extracts the SDK from it on Linux (no Mac
    tools needed) into `~/.swiftpm/swift-sdks/darwin.artifactbundle/`; `swift sdk list` shows
    it. `xtool auth login` asks for the Apple ID and password (and the two-factor code on a

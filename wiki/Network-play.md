@@ -46,8 +46,8 @@ What a player needs:
 1. The Steam client installed, running and signed in (any account: no purchase is needed).
 2. Valve's Steam library in the game program's folder, beside `rc2k` / `rc2k.exe`: `libsteam_api.so` on
    Linux, `steam_api64.dll` on 64-bit Windows (`steam_api.dll` on 32-bit), `libsteam_api.dylib` on macOS. A
-   release that offers Steam carries it; otherwise take it from the Steamworks SDK (free with a Steam account
-   at partner.steamgames.com), folder `redistributable_bin`, and copy it there.
+   release that offers Steam carries it; otherwise take it from [the Steamworks SDK](https://partner.steamgames.com/downloads/list) (free with a Steam
+   account), folder `redistributable_bin`, and copy it there.
 3. Start the game, open the network page and choose **Steam** as the connection. If it is not listed, the
    game's log (`rc2k.log`) says why (`net: steam: not available: ...`).
 
