@@ -68,7 +68,7 @@ fn whole_of(
     effects: &crate::effects::owner::Effects,
 ) -> Result<&'static [crate::memory::session::PlainFloat; 16], BadInput> {
     effects
-        .car_blocks()
+        .car_parts()
         .ok()
         .and_then(|blocks| blocks.of(car.whole_block.get()))
         .map(|b| &b.whole_matrix)
@@ -220,7 +220,7 @@ fn on_object(
     effects: &crate::effects::owner::Effects,
 ) -> Result<[[u8; 10]; 3], Refused> {
     Ok({
-        let m = entry_car(en, effects)?.whole(effects.car_blocks()?)?;
+        let m = entry_car(en, effects)?.whole(effects.car_parts()?)?;
         [
             x87::add_80(en.place[0], matrix_float(m, 0x30)?),
             x87::add_80(en.place[1], matrix_float(m, 0x34)?),

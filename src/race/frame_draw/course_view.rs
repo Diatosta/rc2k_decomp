@@ -35,15 +35,15 @@ fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Refused
 /// (twice the distance below 0x40000000 as signed), the high (from), else the larger. The tables
 /// are read unchecked.
 pub fn checkpoint_colours(
-    checkpoints: &crate::race::checkpoints_store::Checkpoints,
+    checkpoints: crate::race::checkpoints_store::CheckpointsRef,
     course: CourseReads<'_>,
     car: &crate::physics::car_store::ViewCar,
 ) -> Result<u32, BadInput> {
     {
         let n: u32 = car.checkpoint.get();
-        let face = crate::race::checkpoints_store::face_run_on(checkpoints, n as usize).get();
+        let face = crate::race::checkpoints_store::face_run_on(checkpoints, n as usize);
         let byte: u8 = face_field(course, face, 0x10)?;
-        let along = crate::race::checkpoints_store::angle_run_on(checkpoints, n as usize).get();
+        let along = crate::race::checkpoints_store::angle_run_on(checkpoints, n as usize);
         let c = rc2k_core::race::frame::checkpoint_colours(byte, along, car.car_heading.get());
         Ok(c.level)
     }
@@ -435,7 +435,7 @@ pub fn prepare_course_view(
         return Ok(());
     }
     let limit = if reads.vars.checkpoint_count.get() >= 2 {
-        checkpoint_colours(&reads.buffers.checkpoints, reads.course(), &view.car)?
+        checkpoint_colours(reads.checkpoints, reads.course(), &view.car)?
     } else {
         0x10
     };

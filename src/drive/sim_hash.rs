@@ -32,9 +32,14 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 
 /// The hash of the eight cars' fields in groups, one for each car (`.cars[3]`): each is the sum of one hash per run of like cells over its path, length and
 /// bytes. The groups added up are the whole blocks' hash (`total`).
-pub fn car_blocks_groups(blocks: &CarBlocks) -> Vec<(String, u64)> {
+pub fn car_blocks_groups(
+    blocks: &CarBlocks,
+    parts: &crate::race::car_parts_store::CarParts,
+) -> Vec<(String, u64)> {
     let mut hasher = GroupHasher::default();
     blocks.visit(&mut hasher);
+    // The drawing's own fields of each car were once in its block: the same paths.
+    parts.visit(&mut hasher);
     #[cfg(any(test, feature = "remote"))]
     hasher.add_removed_fields();
     hasher.groups
@@ -42,7 +47,7 @@ pub fn car_blocks_groups(blocks: &CarBlocks) -> Vec<(String, u64)> {
 
 /// A check: every field of the cars' blocks, one line each, `sim field <tick> <path> <hash>`.
 #[cfg(feature = "remote")]
-pub fn log_fields(blocks: &CarBlocks, tick: u32) {
+pub fn log_fields(blocks: &CarBlocks, parts: &crate::race::car_parts_store::CarParts, tick: u32) {
     struct Each {
         path: String,
         marks: Vec<usize>,
@@ -73,11 +78,13 @@ pub fn log_fields(blocks: &CarBlocks, tick: u32) {
             }
         }
     }
-    blocks.visit(&mut Each {
+    let mut each = Each {
         path: String::new(),
         marks: Vec::new(),
         tick,
-    });
+    };
+    blocks.visit(&mut each);
+    parts.visit(&mut each);
 }
 
 /// The hash of one whole record by field path and value (the cars' hash for any other store):
@@ -217,6 +224,7 @@ fn path_group(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::race::car_parts_store::CarParts;
 
     /// Varied bytes through every run of the blocks (the gap fields too).
     fn filled(seed: u32) -> CarBlocks {
@@ -244,23 +252,41 @@ mod tests {
     #[test]
     fn the_groups_are_one_per_car() {
         for blocks in [CarBlocks::new(), filled(1), filled(0xDEAD_BEEF)] {
-            let groups = car_blocks_groups(&blocks);
+            let groups = car_blocks_groups(&blocks, &CarParts::new());
             assert_eq!(groups.len(), 8);
         }
     }
 
     #[test]
-    fn a_field_changes_the_hash_and_a_gap_does_not() {
-        let blocks = &CarBlocks::new();
-        let first = total(&car_blocks_groups(blocks));
-        assert_eq!(first, total(&car_blocks_groups(blocks)));
-        use crate::test_support::paths::{set_bytes, set_u32};
-        assert!(set_bytes(blocks, ".cars[2]._pad_part_switches", &[0x55; 3]));
-        assert_eq!(first, total(&car_blocks_groups(blocks)));
+    fn a_field_changes_the_hash() {
+        let (blocks, parts) = (&CarBlocks::new(), &CarParts::new());
+        let first = total(&car_blocks_groups(blocks, parts));
+        assert_eq!(first, total(&car_blocks_groups(blocks, parts)));
+        use crate::test_support::paths::set_u32;
         assert!(set_u32(blocks, ".cars[2].gear", 0x7B));
-        assert_ne!(first, total(&car_blocks_groups(blocks)));
-        let groups = car_blocks_groups(blocks);
+        assert_ne!(first, total(&car_blocks_groups(blocks, parts)));
+        // A field of the drawing's state counts as one of the car's.
+        let before = total(&car_blocks_groups(blocks, parts));
+        parts.cars[5].mode_on.set(1);
+        assert_ne!(before, total(&car_blocks_groups(blocks, parts)));
+        let groups = car_blocks_groups(blocks, parts);
         assert_eq!(groups.len(), 8);
         assert_eq!(groups[2].0, ".cars[2]");
+    }
+
+    /// A gap field (`_pad_*`) is left out of the hash.
+    #[test]
+    fn a_gap_does_not_change_the_hash() {
+        #[derive(rc2k_derive::Cells)]
+        struct Padded {
+            value: crate::memory::session::PlainDword,
+            _pad_value: crate::memory::session::PlainDword,
+        }
+        let record: Padded = crate::memory::cells::zeroed_cells();
+        let first = record_hash(&record);
+        record._pad_value.set(0x55);
+        assert_eq!(first, record_hash(&record));
+        record.value.set(1);
+        assert_ne!(first, record_hash(&record));
     }
 }

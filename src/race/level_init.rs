@@ -19,7 +19,7 @@ const TEXTURES: u32 = 0x100;
 /// info (`CourseData::info`).
 pub(super) fn allocate_course_memory(
     course: &Course,
-    list: &crate::memory::ListCells,
+    list: &crate::memory::PlainList,
 ) -> Result<(), Refused> {
     {
         let mut lists = course.lists.borrow_mut();
@@ -159,15 +159,14 @@ pub fn listed_checkpoints(race: &Race) -> Result<Option<Vec<u32>>, Refused> {
         return Ok(None);
     }
     let end = shared.vars.get().last_checkpoint.get();
-    let table = &race.checkpoints().checkpoint_faces;
+    let table = race.checkpoints();
     let trap = Trap::new();
     let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
         // n < `last_checkpoint`, one less than the chain's length, which `race::best_line`
         // wrote into the table's 5146 entries: inside the table.
         let face = trap.keep_read(
             table
-                .get(n as usize)
-                .map(crate::memory::session::PlainDword::get)
+                .read(|tables| tables.checkpoint_faces.get(n as usize).copied())
                 .ok_or(BadInput("a checkpoint past the checkpoint table")),
         );
         trap.keep_read(crate::race::course_places::face_field::<u8>(

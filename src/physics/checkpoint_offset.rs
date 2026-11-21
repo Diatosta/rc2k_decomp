@@ -18,7 +18,7 @@ pub fn checkpoint_offset(
     engine_tables: &crate::math::engine_tables::EngineTables,
     course: &Course,
     vars: &RaceVars,
-    checkpoints: &crate::race::checkpoints_store::Checkpoints,
+    checkpoints: crate::race::checkpoints_store::CheckpointsRef,
     car: &Car,
 ) -> Result<(), Refused> {
     let c = car.checkpoint.get();
@@ -32,8 +32,8 @@ pub fn checkpoint_offset(
     {
         return Err(BadInput("no course faces or points").into());
     }
-    let angle = crate::race::checkpoints_store::angle_run_on(checkpoints, c as usize).get();
-    let face = crate::race::checkpoints_store::face_run_on(checkpoints, c as usize).get();
+    let angle = crate::race::checkpoints_store::angle_run_on(checkpoints, c as usize);
+    let face = crate::race::checkpoints_store::face_run_on(checkpoints, c as usize);
     let point = crate::race::course_places::face_field::<u32>(course.reads(), face, 4)?;
     let x = car.position[0]
         .get()

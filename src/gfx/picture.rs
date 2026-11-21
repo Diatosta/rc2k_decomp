@@ -196,7 +196,7 @@ mod tests {
     fn a_buffer_is_taken_read_and_given_back() {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         let buffers = &PictureBuffers::new();
         let n = take(buffers, Buffer::Key, list, 0x100).unwrap();
@@ -216,7 +216,7 @@ mod tests {
     fn the_change_counter_moves_on_writes_and_not_on_reads() {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let buffers = &PictureBuffers::new();
         let n = take(buffers, Buffer::Key, &memory, 0x100).unwrap();
         let before = generation(buffers, n).unwrap();
@@ -281,7 +281,7 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = KeptPictureState::take();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         pictures
             .picture
@@ -398,7 +398,7 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = KeptPictureState::take();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         pictures
             .picture
@@ -429,7 +429,7 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = KeptPictureState::take();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         pictures
             .picture

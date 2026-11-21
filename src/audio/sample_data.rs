@@ -168,7 +168,7 @@ impl SampleData {
         &self,
         id: u32,
         length: u32,
-        list: &crate::memory::ListCells,
+        list: &crate::memory::PlainList,
     ) -> Result<u32, BadInput> {
         let mut kept = vec![0; block_bytes(length)];
         self.with_data(id, |from| {
@@ -204,7 +204,7 @@ mod tests {
             data.with_data(id, |b| b[..4].to_vec()).unwrap(),
             [1, 2, 3, 4]
         );
-        let list = crate::memory::ListCells::empty();
+        let list = crate::memory::PlainList::empty();
         let kept = data.keep(id, 4, &list).unwrap();
         data.with_buffer(Buffer::Work, |b| b[4] = 9);
         assert_eq!(

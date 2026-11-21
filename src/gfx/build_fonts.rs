@@ -242,7 +242,7 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
 /// has no room.
 pub(super) fn palette_place(
     fonts: &crate::gfx::owner::FontStores,
-    list: &crate::memory::ListCells,
+    list: &crate::memory::PlainList,
 ) -> Result<u32, Refused> {
     Ok(match take_from_list(list, 0x400)? {
         Some(_) => crate::gfx::glyph_store::new_palette(fonts, list)?,

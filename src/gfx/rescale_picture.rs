@@ -22,7 +22,7 @@ use std::cell::Cell;
 /// The rescaler's variables (`gfx::rescale_picture`, `gfx::rescale_to_surface`).
 pub struct Rescaler {
     /// `Rescaler.copy_memory.head`: the list the copy's memory is on (16 bytes).
-    pub copy_memory: crate::memory::ListCells,
+    pub copy_memory: crate::memory::PlainList,
     /// Whole pixels a step across.
     pub step_x: Cell<u32>,
     /// The step's fraction.
@@ -46,7 +46,7 @@ pub struct Rescaler {
 impl Rescaler {
     pub const fn new() -> Self {
         Rescaler {
-            copy_memory: crate::memory::ListCells::new(MemoryList {
+            copy_memory: crate::memory::PlainList::new(MemoryList {
                 head: 0,
                 total: 0,
                 cursor: 0,

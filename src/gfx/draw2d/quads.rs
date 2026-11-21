@@ -982,7 +982,7 @@ mod tests {
     fn a_glyph_table_rebuilt_is_decoded_again() {
         let fonts = &crate::test_support::own::gfx().fonts;
         let _lock = crate::test_support::test_lock();
-        let list = crate::memory::ListCells::new(crate::memory::MemoryList {
+        let list = crate::memory::PlainList::new(crate::memory::MemoryList {
             head: 0,
             total: 0,
             cursor: 0,

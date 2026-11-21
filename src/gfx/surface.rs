@@ -119,7 +119,7 @@ mod target_tests {
             drawing.on_picture.load(Relaxed),
             drawing.draw_surface.pixels.get(),
         );
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         let n = take(buffers, Buffer::Overlay, list, 0x100).unwrap();
         drawing.on_picture.store(n, Relaxed);

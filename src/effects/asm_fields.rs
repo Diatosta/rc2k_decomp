@@ -4,7 +4,7 @@
 //! little-endian word per cell. Nothing here walks a store by path or needs the store to be a
 //! record of cells beyond the few leaf types implemented below. Test code only.
 
-use crate::memory::ListCells;
+use crate::memory::PlainList;
 use crate::memory::session::{
     Cell32, PlainByte, PlainBytes, PlainDword, PlainFlag, PlainFloat, PlainInt, PlainWord,
 };
@@ -103,7 +103,7 @@ impl<const N: usize> Leaf for PlainBytes<N> {
 }
 
 /// A memory list: its four dwords in order.
-impl Leaf for ListCells {
+impl Leaf for PlainList {
     fn byte_len(&self) -> usize {
         16
     }

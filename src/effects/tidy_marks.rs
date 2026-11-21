@@ -11,8 +11,9 @@
 use crate::effects::mask_store::MaskBlockList;
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
+use crate::memory::HeldList;
 use crate::memory::free_list::free_list;
-use crate::memory::{HeldList, ListCells};
+use crate::memory::session::PlainDword;
 
 // The cars' loop starts from the first car's record.
 const MOST_CARS: i32 = 8;
@@ -33,7 +34,7 @@ fn with_lists<R>(effects: &Effects, f: impl FnOnce([&dyn HeldList; 6]) -> R) -> 
     ])
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).
-fn car_lists(effects: &Effects) -> Result<Vec<&ListCells>, BadInput> {
+fn car_lists(effects: &Effects) -> Result<Vec<&[PlainDword; 4]>, BadInput> {
     let marks = effects.settings()?;
     let count = (marks.cars_copy.get() as i32).clamp(0, MOST_CARS) as u32;
     Ok((0..count)

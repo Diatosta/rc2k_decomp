@@ -1300,6 +1300,100 @@ impl<T> std::ops::Deref for PlainRead<T> {
     }
 }
 
+/// A drawing store that is a large plain record the game's thread rarely writes: held like
+/// `DrawPlain`, but as an `Arc`, so lending it to a drawing scope (`ArcRead`) clones the pointer,
+/// not the record. A write (`borrow_mut`) copies the record only if a lent `Arc` is still alive
+/// (`Arc::make_mut`), so a lent copy never changes.
+///
+/// The `Arc` is made on first use from `make` (an `Arc` cannot be made in a `static`'s initialiser).
+pub struct DrawArc<T> {
+    make: fn() -> T,
+    arc: GameThread<std::cell::RefCell<Option<std::sync::Arc<T>>>>,
+}
+
+impl<T> DrawArc<T> {
+    pub const fn new(make: fn() -> T) -> Self {
+        Self {
+            make,
+            arc: GameThread::new(std::cell::RefCell::new(None)),
+        }
+    }
+
+    /// The `Arc`, made if it is not yet.
+    fn shared(&self) -> std::cell::RefMut<'_, std::sync::Arc<T>> {
+        std::cell::RefMut::map(self.arc.get().borrow_mut(), |held| {
+            held.get_or_insert_with(|| std::sync::Arc::new((self.make)()))
+        })
+    }
+
+    /// The record, read, on the game's thread outside a drawing scope.
+    pub fn borrow(&self) -> std::cell::Ref<'_, T> {
+        debug_assert!(
+            !crate::memory::draw_order::in_scope(),
+            "a drawing store reached by its owner while the parts read it (take the part's reads)"
+        );
+        // Made first only when it is not yet, so that reads may nest.
+        if self.arc.get().borrow().is_none() {
+            drop(self.shared());
+        }
+        std::cell::Ref::map(self.arc.get().borrow(), |held| {
+            &**held.as_ref().expect("made above")
+        })
+    }
+}
+
+impl<T: Clone> DrawArc<T> {
+    /// The record, to write, on the game's thread outside a drawing scope: no other borrow may
+    /// be held.
+    pub fn borrow_mut(&self) -> std::cell::RefMut<'_, T> {
+        debug_assert!(
+            !crate::memory::draw_order::in_scope(),
+            "a drawing store written while the parts read it"
+        );
+        std::cell::RefMut::map(self.shared(), std::sync::Arc::make_mut)
+    }
+}
+
+/// A `DrawArc` store lent to the parts of one drawing scope: the record as it stood when the
+/// scope opened (a later write copies it first).
+pub struct ArcRead<T>(std::sync::Arc<T>);
+
+impl<T> ArcRead<T> {
+    /// The scope's share of `store`'s record.
+    pub(crate) fn lend(store: &DrawArc<T>, scope: &crate::memory::draw_order::DrawScope) -> Self {
+        let _ = scope;
+        // Not `borrow`: the scope is open (the pointer is cloned here, nothing is written).
+        Self(std::sync::Arc::clone(&store.shared()))
+    }
+}
+
+impl<T> std::ops::Deref for ArcRead<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
+#[cfg(test)]
+mod arc_tests {
+    use super::*;
+
+    #[test]
+    fn a_write_after_a_lend_leaves_the_lent_copy_as_it_was() {
+        let store = DrawArc::new(|| [1u32, 2, 3]);
+        let lent = ArcRead(std::sync::Arc::clone(&store.shared()));
+        store.borrow_mut()[0] = 9;
+        assert_eq!(*lent, [1, 2, 3]);
+        assert_eq!(*store.borrow(), [9, 2, 3]);
+        // With no lent copy alive a write goes in place.
+        drop(lent);
+        let before = std::ptr::from_ref(&*store.borrow());
+        store.borrow_mut()[1] = 8;
+        assert_eq!(before, std::ptr::from_ref(&*store.borrow()));
+    }
+}
+
 /// Debug builds: the byte ranges lent to the open drawing scope (`PhaseRead::lend`). One
 /// writer (the game's thread, before the parts start and after they have all ended), many
 /// readers: each part's writes look them up.

@@ -11,7 +11,7 @@ pub struct PngFile {
     /// The file's length.
     pub length: Cell<u32>,
     /// `PngFile.memory.head`: the list the file's memory is on (16 bytes).
-    pub memory: crate::memory::ListCells,
+    pub memory: crate::memory::PlainList,
 }
 
 impl PngFile {
@@ -20,7 +20,7 @@ impl PngFile {
         PngFile {
             file: Cell::new(0),
             length: Cell::new(0),
-            memory: crate::memory::ListCells::new(MemoryList {
+            memory: crate::memory::PlainList::new(MemoryList {
                 head: 0,
                 total: 0,
                 cursor: 0,

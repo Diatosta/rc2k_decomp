@@ -62,9 +62,9 @@ pub(super) fn place_on_map(race: &Race, car: &Car) -> Result<(), Refused> {
 pub(super) fn map_position(race: &Race, car: &Car) -> Result<[u32; 2], Refused> {
     use rc2k_core::race::map::on_map;
     let n = car.checkpoint.get();
-    let map_x = crate::race::checkpoints_store::map_x_run_on(race.checkpoints(), n as usize).get();
-    let map_y = crate::race::checkpoints_store::map_y_run_on(race.checkpoints(), n as usize).get();
-    let face = crate::race::checkpoints_store::face_run_on(race.checkpoints(), n as usize).get();
+    let map_x = crate::race::checkpoints_store::map_x_run_on(race.checkpoints(), n as usize);
+    let map_y = crate::race::checkpoints_store::map_y_run_on(race.checkpoints(), n as usize);
+    let face = crate::race::checkpoints_store::face_run_on(race.checkpoints(), n as usize);
     let point = crate::race::course_places::face_number(race.course.reads(), face)?.point(0);
     let px = crate::race::scene_points::point_word(
         race.course.reads(),

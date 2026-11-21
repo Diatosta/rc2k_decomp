@@ -17,14 +17,14 @@ pub struct GlyphTables {
     /// `var\ral.cfg` setting).
     pub units: Cell<u32>,
     /// `GlyphTables.memory.head`: the list the fonts' and the sprites' tables lie on (16 bytes).
-    pub memory: crate::memory::ListCells,
+    pub memory: crate::memory::PlainList,
 }
 
 impl GlyphTables {
     pub const fn new() -> Self {
         GlyphTables {
             units: Cell::new(0x15E),
-            memory: crate::memory::ListCells::new(MemoryList {
+            memory: crate::memory::PlainList::new(MemoryList {
                 head: 0,
                 total: 0,
                 cursor: 0,
@@ -71,7 +71,7 @@ pub(super) fn begin_glyph_tables(
 pub(super) fn begin_glyph_table(
     fonts: &crate::gfx::owner::FontStores,
     vars: &SheetVars,
-    list: &crate::memory::ListCells,
+    list: &crate::memory::PlainList,
 ) -> Result<(), BadInput> {
     let padding = vars.table_size.get().wrapping_neg() & 3;
     take_from_list(list, padding)?;

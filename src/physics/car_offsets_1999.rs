@@ -9,7 +9,7 @@ use crate::test_support::paths::{bytes, first_addr, get_u32, set_bytes, set_u32}
 /// The size of the 1999 record.
 pub(super) const SIZE_1999: usize = 0xFE0;
 
-const FIELDS: [(&str, usize, usize); 262] = [
+const FIELDS: [(&str, usize, usize); 253] = [
     ("frame_head", 0x0, 8),
     ("step_clock", 0x8, 4),
     ("noise_word", 0xc, 4),
@@ -192,7 +192,6 @@ const FIELDS: [(&str, usize, usize); 262] = [
     ("kept_focus_point", 0x6cc, 36),
     ("camera_mode_is_2_or_3", 0x6f0, 4),
     ("part_wake_counts", 0x700, 24),
-    ("shown_engine_speed", 0x718, 4),
     ("notice_id", 0x71c, 4),
     ("notice_counter", 0x720, 4),
     ("notice_last", 0x724, 4),
@@ -200,10 +199,6 @@ const FIELDS: [(&str, usize, usize); 262] = [
     ("notice_time", 0x72c, 4),
     ("notice_time_b", 0x730, 4),
     ("kept_view_place", 0x734, 12),
-    ("part_matrices", 0x740, 256),
-    ("body_matrix", 0x840, 64),
-    ("place_matrix", 0x880, 64),
-    ("whole_matrix", 0x8c0, 64),
     ("surface_noise_a", 0x900, 4),
     ("surface_noise_b", 0x904, 4),
     ("surface_noise_second", 0x908, 4),
@@ -233,10 +228,6 @@ const FIELDS: [(&str, usize, usize); 262] = [
     ("shown_steering", 0xaac, 4),
     ("engine_sound_speed_int", 0xab0, 4),
     ("marks_on", 0xab4, 4),
-    ("mode_on", 0xab8, 4),
-    ("marks_count", 0xabc, 4),
-    ("part_switches", 0xac0, 17),
-    ("_pad_part_switches", 0xad1, 3),
     ("map_corner", 0xad4, 8),
     ("map_redrawn", 0xadc, 4),
     ("map_place", 0xae0, 8),
@@ -403,7 +394,7 @@ mod tests {
             }
         }
         let missing: usize = covered.iter().filter(|&&b| !b).count();
-        assert_eq!(missing, 64 + 4 + 8 + 8 + 4);
+        assert_eq!(missing, 64 + 4 + 8 + 8 + 4 + 480);
         let flat = crate::test_support::paths::field_bytes(&Car::new(), "").len();
         assert_eq!(flat, SIZE_1999 - missing);
     }

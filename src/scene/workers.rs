@@ -122,6 +122,7 @@ pub struct Lent<'s> {
     panel: crate::memory::session::PlainRead<crate::race::panel_store::Panel>,
     // The cars' blocks and the view variables.
     car_blocks: crate::memory::session::PhaseRead<'s, crate::race::blocks_store::CarBlocks>,
+    car_parts: crate::memory::session::PhaseRead<'s, crate::race::car_parts_store::CarParts>,
     view_and_records:
         crate::memory::session::PhaseRead<'s, crate::race::groups_store::ViewAndRecords>,
     // The system's screen.
@@ -136,6 +137,7 @@ pub struct Lent<'s> {
     numbers: &'s crate::race::numbers_store::Numbers,
     number_vars: crate::memory::session::PhaseRead<'s, crate::race::numbers_store::NumberVars>,
     switches: crate::memory::session::PlainRead<crate::race::switches_store::FrameSwitches>,
+    checkpoints: crate::memory::session::ArcRead<crate::race::checkpoints_store::Checkpoints>,
     vars: crate::memory::session::PhaseRead<'s, crate::race::vars_store::RaceVars>,
     view: crate::memory::session::PhaseRead<'s, crate::race::view_store::RaceView>,
     work: crate::memory::session::PhaseRead<'s, crate::race::work_store::RaceWork>,
@@ -184,6 +186,7 @@ impl<'s> Lent<'s> {
             panel: crate::memory::session::PlainRead::lend(&race.frame.panel, scope),
             // The cars' blocks and the view variables.
             car_blocks: PhaseRead::lend(&race.shared.car_blocks, scope),
+            car_parts: PhaseRead::lend(&race.shared.car_parts, scope),
             view_and_records: PhaseRead::lend(&race.frame.view_and_records, scope),
             // The system's screen.
             screen: PhaseRead::lend(&system.session.screen, scope),
@@ -200,6 +203,7 @@ impl<'s> Lent<'s> {
             numbers: &race.course.numbers,
             number_vars: PhaseRead::lend(&race.course.number_vars, scope),
             switches: crate::memory::session::PlainRead::lend(&race.shared.switches, scope),
+            checkpoints: crate::memory::session::ArcRead::lend(&race.shared.checkpoints, scope),
             vars: PhaseRead::lend(&race.shared.vars, scope),
             view: PhaseRead::lend(&race.shared.view, scope),
             work: PhaseRead::lend(&race.shared.work, scope),
@@ -237,6 +241,7 @@ impl<'s> Lent<'s> {
             panel: (&self.panel).into(),
             // The cars' blocks and the view variables.
             car_blocks: &self.car_blocks,
+            car_parts: &self.car_parts,
             view_and_records: &self.view_and_records,
             // The system's screen.
             screen: &self.screen,
@@ -250,6 +255,7 @@ impl<'s> Lent<'s> {
             numbers: self.numbers,
             number_vars: &self.number_vars,
             switches: (&self.switches).into(),
+            checkpoints: (&self.checkpoints).into(),
             vars: &self.vars,
             view: &self.view,
             work: &self.work,
@@ -309,6 +315,8 @@ pub struct DrawReads<'a> {
     // The cars' blocks and the view variables.
     /// The cars' blocks (`race::owner_replay::Replay::car_blocks`).
     pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
+    /// What the drawing keeps of each car (`race::owner_shared::RaceShared::car_parts`).
+    pub car_parts: &'a crate::race::car_parts_store::CarParts,
     /// The shared view variables and the view records
     /// (`race::owner_frame::Frame::view_and_records`).
     pub view_and_records: &'a crate::race::groups_store::ViewAndRecords,
@@ -340,6 +348,8 @@ pub struct DrawReads<'a> {
     /// The frame switches (`race::owner_shared::RaceShared::switches`): the scene set-up flag,
     /// the mask kind, the marker object.
     pub switches: crate::race::switches_store::FrameSwitchesRef<'a>,
+    /// The checkpoint tables (`race::owner_shared::RaceShared::checkpoints`).
+    pub checkpoints: crate::race::checkpoints_store::CheckpointsRef<'a>,
     /// The race's variables (`race::owner_shared::RaceShared::vars`): the settings the drawing
     /// reads (run kind, split, the settings words), the mud texture's state, the fade figures.
     pub vars: &'a crate::race::vars_store::RaceVars,
@@ -360,8 +370,8 @@ pub struct DrawReads<'a> {
     /// from them.
     pub lit_faces: crate::physics::lit_faces_store::LitFacesRef<'a>,
     // The race's buffers the parts read.
-    /// The polygon tables (the textures' records, the objects' materials), the faces, the
-    /// checkpoints and the engine tables (`race::buffers_store::Buffers::reads`).
+    /// The polygon tables (the textures' records, the objects' materials), the faces and the
+    /// engine tables (`race::buffers_store::Buffers::reads`).
     pub buffers: &'a crate::race::buffers_store::BufferReads,
 }
 
@@ -421,6 +431,7 @@ impl<'a> DrawReads<'a> {
             panel: (&race.frame.panel).into(),
             // The cars' blocks and the view variables.
             car_blocks: race.shared.car_blocks.get(),
+            car_parts: race.shared.car_parts.get(),
             view_and_records: race.frame.view_and_records.get(),
             // The system's screen.
             screen: system.session.screen.get(),
@@ -438,6 +449,7 @@ impl<'a> DrawReads<'a> {
             numbers: &race.course.numbers,
             number_vars: race.course.number_vars.get(),
             switches: crate::race::switches_store::FrameSwitchesRef::Store(&race.shared.switches),
+            checkpoints: race.shared.checkpoints(),
             vars: race.shared.vars.get(),
             view: race.shared.view.get(),
             work: race.shared.work.get(),

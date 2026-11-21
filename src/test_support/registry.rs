@@ -235,6 +235,84 @@ impl<const N: usize> Walk for OnBuffer<N> {
     }
 }
 
+/// A game-thread memory list (`PlainList`) as a listed store: the path is always the whole
+/// list, its four dwords (head, total, cursor, remaining) little-endian.
+struct OnList {
+    list: &'static crate::memory::PlainList,
+}
+
+#[allow(
+    unsafe_code,
+    reason = "the registry's stores are shared as the owners are"
+)]
+// SAFETY: as `GameThread`: the data is reached only after the game-thread check.
+unsafe impl Sync for OnList {}
+
+impl OnList {
+    fn bytes(list: crate::memory::MemoryList) -> Vec<u8> {
+        [list.head, list.total, list.cursor, list.remaining]
+            .iter()
+            .flat_map(|word| word.to_le_bytes())
+            .collect()
+    }
+
+    fn put(&self, bytes: &[u8]) -> bool {
+        let Ok(all) = <&[u8; 16]>::try_from(bytes) else {
+            return false;
+        };
+        let word = |n: usize| u32::from_le_bytes([all[n], all[n + 1], all[n + 2], all[n + 3]]);
+        self.list.set(crate::memory::MemoryList {
+            head: word(0),
+            total: word(4),
+            cursor: word(8),
+            remaining: word(12),
+        });
+        true
+    }
+}
+
+impl Walk for OnList {
+    fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
+        crate::memory::session::assert_game_thread();
+        path.is_empty().then(|| Self::bytes(self.list.get()))
+    }
+
+    fn set_path_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        crate::memory::session::assert_game_thread();
+        path.is_empty() && self.put(bytes)
+    }
+
+    fn range_bytes(&self, path: &str, length: usize) -> Vec<u8> {
+        crate::memory::session::assert_game_thread();
+        if !path.is_empty() {
+            return Vec::new();
+        }
+        let mut bytes = Self::bytes(self.list.get());
+        bytes.truncate(length);
+        bytes
+    }
+
+    fn set_range_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        crate::memory::session::assert_game_thread();
+        path.is_empty() && self.put(bytes)
+    }
+
+    fn first_addr(&self, _path: &str) -> Option<usize> {
+        None
+    }
+
+    fn keep(&self) -> Box<dyn Fn() + '_> {
+        crate::memory::session::assert_game_thread();
+        let copy = self.list.get();
+        Box::new(move || self.list.set(copy))
+    }
+}
+
+/// A game-thread memory list as a listed store.
+fn on_list(list: &'static crate::memory::PlainList) -> &'static OnList {
+    Box::leak(Box::new(OnList { list }))
+}
+
 /// A game-thread byte buffer as a listed store.
 fn on_buffer<const N: usize>(
     buffer: &'static crate::memory::plain_buffer::PlainBuffer<N>,
@@ -355,8 +433,12 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("files.state.MEDIA_MODE", &crate::files::state::MEDIA_MODE),
         listed!("files.state.DIRECTORIES", &crate::files::state::DIRECTORIES),
         listed!(
-            "owners.strings.lexicon.memory",
-            on_game(&o.strings.lexicon.memory),
+            "owners.strings.lexicon.kilobytes",
+            on_game(&o.strings.lexicon.memory.kilobytes),
+        ),
+        listed!(
+            "owners.strings.lexicon.list",
+            on_list(&o.strings.lexicon.memory.memory),
         ),
         listed!("owners.gfx.png.setting", on_game(&o.gfx.png.setting),),
         listed!(
@@ -633,7 +715,22 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.system.records().stage_tables),
         ),
         listed!("owners.saves.rally_times", on_game(&o.saves.rally_times),),
-        listed!("owners.saves.best_times", on_game(&o.saves.best_times),),
+        listed!(
+            "owners.saves.best_times.list",
+            on_list(&o.saves.best_times.memory),
+        ),
+        listed!(
+            "owners.saves.best_times.allocated",
+            on_game(&o.saves.best_times.allocated),
+        ),
+        listed!(
+            "owners.saves.best_times.loaded",
+            on_game(&o.saves.best_times.loaded),
+        ),
+        listed!(
+            "owners.saves.best_times.tables",
+            on_game(&o.saves.best_times.tables),
+        ),
         listed!(
             "owners.system.start.texts",
             on_game(&o.system.start().texts),
@@ -690,6 +787,10 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.race.shared.car_blocks",
             on_game(o.race.shared.car_blocks.get()),
+        ),
+        listed!(
+            "owners.race.shared.car_parts",
+            on_game(o.race.shared.car_parts.get()),
         ),
         listed!(
             "owners.race.frame.overlay",
@@ -775,7 +876,7 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!(
             "owners.effects.masks.list",
-            on_game(&o.race.effects.get().masks.list),
+            on_list(&o.race.effects.get().masks.list.list),
         ),
     ]
 }

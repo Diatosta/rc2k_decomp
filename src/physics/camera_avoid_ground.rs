@@ -50,7 +50,7 @@ fn place(
 
 /// Turned to face from checkpoint `back` before the car's; false when there is none.
 fn face_checkpoint(
-    checkpoints: &crate::race::checkpoints_store::Checkpoints,
+    checkpoints: crate::race::checkpoints_store::CheckpointsRef,
     course: &Course,
     shared: &RaceShared,
     back: u32,
@@ -59,7 +59,7 @@ fn face_checkpoint(
     else {
         return false;
     };
-    let face = crate::race::checkpoints_store::face_run_on(checkpoints, checkpoint as usize).get();
+    let face = crate::race::checkpoints_store::face_run_on(checkpoints, checkpoint as usize);
     let point = crate::race::course_places::face_field::<u32>(course.reads(), face, 4)
         .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
     let coordinate = |k| {

@@ -1,11 +1,9 @@
 //! The image's zeroed tail past the drawing parts' scratch (the polygon vertices and the polygon
 //! work, each part's own: `scene::scratch_store::PartScratch`): the read tables (`BufferReads`). One static and
-//! not seven: the checkpoint tables are read by a number held to the count
-//! (`race::checkpoints_store::nth`), and the pieces of the read tables stay together.
+//! not seven: the pieces of the read tables stay together.
 
 use crate::math::engine_tables::EngineTables;
 use crate::memory::session::DrawShared;
-use crate::race::checkpoints_store::Checkpoints;
 use crate::scene::faces_store::Faces;
 use crate::scene::polygon_store::PolygonTables;
 
@@ -24,8 +22,6 @@ pub struct BufferReads {
     pub polygon_tables: PolygonTables,
     /// `scene::faces_store`.
     pub faces: Faces,
-    /// `race::checkpoints_store`.
-    pub checkpoints: Checkpoints,
     /// `math::engine_tables`.
     pub engine_tables: EngineTables,
 }

@@ -249,13 +249,10 @@ pub fn start_car(
     if nearest >= MOST_CHECKS {
         return Err(BadInput("a nearest checkpoint past the lists").into());
     }
-    let checks = rc2k_core::race::start::start_checks(
-        crate::race::checkpoints_store::check_count(
-            &c.shared.buffers.reads.get().checkpoints,
-            nearest as usize,
-        )
-        .get(),
-    );
+    let checks = rc2k_core::race::start::start_checks(crate::race::checkpoints_store::check_count(
+        c.shared.checkpoints(),
+        nearest as usize,
+    ));
     c.car.splits_passed.set(checks);
     c.car.splits_recorded.set(checks);
     reset_car_motion(c, scene)?;

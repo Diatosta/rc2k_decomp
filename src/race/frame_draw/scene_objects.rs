@@ -317,8 +317,8 @@ pub(super) fn light_pair(
     left: u32,
     right: u32,
 ) -> Result<(), BadInput> {
-    // The bytes are the block's `part_switches`.
-    let switches = &ctx.reads.car_blocks.cars[car].part_switches;
+    // The bytes are the car's `part_switches`.
+    let switches = &ctx.reads.car_parts.cars[car].part_switches;
     let byte = |o: u32| -> Result<u32, BadInput> {
         let n = o.wrapping_sub(PART_SWITCHES) as usize;
         if n >= switches.read().len() {

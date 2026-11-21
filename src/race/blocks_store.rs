@@ -103,6 +103,16 @@ impl CarBlocks {
         }
     }
 
+    /// The drawing state (`race::car_parts_store`) of the car whose block is `car`; a car that is
+    /// none of the blocks ends the program (as `handle_of`).
+    pub fn parts_of<'p>(
+        &self,
+        parts: &'p crate::race::car_parts_store::CarParts,
+        car: &Car,
+    ) -> &'p crate::race::car_parts_store::CarPartCells {
+        &parts.cars[(self.handle_of(car) ^ BLOCK_TAG) as usize]
+    }
+
     /// The block a handle names, none for 0; a value naming no block ends the program (as
     /// `block_number`).
     pub fn of(&self, handle: u32) -> Option<&Car> {

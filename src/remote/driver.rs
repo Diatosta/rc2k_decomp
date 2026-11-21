@@ -341,8 +341,14 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
     let CAR = driven_car(race, course);
     let at = CAR.checkpoint.get() as usize;
     // The stage line ahead, for `tools/remote.py pilot`.
-    let ahead = (at + LOOK_AHEAD).min(race.checkpoints().map_x.len() - 1);
-    let near = (at + LOOK_NEAR).min(race.checkpoints().map_x.len() - 1);
+    let (ahead_map, near_map) = race.checkpoints().read(|tables| {
+        let last = tables.map_x.len() - 1;
+        let (ahead, near) = ((at + LOOK_AHEAD).min(last), (at + LOOK_NEAR).min(last));
+        (
+            (tables.map_x[ahead] as i32, tables.map_y[ahead] as i32),
+            (tables.map_x[near] as i32, tables.map_y[near] as i32),
+        )
+    });
     format!(
         "renderer={:?} frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={} cars={} shown={}",
         crate::render::running_wish(),
@@ -361,10 +367,10 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         at,
         CAR.map_place[0].get() as i32,
         CAR.map_place[1].get() as i32,
-        race.checkpoints().map_x[ahead].get() as i32,
-        race.checkpoints().map_y[ahead].get() as i32,
-        race.checkpoints().map_x[near].get() as i32,
-        race.checkpoints().map_y[near].get() as i32,
+        ahead_map.0,
+        ahead_map.1,
+        near_map.0,
+        near_map.1,
         o.audio.state.channels_used.get(),
         LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
         CAR.car_heading.get() as i32,
@@ -1196,13 +1202,20 @@ pub fn sim_hash_step(race: &Race) {
     if !*ON.get_or_init(|| std::env::var_os("RC2K_SIM_HASH").is_some()) {
         return;
     }
-    let mut groups = crate::drive::sim_hash::car_blocks_groups(race.shared.car_blocks.get());
+    let mut groups = crate::drive::sim_hash::car_blocks_groups(
+        race.shared.car_blocks.get(),
+        race.shared.car_parts.get(),
+    );
     let staging = race.replay.staging();
     let bytes = staging.to_bytes();
     groups.push(crate::drive::sim_hash::staging_group(&bytes));
     let tick = TICKS.fetch_add(1, Relaxed);
     if std::env::var_os("RC2K_SIM_FIELDS").is_some() && tick < 40 {
-        crate::drive::sim_hash::log_fields(race.shared.car_blocks.get(), tick);
+        crate::drive::sim_hash::log_fields(
+            race.shared.car_blocks.get(),
+            race.shared.car_parts.get(),
+            tick,
+        );
     }
     crate::program_log::log(&format!(
         "sim hash {tick}: {:016x}, random {:08x}",

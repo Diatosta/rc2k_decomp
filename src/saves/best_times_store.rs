@@ -21,10 +21,9 @@ impl TablePlace {
     }
 }
 
-#[derive(rc2k_derive::Cells)]
 pub struct BestTimes {
     /// The memory list (a `MemoryList`).
-    pub memory: crate::memory::ListCells,
+    pub memory: crate::memory::PlainList,
     /// 1 once the memory is taken.
     pub allocated: PlainDword,
     /// 1 once the tables hold times (the file's or made up).
@@ -36,14 +35,14 @@ pub struct BestTimes {
 impl BestTimes {
     pub const fn new() -> Self {
         BestTimes {
-            memory: crate::memory::ListCells::empty(),
+            memory: crate::memory::PlainList::empty(),
             allocated: PlainDword::new(0),
             loaded: PlainDword::new(0),
             tables: [const { TablePlace::new() }; 9],
         }
     }
 
-    pub fn list(&self) -> &crate::memory::ListCells {
+    pub fn list(&self) -> &crate::memory::PlainList {
         &self.memory
     }
 }

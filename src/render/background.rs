@@ -190,7 +190,7 @@ mod tests {
         use crate::gfx::picture;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let buffers = &picture::PictureBuffers::new();
         let n = picture::take(buffers, picture::Buffer::Key, &memory, 0x100).unwrap();
         picture::write_bytes(buffers, n, 0, &[7]).unwrap();

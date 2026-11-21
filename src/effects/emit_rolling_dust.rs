@@ -146,7 +146,7 @@ fn emit_particle_1(
         let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, 1)?;
         let slot = crate::effects::ring_entries::Slot::new(ring, e);
         let car = emitting_car(effects)?;
-        let m = car.whole(effects.car_blocks()?)?;
+        let m = car.whole(effects.car_parts()?)?;
         let side = (next_c5_plain(&mut set.side_random) & 0x3FFF) as i32 - 0x2000;
         effects.setup.frame.emit_side.set(side as u32);
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {

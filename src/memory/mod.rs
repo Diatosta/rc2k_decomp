@@ -21,44 +21,23 @@ pub(crate) mod take_from_list;
 /// game's.)
 pub type MemoryList = rc2k_core::memory::List;
 
-/// A `MemoryList` kept as four cells (a store's field): the list read and written whole as
-/// `Shared<MemoryList>` was, but through its dwords, so that the record is plain cells.
-#[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
-pub struct ListCells {
-    pub head: crate::memory::session::PlainDword,
-    pub total: crate::memory::session::PlainDword,
-    cursor: crate::memory::session::PlainDword,
-    remaining: crate::memory::session::PlainDword,
-}
+/// A `MemoryList` a store keeps as one plain value: read and written whole, only by the game's
+/// thread.
+pub struct PlainList(std::cell::Cell<MemoryList>);
 
-impl ListCells {
+impl PlainList {
     pub const fn new(list: MemoryList) -> Self {
-        use crate::memory::session::PlainDword;
-        Self {
-            head: PlainDword::new(list.head),
-            total: PlainDword::new(list.total),
-            cursor: PlainDword::new(list.cursor),
-            remaining: PlainDword::new(list.remaining),
-        }
+        Self(std::cell::Cell::new(list))
     }
 
-    /// A copy of the list (its fields may be read half changed).
+    /// A copy of the list.
     pub fn get(&self) -> MemoryList {
-        MemoryList {
-            head: self.head.get(),
-            total: self.total.get(),
-            cursor: self.cursor.get(),
-            remaining: self.remaining.get(),
-        }
+        self.0.get()
     }
 
     /// The list put in whole.
     pub fn set(&self, list: MemoryList) {
-        self.head.set(list.head);
-        self.total.set(list.total);
-        self.cursor.set(list.cursor);
-        self.remaining.set(list.remaining);
+        self.0.set(list);
     }
 
     /// An empty list.
@@ -72,7 +51,7 @@ impl ListCells {
     }
 }
 
-/// A `MemoryList` held in cells: what the allocator's functions take.
+/// A `MemoryList` held in a store: what the allocator's functions take.
 pub trait HeldList {
     /// A copy of the list.
     fn get(&self) -> MemoryList;
@@ -80,12 +59,12 @@ pub trait HeldList {
     fn set(&self, list: MemoryList);
 }
 
-impl HeldList for ListCells {
+impl HeldList for PlainList {
     fn get(&self) -> MemoryList {
-        ListCells::get(self)
+        PlainList::get(self)
     }
     fn set(&self, list: MemoryList) {
-        ListCells::set(self, list);
+        PlainList::set(self, list);
     }
 }
 
@@ -96,6 +75,24 @@ impl HeldList for std::cell::RefCell<MemoryList> {
     }
     fn set(&self, list: MemoryList) {
         *self.borrow_mut() = list;
+    }
+}
+
+/// A list kept as four plain dwords inside a byte-viewed record (head, total, cursor, remaining).
+impl HeldList for [crate::memory::session::PlainDword; 4] {
+    fn get(&self) -> MemoryList {
+        MemoryList {
+            head: self[0].get(),
+            total: self[1].get(),
+            cursor: self[2].get(),
+            remaining: self[3].get(),
+        }
+    }
+    fn set(&self, list: MemoryList) {
+        self[0].set(list.head);
+        self[1].set(list.total);
+        self[2].set(list.cursor);
+        self[3].set(list.remaining);
     }
 }
 
@@ -136,8 +133,10 @@ pub mod state {
 /// `bytes` of Rust's memory counted on `list` as `allocate` counts a block it takes (the
 /// list's total, the figures), for a user whose blocks are Rust's own; the
 /// list's `free_list` gives them back. The list holds no block of the game's for them.
-pub fn count_owned(list: &ListCells, bytes: u32) {
-    list.total.set(list.total.get().wrapping_add(bytes));
+pub fn count_owned(list: &PlainList, bytes: u32) {
+    let mut held = list.get();
+    held.total = held.total.wrapping_add(bytes);
+    list.set(held);
     with_figures(|f| f.taken(bytes));
 }
 

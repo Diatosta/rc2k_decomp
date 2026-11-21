@@ -86,7 +86,7 @@ pub struct CameraInputs<'a> {
     pub view_records: &'a ViewAndRecords,
     pub lights_data: &'a LightsData,
     pub step_first: u32,
-    pub checkpoints: &'a crate::race::checkpoints_store::Checkpoints,
+    pub checkpoints: crate::race::checkpoints_store::CheckpointsRef<'a>,
     pub kind_tables: &'a crate::race::kind_store::KindTables,
     pub light_records: &'a crate::race::light_records_store::LightRecords,
     pub ground: CameraGroundInputs<'a>,
@@ -163,7 +163,7 @@ pub struct CheckpointInputs<'a> {
     pub frame_work: &'a FrameWorkStore,
     /// The finish state's "no place" switch.
     pub no_place: u32,
-    pub checkpoints: &'a crate::race::checkpoints_store::Checkpoints,
+    pub checkpoints: crate::race::checkpoints_store::CheckpointsRef<'a>,
 }
 
 /// What the car's lighting reads: the car, the course's faces, the ground search and probe,
@@ -220,7 +220,7 @@ impl<'a> StepInputs<'a> {
             view_records: self.frame.view_and_records.get(),
             lights_data: self.course.lights_data(),
             step_first: self.step_first,
-            checkpoints: &self.shared.buffers.reads.get().checkpoints,
+            checkpoints: self.shared.checkpoints(),
             kind_tables: &crate::race::kind_store::KIND_TABLES,
             light_records: &self.frame.lights_and_gear.get().light_records,
             ground: self.camera_ground(),
@@ -329,7 +329,7 @@ impl<'a> StepInputs<'a> {
             vars: self.vars,
             frame_work: &self.frame.frame_work,
             no_place: self.replay.no_place(),
-            checkpoints: &self.shared.buffers.reads.get().checkpoints,
+            checkpoints: self.shared.checkpoints(),
         }
     }
 

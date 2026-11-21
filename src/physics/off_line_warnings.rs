@@ -62,7 +62,7 @@ pub fn off_line_warnings(
     work: &RaceWork,
     replay_file: &ReplayFileBlock,
     physics_tables: &PhysicsTables,
-    checkpoints: &crate::race::checkpoints_store::Checkpoints,
+    checkpoints: crate::race::checkpoints_store::CheckpointsRef,
     car: &Car,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
@@ -83,7 +83,7 @@ pub fn off_line_warnings(
     w.count_turned(
         spread(
             car.car_heading.get(),
-            crate::race::checkpoints_store::angle_run_on(checkpoints, cp as usize).get(),
+            crate::race::checkpoints_store::angle_run_on(checkpoints, cp as usize),
         ),
         OFF_LINE_WORD,
     );

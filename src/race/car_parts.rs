@@ -1,7 +1,7 @@
 //! Makes the cars' parts ready to draw (`ready_car_parts`, `car_part_matrices`): each car's marks'
 //! switches (`marks_on`, `mode_on`, `part_switches`, `marks_count`) from its state, and its four
 //! parts' matrices (the wheels, turned about their axles' places) into `part_matrices`, then kept
-//! in the block for `draw_car`.
+//! in the car's drawing state (`race::car_parts_store`) for `draw_car`.
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::PlainFloat;
@@ -44,17 +44,16 @@ fn car_part_matrices(
     use crate::math::x87::below_or_unordered;
     use crate::math::x87::loaded;
     use rc2k_core::race::car_parts::{PartState, mark_switches, marks_bytes, steering};
-    // `c` is the block (what the drawing keeps there: the shown speed and steering, the switches,
-    // the marks), `p` the car as the drawing sees it (`frame_view`).
+    // `c` is the block (the shown steering, the marks on), `part` the car's drawing state (the shown
+    // speed, the switches, the marks), `p` the car as the drawing sees it (`frame_view`).
     let c = race.shared.race_car(car)?;
-    let p = race
-        .frame
-        .cars
-        .car(race.shared.work.get().block_number(car)?)?;
+    let block_number = race.shared.work.get().block_number(car)?;
+    let p = race.frame.cars.car(block_number)?;
+    let part = &race.car_parts().cars[block_number];
     let Some(ax) = axles(race, p.car_kind.get())? else {
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
-    let shown = &c.shown_engine_speed;
+    let shown = &part.shown_engine_speed;
     shown.set(loaded(&p.engine_speed));
     if below_or_unordered(
         shown,
@@ -74,11 +73,11 @@ fn car_part_matrices(
         flags: p.parts_present.get(),
     });
     c.marks_on.set(s.marks_on);
-    c.mode_on.set(s.mode_on);
-    c.part_switches
+    part.mode_on.set(s.mode_on);
+    part.part_switches
         .write_at(0, &s.bytes, "a car block's switches")?;
     let slow = below_or_unordered(p.electrics_damage.get(), race.course.numbers.hundred.get());
-    c.marks_count.set(marks_bytes(s.count, slow, on));
+    part.marks_count.set(marks_bytes(s.count, slow, on));
     c.shown_steering.set(steering(p.steer_angle_visual.get()));
     let [front, rear_lift, height, front_z, _] = ax;
     {
@@ -182,7 +181,7 @@ fn car_part_matrices(
 }
 
 /// For each race car with its parts shown (`driver_kind`): `car_part_matrices`, then the six
-/// matrices kept in the block and the body's turn times the car's (`view_place`) in `whole_matrix`.
+/// matrices kept in the drawing state and the body's turn times the car's (`view_place`) in `whole_matrix`.
 /// Refused (before anything): no race cars, more than eight, or one without its block.
 pub(super) fn ready_car_parts(
     race: &Race,
@@ -198,21 +197,21 @@ pub(super) fn ready_car_parts(
     let mut c = 0u32;
     loop {
         let car = c as usize;
-        let block = race.shared.race_car(car)?;
-        let view = race
-            .frame
-            .cars
-            .car(race.shared.work.get().block_number(car)?)?;
+        // Refused when the car has no block.
+        race.shared.race_car(car)?;
+        let block_number = race.shared.work.get().block_number(car)?;
+        let view = race.frame.cars.car(block_number)?;
+        let part = &race.car_parts().cars[block_number];
         if parts_shown(view.driver_kind.get()) {
             car_part_matrices(race, car, scene)?;
-            let wheels = &block.part_matrices;
+            let wheels = &part.part_matrices;
             let kept: [&[PlainFloat]; KEPT_MATRICES as usize] = [
                 &wheels[..16],
                 &wheels[16..32],
                 &wheels[32..48],
                 &wheels[48..],
-                &block.body_matrix,
-                &block.place_matrix,
+                &part.body_matrix,
+                &part.place_matrix,
             ];
             let work = *frame.frame_work.borrow();
             for (from, to) in work.part_matrices.iter().zip(&kept) {
@@ -230,7 +229,7 @@ pub(super) fn ready_car_parts(
             let old_place = frame.view_kept.borrow().view_place;
             let whole = product(&body_turn, &work.placed_matrix, old_place);
             frame.view_kept.borrow_mut().view_place = whole;
-            store_matrix(&block.whole_matrix, &whole);
+            store_matrix(&part.whole_matrix, &whole);
         }
         c += 1;
         if c == count {

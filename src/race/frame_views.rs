@@ -577,7 +577,7 @@ pub fn run_view_marks(
         .unwrap_or(0);
     race.effects_settings().marks_layout.set(layout);
     let whole = crate::scene::matrix::matrix_of(
-        &ctx.reads.car_blocks.cars[ctx.reads.view.view_number(view as usize)?].whole_matrix,
+        &ctx.reads.car_parts.cars[ctx.reads.view.view_number(view as usize)?].whole_matrix,
     );
     race.frame.view_kept.borrow_mut().view_place = whole;
     crate::drive::share_all_cars::share_all_cars(

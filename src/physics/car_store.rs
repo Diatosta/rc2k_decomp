@@ -385,9 +385,6 @@ pub struct Car<K: CellKind = PlainCells> {
     /// The six parts' wake counts (`race::frame_draw`'s lights,
     /// `drive::share_car_state`).
     pub part_wake_counts: [K::Dword; 6],
-    /// The engine speed shown (the revs as a float, not below `PhysicsTables.idle_engine_speed`;
-    /// `race::car_parts`), drawn by the panel and the car's number.
-    pub shown_engine_speed: K::Float,
     /// Id of the notice shown (0 none).
     pub notice_id: K::Dword,
     /// The notice's counter: the name plates set it to 1 when drawn,
@@ -404,15 +401,6 @@ pub struct Car<K: CellKind = PlainCells> {
     pub notice_time_b: K::Dword,
     /// The view's place kept with the car (`race::frame_draw`).
     pub kept_view_place: [K::Dword; 3],
-    /// The four wheels' matrices, 16 floats each, kept by
-    /// `race::car_parts` for `race::car_draw`.
-    pub part_matrices: [K::Float; 64],
-    /// The body's turn matrix (`race::car_draw`, `race::car_shadow`, `drive::set_listener`).
-    pub body_matrix: [K::Float; 16],
-    /// The car's place matrix (`race::car_draw`, `drive::set_listener`).
-    pub place_matrix: [K::Float; 16],
-    /// The body's turn times its place (`race::car_parts`).
-    pub whole_matrix: [K::Float; 16],
     /// Noise sample 1 scaled.
     pub surface_noise_a: K::Dword,
     /// Same sample 1 value.
@@ -476,17 +464,6 @@ pub struct Car<K: CellKind = PlainCells> {
     pub engine_sound_speed_int: K::Dword,
     /// The marks switched on (`race::car_parts`).
     pub marks_on: K::Dword,
-    /// The mode's marks on (`race::car_parts`; `race::car_draw`'s sound
-    /// groups).
-    pub mode_on: K::Dword,
-    /// The marks' bytes (the count x 0x20; `race::car_parts`,
-    /// `race::frame_draw`'s headlights).
-    pub marks_count: K::Dword,
-    /// The parts' switch bytes (`rc2k_core::race::car_parts::
-    /// mark_switches`).
-    pub part_switches: K::Bytes<0x11>,
-    /// Pads the switch bytes to a whole dword.
-    pub _pad_part_switches: K::Bytes<3>,
     /// The course map picture's corner x, y (16-pixel steps;
     /// `race::map_scroll`).
     pub map_corner: [K::Dword; 2],

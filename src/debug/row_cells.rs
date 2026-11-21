@@ -81,6 +81,17 @@ macro_rules! car_cell {
 }
 pub(super) use car_cell;
 
+/// The cell of field `$field` of car `$block`'s drawing state (`race::car_parts_store`).
+macro_rules! car_part_cell {
+    ($block:literal, $field:ident) => {{
+        fn cell<'a>(o: &$crate::owners::Owners<'a>) -> u32 {
+            $crate::debug::row_cells::Raw::raw(&o.race.car_parts().cars[$block].$field)
+        }
+        cell
+    }};
+}
+pub(super) use car_part_cell;
+
 /// The cell `$home` (a store of one cell), or its field at path `$field`.
 macro_rules! store_cell {
     (|$o:ident| $home:expr) => {{

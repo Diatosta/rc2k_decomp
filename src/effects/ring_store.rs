@@ -267,7 +267,7 @@ impl Entry {
 /// The particle ring's pool and the burst code's scratch.
 pub struct RingPool {
     /// A `memory::List` (head, total, cursor, remaining).
-    pub list: crate::memory::ListCells,
+    pub list: crate::memory::PlainList,
     /// The first entry of the ring in use.
     pub free: core::cell::Cell<u32>,
     /// The block taken for the ring.
@@ -290,7 +290,7 @@ pub struct RingPool {
 impl RingPool {
     pub const fn new() -> Self {
         RingPool {
-            list: crate::memory::ListCells::empty(),
+            list: crate::memory::PlainList::empty(),
             free: core::cell::Cell::new(0x0),
             ring: core::cell::Cell::new(0x0),
             fireworks_run: core::cell::Cell::new(0x0),

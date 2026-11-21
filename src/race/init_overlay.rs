@@ -43,17 +43,16 @@ pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> R
                 // `race::init_checkpoints` (`split_colour_count` is their count - 1), each a
                 // checkpoint number below `last_checkpoint`, inside the distances.
                 let list = race.physics.split_tables().checkpoints;
-                let distances = &race.checkpoints().distances;
+                let checkpoints = race.checkpoints();
                 let distance = |k: usize| -> Result<u32, crate::errors::BadInput> {
                     let n = list.get(k).ok_or(crate::errors::BadInput(
                         "an overlay part past the split list",
                     ))?;
-                    Ok(distances
-                        .get(*n as usize)
+                    checkpoints
+                        .read(|tables| tables.distances.get(*n as usize).copied())
                         .ok_or(crate::errors::BadInput(
                             "a split's checkpoint past the distances",
-                        ))?
-                        .get())
+                        ))
                 };
                 for n in 0..count {
                     let end = distance(n as usize + 1)?;

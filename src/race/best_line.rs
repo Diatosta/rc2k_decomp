@@ -9,6 +9,7 @@ use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::best_line_store::{Along, BestLine, CameraSet, Leftovers, MapPlace};
+use crate::race::checkpoints_store::Checkpoints;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
@@ -476,11 +477,10 @@ pub fn best_line(race: &Race, step: &mut dyn FnMut(Step)) -> Result<BestLine, Re
 }
 
 /// Entry `n` of a checkpoint table set to `value`; refused past the table's end.
-fn write_n(table: &[PlainDword], n: u32, value: u32) -> Result<(), BadInput> {
-    table
-        .get(n as usize)
-        .ok_or(BadInput("a checkpoint number past its table"))?
-        .set(value);
+fn write_n(table: &mut [u32], n: u32, value: u32) -> Result<(), BadInput> {
+    *table
+        .get_mut(n as usize)
+        .ok_or(BadInput("a checkpoint number past its table"))? = value;
     Ok(())
 }
 
@@ -491,10 +491,10 @@ fn store_best_line(
     line: &BestLine,
 ) -> Result<(), Refused> {
     let vars = race.shared.vars.get();
-    let tables = race.checkpoints();
+    let mut tables = race.shared.checkpoints.borrow_mut();
     vars.line_face_kind.set(line.line_face_kind);
     for (k, &face) in line.faces.iter().enumerate() {
-        write_n(&tables.checkpoint_faces, k as u32, face)?;
+        write_n(&mut tables.checkpoint_faces, k as u32, face)?;
     }
     vars.line_face_total.set(line.checkpoint_count);
     vars.checkpoint_count.set(line.checkpoint_count);
@@ -503,29 +503,27 @@ fn store_best_line(
     }
     if let Some(along) = &line.along {
         for &(place, angle) in &along.angles {
-            write_n(&tables.angles, place, angle)?;
+            write_n(&mut tables.angles, place, angle)?;
         }
         for (k, &count) in along.check_counts.iter().enumerate() {
-            write_n(&tables.check_counts, k as u32, count)?;
+            write_n(&mut tables.check_counts, k as u32, count)?;
         }
         for (k, &distance) in along.distances.iter().enumerate() {
-            write_n(&tables.distances, k as u32, distance)?;
+            write_n(&mut tables.distances, k as u32, distance)?;
         }
-        tables
-            .line_length
-            .set(along.distances[along.distances.len() - 1]);
+        tables.line_length = along.distances[along.distances.len() - 1];
         vars.map_anchor_count.set(along.map_anchors);
         for place in &along.map {
-            write_n(&tables.map_x, place.checkpoint, place.x)?;
-            write_n(&tables.map_y, place.checkpoint, place.y)?;
+            write_n(&mut tables.map_x, place.checkpoint, place.x)?;
+            write_n(&mut tables.map_y, place.checkpoint, place.y)?;
         }
         for (set, cameras) in cameras().iter().zip(&along.cameras) {
             for (e, &face) in cameras.faces.iter().enumerate() {
-                write_n((set.list)(race), e as u32, face)?;
+                write_n((set.list)(&mut tables), e as u32, face)?;
             }
             (set.count)(&race.shared).set(cameras.faces.len() as u32);
             for (c, &nearest) in cameras.nearest.iter().enumerate() {
-                write_n((set.nearest)(race), c as u32, nearest)?;
+                write_n((set.nearest)(&mut tables), c as u32, nearest)?;
             }
         }
         for (cell, &share) in vars.surface_shares.iter().zip(&along.surface_shares) {
@@ -542,23 +540,23 @@ fn store_best_line(
 /// Where a replay camera set's tables are.
 #[derive(Clone, Copy)]
 struct Cameras {
-    list: for<'a> fn(&'a Race) -> &'a [PlainDword],
+    list: for<'a> fn(&'a mut Checkpoints) -> &'a mut [u32],
     count: for<'a> fn(&'a RaceShared) -> &'a PlainDword,
-    nearest: for<'a> fn(&'a Race) -> &'a [PlainDword],
+    nearest: for<'a> fn(&'a mut Checkpoints) -> &'a mut [u32],
 }
 
 /// The two sets, "replaycam1" and "replaycam2" in the log.
 fn cameras() -> [Cameras; 2] {
     [
         Cameras {
-            list: |race| &race.checkpoints().replay_cameras_1,
+            list: |tables| &mut tables.replay_cameras_1,
             count: |shared| &shared.vars.get().replay_camera_counts[0],
-            nearest: |race| &race.checkpoints().nearest_camera_1,
+            nearest: |tables| &mut tables.nearest_camera_1,
         },
         Cameras {
-            list: |race| &race.checkpoints().replay_cameras_2,
+            list: |tables| &mut tables.replay_cameras_2,
             count: |shared| &shared.vars.get().replay_camera_counts[1],
-            nearest: |race| &race.checkpoints().nearest_camera_2,
+            nearest: |tables| &mut tables.nearest_camera_2,
         },
     ]
 }

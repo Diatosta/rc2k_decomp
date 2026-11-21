@@ -232,11 +232,17 @@ pub(super) fn car_lights_on_point(
         );
         trap.finish()?;
         if lit {
-            // The marks count is the drawing's own (`race::car_parts`), in the block.
+            // The marks count is the drawing's own (`race::car_parts`).
             car_light_on_point(
                 reads.course(),
                 reads.frame_cars.car(n as usize)?,
-                crate::race::owner_shared::RaceShared::race_car_in(race_work, blocks, n as usize)?
+                blocks
+                    .parts_of(
+                        reads.car_parts,
+                        crate::race::owner_shared::RaceShared::race_car_in(
+                            race_work, blocks, n as usize,
+                        )?,
+                    )
                     .marks_count
                     .get(),
                 light_tables,

@@ -24,7 +24,7 @@ impl ObjectPoints {
     pub fn take(
         &self,
         course: &crate::race::owner_course::Course,
-        list: &crate::memory::ListCells,
+        list: &crate::memory::PlainList,
         bytes: u32,
     ) -> Result<(), Refused> {
         crate::memory::owned::count_on(list, bytes)?;
@@ -106,7 +106,7 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = course.lists.borrow().object_points;
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         points.take(course, &memory, 36).unwrap();
         let p = course.lists.borrow().object_points + 12;
         points.set_point(p, [1, 2, 3]).unwrap();

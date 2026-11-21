@@ -4,7 +4,7 @@ use crate::errors::BadInput;
 use crate::math::engine_tables::EngineTables;
 use crate::physics::gear_store::GearFigures;
 use crate::race::blocks_store::CarBlocks;
-use crate::race::checkpoints_store::Checkpoints;
+use crate::race::checkpoints_store::CheckpointsRef;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::kind_store::KindTables;
 use crate::race::light_records_store::LightRecords;
@@ -20,6 +20,11 @@ impl Race {
     /// The ten cars' blocks.
     pub fn car_blocks(&self) -> &CarBlocks {
         self.shared.car_blocks.get()
+    }
+
+    /// The cars' drawing state.
+    pub fn car_parts(&self) -> &crate::race::car_parts_store::CarParts {
+        self.shared.car_parts.get()
     }
 
     /// Car record `n` (`car_records[n]`, the name of one of the effects' car records).
@@ -83,8 +88,8 @@ impl Race {
     }
 
     /// The checkpoints.
-    pub fn checkpoints(&self) -> &Checkpoints {
-        &self.shared.buffers.reads.get().checkpoints
+    pub fn checkpoints(&self) -> CheckpointsRef<'_> {
+        self.shared.checkpoints()
     }
 
     /// The light records.

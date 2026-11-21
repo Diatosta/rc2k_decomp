@@ -57,12 +57,12 @@ fn angle(numbers: &Numbers, ground: &GroundSearch, point: [u32; 3]) -> u32 {
 fn point(
     split_tables: &SplitTables,
     course: &Course,
-    checkpoints: &crate::race::checkpoints_store::Checkpoints,
+    checkpoints: crate::race::checkpoints_store::CheckpointsRef,
     car: &Car,
 ) -> Result<(u32, u32), Refused> {
     let split = car.splits_passed.get();
     let cp = progress::check_split_point(split, || split_tables.checkpoints[1 + split as usize])?;
-    let face = crate::race::checkpoints_store::face_run_on(checkpoints, cp as usize).get();
+    let face = crate::race::checkpoints_store::face_run_on(checkpoints, cp as usize);
     if !progress::face_known(face, course.course.borrow().course_face_count) {
         return Err(FatalError {
             code: progress::SEGMENT_FATAL,
@@ -111,7 +111,7 @@ pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
         return Ok(false);
     }
     let car_angle = angle(c.numbers, &c.physics.ground_search().borrow(), pt) << 16;
-    let heading = crate::race::checkpoints_store::angle_run_on(c.checkpoints, cp as usize).get();
+    let heading = crate::race::checkpoints_store::angle_run_on(c.checkpoints, cp as usize);
     let (carry, _) = progress::passed_point(car_angle, heading);
     Ok(carry)
 }

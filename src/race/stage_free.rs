@@ -9,7 +9,7 @@ use crate::race::owner::Race;
 /// One of the freeing functions: its list (found when it runs), whether it counts in
 /// `course_bytes_total`, and the pointers it clears.
 pub struct Freeing {
-    pub list: fn(&Race) -> &crate::memory::ListCells,
+    pub list: fn(&Race) -> &crate::memory::PlainList,
     pub counted: bool,
     /// Each sets one pointer to 0.
     pub cleared: &'static [fn(&Race)],

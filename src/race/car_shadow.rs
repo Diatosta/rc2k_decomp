@@ -805,6 +805,7 @@ pub(super) fn shadow_points(
     points: &OwnPoints,
     work: &ShadowWork,
     car: &Car,
+    body_matrix: &[crate::memory::session::PlainFloat; 16],
     sun: u32,
 ) -> Result<(), Refused> {
     use crate::math::x87::mul_to_int;
@@ -847,7 +848,7 @@ pub(super) fn shadow_points(
             to_tbyte(&car.probe_point_y[k]),
             to_tbyte(&car.probe_point_z[k]),
         ];
-        let t = crate::scene::rotate_point::rotate_point(&car.body_matrix, p);
+        let t = crate::scene::rotate_point::rotate_point(body_matrix, p);
         let [x, y, z] = t.map(tbyte_to_float);
         at.y.set(y);
         let x = lifted(y, lift, sx, x);
@@ -887,13 +888,14 @@ fn cast_car_shadow(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
+    body_matrix: &[crate::memory::session::PlainFloat; 16],
     sun: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::race::shadow::{SHADOW_TEXTURE, casts, hull_drawn, hull_list};
     if !casts(work.point_count.get()) {
         return Ok(());
     }
-    shadow_points(ctx.reads, &ctx.part.points, work, car, sun)?;
+    shadow_points(ctx.reads, &ctx.part.points, work, car, body_matrix, sun)?;
     shadow_angles(ctx.reads.numbers, work)?;
     shadow_hull(work)?;
     if !hull_drawn(work.hull_count.get()) {
@@ -948,11 +950,13 @@ pub(super) fn cast_car_shadows(
             continue;
         }
         work.point_count.set(car.probe_count.get());
+        let body_matrix =
+            &ctx.reads.car_parts.cars[ctx.reads.work.block_number(n as usize)?].body_matrix;
         if first_pass(ctx.reads.vars.settings_words[2].get()) {
             let sun: u32 = ctx.reads.stage_prefs.sun_height.get();
-            cast_car_shadow(ctx, &work, car, sun)?;
+            cast_car_shadow(ctx, &work, car, body_matrix, sun)?;
         }
-        cast_car_shadow(ctx, &work, car, SUN_PASS)?;
+        cast_car_shadow(ctx, &work, car, body_matrix, SUN_PASS)?;
     }
     crate::scene::depth_test_on::depth_test_on(ctx.part);
     Ok(())

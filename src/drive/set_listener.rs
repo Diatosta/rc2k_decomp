@@ -88,7 +88,11 @@ pub fn set_listener(
         .shared
         .race_car_or(view.drawn_view as usize, "a car's block")?;
     let place: [u32; 3] = crate::memory::session::read_all(&s.position);
-    let strength: u32 = s.marks_count.get();
+    let strength: u32 = race
+        .car_blocks()
+        .parts_of(race.car_parts(), s)
+        .marks_count
+        .get();
     race.effects_settings().listener_car_place[2].set(x87::from_int(place[2] as i32));
     race.effects_settings().listener_car_place[1].set(x87::from_int(place[1] as i32));
     race.effects_settings().listener_car_place[0].set(x87::from_int(place[0] as i32));
@@ -118,8 +122,9 @@ pub fn set_listener(
         physics.camera_mut().listener_points[k] = v as u32;
     }
     // The car block 0's body matrix, turned by the car's turn and then by the view's matrix.
-    let turned = matrix_of(&car.body_matrix);
-    let place_matrix = matrix_of(&car.place_matrix);
+    let own_parts = race.car_blocks().parts_of(race.car_parts(), car);
+    let turned = matrix_of(&own_parts.body_matrix);
+    let place_matrix = matrix_of(&own_parts.place_matrix);
     let view_matrix = view.view_matrix;
     let made = {
         let mut kept = race.frame.matrices.borrow_mut();

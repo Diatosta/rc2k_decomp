@@ -24,15 +24,12 @@ use rc2k_core::drive::computer_driver as driver;
 /// `table[n + k]`, the index held to the count less one (unsigned).
 fn held(
     shared: &RaceShared,
-    table: fn(
-        &crate::race::checkpoints_store::Checkpoints,
-        usize,
-    ) -> &crate::memory::session::PlainDword,
+    table: fn(crate::race::checkpoints_store::CheckpointsRef, usize) -> u32,
     n: u32,
     k: u32,
 ) -> u32 {
     let i = driver::held_index(n, k, shared.vars.get().checkpoint_count.get());
-    table(&shared.buffers.reads.get().checkpoints, i as usize).get()
+    table(shared.checkpoints(), i as usize)
 }
 
 /// A checkpoint face's first point: (x, z).

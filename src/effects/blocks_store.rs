@@ -95,13 +95,13 @@ impl Particle {
 /// not kept).
 pub struct PlacesBlock {
     /// The list the places' block is taken on (16 bytes).
-    pub list: crate::memory::ListCells,
+    pub list: crate::memory::PlainList,
 }
 
 impl PlacesBlock {
     pub const fn new() -> Self {
         Self {
-            list: crate::memory::ListCells::empty(),
+            list: crate::memory::PlainList::empty(),
         }
     }
 }
@@ -110,13 +110,13 @@ impl PlacesBlock {
 /// kept).
 pub struct MarkLinks {
     /// The list the links' block is taken on (16 bytes).
-    pub list: crate::memory::ListCells,
+    pub list: crate::memory::PlainList,
 }
 
 impl MarkLinks {
     pub const fn new() -> Self {
         Self {
-            list: crate::memory::ListCells::empty(),
+            list: crate::memory::PlainList::empty(),
         }
     }
 }

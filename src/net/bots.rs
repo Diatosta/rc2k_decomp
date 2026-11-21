@@ -129,11 +129,7 @@ fn place_like_arcade(
             cell.set(nearest);
         }
         let checks = rc2k_core::race::start::start_checks(
-            crate::race::checkpoints_store::check_count(
-                &shared.buffers.reads.get().checkpoints,
-                nearest as usize,
-            )
-            .get(),
+            crate::race::checkpoints_store::check_count(shared.checkpoints(), nearest as usize),
         );
         car.splits_passed.set(checks);
         car.splits_recorded.set(checks);

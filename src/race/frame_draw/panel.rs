@@ -245,14 +245,13 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     // Each write is its own short borrow: the network helpers below borrow the panel too.
     let put = |k: usize, value: u32| put_shown(&mut race.frame.panel.borrow_mut(), first, k, value);
     // The shown engine speed is the drawing's own (`race::car_parts`), in the block.
-    let whole = shown_whole(race.car_blocks().cars[car].shown_engine_speed.get());
+    let whole = shown_whole(race.car_parts().cars[car].shown_engine_speed.get());
     let car = race.frame.cars.car(car)?;
     put(0, whole as u32);
     put(1, car.engine_sound_speed_int.get());
     put(2, car.gear.get());
-    let at = |n: u32| {
-        crate::race::checkpoints_store::distance_run_on(race.checkpoints(), n as usize).get()
-    };
+    let at =
+        |n: u32| crate::race::checkpoints_store::distance_run_on(race.checkpoints(), n as usize);
     let from: u32 = race.physics.split_tables().checkpoints[0];
     let d = travelled(at(car.checkpoint.get()), at(from));
     let (unit, miles) = (
@@ -427,7 +426,7 @@ fn car_distances(
     for n in 0..count.min(8) {
         let car = race.frame.cars.car(n)?;
         let at = |n: u32| {
-            crate::race::checkpoints_store::distance_run_on(race.checkpoints(), n as usize).get()
+            crate::race::checkpoints_store::distance_run_on(race.checkpoints(), n as usize)
         };
         let d = travelled(at(car.checkpoint.get()), at(from));
         race.frame.panel.borrow_mut().car_distances[n] =

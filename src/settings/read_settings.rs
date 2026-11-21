@@ -403,11 +403,7 @@ mod tests {
         ("ignoreeax", "owners.audio.state", ".ignore_eax_setting"),
         ("ignorea3d", "owners.audio.state", ".ignore_a3d_setting"),
         ("wavheapsize", "owners.audio.state", ".sample_buffer_kb"),
-        (
-            "imageheapsize",
-            "owners.strings.lexicon.memory",
-            ".kilobytes",
-        ),
+        ("imageheapsize", "owners.strings.lexicon.kilobytes", ""),
         ("forcedx5", "owners.gfx.d3d.cards", ".force_dx5"),
         ("agpmode", "owners.gfx.d3d.cards", ".agp_mode"),
         ("force3dtrans", "owners.gfx.d3d.cards", ".force_trans"),

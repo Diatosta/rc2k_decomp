@@ -26,7 +26,7 @@ pub struct GameFontsMemory {
     /// `var\ral.cfg` setting).
     pub units: Cell<u32>,
     /// `GameFontsMemory.memory.head`: the list the fonts' tables lie on (16 bytes).
-    pub memory: crate::memory::ListCells,
+    pub memory: crate::memory::PlainList,
 }
 
 impl GameFontsMemory {
@@ -34,7 +34,7 @@ impl GameFontsMemory {
     pub const fn new() -> Self {
         GameFontsMemory {
             units: Cell::new(0x20),
-            memory: crate::memory::ListCells::new(MemoryList {
+            memory: crate::memory::PlainList::new(MemoryList {
                 head: 0,
                 total: 0,
                 cursor: 0,

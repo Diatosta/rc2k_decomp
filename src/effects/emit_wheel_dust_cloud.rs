@@ -140,7 +140,7 @@ pub(super) fn emit_wheel_dust_cloud(
         let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, 6)?;
         let slot = crate::effects::ring_entries::Slot::new(ring, e);
         let car = emitting_car(effects)?;
-        let m = car.whole(effects.car_blocks()?)?;
+        let m = car.whole(effects.car_parts()?)?;
         let r = next_c5_plain(&mut set.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
         effects.kinds.emitter.borrow_mut().sides[0] = a as u32;

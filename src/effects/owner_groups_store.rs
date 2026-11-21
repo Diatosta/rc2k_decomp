@@ -124,6 +124,8 @@ pub struct Setup {
     /// The race's car blocks, handed with `marks`: the cars' records name their blocks by
     /// handle (`CarEffects::whole`).
     pub car_blocks: core::cell::Cell<Option<&'static crate::race::blocks_store::CarBlocks>>,
+    /// The cars' drawing state the race handed `init_marks` (the matrices the effects follow).
+    pub car_parts: core::cell::Cell<Option<&'static crate::race::car_parts_store::CarParts>>,
     /// The race's stage tables, handed with `marks`: the objects' faces and points, the course
     /// info (`Effects::stage`).
     pub stage: core::cell::Cell<Option<&'static crate::race::stage_data_store::StageData>>,
@@ -141,6 +143,7 @@ impl Setup {
             settings: SettingsPointer::new(),
             marks: core::cell::Cell::new(None),
             car_blocks: core::cell::Cell::new(None),
+            car_parts: core::cell::Cell::new(None),
             stage: core::cell::Cell::new(None),
             frame: MarksFrame::new(),
             floats: MarksFloats::new(),

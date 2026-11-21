@@ -16,7 +16,7 @@ use crate::audio::samples::SampleFile;
 use crate::audio::store::{AudioShared, CHANNEL_IDLE};
 use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{Plain, PlainDword};
-use crate::memory::{ListCells, MemoryList};
+use crate::memory::{MemoryList, PlainList};
 use rc2k_core::audio::commands::SoundList;
 use rc2k_core::audio::voices::MixerChannel;
 
@@ -37,7 +37,7 @@ pub struct AudioOwn {
     /// {format flag, channels} twice: 0x100 mono, 0x200 stereo.
     pub sample_channel_flags: [PlainDword; 4],
     /// The samples' memory (a `MemoryList`).
-    pub sample_memory: ListCells,
+    pub sample_memory: PlainList,
     /// The first voice on the playing list (an address; 0: none).
     pub playing_voices: PlainDword,
     /// The first voice on the stopping list.
@@ -59,7 +59,7 @@ pub struct AudioOwn {
     /// The mixer's write place.
     pub write_cursor: PlainDword,
     /// The work buffer's memory (a `MemoryList`).
-    pub sample_buffer_memory: ListCells,
+    pub sample_buffer_memory: PlainList,
     /// The work buffer for reading samples (an address).
     pub sample_buffer: PlainDword,
     /// Its bytes.
@@ -77,7 +77,7 @@ pub struct AudioOwn {
     /// The 0xC00 bytes a stream's file head is read into (an address; 0: not taken yet).
     pub stream_header: PlainDword,
     /// The header's memory (a `MemoryList`).
-    pub stream_header_memory: ListCells,
+    pub stream_header_memory: PlainList,
     /// The 3D listener's interface id.
     pub iid_listener: PlainBuffer<16>,
     /// The 3D buffer's interface id.
@@ -136,7 +136,7 @@ impl AudioOwn {
                 PlainDword::new(0x200),
                 PlainDword::new(0x2),
             ],
-            sample_memory: ListCells::new(MemoryList {
+            sample_memory: PlainList::new(MemoryList {
                 head: 0x0,
                 total: 0x0,
                 cursor: 0x0,
@@ -152,7 +152,7 @@ impl AudioOwn {
             mix_shift: PlainDword::new(0),
             play_cursor: PlainDword::new(0),
             write_cursor: PlainDword::new(0),
-            sample_buffer_memory: ListCells::new(MemoryList {
+            sample_buffer_memory: PlainList::new(MemoryList {
                 head: 0x0,
                 total: 0x0,
                 cursor: 0x0,
@@ -178,7 +178,7 @@ impl AudioOwn {
                 0x30, 0x30, 0x2e, 0x77, 0x61, 0x76, 0, 0, 0, 0,
             ]),
             stream_header: PlainDword::new(0),
-            stream_header_memory: ListCells::new(MemoryList {
+            stream_header_memory: PlainList::new(MemoryList {
                 head: 0x0,
                 total: 0x0,
                 cursor: 0x0,

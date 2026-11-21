@@ -13,6 +13,7 @@ pub(crate) mod car_draw_state;
 pub(crate) mod car_grades;
 mod car_part;
 mod car_parts;
+pub(crate) mod car_parts_store;
 mod car_shadow;
 pub(crate) mod car_specs_store;
 pub(crate) mod car_starts;

@@ -415,7 +415,7 @@ mod lines_work_tests {
         let _lock = crate::test_support::test_lock();
         let paths = &crate::test_support::own::effects().paths;
         let figures = crate::memory::figures();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         paths.block_points[2]
             .take(list, 24, vec![[1, 2, 3], [4, 5, 6]])

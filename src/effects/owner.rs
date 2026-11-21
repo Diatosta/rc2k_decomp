@@ -49,6 +49,14 @@ impl Effects {
             .ok_or(BadInput("a car record without its block"))
     }
 
+    /// The cars' drawing state the race handed `init_marks`; refused before the first.
+    pub fn car_parts(&self) -> Result<&'static crate::race::car_parts_store::CarParts, BadInput> {
+        self.setup
+            .car_parts
+            .get()
+            .ok_or(BadInput("a car record without its block"))
+    }
+
     /// The race's stage tables `init_marks` was handed; refused before the first.
     pub fn stage(&self) -> Result<&'static crate::race::stage_data_store::StageData, BadInput> {
         self.setup

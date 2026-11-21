@@ -63,7 +63,7 @@ pub fn emit_exhaust_smoke(
     let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, 0xD)?;
     let slot = crate::effects::ring_entries::Slot::new(ring, e);
     let car = emitting_car(effects)?;
-    let cells = car.whole(effects.car_blocks()?)?;
+    let cells = car.whole(effects.car_parts()?)?;
     let mut set = particles.kind13_set.borrow_mut();
     let t: [f32; 3] = {
         let head = paths.spline_head.borrow();
@@ -76,7 +76,7 @@ pub fn emit_exhaust_smoke(
         effects.setup.floats.particle_13_place_k,
         effects.setup.floats.seven_hundred,
         set.lift,
-        car.whole(effects.car_blocks()?)?,
+        car.whole(effects.car_parts()?)?,
     );
     slot.put(|en| &mut en.place[0], x)?;
     slot.put(|en| &mut en.place[1], y)?;

@@ -236,7 +236,7 @@ pub(super) fn emit_bursts_with(
                 for n in 0..3 {
                     slot.put(|en| &mut en.spare[n], 0)?;
                 }
-                let m = car.whole(effects.car_blocks()?)?;
+                let m = car.whole(effects.car_parts()?)?;
                 let side = (r.rotate_right(8) & 0x3FFF).wrapping_sub(0x2000);
                 effects.setup.frame.emit_side.set(side);
                 let place: [f32; 3] = crate::effects::try_from_fn(|k| {

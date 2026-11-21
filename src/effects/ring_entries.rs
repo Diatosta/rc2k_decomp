@@ -240,7 +240,7 @@ mod tests {
     fn the_ring_is_linked_and_read_by_number() {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let ring = &effects().ring;
         take(ring, &memory).unwrap();
         assert_eq!(memory.get().total, RING_BYTES);

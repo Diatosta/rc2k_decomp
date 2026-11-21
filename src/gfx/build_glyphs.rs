@@ -261,7 +261,7 @@ fn read_alpha_sheet(
 pub fn build_glyphs(
     vars: &SheetVars,
     template: &[u8],
-    list: &crate::memory::ListCells,
+    list: &crate::memory::PlainList,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
     strings: &crate::strings::owner::Strings,

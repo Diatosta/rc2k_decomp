@@ -63,7 +63,7 @@ pub struct InstallerRun {
     /// KB needed.
     pub room_needed: Cell<u32>,
     /// The installer's memory list.
-    pub buffers: crate::memory::ListCells,
+    pub buffers: crate::memory::PlainList,
     /// The progress bar's glyph table.
     pub bar_glyphs: Cell<u32>,
     /// The folders listed.
@@ -95,7 +95,7 @@ impl InstallerRun {
             files_copied: Cell::new(0),
             files_to_copy: Cell::new(0),
             room_needed: Cell::new(0),
-            buffers: crate::memory::ListCells::empty(),
+            buffers: crate::memory::PlainList::empty(),
             bar_glyphs: Cell::new(0),
             dir_count: Cell::new(0),
             file_count: Cell::new(0),

@@ -22,7 +22,7 @@ pub struct Picture {
     /// The buffer's size in bytes (0x1D4C00: 800 x 600 dwords).
     pub size: Cell<u32>,
     /// `Picture.list.head`: the list the buffer's memory is on (16 bytes).
-    pub list: crate::memory::ListCells,
+    pub list: crate::memory::PlainList,
 }
 
 impl Picture {
@@ -34,7 +34,7 @@ impl Picture {
             row_bytes: Cell::new(0),
             buffer: Cell::new(0),
             size: Cell::new(0),
-            list: crate::memory::ListCells::new(MemoryList {
+            list: crate::memory::PlainList::new(MemoryList {
                 head: 0,
                 total: 0,
                 cursor: 0,

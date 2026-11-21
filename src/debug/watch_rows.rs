@@ -3,7 +3,7 @@
 //! (0xFE0 apart). Names outside the
 //! cars' blocks are read from the developers' labels, not from what the code does: a reading.
 
-use super::row_cells::{car_cell, indexed_cell, store_cell};
+use super::row_cells::{car_cell, car_part_cell, indexed_cell, store_cell};
 use super::ui::{Group, Row, Shown};
 
 /// The groups, in the UI's order.
@@ -1919,7 +1919,7 @@ pub static GROUPS: &[Group] = &[
                 "Car 1: Marks count",
                 "car1tlig",
                 Shown::Whole,
-                car_cell!(0, marks_count),
+                car_part_cell!(0, marks_count),
                 false,
                 (0, 0),
             ),

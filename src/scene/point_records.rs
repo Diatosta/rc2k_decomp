@@ -99,7 +99,7 @@ pub fn mark_scene_records_unmade(part: &crate::scene::scratch_store::PartScratch
 pub fn take(
     scratch: &crate::scene::scratch_store::DrawingScratch,
     course: &crate::race::owner_course::Course,
-    list: &crate::memory::ListCells,
+    list: &crate::memory::PlainList,
 ) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, BYTES)?;
     for part in scratch.all_parts_on_game_thread() {
@@ -404,7 +404,7 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = course.lists.borrow().point_records;
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         take(&crate::owners::Owners::the().scene.scratch, course, &memory).unwrap();
         assert_eq!(memory.get().total, BYTES);
         assert_eq!(at_offset(0x20 * 5), of_scene_point(0x1005));

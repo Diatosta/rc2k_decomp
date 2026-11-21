@@ -2,10 +2,10 @@
 //! root tables and the physics' turn work. Three pieces: `CourseLists`, a plain record
 //! (`session::DrawPlain`) written on the game's thread between frames and read there and, as a
 //! copy made when a drawing scope opens, by the drawing parts; `CourseMemory`, the course's memory
-//! lists (the allocators take them as `ListCells`), and `TurnWork`, the physics' matrix and angle
+//! lists (the allocators take them as `PlainList`s), and `TurnWork`, the physics' matrix and angle
 //! work values (the float helpers take cells as operands); both only the game's thread reaches.
 
-use crate::memory::ListCells;
+use crate::memory::PlainList;
 use crate::memory::session::{DrawPlain, PlainFloat, PlainRead};
 
 /// The values the drawing parts read and the course's allocators keep.
@@ -103,26 +103,26 @@ impl<'a> From<&'a PlainRead<CourseLists>> for CourseListsRef<'a> {
 pub struct CourseMemory {
     /// The course's MemoryList of 16 bytes (`race::level_init::allocate_course_memory`,
     /// `race::stage_free`).
-    pub course_memory_list: ListCells,
+    pub course_memory_list: PlainList,
     /// The second course MemoryList: set up by `race::level_init::allocate_course_memory` and
     /// freed by `race::stage_free`; nothing allocates from it.
-    pub second_course_list: ListCells,
+    pub second_course_list: PlainList,
     /// The object points' list (`scene::allocate_object_memory`).
-    pub object_points_list: ListCells,
+    pub object_points_list: PlainList,
     /// The point records' list (`scene::allocate_point_records`).
-    pub point_records_list: ListCells,
+    pub point_records_list: PlainList,
     /// The mud's list (`race::mud`).
-    pub mud_list: ListCells,
+    pub mud_list: PlainList,
 }
 
 impl CourseMemory {
     pub const fn new() -> Self {
         Self {
-            course_memory_list: ListCells::empty(),
-            second_course_list: ListCells::empty(),
-            object_points_list: ListCells::empty(),
-            point_records_list: ListCells::empty(),
-            mud_list: ListCells::empty(),
+            course_memory_list: PlainList::empty(),
+            second_course_list: PlainList::empty(),
+            object_points_list: PlainList::empty(),
+            point_records_list: PlainList::empty(),
+            mud_list: PlainList::empty(),
         }
     }
 }

@@ -154,7 +154,7 @@ mod tests {
             std::fs::write(dir.join(f), b"x").unwrap();
         }
         let root = crate::files::ansi_bytes(&dir.to_string_lossy());
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         crate::test_support::own::install()
             .folders

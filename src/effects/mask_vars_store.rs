@@ -26,7 +26,7 @@ pub struct MaskVars {
     /// The spans made
     pub spans_total: u32,
     /// The work block's memory list
-    pub list: crate::memory::ListCells,
+    pub list: crate::memory::PlainList,
     /// The running count `run_shapes` moves the shape index by
     pub count: u32,
     /// The corner tables' scales
@@ -101,7 +101,7 @@ impl MaskVars {
     pub const fn new() -> Self {
         MaskVars {
             spans_total: 0,
-            list: crate::memory::ListCells::empty(),
+            list: crate::memory::PlainList::empty(),
             count: 0,
             corner_scale: [0.0; 2],
             turn: [0.0; 9],

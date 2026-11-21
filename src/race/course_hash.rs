@@ -537,7 +537,11 @@ pub fn log_started_hashes(race: &crate::race::owner::Race) {
     let say = |store: &str, hash: u64| {
         crate::program_log::log(&format!("course hash {stage} started {store}: {hash:016x}"));
     };
-    say("checkpoints", record_hash(race.checkpoints()));
+    say(
+        "checkpoints",
+        race.checkpoints()
+            .read(crate::race::checkpoints_store::Checkpoints::hash),
+    );
     say("race_vars", record_hash(race.shared.vars.get()));
     say(
         "texture_rows",

@@ -42,29 +42,25 @@ use rc2k_core::physics::camera_view;
 
 /// The fixed camera: `second` picks the second tables.
 fn fixed_camera(c: &CameraInputs<'_>, second: bool) -> Result<(), crate::errors::BadInput> {
-    let (nearest, replay) = if second {
-        (
-            &c.checkpoints.nearest_camera_2,
-            &c.checkpoints.replay_cameras_2,
-        )
-    } else {
-        (
-            &c.checkpoints.nearest_camera_1,
-            &c.checkpoints.replay_cameras_1,
-        )
-    };
-    // The car's checkpoint is held to the line's count (5144 at most; the tables hold 5146),
-    // its nearest camera is a number of the list (0x400 at most; the table holds 0x400).
-    let camera = nearest
-        .get(c.car.checkpoint.get() as usize)
-        .ok_or(crate::errors::BadInput(
-            "a checkpoint past the nearest cameras",
-        ))?
-        .get();
-    let face = replay
-        .get(camera as usize)
-        .ok_or(crate::errors::BadInput("a camera past the replay cameras"))?
-        .get();
+    let face = c.checkpoints.read(|tables| {
+        let (nearest, replay) = if second {
+            (&tables.nearest_camera_2, &tables.replay_cameras_2)
+        } else {
+            (&tables.nearest_camera_1, &tables.replay_cameras_1)
+        };
+        // The car's checkpoint is held to the line's count (5144 at most; the tables hold 5146),
+        // its nearest camera is a number of the list (0x400 at most; the table holds 0x400).
+        let camera =
+            *nearest
+                .get(c.car.checkpoint.get() as usize)
+                .ok_or(crate::errors::BadInput(
+                    "a checkpoint past the nearest cameras",
+                ))?;
+        replay
+            .get(camera as usize)
+            .copied()
+            .ok_or(crate::errors::BadInput("a camera past the replay cameras"))
+    })?;
     let point = crate::race::course_places::face_field::<u32>(c.course.reads(), face, 4)
         .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
     for k in 0..3 {

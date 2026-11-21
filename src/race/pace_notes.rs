@@ -69,13 +69,13 @@ impl<'a> GameStage<'a> {
 
 impl Stage for GameStage<'_> {
     fn checkpoint_face(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::face_run_on(self.race.checkpoints(), k as usize).get()
+        crate::race::checkpoints_store::face_run_on(self.race.checkpoints(), k as usize)
     }
     fn distance(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::distance_run_on(self.race.checkpoints(), k as usize).get()
+        crate::race::checkpoints_store::distance_run_on(self.race.checkpoints(), k as usize)
     }
     fn angle(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::angle_run_on(self.race.checkpoints(), k as usize).get()
+        crate::race::checkpoints_store::angle_run_on(self.race.checkpoints(), k as usize)
     }
     fn slot_offset(&self, slot: u32) -> u32 {
         crate::physics::figures::PACE_SLOT_OFFSETS[slot as usize]

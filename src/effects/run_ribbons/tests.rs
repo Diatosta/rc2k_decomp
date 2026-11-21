@@ -166,7 +166,7 @@ mod same_as_old {
         let mut view_matrix = [0.0f32; 16];
         let mut clock = MarksClock::new();
         let figures = crate::memory::figures();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         crate::effects::ring_entries::take(ring, &memory).unwrap();
         let kept_turned: Vec<u32> = effects()
             .frame

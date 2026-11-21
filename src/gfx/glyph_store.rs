@@ -133,7 +133,7 @@ pub(super) fn table_generation(fonts: &FontStores, place: u32) -> Option<u64> {
 /// place. Refused when all fifteen are held.
 pub(super) fn new_palette(
     fonts: &FontStores,
-    list: &crate::memory::ListCells,
+    list: &crate::memory::PlainList,
 ) -> Result<u32, BadInput> {
     let mut s = store(fonts);
     let id = (1..FIRST_FIXED_PALETTE)
@@ -149,7 +149,7 @@ pub(super) fn new_palette(
 }
 
 /// A new glyph table, empty: its place. Refused past the places there are.
-pub fn new_table(fonts: &FontStores, list: &crate::memory::ListCells) -> Result<u32, BadInput> {
+pub fn new_table(fonts: &FontStores, list: &crate::memory::PlainList) -> Result<u32, BadInput> {
     let mut s = store(fonts);
     let generation = s.next_generation();
     let held = Some(Held {
@@ -439,7 +439,7 @@ mod tests {
     fn places_are_kept_apart_and_given_back_by_list() {
         let fonts = &crate::test_support::own::gfx().fonts;
         let _lock = crate::test_support::test_lock();
-        let list = crate::memory::ListCells::new(crate::memory::MemoryList {
+        let list = crate::memory::PlainList::new(crate::memory::MemoryList {
             head: 0,
             total: 0,
             cursor: 0,
