@@ -54,11 +54,6 @@ pub struct ContactWork {
     pub ground_force: [PlainDword; 3],
     /// 0 then 1 in `physics::ground_contact`; shown on the developers' page.
     pub ground_contact_started: PlainDword,
-    /// `drive::animate_lit_faces`: the face's x offset saved before a kind-4 face is
-    /// moved, put back when no ground is found under the new place.
-    pub lit_face_saved_30: PlainDword,
-    /// `drive::animate_lit_faces`: the face's z offset saved the same way.
-    pub lit_face_saved_38: PlainDword,
     /// The deepest point's depth (`physics::lowest_body_point`, `crash_contact`,
     /// `ground_contact`, `find_clear_place`).
     pub lowest_depth: PlainDword,
@@ -89,10 +84,6 @@ pub struct ContactWork {
     pub wall_face_before: PlainDword,
     /// `physics::wall_contacts`: the probe's face now.
     pub wall_face_now: PlainDword,
-    /// The face's four corners' x, z (`physics::crossed_edge_contact`).
-    pub crossed_corners: [PlainDword; 8],
-    /// The probe's before/now figures and face (`physics::crossed_edge_contact`).
-    pub crossed_figures: [PlainDword; 5],
     /// `race::set_up_car_points`' count of the car's points.
     pub car_point_count: PlainDword,
     /// The probe point being handled (`wall_contacts`, `crossed_edge_contact`,
@@ -103,11 +94,6 @@ pub struct ContactWork {
     /// The object the face names (`physics::face_contact`, `object_hits_car`,
     /// `object_turn_matrix`, `place_sound_object`).
     pub face_object: PlainDword,
-    /// The numbers of the course faces lit (`physics::touch_face`,
-    /// `drive::animate_lit_faces`, `race::frame_draw`).
-    pub lit_faces: [PlainDword; 256],
-    /// How many faces are in the lit list.
-    pub lit_face_count: PlainDword,
     /// The contact kind being looked at (`physics::face_contact`,
     /// `point_hits_car`).
     pub contact_kind: PlainDword,

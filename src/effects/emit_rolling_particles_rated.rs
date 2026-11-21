@@ -88,8 +88,8 @@ pub(super) fn emit_rolling_particles_rated(
         let mut set = particles.kind21_set.borrow_mut();
         let r = next_c5_plain(&mut set.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
-        effects.kinds.emitter.sides[0].set(a as u32);
-        effects.kinds.emitter.sides[1].set(b as u32);
+        effects.kinds.emitter.borrow_mut().sides[0] = a as u32;
+        effects.kinds.emitter.borrow_mut().sides[1] = b as u32;
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             let k = 4 * k as u32;
             Ok(x87::pair_sum_80(
@@ -126,11 +126,11 @@ pub(super) fn emit_rolling_particles_rated(
         let s = effects
             .setup
             .work
+            .borrow()
             .seed
-            .get()
             .wrapping_mul(0x9D)
             .wrapping_add(0x47);
-        effects.setup.work.seed.set(s);
+        effects.setup.work.borrow_mut().seed = s;
         slot.put(
             |en| &mut en.size,
             x87::from_int(((s & 0x3FFF) + 0x4000) as i32).to_bits(),
@@ -144,7 +144,7 @@ pub(super) fn emit_rolling_particles_rated(
             |en| &mut en.alpha,
             effects.setup.floats.two_fifty_five.to_bits(),
         )?;
-        slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
+        slot.put(|en| &mut en.car, effects.kinds.emitter.borrow().car)?;
         let size = car.rate.get().wrapping_add(g.rate as u32);
         slot.put(|en| &mut en.size_goal, size)?;
         slot.put(|en| &mut en.car_pace, car.pace.get())?;

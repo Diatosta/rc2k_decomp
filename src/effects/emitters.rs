@@ -7,36 +7,13 @@ use crate::effects::owner::Effects;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::memory::session::PlainDword;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 
 pub use crate::effects::ring_store::Ring;
 
 pub(super) const MOST_TAKEN: u32 = 0x3FE;
 
-/// A variable the emitters keep a random in (a typed dword, `&Dword`).
-pub trait Random: Copy {
-    fn load(self) -> u32;
-    fn store(self, value: u32);
-}
-
-impl Random for &PlainDword {
-    fn load(self) -> u32 {
-        self.get()
-    }
-    fn store(self, value: u32) {
-        self.set(value);
-    }
-}
-
 /// A random of the emitters' kind: times 0xC5 plus 0x5D, kept.
-pub(super) fn next_c5(at: impl Random) -> u32 {
-    let r = at.load().wrapping_mul(0xC5).wrapping_add(0x5D);
-    at.store(r);
-    r
-}
-
-/// `next_c5` on a plain random.
 pub(super) fn next_c5_plain(random: &mut u32) -> u32 {
     *random = random.wrapping_mul(0xC5).wrapping_add(0x5D);
     *random
@@ -66,7 +43,7 @@ pub(super) fn take_entry(
         let count = ring.work.borrow().count.wrapping_add(1);
         ring.work.borrow_mut().count = count;
         let slot = crate::effects::ring_entries::Slot::new(ring, e);
-        slot.put(|en| &mut en.emitter_tag, effects.kinds.emitter.tag.get())?;
+        slot.put(|en| &mut en.emitter_tag, effects.kinds.emitter.borrow().tag)?;
         slot.put(|en| &mut en.car_tag, tag)?;
         slot.put(|en| &mut en.kind, kind)?;
         e
@@ -98,13 +75,13 @@ pub(super) fn emitting_car(
     effects: &crate::effects::owner::Effects,
 ) -> Result<&'static CarEffects, BadInput> {
     effects
-        .car_record(effects.kinds.emitter.car.get())
+        .car_record(effects.kinds.emitter.borrow().car)
         .ok_or(BadInput("no car for the emitters"))
 }
 
 /// Whether the emitters are on a car whose matrix is set (the emitters' refusal).
 pub(super) fn car_with_matrix(effects: &Effects) -> Result<bool, Refused> {
-    match effects.car_record(effects.kinds.emitter.car.get()) {
+    match effects.car_record(effects.kinds.emitter.borrow().car) {
         Some(car) => Ok(effects.has_whole(car)),
         None => Ok(false),
     }

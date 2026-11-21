@@ -66,14 +66,14 @@ fn turns(
     (
         smooth_pair(
             k,
-            setup.mask_constants.corner_angles[starts[0]].get(),
+            setup.mask_constants.borrow().corner_angles[starts[0]],
             b,
             effects,
         )
         .1,
         smooth_pair(
             k,
-            setup.mask_constants.corner_angles[starts[1]].get(),
+            setup.mask_constants.borrow().corner_angles[starts[1]],
             b,
             effects,
         )
@@ -117,7 +117,7 @@ pub(super) fn make_corners(
                 let first = smooth_steps(
                     drops,
                     k,
-                    effects.setup.mask_constants.corner_angles[starts[0]].get(),
+                    effects.setup.mask_constants.borrow().corner_angles[starts[0]],
                     end.get(),
                     effects,
                 )
@@ -125,7 +125,7 @@ pub(super) fn make_corners(
                 let second = smooth_steps(
                     drops,
                     k,
-                    effects.setup.mask_constants.corner_angles[starts[1]].get(),
+                    effects.setup.mask_constants.borrow().corner_angles[starts[1]],
                     end.get(),
                     effects,
                 )
@@ -150,7 +150,7 @@ pub(super) fn make_corners(
                 let e = k * ENTRY;
                 let c = |o: u32| -> Result<_, Refused> { Ok(get(table, e + o)? as i32) };
                 let status = x87::compare_squares(c(0)?, c(4)?, c(0xC)?, c(0x10)?);
-                effects.setup.work.fpu_status.set(status as u32);
+                effects.setup.work.borrow_mut().fpu_status = status as u32;
                 if status != 0 {
                     for (a, b) in [(0, 0xC), (4, 0x10)] {
                         let (x, y) = (get(table, e + a)?, get(table, e + b)?);
@@ -167,9 +167,9 @@ pub(super) fn make_corners(
         let divisors: [i32; 2] = effects
             .setup
             .mask_constants
+            .borrow()
             .divisors
-            .each_ref()
-            .map(|c| c.get() as i32);
+            .map(|c| c as i32);
         let scales = [
             x87::int_ratio(bx(0x24)?.wrapping_sub(bx(0x18)?), divisors[0]),
             x87::int_ratio(bx(4)?.wrapping_sub(bx(0x1C)?), divisors[1]),
@@ -194,9 +194,9 @@ pub(super) fn make_corners(
         let flips: [i32; 2] = effects
             .setup
             .mask_constants
+            .borrow()
             .flips
-            .each_ref()
-            .map(|c| c.get() as i32);
+            .map(|c| c as i32);
         for k in 0..corners {
             for (n, &flip) in flips.iter().enumerate() {
                 let table = tables(masks)[n];

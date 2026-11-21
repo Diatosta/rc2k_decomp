@@ -9,7 +9,6 @@ use crate::effects::emit_twin_particle_first::{TwinSet, emit_twin};
 use crate::effects::emit_twin_particle_first_store::TwinTuning;
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
-use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::CarEffects;
 
 /// `emit_twin_particle_second`'s variables.
@@ -33,20 +32,12 @@ impl TwinTuning {
     /// The values the game starts with.
     pub(super) const fn twenty_second() -> Self {
         TwinTuning {
-            chance_random: PlainDword::new(0x0),
-            lift: PlainFloat::new(65536.0),
-            row_k: [
-                PlainFloat::new(128.0),
-                PlainFloat::new(128.0),
-                PlainFloat::new(128.0),
-            ],
-            spread: PlainFloat::new(64.0),
-            motion_k: [
-                PlainFloat::new(0.8),
-                PlainFloat::new(0.8),
-                PlainFloat::new(0.8),
-            ],
-            spin_random: PlainDword::new(0x0),
+            chance_random: 0x0,
+            lift: 65536.0,
+            row_k: [128.0, 128.0, 128.0],
+            spread: 64.0,
+            motion_k: [0.8, 0.8, 0.8],
+            spin_random: 0x0,
         }
     }
 }

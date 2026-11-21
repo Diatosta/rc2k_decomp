@@ -515,7 +515,7 @@ pub fn order_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
 /// floats and the angle, stay the x87's: the first round as its control word says).
 pub fn bound_spline_points(
     paths: &Paths,
-    work: &crate::effects::work_store::MarksWork,
+    work: &std::cell::RefCell<crate::effects::work_store::MarksWork>,
     s: Spline,
 ) -> Result<(), Refused> {
     let n = s.count(paths)?;
@@ -566,7 +566,7 @@ fn make_spline(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
     paths: &Paths,
-    work: &crate::effects::work_store::MarksWork,
+    work: &std::cell::RefCell<crate::effects::work_store::MarksWork>,
     object: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {

@@ -15,7 +15,7 @@ const WAVE_LEVELS: u32 = 0x11;
 pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
     let setup = &effects.setup;
     // The logic is in `rc2k_core::effects::noise::seed_noise`.
-    let (tables, seed) = rc2k_core::effects::noise::seed_noise(setup.work.seed.get());
+    let (tables, seed) = rc2k_core::effects::noise::seed_noise(setup.work.borrow().seed);
     {
         let mut rain = weather.rain.borrow_mut();
         for (table, values) in rain.noise.iter_mut().zip(tables) {
@@ -23,7 +23,7 @@ pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
         }
         rain.drawn = 0;
     }
-    setup.work.seed.set(seed);
+    setup.work.borrow_mut().seed = seed;
 }
 
 /// `effects::make_wave_tables`: once: the 0x11 levels, whole numbers, become floats (over 256,
@@ -43,8 +43,8 @@ pub(super) fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
 
 /// `effects::clear_slots`: the first dword of the 0x20 slots 0.
 pub(super) fn clear_slots(effects: &crate::effects::owner::Effects) {
-    for slot in &effects.blocks.slots.slots {
-        slot.life.set(0);
+    for slot in &mut effects.blocks.slots.borrow_mut().slots {
+        slot.life = 0;
     }
 }
 
@@ -186,7 +186,7 @@ pub(super) fn make_noise_curve(
             cells.copy_from_slice(table);
         }
     }
-    effects.setup.work.seed.set(t.seed);
+    effects.setup.work.borrow_mut().seed = t.seed;
     weather.snow.borrow_mut().flag = 0;
     let values = light.record_values.map(f32::to_bits);
     let layout = core::record_values(values);

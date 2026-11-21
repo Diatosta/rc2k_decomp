@@ -36,7 +36,7 @@ fn run_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
 /// The rows the edge pair's loop runs (its check: the row rounded below y1 rounded, the
 /// row counting up by `MaskConstants.ones[2]`), or `None` past `MOST_ROWS`.
 fn edge_rows(edge: &[u32; 6], effects: &crate::effects::owner::Effects) -> Option<u32> {
-    let one = effects.setup.mask_constants.ones[2].get();
+    let one = effects.setup.mask_constants.borrow().ones[2];
     let mut row = x87::round_float(edge[0]);
     let end = x87::to_int(edge[1]);
     let mut rows = 0;
@@ -81,7 +81,7 @@ pub(super) fn span_edges(
         let e: [u32; 6] = read_bits(&masks.vars.edge);
         room(to, edge_rows(&e, effects))?;
         let [y0, y1, xa0, xb0, xa1, xb1] = e;
-        let ones: [u32; 3] = read_bits(&setup.mask_constants.ones);
+        let ones: [u32; 3] = setup.mask_constants.borrow().ones.map(f32::to_bits);
         let height = x87::sub(y1, y0);
         masks.vars.height.set(height);
         // A half of no height (two corners at the same y) has no rows: the loop below ends
@@ -104,7 +104,7 @@ pub(super) fn span_edges(
         loop {
             let r = x87::to_int(row);
             let end = x87::to_int(y1);
-            setup.work.scratch.set(end as u32);
+            setup.work.borrow_mut().scratch = end as u32;
             row = x87::add(row, ones[2]);
             if r >= end {
                 break;
@@ -243,7 +243,7 @@ pub(super) fn span_triangle(
         let count = (to - cursor) >> 3;
         // Through `MarksWork.scratch`.
         let first = x87::to_int(y0) as u32;
-        effects.setup.work.scratch.set(first);
+        effects.setup.work.borrow_mut().scratch = first;
         run_put(masks, runs + 4, first)?;
         run_put(masks, runs + 8, count)?;
         masks

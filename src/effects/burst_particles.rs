@@ -25,8 +25,13 @@ const LIFE: u32 = 0xBB8;
 /// The marks' random: times 0x9D plus 0x47.
 fn next_seed(effects: &crate::effects::owner::Effects) -> u32 {
     let setup = &effects.setup;
-    let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-    setup.work.seed.set(s);
+    let s = setup
+        .work
+        .borrow()
+        .seed
+        .wrapping_mul(0x9D)
+        .wrapping_add(0x47);
+    setup.work.borrow_mut().seed = s;
     s
 }
 

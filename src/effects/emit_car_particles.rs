@@ -18,14 +18,14 @@ use crate::errors::Refused;
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::memory::session::{read_bits, write_bits};
+
 use crate::race::effects_settings_store::CarEffects;
 use crate::scene::rotate_point::rotate_point;
 
 /// `o` is the car's object.
 pub fn emit_car_particles(effects: &Effects, o: &CarEffects) -> Result<(), Refused> {
     o.whole(effects.car_blocks()?)?;
-    let k = read_bits(&effects.kinds.emitter.place_k);
+    let k = effects.kinds.emitter.borrow().place_k.map(f32::to_bits);
     let place = |wheel: usize, axis: usize| &o.records[wheel].place[axis];
     let z1 = x87::int_times(o.axles[0].get() as i32, k[0]);
     place(0, 2).set(z1);
@@ -42,11 +42,12 @@ pub fn emit_car_particles(effects: &Effects, o: &CarEffects) -> Result<(), Refus
     for wheel in [1, 3, 0, 2] {
         place(wheel, 1).set(y);
     }
-    effects.kinds.emitter.looks[0].set(x87::to_int(o.records[0].place[0].get().abs()) as u32);
-    effects.kinds.emitter.looks[1].set(bh::to_int(
+    effects.kinds.emitter.borrow_mut().looks[0] =
+        x87::to_int(o.records[0].place[0].get().abs()) as u32;
+    effects.kinds.emitter.borrow_mut().looks[1] = bh::to_int(
         (bh::ld(o.records[0].place[2].get()).abs() + bh::ld(o.records[2].place[2].get()).abs())
             * bh::ld(effects.setup.floats.half),
-    ) as u32);
+    ) as u32;
     let m = o.whole(effects.car_blocks()?)?;
     for wheel in [0, 1, 2, 3] {
         let at = &o.records[wheel].place;
@@ -64,31 +65,24 @@ pub fn emit_car_particles(effects: &Effects, o: &CarEffects) -> Result<(), Refus
     }
     for n in 0..4 {
         if n == 2 {
-            write_bits(
-                &effects.kinds.emitter.side_a,
-                [matrix_cell(m, 0)?, matrix_cell(m, 4)?, matrix_cell(m, 8)?],
-            );
-            write_bits(
-                &effects.kinds.emitter.side_b,
-                crate::effects::try_from_fn(|i__| {
-                    let f = [0x20, 0x24, 0x28][i__];
-                    Ok(matrix_cell(m, f)? ^ 0x8000_0000)
-                })?,
-            );
+            let side_a = [matrix_cell(m, 0)?, matrix_cell(m, 4)?, matrix_cell(m, 8)?];
+            let side_b: [u32; 3] = crate::effects::try_from_fn(|i__| {
+                let f = [0x20, 0x24, 0x28][i__];
+                Ok(matrix_cell(m, f)? ^ 0x8000_0000)
+            })?;
+            let mut vars = effects.kinds.emitter.borrow_mut();
+            vars.side_a = side_a.map(f32::from_bits);
+            vars.side_b = side_b.map(f32::from_bits);
         }
-        effects.kinds.emitter.record.set(n as u32);
+        effects.kinds.emitter.borrow_mut().record = n as u32;
         emit_wheel_particles(effects, &o.records[n], o)?;
     }
-    let sides: [u32; 6] =
-        std::array::from_fn(|n| x87::loaded(&effects.kinds.emitter.body_k[n])).map(f32::to_bits);
-    write_bits(
-        &effects.kinds.emitter.side_a,
-        [sides[0], sides[1], sides[2]],
-    );
-    write_bits(
-        &effects.kinds.emitter.side_b,
-        [sides[3], sides[4], sides[5]],
-    );
+    {
+        let mut vars = effects.kinds.emitter.borrow_mut();
+        let sides: [f32; 6] = std::array::from_fn(|n| x87::loaded(vars.body_k[n]));
+        vars.side_a = [sides[0], sides[1], sides[2]];
+        vars.side_b = [sides[3], sides[4], sides[5]];
+    }
     emit_body_particles(effects, &o.records[4], o)?;
     Ok(())
 }

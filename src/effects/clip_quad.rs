@@ -32,10 +32,10 @@ impl Axis {
         }
     }
 
-    fn set<K: CellKind>(self, v: &Vertex<K>, value: f32) {
+    fn set_corner(self, v: &mut Corner, value: f32) {
         match self {
-            Axis::X => v.x.set(value),
-            Axis::Y => v.y.set(value),
+            Axis::X => v.x = value,
+            Axis::Y => v.y = value,
         }
     }
 }
@@ -48,18 +48,6 @@ const EDGES: [(usize, Axis, Axis, bool); 4] = [
     (1, Axis::X, Axis::Y, true),  // 3: the middle x less one
     (0, Axis::X, Axis::Y, false), // 4: the middle x
 ];
-
-/// Copies a whole vertex, field by field.
-fn copy_vertex<A: CellKind, B: CellKind>(from: &Vertex<A>, to: &Vertex<B>) {
-    to.x.set(from.x.get());
-    to.y.set(from.y.get());
-    to.z.set(from.z.get());
-    to.rhw.set(from.rhw.get());
-    to.colour.set(from.colour.get());
-    to.specular.set(from.specular.get());
-    to.u.set(from.u.get());
-    to.v.set(from.v.get());
-}
 
 /// Sets whether the effects drawn from now on are cut to the front end window's rectangle.
 pub fn cut_to_part(effects: &crate::effects::owner::Effects, on: bool) {
@@ -83,6 +71,32 @@ struct Corner {
 }
 
 impl Corner {
+    /// The vertex's drawn fields.
+    fn of<K: CellKind>(v: &Vertex<K>) -> Corner {
+        Corner {
+            x: v.x.get(),
+            y: v.y.get(),
+            z: v.z.get(),
+            rhw: v.rhw.get(),
+            u: v.u.get(),
+            v: v.v.get(),
+            colour: v.colour.get(),
+            specular: v.specular.get(),
+        }
+    }
+
+    /// Writes the drawn fields into the vertex.
+    fn put<K: CellKind>(self, v: &Vertex<K>) {
+        v.x.set(self.x);
+        v.y.set(self.y);
+        v.z.set(self.z);
+        v.rhw.set(self.rhw);
+        v.u.set(self.u);
+        v.v.set(self.v);
+        v.colour.set(self.colour);
+        v.specular.set(self.specular);
+    }
+
     fn lerp(self, to: Corner, t: f32) -> Corner {
         let mix = |a: f32, b: f32| a + (b - a) * t;
         Corner {
@@ -187,7 +201,7 @@ fn clip_to_part(
         .front_end_polygon()
         .polygon_vertex_count
         .set(cut.len() as u32);
-    effects.clipping.glow.clip_count.set(cut.len() as u32);
+    effects.clipping.glow.borrow_mut().clip_count = cut.len() as u32;
     false
 }
 
@@ -217,7 +231,7 @@ pub fn clip_quad(
             return Ok(false);
         }
         let (edge, coord, other, below) = EDGES[mode as usize - 1];
-        let line = effects.clipping.clip.edges[edge].get();
+        let line = effects.clipping.clip.borrow().edges[edge];
         // The test of vertex k: inside (the floats compared by their bits).
         let t = |k: usize| -> bool {
             let v = coord.get(&q[k]);
@@ -258,11 +272,11 @@ pub fn clip_quad(
         } else {
             return Ok(false);
         }
-        let work = &effects.clipping.clip.vertices;
+        let mut work = [Corner::of(&q[0]); 6];
         let mut built = 0;
         let mut k = edi;
         loop {
-            copy_vertex(&q[k], &work[built]);
+            work[built] = Corner::of(&q[k]);
             built += 1;
             if k == esi {
                 break;
@@ -279,19 +293,16 @@ pub fn clip_quad(
                 [s.v.get(), o.v.get()],
             ];
             let v = x87::clip_lerp3_floats(line, coord.get(o), coord.get(s), pairs);
-            let w = &work[built];
-            coord.set(w, line);
-            other.set(w, v[0]);
-            w.u.set(v[1]);
-            w.v.set(v[2]);
-            w.z.set(o.z.get());
-            w.rhw.set(o.rhw.get());
-            w.colour.set(o.colour.get());
-            w.specular.set(o.specular.get());
+            let mut w = Corner::of(o);
+            coord.set_corner(&mut w, line);
+            other.set_corner(&mut w, v[0]);
+            w.u = v[1];
+            w.v = v[2];
+            work[built] = w;
             built += 1;
         }
         for (from, to) in work.iter().zip(q.iter()).take(built) {
-            copy_vertex(from, to);
+            from.put(to);
         }
         let count = built as u32;
         scene
@@ -299,7 +310,7 @@ pub fn clip_quad(
             .front_end_polygon()
             .polygon_vertex_count
             .set(count);
-        effects.clipping.glow.clip_count.set(count);
+        effects.clipping.glow.borrow_mut().clip_count = count;
     }
     Ok(false)
 }

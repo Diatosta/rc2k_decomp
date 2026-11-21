@@ -23,7 +23,7 @@ pub fn load_background_in(
         rc2k_core::service::car::background(player.get().car_number).map_err(BadInput::from)?;
     let path = crate::menu::texts_store::text_at(
         &menus.texts,
-        menus.lists.service_pictures[car as usize].get(),
+        menus.lists.read().service_pictures[car as usize],
     )?;
     crate::gfx::load_picture::load_picture_with(&path, gfx, system)?;
     crate::gfx::convert_picture::convert_picture_now_in(gfx)?;

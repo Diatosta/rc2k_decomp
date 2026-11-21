@@ -627,6 +627,10 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.physics.contact",
             on_game(o.race.physics.contact.get()),
         ),
+        listed!(
+            "owners.race.physics.lit_faces",
+            on_game(o.race.physics.lit_faces.get()),
+        ),
         listed!("owners.race.shared.car", on_game(o.race.shared.car()),),
         listed!("owners.race.shared.work", on_game(o.race.shared.work.get()),),
         listed!(
@@ -650,10 +654,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.frame.draw_batches()),
         ),
         listed!(
-            "owners.effects.setup.work",
-            on_game(&o.race.effects.get().setup.work),
-        ),
-        listed!(
             "owners.menus.screens.carousel",
             on_game(&o.menus.screens.carousel),
         ),
@@ -669,10 +669,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.setup.settings",
             on_game(&o.race.effects.get().setup.settings),
-        ),
-        listed!(
-            "owners.effects.clipping.clip",
-            on_game(&o.race.effects.get().clipping.clip),
         ),
         listed!(
             "owners.effects.paths.spline_head",
@@ -711,8 +707,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().masks.vars),
         ),
         listed!(
-            "owners.effects.windscreen_drops.picks",
-            on_game(&o.race.effects.get().windscreen_drops.picks),
+            "owners.effects.windscreen_drops.pixel_tables",
+            on_game(&o.race.effects.get().windscreen_drops.pixel_tables),
         ),
         listed!(
             "owners.effects.windscreen_drops.shape_work",
@@ -721,10 +717,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.windscreen_drops.tuning",
             on_game(&o.race.effects.get().windscreen_drops.tuning),
-        ),
-        listed!(
-            "owners.effects.setup.mask_constants",
-            on_game(&o.race.effects.get().setup.mask_constants),
         ),
         listed!(
             "owners.effects.windscreen_flakes.items",
@@ -747,18 +739,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().blocks.corners),
         ),
         listed!(
-            "owners.effects.frame.draw_frame",
-            on_game(&o.race.effects.get().frame.draw_frame),
-        ),
-        listed!(
-            "owners.effects.frame.flare_parts",
-            on_game(&o.race.effects.get().frame.flare_parts),
-        ),
-        listed!(
-            "owners.effects.frame.flare_scales",
-            on_game(&o.race.effects.get().frame.flare_scales),
-        ),
-        listed!(
             "owners.effects.blocks.links",
             on_game(&o.race.effects.get().blocks.links),
         ),
@@ -776,24 +756,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             0xa6,
         ),
         listed!(
-            "owners.effects.blocks.slots",
-            on_game(&o.race.effects.get().blocks.slots),
-        ),
-        listed!(
-            "owners.effects.blocks.slot_tuning",
-            on_game(&o.race.effects.get().blocks.slot_tuning),
-        ),
-        listed!(
-            "owners.effects.kinds.emitter",
-            on_game(&o.race.effects.get().kinds.emitter),
-        ),
-        listed!(
             "owners.effects.ring.names",
             on_game(&o.race.effects.get().ring.names),
-        ),
-        listed!(
-            "owners.effects.particles.twin_state",
-            on_game(&o.race.effects.get().particles.twin_state),
         ),
         listed!(
             "owners.effects.particles.kind1_choice",
@@ -804,32 +768,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().masks.list),
         ),
         listed!(
-            "owners.effects.particles.first_tuning",
-            on_game(&o.race.effects.get().particles.first_tuning),
-        ),
-        listed!(
-            "owners.effects.particles.second_tuning",
-            on_game(&o.race.effects.get().particles.second_tuning),
-        ),
-        listed!(
-            "owners.effects.particles.nineteenth_tuning",
-            on_game(&o.race.effects.get().particles.nineteenth_tuning,),
-        ),
-        listed!(
-            "owners.effects.particles.twenty_second_tuning",
-            on_game(&o.race.effects.get().particles.twenty_second_tuning,),
-        ),
-        listed!(
             "owners.effects.ring.pool",
             on_game(&o.race.effects.get().ring.pool),
-        ),
-        listed!(
-            "owners.effects.particles.puff_work",
-            on_game(&o.race.effects.get().particles.puff_work),
-        ),
-        listed!(
-            "owners.effects.kinds.burst_colours",
-            on_game(&o.race.effects.get().kinds.burst_colours),
         ),
         listed!(
             "owners.effects.kinds.particle_tuning",
@@ -838,10 +778,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.setup.clock_k",
             on_game(&o.race.effects.get().setup.clock_k),
-        ),
-        listed!(
-            "owners.effects.clipping.glow",
-            on_game(&o.race.effects.get().clipping.glow),
         ),
     ]
 }

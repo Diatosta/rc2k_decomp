@@ -14,7 +14,7 @@ use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, read_bits, writ
 
 /// The pixel table `n` (0 or 1, the shape's: `MaskPicks.pixel_table_a`, `_b`).
 fn pixel_table(drops: &WindscreenDrops, n: u32) -> Result<&PlainBytes<0x2_0000>, BadInput> {
-    [&drops.picks.pixel_table_a, &drops.picks.pixel_table_b]
+    [&drops.pixel_tables.a, &drops.pixel_tables.b]
         .get(n as usize)
         .copied()
         .ok_or(BadInput("a pixel table's number that names none"))
@@ -137,7 +137,7 @@ pub fn map_pixel(
     let table = pixel_table(drops, masks.vars.pixel_table.get())?;
     masks.vars.pixel[0].set(x);
     let pixel: [u32; 2] = read_bits(&masks.vars.pixel);
-    let shake = setup.work.shake.get();
+    let shake = setup.work.borrow().shake;
     let mut out = [0i32; 2];
     for (half, plan) in HALVES.iter().zip(plans) {
         let [lx, ly] = plan.start;
@@ -150,21 +150,21 @@ pub fn map_pixel(
         );
         let px = rounded_value(p[1]);
         let status = x87::sub_compare(px, plan.ends[0], plan.negative, plan.span);
-        setup.work.fpu_status.set(status as u32);
-        let mut seed = next_seed(setup.work.seed.get());
+        setup.work.borrow_mut().fpu_status = status as u32;
+        let mut seed = next_seed(setup.work.borrow().seed);
         let (mut r, mut c) = (
             seed & 0x3FFF,
-            setup.mask_constants.pixel_constants[half.constants].get(),
+            setup.mask_constants.borrow().pixel_constants[half.constants],
         );
         if status != 0x100 {
             seed = next_seed(seed);
             (r, c) = (
                 seed & 0xFFFF,
-                setup.mask_constants.pixel_constants[half.constants + 1].get(),
+                setup.mask_constants.borrow().pixel_constants[half.constants + 1],
             );
         }
-        setup.work.seed.set(seed);
-        let k = setup.mask_constants.pixel_constants[half.constants + 2].get();
+        setup.work.borrow_mut().seed = seed;
+        let k = setup.mask_constants.borrow().pixel_constants[half.constants + 2];
         let y = x87::random_step(
             r as i32,
             [shake, c, px, plan.ends[0], plan.rise, plan.ends[1], k],
@@ -245,7 +245,7 @@ pub(super) fn map_shape_rows(
             let y: u32 = masks.vars.pixel[1].get();
             masks.vars.row_distance.set(x87::int_plus_less_squared(
                 y as i32,
-                &effects.setup.mask_constants.row_add,
+                effects.setup.mask_constants.borrow().row_add,
                 &masks.vars.middle[1],
             ));
             for n in 0..(len as i32).max(0) as u32 {
@@ -331,12 +331,15 @@ pub(super) fn map_shapes(
         }
         let came = x87::control_word();
         x87::set_control_word((came & 0xF3FF) | 0xC00);
-        drops.picks.shapes.set(n);
-        drops.picks.table_in_use.set(n);
-        drops.picks.corners.set(n);
+        drops.picks.borrow_mut().shapes = n;
+        drops.picks.borrow_mut().table_in_use = n;
+        drops.picks.borrow_mut().corners = n;
         table.write_at(0, &vec![0; 0x2_0000], "the pixel table")?;
-        masks.vars.pixel_table.set(drops.picks.table_in_use.get());
-        masks.vars.pixel_corners.set(drops.picks.corners.get());
+        masks
+            .vars
+            .pixel_table
+            .set(drops.picks.borrow().table_in_use);
+        masks.vars.pixel_corners.set(drops.picks.borrow().corners);
         write_bits(
             &masks.vars.middle,
             [

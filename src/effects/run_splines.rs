@@ -77,8 +77,13 @@ pub fn run_splines(paths: &Paths, effects: &crate::effects::owner::Effects) -> R
     }
     {
         step_made(effects, paths, setup.clock.borrow().frame_ticks >> 1)?;
-        let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-        setup.work.seed.set(s);
+        let s = setup
+            .work
+            .borrow()
+            .seed
+            .wrapping_mul(0x9D)
+            .wrapping_add(0x47);
+        setup.work.borrow_mut().seed = s;
         let k = paths
             .spline_constants
             .wave_k

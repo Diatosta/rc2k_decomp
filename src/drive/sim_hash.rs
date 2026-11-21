@@ -91,12 +91,17 @@ pub fn record_hash<T: Cells>(record: &T) -> u64 {
 /// for a lone field): a store of plain fields hashes as the cell store it replaced by adding these.
 #[cfg(feature = "remote")]
 pub fn dword_run_hash(path: &str, dwords: &[u32]) -> u64 {
+    let bytes: Vec<u8> = dwords.iter().flat_map(|d| d.to_le_bytes()).collect();
+    byte_run_hash(path, &bytes)
+}
+
+/// The hash `record_hash` adds for one run of bytes at `path`.
+#[cfg(feature = "remote")]
+pub fn byte_run_hash(path: &str, bytes: &[u8]) -> u64 {
     let mut entry = path.as_bytes().to_vec();
     entry.push(0);
-    entry.extend(((4 * dwords.len()) as u64).to_le_bytes());
-    for dword in dwords {
-        entry.extend(dword.to_le_bytes());
-    }
+    entry.extend((bytes.len() as u64).to_le_bytes());
+    entry.extend(bytes);
     fnv1a(&entry)
 }
 

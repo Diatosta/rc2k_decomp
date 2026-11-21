@@ -104,27 +104,27 @@ const GROUPS: &[(&str, &[Row])] = &[
             ("car z", Through(|s| s.listener_car_place[2].get().into())),
             (
                 "?wheels.vect1.x",
-                Cell(|effects, _| effects.kinds.emitter.side_b[0].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_b[0].into()),
             ),
             (
                 "?wheels.vect1.y",
-                Cell(|effects, _| effects.kinds.emitter.side_b[1].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_b[1].into()),
             ),
             (
                 "?wheels.vect1.z",
-                Cell(|effects, _| effects.kinds.emitter.side_b[2].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_b[2].into()),
             ),
             (
                 "?wheels.vect4.x",
-                Cell(|effects, _| effects.kinds.emitter.side_a[0].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_a[0].into()),
             ),
             (
                 "?wheels.vect4.y",
-                Cell(|effects, _| effects.kinds.emitter.side_a[1].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_a[1].into()),
             ),
             (
                 "?wheels.vect4.z",
-                Cell(|effects, _| effects.kinds.emitter.side_a[2].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_a[2].into()),
             ),
         ],
     ),
@@ -211,11 +211,9 @@ fn shown(value: Option<Figure>) -> String {
 /// The tab.
 pub fn tab(effects: &Effects, scene: &Scene, ui: &Ui) {
     // Its warning, when the two counts differ.
-    let frame = &effects.frame.draw_frame;
-    let (drawn, run) = (
-        Some(frame.drawn.get().into()),
-        Some(frame.cleared.get().into()),
-    );
+    let frame = effects.frame.draw_frame.borrow();
+    let (drawn, run) = (Some(frame.drawn.into()), Some(frame.cleared.into()));
+    drop(frame);
     if drawn != run {
         ui.text_colored(
             [1.0, 0.4, 0.3, 1.0],

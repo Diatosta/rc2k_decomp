@@ -132,7 +132,12 @@ pub(super) fn span_ring(
             .run_count
             .set(masks.vars.run_count.get().wrapping_add(1));
         s.rows.set(masks.vars.runs.get());
-        let scales: [u32; 3] = read_bits(&effects.setup.mask_constants.ring_scales);
+        let scales: [u32; 3] = effects
+            .setup
+            .mask_constants
+            .borrow()
+            .ring_scales
+            .map(f32::to_bits);
         let ends = [
             x87::mul(&s.angle_ends[0], scales[0]),
             x87::mul(&s.angle_ends[1], scales[1]),

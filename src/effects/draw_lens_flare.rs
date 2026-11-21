@@ -32,9 +32,10 @@ pub fn draw_lens_flare(
     if effects
         .frame
         .flare_parts
+        .borrow()
         .corner
         .iter()
-        .any(|c| c.get() >= 0x100)
+        .any(|&c| c >= 0x100)
     {
         return Err(BadInput("a flare corner past g_marksCorners").into());
     }
@@ -44,22 +45,20 @@ pub fn draw_lens_flare(
     ];
     let dx = x87::sub(marks.listener_figures[1].get(), cx);
     let dy = -x87::sub(marks.listener_figures[2].get(), cy);
-    effects.frame.draw_frame.flare_way[0].set(dx);
-    effects.frame.draw_frame.flare_way[1].set(dy);
-    effects.frame.flare_parts.unit[0].set(x87::loaded(dx));
-    effects.frame.flare_parts.unit[1].set(x87::loaded(dy));
-    effects.frame.flare_parts.unit[2].set(0.0);
-    crate::scene::vector3::normalise(&effects.frame.flare_parts.unit);
+    effects.frame.draw_frame.borrow_mut().flare_way = [dx, dy];
+    {
+        let mut parts = effects.frame.flare_parts.borrow_mut();
+        parts.unit = [x87::loaded(dx), x87::loaded(dy), 0.0];
+        crate::scene::vector3::normalise_plain(&mut parts.unit);
+    }
     let length = crate::math::x87::float_hypot(dx, dy);
-    effects.frame.draw_frame.flare_length.set(length);
-    let alpha = bh::to_int(
-        bh::ld(effects.frame.flare_scales.fade[1].get())
-            - bh::ld(length) * bh::ld(effects.frame.flare_scales.fade[0].get()),
-    )
-    .max(0);
+    effects.frame.draw_frame.borrow_mut().flare_length = length;
+    let scales = effects.frame.flare_scales.borrow();
+    let alpha = bh::to_int(bh::ld(scales.fade[1]) - bh::ld(length) * bh::ld(scales.fade[0])).max(0);
     let product = u64::from(marks.listener_figures[0].get()) * u64::from(alpha as u32);
     let alpha = (product as u32) >> 8;
-    let size_k = effects.frame.flare_scales.size_k.get();
+    let size_k = scales.size_k;
+    let parts = effects.frame.flare_parts.borrow();
     for k in (0..PARTS as usize).rev() {
         let level: u32 = paths.wave_levels.borrow().levels[k];
         let y = x87::times_plus_80(dy, level, cy, false);
@@ -67,10 +66,10 @@ pub fn draw_lens_flare(
         draw_flare_part(
             engine_tables,
             buffer,
-            effects.frame.flare_parts.corner[k].get(),
+            parts.corner[k],
             0,
             alpha,
-            x87::int_times_to_int(effects.frame.flare_parts.size[k].get() as i32, size_k) as u32,
+            x87::int_times_to_int(parts.size[k] as i32, size_k) as u32,
             0xFF_FFFF,
             [x, y],
             scene,

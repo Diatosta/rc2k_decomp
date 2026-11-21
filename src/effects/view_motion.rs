@@ -22,8 +22,9 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
     }
     let zero = [extended(0); 3];
     let place = rotate_point(m, zero);
+    let last = effects.frame.draw_frame.borrow().last;
     for k in 0..3 {
-        let step = x87::ext_less(place[k], &effects.frame.draw_frame.last[k]);
+        let step = x87::ext_less(place[k], last[k]);
         effects.frame.draw_work.borrow_mut().step[k] = step;
         local[3 + k].set(step);
     }
@@ -40,7 +41,7 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
     effects.frame.view_vars.borrow_mut().facing = facing;
     let place = rotate_point(m, zero);
     for (k, p) in place.iter().enumerate() {
-        effects.frame.draw_frame.last[k].set(rounded_value(*p));
+        effects.frame.draw_frame.borrow_mut().last[k] = rounded_value(*p);
     }
     let ticks: i32 = effects.setup.clock.borrow().frame_ticks as i32;
     // A frame of no ticks (a stage's first, from `race_init`, before the clock runs) has no

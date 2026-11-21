@@ -75,11 +75,11 @@ pub(super) fn trail_particles(
             let s = effects
                 .setup
                 .work
+                .borrow()
                 .seed
-                .get()
                 .wrapping_mul(0x9D)
                 .wrapping_add(0x47);
-            effects.setup.work.seed.set(s);
+            effects.setup.work.borrow_mut().seed = s;
             let k1 = effects.frame.draw_work.borrow().uv_k;
             let k2 = effects.kinds.particle_tuning.trail_random_k.get();
             ring.pool.burst_radius.set(bh::stf(

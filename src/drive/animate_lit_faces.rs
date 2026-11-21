@@ -63,11 +63,11 @@ fn store(course: &Course, f: u32, b: &FaceBytes) -> Result<(), BadInput> {
 
 /// The lit face list's entry `k` (0x100 of them; the count is checked below).
 fn list(physics: &Physics, k: u32) -> &crate::memory::session::PlainDword {
-    &physics.contact.get().lit_faces[k as usize]
+    &physics.lit_faces.get().faces[k as usize]
 }
 
 fn refusal(race: &Race) -> Option<&'static str> {
-    let count: u32 = race.physics.contact.get().lit_face_count.get();
+    let count: u32 = race.physics.lit_faces.get().count.get();
     if count > MOST {
         return Some("more than 0x100 lit faces (past g_litFaces)");
     }
@@ -84,7 +84,7 @@ fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Ref
     if let Some(why) = refusal(race) {
         return Err(BadInput(why).into());
     }
-    if race.physics.contact.get().lit_face_count.get() == 0 {
+    if race.physics.lit_faces.get().count.get() == 0 {
         return Ok(());
     }
 
@@ -145,16 +145,8 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         distance as i32,
                         angle,
                     );
-                    race.physics
-                        .contact
-                        .get()
-                        .lit_face_saved_30
-                        .set(at(&race.course, f, 0x30)?);
-                    race.physics
-                        .contact
-                        .get()
-                        .lit_face_saved_38
-                        .set(at(&race.course, f, 0x38)?);
+                    let saved_x = at(&race.course, f, 0x30)?;
+                    let saved_z = at(&race.course, f, 0x38)?;
                     put(
                         &race.course,
                         f,
@@ -207,18 +199,8 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         ),
                     )?;
                     if race.physics.ground_search().borrow().slot == u32::MAX {
-                        put(
-                            &race.course,
-                            f,
-                            0x30,
-                            race.physics.contact.get().lit_face_saved_30.get(),
-                        )?;
-                        put(
-                            &race.course,
-                            f,
-                            0x38,
-                            race.physics.contact.get().lit_face_saved_38.get(),
-                        )?;
+                        put(&race.course, f, 0x30, saved_x)?;
+                        put(&race.course, f, 0x38, saved_z)?;
                     }
                     bytes.b11 = bytes.b11.wrapping_sub(1);
                     false
@@ -228,18 +210,12 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
         };
         store(&race.course, f, &bytes)?;
         if leave {
-            let last = race
-                .physics
-                .contact
-                .get()
-                .lit_face_count
-                .get()
-                .wrapping_sub(1);
+            let last = race.physics.lit_faces.get().count.get().wrapping_sub(1);
             list(&race.physics, k).set(list(&race.physics, last).get());
-            race.physics.contact.get().lit_face_count.set(last);
+            race.physics.lit_faces.get().count.set(last);
         }
         k += 1;
-        if k >= race.physics.contact.get().lit_face_count.get() {
+        if k >= race.physics.lit_faces.get().count.get() {
             return Ok(());
         }
     }

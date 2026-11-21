@@ -168,69 +168,6 @@ impl Int {
     }
 }
 
-/// Cell `n` of `cells`. Past the table's end it gives what follows, but only inside `holder`, the
-/// store or record holding the table; beyond that the next thing in memory is another static, so
-/// that is refused.
-#[cfg(test)]
-pub fn read_on_in<H: crate::memory::cells::ByteView, C: Cell32>(
-    holder: &H,
-    cells: &[C],
-    n: usize,
-    what: &str,
-) -> Result<u32, crate::errors::BadInput> {
-    match cells.get(n) {
-        Some(cell) => Ok(cell.bits()),
-        None => {
-            let mut bytes = [0; 4];
-            on_in(holder, cells, n, what, |at| {
-                crate::memory::cells::load_cells(holder, at, &mut bytes)
-            })?;
-            Ok(u32::from_le_bytes(bytes))
-        }
-    }
-}
-
-/// `read_on_in`'s write.
-#[cfg(test)]
-pub fn write_on_in<H: crate::memory::cells::ByteView, C: Cell32>(
-    holder: &H,
-    cells: &[C],
-    n: usize,
-    v: u32,
-    what: &str,
-) -> Result<(), crate::errors::BadInput> {
-    match cells.get(n) {
-        Some(cell) => {
-            cell.set_bits(v);
-            Ok(())
-        }
-        None => on_in(holder, cells, n, what, |at| {
-            crate::memory::cells::store_cells(holder, at, &v.to_le_bytes())
-        }),
-    }
-}
-
-/// `access` on dword `n` of `cells`, placed from `holder`'s first byte (refused, and logged,
-/// when that is not inside `holder`).
-#[cfg(test)]
-fn on_in<H, C>(
-    holder: &H,
-    cells: &[C],
-    n: usize,
-    what: &str,
-    access: impl FnOnce(usize) -> Result<(), crate::errors::BadInput>,
-) -> Result<(), crate::errors::BadInput> {
-    let at = (cells.as_ptr() as usize)
-        .wrapping_sub(std::ptr::from_ref(holder) as usize)
-        .wrapping_add(n.wrapping_mul(4));
-    access(at).inspect_err(|_| {
-        crate::memory::host_hooks::log(&format!(
-            "pointers: {what}: dword {n} at +{at:#x}, outside its holder of {:#x} bytes",
-            size_of::<H>()
-        ));
-    })
-}
-
 /// A run of 32-bit values in a record: one cell, an array of runs, or the dwords of a buffer of
 /// bytes (a gap).
 pub trait Run {

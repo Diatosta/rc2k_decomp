@@ -152,7 +152,8 @@ pub struct WindscreenDrops {
     pub tilt: std::cell::RefCell<crate::effects::tilt_shape_store::ShapeTilt>,
     pub inputs: crate::effects::shape_points_store::ShapeInputs,
     pub tuning: crate::effects::shape_points_store::ShapeSetTuning,
-    pub picks: crate::effects::mask_picks_store::MaskPicks,
+    pub picks: std::cell::RefCell<crate::effects::mask_picks_store::MaskPicks>,
+    pub pixel_tables: crate::effects::mask_picks_store::PixelTables,
 }
 
 impl WindscreenDrops {
@@ -169,7 +170,8 @@ impl WindscreenDrops {
             tilt: std::cell::RefCell::new(crate::effects::tilt_shape_store::ShapeTilt::new()),
             inputs: crate::effects::shape_points_store::ShapeInputs::new(),
             tuning: crate::effects::shape_points_store::ShapeSetTuning::new(),
-            picks: crate::effects::mask_picks_store::MaskPicks::new(),
+            picks: std::cell::RefCell::new(crate::effects::mask_picks_store::MaskPicks::new()),
+            pixel_tables: crate::effects::mask_picks_store::PixelTables::new(),
         }
     }
 }

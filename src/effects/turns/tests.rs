@@ -94,7 +94,7 @@ fn scaled_ints_x87_matches() {
         sincos: false,
     };
     recorded("effects.turns.scaled_ints_x87", &SPEC, |b| {
-        let (v0, v1) = super::scaled_ints_x87(&pair(b[0]), &cell(b[1]), &cell(b[1] + 4));
+        let (v0, v1) = super::scaled_ints_x87(&pair(b[0]), cell(b[1]), cell(b[1] + 4));
         put(b[2], &v0.to_le_bytes());
         put(b[2] + 4, &v1.to_le_bytes());
     });
@@ -127,6 +127,6 @@ fn int_over_80_x87_matches() {
     };
     recorded("effects.turns.int_over_80_x87", &SPEC, |b| {
         let v = i32::from_le_bytes(bytes::<4>(b[0]));
-        put(b[2], &super::int_over_80_x87(v, &cell(b[1])));
+        put(b[2], &super::int_over_80_x87(v, cell(b[1])));
     });
 }

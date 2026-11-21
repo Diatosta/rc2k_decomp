@@ -1,6 +1,6 @@
 //! Marks and lists the course face touched (`face_number`, in the course faces, 0x40 bytes each). A
-//! face whose mark byte is not 0, or a full list (`lit_face_count` at 0x100), is left alone.
-//! Otherwise its number goes into `lit_faces[count]` and by the contact kind `contact_kind`:
+//! face whose mark byte is not 0, or a full list (the lit count at 0x100), is left alone.
+//! Otherwise its number goes into the lit list's next place and by the contact kind `contact_kind`:
 //! - 9 and 1, unless `speed` is below `eight` (or unordered; then nothing more), and 2, 3, 8:
 //!   `Face::touch` with the mark 1 and byte 9 cleared;
 //! - 4: `Face::touch` with the mark = `face_speed` >> 14 held to 0x40, byte 9 kept;
@@ -47,7 +47,7 @@ pub fn touch_face(
     if crate::race::course_places::face_number(c.course.reads(), face)?.mark() != 0 {
         return Ok(());
     }
-    let count = c.contact.lit_face_count.get();
+    let count = c.lit_faces.count.get();
     if count == LIST_ROOM {
         return Ok(());
     }
@@ -55,7 +55,7 @@ pub fn touch_face(
         return Err(BadInput("g_litFaceCount past 0x100 (the list's room)").into());
     }
     (|| -> Result<(), crate::errors::Refused> {
-        c.contact.lit_faces[count as usize].set(number);
+        c.lit_faces.faces[count as usize].set(number);
         let kind = c.contact.contact_kind.get();
         match touch(kind) {
             Touch::MarkIfFast => {
@@ -78,14 +78,14 @@ pub fn touch_face(
                     crate::race::course_places::update_face_number(c.course, face, |f| {
                         f.set_mark(0xF);
                     })?;
-                    c.contact.lit_face_count.set(count + 1);
+                    c.lit_faces.count.set(count + 1);
                 }
                 return Ok(());
             }
             Touch::Sound => {}
         }
         { place_sound_object(&c.sound, scene) }?;
-        c.contact.lit_face_count.set(count + 1);
+        c.lit_faces.count.set(count + 1);
         Ok(())
     })()
 }

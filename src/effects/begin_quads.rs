@@ -6,8 +6,6 @@
 //! v: c, c, d, d); the polygon's vertex count 4, the depth scale 1 / the farthest depth, the
 //! quad's `cleared` flag 0.
 
-use crate::memory::session::PlainFloat;
-
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
@@ -30,8 +28,10 @@ pub(super) fn begin_quads(
         for (value, state) in STATES {
             crate::scene::set_render_state::set_render_state(part, value, state);
         }
-        let rhw = frame.draw_frame.rhw.get();
-        let [a, b, c, d] = frame.draw_frame.places.each_ref().map(PlainFloat::get);
+        let (rhw, [a, b, c, d]) = {
+            let kept = frame.draw_frame.borrow();
+            (kept.rhw, kept.places)
+        };
         let uv = [(a, b), (c, b), (c, d), (a, d)];
         for (k, (u, v)) in uv.into_iter().enumerate() {
             let at = &buffer.vertices[k];
@@ -48,6 +48,6 @@ pub(super) fn begin_quads(
             .set(4);
         frame.draw_work.borrow_mut().z_k =
             crate::math::x87::reciprocal(&scene.scratch.front_end_polygon().window.farthest);
-        frame.draw_frame.cleared.set(0);
+        frame.draw_frame.borrow_mut().cleared = 0;
     }
 }

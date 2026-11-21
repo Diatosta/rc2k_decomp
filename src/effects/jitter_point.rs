@@ -17,8 +17,13 @@ pub fn jitter_point(
     let mut moved = [d, c, b];
     let mut last = 0;
     for v in moved.iter_mut() {
-        let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-        setup.work.seed.set(s);
+        let s = setup
+            .work
+            .borrow()
+            .seed
+            .wrapping_mul(0x9D)
+            .wrapping_add(0x47);
+        setup.work.borrow_mut().seed = s;
         last = ((s as i32) >> 12) as u32;
         *v = x87::prem_plus(last as i32, spread, *v).to_bits();
     }

@@ -110,13 +110,13 @@ pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Sets `lamp_count` 0; each lit face (`lit_faces`, the count `lit_face_count`) whose object is
+/// Sets `lamp_count` 0; each lit face (`faces`, the count `count`) whose object is
 /// 0x3B becomes a lamp while there are fewer than 16: a `lamps` entry (the face's first point, its
 /// mark byte, the colour) and its depth entry (`add_lamp_entry`). Refused (before anything): more
 /// than 0x100 lit faces, or a depth list without room for 16.
 pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
-    let contact = ctx.reads.contact;
-    let count: u32 = contact.lit_face_count.get();
+    let lit = ctx.reads.lit_faces;
+    let count: u32 = lit.count.get();
     if count > 0x100 {
         return Err(BadInput("more than 0x100 lit faces").into());
     }
@@ -125,7 +125,7 @@ pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
     }
     ctx.view.lamps.lamp_count.set(0u32);
     for k in 0..count {
-        let face = contact.lit_faces[k as usize].get();
+        let face = lit.faces[k as usize].get();
         let object = face_field::<u8>(ctx.reads.course(), face, 1)? as u32;
         if object != rc2k_core::race::faces::LAMP_OBJECT {
             continue;

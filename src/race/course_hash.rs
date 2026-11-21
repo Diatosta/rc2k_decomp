@@ -6,7 +6,7 @@
 //! load in a process (after the first one's free) is a second `load` line set.
 
 #[cfg(feature = "remote")]
-use crate::drive::sim_hash::dword_run_hash;
+use crate::drive::sim_hash::{byte_run_hash, dword_run_hash};
 use crate::drive::sim_hash::{bytes_hash, record_hash};
 
 /// The switch, read once.
@@ -254,17 +254,57 @@ pub fn log_mask_hashes(
     let say = |store: &str, hash: u64| {
         crate::program_log::log(&format!("course hash masks {store}: {hash:016x}"));
     };
-    say("picks", record_hash(&drops.picks));
-    for (name, table) in [
-        ("pixel_table_a", &drops.picks.pixel_table_a),
-        ("pixel_table_b", &drops.picks.pixel_table_b),
-    ] {
+    // The plain fields hash as the cell store they replaced: a run of dwords each (a lone one for
+    // a single field), the pixel tables' bytes as one run apiece.
+    let tables = [
+        ("pixel_table_a", &drops.pixel_tables.a),
+        ("pixel_table_b", &drops.pixel_tables.b),
+    ];
+    let picks = drops.picks.borrow();
+    let runs: [(&str, &[u32]); 11] = [
+        (".flags[0]", &picks.flags),
+        (".index", &[picks.index]),
+        (".table[0]", &picks.table),
+        (".values[0]", &picks.values),
+        (".shapes", &[picks.shapes]),
+        (".mask", &[picks.mask]),
+        (".table_in_use", &[picks.table_in_use]),
+        (".corners", &[picks.corners]),
+        (".moving", &[picks.moving]),
+        (".next", &[picks.next]),
+        (".masks[0]", &picks.masks),
+    ];
+    let mut picks_hash = runs.iter().fold(0u64, |sum, (path, run)| {
+        sum.wrapping_add(dword_run_hash(path, run))
+    });
+    for (name, table) in tables {
         if let Ok(bytes) = table.read_at(0, 0x2_0000, "a pixel table") {
+            picks_hash = picks_hash.wrapping_add(byte_run_hash(&format!(".{name}"), &bytes));
             say(name, bytes_hash(&bytes));
         }
     }
+    say("picks", picks_hash);
+    drop(picks);
     say("vars", record_hash(&masks.vars));
-    say("work", record_hash(&effects.setup.work));
+    let work = effects.setup.work.borrow();
+    let fields: [(&str, u32); 9] = [
+        (".fpu_status", work.fpu_status),
+        (".shake", work.shake.to_bits()),
+        (".scratch", work.scratch),
+        (".seed", work.seed),
+        (".sound_source", work.sound_source),
+        (".sound_zero", work.sound_zero),
+        (".cosine_start", work.cosine_start),
+        (".cosine_step", work.cosine_step),
+        (".cosine_half", work.cosine_half),
+    ];
+    // The plain fields hash as the cell store they replaced: a lone dword each.
+    say(
+        "work",
+        fields.iter().fold(0u64, |sum, (path, value)| {
+            sum.wrapping_add(dword_run_hash(path, &[*value]))
+        }),
+    );
 }
 
 /// The hash of what the stage's start (the race init after the load) leaves in the checkpoints

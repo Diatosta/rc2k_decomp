@@ -71,12 +71,7 @@ pub fn emit_body_contact_particles(
             let e = take_entry(ring, effects, tag & 0xFF_FFFF, 0x12)?;
             before = Some(e);
             let slot = crate::effects::ring_entries::Slot::new(ring, e);
-            let m = effects
-                .kinds
-                .emitter
-                .motion
-                .each_ref()
-                .map(|r| extended(r.get()));
+            let m = effects.kinds.emitter.borrow().motion.map(extended);
             let (moved, _) = jitter_point(
                 [
                     extended(effects.setup.floats.hundred_twenty_eight),
@@ -100,7 +95,7 @@ pub fn emit_body_contact_particles(
                 slot.put(|en| &mut en.last_place[n], 0.0)?;
             }
             slot.put(|en| &mut en.life, LIFE)?;
-            slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
+            slot.put(|en| &mut en.car, effects.kinds.emitter.borrow().car)?;
             slot.put(
                 |en| &mut en.alpha_fade,
                 x87::over_int(effects.setup.floats.two_fifty_seven, LIFE as i32),

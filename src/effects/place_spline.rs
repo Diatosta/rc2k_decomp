@@ -57,13 +57,13 @@ pub fn place_spline(
             place_shape(&effects.stage()?.object_points, paths, r)?;
         }
         let status = x87::compare_status(b.get(paths, 0x24)?, k[2]);
-        setup.work.fpu_status.set(status as u32);
+        setup.work.borrow_mut().fpu_status = status as u32;
         let f = if status == 0x100 { k[4] } else { k[3] };
         b.put(paths, 0x2C, x87::mul(b.get(paths, 0x24)?, f).to_bits())?;
         paths.spline_head.switch.set(0);
         place_graded_points(&effects.stage()?.object_points, paths, b)?;
         let status = x87::compare_status(c.get(paths, 0x24)?, k[5]);
-        setup.work.fpu_status.set(status as u32);
+        setup.work.borrow_mut().fpu_status = status as u32;
         let f = if status == 0 { k[7] } else { k[6] };
         c.put(paths, 0x2C, x87::mul(c.get(paths, 0x24)?, f).to_bits())?;
         paths.spline_head.switch.set(1);

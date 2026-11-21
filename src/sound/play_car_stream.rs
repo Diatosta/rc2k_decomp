@@ -6,7 +6,6 @@
 //! call sites, next to `load_car_background`'s. Refuses what the record's lookup refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::menu::load_car_background::shown_car;
 use crate::menu::owner::Menus;
 use crate::sound::store::CarStream;
@@ -19,13 +18,14 @@ use crate::sound::store::CarStream;
 /// 0x17), so cars 0x18 .. 0x20 read `stage_speeches[0 .. 8]`; anything further is refused.
 fn car_stream(lists: &crate::menu::lists_store::MenuLists, car: u32) -> Result<u32, BadInput> {
     let car = car as usize;
-    let streams = &lists.car_streams;
+    let tables = lists.read();
+    let streams = &tables.car_streams;
     match streams.get(car) {
-        Some(stream) => Ok(stream.get()),
-        None => lists
+        Some(stream) => Ok(*stream),
+        None => tables
             .stage_speeches
             .get(car - streams.len())
-            .map(PlainDword::get)
+            .copied()
             .ok_or(BadInput("a car's stream past the stage speeches")),
     }
 }

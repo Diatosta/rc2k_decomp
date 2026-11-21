@@ -98,7 +98,7 @@ pub fn windscreen_drops_frame(
             }
             if setup.kind_floats.borrow().running != 0 {
                 let x = x87::to_int(get(drops, e + ITEM_X));
-                setup.work.scratch.set(x as u32);
+                setup.work.borrow_mut().scratch = x as u32;
                 drift_cell_x87(drops, 4 * (((x as u32) >> 3) & 0xFF) as usize);
                 drift_move_x87(drops, 4 * get(drops, e + ITEM_KIND) as usize, e as usize);
             }

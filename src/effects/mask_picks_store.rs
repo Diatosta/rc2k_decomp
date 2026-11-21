@@ -1,36 +1,49 @@
 //! The masks' picks and pixel tables.
 
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::session::PlainBytes;
 
 /// The masks' shape picks and pixel tables.
-#[derive(rc2k_derive::Cells)]
 pub struct MaskPicks {
     /// 2 or 0 by the shape picked (A, B)
-    pub flags: [PlainDword; 2],
+    pub flags: [u32; 2],
     /// The shape index / the clock of the steps
-    pub index: PlainDword,
+    pub index: u32,
     /// The shape entries
-    pub table: [PlainDword; 256],
+    pub table: [u32; 256],
     /// The steps' values
-    pub values: [PlainDword; 256],
+    pub values: [u32; 256],
     /// The shape whose mask is being drawn
-    pub shapes: PlainDword,
+    pub shapes: u32,
     /// The mask being drawn (its shape's number)
-    pub mask: PlainDword,
+    pub mask: u32,
     /// The pixel table `map_shapes` was given (its shape's number)
-    pub table_in_use: PlainDword,
+    pub table_in_use: u32,
     /// The corner table `map_shapes` was given (its shape's number)
-    pub corners: PlainDword,
+    pub corners: u32,
     /// The shapes move
-    pub moving: PlainDword,
+    pub moving: u32,
     /// The clock at which to choose again
-    pub next: PlainDword,
+    pub next: u32,
     /// 9 masks (1, 3, 7 .. ) by the settings' `mask_number`
-    pub masks: [PlainDword; 9],
-    /// 0x80 rows of 0x400
-    pub pixel_table_a: PlainBytes<131072>,
+    pub masks: [u32; 9],
+}
+
+/// The two pixel tables (0x80 rows of 0x400 each), held as cells.
+#[derive(rc2k_derive::Cells)]
+pub struct PixelTables {
+    /// The first pixel table
+    pub a: PlainBytes<131072>,
     /// The second pixel table
-    pub pixel_table_b: PlainBytes<131072>,
+    pub b: PlainBytes<131072>,
+}
+
+impl PixelTables {
+    pub const fn new() -> Self {
+        PixelTables {
+            a: PlainBytes::new([0; 131072]),
+            b: PlainBytes::new([0; 131072]),
+        }
+    }
 }
 
 /// The starting values of `table`.
@@ -86,19 +99,17 @@ const MASKS: [u32; 9] = [
 impl MaskPicks {
     pub const fn new() -> Self {
         MaskPicks {
-            flags: [const { PlainDword::new(0x0) }; 2],
-            index: PlainDword::new(0x0),
-            table: PlainDword::array(TABLE),
-            values: PlainDword::array(VALUES),
-            shapes: PlainDword::new(0x0),
-            mask: PlainDword::new(0x0),
-            table_in_use: PlainDword::new(0x0),
-            corners: PlainDword::new(0x0),
-            moving: PlainDword::new(0x1),
-            next: PlainDword::new(0x0),
-            masks: PlainDword::array(MASKS),
-            pixel_table_a: PlainBytes::new([0; 131072]),
-            pixel_table_b: PlainBytes::new([0; 131072]),
+            flags: [0x0; 2],
+            index: 0x0,
+            table: TABLE,
+            values: VALUES,
+            shapes: 0x0,
+            mask: 0x0,
+            table_in_use: 0x0,
+            corners: 0x0,
+            moving: 0x1,
+            next: 0x0,
+            masks: MASKS,
         }
     }
 }
@@ -107,10 +118,27 @@ impl MaskPicks {
 mod image_bytes_tests {
     use super::*;
 
-    /// The record's whole bytes, as a checksum: a wrong dword in a row shows here.
+    /// The record's whole bytes (each field in order, a dword a word), as a checksum: a wrong
+    /// dword in a row shows here.
     #[test]
     fn the_mask_picks_keep_the_bytes_of_the_image() {
-        let bytes: Vec<u8> = crate::memory::cells::flatten(&MaskPicks::new());
+        let picks = MaskPicks::new();
+        let mut words: Vec<u32> = Vec::new();
+        words.extend(picks.flags);
+        words.push(picks.index);
+        words.extend(picks.table);
+        words.extend(picks.values);
+        words.extend([
+            picks.shapes,
+            picks.mask,
+            picks.table_in_use,
+            picks.corners,
+            picks.moving,
+            picks.next,
+        ]);
+        words.extend(picks.masks);
+        let mut bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
+        bytes.extend(crate::memory::cells::flatten(&PixelTables::new()));
         let mut hash = 0xcbf2_9ce4_8422_2325_u64;
         for byte in &bytes {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);

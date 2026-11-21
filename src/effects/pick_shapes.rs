@@ -12,13 +12,13 @@ use crate::errors::Refused;
 // The logic is in `rc2k_core::effects::steps::{shape_entry, pick_shapes}`
 pub fn pick_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     use rc2k_core::effects::steps;
-    let index = steps::shape_entry(drops.picks.index.get())?;
+    let index = steps::shape_entry(drops.picks.borrow().index)?;
     // (the flag, the shape): `MaskPicks.flags[0]` / shape set A, `MaskPicks.flags[1]` /
     // shape set B.
-    for n in 0..2 {
-        let picked = steps::pick_shapes(drops.picks.table[index].get() as i32);
-        drops.picks.flags[n].set(picked.flag);
-        masks.vars.shapes[n].ease_step.set(picked.shapes);
+    for (n, shape) in masks.vars.shapes.iter().enumerate() {
+        let picked = steps::pick_shapes(drops.picks.borrow().table[index] as i32);
+        drops.picks.borrow_mut().flags[n] = picked.flag;
+        shape.ease_step.set(picked.shapes);
     }
     Ok(())
 }

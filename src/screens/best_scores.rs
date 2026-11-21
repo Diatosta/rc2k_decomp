@@ -6,7 +6,6 @@
 
 use crate::errors::Fault;
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::menu::event_flow::StageTable;
 use crate::menu::owner::Menus;
 use crate::menu::pages_store::MenuPages;
@@ -20,10 +19,10 @@ use rc2k_core::screens::best_scores::{Row, Rows};
 /// The page's entry of one of the page title lists (`page_titles_a`, 12 entries, or
 /// `page_titles_b`, 11). The page is 0 .. 10: only `menu::next_scores_page` (past 10 to 0) and
 /// `menu::previous_scores_page` (below 0 to 10) write it, from 0. Refused past the list.
-fn page_title(titles: &[PlainDword], pages: &MenuPages) -> Result<u32, BadInput> {
+fn page_title(titles: &[u32], pages: &MenuPages) -> Result<u32, BadInput> {
     titles
         .get(pages.read().scores_page as usize)
-        .map(PlainDword::get)
+        .copied()
         .ok_or(BadInput("a best scores page past its title"))
 }
 
@@ -134,7 +133,7 @@ pub(super) fn draw_scores(
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
             (None, Some(a)) => a(menus),
-            (None, None) => page_title(&menus.lists.page_titles_b, &menus.tables.pages)?,
+            (None, None) => page_title(&menus.lists.read().page_titles_b, &menus.tables.pages)?,
         };
         let ten = match t.at {
             Source::Scores => o
@@ -243,7 +242,7 @@ pub fn best_scores_caption(
 ) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::captions::fit` (through `car_caption::put_string`);
     // refused when the caption would pass 0x100 bytes.
-    let id = page_title(&lists.page_titles_a, pages)?;
+    let id = page_title(&lists.read().page_titles_a, pages)?;
     crate::screens::car_caption::put_string(so, id, &text.caption, 0x100)
 }
 

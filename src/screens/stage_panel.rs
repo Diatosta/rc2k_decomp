@@ -6,7 +6,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::marker_calls;
 use crate::gfx::owner::Gfx;
-use crate::memory::session::{DwordLike, PlainDword};
+use crate::memory::session::DwordLike;
 use crate::menu::owner::Screens;
 use crate::records::stages_store::RecordRef;
 use crate::records::stages_store::TrackField;
@@ -44,9 +44,10 @@ pub(super) fn section_title(
     section: u32,
 ) -> Result<u32, BadInput> {
     lists
+        .read()
         .section_titles
         .get(section as usize)
-        .map(PlainDword::get)
+        .copied()
         .ok_or(BadInput("a section past its title"))
 }
 
@@ -128,12 +129,12 @@ pub(super) fn draw_stage_body_in(
         let made = Entry {
             // `MenuLists::durations` (the stage durations) has 37 entries; a duration index past it
             // is refused.
-            duration: menus
+            duration: *menus
                 .lists
+                .read()
                 .durations
                 .get(f(TrackField::Duration) as usize)
-                .ok_or(BadInput("a stage duration past the 37"))?
-                .get(),
+                .ok_or(BadInput("a stage duration past the 37"))?,
             length: f(TrackField::Length),
             description: f(TrackField::Description),
             weather: f(TrackField::Weather),

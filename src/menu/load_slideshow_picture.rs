@@ -43,7 +43,7 @@ pub(super) fn load_slideshow_picture(
     let car = slides::slideshow_car(shown_car(menus)?)?;
     let template = crate::menu::texts_store::text_at(
         &menus.texts,
-        menus.lists.slideshow_templates[car as usize].get(),
+        menus.lists.read().slideshow_templates[car as usize],
     )?
     .text("a path template")?;
     let start: u32 = menus.screens.event.read().shown.picture;

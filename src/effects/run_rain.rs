@@ -31,7 +31,10 @@ fn box_moved(weather: &Weather, i: usize) {
 
 /// The move's length into `depth`, compared with `move_limit` (the compare's status word
 /// goes to the shared FPU status variable).
-fn move_length(weather: &Weather, work: &crate::effects::work_store::MarksWork) {
+fn move_length(
+    weather: &Weather,
+    work: &std::cell::RefCell<crate::effects::work_store::MarksWork>,
+) {
     move_length_x87(&mut weather.rain.borrow_mut(), &weather.rain_rules, work);
 }
 
@@ -118,8 +121,8 @@ pub fn run_rain(
             rain.borrow_mut().motion[n] = moved;
         }
         move_length(weather, &setup.work);
-        let status = setup.work.fpu_status.get() & 0x700;
-        setup.work.fpu_status.set(status);
+        let status = setup.work.borrow().fpu_status & 0x700;
+        setup.work.borrow_mut().fpu_status = status;
         if status != 0x100 {
             move_held(weather);
         }
@@ -191,7 +194,11 @@ fn box_moved_x87(i: usize, r: &mut RainState, k: &RainRules) {
 }
 
 /// `move_length`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn move_length_x87(r: &mut RainState, k: &RainRules, work: &crate::effects::work_store::MarksWork) {
+fn move_length_x87(
+    r: &mut RainState,
+    k: &RainRules,
+    work: &std::cell::RefCell<crate::effects::work_store::MarksWork>,
+) {
     let t0 = bh::ld(r.motion[0]);
     let t1 = t0 * t0;
     let t2 = bh::ld(r.motion[1]);

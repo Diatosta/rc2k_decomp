@@ -118,7 +118,7 @@ pub fn emit_exhaust_smoke(
         |en| &mut en.alpha,
         x87::mul(s, effects.setup.floats.two_fifty_six).to_bits(),
     )?;
-    slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
+    slot.put(|en| &mut en.car, effects.kinds.emitter.borrow().car)?;
     let size = x87::times_plus_to_int(set.size_k[0], s, set.size_k[1]);
     slot.put(|en| &mut en.size_goal, size as u32)?;
     slot.put(|en| &mut en.car_pace, car.pace.get())?;

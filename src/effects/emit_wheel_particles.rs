@@ -27,8 +27,8 @@ fn chance(effects: &Effects, wheel: &MarkRecord) -> Result<(i32, u32), Refused> 
         let r = effects
             .kinds
             .emitter
+            .borrow()
             .wheel_random
-            .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
         (chance, r)
@@ -90,7 +90,7 @@ pub(super) fn emit_wheel_particles(
     {
         let (chance, _) = chance(effects, wheel)?;
         effects.ring.work.borrow_mut().whole = chance as u32;
-        let r = next_c5(&effects.kinds.emitter.wheel_random);
+        let r = next_c5_plain(&mut effects.kinds.emitter.borrow_mut().wheel_random);
         if copies(chance, r) {
             wheel.take_surface();
         }

@@ -21,7 +21,7 @@ pub fn car_page_title(
     }
     put_string(
         so,
-        menus.lists.car_page_titles[page as usize].get(),
+        menus.lists.read().car_page_titles[page as usize],
         &text.title,
         TITLE_LEN,
     )

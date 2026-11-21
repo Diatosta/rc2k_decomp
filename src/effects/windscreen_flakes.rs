@@ -113,17 +113,15 @@ pub fn windscreen_flakes_step(
     {
         drops.hex.borrow_mut().windscreen_flakes_cleared = 0;
         let clock: u32 = drops.state.borrow().clock;
-        let n = steps::steps(drops.picks.index.get(), clock);
-        drops.picks.index.set(clock);
+        let n = steps::steps(drops.picks.borrow().index, clock);
+        drops.picks.borrow_mut().index = clock;
         for _ in 0..n {
             pick_shapes(masks, drops)?;
             expire_windscreen_flakes(masks, drops, fl);
-            drops
-                .picks
-                .index
-                .set(steps::next_step(drops.picks.index.get()));
+            let index = steps::next_step(drops.picks.borrow().index);
+            drops.picks.borrow_mut().index = index;
         }
-        drops.state.borrow_mut().clock = drops.picks.index.get();
+        drops.state.borrow_mut().clock = drops.picks.borrow().index;
     }
     Ok(())
 }

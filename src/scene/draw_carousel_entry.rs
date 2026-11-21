@@ -50,11 +50,12 @@ pub(crate) fn own_place(
     lists: &crate::menu::lists_store::MenuLists,
     own: u32,
 ) -> Result<[u32; 3], BadInput> {
-    let place = lists
+    let place = *lists
+        .read()
         .own_places
         .get(own as usize)
         .ok_or(BadInput("a kind past the 73 own places"))?;
-    Ok([place.size.get(), place.y.get(), place.angle.get()])
+    Ok([place.size, place.y, place.angle])
 }
 
 /// Reads only.

@@ -180,19 +180,20 @@ pub(super) fn turn_shape_points(
 fn all_steps<'a>(
     masks: &'a crate::effects::mask_store::Masks,
     drops: &'a WindscreenDrops,
-) -> [(&'a PlainDword, usize, &'a PlainDword, &'a PlainDword); 2] {
+) -> [(&'a PlainDword, usize, &'a PlainDword, u32); 2] {
+    let picks = drops.picks.borrow();
     [
         (
             &masks.vars.shapes[0].ease_step,
             0, // `ShapeSetTuning.turn_angles[0]`, `ShapeSetTuning::turn_angles`
             &drops.shape_work.work.steps[0], // ShapeWork.work.steps[0]
-            &drops.picks.flags[0],
+            picks.flags[0],
         ),
         (
             &masks.vars.shapes[1].ease_step,
             2,                               // `ShapeSetTuning.turn_angles[2]`
             &drops.shape_work.work.steps[1], // ShapeWork.work.steps[1]
-            &drops.picks.flags[1],
+            picks.flags[1],
         ),
     ]
 }
@@ -214,11 +215,7 @@ pub(super) fn turn_all_shapes(
         let count = marks.object_count.get();
         let all_steps = all_steps(masks, drops);
         let pick = |n: usize, (first, second): (u32, u32)| -> u32 {
-            if all_steps[n].3.get() == 0 {
-                first
-            } else {
-                second
-            }
+            if all_steps[n].3 == 0 { first } else { second }
         };
         if count > 0 {
             let mut turns = [0u32; 2];

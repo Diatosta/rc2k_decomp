@@ -38,8 +38,8 @@ pub(super) fn windscreen_drops_spawn(
         }
         let old = x87::set_chop();
         rate(drops, effects);
-        let status = setup.work.fpu_status.get() & 0x700;
-        setup.work.fpu_status.set(status);
+        let status = setup.work.borrow().fpu_status & 0x700;
+        setup.work.borrow_mut().fpu_status = status;
         if status != 0x100 {
             let v = drops.state.borrow().spawn_rate;
             let n = x87::to_int(v).min(MOST);
@@ -47,8 +47,13 @@ pub(super) fn windscreen_drops_spawn(
                 pick_windscreen_drop(drops, effects)?;
             }
             let share = x87::fraction_times_to_int(v, drops.hex.borrow().share_k);
-            let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-            setup.work.seed.set(s);
+            let s = setup
+                .work
+                .borrow()
+                .seed
+                .wrapping_mul(0x9D)
+                .wrapping_add(0x47);
+            setup.work.borrow_mut().seed = s;
             if ((s >> 8) & 0xFFFF) as i32 <= share {
                 pick_windscreen_drop(drops, effects)?;
             }
@@ -62,7 +67,11 @@ use crate::effects::view_vectors_store::KeptView;
 use crate::math::x87_float as bh;
 
 /// `rate`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn rate_x87(drops: &WindscreenDrops, kv: &KeptView, work: &crate::effects::work_store::MarksWork) {
+fn rate_x87(
+    drops: &WindscreenDrops,
+    kv: &KeptView,
+    work: &std::cell::RefCell<crate::effects::work_store::MarksWork>,
+) {
     let t0 = bh::ld(kv.first_angle);
     let t1 = t0 + bh::ld(drops.tilt.borrow().tilt);
     let t2 = t1.sin();

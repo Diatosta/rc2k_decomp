@@ -33,15 +33,13 @@ fn differences(table: &mut ProfileTable) {
 
 /// The once-only tables.
 fn make_tables(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
-    let frame = &effects.frame;
+    let profile_steps = effects.frame.draw_frame.borrow().profile_steps;
     let mut tables = first_tables();
     {
         for &table in &RAMPS {
             let t = &mut tables[table];
-            let step = bh::stf(
-                (bh::int(t[1] as i32) - bh::int(t[0] as i32))
-                    / bh::ld(frame.draw_frame.profile_steps[0].get()),
-            );
+            let step =
+                bh::stf((bh::int(t[1] as i32) - bh::int(t[0] as i32)) / bh::ld(profile_steps[0]));
             work(2, step, effects);
             let mut v = x87::from_int(t[0] as i32);
             work(0, v, effects);
@@ -70,7 +68,7 @@ fn make_tables(effects: &crate::effects::owner::Effects) -> Result<(), Refused> 
             let t = &mut tables[table];
             let mut x = x87::loaded(t[0]);
             work(7, x, effects);
-            let step = x87::sub_div(t[1], t[0], &frame.draw_frame.profile_steps[1]);
+            let step = x87::sub_div(t[1], t[0], profile_steps[1]);
             work(8, step, effects);
             let (scale, top) = (x87::loaded(t[2]), x87::loaded(t[3]));
             work(9, scale, effects);
@@ -96,9 +94,9 @@ pub(super) fn make_profiles(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        if !effects.frame.draw_frame.profiles_done.is_set() {
+        if !effects.frame.draw_frame.borrow().profiles_done {
             make_tables(effects)?;
-            effects.frame.draw_frame.profiles_done.set(true);
+            effects.frame.draw_frame.borrow_mut().profiles_done = true;
         }
         if !crate::race::course_places::info_held(&effects.stage()?.course) {
             return Err(BadInput("no course info").into());

@@ -140,6 +140,7 @@ mod lever_push;
 mod lever_pushes;
 mod limit_motion;
 mod listed_car_flags;
+pub(crate) mod lit_faces_store;
 mod load_car_specs;
 mod lower_free_gear;
 mod lowest_body_point;

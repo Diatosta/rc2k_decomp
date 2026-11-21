@@ -20,7 +20,8 @@ pub(super) fn draw_glow(
     let part = scene.scratch.game_scratch();
     let clipping = &effects.clipping;
     {
-        if clipping.glow.off.get() == 1 {
+        let glow = clipping.glow.borrow();
+        if glow.off == 1 {
             return Ok(());
         }
         for (value, state) in STATES {
@@ -32,14 +33,14 @@ pub(super) fn draw_glow(
             scene.textures.kinds.get().kind_first_slots[211].get(),
         );
         let place = [
-            x87::add_80(&clipping.glow.place[2], &clipping.glow.offset[0]),
-            x87::add_80(&clipping.glow.place[1], &clipping.glow.offset[1]),
-            extended(clipping.glow.place[0].get()),
+            x87::add_80(glow.place[2], glow.offset[0]),
+            x87::add_80(glow.place[1], glow.offset[1]),
+            extended(glow.place[0]),
         ];
         crate::effects::draw_turned_sprite::draw_turned_sprite(
             engine_tables,
             buffer,
-            clipping.glow.angle.get(),
+            glow.angle,
             0xFFFF_FFFF,
             0x1_0000,
             place,

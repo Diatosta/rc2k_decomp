@@ -95,7 +95,7 @@ pub fn reseed(
 ) {
     random.with_random(|r| r.state = game);
     random.seed_streams();
-    effects.setup.work.seed.set(effects_state);
+    effects.setup.work.borrow_mut().seed = effects_state;
 }
 
 /// The main menu's set-up: the launch, if one was asked for and has not run yet.

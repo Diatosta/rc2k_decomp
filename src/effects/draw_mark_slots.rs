@@ -28,8 +28,8 @@ fn refusal(effects: &crate::effects::owner::Effects) -> Option<&'static str> {
         if effects.setup.settings.is_set.get() == 0 {
             return Some("no marks settings");
         }
-        for slot in &effects.blocks.slots.slots {
-            if (slot.life.get() as i32) > 0 && slot.matrix.get() == 0 {
+        for slot in &effects.blocks.slots.borrow().slots {
+            if (slot.life as i32) > 0 && slot.matrix == 0 {
                 return Some("a live mark slot with a null matrix");
             }
         }
@@ -63,16 +63,19 @@ pub fn draw_mark_slots(
         scene,
         scene.textures.kinds.get().kind_first_slots[202].get(),
     );
-    for s in effects.blocks.slots.slots.iter().rev() {
-        if (s.life.get() as i32) <= 0 {
+    let count = effects.blocks.slots.borrow().slots.len();
+    for index in (0..count).rev() {
+        let (life, point, matrix) = {
+            let slots = effects.blocks.slots.borrow();
+            let slot = &slots.slots[index];
+            (slot.life, slot.point, slot.matrix)
+        };
+        if (life as i32) <= 0 {
             continue;
         }
-        s.life.set(
-            s.life
-                .get()
-                .wrapping_sub(effects.setup.clock.borrow().frame_ticks),
-        );
-        let p = s.point.get() as usize * 3;
+        effects.blocks.slots.borrow_mut().slots[index].life =
+            life.wrapping_sub(effects.setup.clock.borrow().frame_ticks);
+        let p = point as usize * 3;
         // A slot's point is the first car's model, which `share_car_state` took from the 34 light
         // records: the three floats are inside the 34 models' points.
         let at = |n: usize| {
@@ -84,32 +87,22 @@ pub fn draw_mark_slots(
                 .ok_or(BadInput("a mark slot's point past the car models'"))
         };
         let [a, b, c] = [-at(0)?, at(1)?, at(2)?];
-        let k4 = effects
-            .blocks
-            .slot_tuning
-            .place_k
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get);
+        let k4 = effects.blocks.slot_tuning.borrow().place_k;
         let z = x87::mul(c, k4[0]);
         let y = x87::sub_mul(b, k4[1], k4[2]);
         let x = x87::mul(a, k4[3]);
         let once = rotate_point(
-            slot_matrix(&race.frame, s.matrix.get())?,
+            slot_matrix(&race.frame, matrix)?,
             [extended(z), extended(y), extended(x)],
         );
         let twice = rotate_point(view.view_matrix, once);
         let [z, y, x] = twice.map(rounded_value);
-        for (n, v) in [z, y, x].into_iter().enumerate() {
-            effects.blocks.slots.work[n].set(v);
-        }
-        let r = effects
-            .blocks
-            .slot_tuning
-            .draw_random
-            .get()
-            .wrapping_mul(0xC5)
-            .wrapping_add(0x5D);
-        effects.blocks.slot_tuning.draw_random.set(r);
+        effects.blocks.slots.borrow_mut().work = [z, y, x];
+        let r = {
+            let mut tuning = effects.blocks.slot_tuning.borrow_mut();
+            tuning.draw_random = tuning.draw_random.wrapping_mul(0xC5).wrapping_add(0x5D);
+            tuning.draw_random
+        };
         let corner = &effects.blocks.corners.corners[((r & 7) + 0x50) as usize];
         let word = |off: u32| u32::from(corner.words[off as usize / 2].get());
         let uv_k = effects.frame.draw_work.borrow().uv_k;
@@ -131,12 +124,15 @@ pub fn draw_mark_slots(
             &scene.scratch.front_end_polygon().window.view_centre[0],
             y,
             &scene.scratch.front_end_polygon().window.view_centre[1],
-            &effects.blocks.slots.slots[0].size,
+            effects.blocks.slots.borrow().slots[0].size,
         )
         .map(f32::from_bits);
-        effects.blocks.slots.work[0].set(px);
-        effects.blocks.slots.work[1].set(py);
-        effects.blocks.slot_tuning.half.set(half);
+        {
+            let mut slots = effects.blocks.slots.borrow_mut();
+            slots.work[0] = px;
+            slots.work[1] = py;
+        }
+        effects.blocks.slot_tuning.borrow_mut().half = half;
         let corners = [
             (x87::sub(px, half), x87::sub(py, half)),
             (x87::add(px, half), x87::sub(py, half)),
@@ -144,7 +140,7 @@ pub fn draw_mark_slots(
             (x87::sub(px, half), x87::add(py, half)),
         ];
         let depth = x87::mul(x, effects.frame.draw_work.borrow().z_k);
-        let rhw = x87::reciprocal_times(x, &effects.blocks.slot_tuning.rhw_k);
+        let rhw = x87::reciprocal_times(x, effects.blocks.slot_tuning.borrow().rhw_k);
         for (n, (vx, vy)) in corners.into_iter().enumerate() {
             let vertex = &buffer.vertices[n];
             vertex.x.set(vx);

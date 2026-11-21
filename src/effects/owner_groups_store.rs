@@ -16,8 +16,8 @@ use crate::effects::work_store::MarksWork;
 
 /// The clip screen, the glow and the corner blend's work.
 pub struct Clipping {
-    pub clip: ClipScreen,
-    pub glow: GlowState,
+    pub clip: core::cell::RefCell<ClipScreen>,
+    pub glow: core::cell::RefCell<GlowState>,
     /// Set while a part of a split screen of three or four players draws its effects: the quads
     /// are cut to the part's rectangle on all four sides.
     pub cut_to_part: std::sync::atomic::AtomicBool,
@@ -26,8 +26,8 @@ pub struct Clipping {
 impl Clipping {
     pub const fn new() -> Self {
         Clipping {
-            clip: ClipScreen::new(),
-            glow: GlowState::new(),
+            clip: core::cell::RefCell::new(ClipScreen::new()),
+            glow: core::cell::RefCell::new(GlowState::new()),
             cut_to_part: std::sync::atomic::AtomicBool::new(false),
         }
     }
@@ -39,8 +39,8 @@ pub struct Blocks {
     pub links: MarkLinks,
     pub corner_slopes: std::cell::RefCell<CornerSlopes>,
     pub corners: MarkCorners,
-    pub slots: MarkSlots,
-    pub slot_tuning: SlotTuning,
+    pub slots: core::cell::RefCell<MarkSlots>,
+    pub slot_tuning: core::cell::RefCell<SlotTuning>,
 }
 
 impl Blocks {
@@ -50,8 +50,8 @@ impl Blocks {
             links: MarkLinks::new(),
             corner_slopes: std::cell::RefCell::new(CornerSlopes::new()),
             corners: MarkCorners::new(),
-            slots: MarkSlots::new(),
-            slot_tuning: SlotTuning::new(),
+            slots: core::cell::RefCell::new(MarkSlots::new()),
+            slot_tuning: core::cell::RefCell::new(SlotTuning::new()),
         }
     }
 }
@@ -60,9 +60,9 @@ impl Blocks {
 pub struct FrameState {
     pub draw_work: core::cell::RefCell<DrawWork>,
     pub view_vars: core::cell::RefCell<ViewVars>,
-    pub draw_frame: DrawFrame,
-    pub flare_parts: FlareParts,
-    pub flare_scales: FlareScales,
+    pub draw_frame: core::cell::RefCell<DrawFrame>,
+    pub flare_parts: core::cell::RefCell<FlareParts>,
+    pub flare_scales: core::cell::RefCell<FlareScales>,
     pub view_sources: core::cell::RefCell<ViewSources>,
     pub kept_view: core::cell::RefCell<KeptView>,
 }
@@ -72,9 +72,9 @@ impl FrameState {
         FrameState {
             draw_work: core::cell::RefCell::new(DrawWork::new()),
             view_vars: core::cell::RefCell::new(ViewVars::new()),
-            draw_frame: DrawFrame::new(),
-            flare_parts: FlareParts::new(),
-            flare_scales: FlareScales::new(),
+            draw_frame: core::cell::RefCell::new(DrawFrame::new()),
+            flare_parts: core::cell::RefCell::new(FlareParts::new()),
+            flare_scales: core::cell::RefCell::new(FlareScales::new()),
             view_sources: core::cell::RefCell::new(ViewSources::new()),
             kept_view: core::cell::RefCell::new(KeptView::new()),
         }
@@ -93,7 +93,7 @@ pub struct Kinds {
     pub plane_quad: core::cell::RefCell<QuadWork>,
     pub overlay_extras: KindExtras1,
     pub shadow_extra: KindExtra2,
-    pub emitter: EmitterVars,
+    pub emitter: core::cell::RefCell<EmitterVars>,
     pub burst_colours: BurstColours,
     pub particle_tuning: ParticleTuning,
 }
@@ -107,7 +107,7 @@ impl Kinds {
             plane_quad: core::cell::RefCell::new(QuadWork::new_3()),
             overlay_extras: KindExtras1::new(),
             shadow_extra: KindExtra2::new(),
-            emitter: EmitterVars::new(),
+            emitter: core::cell::RefCell::new(EmitterVars::new()),
             burst_colours: BurstColours::new(),
             particle_tuning: ParticleTuning::new(),
         }
@@ -131,8 +131,8 @@ pub struct Setup {
     pub frame: MarksFrame,
     pub floats: MarksFloats,
     pub kind_floats: std::cell::RefCell<MarksKindFloats>,
-    pub mask_constants: MaskConstants,
-    pub work: MarksWork,
+    pub mask_constants: core::cell::RefCell<MaskConstants>,
+    pub work: core::cell::RefCell<MarksWork>,
 }
 
 impl Setup {
@@ -147,8 +147,8 @@ impl Setup {
             frame: MarksFrame::new(),
             floats: MarksFloats::new(),
             kind_floats: std::cell::RefCell::new(MarksKindFloats::new()),
-            mask_constants: MaskConstants::new(),
-            work: MarksWork::new(),
+            mask_constants: core::cell::RefCell::new(MaskConstants::new()),
+            work: core::cell::RefCell::new(MarksWork::new()),
         }
     }
 }

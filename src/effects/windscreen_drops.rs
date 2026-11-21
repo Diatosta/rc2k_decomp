@@ -61,8 +61,13 @@ pub fn pick_windscreen_drop(
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
     {
-        let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-        setup.work.seed.set(s);
+        let s = setup
+            .work
+            .borrow()
+            .seed
+            .wrapping_mul(0x9D)
+            .wrapping_add(0x47);
+        setup.work.borrow_mut().seed = s;
         spawn_windscreen_drop(
             drops,
             s & 0x7FF,
@@ -101,8 +106,8 @@ pub(super) fn expire_windscreen_drops(
             let (hit, _) = expiry::windscreen_drop_hit(
                 hex.steps as i32,
                 |k| {
-                    let at = drops.picks.index.get().wrapping_add(k) & 0xFF;
-                    drops.picks.values[at as usize].get()
+                    let at = drops.picks.borrow().index.wrapping_add(k) & 0xFF;
+                    drops.picks.borrow().values[at as usize]
                 },
                 |n| [&masks.vars.mask_a, &masks.vars.mask_b][n].get(c.at as usize),
             );
@@ -118,16 +123,16 @@ pub(super) fn expire_windscreen_drops(
 pub(super) fn windscreen_drops_step(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     {
         let clock: u32 = drops.state.borrow().clock;
-        let steps = rc2k_core::effects::steps::steps(drops.picks.index.get(), clock);
-        drops.picks.index.set(clock);
+        let steps = rc2k_core::effects::steps::steps(drops.picks.borrow().index, clock);
+        drops.picks.borrow_mut().index = clock;
         drops.hex.borrow_mut().steps = steps;
         expire_windscreen_drops(masks, drops)?;
         let latest = drops
             .picks
+            .borrow()
             .index
-            .get()
             .wrapping_add(drops.hex.borrow().steps);
-        drops.picks.index.set(latest & 0xFF);
+        drops.picks.borrow_mut().index = latest & 0xFF;
         drops.state.borrow_mut().clock = latest & 0xFF;
     }
     Ok(())

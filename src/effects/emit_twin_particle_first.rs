@@ -22,6 +22,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::race::effects_settings_store::CarEffects;
+use std::cell::RefCell;
 
 const LEVELS: u32 = 9;
 
@@ -31,7 +32,7 @@ pub struct TwinSet<'a> {
     /// The index of the car's level in its `levels`.
     pub level: usize,
     pub flags: u32,
-    pub tuning: &'a TwinTuning,
+    pub tuning: &'a RefCell<TwinTuning>,
 }
 
 /// `emit_twin_particle_first`'s.
@@ -51,8 +52,8 @@ fn makes(ring: &Ring, set: &TwinSet<'_>, object: &CarEffects) -> Result<bool, Re
         let level = object.levels[set.level].get() as i32;
         let r = set
             .tuning
+            .borrow()
             .chance_random
-            .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
         ((r.rotate_right(16) & 7) as i32) < level && next_entry(ring)?.is_some()
@@ -98,13 +99,14 @@ pub(super) fn emit_twin(
         return Err(BadInput(why).into());
     }
     let level = object.levels[set.level].get();
-    particles.twin_state.level.set(level);
-    let r = next_c5(&set.tuning.chance_random);
+    particles.twin_state.borrow_mut().level = level;
+    let mut tuning = set.tuning.borrow_mut();
+    let r = next_c5_plain(&mut tuning.chance_random);
     if (r.rotate_right(16) & 7) as i32 >= level as i32 {
         return Ok(());
     }
     let motion: [u32; 3] = crate::memory::session::read_bits(&object.motion);
-    crate::memory::session::write_bits(&particles.twin_state.motion, motion);
+    particles.twin_state.borrow_mut().motion = motion;
     if next_entry(ring)?.is_none() {
         return Ok(());
     }
@@ -113,12 +115,8 @@ pub(super) fn emit_twin(
     let car = emitting_car(effects)?;
     let cells = car.whole(effects.car_blocks()?)?;
     let [x, y, y_less, z] = x87::turned_place_f32(
-        particles
-            .twin_state
-            .point
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get),
-        &set.tuning.lift,
+        particles.twin_state.borrow().point,
+        tuning.lift,
         car.whole(effects.car_blocks()?)?,
     );
     slot.put(|en| &mut en.place[0], x)?;
@@ -128,26 +126,18 @@ pub(super) fn emit_twin(
     let row =
         crate::effects::try_from_fn::<u32, 3>(|i| matrix_cell(cells, [0x18u32, 0x14, 0x10][i]))?
             .into_iter()
-            .zip(set.tuning.row_k.iter())
+            .zip(tuning.row_k)
             .map(|(a, k)| x87::mul_80(a, k))
             .collect::<Vec<_>>();
-    let (moved, _) = jitter_point(
-        [extended(set.tuning.spread.get()), row[2], row[1], row[0]],
-        effects,
-    );
+    let (moved, _) = jitter_point([extended(tuning.spread), row[2], row[1], row[0]], effects);
     let step = effects.setup.clock.borrow().reciprocal;
     for n in 0..3 {
         slot.put(
             |en| &mut en.motion[n],
-            x87::product_plus(
-                motion[n],
-                step,
-                &set.tuning.motion_k[n],
-                rounded_value(moved[n]),
-            ),
+            x87::product_plus(motion[n], step, tuning.motion_k[n], rounded_value(moved[n])),
         )?;
     }
-    let r = next_c5(&set.tuning.spin_random);
+    let r = next_c5_plain(&mut tuning.spin_random);
     slot.put(|en| &mut en.angle_rate, (r & 0x3F).wrapping_sub(0x20))?;
     slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
     slot.put(|en| &mut en.cell, set.flags & 0x3F)?;
@@ -164,6 +154,6 @@ pub(super) fn emit_twin(
         |en| &mut en.alpha,
         effects.setup.floats.two_fifty_five.to_bits(),
     )?;
-    slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
+    slot.put(|en| &mut en.car, effects.kinds.emitter.borrow().car)?;
     Ok(())
 }

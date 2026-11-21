@@ -111,7 +111,7 @@ fn advance(p: &mut Particle, effects: &Effects, ring: &Ring) -> Result<Outcome, 
             p.motion_y = x87::plus_times_int(p.motion_y, &tuning.dust[0], t).to_bits();
             gain_colour(p, &tuning.dust[1], t);
             let s = x87::compare_status(&tuning.dust[2], p.motion_y);
-            effects.setup.work.fpu_status.set(s as u32);
+            effects.setup.work.borrow_mut().fpu_status = s as u32;
             if s != 0x100 {
                 Outcome::Burst
             } else if p.motion_y & 0x8000_0000 == 0 {
@@ -154,7 +154,6 @@ fn advance(p: &mut Particle, effects: &Effects, ring: &Ring) -> Result<Outcome, 
             let tint = effects
                 .kinds
                 .burst_colours
-                .table
                 .get_u32((p.colours_place as usize).wrapping_add(4 * index as usize))
                 & 0xFF_FFFF;
             if tint == 0 {
@@ -165,11 +164,11 @@ fn advance(p: &mut Particle, effects: &Effects, ring: &Ring) -> Result<Outcome, 
                 let s = effects
                     .setup
                     .work
+                    .borrow()
                     .seed
-                    .get()
                     .wrapping_mul(0x9D)
                     .wrapping_add(0x47);
-                effects.setup.work.seed.set(s);
+                effects.setup.work.borrow_mut().seed = s;
                 if s.rotate_right(16) & 0x7F == 0 {
                     size = size.wrapping_add(BIGGER);
                 }
@@ -258,7 +257,7 @@ pub fn run_particles(
                     return Ok((next, Outcome::Dies));
                 }
                 let s = x87::compare_status(p.y, p.ground);
-                effects.setup.work.fpu_status.set(s as u32);
+                effects.setup.work.borrow_mut().fpu_status = s as u32;
                 if s == 0x100 {
                     return Ok((next, Outcome::Dies));
                 }
@@ -321,11 +320,11 @@ pub fn run_particles(
             let s = effects
                 .setup
                 .work
+                .borrow()
                 .seed
-                .get()
                 .wrapping_mul(0x9D)
                 .wrapping_add(0x47);
-            effects.setup.work.seed.set(s);
+            effects.setup.work.borrow_mut().seed = s;
             s & 0xFFFF
         };
         let r = seed();
@@ -347,7 +346,7 @@ pub fn run_particles(
         let mx = x87::sub_mul(view(0x30), x, &effects.kinds.particle_tuning.puff_m[0]);
         let mz = x87::sub_mul(view(0x38), z, &effects.kinds.particle_tuning.puff_m[1]);
         for (n, v) in [x, y, z, mx, up, mz].into_iter().enumerate() {
-            particles.puff_work.puff[n].set(v);
+            particles.puff_work.borrow_mut().puff[n] = v;
         }
         let six = [mz, up, mx, z, y, x].map(extended);
         crate::effects::add_drift_particle::add_drift_particle(

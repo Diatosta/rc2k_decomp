@@ -50,7 +50,10 @@ pub(crate) fn st_at(bytes: &impl crate::memory::session::ByteBuffer, offset: usi
 /// The status word's compare bits C0, C2 and C3 (the other bits are the stack's top and the
 /// sticky exceptions, which no reader looks at) into the low half of
 /// `MarksWork.fpu_status` (its high half kept).
-pub(crate) fn set_status(work: &crate::effects::work_store::MarksWork, status: u16) {
-    let s = &work.fpu_status;
-    s.set((s.get() & 0xFFFF_0000) | u32::from(status));
+pub(crate) fn set_status(
+    work: &std::cell::RefCell<crate::effects::work_store::MarksWork>,
+    status: u16,
+) {
+    let mut work = work.borrow_mut();
+    work.fpu_status = (work.fpu_status & 0xFFFF_0000) | u32::from(status);
 }

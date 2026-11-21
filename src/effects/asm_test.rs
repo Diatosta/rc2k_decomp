@@ -553,15 +553,15 @@ fn race_cell(off: usize) -> RacePlace {
                 crate::test_support::own::effects()
                     .setup
                     .work
+                    .borrow()
                     .fpu_status
-                    .bits()
             }),
             set_bits: Box::new(|bits| {
                 crate::test_support::own::effects()
                     .setup
                     .work
-                    .fpu_status
-                    .set_bits(bits);
+                    .borrow_mut()
+                    .fpu_status = bits;
             }),
         },
         0x1EA2CC..0x1EA30C if off.is_multiple_of(4) => {

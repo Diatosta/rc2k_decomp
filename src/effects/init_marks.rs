@@ -41,7 +41,7 @@ pub fn init_marks(
         effects.setup.car_blocks.set(Some(race.car_blocks()));
         effects.setup.stage.set(Some(&race.course.stage));
         effects.setup.settings.is_set.set(1);
-        effects.setup.work.seed.set(seed);
+        effects.setup.work.borrow_mut().seed = seed;
         effects.setup.clock.borrow_mut().started = 0;
         crate::logfile::load_times::mark("load_kind_data");
         edges::load_kind_data(race, effects, scene, gfx, system)?;
@@ -82,8 +82,9 @@ pub fn init_marks(
         {
             let half = side.get() >> 1;
             // The screen's middle x, it less `MarksFloats.one`, the same for y.
-            effects.clipping.clip.edges[2 * n].set(x87::from_int(half as i32));
-            effects.clipping.clip.edges[2 * n + 1].set(x87::int_less(half as i32, less));
+            let mut clip = effects.clipping.clip.borrow_mut();
+            clip.edges[2 * n] = x87::from_int(half as i32);
+            clip.edges[2 * n + 1] = x87::int_less(half as i32, less);
         }
         let kind: u32 = effects.kinds.marks_kind.get();
         // Kinds 0x17 .. 0x21 are past the table and get `KIND_FLOAT_PAST` (wiki/Fixed-bugs.md:

@@ -134,8 +134,8 @@ pub fn draw_mask(masks: &Masks, drops: &WindscreenDrops, n: u32) -> Result<(), R
         let mut mask = place.read_at(0, MASK_LEN as usize, "a mark mask")?;
         rc2k_core::effects::masks::draw_mask(&mut mask, &rows)?;
         place.write_at(0, &mask, "a mark mask")?;
-        drops.picks.mask.set(n);
-        drops.picks.shapes.set(n);
+        drops.picks.borrow_mut().mask = n;
+        drops.picks.borrow_mut().shapes = n;
         masks.vars.mask_value.set(count as u32 - 1);
     }
     Ok(())

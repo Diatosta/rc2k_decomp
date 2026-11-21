@@ -151,7 +151,7 @@ pub(super) fn reset_settings_blocks(
                 .motion
                 .iter()
                 .chain(&car.steps[0])
-                .zip(&effects.kinds.emitter.settings_start)
+                .zip(effects.kinds.emitter.borrow().settings_start)
             {
                 cell.set(x87::loaded(v));
             }

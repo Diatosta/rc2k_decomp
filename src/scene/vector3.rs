@@ -77,17 +77,42 @@ fn cosine(a: impl Base, b: impl Base, s: impl Base) {
 pub fn angle_between_vectors(
     a: &(impl Cells + ?Sized),
     b: &(impl Cells + ?Sized),
-    work: &crate::effects::work_store::MarksWork,
+    work: &std::cell::RefCell<crate::effects::work_store::MarksWork>,
 ) -> [u8; 10] {
-    let mut angle = crate::math::x87::loaded(work.cosine_start.get());
-    let mut step = crate::math::x87::loaded(work.cosine_step.get());
+    let mut angle = crate::math::x87::loaded(work.borrow().cosine_start);
+    let mut step = crate::math::x87::loaded(work.borrow().cosine_step);
     normalise(b);
     normalise(a);
     let dot = crate::math::matrix3::rounded(dot_product3(load(a), load(b)));
-    let half: u32 = work.cosine_half.get();
+    let half: u32 = work.borrow().cosine_half;
     for _ in 0..16 {
         let status = cosine_against(angle.to_bits(), dot);
-        work.fpu_status.set(status);
+        work.borrow_mut().fpu_status = status;
+        match status {
+            0x400 => break,
+            0x100 => angle = crate::math::x87::sub(angle, step),
+            _ => angle = crate::math::x87::add(angle, step),
+        }
+        step = crate::math::x87::mul(step, half);
+    }
+    crate::math::matrix3::extended(angle)
+}
+
+/// `angle_between_vectors` on plain float vectors.
+pub fn angle_between_vectors_plain(
+    a: &mut [f32; 3],
+    b: &mut [f32; 3],
+    work: &std::cell::RefCell<crate::effects::work_store::MarksWork>,
+) -> [u8; 10] {
+    let mut angle = crate::math::x87::loaded(work.borrow().cosine_start);
+    let mut step = crate::math::x87::loaded(work.borrow().cosine_step);
+    normalise_plain(b);
+    normalise_plain(a);
+    let dot = crate::math::matrix3::rounded(dot_product3(a.map(f32::to_bits), b.map(f32::to_bits)));
+    let half: u32 = work.borrow().cosine_half;
+    for _ in 0..16 {
+        let status = cosine_against(angle.to_bits(), dot);
+        work.borrow_mut().fpu_status = status;
         match status {
             0x400 => break,
             0x100 => angle = crate::math::x87::sub(angle, step),

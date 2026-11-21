@@ -28,22 +28,40 @@ use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 /// A wheel record's speed figure.
 type Speed = fn(&MarkRecord) -> &PlainFloat;
 
-fn motion_factors(effects: &Effects) -> [[(&PlainFloat, Speed); 3]; 3] {
+fn motion_factors(effects: &Effects) -> [[(f32, Speed); 3]; 3] {
     [
         [
-            (&effects.kinds.emitter.side_a[0], |w| &w.local_velocity_x),
-            (&effects.kinds.emitter.side_b[0], |w| &w.local_velocity_z),
-            (&effects.kinds.emitter.side_b[0], |w| &w.driven_speed),
+            (effects.kinds.emitter.borrow().side_a[0], |w| {
+                &w.local_velocity_x
+            }),
+            (effects.kinds.emitter.borrow().side_b[0], |w| {
+                &w.local_velocity_z
+            }),
+            (effects.kinds.emitter.borrow().side_b[0], |w| {
+                &w.driven_speed
+            }),
         ],
         [
-            (&effects.kinds.emitter.side_a[1], |w| &w.local_velocity_x),
-            (&effects.kinds.emitter.side_b[1], |w| &w.local_velocity_z),
-            (&effects.kinds.emitter.side_b[1], |w| &w.driven_speed),
+            (effects.kinds.emitter.borrow().side_a[1], |w| {
+                &w.local_velocity_x
+            }),
+            (effects.kinds.emitter.borrow().side_b[1], |w| {
+                &w.local_velocity_z
+            }),
+            (effects.kinds.emitter.borrow().side_b[1], |w| {
+                &w.driven_speed
+            }),
         ],
         [
-            (&effects.kinds.emitter.side_a[2], |w| &w.local_velocity_x),
-            (&effects.kinds.emitter.side_b[2], |w| &w.local_velocity_z),
-            (&effects.kinds.emitter.side_b[2], |w| &w.driven_speed),
+            (effects.kinds.emitter.borrow().side_a[2], |w| {
+                &w.local_velocity_x
+            }),
+            (effects.kinds.emitter.borrow().side_b[2], |w| {
+                &w.local_velocity_z
+            }),
+            (effects.kinds.emitter.borrow().side_b[2], |w| {
+                &w.driven_speed
+            }),
         ],
     ]
 }
@@ -125,8 +143,8 @@ pub(super) fn emit_wheel_dust_cloud(
         let m = car.whole(effects.car_blocks()?)?;
         let r = next_c5_plain(&mut set.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
-        effects.kinds.emitter.sides[0].set(a as u32);
-        effects.kinds.emitter.sides[1].set(b as u32);
+        effects.kinds.emitter.borrow_mut().sides[0] = a as u32;
+        effects.kinds.emitter.borrow_mut().sides[1] = b as u32;
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let k = 4 * k as u32;
@@ -149,7 +167,7 @@ pub(super) fn emit_wheel_dust_cloud(
                 x87::three_products(crate::effects::try_from_fn(|n| {
                     Ok({
                         let (f, s) = factors[a][n];
-                        [f.get(), s(wheel).get(), set.motion_k[3 * a + n]]
+                        [f, s(wheel).get(), set.motion_k[3 * a + n]]
                     })
                 })?)
             })
@@ -164,11 +182,11 @@ pub(super) fn emit_wheel_dust_cloud(
         let s = effects
             .setup
             .work
+            .borrow()
             .seed
-            .get()
             .wrapping_mul(0x9D)
             .wrapping_add(0x47);
-        effects.setup.work.seed.set(s);
+        effects.setup.work.borrow_mut().seed = s;
         slot.put(
             |en| &mut en.size,
             x87::from_int(((s & 0x3FFF) + 0x4000) as i32).to_bits(),
@@ -183,7 +201,7 @@ pub(super) fn emit_wheel_dust_cloud(
             |en| &mut en.alpha,
             effects.setup.floats.two_fifty_five.to_bits(),
         )?;
-        slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
+        slot.put(|en| &mut en.car, effects.kinds.emitter.borrow().car)?;
         let size = car.rate.get().wrapping_add(g.rate as u32);
         slot.put(|en| &mut en.size_goal, size)?;
         slot.put(|en| &mut en.car_pace, car.pace.get())?;

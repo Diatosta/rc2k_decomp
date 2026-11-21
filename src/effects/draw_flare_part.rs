@@ -50,8 +50,9 @@ pub fn draw_flare_part(
         if effects.setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        for n in 0..2 {
-            let side = x87::loaded(&effects.frame.flare_scales.scale[n]);
+        let scales = effects.frame.flare_scales.borrow().scale;
+        for (n, scale) in scales.into_iter().enumerate() {
+            let side = x87::loaded(scale);
             effects.frame.draw_work.borrow_mut().sides[n] = side;
         }
         let colour = (alpha << 24) | colour;

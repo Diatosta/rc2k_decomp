@@ -10,7 +10,6 @@ use crate::effects::emit_wheel_grit_bursts::{BurstSet, emit_bursts_with, halves}
 use crate::effects::emit_wheel_grit_bursts_store::BurstTuning;
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
-use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 
 /// `emit_bursts_kind_3`'s: `emit_wheel_grit_bursts`' with its own factors and randoms.
@@ -33,18 +32,10 @@ impl BurstTuning {
     /// The values the game starts with.
     pub const fn second() -> Self {
         BurstTuning {
-            strength_k: PlainFloat::new(-0.25),
-            first: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-            blend_k: [PlainFloat::new(-0.25), PlainFloat::new(-0.25)],
-            second: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
+            strength_k: -0.25,
+            first: [0x0; 3],
+            blend_k: [-0.25, -0.25],
+            second: [0x0; 3],
         }
     }
 }

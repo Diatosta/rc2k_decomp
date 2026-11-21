@@ -8,29 +8,19 @@ use crate::effects::emit_slip_spray_store::SlipSpraySet;
 use crate::effects::emit_twin_particle_first_store::{TwinState, TwinTuning};
 use crate::effects::emit_wheel_dust_cloud_store::WheelFadeSet;
 use crate::effects::emit_wheel_grit_bursts_store::BurstTuning;
-use crate::memory::session::{PlainBytes, PlainFloat};
+use crate::memory::session::PlainFloat;
 use std::cell::RefCell;
 
 /// The puff's work values.
-#[derive(rc2k_derive::Cells)]
 pub struct PuffWork {
     /// The puff's place, size and motion
-    pub puff: [PlainFloat; 6],
+    pub puff: [f32; 6],
 }
 
 impl PuffWork {
     /// The values the game starts with.
     pub const fn new() -> Self {
-        PuffWork {
-            puff: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-        }
+        PuffWork { puff: [0.0; 6] }
     }
 }
 
@@ -39,7 +29,7 @@ impl PuffWork {
 /// writes (`PARTICLE_TUNING`, `TRAIL_PALETTE`, `BURST_COLOURS`) stay statics.
 pub struct Particles {
     pub ring: crate::memory::owned::Owned<Vec<Particle>>,
-    pub puff_work: PuffWork,
+    pub puff_work: RefCell<PuffWork>,
     pub kind1_choice: RollingChoice,
     pub kind1_set: RefCell<RollingSet>,
     pub kind5_set: RefCell<SlipSpraySet>,
@@ -47,18 +37,18 @@ pub struct Particles {
     pub kind11_set: RefCell<SlipSpraySet>,
     pub kind13_set: RefCell<ExhaustSet>,
     pub kind21_set: RefCell<RollingRatedSet>,
-    pub twin_state: TwinState,
-    pub nineteenth_tuning: TwinTuning,
-    pub twenty_second_tuning: TwinTuning,
-    pub first_tuning: BurstTuning,
-    pub second_tuning: BurstTuning,
+    pub twin_state: RefCell<TwinState>,
+    pub nineteenth_tuning: RefCell<TwinTuning>,
+    pub twenty_second_tuning: RefCell<TwinTuning>,
+    pub first_tuning: RefCell<BurstTuning>,
+    pub second_tuning: RefCell<BurstTuning>,
 }
 
 impl Particles {
     pub const fn new() -> Self {
         Particles {
             ring: crate::memory::owned::Owned::new("no particle ring"),
-            puff_work: PuffWork::new(),
+            puff_work: RefCell::new(PuffWork::new()),
             kind1_choice: RollingChoice::new(),
             kind1_set: RefCell::new(RollingSet::new()),
             kind5_set: RefCell::new(SlipSpraySet::new()),
@@ -66,11 +56,11 @@ impl Particles {
             kind11_set: RefCell::new(SlipSpraySet::new()),
             kind13_set: RefCell::new(ExhaustSet::new()),
             kind21_set: RefCell::new(RollingRatedSet::new()),
-            twin_state: TwinState::new(),
-            nineteenth_tuning: TwinTuning::nineteenth(),
-            twenty_second_tuning: TwinTuning::twenty_second(),
-            first_tuning: BurstTuning::first(),
-            second_tuning: BurstTuning::second(),
+            twin_state: RefCell::new(TwinState::new()),
+            nineteenth_tuning: RefCell::new(TwinTuning::nineteenth()),
+            twenty_second_tuning: RefCell::new(TwinTuning::twenty_second()),
+            first_tuning: RefCell::new(BurstTuning::first()),
+            second_tuning: RefCell::new(BurstTuning::second()),
         }
     }
 }
@@ -94,18 +84,22 @@ const fn burst_colours() -> [u8; 0x2000] {
 }
 
 /// The burst particles' colour ramps.
-#[derive(rc2k_derive::Cells)]
 pub struct BurstColours {
     /// 8 ramps of 256 dwords (a channel mask times the step)
-    pub table: PlainBytes<8192>,
+    table: [u8; 8192],
 }
 
 impl BurstColours {
     /// BurstColours's first values.
     pub const fn new() -> Self {
         Self {
-            table: PlainBytes::new(burst_colours()),
+            table: burst_colours(),
         }
+    }
+
+    /// The little-endian dword at byte `offset`.
+    pub fn get_u32(&self, offset: usize) -> u32 {
+        u32::from_le_bytes(std::array::from_fn(|i| self.table[offset + i]))
     }
 }
 

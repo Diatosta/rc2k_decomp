@@ -112,25 +112,25 @@ pub(super) fn emit_slip_spray_with(
             return Err(BadInput(why).into());
         }
         let strength = x87::loaded(&wheel.local_velocity_z).abs();
-        kinds.emitter.strength.set(strength);
+        kinds.emitter.borrow_mut().strength = strength;
         if !emits(set, wheel)? || next_entry(ring)?.is_none() {
             return Ok(());
         }
         let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, set.kind)?;
         let slot = crate::effects::ring_entries::Slot::new(ring, e);
-        let (sign, strength) = if kinds.emitter.record.get() & 1 == 0 {
+        let (sign, strength) = if kinds.emitter.borrow().record & 1 == 0 {
             (-1i32, x87::sub(strength, &wheel.local_velocity_x))
         } else {
             (1, x87::add(strength, &wheel.local_velocity_x))
         };
-        kinds.emitter.sign.set(sign as u32);
-        kinds.emitter.strength.set(strength);
+        kinds.emitter.borrow_mut().sign = sign as u32;
+        kinds.emitter.borrow_mut().strength = strength;
         let car = emitting_car(effects)?;
         let m = car.whole(effects.car_blocks()?)?;
         let r = next_c5_plain(set.place_random);
         let (a, b) = (((r & 0x3FFF) as i32) - 0x2000, (r & 0x3FFF) as i32);
-        kinds.emitter.sides[0].set(a as u32);
-        kinds.emitter.sides[1].set(b as u32);
+        kinds.emitter.borrow_mut().sides[0] = a as u32;
+        kinds.emitter.borrow_mut().sides[1] = b as u32;
         let place: [f32; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let k = 4 * k as u32;
@@ -181,7 +181,7 @@ pub(super) fn emit_slip_spray_with(
         slot.put(|en| &mut en.size, ((last >> 2) & 0xFFF) + 0x7800)?;
         slot.put(|en| &mut en.alpha, 0xFF00_0000)?;
         slot.put(|en| &mut en.life, set.life)?;
-        slot.put(|en| &mut en.car, kinds.emitter.car.get())?;
+        slot.put(|en| &mut en.car, kinds.emitter.borrow().car)?;
     }
     Ok(())
 }

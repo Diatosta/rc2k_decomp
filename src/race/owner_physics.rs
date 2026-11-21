@@ -8,6 +8,7 @@ use crate::physics::contact_store::ContactWork;
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_query::GroundSearch;
 use crate::physics::ground_store::GroundWork;
+use crate::physics::lit_faces_store::LitFaces;
 use crate::physics::pace_store::PaceNotes;
 use crate::physics::split_tables_store::SplitTables;
 use crate::physics::store::DamageModel;
@@ -47,16 +48,18 @@ impl PhysicsMain {
 
 /// The race's physics state.
 pub struct Physics {
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing's searches have
-    /// their own and read only the lit faces.
-    pub contact: DrawShared<ContactWork>,
+    /// The contact and probe work: the game's thread alone reaches it.
+    pub contact: GameThread<ContactWork>,
+    /// The lit faces, lent to the drawing parts (`scene::workers::DrawReads`) for the lamps.
+    pub lit_faces: DrawShared<LitFaces>,
     main: GameThread<PhysicsMain>,
 }
 
 impl Physics {
     pub const fn new() -> Self {
         Physics {
-            contact: DrawShared::new(ContactWork::new()),
+            contact: GameThread::new(ContactWork::new()),
+            lit_faces: DrawShared::new(LitFaces::new()),
             main: GameThread::new(PhysicsMain::new()),
         }
     }

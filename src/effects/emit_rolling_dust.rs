@@ -152,7 +152,7 @@ fn emit_particle_1(
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok(x87::plus_int_times_80(
                 &wheel.place[k],
-                &effects.kinds.emitter.side_b[k],
+                effects.kinds.emitter.borrow().side_b[k],
                 side,
             ))
         })?;
@@ -175,7 +175,7 @@ fn emit_particle_1(
                         f[1],
                     ],
                     [
-                        effects.kinds.emitter.side_b[k].get(),
+                        effects.kinds.emitter.borrow().side_b[k],
                         wheel.driven_speed.get(),
                         f[2],
                     ],
@@ -199,7 +199,7 @@ fn emit_particle_1(
         slot.put(|en| &mut en.life, life as u32)?;
         slot.put(|en| &mut en.alpha_fade, x87::over_int(fade, life))?;
         slot.put(|en| &mut en.alpha, fade.to_bits())?;
-        slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
+        slot.put(|en| &mut en.car, effects.kinds.emitter.borrow().car)?;
         slot.put(|en| &mut en.size_goal, SIZE)?;
         slot.put(|en| &mut en.car_pace, car.pace.get())?;
         slot.put(

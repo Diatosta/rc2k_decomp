@@ -20,63 +20,63 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
-use crate::memory::session::PlainFloat;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
+use std::cell::RefCell;
 
 const LIFE: u32 = 0x7D0;
 
 /// One half's variables.
-pub struct Half<'a> {
+pub struct Half {
     pub kind: u32,
     /// Which of `RingWork.strength` is the half's.
     pub strength: usize,
     /// The direction's factors (x, y, z) and whether |s| is scaled by the half constant in y.
-    pub factors: [&'a PlainFloat; 3],
+    pub factors: [f32; 3],
     pub scaled: bool,
     /// The size's mask and base, the side's factors.
     pub size: (u32, u32),
-    pub sides: [&'a PlainFloat; 3],
+    pub sides: [f32; 3],
 }
 
 /// One function's variables: its two halves and the typed factors and randoms.
 pub struct BurstSet<'a> {
-    pub halves: [Half<'a>; 2],
-    pub tuning: &'a BurstTuning,
+    pub halves: [Half; 2],
+    pub tuning: &'a RefCell<BurstTuning>,
 }
 
 /// The two halves' variables (`emit_bursts_kind_3`'s are the same but for its tuning).
-pub fn halves(effects: &Effects) -> [Half<'_>; 2] {
+pub fn halves(effects: &Effects) -> [Half; 2] {
     [
         Half {
             kind: 0x11,
             strength: 0,
             factors: [
-                &effects.kinds.emitter.side_a[0],
-                &effects.kinds.emitter.side_a[1],
-                &effects.kinds.emitter.side_a[2],
+                effects.kinds.emitter.borrow().side_a[0],
+                effects.kinds.emitter.borrow().side_a[1],
+                effects.kinds.emitter.borrow().side_a[2],
             ],
             scaled: false,
             size: (0x7FF, 0x400),
             sides: [
-                &effects.kinds.emitter.side_b[0],
-                &effects.kinds.emitter.side_b[1],
-                &effects.kinds.emitter.side_b[2],
+                effects.kinds.emitter.borrow().side_b[0],
+                effects.kinds.emitter.borrow().side_b[1],
+                effects.kinds.emitter.borrow().side_b[2],
             ],
         },
         Half {
             kind: 0x10,
             strength: 1,
             factors: [
-                &effects.kinds.emitter.side_b[0],
-                &effects.kinds.emitter.side_b[1],
-                &effects.kinds.emitter.side_b[2],
+                effects.kinds.emitter.borrow().side_b[0],
+                effects.kinds.emitter.borrow().side_b[1],
+                effects.kinds.emitter.borrow().side_b[2],
             ],
             scaled: true,
             size: (0x3FF, 0x600),
             sides: [
-                &effects.kinds.emitter.side_a[0],
-                &effects.kinds.emitter.side_a[1],
-                &effects.kinds.emitter.side_a[2],
+                effects.kinds.emitter.borrow().side_a[0],
+                effects.kinds.emitter.borrow().side_a[1],
+                effects.kinds.emitter.borrow().side_a[2],
             ],
         },
     ]
@@ -99,14 +99,15 @@ fn strength(
 ) -> Result<(f32, i32), Refused> {
     Ok({
         let scale = effects.setup.floats.thirty_two;
+        let tuning = set.tuning.borrow();
         if n == 0 {
-            x87::times_kept_abs_to_int(&wheel.local_velocity_x, &set.tuning.strength_k, scale)
+            x87::times_kept_abs_to_int(&wheel.local_velocity_x, tuning.strength_k, scale)
         } else {
             x87::blend_kept_abs_to_int(
                 &wheel.driven_speed,
                 &wheel.local_velocity_z,
-                &set.tuning.blend_k[0],
-                &set.tuning.blend_k[1],
+                tuning.blend_k[0],
+                tuning.blend_k[1],
                 scale,
             )
         }
@@ -122,15 +123,13 @@ fn counts(effects: &Effects, set: &BurstSet<'_>, wheel: &MarkRecord) -> Result<[
         }
         crate::effects::try_from_fn(|n| {
             let (_, rate) = strength(effects, set, n, wheel)?;
-            let r = set.tuning.randoms(n)[0]
-                .get()
+            let r = set.tuning.borrow().randoms(n)[0]
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
                 return Ok(0);
             }
-            let c = set.tuning.randoms(n)[1]
-                .get()
+            let c = set.tuning.borrow().randoms(n)[1]
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
             Ok((c & 0xFFF) % ((flags2 >> 6) << 2))
@@ -184,7 +183,7 @@ pub(super) fn emit_bursts_with(
             let (s, rate) = strength(effects, set, n, wheel)?;
             ring.work.borrow_mut().strength[h.strength] = s;
             ring.work.borrow_mut().whole = rate as u32;
-            let r = next_c5(&set.tuning.randoms(n)[0]);
+            let r = next_c5_plain(&mut set.tuning.borrow_mut().randoms_mut(n)[0]);
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
                 continue;
             }
@@ -198,7 +197,8 @@ pub(super) fn emit_bursts_with(
                 x87::mul2(h.factors[2], s, k),
             ];
             ring.work.borrow_mut().direction = direction;
-            let count = (next_c5(&set.tuning.randoms(n)[1]) & 0xFFF) % ((flags2 >> 6) << 2);
+            let count = (next_c5_plain(&mut set.tuning.borrow_mut().randoms_mut(n)[1]) & 0xFFF)
+                % ((flags2 >> 6) << 2);
             for _ in 0..count {
                 // The ring is full (0x3FE taken): the bursts end here (wiki/Fixed-bugs.md:
                 // "Crash driving over mud (particle ring full)").
@@ -221,7 +221,7 @@ pub(super) fn emit_bursts_with(
                 slot.put(|en| &mut en.motion[2], rounded_value(out[0]))?;
                 slot.put(|en| &mut en.motion[1], rounded_value(out[1]))?;
                 slot.put(|en| &mut en.motion[0], rounded_value(out[2]))?;
-                let r = next_c5(&set.tuning.randoms(n)[2]);
+                let r = next_c5_plain(&mut set.tuning.borrow_mut().randoms_mut(n)[2]);
                 let size = (r.rotate_right(8) & h.size.0) + h.size.1;
                 effects.setup.frame.emit_side.set(size);
                 slot.put(|en| &mut en.size, x87::from_int(size as i32).to_bits())?;
@@ -265,13 +265,13 @@ pub(super) fn emit_bursts_with(
                 slot.put(|en| &mut en.life, LIFE)?;
                 slot.put(
                     |en| &mut en.box_limit[0],
-                    effects.kinds.emitter.looks[0].get(),
+                    effects.kinds.emitter.borrow().looks[0],
                 )?;
                 slot.put(
                     |en| &mut en.box_limit[1],
-                    effects.kinds.emitter.looks[1].get(),
+                    effects.kinds.emitter.borrow().looks[1],
                 )?;
-                slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
+                slot.put(|en| &mut en.car, effects.kinds.emitter.borrow().car)?;
             }
         }
     }

@@ -176,12 +176,12 @@ fn cars(
                 .car;
             // `car_kinds` has 35 entries; a number past them is refused (fixed: "Four tables
             // read past their end" in `wiki/Fixed-bugs.md`).
-            let kind = parts
+            let kind = *parts
                 .lists
+                .read()
                 .car_kinds
                 .get(first as usize)
-                .ok_or(BadInput("a car past the 35 car kinds"))?
-                .get();
+                .ok_or(BadInput("a car past the 35 car kinds"))?;
             parts.carousel.kinds[n].set(kind);
             n += 1;
         }
