@@ -7,6 +7,7 @@
 
 use crate::errors::BadInput;
 use rc2k_core::menu::tables::{LISTS, ScreenFn};
+use std::cell::Cell;
 
 /// A function list: its first function's place.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,13 +45,11 @@ impl FnList {
 }
 
 /// A list pointer: none (0, as the image starts) or a list.
-#[repr(transparent)]
-#[derive(rc2k_derive::Cells)]
-pub struct ListCell(crate::memory::session::PlainDword);
+pub struct ListCell(Cell<u32>);
 
 impl ListCell {
     pub const fn new() -> Self {
-        ListCell(crate::memory::session::PlainDword::new(0))
+        ListCell(Cell::new(0))
     }
 
     pub fn get(&self) -> Result<FnList, BadInput> {

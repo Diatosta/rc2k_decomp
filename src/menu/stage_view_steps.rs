@@ -96,7 +96,7 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         };
         crate::sound::start_stream::start_stream(
             o,
-            crate::menu::texts_store::speech_entry(&menus.texts, &audio.sample_names, at, 0)?,
+            crate::menu::texts_store::speech_entry(&audio.sample_names, at, 0)?,
             menus.options.snapshot().menu_voices_volume,
         );
     }

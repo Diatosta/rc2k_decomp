@@ -12,10 +12,10 @@
 //! handle in `MenuTables`.
 
 use crate::gfx::typefaces::{FontId, fonts};
-use crate::memory::session::{GameThread, PlainDword};
+use crate::memory::session::GameThread;
 use crate::menu::item_sprites_store::ItemSprite;
 use rc2k_core::menu::tables::{MENUS, MenuFont, MenuItem as Fixed};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 /// A label list's fields: the label (x, y, the font, the string id) and the -1 that ends the list.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -933,13 +933,11 @@ impl MenuId {
 }
 
 /// A menu pointer: none (0, as the image starts) or a menu.
-#[repr(transparent)]
-#[derive(rc2k_derive::Cells)]
-pub struct MenuCell(PlainDword);
+pub struct MenuCell(Cell<u32>);
 
 impl MenuCell {
     pub const fn new() -> Self {
-        MenuCell(PlainDword::new(0))
+        MenuCell(Cell::new(0))
     }
 
     pub fn get(&self) -> Result<MenuId, crate::errors::BadInput> {

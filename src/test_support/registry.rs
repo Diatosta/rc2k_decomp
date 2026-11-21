@@ -312,10 +312,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game_from(&o.install.vars, "._gap_529dad"),
             0x4b6,
         ),
-        listed!(
-            "owners.menus.panels.notice",
-            on_game(&o.menus.panels.notice),
-        ),
         listed!("owners.install.drive_rows", on_game(&o.install.drive_rows),),
         listed!("owners.net.vars", &o.net.vars,),
         listed!("owners.net.link", o.net.link.cells(),),
@@ -361,7 +357,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.replay.snapshot",
             on_game(o.race.replay.snapshot()),
         ),
-        listed!("owners.menus.panels.films", on_game(&o.menus.panels.films),),
         listed!("owners.gfx.card.texture_tables", &o.gfx.card.texture_tables,),
         listed!(
             "owners.system.session.screen",

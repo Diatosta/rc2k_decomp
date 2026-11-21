@@ -17,7 +17,6 @@ use crate::program_log::log;
 use rc2k_core::menu::films::{self, Film, Step, StepAnswer};
 
 /// The films' file names.
-#[derive(rc2k_derive::Cells)]
 pub struct Films {
     /// The intro film's path.
     pub intro: crate::memory::session::PlainBytes<22>,

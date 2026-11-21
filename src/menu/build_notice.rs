@@ -35,7 +35,6 @@ use crate::memory::session::{PlainBytes, with_runs};
 use crate::menu::owner::Menus;
 
 /// The build notice's two lines.
-#[derive(rc2k_derive::Cells)]
 pub struct BuildNotice {
     /// The first line, "Copyright ... Magnetic Fields ..." (`menu::build_notice`).
     pub notice_first: PlainBytes<78>,

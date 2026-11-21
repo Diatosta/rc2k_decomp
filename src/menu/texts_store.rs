@@ -1,41 +1,27 @@
 //! The menus' texts: two log texts of the map's polygon code, each menu screen's picture path
 //! (one copy per screen, named for the screen that loads it; the others by their file), the stage maps', car
 //! specifications' and slides' paths (which `menu::lists_store`'s tables name by
-//! `MenuText::key`), and two tables of speech samples' names (`car_speech`, `stage_speech`: keys
-//! of `audio::names_store`'s names, `speech_entry`). Each text's value is in the
+//! `MenuText::key`), and two tables of speech samples' names (`CAR_SPEECH_ENTRIES`, `STAGE_SPEECH_ENTRIES`:
+//! keys of `audio::names_store`'s names, `speech_entry`; read only). Each text's value is in the
 //! `menu_texts_struct!` list under its field's name. `Menus::texts` holds them, apart from the menus' state:
 //! the only writes are the picture loaders', which may swap a path's extension in place
 //! (`files::swap_missing_extension`).
 
 use crate::audio::names_store::{NameList, SampleName};
-use crate::memory::session::{PlainBytes, PlainDword, with_runs};
+use crate::memory::session::{PlainBytes, with_runs};
 
 /// Declares `MenuTexts` over its texts, each a field named for the text and holding its bytes
 /// and a NUL; `MenuTexts::new` fills each one from its literal.
 macro_rules! menu_texts_struct {
     ($($(#[$doc:meta])* $field:ident: $text:literal,)*) => {
-        #[cfg_attr(test, repr(C, align(4)))]
-        #[derive(rc2k_derive::Cells)]
         pub struct MenuTexts {
-            /// Not in the image: two bytes so that each address keeps its alignment mod 4.
-            pub _lead: PlainBytes<2>,
             $($(#[$doc])* pub $field: PlainBytes<{ $text.len() + 1 }>,)*
-            /// Not in the image: two bytes that put the speech tables on a dword boundary.
-            pub _speech_pad: PlainBytes<2>,
-            /// Per car, its two speech samples' names and a 0.
-            pub car_speech: [[PlainDword; 3]; CAR_ROWS],
-            /// Per stage, three speech samples' names and a 0.
-            pub stage_speech: [[PlainDword; 4]; STAGE_ROWS],
         }
 
         impl MenuTexts {
             pub const fn new() -> Self {
                 MenuTexts {
-                    _lead: PlainBytes::new([0; 2]),
                     $($field: PlainBytes::new(with_runs::<{ $text.len() + 1 }>(&[(0, $text)])),)*
-                    _speech_pad: PlainBytes::new([0; 2]),
-                    car_speech: speech_rows(&CAR_SPEECH),
-                    stage_speech: speech_rows(&STAGE_SPEECH),
                 }
             }
         }
@@ -418,20 +404,25 @@ const STAGE_SPEECH: [[u16; 3]; STAGE_ROWS] = [
 /// A speech table's rows: each row's samples, then the end mark.
 const fn speech_rows<const ROWS: usize, const SAMPLES: usize, const ENTRIES: usize>(
     samples: &[[u16; SAMPLES]; ROWS],
-) -> [[PlainDword; ENTRIES]; ROWS] {
+) -> [[u32; ENTRIES]; ROWS] {
     const { assert!(ENTRIES == SAMPLES + 1) };
-    let mut rows = [const { [const { PlainDword::new(SPEECH_END) }; ENTRIES] }; ROWS];
+    let mut rows = [[SPEECH_END; ENTRIES]; ROWS];
     let mut row = 0;
     while row < ROWS {
         let mut sample = 0;
         while sample < SAMPLES {
-            rows[row][sample] = PlainDword::new(speech(NameList::MenuSpeech, samples[row][sample]));
+            rows[row][sample] = speech(NameList::MenuSpeech, samples[row][sample]);
             sample += 1;
         }
         row += 1;
     }
     rows
 }
+
+/// Per car, its two speech samples' names and the end mark.
+const CAR_SPEECH_ENTRIES: [[u32; 3]; CAR_ROWS] = speech_rows(&CAR_SPEECH);
+/// Per stage, three speech samples' names and the end mark.
+const STAGE_SPEECH_ENTRIES: [[u32; 4]; STAGE_ROWS] = speech_rows(&STAGE_SPEECH);
 
 /// Declares `MenuText` over the text fields the menus' tables name, and how each is found.
 macro_rules! menu_texts {
@@ -706,12 +697,12 @@ impl SpeechRow {
 
 /// Entry `n` of the speech tables read as one run (the car rows, then the stage rows), as
 /// a row's reading on past its end goes on into the next row.
-fn speech_dword(texts: &MenuTexts, n: usize) -> Option<u32> {
+fn speech_dword(n: usize) -> Option<u32> {
     if n < CAR_ENTRIES {
-        Some(texts.car_speech[n / 3][n % 3].get())
+        Some(CAR_SPEECH_ENTRIES[n / 3][n % 3])
     } else if n < CAR_ENTRIES + STAGE_ENTRIES {
         let n = n - CAR_ENTRIES;
-        Some(texts.stage_speech[n / 4][n % 4].get())
+        Some(STAGE_SPEECH_ENTRIES[n / 4][n % 4])
     } else {
         None
     }
@@ -720,7 +711,6 @@ fn speech_dword(texts: &MenuTexts, n: usize) -> Option<u32> {
 /// The entry at `place` of the speech row `row` (its key): the sample name's key
 /// (`SampleName::key`), or `SPEECH_END`.
 pub fn speech_entry(
-    texts: &MenuTexts,
     names: &crate::audio::names_store::SampleNames,
     row: u32,
     place: u32,
@@ -730,9 +720,9 @@ pub fn speech_entry(
         .ok_or(crate::errors::BadInput(
             "a speech row's key off the speech rows",
         ))?;
-    let entry = speech_dword(texts, first as usize + place as usize).ok_or(
-        crate::errors::BadInput("a speech entry off the speech rows"),
-    )?;
+    let entry = speech_dword(first as usize + place as usize).ok_or(crate::errors::BadInput(
+        "a speech entry off the speech rows",
+    ))?;
     // 0: none.
     if entry == SPEECH_END || entry == 0 {
         return Ok(entry);
@@ -756,12 +746,6 @@ pub fn text_at(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn the_speech_tables_sit_on_dword_boundaries() {
-        assert_eq!(core::mem::offset_of!(MenuTexts, car_speech) % 4, 0);
-        assert_eq!(size_of::<MenuTexts>() % 4, 0);
-    }
 
     /// The speech tables' entries as the 1999 image addressed them (car rows then stage rows).
     const SPEECH_ADDRESSES: [u32; 216] = [
@@ -796,13 +780,12 @@ mod tests {
 
     #[test]
     fn the_speech_entries_keep_the_keys_of_their_old_addresses() {
-        let texts = &crate::test_support::own::menus().texts;
-        let mut now = Vec::new();
-        for row in &texts.car_speech {
-            now.extend(row.iter().map(crate::memory::session::PlainDword::get));
+        let mut now: Vec<&u32> = Vec::new();
+        for row in &CAR_SPEECH_ENTRIES {
+            now.extend(row);
         }
-        for row in &texts.stage_speech {
-            now.extend(row.iter().map(crate::memory::session::PlainDword::get));
+        for row in &STAGE_SPEECH_ENTRIES {
+            now.extend(row);
         }
         assert_eq!(now.len(), SPEECH_ADDRESSES.len());
         for (n, (key, address)) in now.iter().zip(SPEECH_ADDRESSES).enumerate() {
@@ -811,7 +794,7 @@ mod tests {
             } else {
                 address - 0x506E6C + crate::audio::names_store::FIRST_KEY
             };
-            assert_eq!(*key, expected, "entry {n}");
+            assert_eq!(**key, expected, "entry {n}");
         }
     }
 
@@ -827,18 +810,21 @@ mod tests {
         assert!(text_at(texts, MenuText::ALL.len() as u32 + 1).is_err());
         assert_eq!(SpeechRow::Car(1).key(), SPEECH_KEY_BASE + 3);
         assert_eq!(SpeechRow::Stage(0).key(), SPEECH_KEY_BASE + 72);
-        assert_eq!(speech_dword(texts, CAR_ENTRIES + STAGE_ENTRIES), None);
+        assert_eq!(speech_dword(CAR_ENTRIES + STAGE_ENTRIES), None);
     }
 
-    /// The record's bytes, every text and the speech rows, are the ones the image held (a
-    /// checksum of the whole record).
+    /// Every text's bytes are the ones the image held (a checksum of all of them, each with
+    /// its NUL).
     #[test]
     fn the_texts_keep_the_bytes_of_the_image() {
-        use crate::memory::cells::load_cells;
         let texts = &crate::test_support::own::menus().texts;
-        let mut bytes = vec![0u8; size_of::<MenuTexts>()];
-        load_cells(texts, 0, &mut bytes).unwrap();
-        assert_eq!(bytes.len(), 12356);
-        assert_eq!(crate::test_support::hash(&bytes), 0x93075C96F8A56999);
+        let mut bytes = Vec::new();
+        for text in MenuText::ALL {
+            let at = text_at(texts, text.key()).unwrap();
+            bytes.extend(at.text("a test text").unwrap());
+            bytes.push(0);
+        }
+        assert_eq!(bytes.len(), 7503);
+        assert_eq!(crate::test_support::hash(&bytes), 12055103207217156549);
     }
 }

@@ -15,7 +15,7 @@ use crate::errors::BadInput;
 /// With the game's stream flag and `sound::start_stream`.
 pub fn step_car_stream(o: crate::owners::Owners<'static>) -> Result<(), BadInput> {
     let (menus, sound, audio) = (o.menus, o.sound, o.audio);
-    let (champ, options, texts) = (&menus.play.champ_view, &menus.options, &menus.texts);
+    let (champ, options) = (&menus.play.champ_view, &menus.options);
     let names = &audio.sample_names;
     let playing = || audio.state.sound_stream.get().playing == 1;
     // The logic is `rc2k_core::sound::race::stream_step`.
@@ -27,7 +27,7 @@ pub fn step_car_stream(o: crate::owners::Owners<'static>) -> Result<(), BadInput
         (stream.on, stream.place)
     };
     let step = stream_step(champ.read().event_mode, on, playing, place_now, |place| {
-        crate::menu::texts_store::speech_entry(texts, names, list, place).unwrap_or_else(|e| {
+        crate::menu::texts_store::speech_entry(names, list, place).unwrap_or_else(|e| {
             failed.set(Some(e));
             0
         })
