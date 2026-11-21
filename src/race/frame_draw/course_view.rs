@@ -7,6 +7,9 @@ use crate::race::owner_course::CourseReads;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::{DrawCtx, SortLists};
 
+/// The shift added to a face's depth before it is tested against the view's depth.
+const DEPTH_SHIFT: f32 = 3_000_000.0;
+
 /// The most entries in a sort list (`race::view_scratch`).
 pub(super) const SORT_MAX: u32 = crate::race::view_scratch::ENTRIES as u32;
 
@@ -124,7 +127,7 @@ fn face_hidden(
     ctx.view.object.position[0].set(x as u32);
     let depth = crate::math::x87::add_to_int(
         crate::scene::point_records::field(ctx.part, record, 0x18)?,
-        ctx.reads.level_grid.depth_shift.get(),
+        DEPTH_SHIFT,
     );
     ctx.view.object.face_depth.set(depth as u32);
     Ok(hidden_by_depth(

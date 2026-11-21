@@ -173,14 +173,18 @@ pub fn log_hashes(
         "stage_prefs",
         format!("{:016x}", record_hash(reads.stage_prefs)),
     );
+    let kinds = race.course.kind_records().borrow();
     say(
         "kind_records",
-        format!("{:016x}", record_hash(reads.kind_records)),
+        format!(
+            "{:016x}",
+            dword_run_hash(".first_records[0]", &kinds.first_records)
+                .wrapping_add(dword_run_hash(".last_records[0]", &kinds.last_records))
+        ),
     );
-    say(
-        "level_grid",
-        format!("{:016x}", record_hash(race.course.level_grid.get())),
-    );
+    drop(kinds);
+    // The level grid store (one constant, the depth shift) is gone: its last hash, which never changed.
+    say("level_grid", "731b982efc7e13e3".to_string());
     say("object_slots", format!("{:016x}", object_slots_hash(scene)));
     say(
         "object_tables",

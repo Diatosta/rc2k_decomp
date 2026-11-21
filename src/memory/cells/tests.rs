@@ -263,8 +263,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.frame.panel_and_overlay.get(),
         race.replay.viewer_and_kinds,
         *race.frame.view_and_records.get(),
-        *race.course.kind_records(),
-        *race.course.level_grid.get(),
         *race.frame.matrices.get(),
         *race.course.numbers.get(),
         *race.shared.replay_file(),

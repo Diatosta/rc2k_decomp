@@ -2,12 +2,11 @@
 //! data and lists, level grid and paths, kind and light records, flares, marks settings, stage
 //! preferences, numbers, league.
 
-use crate::memory::session::{DrawShared, GameThread};
+use crate::memory::session::{DrawPlain, DrawShared, GameThread};
 use crate::race::course_lists_store::CourseLists;
 use crate::race::course_store::CourseWork;
-use crate::race::kind_records_store::KindRecords;
+use crate::race::kind_records_store::{KindRecords, KindRecordsRef};
 use crate::race::league_store::League;
-use crate::race::level_grid_store::LevelGrid;
 use crate::race::level_paths_store::LevelPaths;
 use crate::race::lights_store::{LightsData, LightsTable};
 use crate::race::numbers_store::Numbers;
@@ -21,8 +20,6 @@ pub struct Course {
     pub course: DrawShared<CourseWork>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
     pub lists: DrawShared<CourseLists>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
-    pub level_grid: DrawShared<LevelGrid>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it (the fog
     /// settings the draw distance picks are set once a frame before the views,
     /// `race::draw_distance_settings`).
@@ -31,7 +28,7 @@ pub struct Course {
     pub numbers: DrawShared<Numbers>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the ground search under a
     /// car's shadow reads it; no part writes it.
-    kind_records: DrawShared<KindRecords>,
+    kind_records: DrawPlain<KindRecords>,
     /// The loaded stage's tables (course, map, mud, objects, best line).
     pub stage: StageData,
     main: GameThread<CourseMain>,
@@ -47,7 +44,7 @@ pub struct CourseReads<'a> {
     pub lists: &'a CourseLists,
     pub stage_prefs: &'a StagePrefs,
     pub numbers: &'a Numbers,
-    pub kind_records: &'a KindRecords,
+    pub kind_records: KindRecordsRef<'a>,
     pub stage: &'a StageData,
 }
 
@@ -64,10 +61,9 @@ impl Course {
         Course {
             course: DrawShared::new(CourseWork::new()),
             lists: DrawShared::new(CourseLists::new()),
-            level_grid: DrawShared::new(LevelGrid::new()),
             stage_prefs: DrawShared::new(StagePrefs::new()),
             numbers: DrawShared::new(Numbers::new()),
-            kind_records: DrawShared::new(KindRecords::new()),
+            kind_records: DrawPlain::new(KindRecords::new()),
             stage: StageData::new(),
             main: GameThread::new(CourseMain {
                 level_paths: RefCell::new(LevelPaths::new()),
@@ -85,7 +81,7 @@ impl Course {
             lists: self.lists.get(),
             stage_prefs: self.stage_prefs.get(),
             numbers: self.numbers.get(),
-            kind_records: self.kind_records.get(),
+            kind_records: KindRecordsRef::Store(&self.kind_records),
             stage: &self.stage,
         }
     }
@@ -101,13 +97,9 @@ impl Course {
     }
 
     /// The kinds' first and last records, on the game's thread outside a drawing scope (a
-    /// part reads them through its `scene::workers::DrawReads`).
-    pub fn kind_records(&self) -> &KindRecords {
-        self.kind_records.get()
-    }
-
-    /// The kinds' records as lent to a drawing scope (`scene::workers::Lent`).
-    pub(crate) fn kind_records_store(&self) -> &DrawShared<KindRecords> {
+    /// part reads them through its `scene::workers::DrawReads`; a copy of them is lent to a
+    /// drawing scope by `scene::workers::Lent`).
+    pub fn kind_records(&self) -> &DrawPlain<KindRecords> {
         &self.kind_records
     }
 

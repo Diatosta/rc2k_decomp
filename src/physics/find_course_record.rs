@@ -16,8 +16,7 @@ pub fn find_course_record(course: CourseReads<'_>, key: u32) -> Result<Option<u3
     let course_store = course;
     let (kind, _) = kind_of(key);
     // `kind_of` gives at most 0xFF: inside both tables.
-    let first = course_store.kind_records.first_records[kind as usize].get();
-    let last = course_store.kind_records.last_records[kind as usize].get();
+    let (first, last) = course_store.kind_records.first_and_last(kind as usize);
     let trap = Trap::new();
     let found = find_record(
         key,

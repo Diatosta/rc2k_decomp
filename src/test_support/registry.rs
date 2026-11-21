@@ -595,10 +595,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.race.shared.view", on_game(o.race.shared.view.get()),),
         listed!(
-            "owners.race.course.level_grid",
-            on_game(o.race.course.level_grid.get()),
-        ),
-        listed!(
             "owners.race.frame.frame_work",
             on_game(o.race.frame.frame_work.get()),
         ),
@@ -608,10 +604,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.race.shared.car", on_game(o.race.shared.car()),),
         listed!("owners.race.shared.work", on_game(o.race.shared.work.get()),),
-        listed!(
-            "owners.race.course.kind_records",
-            on_game(o.race.course.kind_records()),
-        ),
         listed!(
             "owners.scene.textures.kinds",
             on_game(o.scene.textures.kinds.get()),

@@ -59,7 +59,6 @@ pub(crate) mod kind_records_store;
 pub(crate) mod kind_store;
 mod lamp_work;
 pub(crate) mod league_store;
-pub(crate) mod level_grid_store;
 mod level_init;
 mod level_paths_store;
 pub(crate) mod light_records_store;

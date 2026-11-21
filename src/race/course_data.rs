@@ -113,9 +113,10 @@ fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
             .flat_map(|r| r.iter().flat_map(|v| v.to_le_bytes()))
             .collect();
         crate::race::course_places::write_records_table(course, &out)?;
+        let mut records = course.kind_records().borrow_mut();
         for kind in 0..KINDS as usize {
-            course.kind_records().first_records[kind].set(grouped.first[kind]);
-            course.kind_records().last_records[kind].set(grouped.last[kind]);
+            records.first_records[kind] = grouped.first[kind];
+            records.last_records[kind] = grouped.last[kind];
         }
     }
     Ok(())

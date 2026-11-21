@@ -110,7 +110,6 @@ pub struct Lent<'s> {
     // The scene's draw variables.
     scene_draw: crate::memory::session::PhaseRead<'s, crate::scene::draw_store::SceneDraw>,
     // The race's stores.
-    level_grid: crate::memory::session::PhaseRead<'s, crate::race::level_grid_store::LevelGrid>,
     /// The ground probe's mark as the scope opened.
     ground_probe: crate::physics::ground_probe_store::GroundProbe,
     /// The scene's clock as the scope opened.
@@ -139,8 +138,7 @@ pub struct Lent<'s> {
     stage_prefs: crate::memory::session::PhaseRead<'s, crate::race::prefs_store::StagePrefs>,
     course_work: crate::memory::session::PhaseRead<'s, crate::race::course_store::CourseWork>,
     stage: &'s crate::race::stage_data_store::StageData,
-    kind_records:
-        crate::memory::session::PhaseRead<'s, crate::race::kind_records_store::KindRecords>,
+    kind_records: crate::memory::session::PlainRead<crate::race::kind_records_store::KindRecords>,
     numbers: crate::memory::session::PhaseRead<'s, crate::race::numbers_store::Numbers>,
     switches: crate::memory::session::PhaseRead<'s, crate::race::switches_store::FrameSwitches>,
     vars: crate::memory::session::PhaseRead<'s, crate::race::vars_store::RaceVars>,
@@ -177,7 +175,6 @@ impl<'s> Lent<'s> {
             // The scene's draw variables.
             scene_draw: PhaseRead::lend(&scene.drawing.scene, scope),
             // The race's stores.
-            level_grid: PhaseRead::lend(&race.course.level_grid, scope),
             ground_probe: *race.physics.ground_probe().borrow(),
             scene_clock: race.shared.run().scene_clock,
             shadow_skids: PhaseRead::lend(&race.frame.shadow_skids, scope),
@@ -198,7 +195,10 @@ impl<'s> Lent<'s> {
             stage_prefs: PhaseRead::lend(&race.course.stage_prefs, scope),
             course_work: PhaseRead::lend(&race.course.course, scope),
             stage: &race.course.stage,
-            kind_records: PhaseRead::lend(race.course.kind_records_store(), scope),
+            kind_records: crate::memory::session::PlainRead::lend(
+                race.course.kind_records(),
+                scope,
+            ),
             numbers: PhaseRead::lend(&race.course.numbers, scope),
             switches: PhaseRead::lend(&race.shared.switches, scope),
             vars: PhaseRead::lend(&race.shared.vars, scope),
@@ -227,7 +227,6 @@ impl<'s> Lent<'s> {
             // The scene's draw variables.
             scene_draw: &self.scene_draw,
             // The race's stores.
-            level_grid: &self.level_grid,
             ground_probe: self.ground_probe,
             scene_clock: self.scene_clock,
             shadow_skids: &self.shadow_skids,
@@ -248,7 +247,7 @@ impl<'s> Lent<'s> {
             stage_prefs: &self.stage_prefs,
             course_work: &self.course_work,
             stage: self.stage,
-            kind_records: &self.kind_records,
+            kind_records: (&self.kind_records).into(),
             numbers: &self.numbers,
             switches: &self.switches,
             vars: &self.vars,
@@ -289,8 +288,6 @@ pub struct DrawReads<'a> {
     /// fade and clip factors, the mirror picture's texture, the `v3driverfix` setting.
     pub scene_draw: &'a crate::scene::draw_store::SceneDraw,
     // The race's stores (`race::owner::Race`).
-    /// The level grid's depth shift (`race::owner_course::Course::level_grid`).
-    pub level_grid: &'a crate::race::level_grid_store::LevelGrid,
     /// The ground probe's mark (`race::owner_physics::Physics::ground_probe`), as it was when the reads were made.
     pub ground_probe: crate::physics::ground_probe_store::GroundProbe,
     /// The scene's clock (`race::owner_shared::RaceShared::run`), as it was when the reads were made.
@@ -334,7 +331,7 @@ pub struct DrawReads<'a> {
     /// The loaded stage's tables (`race::owner_course::Course::stage`).
     pub stage: &'a crate::race::stage_data_store::StageData,
     /// The course kinds' first and last records (`race::owner_course::Course::kind_records`).
-    pub kind_records: &'a crate::race::kind_records_store::KindRecords,
+    pub kind_records: crate::race::kind_records_store::KindRecordsRef<'a>,
     /// The game's numbers: its float constants, the replay's mode, `in_race`, the grip change
     /// (`race::owner_course::Course::numbers`).
     pub numbers: &'a crate::race::numbers_store::Numbers,
@@ -400,7 +397,6 @@ impl<'a> DrawReads<'a> {
             // The scene's draw variables.
             scene_draw: scene.drawing.scene.get(),
             // The race's stores.
-            level_grid: race.course.level_grid.get(),
             ground_probe: *race.physics.ground_probe().borrow(),
             scene_clock: race.shared.run().scene_clock,
             shadow_skids: race.frame.shadow_skids.get(),
@@ -421,7 +417,9 @@ impl<'a> DrawReads<'a> {
             stage_prefs: race.course.stage_prefs.get(),
             course_work: race.course.course.get(),
             stage: &race.course.stage,
-            kind_records: race.course.kind_records(),
+            kind_records: crate::race::kind_records_store::KindRecordsRef::Store(
+                race.course.kind_records(),
+            ),
             numbers: race.course.numbers.get(),
             switches: race.shared.switches.get(),
             vars: race.shared.vars.get(),

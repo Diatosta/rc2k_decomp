@@ -1205,6 +1205,61 @@ impl<T> std::ops::Deref for PhaseRead<'_, T> {
 // scope's code takes none).
 unsafe impl<T: crate::memory::cells::Cells> Sync for PhaseRead<'_, T> {}
 
+/// A drawing store that is a plain record (no cells): held by the game's thread in a `RefCell`,
+/// read and written there outside a drawing scope, and lent to the drawing parts as a copy
+/// (`PlainRead`).
+pub struct DrawPlain<T>(GameThread<std::cell::RefCell<T>>);
+
+impl<T> DrawPlain<T> {
+    pub const fn new(value: T) -> Self {
+        Self(GameThread::new(std::cell::RefCell::new(value)))
+    }
+
+    /// The record, read, on the game's thread outside a drawing scope.
+    pub fn borrow(&self) -> std::cell::Ref<'_, T> {
+        debug_assert!(
+            !crate::memory::draw_order::in_scope(),
+            "a drawing store reached by its owner while the parts read it (take the part's reads)"
+        );
+        self.0.get().borrow()
+    }
+
+    /// The record, to write, on the game's thread outside a drawing scope: no other borrow may
+    /// be held.
+    pub fn borrow_mut(&self) -> std::cell::RefMut<'_, T> {
+        debug_assert!(
+            !crate::memory::draw_order::in_scope(),
+            "a drawing store written while the parts read it"
+        );
+        self.0.get().borrow_mut()
+    }
+}
+
+/// A `DrawPlain` store lent to the parts of one drawing scope: a copy of the record as it stood
+/// when the scope opened. The parts read the copy (a plain `&T`, `Sync` because `T` is), so no
+/// thread can meet the game's thread's `RefCell`, and nothing is lent by address: a write to the
+/// store during the scope is stopped by `DrawPlain::borrow_mut` in debug builds and would not
+/// reach the parts in release builds. It is made only where the scope is opened
+/// (`scene::workers::Lent`), on the game's thread.
+pub struct PlainRead<T>(Box<T>);
+
+impl<T: Clone> PlainRead<T> {
+    /// A copy of `store`'s record for the scope's parts.
+    pub(crate) fn lend(store: &DrawPlain<T>, scope: &crate::memory::draw_order::DrawScope) -> Self {
+        let _ = scope;
+        // Not `borrow`: the scope is open (the record is copied here, not written).
+        Self(Box::new(store.0.get().borrow().clone()))
+    }
+}
+
+impl<T> std::ops::Deref for PlainRead<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
 /// Debug builds: the byte ranges lent to the open drawing scope (`PhaseRead::lend`). One
 /// writer (the game's thread, before the parts start and after they have all ended), many
 /// readers: each part's writes look them up.
