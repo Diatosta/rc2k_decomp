@@ -20,12 +20,10 @@ pub struct GroundWork {
     /// `scene::draw_object_faces`); now each view's (`ObjectPlace::texture_set`); unused.
     pub object_texture_set: PlainDword,
     /// Polygons drawn whole this frame (`scene::draw_object_polygon`; zeroed by
-    /// `race::draw_race_scene`) (a reading); now each view's
-    /// (`ctx.view.object.whole_polygon_count`); unused.
+    /// `race::draw_race_scene`) (a reading); unused.
     pub whole_polygon_count: PlainDword,
     /// Polygons drawn split this frame (`scene::draw_object_polygon`; zeroed by
-    /// `race::draw_race_scene`) (a reading); now each view's
-    /// (`ctx.view.object.split_polygon_count`); unused.
+    /// `race::draw_race_scene`) (a reading); unused.
     pub split_polygon_count: PlainDword,
     /// The car whose object is being drawn, or -1; `scene::add_car_lights` skips it
     /// (`scene::set_object_light`); now each view's (`ObjectLight::drawn_car_light`); unused.

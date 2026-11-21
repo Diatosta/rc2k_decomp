@@ -61,8 +61,8 @@ pub fn reflection_coordinates(
         return Err(BadInput("no records for the points"));
     }
     let table = crate::scene::reading::PointRecords::new(reads.course_lists, part)?;
-    let normal = table.place(object.reflection_normal_number.get())?;
-    let point = table.place(object.reflection_point_number.get().wrapping_neg())?;
+    let normal = table.place(object.borrow().reflection_normal_number)?;
+    let point = table.place(object.borrow().reflection_point_number.wrapping_neg())?;
     crate::memory::session::write_bits(&m.reflect_vector, normal);
     crate::memory::session::write_first(&m.work_vector, &point.map(negated));
     normalise_vector(
@@ -90,13 +90,10 @@ pub fn reflection_coordinates(
     let looks: [u32; 3] = crate::memory::session::read_first(&m.work_vector);
     let half = reads.numbers.half.get();
     let scales = [reads.numbers.k65536.get(), reads.numbers.k256.get()];
-    crate::memory::session::write_bits(
-        &object.reflection_coordinates,
-        [
-            coordinate(looks[0], half, scales) as u32,
-            coordinate(looks[2], half, scales) as u32,
-        ],
-    );
+    object.borrow_mut().reflection_coordinates = [
+        coordinate(looks[0], half, scales) as u32,
+        coordinate(looks[2], half, scales) as u32,
+    ];
     Ok(())
 }
 

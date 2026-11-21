@@ -18,7 +18,7 @@ pub fn list_object_faces(
     list: &mut dyn FnMut(&mut crate::scene::face_list::FaceList, usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     {
-        let (first, count): (u32, u32) = (object.first_face.get(), object.face_count.get());
+        let (first, count): (u32, u32) = (object.borrow().first_face, object.borrow().face_count);
         // Every face is looked up before anything is written.
         let faces = rc2k_core::scene::objects::object_faces(first, count, |number| {
             crate::scene::objects::face_cell(faces_table, number as usize).get()

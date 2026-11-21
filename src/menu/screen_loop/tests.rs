@@ -184,7 +184,7 @@ fn snapshot(menus: &Menus) -> Snapshot {
         sound: menus.screens.entry.sound(),
         scene: SCENE_VARS
             .iter()
-            .map(|v| v.cell(&crate::owners::Owners::the().scene.scratch).get())
+            .map(|v| v.get(&crate::owners::Owners::the().scene.scratch))
             .collect(),
         floats: SCENE_FLOATS
             .iter()
@@ -206,8 +206,10 @@ fn fill(menus: &Menus) {
         ScreenVar::SavedItem(slot).set(menus, 0x6000 + slot as u32);
     }
     for (at, var) in SCENE_VARS.iter().enumerate() {
-        var.cell(&crate::owners::Owners::the().scene.scratch)
-            .set(0x7000 + at as u32);
+        var.set(
+            &crate::owners::Owners::the().scene.scratch,
+            0x7000 + at as u32,
+        );
     }
     for (at, var) in SCENE_FLOATS.iter().enumerate() {
         var.cell(&crate::owners::Owners::the().scene.scratch)
@@ -312,8 +314,7 @@ fn data_steps_write_what_they_name_and_nothing_else() {
     assert!(run_steps > 100, "{run_steps} data steps");
     // The scene variables are the game's own statics: put them back.
     for (var, value) in SCENE_VARS.iter().zip(&saved.scene) {
-        var.cell(&crate::owners::Owners::the().scene.scratch)
-            .set(*value);
+        var.set(&crate::owners::Owners::the().scene.scratch, *value);
     }
     for (var, bits) in SCENE_FLOATS.iter().zip(&saved.floats) {
         var.cell(&crate::owners::Owners::the().scene.scratch)

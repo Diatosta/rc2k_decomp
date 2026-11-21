@@ -27,7 +27,7 @@ pub fn draw_object_faces(
     if list.is_empty() {
         return Ok(());
     }
-    let first: u32 = object.first_face.get();
+    let first: u32 = object.borrow().first_face;
     // A face not there is a refusal.
     for listed in list {
         let number = listed[0].wrapping_add(first);
@@ -38,11 +38,12 @@ pub fn draw_object_faces(
         if face == 0 {
             return Err(BadInput("a face that is not there").into());
         }
-        object.see_through.set(listed[3]);
+        object.borrow_mut().see_through = listed[3];
         work.face_number.set(listed[0]);
         let head: [u8; 0xC] = object_faces.array(face as u32)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
-        poly.polygon_textures[0].set(texture.wrapping_add(object.texture_set.get()) | 0x8000_0000);
+        poly.polygon_textures[0]
+            .set(texture.wrapping_add(object.borrow().texture_set) | 0x8000_0000);
         work.face_kind.set(head[6] as u32);
         work.face_unlit.set(head[0xB] as u32);
         let shade = head[0xA] as u32;

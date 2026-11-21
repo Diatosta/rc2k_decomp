@@ -124,12 +124,12 @@ fn face_hidden(
     points_there(ctx)?;
     let record = point_record(ctx, face.point(0))?;
     let x = bh::to_int(bh::ld(crate::scene::point_records::field(ctx.part, record, 0x10)?).abs());
-    ctx.view.object.position[0].set(x as u32);
+    ctx.view.object.borrow_mut().position[0] = x as u32;
     let depth = crate::math::x87::add_to_int(
         crate::scene::point_records::field(ctx.part, record, 0x18)?,
         DEPTH_SHIFT,
     );
-    ctx.view.object.face_depth.set(depth as u32);
+    ctx.view.object.borrow_mut().face_depth = depth as u32;
     Ok(hidden_by_depth(
         depth as u32,
         x as u32,

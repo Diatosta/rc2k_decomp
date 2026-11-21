@@ -120,12 +120,12 @@ pub fn draw_carousel_entry(
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let set = settings(shared, scene, menus, entry, row)?;
-    crate::memory::session::write_bits(&view.object.place, set.place);
+    view.object.borrow_mut().place = set.place;
     if let Some(size) = set.size {
-        view.object.size.set(size);
+        view.object.borrow_mut().size = size;
     }
-    view.object.angles[0].set(set.angle_x);
-    view.object.angles[1].set(set.angle_y);
+    view.object.borrow_mut().angles[0] = set.angle_x;
+    view.object.borrow_mut().angles[1] = set.angle_y;
     crate::memory::session::write_bits(&view.polygon.window.view_offset, [0u32; 2]);
     menus.screens.carousel.write().kind = set.kind;
     view.cars.object_number.set(set.object);

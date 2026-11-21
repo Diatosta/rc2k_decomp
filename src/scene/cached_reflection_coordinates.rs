@@ -28,24 +28,23 @@ pub fn cached_reflection_coordinates(
         return Ok(reflection_coordinates(part, reads, object, m)?);
     }
     let asked: [u32; 2] = [
-        object.reflection_normal_number.get(),
-        object.reflection_point_number.get(),
+        object.borrow().reflection_normal_number,
+        object.borrow().reflection_point_number,
     ];
     let place = cache_place(asked[0]);
-    let slot = |table: usize| &object.kept_reflections[table * TABLE_CELLS + place];
-    if let Some(coordinates) = cached(asked, [slot(0).get(), slot(1).get()], || {
-        [slot(2).get(), slot(3).get()]
-    }) {
-        crate::memory::session::write_bits(&object.reflection_coordinates, coordinates);
+    let kept = |table: usize| object.borrow().kept_reflections[table * TABLE_CELLS + place];
+    let found = cached(asked, [kept(0), kept(1)], || [kept(2), kept(3)]);
+    if let Some(coordinates) = found {
+        object.borrow_mut().reflection_coordinates = coordinates;
         return Ok(());
     }
     reflection_coordinates(part, reads, object, m)?;
-    let coordinates: [u32; 2] = crate::memory::session::read_bits(&object.reflection_coordinates);
+    let coordinates: [u32; 2] = object.borrow().reflection_coordinates;
     for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
         .into_iter()
         .enumerate()
     {
-        slot(table).set(value);
+        object.borrow_mut().kept_reflections[table * TABLE_CELLS + place] = value;
     }
     Ok(())
 }

@@ -254,13 +254,13 @@ pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Ba
         angle,
     );
     let height = ctx.reads.stage_prefs.sky_height.get() << 8;
-    ctx.view.object.place[0].set(0u32);
-    ctx.view.object.place[2].set(0u32);
-    ctx.view.object.place[1].set(height);
+    ctx.view.object.borrow_mut().place[0] = 0u32;
+    ctx.view.object.borrow_mut().place[2] = 0u32;
+    ctx.view.object.borrow_mut().place[1] = height;
     matrix::set_place(&m.placed_matrix, [0, height, 0]);
     matrix::copy_matrix_with_place(&m.turn_y_matrix, &m.placed_matrix, &m.turned_matrix);
     let size = ctx.view.polygon.window.farthest_scaled.get() << 4;
-    ctx.view.object.size.set(size);
+    ctx.view.object.borrow_mut().size = size;
     let scale = crate::math::x87::int_over_16(size as i32);
     for cell in &m.turned_matrix {
         cell.set(crate::math::x87::mul(cell, scale));
@@ -537,7 +537,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
         ctx.view.drawn_view(race),
     )?;
     // Not left from the previous view's last object.
-    ctx.view.light.other_light.set(0);
+    ctx.view.light.borrow_mut().other_light = 0;
     let mode: u32 = ctx.reads.light_work.draw_mode;
     if mode == 1 || mode == 2 {
         return Ok(());
@@ -549,15 +549,15 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
         16,
     );
     ctx.view.cars.object_number.set(1);
-    ctx.view.light.view_kind.set(4);
-    ctx.view.light.light_lowest.set(0xFF);
-    ctx.view.light.light_highest.set(0xFF);
-    ctx.view.light.light_level.set(0xFF);
-    ctx.view.light.light_turns[0].set(0);
-    ctx.view.light.light_turns[1].set(0);
+    ctx.view.light.borrow_mut().view_kind = 4;
+    ctx.view.light.borrow_mut().light_lowest = 0xFF;
+    ctx.view.light.borrow_mut().light_highest = 0xFF;
+    ctx.view.light.borrow_mut().light_level = 0xFF;
+    ctx.view.light.borrow_mut().light_turns[0] = 0;
+    ctx.view.light.borrow_mut().light_turns[1] = 0;
     ctx.view.face.no_far_clip.set(1);
     crate::scene::glow_render_states::glow_render_states(ctx.part);
-    ctx.view.light.light_kind.set(0u32);
+    ctx.view.light.borrow_mut().light_kind = 0u32;
     // The matrix is taken where its copy was left: past `made_object_matrix`.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
@@ -566,7 +566,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
         )),
     )?;
     crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
-    ctx.view.light.view_kind.set(0);
+    ctx.view.light.borrow_mut().view_kind = 0;
     ctx.view.face.no_far_clip.set(0);
     place_sun(ctx)
 }

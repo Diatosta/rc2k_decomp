@@ -69,8 +69,8 @@ pub fn draw_shown_car(
         return Err(BadInput("a car shown past the carousel's kinds").into());
     }
     let clock: u32 = shared.run().scene_clock;
-    object_place.angles[1].set((clock << 3) & 0xFFFF);
-    object_place.place[2].set(screens.carousel.read().z);
+    object_place.borrow_mut().angles[1] = (clock << 3) & 0xFFFF;
+    object_place.borrow_mut().place[2] = screens.carousel.read().z;
     let kind = screens.carousel.read().kinds[car as usize];
     screens.carousel.write().kind = kind;
     let object = find_object_of_kind(kind, scene);

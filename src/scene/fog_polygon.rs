@@ -37,7 +37,7 @@ pub fn fog_entries(
         return Err(BadInput("an entry without its record").into());
     }
     let length = table_length(view)?;
-    let fixed = (light.view_kind.get() == 4).then(|| fog.borrow().next);
+    let fixed = (light.borrow().view_kind == 4).then(|| fog.borrow().next);
     for entry in entries {
         entry
             .fog

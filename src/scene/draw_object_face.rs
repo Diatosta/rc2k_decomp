@@ -69,10 +69,10 @@ pub fn draw_object_face(
     let fw = |at: usize| u32::from_le_bytes(words[at..at + 4].try_into().unwrap());
     let entries = &ctx.part.polygon.entries;
     let vertices = (0..count as usize).map(|n| (&entries[n], 0x10 + n * 0x10));
-    let view_kind: u32 = light.view_kind.get();
+    let view_kind: u32 = light.borrow().view_kind;
     let shine: u32 = ctx.view.course.shine.get();
 
-    light.face_bits.set(words[7] as u32 & 0x1F);
+    light.borrow_mut().face_bits = words[7] as u32 & 0x1F;
     let face_shine = words[9] as u32;
     let reflects = shine != 0
         && ctx.reads.vars.settings_words[1].get() != 0
@@ -87,7 +87,7 @@ pub fn draw_object_face(
             entry.u2.set(fw(vertex + 4));
             entry.v2.set(fw(vertex + 8));
             entry.amount.set(0xFF);
-            entry.light.set(light.other_light.get());
+            entry.light.set(light.borrow().other_light);
         }
         ctx.view.polygon.polygon_textures[1].set(ctx.view.polygon.polygon_textures[0].get());
         ctx.view.polygon.polygon_sides[0].set(0u32);
@@ -107,7 +107,8 @@ pub fn draw_object_face(
     for (entry, vertex) in vertices.clone() {
         let point = fw(vertex);
         entry.point.set(point.wrapping_neg());
-        crate::memory::session::write_bits(&light.point_place, table.place(point)?);
+        let place = table.place(point)?;
+        light.borrow_mut().point_place = place;
         entry.u.set(fw(vertex + 4));
         entry.v.set(fw(vertex + 8));
         let light = if lit {
@@ -133,10 +134,8 @@ pub fn draw_object_face(
             ctx.part, ctx.view, first,
         )?);
         for (entry, vertex) in vertices {
-            object.reflection_normal_number.set(fw(vertex + 0xC));
-            object
-                .reflection_point_number
-                .set(fw(vertex).wrapping_neg());
+            object.borrow_mut().reflection_normal_number = fw(vertex + 0xC);
+            object.borrow_mut().reflection_point_number = fw(vertex).wrapping_neg();
             cached_reflection_coordinates(
                 ctx.part,
                 ctx.reads,
@@ -144,8 +143,7 @@ pub fn draw_object_face(
                 &ctx.view.matrices,
                 ctx.view,
             )?;
-            let coordinates: [u32; 2] =
-                crate::memory::session::read_bits(&object.reflection_coordinates);
+            let coordinates: [u32; 2] = object.borrow().reflection_coordinates;
             entry.u2.set(coordinates[0]);
             entry.v2.set(coordinates[1]);
             let amount = (face_shine.wrapping_mul(shine).wrapping_mul(first_fog) >> 12).min(0xFF);
@@ -156,14 +154,14 @@ pub fn draw_object_face(
         }
         ctx.view.polygon.polygon_textures[1].set(REFLECTION_TEXTURE);
     }
-    let faded = work.fade_alpha.get() != 0 && light.face_bits.get() == work.faded_bits.get();
+    let faded = work.fade_alpha.get() != 0 && light.borrow().face_bits == work.faded_bits.get();
     work.faded.set(faded as u32);
     if ctx.view.face.face_any_shine.get() == 0 {
         ctx.view.face.reflects.set(0u32);
     }
     ctx.view.polygon.polygon_sides[0].set(1u32);
     ctx.view.polygon.polygon_sides[1].set(ctx.view.face.reflects.get());
-    let see_through: u32 = object.see_through.get();
+    let see_through: u32 = object.borrow().see_through;
     if see_through != 0x100 {
         for entry in &entries[..0x10] {
             entry.amount.set(see_through as u8);
@@ -193,7 +191,6 @@ pub fn draw_object_face_in_game(
             ctx.part,
             &ctx.view.polygon,
             ctx.reads.course(),
-            &ctx.view.object,
             &mut |step| match step {
                 draw_object_polygon::Step::Project => {
                     project_polygon(ctx.part, &ctx.view.polygon, ctx.reads, ctx.view)

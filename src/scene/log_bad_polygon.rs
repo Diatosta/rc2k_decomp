@@ -115,7 +115,7 @@ pub fn log_bad_polygon(
         log(at(view, screen));
     }
     view.polygon.polygon_clip_mask.set(0u32);
-    let object = view.object.drawing_object.get() == 1;
+    let object = view.object.borrow().drawing_object == 1;
     let tail: &[(&std::ffi::CStr, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
     for &(label, at) in AFTER.iter().chain(tail) {
         write(label);

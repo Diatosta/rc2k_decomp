@@ -24,7 +24,7 @@ pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     if lamps > MOST || !crate::race::scene_points::held(&ctx.reads.stage.course) {
         return Err(BadInput("more lamps than the list holds, or no points").into());
     }
-    let place: [u32; 3] = crate::memory::session::read_bits(&ctx.view.light.lit_place);
+    let place: [u32; 3] = ctx.view.light.borrow().lit_place;
     let reading = crate::scene::reading::Reading::new();
     let list = (0..lamps as usize).map(|n| {
         // The list holds 16 lamps, the refusal allows `MOST`; the only write of the count
@@ -52,15 +52,14 @@ pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
             point,
         ))
     };
-    let out = lamps::add_point_lights(list, place, at, ctx.view.light.light_colour.get());
+    let out = lamps::add_point_lights(list, place, at, ctx.view.light.borrow().light_colour);
     reading.finish()?;
-    for (to, value) in [
-        (&ctx.view.light.lamp_tint, out.colour),
-        (&ctx.view.light.light_colour, out.light),
-    ] {
-        if let Some(v) = value {
-            to.set(v);
-        }
+    let mut light = ctx.view.light.borrow_mut();
+    if let Some(v) = out.colour {
+        light.lamp_tint = v;
+    }
+    if let Some(v) = out.light {
+        light.light_colour = v;
     }
     Ok(())
 }

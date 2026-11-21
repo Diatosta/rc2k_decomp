@@ -56,7 +56,7 @@ impl<'a> EffectsView<'a> {
         Self {
             fog: &view.fog,
             view_matrix: &view.matrices.view_matrix,
-            light: view.light.view_light.get(),
+            light: view.light.borrow().view_light,
             engine_tables: race.engine_tables(),
         }
     }
@@ -70,7 +70,7 @@ impl<'a> EffectsView<'a> {
         Self {
             fog: &front_end.fog,
             view_matrix: &race.frame.matrices.get().view_matrix,
-            light: front_end.light.view_light.get(),
+            light: front_end.light.borrow().view_light,
             engine_tables: race.engine_tables(),
         }
     }

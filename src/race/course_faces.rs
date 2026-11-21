@@ -230,9 +230,9 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
     }
     let [x, y, z] =
         crate::race::scene_points::point_number(ctx.reads.course(), &ctx.part.points, n)?;
-    ctx.view.light.lit_place[0].set(x);
-    ctx.view.light.lit_place[1].set(y);
-    ctx.view.light.lit_place[2].set(z);
+    ctx.view.light.borrow_mut().lit_place[0] = x;
+    ctx.view.light.borrow_mut().lit_place[1] = y;
+    ctx.view.light.borrow_mut().lit_place[2] = z;
     crate::race::frame_draw::light_colour_at(
         ctx.reads,
         ctx.reads.net_race.get(),
@@ -241,7 +241,7 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
         &ctx.view.light,
         ctx.view.drawn_view(race),
     )?;
-    let light: u32 = ctx.view.light.light_colour.get();
+    let light: u32 = ctx.view.light.borrow().light_colour;
     Ok(light)
 }
 
@@ -873,7 +873,7 @@ fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             crate::race::scene_points::point_number(ctx.reads.course(), &ctx.part.points, pa)?,
             crate::race::scene_points::point_number(ctx.reads.course(), &ctx.part.points, pb)?,
         );
-        for (n, lit) in ctx.view.light.lit_place.iter().enumerate() {
+        for n in 0..3 {
             let o = 4 * n as u32;
             let (a, b) = (at_a[n], at_b[n]);
             let m = ((b.wrapping_sub(a) as i32) >> 1) as u32;
@@ -885,7 +885,7 @@ fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
                 o,
                 m,
             )?;
-            lit.set(m);
+            ctx.view.light.borrow_mut().lit_place[n] = m;
         }
         halfway_vertex(
             ctx.reads.course(),
@@ -911,7 +911,7 @@ fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             &ctx.view.light,
             ctx.view.drawn_view(race),
         )?;
-        let light: u32 = ctx.view.light.light_colour.get();
+        let light: u32 = ctx.view.light.borrow().light_colour;
         to.lamp_light.set(light);
     }
     let mode5 = ctx.view.face.polygon_mode.get() == 5;

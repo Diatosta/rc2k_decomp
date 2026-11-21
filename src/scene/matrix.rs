@@ -135,21 +135,21 @@ pub fn copy_matrix_with_place(
 pub fn set_light_direction(
     tables: &EngineTables,
     v: &ViewMatrices,
-    direction: &[impl FloatLike; 3],
     view_turn: &[impl FloatLike; 16],
     light: &crate::scene::object_light::ObjectLight,
 ) {
+    let turns = light.borrow().light_turns;
     set_turn_x(
         tables,
         &v.turn_x_matrix,
         &v.turn_x_work,
-        (light.light_turns[1].get() << 8).wrapping_neg(),
+        (turns[1] << 8).wrapping_neg(),
     );
     set_turn_y(
         tables,
         &v.turn_y_matrix,
         &v.turn_y_work,
-        (light.light_turns[0].get() << 8).wrapping_neg(),
+        (turns[0] << 8).wrapping_neg(),
     );
     multiply_matrices(&v.turn_x_matrix, &v.turn_y_matrix, &v.turned_matrix);
     multiply_matrices(&v.turned_matrix, view_turn, &v.lit_matrix);
@@ -160,9 +160,7 @@ pub fn set_light_direction(
             .each_ref()
             .map(crate::memory::session::PlainFloat::get),
     );
-    for (cell, value) in direction.iter().zip(ahead) {
-        cell.set(value);
-    }
+    light.borrow_mut().light_direction = ahead.map(f32::to_bits);
 }
 
 /// `scene::make_object_matrix`.
@@ -173,23 +171,23 @@ pub fn make_object_matrix(
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) {
-    set_light_direction(tables, v, &light.light_direction, view_turn, light);
+    set_light_direction(tables, v, view_turn, light);
     set_turn_y(
         tables,
         &v.turn_y_matrix,
         &v.turn_y_work,
-        object.angles[1].get().wrapping_neg(),
+        object.borrow().angles[1].wrapping_neg(),
     );
     set_turn_x(
         tables,
         &v.turn_x_matrix,
         &v.turn_x_work,
-        object.angles[0].get().wrapping_neg(),
+        object.borrow().angles[0].wrapping_neg(),
     );
-    let place: [u32; 3] = crate::memory::session::read_bits(&object.place);
+    let place: [u32; 3] = object.borrow().place;
     set_place(&v.placed_matrix, place);
     multiply_matrices(&v.turn_y_matrix, &v.turn_x_matrix, &v.turned_matrix);
-    let size: u32 = object.size.get();
+    let size: u32 = object.borrow().size;
     let factor = x87::int_over_16(size as i32);
     for cell in &v.turned_matrix {
         cell.set(x87::mul(cell, factor));

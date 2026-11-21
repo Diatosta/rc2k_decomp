@@ -114,14 +114,14 @@ pub fn add_car_light(
     if car.lights_on.get() == 0 {
         return;
     }
-    let place: [u32; 3] = crate::memory::session::read_bits(&light.lit_place);
+    let place: [u32; 3] = light.borrow().lit_place;
     let mut from = [0u32; 3];
     for k in 0..3 {
         from[k] = place[k].wrapping_sub(car.position[k].get());
     }
     let matrix = crate::memory::session::read_bits(&car.car_inverse_matrix);
     let seen = turned(from, &matrix);
-    crate::memory::session::write_bits(&light.turned_light, seen);
+    light.borrow_mut().turned_light = seen;
     let [x, y, z] = seen;
     let factor = course.numbers.one_over_65536.get();
     let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
@@ -130,9 +130,10 @@ pub fn add_car_light(
     let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
     let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(marks_count) >> 8;
     let colour: u32 = light_tables.car_light_table[held(amount as i32) as usize].get();
-    light
-        .light_colour
-        .set(plus(colour, light.light_colour.get()));
+    {
+        let value = plus(colour, light.borrow().light_colour);
+        light.borrow_mut().light_colour = value;
+    };
 }
 
 #[cfg(test)]

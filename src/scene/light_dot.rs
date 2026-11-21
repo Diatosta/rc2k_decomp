@@ -11,15 +11,10 @@
 use crate::math::x87_float::{Rounds, at_rounding};
 
 pub fn light_dot(light: &crate::scene::object_light::ObjectLight) -> i32 {
-    let [p0, p1, p2] = light
-        .light_dot_point
-        .each_ref()
-        .map(crate::memory::session::PlainFloat::get);
-    let [l0, l1, l2] = light
-        .light_dot_light
-        .each_ref()
-        .map(crate::memory::session::PlainFloat::get);
-    dot([p0, p1, p2], [l0, l1, l2], light.light_dot_factor.get())
+    let light = light.borrow();
+    let point = light.light_dot_point.map(f32::from_bits);
+    let direction = light.light_dot_light.map(f32::from_bits);
+    dot(point, direction, f32::from_bits(light.light_dot_factor))
 }
 
 /// `fld; fmul; fld; fmul; fld; fmul; faddp; faddp; fmul; fistp`: the point times the light,

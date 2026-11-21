@@ -59,8 +59,8 @@ fn set_normal(
         return Err(BadInput("no records for the points"));
     }
     let place = crate::scene::reading::PointRecords::new(lists, part)?.place(number)?;
-    light.light_colour.set(0u32);
-    crate::memory::session::write_bits(&light.light_dot_point, place);
+    light.borrow_mut().light_colour = 0u32;
+    light.borrow_mut().light_dot_point = place;
     Ok(())
 }
 
@@ -69,15 +69,16 @@ fn light_number(
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> i32 {
-    let strength = object.light_strength.get() as i32;
+    let strength = object.borrow().light_strength as i32;
     if strength == 0 {
         return 0;
     }
-    crate::memory::session::write_bits(
-        &light.light_dot_light,
-        crate::memory::session::read_bits::<_, 3>(&light.light_direction),
-    );
-    light.light_dot_factor.set(x87::from_int(strength));
+    let direction = light.borrow().light_direction;
+    {
+        let mut light = light.borrow_mut();
+        light.light_dot_light = direction;
+        light.light_dot_factor = x87::from_int(strength).to_bits();
+    }
     light_dot(light)
 }
 
@@ -87,9 +88,9 @@ fn table_place(
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<usize, BadInput> {
     let place = held(
-        light_number(light, object).wrapping_add(light.light_level.get() as i32),
-        light.light_lowest.get() as i32,
-        light.light_highest.get() as i32,
+        light_number(light, object).wrapping_add(light.borrow().light_level as i32),
+        light.borrow().light_lowest as i32,
+        light.borrow().light_highest as i32,
     );
     if !(0..TABLE_LEN as i32).contains(&place) {
         return Err(BadInput("a place outside the light table"));
@@ -111,9 +112,9 @@ fn lit(
     let place = place?;
     let colour = plus(
         reads.light_tables.light_table[place].get(),
-        light.light_colour.get(),
+        light.borrow().light_colour,
     );
-    light.light_colour.set(colour);
+    light.borrow_mut().light_colour = colour;
     Ok(colour)
 }
 
@@ -130,7 +131,7 @@ fn blend(
         (amount, &course.stage_prefs.lit_colour)
     };
     let towards = crate::memory::session::read_bits::<_, 3>(towards).map(|bits| bits as i32);
-    let mut colour: u32 = light.light_colour.get();
+    let mut colour: u32 = light.borrow().light_colour;
     // The third byte first, towards the first of the three.
     for (n, to) in towards.into_iter().enumerate() {
         let at = (2 - n) * 8;
@@ -138,7 +139,7 @@ fn blend(
         let moved = (amount.wrapping_mul(to.wrapping_sub(byte)) >> 8).wrapping_add(byte);
         colour = colour & !(0xFF << at) | (moved.clamp(0, 0xFF) as u32) << at;
     }
-    light.light_colour.set(colour);
+    light.borrow_mut().light_colour = colour;
 }
 
 #[allow(
@@ -152,7 +153,7 @@ pub fn vertex_light(
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<u32, BadInput> {
-    let kind: u32 = light.light_kind.get();
+    let kind: u32 = light.borrow().light_kind;
     if kind == 4 {
         // The lit colour added to nothing: it only makes the bytes the right ones.
         return Ok(plus(0, lit(reads, part, number, light, object)?));
@@ -161,14 +162,14 @@ pub fn vertex_light(
     if !lit_at_all || kind == 0 {
         return Ok(0x00FF_FFFF);
     }
-    let added: u32 = light.light_added.get();
+    let added: u32 = light.borrow().light_added;
     match kind {
         2 | 5 => Ok(plus(
             plus(0, lit(reads, part, number, light, object)?),
             added,
         )),
         1 => {
-            let level: u32 = light.light_level.get();
+            let level: u32 = light.borrow().light_level;
             if level >= TABLE_LEN {
                 return Err(BadInput("a place outside the light table"));
             }
@@ -180,10 +181,10 @@ pub fn vertex_light(
         3 => {
             set_normal(reads.course_lists, part, number, light)?;
             // `set_normal` has just set the colour to 0.
-            let colour = plus(plus(light.car_light.get(), 0), added);
-            light.light_colour.set(colour);
+            let colour = plus(plus(light.borrow().car_light, 0), added);
+            light.borrow_mut().light_colour = colour;
             blend(reads.course(), light, object);
-            Ok(light.light_colour.get())
+            Ok(light.borrow().light_colour)
         }
         _ => Ok(number),
     }

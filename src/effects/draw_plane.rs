@@ -158,7 +158,7 @@ pub fn draw_plane(
         vertex.u.set(x87::loaded(PLANE_TUNING.places[n][0]));
         vertex.v.set(x87::loaded(PLANE_TUNING.places[n][1]));
     }
-    let light: u32 = ctx.view.light.view_light.get();
+    let light: u32 = ctx.view.light.borrow().view_light;
     for item in buffer.vertices.iter().take(4) {
         item.colour.set(light);
     }

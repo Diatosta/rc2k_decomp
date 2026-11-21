@@ -116,13 +116,13 @@ impl FaceWorld for GameFace<'_> {
         self.4.groups_which.get()
     }
     fn see_through_on(&self) -> u32 {
-        self.3.fading.get()
+        self.3.borrow().fading
     }
     fn see_through_value(&self) -> u32 {
-        self.3.fade[0].get()
+        self.3.borrow().fade[0]
     }
     fn set_see_through(&mut self, value: u32) {
-        self.3.see_through.set(value);
+        self.3.borrow_mut().see_through = value;
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {
@@ -179,7 +179,7 @@ pub fn list_object_face(
     if list.len() as u32 >= LIST_ROOM {
         return Err(BadInput("no room in the list of faces").into());
     }
-    ctx.view.object.see_through.set(0x100u32);
+    ctx.view.object.borrow_mut().see_through = 0x100u32;
     let (bytes, count) = face_bytes(&ctx.reads.stage.object_faces, face)?;
     let mut world = GameFace(
         race,
@@ -222,7 +222,7 @@ pub fn list_object_face(
         ctx.view.face.face_number.get(),
         key,
         ctx.view.polygon.entry_third.get(),
-        ctx.view.object.see_through.get(),
+        ctx.view.object.borrow().see_through,
     ]);
     Ok(())
 }

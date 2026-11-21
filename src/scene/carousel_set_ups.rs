@@ -25,7 +25,10 @@ const fn menu_ops<const N: usize>(
         n += 1;
         k += 1;
     }
-    ops[n] = Run(|scratch| &scratch.front_end().object.size, size);
+    ops[n] = Run(
+        |scratch, value| scratch.front_end().object.borrow_mut().size = value,
+        size,
+    );
     n += 1;
     k = 0;
     while k < kinds.len() {

@@ -49,7 +49,7 @@ fn words(
 }
 
 pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
-    let place: u32 = ctx.view.object.object_place.get();
+    let place: u32 = ctx.view.object.borrow().object_place;
     let Some((other_kind, distance, needs_record)) = words(
         &ctx.reads.buffers.polygon_tables,
         ctx.reads,
@@ -73,26 +73,26 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
         }
     };
     crate::memory::session::write_bits(&ctx.view.cars.fade_words, [other_kind, distance]);
-    ctx.view.object.position[0].set(0u32);
-    ctx.view.object.position[2].set(0u32);
-    ctx.view.object.fading.set(0u32);
-    ctx.view.object.fade[0].set(0x100u32);
+    ctx.view.object.borrow_mut().position[0] = 0u32;
+    ctx.view.object.borrow_mut().position[2] = 0u32;
+    ctx.view.object.borrow_mut().fading = 0u32;
+    ctx.view.object.borrow_mut().fade[0] = 0x100u32;
     if !needs_record {
         return Ok(());
     }
     if field(ctx.part, record, 0)? != place {
         make_scene_record(ctx.part, place, record, ctx.reads, ctx.view)?;
     }
-    ctx.view.object.position[0].set(x87::to_int(field(ctx.part, record, 0x10)?) as u32);
+    ctx.view.object.borrow_mut().position[0] = x87::to_int(field(ctx.part, record, 0x10)?) as u32;
     let depth = x87::to_int(field(ctx.part, record, 0x18)?);
-    ctx.view.object.position[2].set(depth as u32);
+    ctx.view.object.borrow_mut().position[2] = depth as u32;
     let near = ((distance << 16) as i32).wrapping_sub(depth);
     if near >= 0 {
         return Ok(());
     }
     let fade = (near.wrapping_add(0x10_0000).max(0) as u32) >> 12;
-    crate::memory::session::write_bits(&ctx.view.object.fade, [fade, fade]);
-    ctx.view.object.fading.set(1u32);
+    ctx.view.object.borrow_mut().fade = [fade, fade];
+    ctx.view.object.borrow_mut().fading = 1u32;
     if other_kind != 0 {
         let kinds: [u32; 0x100] =
             crate::memory::session::read_bits(&ctx.reads.object_tables.object_kinds);

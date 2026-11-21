@@ -127,21 +127,16 @@ fn filter_switches(view: &ViewScratch) -> [&crate::memory::session::PlainDword; 
     ]
 }
 
-/// The counts a piece of the view's drawing adds to (cars drawn, polygons drawn whole and
-/// split): its own added to what the view counted meanwhile, where the other cells take the
-/// piece's value.
-pub(crate) fn counts(view: &ViewScratch) -> [&crate::memory::session::PlainDword; 3] {
-    [
-        &view.cars.cars_drawn,
-        &view.object.whole_polygon_count,
-        &view.object.split_polygon_count,
-    ]
+/// The count a piece of the view's drawing adds to (cars drawn): its own added to what the view
+/// counted meanwhile, where the other cells take the piece's value.
+pub(crate) fn counted(view: &ViewScratch) -> &crate::memory::session::PlainDword {
+    &view.cars.cars_drawn
 }
 
 /// The car's depth entry drawn (`race::draw_list_entry`'s car).
 fn draw_car(ctx: &DrawCtx<'_>, number: u32) -> Result<(), Refused> {
     crate::race::car_draw::draw_car_entry(ctx, number)?;
-    ctx.view.light.view_kind.set(0u32);
+    ctx.view.light.borrow_mut().view_kind = 0u32;
     Ok(())
 }
 
@@ -156,15 +151,11 @@ impl CarAside<'_, '_> {
         let run = self.aside.join()?;
         let copy = ctx.scene.scratch.car_view();
         let taken = ctx.scene.scratch.taken();
-        let counted: [u32; 3] = std::array::from_fn(|k| {
-            counts(ctx.view)[k]
-                .get()
-                .wrapping_add(counts(&copy)[k].get().wrapping_sub(counts(taken)[k].get()))
-        });
+        let cars = counted(ctx.view)
+            .get()
+            .wrapping_add(counted(&copy).get().wrapping_sub(counted(taken).get()));
         ctx.view.merge_drawing(&copy, taken);
-        for (cell, n) in counts(ctx.view).into_iter().zip(counted) {
-            cell.set(n);
-        }
+        counted(ctx.view).set(cars);
         drop(copy);
         self.aside.put(run)
     }

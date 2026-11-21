@@ -36,10 +36,10 @@ pub fn prepare_menu_scene(
         &race.shared.vars.get().scale_factor,
     );
     let light = &scratch.light;
-    light.light_lowest.set(0x50);
-    light.light_highest.set(0xFF);
-    light.light_level.set(0xB4);
-    scratch.object.light_strength.set(0xB4);
-    crate::memory::session::write_bits(&light.light_turns, [0x6Eu32, 0x1E]);
+    light.borrow_mut().light_lowest = 0x50;
+    light.borrow_mut().light_highest = 0xFF;
+    light.borrow_mut().light_level = 0xB4;
+    scratch.object.borrow_mut().light_strength = 0xB4;
+    light.borrow_mut().light_turns = [0x6E, 0x1E];
     set_view_matrices(race.course.reads(), frame, &scratch.matrices);
 }

@@ -10,9 +10,7 @@ use crate::scene::draw_described_object::Description;
 /// `race::start_kept_reflections`: the 0x400 kept reflection normals cleared to -999 and
 /// `reflections_kept` 1.
 pub fn start_kept_reflections(view: &crate::race::view_scratch::ViewScratch) {
-    for cell in &view.object.kept_reflections[..0x400] {
-        cell.set(0xFFFF_FC19);
-    }
+    view.object.borrow_mut().kept_reflections[..0x400].fill(0xFFFF_FC19);
     view.face.reflections_kept.set(1u32);
 }
 
@@ -48,21 +46,16 @@ fn draw_slot_object(
             return Ok(());
         }
     }
-    ctx.view.light.other_light.set(0);
-    ctx.view.light.light_lowest.set(0);
-    ctx.view.light.light_highest.set(0xFF);
-    ctx.view
-        .light
-        .light_level
-        .set(ctx.reads.stage_prefs.light_level.get());
-    ctx.view
-        .object
-        .light_strength
-        .set(ctx.reads.stage_prefs.light_strength.get());
-    ctx.view.light.light_turns[0].set(ctx.reads.stage_prefs.sun_turn.get().wrapping_neg());
-    ctx.view.light.light_turns[1].set(ctx.reads.stage_prefs.sun_height.get());
-    ctx.view.light.view_kind.set(1);
-    ctx.view.light.light_kind.set(2);
+    ctx.view.light.borrow_mut().other_light = 0;
+    ctx.view.light.borrow_mut().light_lowest = 0;
+    ctx.view.light.borrow_mut().light_highest = 0xFF;
+    ctx.view.light.borrow_mut().light_level = ctx.reads.stage_prefs.light_level.get();
+    ctx.view.object.borrow_mut().light_strength = ctx.reads.stage_prefs.light_strength.get();
+    ctx.view.light.borrow_mut().light_turns[0] =
+        ctx.reads.stage_prefs.sun_turn.get().wrapping_neg();
+    ctx.view.light.borrow_mut().light_turns[1] = ctx.reads.stage_prefs.sun_height.get();
+    ctx.view.light.borrow_mut().view_kind = 1;
+    ctx.view.light.borrow_mut().light_kind = 2;
     crate::math::cells::copy_cells(&slot.matrix, &ctx.view.matrices.object_turn_matrix, 16);
     let place = [
         slot.place[0].get(),
@@ -72,7 +65,7 @@ fn draw_slot_object(
         slot.place[2].get(),
     ];
     for (k, &p) in place.iter().enumerate() {
-        ctx.view.object.place[k].set(p);
+        ctx.view.object.borrow_mut().place[k] = p;
     }
     matrix::set_place(&ctx.view.matrices.placed_matrix, place);
     matrix::copy_matrix_with_place(
@@ -226,15 +219,15 @@ pub fn add_car_depth_entry(ctx: &DrawCtx, car: usize, number: u32) -> Result<(),
     }
     let place = crate::memory::session::read_bits(&ctx.reads.frame_cars.car(car)?.position);
     for (k, &p) in place.iter().enumerate() {
-        ctx.view.object.place[k].set(p);
+        ctx.view.object.borrow_mut().place[k] = p;
     }
     let matrix: [u32; 16] = crate::memory::session::read_bits(&view.matrices.view_matrix);
     let t = crate::math::x87::rotate_rounding(place.map(|v| v as i32), &matrix);
     for (k, &v) in t.iter().enumerate() {
-        view.object.turned_place[k].set(v);
+        view.object.borrow_mut().turned_place[k] = v;
     }
-    ctx.view.object.place[0].set(from_int(t[0] as i32).to_bits());
-    ctx.view.object.place[1].set(from_int(t[1] as i32).to_bits());
+    ctx.view.object.borrow_mut().place[0] = from_int(t[0] as i32).to_bits();
+    ctx.view.object.borrow_mut().place[1] = from_int(t[1] as i32).to_bits();
     let key = t[2].wrapping_add(0x200_0000) >> 10;
     view.face.depth_key.set(key);
     let second = number.wrapping_add(0x200_0000);
@@ -259,11 +252,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     if n == FLARES_MAX {
         return Ok(());
     }
-    let place = [
-        ctx.view.object.place[0].get(),
-        ctx.view.object.place[1].get(),
-        ctx.view.object.place[2].get(),
-    ];
+    let place = ctx.view.object.borrow().place;
     for (table, v) in [
         (
             &view.lamps.flares.object_number,
@@ -272,10 +261,10 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
         (&view.lamps.flare_place_x, place[0]),
         (&view.lamps.flares.place_y, place[1]),
         (&view.lamps.flares.place_z, place[2]),
-        (&view.lamps.flares.size, ctx.view.object.size.get()),
+        (&view.lamps.flares.size, ctx.view.object.borrow().size),
         (
             &view.lamps.flares.other_light,
-            ctx.view.light.other_light.get(),
+            ctx.view.light.borrow().other_light,
         ),
     ] {
         table[n as usize].set(v);
@@ -284,8 +273,8 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
         place.map(|v| v as i32),
         &crate::memory::session::read_bits(&view.matrices.view_matrix),
     );
-    ctx.view.object.place[0].set(out[0]);
-    ctx.view.object.place[1].set(out[1]);
+    ctx.view.object.borrow_mut().place[0] = out[0];
+    ctx.view.object.borrow_mut().place[1] = out[1];
     let key = out[2].wrapping_add(0x200_0000) >> 10;
     view.face.depth_key.set(key);
     let entry: u32 = view.lists.depth_entry_count.get();
@@ -305,8 +294,8 @@ pub(super) fn place_flare(ctx: &DrawCtx, car: usize, point: [u32; 3]) -> Result<
         &crate::memory::session::read_bits(&ctx.reads.frame_cars.car(car)?.crash_matrix),
     );
     for (k, v) in t.iter().enumerate() {
-        ctx.view.object.place[k]
-            .set(v.wrapping_add(ctx.reads.frame_cars.car(car)?.position[k].get()));
+        ctx.view.object.borrow_mut().place[k] =
+            v.wrapping_add(ctx.reads.frame_cars.car(car)?.position[k].get());
     }
     ctx.view.cars.object_number.set(0x39u32);
     add_flare(ctx)?;
@@ -381,7 +370,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
         return Err(BadInput("the depth list has no room for a car's flares").into());
     }
     if ctx.reads.switches.mask_kind.get() == 8 {
-        ctx.view.object.size.set(2u32);
+        ctx.view.object.borrow_mut().size = 2u32;
         let point = [
             ctx.reads.frame_work.part_place[0].get(),
             ctx.reads.frame_work.part_place[1]
@@ -389,7 +378,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
                 .wrapping_sub(GROUND_DROP),
             ctx.reads.frame_work.part_place[2].get(),
         ];
-        ctx.view.light.other_light.set(0x00F0_F0F0u32);
+        ctx.view.light.borrow_mut().other_light = 0x00F0_F0F0u32;
         place_flare(ctx, car, point)?;
         // the pair's other light, as `light_pair` (the debug UI).
         if point[0] != 0 {
@@ -419,10 +408,10 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     let index = race.kind_tables().kind_light_records[(kind as i32).clamp(0, 0x21) as usize].get();
     // The table is the image's and nothing writes it: its entries are 0 .. 33, the 34 records'.
     let record = index as usize;
-    ctx.view.light.view_kind.set(1u32);
-    ctx.view.light.light_kind.set(3u32);
-    ctx.view.object.size.set(2u32);
-    ctx.view.light.other_light.set(0x0060_6060u32);
+    ctx.view.light.borrow_mut().view_kind = 1u32;
+    ctx.view.light.borrow_mut().light_kind = 3u32;
+    ctx.view.object.borrow_mut().size = 2u32;
+    ctx.view.light.borrow_mut().other_light = 0x0060_6060u32;
     let pair = |at: u32, left: u32, right: u32| light_pair(ctx, car, record, at, left, right);
     pair(0xA4, 0xAC0, 0xAC1)?;
     if ctx.reads.light_work.marks_mask != 0 && ctx.view.cars.parts_present.get() >> 9 & 1 != 0 {
@@ -433,7 +422,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     // No left light for kind 0xD.
     let left = if kind == 0xD { u32::MAX } else { 0xAC6 };
     pair(0xF8, left, 0xAC7)?;
-    ctx.view.light.other_light.set(0x00C0_0000u32);
+    ctx.view.light.borrow_mut().other_light = 0x00C0_0000u32;
     // None for kinds 0xD and 0xE.
     let left = if kind == 0xD || kind == 0xE {
         u32::MAX
@@ -441,7 +430,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
         0xAC8
     };
     pair(0x104, left, 0xAC9)?;
-    ctx.view.light.other_light.set(0x0080_0000u32);
+    ctx.view.light.borrow_mut().other_light = 0x0080_0000u32;
     pair(0xD4, 0xAC4, 0xAC5)?;
     pair(0xE0, 0xAD0, u32::MAX)?;
     pair(0xEC, 0xAC2, 0xAC3)?;
@@ -481,11 +470,7 @@ pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
 /// `made_object_matrix`.
 pub(super) fn placed_object_tail(ctx: &DrawCtx) {
     use crate::scene::matrix;
-    let place = [
-        ctx.view.object.place[0].get(),
-        ctx.view.object.place[1].get(),
-        ctx.view.object.place[2].get(),
-    ];
+    let place = ctx.view.object.borrow().place;
     matrix::set_place(&ctx.view.matrices.placed_matrix, place);
     matrix::copy_matrix_with_place(
         &ctx.view.matrices.placed_matrix,
@@ -507,7 +492,7 @@ pub(super) fn placed_object_tail(ctx: &DrawCtx) {
 /// `ctx.view.matrices.object_turn_matrix`'s sixteen floats times `size` / 16.
 pub(super) fn scale_object_turn(ctx: &DrawCtx) -> Result<(), BadInput> {
     {
-        let scale = crate::math::x87::int_over_16(ctx.view.object.size.get() as i32);
+        let scale = crate::math::x87::int_over_16(ctx.view.object.borrow().size as i32);
         for cell in &ctx.view.matrices.object_turn_matrix {
             cell.set(crate::math::x87::mul(cell, scale));
         }
@@ -544,7 +529,6 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     set_light_direction(
         &ctx.reads.buffers.engine_tables,
         &ctx.view.matrices,
-        &ctx.view.light.light_direction,
         &ctx.view.matrices.view_turn_matrix,
         &ctx.view.light,
     );
@@ -553,26 +537,26 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             &ctx.reads.buffers.engine_tables,
             &ctx.view.matrices.turn_y_matrix,
             &ctx.view.matrices.turn_y_work,
-            ctx.view.object.angles[1].get().wrapping_neg(),
+            ctx.view.object.borrow().angles[1].wrapping_neg(),
         );
         set_turn_x(
             &ctx.reads.buffers.engine_tables,
             &ctx.view.matrices.turn_x_matrix,
             &ctx.view.matrices.turn_x_work,
-            ctx.view.object.angles[0].get().wrapping_neg(),
+            ctx.view.object.borrow().angles[0].wrapping_neg(),
         );
         multiply_matrices(turn_y, turn_x, turned);
         set_turn_z_16(
             &ctx.reads.buffers.engine_tables,
             &ctx.view.matrices.turn_z_matrix,
             &ctx.view.matrices.turn_z_work,
-            ctx.view.object.angles[2].get().wrapping_neg(),
+            ctx.view.object.borrow().angles[2].wrapping_neg(),
         );
         multiply_matrices(turned, turn_z, object);
         placed_object_tail(ctx);
         return Ok(());
     }
-    if ctx.view.light.view_kind.get() == 4 {
+    if ctx.view.light.borrow().view_kind == 4 {
         return Ok(());
     }
     let number = ctx.view.cars.object_number.get();
@@ -606,61 +590,61 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
                 &ctx.reads.buffers.engine_tables,
                 &ctx.view.matrices.turn_y_matrix,
                 &ctx.view.matrices.turn_y_work,
-                ctx.view.object.angles[0].get().wrapping_neg(),
+                ctx.view.object.borrow().angles[0].wrapping_neg(),
             );
             crate::math::cells::copy_cells(&turn_y, &object, 16);
-            if ctx.view.object.angles[1].get() != 0 {
+            if ctx.view.object.borrow().angles[1] != 0 {
                 set_turn_y(
                     &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
-                    ctx.view.object.angles[2].get().wrapping_neg(),
+                    ctx.view.object.borrow().angles[2].wrapping_neg(),
                 );
                 multiply_matrices(object, turn_y, lit);
                 set_turn_x(
                     &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_x_matrix,
                     &ctx.view.matrices.turn_x_work,
-                    ctx.view.object.angles[1].get().wrapping_neg(),
+                    ctx.view.object.borrow().angles[1].wrapping_neg(),
                 );
                 multiply_matrices(lit, turn_x, turned);
                 set_turn_y(
                     &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
-                    ctx.view.object.angles[2].get(),
+                    ctx.view.object.borrow().angles[2],
                 );
                 multiply_matrices(turned, turn_y, object);
             }
-            if ctx.view.object.described_turns[2].get() != 0
-                || ctx.view.object.described_turns[1].get() != 0
+            if ctx.view.object.borrow().described_turns[2] != 0
+                || ctx.view.object.borrow().described_turns[1] != 0
             {
                 set_turn_y(
                     &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
-                    ctx.view.object.described_turns[2].get().wrapping_neg(),
+                    ctx.view.object.borrow().described_turns[2].wrapping_neg(),
                 );
                 multiply_matrices(object, turn_y, lit);
                 set_turn_y(
                     &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
-                    ctx.view.object.described_turns[0].get().wrapping_neg(),
+                    ctx.view.object.borrow().described_turns[0].wrapping_neg(),
                 );
                 multiply_matrices(lit, turn_y, turned);
                 set_turn_x(
                     &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_x_matrix,
                     &ctx.view.matrices.turn_x_work,
-                    ctx.view.object.described_turns[1].get().wrapping_neg(),
+                    ctx.view.object.borrow().described_turns[1].wrapping_neg(),
                 );
                 multiply_matrices(turned, turn_x, lit);
                 set_turn_y(
                     &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
-                    ctx.view.object.described_turns[0].get(),
+                    ctx.view.object.borrow().described_turns[0],
                 );
                 multiply_matrices(lit, turn_y, object);
             }
@@ -680,30 +664,33 @@ pub fn draw_flare(
     flare: u32,
     entry: Description<'_>,
 ) -> Result<(), Refused> {
-    /// Flare `flare`'s value of `table` into `to`.
-    fn copy_value(
+    /// Flare `flare`'s value in `table`.
+    fn flare_value(
         table: &[impl crate::memory::session::DwordLike],
         flare: u32,
-        to: &dyn crate::memory::session::DwordLike,
-    ) -> Result<(), BadInput> {
-        to.set(
-            table
-                .get(flare as usize)
-                .ok_or(BadInput("a flare past the tables"))?
-                .get(),
-        );
-        Ok(())
+    ) -> Result<u32, BadInput> {
+        Ok(table
+            .get(flare as usize)
+            .ok_or(BadInput("a flare past the tables"))?
+            .get())
     }
     let (view, flares) = (ctx.view, &ctx.view.lamps.flares);
-    copy_value(&view.lamps.flare_place_x, flare, &view.object.place[0])?;
-    copy_value(&flares.place_y, flare, &view.object.place[1])?;
-    copy_value(&flares.place_z, flare, &view.object.place[2])?;
-    copy_value(&flares.size, flare, &view.object.size)?;
-    copy_value(&flares.other_light, flare, &view.light.other_light)?;
-    copy_value(&flares.object_number, flare, &view.cars.object_number)?;
-    ctx.view.light.view_kind.set(2u32);
+    let x = flare_value(&view.lamps.flare_place_x, flare)?;
+    view.object.borrow_mut().place[0] = x;
+    let y = flare_value(&flares.place_y, flare)?;
+    view.object.borrow_mut().place[1] = y;
+    let z = flare_value(&flares.place_z, flare)?;
+    view.object.borrow_mut().place[2] = z;
+    let size = flare_value(&flares.size, flare)?;
+    view.object.borrow_mut().size = size;
+    let other_light = flare_value(&flares.other_light, flare)?;
+    view.light.borrow_mut().other_light = other_light;
+    view.cars
+        .object_number
+        .set(flare_value(&flares.object_number, flare)?);
+    ctx.view.light.borrow_mut().view_kind = 2u32;
     place_object_matrix(ctx)?;
-    ctx.view.light.light_kind.set(0u32);
+    ctx.view.light.borrow_mut().light_kind = 0u32;
     crate::scene::draw_scene_object::draw_scene_object_in_game(ctx, Some(entry))
 }
 
@@ -718,18 +705,18 @@ fn draw_lamp_flare(ctx: &crate::race::view_scratch::DrawCtx<'_>, lamp: u32) -> R
         &ctx.part.points,
         lamp_record[0].get(),
     )?;
-    ctx.view.object.place[0].set(x);
-    ctx.view.object.place[1].set(y);
-    ctx.view.object.place[2].set(z);
-    ctx.view.object.size.set(lamp_record[1].get() << 3);
-    ctx.view.light.other_light.set(lamp_record[2].get());
+    ctx.view.object.borrow_mut().place[0] = x;
+    ctx.view.object.borrow_mut().place[1] = y;
+    ctx.view.object.borrow_mut().place[2] = z;
+    ctx.view.object.borrow_mut().size = lamp_record[1].get() << 3;
+    ctx.view.light.borrow_mut().other_light = lamp_record[2].get();
     ctx.view
         .cars
         .object_number
         .set(ctx.reads.switches.marker_object.get());
-    ctx.view.light.view_kind.set(2u32);
+    ctx.view.light.borrow_mut().view_kind = 2u32;
     place_object_matrix(ctx)?;
-    ctx.view.light.light_kind.set(0u32);
+    ctx.view.light.borrow_mut().light_kind = 0u32;
     // The object is placed by `turned_matrix`, as `place_object_matrix` leaves it
     // (`view_kind` is 2 here, so it always ends by placing the object).
     crate::scene::draw_scene_object::draw_scene_object_in_game(
@@ -769,7 +756,7 @@ pub fn draw_face_entries(
 ) -> Result<(), Refused> {
     for &word in faces {
         draw_face_entry(ctx, word & 0x7FFF_FFFF)?;
-        ctx.view.light.view_kind.set(0u32);
+        ctx.view.light.borrow_mut().view_kind = 0u32;
     }
     Ok(())
 }
@@ -795,7 +782,7 @@ pub fn draw_list_entry(
         2 => crate::race::car_draw::draw_car_entry(ctx, low)?,
         _ => draw_lamp_flare(ctx, low)?,
     }
-    ctx.view.light.view_kind.set(0u32);
+    ctx.view.light.borrow_mut().view_kind = 0u32;
     Ok(())
 }
 

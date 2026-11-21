@@ -22,7 +22,6 @@
 //! or more.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::DwordLike;
 use crate::menu::lists_store::{CarList, CarListParts};
 use crate::scene::carousel_set_ups::PLAIN;
 
@@ -75,10 +74,7 @@ pub enum Op {
     /// A dword of the menus' carousel.
     Set(Field, u32),
     /// A dword of the race block's, found at run time (those statics do not deref in a `const`).
-    Run(
-        fn(&crate::scene::scratch_store::DrawingScratch) -> &dyn DwordLike,
-        u32,
-    ),
+    Run(fn(&crate::scene::scratch_store::DrawingScratch, u32), u32),
     /// The eight textures of the menu set to -1.
     Fill,
 }
@@ -92,8 +88,14 @@ const CARS_TAIL: [Op; 9] = [
     Op::Set(Field::Y, 0xFFFF_4000),
     Op::Set(Field::Z, 0x5F000),
     Op::Set(Field::Forward, 0x20000),
-    Op::Run(|scratch| &scratch.front_end().object.angles[0], 0x10FF),
-    Op::Run(|scratch| &scratch.front_end().object.place[1], 0xFFFE_6000),
+    Op::Run(
+        |scratch, value| scratch.front_end().object.borrow_mut().angles[0] = value,
+        0x10FF,
+    ),
+    Op::Run(
+        |scratch, value| scratch.front_end().object.borrow_mut().place[1] = value,
+        0xFFFE_6000,
+    ),
 ];
 
 /// The six kinds of menu 0xC.
@@ -103,7 +105,7 @@ const FIXED_KINDS: [u32; 6] = [0x195, 0x199, 0x19F, 0x1A5, 0x1AD, 0x1BD];
 fn run_op(carousel: &Carousel, scratch: &crate::scene::scratch_store::DrawingScratch, op: Op) {
     match op {
         Op::Set(field, value) => field.set(carousel, value),
-        Op::Run(cell, value) => cell(scratch).set(value),
+        Op::Run(write, value) => write(scratch, value),
         Op::Fill => unreachable!("the cars' tail has no fill"),
     }
 }
@@ -187,7 +189,7 @@ fn cars(
         parts.carousel.write().count = n as u32;
         let last = (n as u32).wrapping_sub(1);
         parts.cars.table.write().last_car = last;
-        scratch.front_end().object.size.set(size);
+        scratch.front_end().object.borrow_mut().size = size;
         for op in CARS_TAIL {
             run_op(parts.carousel, scratch, op);
         }
@@ -216,7 +218,7 @@ pub fn set_up_carousel(
             0xC => {
                 parts.carousel.write().set_up = 1;
                 parts.carousel.set_list(CarList::A8);
-                scratch.front_end().object.size.set(0xCu32);
+                scratch.front_end().object.borrow_mut().size = 0xCu32;
                 parts.carousel.write().kinds[..FIXED_KINDS.len()].copy_from_slice(&FIXED_KINDS);
                 parts.carousel.write().count = 6u32;
                 parts.cars.table.write().last_car = 5u32;
@@ -245,7 +247,7 @@ pub fn set_up_carousel(
                 for op in ops {
                     match *op {
                         Op::Set(field, value) => field.set(parts.carousel, value),
-                        Op::Run(cell, value) => cell(scratch).set(value),
+                        Op::Run(write, value) => write(scratch, value),
                         Op::Fill => parts.carousel.write().textures = [u32::MAX; 8],
                     }
                 }

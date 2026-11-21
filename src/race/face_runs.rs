@@ -90,16 +90,12 @@ pub(super) fn draw_sort_list<'a>(
     };
     let view = ctx.view;
     let mut put_view = |copy: &ViewScratch, start: &ViewScratch| {
-        use crate::race::car_part::counts;
-        let counted: [u32; 3] = std::array::from_fn(|k| {
-            counts(view)[k]
-                .get()
-                .wrapping_add(counts(copy)[k].get().wrapping_sub(counts(start)[k].get()))
-        });
+        use crate::race::car_part::counted;
+        let cars = counted(view)
+            .get()
+            .wrapping_add(counted(copy).get().wrapping_sub(counted(start).get()));
         view.merge_drawing(copy, start);
-        for (cell, n) in counts(view).into_iter().zip(counted) {
-            cell.set(n);
-        }
+        counted(view).set(cars);
     };
     crate::scene::workers::draw_list_in_runs(
         helper,

@@ -69,7 +69,6 @@ pub fn draw_object_polygon(
     part: &crate::scene::scratch_store::PartScratch,
     poly: &crate::scene::polygon_work_store::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
-    object: &crate::scene::object_place::ObjectPlace,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let polygon_work = &part.polygon;
@@ -86,14 +85,8 @@ pub fn draw_object_polygon(
     poly.polygon_next_entry.set(count);
     step(Step::Project)?;
     if drawn_whole(count, needs_clipping(part, poly, course, count)?) {
-        object
-            .whole_polygon_count
-            .set(object.whole_polygon_count.get().wrapping_add(1));
         return step(Step::Draw);
     }
-    object
-        .split_polygon_count
-        .set(object.split_polygon_count.get().wrapping_add(1));
     // the first `count` entries kept from entry 64 (`fits`: at most 64)
     let (entries, kept) = polygon_work.entries.split_at(64);
     for (to, from) in kept.iter().zip(&entries[..count as usize]) {

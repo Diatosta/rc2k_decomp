@@ -340,40 +340,34 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     if view_car == state.drawn_car && state.view_car_flag_a_bits != 0 {
         ctx.view.cars.group_mask.set(u32::MAX);
     }
-    ctx.view.light.light_lowest.set(0);
-    ctx.view.light.light_highest.set(0xFF);
-    ctx.view
-        .light
-        .light_level
-        .set(ctx.reads.stage_prefs.light_level.get());
-    ctx.view
-        .object
-        .light_strength
-        .set(ctx.reads.stage_prefs.light_strength.get());
-    ctx.view.light.light_turns[0].set(ctx.reads.stage_prefs.sun_turn.get().wrapping_neg());
-    ctx.view.light.light_turns[1].set(ctx.reads.stage_prefs.sun_height.get());
-    ctx.view.light.view_kind.set(1);
-    ctx.view.light.light_kind.set(3);
+    ctx.view.light.borrow_mut().light_lowest = 0;
+    ctx.view.light.borrow_mut().light_highest = 0xFF;
+    ctx.view.light.borrow_mut().light_level = ctx.reads.stage_prefs.light_level.get();
+    ctx.view.object.borrow_mut().light_strength = ctx.reads.stage_prefs.light_strength.get();
+    ctx.view.light.borrow_mut().light_turns[0] =
+        ctx.reads.stage_prefs.sun_turn.get().wrapping_neg();
+    ctx.view.light.borrow_mut().light_turns[1] = ctx.reads.stage_prefs.sun_height.get();
+    ctx.view.light.borrow_mut().view_kind = 1;
+    ctx.view.light.borrow_mut().light_kind = 3;
     let this_car = ctx.reads.frame_cars.car(car)?;
     let place = || {
-        ctx.view.object.place[0].set(this_car.position[0].get());
-        ctx.view.object.place[1].set(this_car.position[1].get());
-        ctx.view.object.place[2].set(this_car.position[2].get());
+        ctx.view.object.borrow_mut().place[0] = this_car.position[0].get();
+        ctx.view.object.borrow_mut().place[1] = this_car.position[1].get();
+        ctx.view.object.borrow_mut().place[2] = this_car.position[2].get();
     };
     place();
-    ctx.view.object.size.set(0x10);
+    ctx.view.object.borrow_mut().size = 0x10;
     crate::scene::matrix::set_light_direction(
         &ctx.reads.buffers.engine_tables,
         &ctx.view.matrices,
-        &ctx.view.light.light_direction,
         &ctx.view.matrices.view_turn_matrix,
         &ctx.view.light,
     );
     place();
-    ctx.view.object.car_switches.set(switches);
-    ctx.view.light.other_light.set(0);
-    ctx.view.light.light_kind.set(3);
-    ctx.view.light.light_kind_extra.set(0);
+    ctx.view.object.borrow_mut().car_switches = switches;
+    ctx.view.light.borrow_mut().other_light = 0;
+    ctx.view.light.borrow_mut().light_kind = 3;
+    ctx.view.light.borrow_mut().light_kind_extra = 0;
     ctx.view.cars.object_number.set(
         ctx.view
             .state
@@ -389,7 +383,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
         Some(Description::Floats(&ctx.view.matrices.lit_matrix)),
     )?;
     crate::race::frame_draw::end_kept_reflections(ctx.view);
-    ctx.view.light.light_kind_extra.set(1);
+    ctx.view.light.borrow_mut().light_kind_extra = 1;
     if below(ctx.view.cars.car_depth.get(), 0x3C_0000) {
         for (bit, matrix) in [0x20u32, 0x40, 0x80, 0x100]
             .into_iter()
@@ -399,7 +393,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
                 .cars
                 .object_number
                 .set(ctx.view.cars.object_number.get().wrapping_add(1));
-            if ctx.view.object.car_switches.get() & bit != 0 {
+            if ctx.view.object.borrow().car_switches & bit != 0 {
                 car_part_matrix(&ctx.view.cars, &ctx.view.matrices, matrix);
                 crate::scene::draw_scene_object::draw_scene_object_in_game(
                     ctx,
@@ -488,10 +482,7 @@ pub fn draw_car_entry(
     let car = ctx.reads.work.block_number(n as usize)?;
     ctx.view.vars.drawn_car.set(n);
     ctx.view.state.borrow_mut().drawn_car = n;
-    ctx.view
-        .light
-        .car_light
-        .set(ctx.reads.frame_cars.car(car)?.light_colour.get());
+    ctx.view.light.borrow_mut().car_light = ctx.reads.frame_cars.car(car)?.light_colour.get();
     let t = crate::scene::rotate_point::rotate_point(
         &ctx.view.matrices.view_matrix,
         [

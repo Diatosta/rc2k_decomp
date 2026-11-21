@@ -510,11 +510,11 @@ pub fn draw_own_car(
         return Ok(());
     }
     let block = ctx.reads.frame_cars.car(car)?;
-    ctx.view.light.car_light.set(block.light_colour.get());
+    ctx.view.light.borrow_mut().car_light = block.light_colour.get();
     let clears = clears_depth(
         block.surface_noise_a.get(),
         || block.surface_noise_b.get(),
-        || ctx.view.object.view_cleared[0].get(),
+        || ctx.view.object.borrow().view_cleared[0],
     );
     if clears {
         clear_view_depth(scene, system, ctx.part, &ctx.view.polygon);

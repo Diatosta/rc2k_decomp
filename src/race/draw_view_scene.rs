@@ -57,7 +57,7 @@ pub fn draw_view_scene(
     // `wiki/Fixed-bugs.md`).
     view.course.shine.set(reads.stage_prefs.shine_from.get());
     let input = filter;
-    view.light.car_light.set(view.car.light_colour.get());
+    view.light.borrow_mut().car_light = view.car.light_colour.get();
     view.polygon.smooth.set(input[0]);
     view.polygon.plain_first.set(input[1]);
     view.polygon.plain_second.set(input[2]);
@@ -67,9 +67,7 @@ pub fn draw_view_scene(
         return Ok(ViewOutput::default());
     }
     // `view_cleared`, ObjectWork.view_cleared[1].
-    for cell in &view.object.view_cleared {
-        cell.set(0);
-    }
+    view.object.borrow_mut().view_cleared = [0; 2];
     car_light_modes(
         reads.frame_cars,
         &view.cars,

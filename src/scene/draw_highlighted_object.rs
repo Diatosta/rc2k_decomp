@@ -48,17 +48,17 @@ pub fn draw_highlighted(
         return Err(BadInput("a kind past the records of the kinds' own places").into());
     }
     let clock: u32 = shared.run().scene_clock;
-    object_place.angles[1].set((clock << 3) & 0xFFFF);
-    object_place.place[2].set(screens.carousel.read().z);
-    object_place.place[0].set(0u32);
+    object_place.borrow_mut().angles[1] = (clock << 3) & 0xFFFF;
+    object_place.borrow_mut().place[2] = screens.carousel.read().z;
+    object_place.borrow_mut().place[0] = 0u32;
     if let Some(own) = own {
         let [size, y, angle] = own_place(&menus.lists, own)?;
-        object_place.size.set(size);
+        object_place.borrow_mut().size = size;
         if y != u32::MAX {
-            object_place.place[1].set(y);
+            object_place.borrow_mut().place[1] = y;
         }
         if angle != u32::MAX {
-            object_place.angles[0].set(angle);
+            object_place.borrow_mut().angles[0] = angle;
         }
     }
     screens.carousel.write().kind = kind;

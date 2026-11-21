@@ -35,12 +35,13 @@ pub fn set_object_light(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     let race = ctx.race;
     let (light, object, vars) = (&ctx.view.light, &ctx.view.object, &ctx.view.vars);
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
-    light.light_added.set(0u32);
-    let (clear_strength, own_car) = match object_light(light.light_kind.get(), || {
+    light.borrow_mut().light_added = 0u32;
+    let kind = light.borrow().light_kind;
+    let (clear_strength, own_car) = match object_light(kind, || {
         CLEAR_KIND_2_STRENGTH.load(std::sync::atomic::Ordering::Relaxed)
     }) {
         ObjectLight::White => {
-            light.light_added.set(WHITE);
+            light.borrow_mut().light_added = WHITE;
             return Ok(());
         }
         ObjectLight::Gathered {
@@ -50,20 +51,19 @@ pub fn set_object_light(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         ObjectLight::Nothing => return Ok(()),
     };
     if clear_strength {
-        object.light_strength.set(0u32);
+        object.borrow_mut().light_strength = 0u32;
     }
-    crate::memory::session::write_bits(
-        &light.lit_place,
-        crate::memory::session::read_bits::<_, 3>(&object.place),
-    );
+    let place = object.borrow().place;
+    light.borrow_mut().lit_place = place;
     if own_car {
-        light.drawn_car_light.set(vars.drawn_car.get());
+        light.borrow_mut().drawn_car_light = vars.drawn_car.get();
     }
-    light.light_colour.set(0u32);
+    light.borrow_mut().light_colour = 0u32;
+    let drawn_car = ctx.view.light.borrow().drawn_car_light;
     add_car_lights(
         ctx.reads,
         ctx.reads.net_race.get(),
-        ctx.view.light.drawn_car_light.get(),
+        drawn_car,
         ctx.view.drawn_view(race),
         &mut |car, marks| {
             add_car_light(
@@ -78,10 +78,11 @@ pub fn set_object_light(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     )?;
     add_point_lights(ctx)?;
     if own_car {
-        light.drawn_car_light.set(u32::MAX);
+        light.borrow_mut().drawn_car_light = u32::MAX;
     }
-    light
-        .light_added
-        .set(plus(light.light_colour.get(), light.other_light.get()));
+    {
+        let value = plus(light.borrow().light_colour, light.borrow().other_light);
+        light.borrow_mut().light_added = value;
+    };
     Ok(())
 }

@@ -43,13 +43,13 @@ fn state(
 const STATE: u32 = 0x30;
 
 /// The fraction of the way between the two shapes, on the state of face `face`.
-/// The fraction into `fraction_out` (the view's `ObjectPlace::move_fraction`).
+/// The fraction into the view's `ObjectPlace::move_fraction`.
 fn step_shape(
     course: crate::race::owner_course::CourseReads<'_>,
     random: &crate::math::next_random::Randoms,
     clock: u32,
     face: u32,
-    fraction_out: &crate::memory::session::PlainFloat,
+    object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::{face_field, write_face_field};
     let read = || -> Result<[u32; 4], BadInput> {
@@ -80,7 +80,7 @@ fn step_shape(
         3 => bh::stf(bh::ONE - bh::int(time as i32) / bh::int(length as i32)),
         _ => 0.0,
     };
-    fraction_out.set(fraction);
+    object.borrow_mut().move_fraction = fraction.to_bits();
     let mut b = [0u8; 16];
     for (k, v) in [clock, time, length, phase].into_iter().enumerate() {
         b[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
@@ -104,7 +104,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));
     }
-    ctx.view.object.move_by.set(0);
+    ctx.view.object.borrow_mut().move_by = 0;
     ctx.view.polygon.polygon_colour.set(0x00FF_FFFFu32);
     ctx.view.cars.other_way_kind.set(way);
     if let (4, Some(state)) = (way, state) {
@@ -112,25 +112,18 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             ctx.reads.object_slots.first_point[object as usize].get(),
             ctx.reads.object_slots.first_point[object as usize + 1].get(),
         ];
-        ctx.view
-            .object
-            .move_by
-            .set(points[1].wrapping_sub(points[0]).wrapping_mul(12));
+        ctx.view.object.borrow_mut().move_by = points[1].wrapping_sub(points[0]).wrapping_mul(12);
         step_shape(
             ctx.reads.course(),
             &ctx.race.shared.random,
             ctx.clock,
             state,
-            &ctx.view.object.move_fraction,
+            &ctx.view.object,
         )?;
     }
-    ctx.view
-        .object
-        .first_face
-        .set(ctx.reads.object_slots.first_face[object as usize].get());
-    ctx.view
-        .object
-        .face_count
-        .set(ctx.reads.object_slots.face_counts[object as usize].get());
+    ctx.view.object.borrow_mut().first_face =
+        ctx.reads.object_slots.first_face[object as usize].get();
+    ctx.view.object.borrow_mut().face_count =
+        ctx.reads.object_slots.face_counts[object as usize].get();
     Ok(())
 }

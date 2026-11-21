@@ -49,7 +49,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
         self.2.work.stage_direction.get()
     }
     fn only(&self) -> u32 {
-        self.1.only_object.get()
+        self.1.borrow().only_object
     }
     fn faces(&self, object: u32) -> u32 {
         self.2.object_slots.face_counts[object as usize].get()
@@ -68,7 +68,7 @@ pub fn draw_shown_object(
     if in_race && cars.object_number.get() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }
-    object.drawing_object.set(1u32);
+    object.borrow_mut().drawing_object = 1u32;
     let show = if in_race {
         rc2k_core::scene::shown::race_shown(&Game(cars, object, reads))
     } else {
@@ -78,6 +78,6 @@ pub fn draw_shown_object(
     if show {
         draw()?;
     }
-    object.drawing_object.set(0u32);
+    object.borrow_mut().drawing_object = 0u32;
     Ok(show)
 }

@@ -1,7 +1,7 @@
 //! Draws the race frame, between the scene's begin and end. In turn: the cars shown are chosen
 //! (`drive::choose_shown_cars`), `view_cleared` cleared and the two view blocks' option bits
 //! `option_bits` copied into `hud_flags` and the next dword (each 0 while its `view_on` flag is 0);
-//! the batches' counts, `whole_polygon_count` and the next, `cars_drawn` and `cars_culled` are set
+//! the batches' counts, `cars_drawn` and `cars_culled` are set
 //! to 0; bit 1 of `refresh_flags_a` goes into `marks_mask`, bit 0 of `refresh_flags_b` into
 //! `lamps_mask`, bit 6 of the first view's flags into `flat`; `mirror_wanted` is the first view
 //! block's `camera_mode_is_2_or_3` flag when `precipitation_range` is not 0, else 0;
@@ -537,16 +537,6 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         }
     }
     set_hud_flags(race, &blocks, views)?;
-    // The polygon counts of the four views' slots (read by none).
-    for view in [
-        o.scene.scratch.main_view(0),
-        o.scene.scratch.main_view(1),
-        o.scene.scratch.mirror(0),
-        o.scene.scratch.mirror(1),
-    ] {
-        view.object.split_polygon_count.set(0);
-        view.object.whole_polygon_count.set(0);
-    }
     // `cars_drawn` is counted in each view's own state.
     for slot in [
         o.scene.scratch.main_view(0),

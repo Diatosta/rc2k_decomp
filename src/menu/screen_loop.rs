@@ -234,22 +234,58 @@ pub enum SceneVar {
 }
 
 impl SceneVar {
-    /// The variable in the front end's scene.
-    pub fn cell(self, scratch: &crate::scene::scratch_store::DrawingScratch) -> &dyn DwordLike {
+    /// The variable's cell, for the ones that are cells (the window's and the object's).
+    fn plain_cell(
+        self,
+        scratch: &crate::scene::scratch_store::DrawingScratch,
+    ) -> Option<&dyn DwordLike> {
         let window = &scratch.front_end_polygon().window;
-        let light = &scratch.front_end().light;
-        match self {
+        Some(match self {
             SceneVar::ViewOffsetX => &window.view_offset[0],
             SceneVar::ViewOffsetY => &window.view_offset[1],
             SceneVar::ViewZoom => &window.view_zoom,
             SceneVar::ClipLeft => &window.clip_edges[2],
             SceneVar::ClipRight => &window.clip_edges[3],
-            SceneVar::LightLowest => &light.light_lowest,
-            SceneVar::LightHighest => &light.light_highest,
-            SceneVar::LightLevel => &light.light_level,
-            SceneVar::LightTurn0 => &light.light_turns[0],
-            SceneVar::LightTurn1 => &light.light_turns[1],
-            SceneVar::ObjectLightStrength => &scratch.front_end().object.light_strength,
+            _ => return None,
+        })
+    }
+
+    /// The variable's value in the front end's scene.
+    #[cfg(test)]
+    pub fn get(self, scratch: &crate::scene::scratch_store::DrawingScratch) -> u32 {
+        if let Some(cell) = self.plain_cell(scratch) {
+            return cell.get();
+        }
+        if self == SceneVar::ObjectLightStrength {
+            return scratch.front_end().object.borrow().light_strength;
+        }
+        let light = scratch.front_end().light.borrow();
+        match self {
+            SceneVar::LightLowest => light.light_lowest,
+            SceneVar::LightHighest => light.light_highest,
+            SceneVar::LightLevel => light.light_level,
+            SceneVar::LightTurn0 => light.light_turns[0],
+            _ => light.light_turns[1],
+        }
+    }
+
+    /// Sets the variable in the front end's scene.
+    pub fn set(self, scratch: &crate::scene::scratch_store::DrawingScratch, value: u32) {
+        if let Some(cell) = self.plain_cell(scratch) {
+            cell.set(value);
+            return;
+        }
+        if self == SceneVar::ObjectLightStrength {
+            scratch.front_end().object.borrow_mut().light_strength = value;
+            return;
+        }
+        let mut light = scratch.front_end().light.borrow_mut();
+        match self {
+            SceneVar::LightLowest => light.light_lowest = value,
+            SceneVar::LightHighest => light.light_highest = value,
+            SceneVar::LightLevel => light.light_level = value,
+            SceneVar::LightTurn0 => light.light_turns[0] = value,
+            _ => light.light_turns[1] = value,
         }
     }
 }
@@ -332,7 +368,7 @@ impl Step {
             Step::Write(variable, value) => variable.set(menus, value),
             Step::WriteFlag(flag, on) => flag.set(menus, on),
             Step::Sound(sound) => menus.screens.entry.set_sound(sound),
-            Step::WriteScene(variable, value) => variable.cell(scratch).set(value),
+            Step::WriteScene(variable, value) => variable.set(scratch, value),
             Step::WriteSceneF32(variable, value) => variable.cell(scratch).set(value),
             Step::Call(_)
             | Step::CallOrFatal(..)
