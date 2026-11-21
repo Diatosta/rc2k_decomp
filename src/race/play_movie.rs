@@ -12,11 +12,8 @@ const OUT_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - out";
 pub(super) fn play_movie(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::logfile::log_write::log_nul(&IN_TEXT, false, 1);
     crate::drive::race_parts::restart_clock(race, &o.system.session.picture_clock);
-    race.shared
-        .physics_tables
-        .get()
-        .race_clock_base
-        .set(race.shared.physics_tables.get().scene_clock.get());
+    let scene_clock = race.shared.run().scene_clock;
+    race.shared.run_mut().race_clock_base = scene_clock;
     crate::race::play_movie_loop::play_movie_loop(race, o)?;
     crate::logfile::log_write::log_nul(&OUT_TEXT, true, 1);
     Ok(())

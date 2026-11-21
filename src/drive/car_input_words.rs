@@ -45,21 +45,12 @@ pub fn car_input_words(
     };
     let words = device_words(readings);
     for (k, v) in words.iter().enumerate() {
-        race_owner.shared.physics_tables.get().input_words[k].set(*v);
+        race_owner.shared.run_mut().input_words[k] = *v;
     }
     if HELD.load(std::sync::atomic::Ordering::Relaxed)
         && net.race_slot.get().is_some_and(|n| n.player == car)
     {
-        for (word, v) in race_owner
-            .shared
-            .physics_tables
-            .get()
-            .input_words
-            .iter()
-            .zip(HELD_WORDS)
-        {
-            word.set(v);
-        }
+        race_owner.shared.run_mut().input_words = HELD_WORDS;
     }
     if let Some(net_race) = net.race_slot.get() {
         let block = race_owner
@@ -75,10 +66,10 @@ pub fn car_input_words(
         for (k, at) in kept.into_iter().enumerate() {
             match replay_words(car, net_race.player) {
                 ReplayWords::FromBlock => {
-                    race_owner.shared.physics_tables.get().input_words[k].set(at.get());
+                    race_owner.shared.run_mut().input_words[k] = at.get();
                 }
                 ReplayWords::IntoBlock => {
-                    at.set(race_owner.shared.physics_tables.get().input_words[k].get());
+                    at.set(race_owner.shared.run().input_words[k]);
                 }
             }
         }

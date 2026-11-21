@@ -147,18 +147,14 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     crate::remote::race_loop_begins();
     restart_clock(race, &system.session.picture_clock);
     let _racing = crate::race::blend::Racing::begin(race);
-    race.frame.clock_ticks_mut().sound_tick_last =
-        race.shared.physics_tables.get().scene_clock.get();
+    race.frame.clock_ticks_mut().sound_tick_last = race.shared.run().scene_clock;
     race.replay.replay_view().play_end.set(u32::MAX);
     let mut pause_binding = PauseBinding::new();
     let pad_at_start = input.pad_marker();
     loop {
         restart_clock(race, &system.session.picture_clock);
-        race.shared
-            .physics_tables
-            .get()
-            .race_clock_base
-            .set(race.shared.physics_tables.get().scene_clock.get());
+        let scene_clock = race.shared.run().scene_clock;
+        race.shared.run_mut().race_clock_base = scene_clock;
         let paused = loop {
             let away = system.session.flags.window_active.get() == 0;
             if away && net_goes_on_paused(o) {
@@ -209,7 +205,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                          frame {}",
                         keys(&devices.keys_pressed),
                         keys(&devices.keys_down),
-                        race.shared.physics_tables.get().scene_clock.get()
+                        race.shared.run().scene_clock
                     ));
                     return Ok(());
                 }
@@ -228,7 +224,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                 if race.shared.work.get().in_credits.is_set() {
                     crate::program_log::log(&format!(
                         "drive::race_loop: the credits race ends: the quit question (Escape latched), answer {answer:#x}, frame {}",
-                        race.shared.physics_tables.get().scene_clock.get()
+                        race.shared.run().scene_clock
                     ));
                 }
                 put_answer(race, o.net, answer)?;
@@ -255,7 +251,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                 if race.shared.work.get().in_credits.is_set() {
                     crate::program_log::log(&format!(
                         "drive::race_loop: the credits race ends: every player out, frame {}",
-                        race.shared.physics_tables.get().scene_clock.get()
+                        race.shared.run().scene_clock
                     ));
                 }
                 return Ok(());

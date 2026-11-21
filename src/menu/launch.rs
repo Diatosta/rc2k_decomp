@@ -593,7 +593,7 @@ impl GameAnswers<'_> {
             if e == u32::MAX {
                 break;
             }
-            let d = crate::menu::cars_store::description(&menus.cars.table, e)?.get();
+            let d = crate::menu::cars_store::description(&menus.cars.table, e)?;
             cars.push((d.car, name(self.o, d.name)?));
         }
         if cars.is_empty() {

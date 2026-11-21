@@ -13,9 +13,7 @@ use rc2k_core::drive::race_steps;
 
 fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let scene = o.scene;
-    for word in &race.shared.physics_tables.get().input_words {
-        word.set(0);
-    }
+    race.shared.run_mut().input_words = [0; 4];
     let slot = race_steps::block_slot(race.shared.work.get().current_car.get());
     race.shared
         .work

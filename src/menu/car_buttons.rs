@@ -23,7 +23,7 @@ pub fn press(
 
     let mut s = Shown {
         car: menus.screens.event.read().shown.car,
-        last_car: menus.cars.table.last_car.get(),
+        last_car: menus.cars.table.read().last_car,
         picture: menus.screens.event.read().shown.picture,
         page: menus.screens.event.read().shown.car_page,
         leave: menus.screens.loop_flags.read().leave_screen,

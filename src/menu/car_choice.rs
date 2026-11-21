@@ -29,11 +29,7 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
     let mut cars = Vec::new();
     let mut n = 0;
     loop {
-        cars.push(
-            crate::menu::cars_store::description(&menus.cars.table, entry(n)?)?
-                .get()
-                .car,
-        );
+        cars.push(crate::menu::cars_store::description(&menus.cars.table, entry(n)?)?.car);
         if entry(n + 1)? == u32::MAX {
             break;
         }
@@ -68,7 +64,7 @@ fn turn(menus: &Menus, on: bool) {
                 step: menus.screens.carousel.angle.get(),
             },
             shown: menus.screens.event.read().shown.car,
-            last: menus.cars.table.last_car.get(),
+            last: menus.cars.table.read().last_car,
         },
         on,
     );

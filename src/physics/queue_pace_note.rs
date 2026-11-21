@@ -30,6 +30,7 @@ pub fn queue_pace_note(
     frame_work: &FrameWork,
     work: &RaceWork,
     physics_tables: &PhysicsTables,
+    scene_clock: u32,
     car: &Car,
     checkpoint: u32,
     sound: &crate::sound::owner::Sound,
@@ -73,6 +74,7 @@ pub fn queue_pace_note(
                     crate::physics::queue_listed_event::queue_listed_event(
                         car,
                         physics_tables,
+                        scene_clock,
                         byte,
                     )
                 }?;

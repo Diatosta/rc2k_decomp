@@ -28,11 +28,10 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     let (scene, sound, input) = (o.scene, o.sound, o.input);
     lift_car(race);
     restart_clock(race, &o.system.session.picture_clock);
-    race.frame.clock_ticks_mut().sound_tick_last =
-        race.shared.physics_tables.get().scene_clock.get();
+    race.frame.clock_ticks_mut().sound_tick_last = race.shared.run().scene_clock;
     race.replay.replay_view().play_end.set(u32::MAX);
     restart_clock(race, &o.system.session.picture_clock);
-    race.replay.finish_mut().start_clock = race.shared.physics_tables.get().scene_clock.get();
+    race.replay.finish_mut().start_clock = race.shared.run().scene_clock;
     let pad_at_start = input.pad_marker();
     loop {
         sound.race.objects.get()[0].borrow_mut().revs = 0;

@@ -2,9 +2,9 @@
 //! matrices, view vars, scratch, batches, panel, overlay, text, shadows and skids, sound spots,
 //! map.
 
+use crate::memory::MemoryList;
 use crate::memory::session::{DrawShared, GameThread};
 use crate::race::clock_ticks_store::ClockTicks;
-use crate::race::draw_batches_store::DrawBatches;
 use crate::race::error_list_store::ErrorList;
 use crate::race::frame_counter_store::FrameCounter;
 use crate::race::frame_store::FrameWork;
@@ -14,8 +14,16 @@ use crate::race::groups_store::{LightsAndGear, PanelAndOverlay, ViewAndRecords};
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::scratch_store::FrameScratch;
 use crate::race::shadow_skids_store::ShadowSkids;
-use crate::race::sound_spots_store::SoundSpotBlock;
+use crate::race::sound_spots_store::SoundSpots;
 use std::cell::{Ref, RefCell, RefMut};
+
+/// A list holding nothing.
+const NO_LIST: MemoryList = MemoryList {
+    head: 0,
+    total: 0,
+    cursor: 0,
+    remaining: 0,
+};
 
 /// The race's frame state. The view
 /// variables, the panel and the overlay are fields of `view_and_records` and
@@ -59,12 +67,15 @@ pub struct Frame {
 struct FrameMain {
     scratch: RefCell<FrameScratch>,
     counter: RefCell<FrameCounter>,
-    draw_batches: DrawBatches,
     clock_ticks: RefCell<ClockTicks>,
-    sound_spots: SoundSpotBlock,
+    sound_spots: RefCell<SoundSpots>,
     error_list: RefCell<ErrorList>,
     credits: RefCell<Credits>,
-    map: MapVars,
+    map: RefCell<MapVars>,
+    /// The list the map's tiles and pixels are counted on.
+    map_list: RefCell<MemoryList>,
+    /// The list the key sheet's memory is counted on.
+    map_key_list: RefCell<MemoryList>,
 }
 
 impl Frame {
@@ -84,12 +95,13 @@ impl Frame {
             main: GameThread::new(FrameMain {
                 scratch: RefCell::new(FrameScratch::new()),
                 counter: RefCell::new(FrameCounter::new()),
-                draw_batches: DrawBatches::new(),
                 clock_ticks: RefCell::new(ClockTicks::new()),
-                sound_spots: SoundSpotBlock::new(),
+                sound_spots: RefCell::new(SoundSpots::new()),
                 error_list: RefCell::new(ErrorList::new()),
                 credits: RefCell::new(Credits::new()),
-                map: MapVars::new(),
+                map: RefCell::new(MapVars::new()),
+                map_list: RefCell::new(NO_LIST),
+                map_key_list: RefCell::new(NO_LIST),
             }),
         }
     }
@@ -114,10 +126,6 @@ impl Frame {
         self.main.get().counter.borrow_mut()
     }
 
-    pub fn draw_batches(&self) -> &DrawBatches {
-        &self.main.get().draw_batches
-    }
-
     /// The sound tick clock, read: no write borrow may be held.
     pub fn clock_ticks(&self) -> Ref<'_, ClockTicks> {
         self.main.get().clock_ticks.borrow()
@@ -128,8 +136,14 @@ impl Frame {
         self.main.get().clock_ticks.borrow_mut()
     }
 
-    pub fn sound_spots(&self) -> &SoundSpotBlock {
-        &self.main.get().sound_spots
+    /// The sound spots, read: no write borrow may be held.
+    pub fn sound_spots(&self) -> Ref<'_, SoundSpots> {
+        self.main.get().sound_spots.borrow()
+    }
+
+    /// The sound spots, to write: no other borrow may be held.
+    pub fn sound_spots_mut(&self) -> RefMut<'_, SoundSpots> {
+        self.main.get().sound_spots.borrow_mut()
     }
 
     /// The error list, read: no write borrow may be held.
@@ -152,7 +166,23 @@ impl Frame {
         self.main.get().credits.borrow_mut()
     }
 
-    pub fn map(&self) -> &MapVars {
-        &self.main.get().map
+    /// The map's variables, read: no write borrow may be held.
+    pub fn map(&self) -> Ref<'_, MapVars> {
+        self.main.get().map.borrow()
+    }
+
+    /// The map's variables, to write: no other borrow may be held.
+    pub fn map_mut(&self) -> RefMut<'_, MapVars> {
+        self.main.get().map.borrow_mut()
+    }
+
+    /// The list the map's tiles and pixels are counted on.
+    pub fn map_list(&self) -> &RefCell<MemoryList> {
+        &self.main.get().map_list
+    }
+
+    /// The list the key sheet's memory is counted on.
+    pub fn map_key_list(&self) -> &RefCell<MemoryList> {
+        &self.main.get().map_key_list
     }
 }

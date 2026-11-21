@@ -80,13 +80,6 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         &race.shared,
     )?;
     ph::race_timers::race_timers(o, race)?;
-    for cell in [
-        &race.frame.sound_spots().sound_scratch_a,
-        &race.frame.sound_spots().sound_scratch_b,
-        &race.frame.sound_spots().sound_scratch_c,
-    ] {
-        cell.set(0);
-    }
     {
         let mut camera = race.physics.camera_mut();
         camera.ground_probes = 0;

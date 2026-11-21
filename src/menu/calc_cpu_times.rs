@@ -45,7 +45,7 @@ const DIVIDE_BY_ZERO: FatalError = FatalError {
 };
 /// Whether any of the drivers is in class `c` (+8), the first found ending the look.
 fn any_in_class(drivers: &[Driver], c: u32) -> bool {
-    drivers.iter().any(|d| d.class.get() == c)
+    drivers.iter().any(|d| d.class == c)
 }
 
 /// The current record (see `standings::current_event`'s checks).
@@ -70,15 +70,15 @@ pub fn record(
 
 /// What is refused for the record `rec` (or its fatal error), before
 /// anything: the class count, the drivers and the pack entry's length.
-pub fn check<'a>(
-    cars: &'a Cars,
+pub fn check(
+    cars: &Cars,
     screens: &Screens,
     system: &System,
     race: &Race,
     rec: RecordRef,
-) -> Result<(u32, &'a [Driver], u32), Refused> {
+) -> Result<(u32, usize, u32), Refused> {
     let classes = crate::menu::event_store::CLASSES;
-    let drivers = drivers_of(cars)?;
+    let count = walked(cars)?;
     let times = rec.record(&system.records().stage_tables)?.class_times();
     let (times, _) = scaled(race, times, held_section(screens));
     let length = crate::records::trakpak_entry::track_of(&system.records().stage_tables, rec)?
@@ -93,7 +93,7 @@ pub fn check<'a>(
         }
     };
     for c in 0..classes {
-        if !any_in_class(drivers, c) {
+        if !any_in_class(&cars.drivers.read().drivers[..count], c) {
             continue;
         }
         if class_time(c)? >> 1 == 0 {
@@ -103,7 +103,7 @@ pub fn check<'a>(
             return Err(BadInput("a class's driver count of 0: the original divides by it").into());
         }
     }
-    Ok((classes, drivers, length))
+    Ok((classes, count, length))
 }
 
 pub fn calc_cpu_times(
@@ -114,7 +114,7 @@ pub fn calc_cpu_times(
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let rec = record(screens, system, tables)?;
-    let (classes, drivers, length) = check(cars, screens, system, race, rec)?;
+    let (classes, count, length) = check(cars, screens, system, race, rec)?;
     crate::logfile::log_write::log_nul(&TEXTS[0], true, 1);
     for (k, t) in rec
         .record(&system.records().stage_tables)?
@@ -135,8 +135,8 @@ pub fn calc_cpu_times(
     use rc2k_core::menu::event::{Spread, cpu_gap, cpu_time};
     for c in 0..classes {
         let mut gaps = 0u32;
-        for d in drivers {
-            if d.class.get() != c {
+        for k in 0..count {
+            if cars.drivers.read().drivers[k].class != c {
                 continue;
             }
             let time = class_time_at(screens, c)?;
@@ -149,10 +149,11 @@ pub fn calc_cpu_times(
             let own = spread.next(|limit| race.shared.random.random_below(limit))?;
             screens.event.write().service.spread_first = spread.first;
             screens.event.write().service.spread_step = spread.step;
-            if d.in_event.get() == IN_EVENT {
+            let d = &mut cars.drivers.write().drivers[k];
+            if d.in_event == IN_EVENT {
                 let own = cpu_time(own, gaps, time);
-                d.time.set(own);
-                d.total.set(d.total.get().wrapping_add(own));
+                d.time = own;
+                d.total = d.total.wrapping_add(own);
             }
             gaps = gaps.wrapping_add(gap);
         }

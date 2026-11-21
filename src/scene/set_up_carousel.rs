@@ -141,7 +141,7 @@ fn check_cars(parts: CarListParts, list: CarList, from_second: bool) -> Result<(
         let failed = std::cell::Cell::new(None);
         // A car's number: the first dword of the description its handle names.
         let number = |car: u32| match crate::menu::cars_store::description(&parts.cars.table, car)
-            .map(|d| d.get().car)
+            .map(|d| d.car)
         {
             Ok(n) => n,
             Err(e) => {
@@ -171,9 +171,7 @@ fn cars(
             if car == u32::MAX {
                 break;
             }
-            let first = crate::menu::cars_store::description(&parts.cars.table, car)?
-                .get()
-                .car;
+            let first = crate::menu::cars_store::description(&parts.cars.table, car)?.car;
             // `car_kinds` has 35 entries; a number past them is refused (fixed: "Four tables
             // read past their end" in `wiki/Fixed-bugs.md`).
             let kind = *parts
@@ -187,7 +185,7 @@ fn cars(
         }
         parts.carousel.count.set(n as u32);
         let last = (n as u32).wrapping_sub(1);
-        parts.cars.table.last_car.set(last);
+        parts.cars.table.write().last_car = last;
         scratch.front_end().object.size.set(size);
         for op in CARS_TAIL {
             run_op(parts.carousel, scratch, op);
@@ -220,7 +218,7 @@ pub fn set_up_carousel(
                 scratch.front_end().object.size.set(0xCu32);
                 write_prefix(&parts.carousel.kinds, &FIXED_KINDS);
                 parts.carousel.count.set(6u32);
-                parts.cars.table.last_car.set(5u32);
+                parts.cars.table.write().last_car = 5u32;
                 for op in CARS_TAIL {
                     run_op(parts.carousel, scratch, op);
                 }

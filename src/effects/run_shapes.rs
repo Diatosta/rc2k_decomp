@@ -33,11 +33,10 @@ pub fn run_shapes(
     {
         pick_shapes(masks, drops)?;
         turn_all_shapes(masks, drops, effects)?;
-        let clock: u32 = shared.physics_tables.get().scene_clock.get();
+        let clock: u32 = shared.run().scene_clock;
         if clock as i32 >= drops.picks.borrow().next as i32 {
             let r = next_c5_plain(&mut setup.mask_constants.borrow_mut().time_random);
-            drops.picks.borrow_mut().next =
-                (r & 0xFF).wrapping_add(shared.physics_tables.get().scene_clock.get());
+            drops.picks.borrow_mut().next = (r & 0xFF).wrapping_add(shared.run().scene_clock);
             let mask = marks.mask_number.get();
             if mask >= MASK_COUNT {
                 return Err(BadInput("a mask number past the masks' 9").into());

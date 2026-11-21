@@ -14,8 +14,7 @@ pub struct CarSpec {
     pub drive_kind: u32,
     /// The gear count by its sign, held to 3 ..= 7 (`physics::load_car_specs`).
     pub gear_count: u32,
-    /// Copied to `PhysicsTables.unused_spec_20` (`unused_spec_20`) by
-    /// `physics::load_car_specs`; nothing reads that copy, so the figure is unused.
+    /// A spec figure nothing reads; kept for the spec's byte layout.
     pub reserved_20: u32,
     /// Copied to the physics `grip_scale`, the factor `physics::drive_grip_forces`
     /// multiplies the driving grip force by.

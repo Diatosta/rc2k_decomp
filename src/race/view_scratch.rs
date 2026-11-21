@@ -347,7 +347,7 @@ impl<'a> DrawCtx<'a> {
             scene,
             input,
             view,
-            clock: reads.physics_tables.scene_clock.get(),
+            clock: reads.scene_clock,
             far_clip: true,
             marks: &crate::scene::car_marks::NONE,
             part,

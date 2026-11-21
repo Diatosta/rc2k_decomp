@@ -14,7 +14,7 @@
 //! end entry, a section past 5, a player past 4 or missing,
 //! before anything; a driver not found is the search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::drivers_store::{Driver, IN_EVENT};
+use crate::menu::drivers_store::IN_EVENT;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
@@ -22,7 +22,7 @@ const STATUS_TEXT: &std::ffi::CStr = c"Status of driver";
 /// The driver (computer, by `find_cpu_team`) or player of an entry, and the field its
 /// stage points go to, and whether it keeps them.
 enum Owner<'a> {
-    Driver(&'a Driver),
+    Driver(usize),
     Player(PlayerCell<'a>),
 }
 
@@ -66,12 +66,15 @@ pub fn award_stage_points(
             crate::logfile::log_int::log_int(e.status as i32, true, 1);
             let given = points.take();
             let keeps = match *o {
-                Owner::Driver(d) => d.in_event.get() == IN_EVENT,
+                Owner::Driver(d) => menus.cars.drivers.read().drivers[d].in_event == IN_EVENT,
                 Owner::Player(p) => p.get().entry == 1,
             };
             e.stage[section as usize] = kept(given, keeps);
             match *o {
-                Owner::Driver(d) => d.stage(section as usize).set(kept(given, keeps)),
+                Owner::Driver(d) => {
+                    *menus.cars.drivers.write().drivers[d].stage(section as usize) =
+                        kept(given, keeps);
+                }
                 Owner::Player(p) => {
                     p.update(|q| q.stage_points[section as usize] = kept(given, keeps));
                 }
@@ -82,7 +85,7 @@ pub fn award_stage_points(
         let total = total(std::array::from_fn(|k| e.stage[k]));
         e.stage[6] = total;
         match *o {
-            Owner::Driver(d) => d.stage_total().set(total),
+            Owner::Driver(d) => *menus.cars.drivers.write().drivers[d].stage_total() = total,
             Owner::Player(p) => p.update(|q| q.stage_points[6] = total),
         }
     }

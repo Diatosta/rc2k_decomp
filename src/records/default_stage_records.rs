@@ -26,7 +26,6 @@ fn records(stages: &StageTables, table: RecordTable) -> Result<usize, BadInput> 
 /// A made-up record holder: a random driver's nationality, car and name.
 fn holder(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
-    menus: &Menus,
     driver: Driver,
     speed: u32,
 ) -> Result<(HolderRow, Vec<u8>), Refused> {
@@ -35,7 +34,7 @@ fn holder(
         car: driver.car(),
         speed,
     };
-    Ok((row, driver.name(so, menus)?.1))
+    Ok((row, driver.name(so)?.1))
 }
 
 pub fn default_stage_records(
@@ -63,10 +62,7 @@ pub fn default_stage_records(
         let time = random.random_below(0xAA)?.wrapping_add(1000);
         let time_trial = Driver::of(menus, random.random_below(0xAA)?)?;
         let speed = random.random_below(0xAA)?.wrapping_add(1000);
-        let both = [
-            holder(so, menus, first, time)?,
-            holder(so, menus, time_trial, speed)?,
-        ];
+        let both = [holder(so, first, time)?, holder(so, time_trial, speed)?];
         if both.iter().any(|(_, name)| name.len() > HOLDER_NAME_LEN) {
             return Err(BadInput("a driver's name past a record holder's 0x20 bytes").into());
         }

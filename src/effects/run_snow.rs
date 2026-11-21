@@ -100,7 +100,7 @@ pub fn run_snow(
         snow.borrow_mut().inverses = [inverse; 4];
         snow.borrow_mut().inverse = inverse;
         let marks = effects.settings()?;
-        let clock = race.shared.physics_tables.get().scene_clock.get();
+        let clock = race.shared.run().scene_clock;
         if marks.other_marks_shown.get() != 0 {
             let (last_clock, fall) = {
                 let s = snow.borrow();

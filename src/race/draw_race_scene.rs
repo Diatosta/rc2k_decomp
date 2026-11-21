@@ -547,14 +547,6 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         view.object.split_polygon_count.set(0);
         view.object.whole_polygon_count.set(0);
     }
-    for cell in [
-        &race.frame.draw_batches().plain_word,
-        &race.frame.draw_batches().plain_count,
-        &race.frame.draw_batches().textured_word,
-        &race.frame.draw_batches().textured_count,
-    ] {
-        cell.set(0);
-    }
     // `cars_drawn` is counted in each view's own state.
     for slot in [
         o.scene.scratch.main_view(0),
@@ -738,9 +730,9 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         }
     }
     crate::race::frame_views::load_first_car(&race.shared)?;
-    use crate::race::frame_flush::{flush_batch, plain, textured};
-    flush_batch(o.scene, part, &race.frame, &plain(&race.frame), false)?;
-    flush_batch(o.scene, part, &race.frame, &textured(&race.frame), true)?;
+    use crate::race::frame_flush::flush_batch;
+    flush_batch(o.scene, part, false);
+    flush_batch(o.scene, part, true);
     crate::race::frame_draw::share_sound_spots(race, o.sound)?;
     crate::race::frame_draw::wake_part_sounds(race, o.sound)?;
     for state in [0x11, 0x12] {

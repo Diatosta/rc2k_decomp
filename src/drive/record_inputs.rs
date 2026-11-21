@@ -17,10 +17,10 @@ pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
         return Ok(());
     }
     let (eax, ebx, ecx, edx) = (
-        shared.physics_tables.get().input_words[0].get(),
-        shared.physics_tables.get().input_words[1].get(),
-        shared.physics_tables.get().input_words[2].get(),
-        shared.physics_tables.get().input_words[3].get(),
+        shared.run().input_words[0],
+        shared.run().input_words[1],
+        shared.run().input_words[2],
+        shared.run().input_words[3],
     );
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
     if tail {
@@ -43,7 +43,7 @@ pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
     }
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(packed);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
-        shared.physics_tables.get().input_words[k].set(*v);
+        shared.run_mut().input_words[k] = *v;
     }
     Ok(())
 }

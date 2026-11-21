@@ -760,20 +760,6 @@ pub(super) fn draw_indexed_bytes(
     );
 }
 
-/// `d3d::draw_indexed`, the platform's draw of the race's batches: the same call as
-/// `draw_triangles` (DrawIndexedPrimitive, type 4, flags 0x1C). Returns Direct3D's result:
-/// 0, drawn.
-pub fn draw_indexed<const V: usize, const I: usize>(
-    part: &crate::scene::scratch_store::PartScratch,
-    vertices: &crate::memory::session::PlainBytes<V>,
-    vertex_count: u32,
-    indices: &crate::memory::session::PlainBytes<I>,
-    index_count: u32,
-) -> u32 {
-    draw_indexed_bytes(part, vertices, V, vertex_count, indices, I, index_count);
-    0
-}
-
 // ---- gfx::allocate_textures ----
 
 fn fatal(code: u32) -> FatalError {

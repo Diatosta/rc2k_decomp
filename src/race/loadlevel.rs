@@ -153,11 +153,6 @@ fn begin_level(
     let scene = o.scene;
     s.log(Word::Start);
     s.indent(3);
-    race.frame.map().use_packed.set(1u32);
-    race.frame
-        .map()
-        .packed_unless_editor
-        .set((race.shared.switches.get().editor_mode.get() == 0) as u32);
     let mut direction: u32 = race.shared.vars.get().direction.get();
     if [0x1F, 0x22, 0x51].contains(&race.shared.vars.get().stage_number.get()) {
         direction ^= 1;

@@ -29,7 +29,6 @@ pub(crate) mod course_store;
 mod create_controls;
 pub(crate) mod credits_race;
 pub(crate) mod dialogs;
-mod draw_batches_store;
 mod draw_mirror_view;
 pub(crate) mod draw_race_scene;
 mod draw_tyre_change;

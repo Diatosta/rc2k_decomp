@@ -139,7 +139,7 @@ fn restore(o: Owners<'static>) -> Result<Resume, Refused> {
         cursor += CAR_LEN;
     }
     let records = file.read_at(cursor, RECORDS_LEN, "the saved drivers")?;
-    crate::menu::drivers_store::records_from_bytes(&menus.cars.drivers.drivers, &records)?;
+    menus.cars.drivers.load_bytes(&records)?;
     menus.screens.flow.write().start_section = cars[0].get().saved_start_section;
     menus.screens.flow.write().start_section_a8 = cars[0].get().saved_start_section_a8;
 

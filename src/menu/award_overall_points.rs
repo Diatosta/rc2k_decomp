@@ -11,14 +11,13 @@
 //! entry, a section past 5, a player past 4 or missing, before anything; a driver not found is the
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::drivers_store::Driver;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 /// An entry's driver (computer) or player.
 #[derive(Clone, Copy)]
 enum Owner<'a> {
-    Driver(&'a Driver),
+    Driver(usize),
     Player(PlayerCell<'a>),
 }
 
@@ -59,7 +58,9 @@ pub fn award_overall_points(
             let given = points.take();
             e.overall[section as usize] = given;
             match o {
-                Owner::Driver(d) => d.overall(section as usize).set(given),
+                Owner::Driver(d) => {
+                    *menus.cars.drivers.write().drivers[d].overall(section as usize) = given;
+                }
                 Owner::Player(p) => p.update(|q| q.overall_points[section as usize] = given),
             }
         }
@@ -67,7 +68,7 @@ pub fn award_overall_points(
             let total = total(std::array::from_fn(|k| e.overall[k]));
             e.overall[6] = total;
             match o {
-                Owner::Driver(d) => d.overall_total().set(total),
+                Owner::Driver(d) => *menus.cars.drivers.write().drivers[d].overall_total() = total,
                 Owner::Player(p) => p.update(|q| q.overall_points[6] = total),
             }
         }

@@ -49,7 +49,6 @@ fn words(tables: &PhysicsTables, spec: &CarSpec) {
         .ride_height_handling_scale
         .set(spec.ride_height_handling_scale);
     tables.gear_count.set(gear_count(spec.gear_count));
-    tables.unused_spec_20.set(spec.reserved_20);
     tables.spec_surface[0].set(spec.surface[0]);
     tables.spec_surface[1].set(spec.surface[1]);
     tables.grip_scale.set(spec.grip_scale);

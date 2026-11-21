@@ -7,13 +7,13 @@ use rc2k_core::drive::clocks::RaceClock;
 
 fn tick_from(shared: &RaceShared, now: u32) {
     let mut c = RaceClock {
-        counted: shared.physics_tables.get().race_clock_base.get(),
+        counted: shared.run().race_clock_base,
         ..RaceClock::default()
     };
     c.tick(now);
-    shared.physics_tables.get().race_clock_now.set(c.now);
-    shared.physics_tables.get().race_tenths.set(c.tenths);
-    shared.physics_tables.get().race_clock_base.set(c.counted);
+    shared.run_mut().race_clock_now = c.now;
+    shared.run_mut().race_tenths = c.tenths;
+    shared.run_mut().race_clock_base = c.counted;
 }
 
 pub fn race_clock_tick(shared: &RaceShared, clock: &crate::clock::tick_count::PictureClock) {

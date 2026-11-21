@@ -25,7 +25,7 @@ pub(super) fn blit_map_tiles(
     let drawing = &gfx.drawing;
     use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
     use rc2k_core::race::map::{
-        BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_row,
+        BLITTED, any_inside, check_tiles, pixel_width, tile_index, tile_row,
     };
     if !lock_texture_in(gfx, texture)? {
         return Ok(());
@@ -40,9 +40,8 @@ pub(super) fn blit_map_tiles(
         { unlock_texture(gfx, texture) }?;
         return Err(e.into());
     }
-    frame.map().row_gap.set(row_gap(pitch, bytes));
     let surface = crate::gfx::rows::Rows::new(pixels, pitch, drawing.draw_surface.height.get());
-    let black = frame.map().black.get();
+    let black = frame.map().black;
     for row in 0..BLITTED {
         for col in 0..BLITTED {
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));

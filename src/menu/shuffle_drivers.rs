@@ -5,7 +5,6 @@
 //! The random numbers are `Randoms::random_below`'s, two per swap. Refuses a count of 0 (it would
 //! divide by 0), before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::drivers_store::{DRIVER_LEN, records_from_bytes, records_to_bytes};
 use crate::menu::owner::Menus;
 use rc2k_core::saves::defaults::CLASS_DRIVER_COUNTS;
 
@@ -28,16 +27,12 @@ pub(super) fn shuffle_drivers(
     if tables.iter().any(|&(_, c)| c == 0) {
         return Err(BadInput("a driver table count of 0").into());
     }
-    let drivers = &menus.cars.drivers.drivers;
+    let drivers = &menus.cars.drivers;
     for &(table, count) in &tables {
         for _ in 0..count {
-            let first = &drivers[table + random.random_below(count)? as usize];
-            let second = &drivers[table + random.random_below(count)? as usize];
-            let a = records_to_bytes(std::slice::from_ref(first));
-            let b = records_to_bytes(std::slice::from_ref(second));
-            debug_assert_eq!((a.len(), b.len()), (DRIVER_LEN, DRIVER_LEN));
-            records_from_bytes(std::slice::from_ref(first), &b)?;
-            records_from_bytes(std::slice::from_ref(second), &a)?;
+            let first = table + random.random_below(count)? as usize;
+            let second = table + random.random_below(count)? as usize;
+            drivers.swap(first, second);
         }
     }
     Ok(())

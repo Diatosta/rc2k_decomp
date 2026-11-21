@@ -15,7 +15,7 @@
 use crate::errors::Fault;
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::DwordLike;
-use crate::menu::drivers_store::{Driver, IN_EVENT};
+use crate::menu::drivers_store::IN_EVENT;
 use crate::menu::owner::{Cars, Play, Screens};
 use crate::menu::standings::*;
 use crate::owners::Owners;
@@ -29,12 +29,12 @@ struct Game<'a> {
     screens: &'a Screens,
     play: &'a Play,
     owners: Owners<'static>,
-    /// The walked drivers.
-    drivers: &'a [Driver],
+    /// How many drivers are walked.
+    walked: usize,
     /// The stage's track pack entry.
     pack: crate::records::trakpak_entry::Track,
     /// The driver `running` last asked about (the one `drop_out` drops).
-    asked: Option<&'a Driver>,
+    asked: Option<usize>,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
 }
@@ -42,8 +42,8 @@ struct Game<'a> {
 impl<'a> Game<'a> {
     /// Driver `k` of the walked ones; past them a refusal kept for the next check (the core
     /// picks under `PICKED`, which `run_event_races` checks the walk reaches).
-    fn driver(&self, k: u32) -> Option<&'a Driver> {
-        let d = self.drivers.get(k as usize);
+    fn driver(&self, k: u32) -> Option<usize> {
+        let d = ((k as usize) < self.walked).then_some(k as usize);
         if d.is_none() {
             self.fault
                 .ok::<()>(Err(BadInput("a driver past the walked ones")));
@@ -150,23 +150,25 @@ impl races::EventRaces for Game<'_> {
     }
 
     fn slow(&mut self, k: u32, added: u32) {
-        if let Some(d) = self.driver(k) {
-            d.time.set(d.time.get().wrapping_add(added));
-            d.total.set(d.total.get().wrapping_add(added));
+        if let Some(k) = self.driver(k) {
+            let d = &mut self.cars.drivers.write().drivers[k];
+            d.time = d.time.wrapping_add(added);
+            d.total = d.total.wrapping_add(added);
         }
     }
 
     fn running(&mut self, k: u32) -> bool {
         self.asked = self.driver(k);
         self.asked
-            .is_some_and(|d| d.in_event.get() == races::RUNNING)
+            .is_some_and(|d| self.cars.drivers.read().drivers[d].in_event == races::RUNNING)
     }
 
     fn drop_out(&mut self) {
         if let Some(d) = self.asked {
-            d.in_event.set(races::DROPPED);
-            d.time.set(races::DROPPED_TIME);
-            d.total.set(races::DROPPED_TIME);
+            let d = &mut self.cars.drivers.write().drivers[d];
+            d.in_event = races::DROPPED;
+            d.time = races::DROPPED_TIME;
+            d.total = races::DROPPED_TIME;
         }
     }
 
@@ -184,11 +186,11 @@ impl races::EventRaces for Game<'_> {
 
 pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
     let (cars, screens, play) = (&o.menus.cars, &o.menus.screens, &o.menus.play);
-    let drivers = drivers_of(cars)?;
-    let few_running = drivers.len() < PICKED as usize
-        || drivers[..PICKED as usize]
+    let walked = walked(cars)?;
+    let few_running = walked < PICKED as usize
+        || cars.drivers.read().drivers[..PICKED as usize]
             .iter()
-            .filter(|d| d.in_event.get() == IN_EVENT)
+            .filter(|d| d.in_event == IN_EVENT)
             .count()
             < 4;
     if few_running {
@@ -209,7 +211,7 @@ pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
         screens,
         play,
         owners: o,
-        drivers,
+        walked,
         pack,
         asked: None,
         fault: Fault::default(),

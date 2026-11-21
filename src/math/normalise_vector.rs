@@ -1,7 +1,6 @@
 //! `math::normalise_vector`: the work vector made one long.
 //!
-//! The vector is three floats; its length is left in `SoundSpotBlock.work_vector_length`
-//! (not kept here: nothing reached reads it). The squares' sum as a float; its square root from
+//! The vector is three floats; its length is not kept (nothing reads it). The squares' sum as a float; its square root from
 //! two tables (the float's bits 15 .. 22 pick one of 0x100 at the root table, its
 //! exponent one at the exponent table), the two multiplied; each of the three
 //! times 1 over that; a component that comes out as minus zero is made zero. A length that

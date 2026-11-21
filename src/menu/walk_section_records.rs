@@ -44,7 +44,7 @@ fn walk(
     let screens = &menus.screens;
     current_event(screens, system, tables)?;
     counted_players(&menus.screens, &menus.play)?;
-    drivers(menus)?;
+    walked(&menus.cars)?;
     let index: u32 = menus.screens.event.read().stage_in_section;
     let fault = Fault::default();
     let walked = rc2k_core::menu::section_walk::walk(

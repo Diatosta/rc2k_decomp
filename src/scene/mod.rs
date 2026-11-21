@@ -95,7 +95,6 @@ pub mod load_texture_picture;
 pub mod load_wanted_textures;
 pub mod lock_frame;
 pub mod log_bad_polygon;
-pub mod look_up_texture;
 pub mod map_texture_places;
 pub mod matrix;
 pub mod measure_object;

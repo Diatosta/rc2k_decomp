@@ -117,7 +117,7 @@ pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(
         car.update(|p| p.name_copy = name);
         file.store(base + car_at(n), &car.get().to_file_bytes())?;
     }
-    let records = crate::menu::drivers_store::records_to_bytes(&menus.cars.drivers.drivers);
+    let records = menus.cars.drivers.to_bytes();
     debug_assert_eq!(records.len(), RECORDS_LEN);
     file.store(base + RECORDS_AT, &records)?;
     Ok(())
@@ -208,8 +208,7 @@ mod tests {
             .map(crate::memory::session::Shared::get);
         let names_before: [_; 4] =
             std::array::from_fn(|i| crate::menu::player_names::name_bytes(menus, i));
-        let records_before =
-            crate::menu::drivers_store::records_to_bytes(&menus.cars.drivers.drivers);
+        let records_before = menus.cars.drivers.to_bytes();
         let start_before = [
             menus.screens.flow.read().start_section,
             menus.screens.flow.read().start_section_a8,
@@ -231,11 +230,7 @@ mod tests {
         let varied_records: Vec<u8> = (0..records_before.len())
             .map(|k| (k.wrapping_mul(2_654_435_761) >> 9) as u8)
             .collect();
-        crate::menu::drivers_store::records_from_bytes(
-            &menus.cars.drivers.drivers,
-            &varied_records,
-        )
-        .unwrap();
+        menus.cars.drivers.load_bytes(&varied_records).unwrap();
         let wrote = records_to_vec(menus);
 
         gather_savegame(menus, buffer, 0).unwrap();
@@ -262,11 +257,11 @@ mod tests {
                 &car.get().name_copy,
             );
         }
-        crate::menu::drivers_store::records_from_bytes(
-            &menus.cars.drivers.drivers,
-            &first[RECORDS_AT..RECORDS_AT + RECORDS_LEN],
-        )
-        .unwrap();
+        menus
+            .cars
+            .drivers
+            .load_bytes(&first[RECORDS_AT..RECORDS_AT + RECORDS_LEN])
+            .unwrap();
         gather_savegame(menus, buffer, 0).unwrap();
         let second = buffer.read_at(0, LEN, "the file").unwrap();
         assert_eq!(records_to_vec(menus), wrote);
@@ -281,11 +276,7 @@ mod tests {
         for (n, name) in names_before.iter().enumerate() {
             crate::menu::player_names::set_name_bytes(menus, n, name);
         }
-        crate::menu::drivers_store::records_from_bytes(
-            &menus.cars.drivers.drivers,
-            &records_before,
-        )
-        .unwrap();
+        menus.cars.drivers.load_bytes(&records_before).unwrap();
         menus.screens.flow.write().start_section = start_before[0];
         menus.screens.flow.write().start_section_a8 = start_before[1];
 
@@ -294,6 +285,6 @@ mod tests {
     }
 
     fn records_to_vec(menus: &Menus) -> Vec<u8> {
-        crate::menu::drivers_store::records_to_bytes(&menus.cars.drivers.drivers)
+        menus.cars.drivers.to_bytes()
     }
 }

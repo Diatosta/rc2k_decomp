@@ -12,6 +12,7 @@ use rc2k_core::physics::car_events::listed_event;
 pub(super) fn queue_listed_event(
     car: &Car,
     tables: &PhysicsTables,
+    scene_clock: u32,
     ebx: u32,
 ) -> Result<(), Refused> {
     let Some((event, queued)) = listed_event(ebx, |n| tables.listed_events[n as usize].get())
@@ -19,7 +20,7 @@ pub(super) fn queue_listed_event(
         return Ok(());
     };
     if queued {
-        queue_car_event(car, tables, 0, event)?;
+        queue_car_event(car, scene_clock, 0, event)?;
     }
     Ok(())
 }

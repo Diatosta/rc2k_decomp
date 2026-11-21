@@ -558,11 +558,7 @@ pub(super) fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
         race.car_blocks().cars[n as usize].driver_kind.set(0u32);
     }
     set_player_car_kinds(race);
-    race.shared
-        .physics_tables
-        .get()
-        .noise_state
-        .set(race.shared.tables().noise_seed.get());
+    race.shared.run_mut().noise_state = race.shared.tables().noise_seed.get();
     // Each car a type (never the last one's again) and a number.
     let mut last_type = u32::MAX;
     let mut number_next = 1u32;
@@ -707,11 +703,7 @@ fn choose_arcade_opponents(shared: &RaceShared) -> Result<(), Refused> {
     number(first, false);
     text(OPPONENT_WORDS[1], false);
     number(first_place, true);
-    shared
-        .physics_tables
-        .get()
-        .noise_state
-        .set(shared.tables().noise_seed.get());
+    shared.run_mut().noise_state = shared.tables().noise_seed.get();
     let mut taken = vec![first];
     for (n, at) in shared.vars.get().race_car_kinds[1..4].iter().enumerate() {
         let (kind, place) = loop {

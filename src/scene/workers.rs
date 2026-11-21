@@ -113,6 +113,8 @@ pub struct Lent<'s> {
     level_grid: crate::memory::session::PhaseRead<'s, crate::race::level_grid_store::LevelGrid>,
     /// The ground probe's mark as the scope opened.
     ground_probe: crate::physics::ground_probe_store::GroundProbe,
+    /// The scene's clock as the scope opened.
+    scene_clock: u32,
     shadow_skids:
         crate::memory::session::PhaseRead<'s, crate::race::shadow_skids_store::ShadowSkids>,
     lights_and_gear:
@@ -177,6 +179,7 @@ impl<'s> Lent<'s> {
             // The race's stores.
             level_grid: PhaseRead::lend(&race.course.level_grid, scope),
             ground_probe: *race.physics.ground_probe().borrow(),
+            scene_clock: race.shared.run().scene_clock,
             shadow_skids: PhaseRead::lend(&race.frame.shadow_skids, scope),
             lights_and_gear: PhaseRead::lend(&race.frame.lights_and_gear, scope),
             no_place: race.replay.no_place(),
@@ -226,6 +229,7 @@ impl<'s> Lent<'s> {
             // The race's stores.
             level_grid: &self.level_grid,
             ground_probe: self.ground_probe,
+            scene_clock: self.scene_clock,
             shadow_skids: &self.shadow_skids,
             lights_and_gear: &self.lights_and_gear,
             no_place: self.no_place,
@@ -289,6 +293,8 @@ pub struct DrawReads<'a> {
     pub level_grid: &'a crate::race::level_grid_store::LevelGrid,
     /// The ground probe's mark (`race::owner_physics::Physics::ground_probe`), as it was when the reads were made.
     pub ground_probe: crate::physics::ground_probe_store::GroundProbe,
+    /// The scene's clock (`race::owner_shared::RaceShared::run`), as it was when the reads were made.
+    pub scene_clock: u32,
     /// The skid marks' links and points (`race::owner_frame::Frame::shadow_skids`).
     pub shadow_skids: &'a crate::race::shadow_skids_store::ShadowSkids,
     /// The models' light records and the gear figures after them
@@ -396,6 +402,7 @@ impl<'a> DrawReads<'a> {
             // The race's stores.
             level_grid: race.course.level_grid.get(),
             ground_probe: *race.physics.ground_probe().borrow(),
+            scene_clock: race.shared.run().scene_clock,
             shadow_skids: race.frame.shadow_skids.get(),
             lights_and_gear: race.frame.lights_and_gear.get(),
             no_place: race.replay.no_place(),

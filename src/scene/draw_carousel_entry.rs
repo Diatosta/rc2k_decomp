@@ -85,7 +85,7 @@ fn settings(
         1 => z.wrapping_sub(high(turn, forward)),
         _ => z,
     };
-    let clock: u32 = shared.physics_tables.get().scene_clock.get();
+    let clock: u32 = shared.run().scene_clock;
     let mut set = Settings {
         place: [x, y, z],
         size: None,

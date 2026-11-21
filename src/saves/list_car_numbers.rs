@@ -29,8 +29,7 @@ pub fn list_car_numbers_in(menus: &Menus) -> Result<(), BadInput> {
             let reads = CheckedReads::new();
             let answer = rc2k_core::saves::cars::numbers(&list, |car| {
                 reads.value(
-                    crate::menu::cars_store::description(&menus.cars.table, car)
-                        .map(|d| d.get().car),
+                    crate::menu::cars_store::description(&menus.cars.table, car).map(|d| d.car),
                 )
             });
             found.push(reads.finish(answer)??);

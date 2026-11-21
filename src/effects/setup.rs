@@ -61,7 +61,7 @@ pub(super) fn tick_clock(
     let setup = &effects.setup;
     let mut c = setup.clock.borrow_mut();
     {
-        let clock: u32 = shared.physics_tables.get().scene_clock.get();
+        let clock: u32 = shared.run().scene_clock;
         if c.started == 0 {
             c.started = 1;
             c.last = clock;

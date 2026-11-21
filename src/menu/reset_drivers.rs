@@ -6,9 +6,10 @@
 use crate::errors::Refused;
 use crate::menu::drivers_store::Driver;
 use crate::menu::owner::Menus;
-use crate::menu::standings::drivers;
+use crate::menu::standings::walked;
 
 pub(super) fn reset_drivers(menus: &Menus) -> Result<(), Refused> {
-    drivers(menus)?.iter().for_each(Driver::reset);
+    let count = walked(&menus.cars)?;
+    menus.cars.drivers.each(count, Driver::reset);
     Ok(())
 }

@@ -1,7 +1,6 @@
-//! The physics' tables and work variables: the race clock, the inputs, the ground kinds' records,
-//! the handling constants, the car's working figures, the force and contact records, the gearbox
-//! and the spec's figures. Most names are readings from the code's uses; `reserved_*` runs are
-//! places no ported code names.
+//! The physics' tables and work variables: the control inputs, the ground kinds' records, the
+//! handling constants, the car's working figures, the force and contact records, the gearbox and
+//! the spec's figures (the race clock and the recorded input words are in `physics::run_store`). Most names are readings from the code's uses.
 
 use crate::memory::cells::ZeroCells;
 use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
@@ -23,7 +22,8 @@ pub struct Surface {
     /// centre point's go to `mud_scale_a` ([0] -> throws, scaled by the drive speed; [1] ->
     /// splashes, scaled by the slip; `physics::accumulate_mud`). Probable.
     pub mud_rates: [PlainFloat; 2],
-    /// No code reads or writes it (data only).
+    /// No code reads or writes it (data only); kept so the record keeps its 0x30 bytes, as the
+    /// recorded vectors lay it out.
     pub reserved_18: [PlainDword; 2],
     /// The drag (10.0 on two grasses, `patchstickygrass`).
     pub drag: PlainFloat,
@@ -47,8 +47,6 @@ pub struct ForceRecord {
     pub force: [PlainFloat; 3],
     /// Where it acts.
     pub point: [PlainFloat; 3],
-    /// Not cleared; no code reads or writes it (data only).
-    pub reserved_18: [PlainDword; 2],
 }
 
 #[cfg_attr(test, repr(C))]
@@ -56,22 +54,6 @@ pub struct ForceRecord {
 pub struct PhysicsTables {
     /// 5.0: a reset is allowed below this speed (`drive::reset_request`).
     pub reset_speed_limit: PlainFloat,
-    /// Unused.
-    pub reserved_4: PlainDword,
-    /// The scene's clock, read by everything timed.
-    pub scene_clock: PlainDword,
-    /// Unused.
-    pub reserved_c: PlainDword,
-    /// Frames counted by `race::measure_frame_rate`.
-    pub frame_rate_count: PlainDword,
-    /// The race clock's last reading (`drive::race_clock_tick`).
-    pub race_clock_now: PlainDword,
-    /// The clock's count the race's time is taken from (`drive::race_clock_tick`, the films).
-    pub race_clock_base: PlainDword,
-    /// The race's ticks to run (`drive::race_clock_tick` -> `drive::race_step`).
-    pub race_tenths: PlainDword,
-    /// Unused.
-    pub reserved_20: [PlainDword; 17],
     /// 0.01: the physics step's length in seconds.
     pub step_time: PlainFloat,
     /// The steering input (`drive::read_car_controls`, `drive::steer_inputs`).
@@ -88,30 +70,12 @@ pub struct PhysicsTables {
     pub input_gear_down: PlainDword,
     /// The gear asked for, -1 none (`physics::auto_gearbox`).
     pub input_gear_wanted: PlainDword,
-    /// Three of the six are printed by the developers' wear page (`debug::wear_page`); nothing else
-    /// uses them.
-    pub wear_page_words: [PlainDword; 6],
-    /// The four input words recorded and replayed (`drive::record_inputs`, `drive::play_inputs`).
-    pub input_words: [PlainDword; 4],
-    /// A counter by camera view (`race::frame`).
-    pub view_counters: [PlainDword; 7],
-    /// Unused.
-    pub reserved_c8: PlainDword,
-    /// The developers' debug overlay's page (0 .. 7), and the freeze-race flag (`drive::race_step`
-    /// skips the physics ticks while set): what is left of the debug keys; `input::end_frame` sets
-    /// both 0 every frame (`debug::overlay`).
-    pub debug: [PlainDword; 2],
-    /// The developers' debug keys' values (probably): each key held copies one of these dwords into
-    /// a gauge of the first car block (`engine_damage` ..); no code names them.
-    pub debug_key_values: [PlainDword; 31],
     /// The ground kinds' records (`physics::wheel_surfaces`; twelve patched by
     /// `physics::apply_patches`).
     pub surfaces: [Surface; 16],
     /// Eight tables of 13 dwords the surface records point at: [0] then six figures by tyre kind
     /// and six more (`physics::wheel_surfaces`).
     pub surface_tables: [PlainDword; 104],
-    /// Unused.
-    pub reserved_5f0: [PlainDword; 10],
     /// 8.0: below it the car may stall (`physics::stall_when_still`).
     pub stall_speed: PlainFloat,
     /// 0.5 (`physics::stall_when_still`).
@@ -148,8 +112,6 @@ pub struct PhysicsTables {
     pub spec_scale_a4: PlainFloat,
     /// 0.15 (`physics::probe_ground`).
     pub probe_lift: PlainFloat,
-    /// Unused.
-    pub reserved_668: PlainDword,
     /// 1.0 (`physics::auto_gearbox`).
     pub auto_gear_speed_up: PlainFloat,
     /// -1.0 (`physics::auto_gearbox`).
@@ -160,8 +122,6 @@ pub struct PhysicsTables {
     pub ground_spin_limit: PlainFloat,
     /// 0.1 (`physics::drive_grip_forces`).
     pub grip_ease_step: PlainFloat,
-    /// Unused.
-    pub reserved_680: PlainDword,
     /// 2.0 / 2.2 by drive kind (`physics::drive_grip_forces`).
     pub grip_factor: [PlainFloat; 2],
     /// 0.5 (`physics::drive_grip_forces`).
@@ -232,8 +192,6 @@ pub struct PhysicsTables {
     pub spring_force_scale: PlainFloat,
     /// 0.25 (`physics::engine_torque`).
     pub torque_ease: PlainFloat,
-    /// Unused.
-    pub reserved_770: [PlainDword; 3],
     /// 5: the steps the drive is cut after a change (`physics::gearbox`).
     pub drive_cut_steps: PlainDword,
     /// 0.85, 0.75, 2.5: the car's turning inertia by axis (`physics::apply_torque`).
@@ -279,20 +237,14 @@ pub struct PhysicsTables {
     pub camera_frame_scale: PlainFloat,
     /// The motion kept by `physics::keep_motion`.
     pub kept_motion: [PlainFloat; 3],
-    /// Unused.
-    pub reserved_880: PlainDword,
     /// `physics::stall_when_still`'s.
     pub stall_figure: PlainFloat,
     /// Two shares held to 0 .. 1 and their blend (`physics::drive_wheels_step`).
     pub drive_shares: [PlainFloat; 3],
     /// The gear ratios from gear -1 (reverse) to 7 (`physics::make_gear_ratios`).
     pub gear_ratios: [PlainFloat; 9],
-    /// Unused.
-    pub reserved_8b8: PlainDword,
     /// The two lever pushes (`physics::lever_push`).
     pub lever_pushes: [PlainDword; 2],
-    /// Unused (the image's two time marks).
-    pub reserved_8c4: [PlainDword; 2],
     /// `physics::add_drive_forces`'.
     pub drive_force_scale: PlainFloat,
     /// The engine's lowest speed (`physics::load_car_specs`).
@@ -337,16 +289,10 @@ pub struct PhysicsTables {
     pub downforce: PlainFloat,
     /// The wheels' spring forces (`physics::wheel_springs`).
     pub spring_forces: [PlainFloat; 4],
-    /// Unused.
-    pub reserved_960: [PlainDword; 9],
     /// The wall edge's two points' x and z (`physics::wall_edge_contact`).
     pub edge_points: [PlainDword; 4],
-    /// Unused.
-    pub reserved_99c: PlainDword,
     /// The wall's heading, -1 none.
     pub wall_heading: PlainDword,
-    /// Unused.
-    pub reserved_9a4: PlainDword,
     /// Physics steps counted (`physics::car_physics_step`).
     pub step_count: PlainDword,
     /// The two axles' pushes (`physics::drive_wheels_step`, `physics::wheel_springs`).
@@ -381,8 +327,6 @@ pub struct PhysicsTables {
     pub settle_steps: [PlainDword; 2],
     /// (`physics::apply_torque`).
     pub torque_cross: [PlainFloat; 3],
-    /// Unused.
-    pub reserved_a58: PlainDword,
     /// The five points' loads (`physics::wheel_surfaces` writes all five; `physics::crash_contact`
     /// reads the fifth).
     pub wheel_loads: [PlainFloat; 5],
@@ -392,8 +336,6 @@ pub struct PhysicsTables {
     pub wheel_grips_b: [PlainFloat; 5],
     /// The five points' grips blended (`physics::wheel_surfaces`).
     pub point_grips: [PlainFloat; 5],
-    /// Unused.
-    pub reserved_aac: [PlainDword; 251],
     /// Four of the surface records' figures blended for the five points.
     pub surface_blends: [PlainFloat; 20],
     /// The first surface of each point (`physics::wheel_surfaces`).
@@ -410,12 +352,8 @@ pub struct PhysicsTables {
     pub engine_torque: PlainFloat,
     /// The engine's torque, 0 when cut.
     pub engine_force: PlainFloat,
-    /// (the test drive).
-    pub test_drive_figure: PlainFloat,
     /// (`physics::drive_force`).
     pub drive_torque: PlainFloat,
-    /// Unused.
-    pub reserved_f2c: PlainDword,
     /// (`physics::drive_torque_share`).
     pub torque_share: PlainFloat,
     /// (`physics::ease_low_speed_forces`).
@@ -433,8 +371,6 @@ pub struct PhysicsTables {
     pub contacts: [ForceRecord; 7],
     /// The push `physics::apply_force` takes.
     pub push_record: [PlainDword; 4],
-    /// `physics::contact_force`'s record. Not used: the callers pass the record to it.
-    pub contact_record: PlainDword,
     /// `physics::lever_push`'s vector.
     pub lever_push_vector: [PlainDword; 4],
     /// The push turned by the car's matrix.
@@ -465,8 +401,6 @@ pub struct PhysicsTables {
     pub handling: [PlainFloat; 9],
     /// Forward gears.
     pub gear_count: PlainDword,
-    /// A spec figure that nothing reads (`physics::load_car_specs`).
-    pub unused_spec_20: PlainDword,
     /// The spec's ride-height scale for the handling.
     pub ride_height_handling_scale: PlainDword,
     /// (`physics::drive_wheels_step`).
@@ -485,10 +419,6 @@ pub struct PhysicsTables {
     pub reset_offset: PlainDword,
     /// The checkpoint tried (`physics::reset_point_blocked`).
     pub reset_candidate: PlainDword,
-    /// The noise's state (`scene::next_noise`).
-    pub noise_state: PlainDword,
-    /// Unused.
-    pub reserved_1430: [PlainDword; 3],
     /// (`physics::blend_wheel_load`).
     pub wheel_load_limit: PlainFloat,
     /// The distance to the nearest checkpoint.
@@ -505,9 +435,6 @@ pub struct PhysicsTables {
     pub listed_events: [PlainDword; 32],
     /// The distance to the split point.
     pub split_point_distance: PlainFloat,
-    /// Unused: the checkpoint's near and far colours and the distance were kept here
-    /// (`race::frame_draw`); no code reads or writes it.
-    pub reserved_14e0: [PlainDword; 3],
     /// Each slot's byte in the face.
     pub pace_slot_offsets: [PlainDword; 8],
     /// The slot 0 .. 7.
@@ -517,21 +444,6 @@ pub struct PhysicsTables {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The starting values of `view_counters`.
-#[rustfmt::skip]
-const VIEW_COUNTERS: [u32; 7] = [
-    0x10C, 0x10D, 0x10E, 0x10F, 0x110, 0x111, 0x112,
-];
-
-/// The starting values of `debug_key_values`.
-#[rustfmt::skip]
-const DEBUG_KEY_VALUES: [u32; 31] = [
-    0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000,
-    0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000,
-    0x42C60000, 0x42C80000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000,
-    0x3F800000, 0x3F800000, 0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000, 0x42C80000,
-];
-
 /// The starting values of `surface_tables`.
 #[rustfmt::skip]
 const SURFACE_TABLES: [u32; 104] = [
@@ -540,12 +452,6 @@ const SURFACE_TABLES: [u32; 104] = [
     70, 55, 75, 40, 45, 50, 65, 70, 75, 40, 45, 50, 65, 70, 75, 70, 40, 45, 50, 70, 65, 50, 35, 40,
     45, 60, 65, 50, 75, 35, 40, 45, 60, 65, 75, 35, 40, 45, 60, 65, 75, 65, 25, 30, 35, 50, 55, 65,
     25, 30, 35, 50, 55, 65,
-];
-
-/// The starting values of `reserved_5f0`.
-#[rustfmt::skip]
-const UNUSED_5F0: [u32; 10] = [
-    0x1010000, 0x101, 0x1000000, 0x1010101, 0x101, 0, 0x1010101, 0x1010101, 0x1010101, 0x10101,
 ];
 
 /// The starting values of `grip_front_drive`.
@@ -602,12 +508,6 @@ const HANDLING_RANGES_C: [f32; 8] = [
     0.15, 0.1, 100.0, 200.0, 1.0, 2.0, 0.45, 0.3,
 ];
 
-/// The starting values of `reserved_770`.
-#[rustfmt::skip]
-const UNUSED_770: [u32; 3] = [
-    0x3D4CCCCD, 0x3D99999A, 0x400CCCCD,
-];
-
 /// The starting values of `inertia`.
 #[rustfmt::skip]
 const INERTIA: [f32; 3] = [
@@ -638,12 +538,6 @@ const CLEAR_PLACE_STEPS_A: [u32; 16] = [
 const CLEAR_PLACE_STEPS_B: [u32; 16] = [
     10, 7, 0, 0xFFFFFFF9, 0xFFFFFFF6, 0xFFFFFFF9, 0, 7, 14, 10, 0, 0xFFFFFFF6, 0xFFFFFFF2,
     0xFFFFFFF6, 0, 10,
-];
-
-/// The starting values of `reserved_1430`.
-#[rustfmt::skip]
-const UNUSED_1430: [u32; 3] = [
-    0xFE0, 0x1A10, 0x2810,
 ];
 
 /// The starting values of `listed_events`.
@@ -720,11 +614,8 @@ impl PhysicsTables {
         Self {
             reset_speed_limit: PlainFloat::new(5.0),
             step_time: PlainFloat::new(0.01),
-            view_counters: PlainDword::array(VIEW_COUNTERS),
-            debug_key_values: PlainDword::array(DEBUG_KEY_VALUES),
             surfaces: Surface::rows(&SURFACE_ROWS),
             surface_tables: PlainDword::array(SURFACE_TABLES),
-            reserved_5f0: PlainDword::array(UNUSED_5F0),
             stall_speed: PlainFloat::new(8.0),
             stall_share: PlainFloat::new(0.5),
             drive_speed_cap: PlainFloat::new(800.0),
@@ -743,13 +634,11 @@ impl PhysicsTables {
             grip_slow_speed: PlainFloat::new(1.0),
             spec_scale_a4: PlainFloat::new(0.9),
             probe_lift: PlainFloat::new(0.15),
-            reserved_668: PlainDword::new(0x3E4CCCCD),
             auto_gear_speed_up: PlainFloat::new(1.0),
             auto_gear_speed_down: PlainFloat::new(-1.0),
             engine_ease: PlainFloat::new(0.95),
             ground_spin_limit: PlainFloat::new(2.0),
             grip_ease_step: PlainFloat::new(0.1),
-            reserved_680: PlainDword::new(0x3FB33333),
             grip_factor: PlainFloat::array(GRIP_FACTOR),
             side_grip_share: PlainFloat::new(0.5),
             rev_limit_scale: PlainFloat::new(8500.0),
@@ -785,7 +674,6 @@ impl PhysicsTables {
             probe_share: PlainFloat::new(0.5),
             spring_force_scale: PlainFloat::new(2.0),
             torque_ease: PlainFloat::new(0.25),
-            reserved_770: PlainDword::array(UNUSED_770),
             drive_cut_steps: PlainDword::new(5),
             inertia: PlainFloat::array(INERTIA),
             downforce_factor: PlainFloat::new(0.0001),
@@ -808,7 +696,6 @@ impl PhysicsTables {
             camera_frame_limit: PlainFloat::new(0.02),
             camera_frame_scale: PlainFloat::new(0.05),
             contact_steps: PlainDword::new(10),
-            reserved_1430: PlainDword::array(UNUSED_1430),
             wheel_load_limit: PlainFloat::new(4.0),
             off_line_distance: PlainFloat::new(32.0),
             split_distance: PlainFloat::new(32.0),
@@ -852,8 +739,8 @@ mod tests {
         for byte in &bytes {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
         }
-        assert_eq!(bytes.len(), 5364);
-        assert_eq!(hash, 0x02f0_a9d0_d850_1bf3);
+        assert_eq!(bytes.len(), 3652);
+        assert_eq!(hash, 0x6ead_3fdd_01f7_d82d);
     }
 
     #[test]

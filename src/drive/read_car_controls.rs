@@ -68,11 +68,8 @@ pub fn read_car_controls(
         &race_owner.shared.car().input_steering,
         &race_owner.shared.car().input_brake,
     ];
-    for (to, from) in words
-        .into_iter()
-        .zip(&race_owner.shared.physics_tables.get().input_words)
-    {
-        to.set(from.get());
+    for (to, from) in words.into_iter().zip(race_owner.shared.run().input_words) {
+        to.set(from);
     }
     // A held race (`RC2K_HELD_RACE`) takes no key from the players: a key still held from the
     // menus (the test's Return) would reach the car at a tick that depends on the timing.

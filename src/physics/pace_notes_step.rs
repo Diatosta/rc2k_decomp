@@ -40,6 +40,7 @@ pub fn pace_notes_step(
     let (physics, numbers, frame_work) = (c.physics, c.numbers, &c.frame_work);
     let (work, vars, replay_file) = (c.work, c.vars, c.shared.replay_file());
     let (physics_tables, car) = (c.tables, c.car);
+    let scene_clock = c.shared.run().scene_clock;
     if !calling(
         gates(work, replay_file, car),
         car.driver_kind.get(),
@@ -69,6 +70,7 @@ pub fn pace_notes_step(
                 frame_work,
                 work,
                 physics_tables,
+                scene_clock,
                 car,
                 checkpoint,
                 sound,
@@ -80,6 +82,6 @@ pub fn pace_notes_step(
         }
         car.last_pace_call.set(target);
     }
-    crate::physics::expire_car_events::expire_car_events(car, physics_tables)?;
+    crate::physics::expire_car_events::expire_car_events(car, scene_clock)?;
     Ok(())
 }

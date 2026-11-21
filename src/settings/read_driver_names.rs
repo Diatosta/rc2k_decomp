@@ -74,10 +74,10 @@ pub fn apply_driver_names(
             pool_used += text.len();
         }
         if let Some(n) = entry.first {
-            cars.drivers.drivers[driver].nation.set(n);
+            cars.drivers.write().drivers[driver].nation = n;
         }
         if let Some(n) = entry.second {
-            cars.drivers.drivers[driver].car.set(n);
+            cars.drivers.write().drivers[driver].car = n;
         }
     }
     Ok(())

@@ -133,10 +133,7 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             crate::drive::next_camera_view::next_camera_view(race, view)?;
             let camera = view.camera_blend_view.get();
             if camera < COUNTED_VIEWS {
-                set_car_counter(
-                    view,
-                    shared.physics_tables.get().view_counters[camera as usize].get(),
-                );
+                set_car_counter(view, shared.run().view_counters[camera as usize]);
             }
         }
         Some(Key::Split) => {

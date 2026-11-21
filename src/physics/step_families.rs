@@ -18,14 +18,13 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
-use crate::race::sound_spots_store::SoundSpotBlock;
 use crate::race::tables_store::RaceTables;
 use crate::race::vars_store::RaceVars;
 use crate::race::view_store::RaceView;
 use crate::race::work_store::RaceWork;
 use std::cell::RefCell;
 
-/// What a contact's sound cue reads: the car, the numbers, the sound spots and bands, the
+/// What a contact's sound cue reads: the car, the numbers, the sound bands, the
 /// matrices that turn the place, the contact's speed, the current car.
 #[derive(Clone, Copy)]
 pub struct SoundInputs<'a> {
@@ -37,7 +36,6 @@ pub struct SoundInputs<'a> {
     pub frame_work: &'a FrameWork,
     pub matrices: &'a SceneMatrices,
     pub heard_turn: &'a crate::race::heard_turn::HeardTurn,
-    pub spots: &'a SoundSpotBlock,
     pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
     pub contact: &'a ContactWork,
     /// The sound owner, whose objects the cues are placed on.
@@ -245,7 +243,6 @@ impl<'a> StepInputs<'a> {
             frame_work: self.frame.frame_work.get(),
             matrices: self.frame.matrices.get(),
             heard_turn: self.shared.heard_turn.get(),
-            spots: self.frame.sound_spots(),
             polygon_tables: &self.shared.buffers.reads.get().polygon_tables,
             contact: self.physics.contact.get(),
             owner,

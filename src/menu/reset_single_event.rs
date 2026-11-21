@@ -10,14 +10,13 @@ use crate::menu::owner::{Cars, Play, Screens};
 use crate::menu::standings::*;
 
 pub fn reset_single_event(cars: &Cars, play: &Play, screens: &Screens) -> Result<(), Refused> {
-    let drivers = drivers_of(cars)?;
+    let count = walked(cars)?;
 
     play.champ_view.write().services = 0u32;
     screens.event.write().stages_done = 0u32;
 
-    drivers
-        .iter()
-        .for_each(crate::menu::drivers_store::Driver::begin);
+    cars.drivers
+        .each(count, crate::menu::drivers_store::Driver::begin);
 
     screens.event.write().event_goes_on = 1u32;
     screens.event.write().event_out = 0u32;

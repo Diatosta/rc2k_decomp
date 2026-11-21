@@ -11,7 +11,6 @@
 //! cleared, and for both `event_over` is set. The one-player ones differ (see `Starter::first`).
 
 use crate::errors::Refused;
-use crate::memory::session::PlainDword;
 use crate::menu::event_flow::*;
 use crate::menu::event_store::EventWord;
 use crate::menu::lists_store::CarList;
@@ -39,16 +38,16 @@ impl starters::Event for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: starters::Var) -> u32 {
-        match var(self.menus, v) {
+        match var(v) {
             Slot::Event(word) => word.get(&self.menus.screens.event),
-            Slot::Cell(cell) => get(cell),
+            Slot::LastCar => self.menus.cars.table.read().last_car,
         }
     }
 
     fn set(&mut self, v: starters::Var, value: u32) {
-        match var(self.menus, v) {
+        match var(v) {
             Slot::Event(word) => word.set(&self.menus.screens.event, value),
-            Slot::Cell(cell) => set(cell, value),
+            Slot::LastCar => self.menus.cars.table.write().last_car = value,
         }
     }
 
@@ -107,16 +106,17 @@ impl starters::Event for Game<'_> {
 }
 
 /// Where a starter's variable is.
-enum Slot<'a> {
+enum Slot {
     Event(EventWord),
-    Cell(&'a PlainDword),
+    /// The carousel's last car (`CarTables::last_car`).
+    LastCar,
 }
 
-fn var(menus: &crate::menu::owner::Menus, v: starters::Var) -> Slot<'_> {
+fn var(v: starters::Var) -> Slot {
     use starters::Var as V;
     match v {
         V::EventType => Slot::Event(EventWord::EventType),
-        V::RepairSet => Slot::Cell(&menus.cars.table.last_car), // 0xF
+        V::RepairSet => Slot::LastCar, // 0xF
         V::PlayerCount => Slot::Event(EventWord::PlayerCount),
         V::Index => Slot::Event(EventWord::StageInSection),
         V::Section => Slot::Event(EventWord::Section),

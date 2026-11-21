@@ -32,7 +32,7 @@ pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
     };
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
-        shared.physics_tables.get().input_words[k].set(*v);
+        shared.run_mut().input_words[k] = *v;
     }
     Ok(())
 }
@@ -48,14 +48,10 @@ mod tests {
     fn four_cars_inputs_go_through_the_block() {
         let _g = crate::test_support::test_lock();
         let race = race();
-        let words = &race.shared.physics_tables.get().input_words;
         let car_cell = &race.shared.work.get().current_car;
         let kept_block = race.viewer_buffers().block_bytes();
         let kept_flag = race.viewer_buffers().extra_tape.is_set();
-        let kept: Vec<u32> = words
-            .iter()
-            .map(crate::memory::session::PlainDword::get)
-            .collect();
+        let kept = race.shared.run().input_words;
         let kept_car = car_cell.get();
         let kept_tenth = race.replay.replay_frames().tenth;
         race.viewer_buffers().extra_tape.set(true);
@@ -65,12 +61,12 @@ mod tests {
         for car in 0..4u32 {
             car_cell.set(car);
             // Throttle, keys, steering and brake in the ranges the packing keeps.
-            for (k, w) in words.iter().enumerate() {
-                w.set(if k == 1 {
+            for k in 0..4 {
+                race.shared.run_mut().input_words[k] = if k == 1 {
                     value(car, 1)
                 } else {
                     value(car, k as u32) & 0xFF
-                });
+                };
             }
             crate::drive::record_inputs::record_inputs(race).unwrap();
         }
@@ -81,25 +77,21 @@ mod tests {
         for car in 0..4u32 {
             car_cell.set(car);
             race.replay.replay_frames_mut().step_frame = 37;
-            for w in words.iter() {
-                w.set(0);
-            }
+            race.shared.run_mut().input_words = [0; 4];
             play_inputs(race).unwrap();
-            assert_eq!(words[1].get(), value(car, 1), "car {car}");
+            assert_eq!(race.shared.run().input_words[1], value(car, 1), "car {car}");
         }
         // Without the extra tape cars 2 and 3 are not on the tape.
         race.viewer_buffers().extra_tape.set(false);
         car_cell.set(2);
-        words[1].set(77);
+        race.shared.run_mut().input_words[1] = 77;
         play_inputs(race).unwrap();
-        assert_eq!(words[1].get(), 77);
+        assert_eq!(race.shared.run().input_words[1], 77);
         race.viewer_buffers().extra_tape.set(kept_flag);
         race.replay.staging_mut().clear_extra_tape();
         car_cell.set(kept_car);
         race.replay.replay_frames_mut().tenth = kept_tenth;
-        for (w, v) in words.iter().zip(kept) {
-            w.set(v);
-        }
+        race.shared.run_mut().input_words = kept;
         race.viewer_buffers()
             .put_in_block(0, &kept_block, "test")
             .ok();

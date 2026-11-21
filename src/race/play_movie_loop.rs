@@ -40,11 +40,8 @@ pub(super) fn play_movie_loop(
     // A replay rendered to a video runs on the video's clock from here on.
     crate::video::race_loop_begins();
     race_parts::restart_clock(race, &o.system.session.picture_clock);
-    race.shared
-        .physics_tables
-        .get()
-        .race_clock_base
-        .set(race.shared.physics_tables.get().scene_clock.get());
+    let scene_clock = race.shared.run().scene_clock;
+    race.shared.run_mut().race_clock_base = scene_clock;
     let pad_at_start = input.pad_marker();
     let _racing = crate::race::blend::Racing::begin(race);
     loop {

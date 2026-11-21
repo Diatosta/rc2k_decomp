@@ -1,4 +1,4 @@
-//! The force of one contact, into the record `contact_record` names. From the contact's point
+//! The force of one contact, into the record the caller passes. From the contact's point
 //! (`contact_point`, car frame), the car's speed, its turn speed and the surface's normal: the
 //! point's speed (turn x point + speed) goes into the point's speed; its depth along the
 //! normal, held at least 1 - |normal y| + `hundredth_a`, into the depth; the push the turn
@@ -14,7 +14,7 @@
 //! The flow and the calls are Rust; each straight float run is plain Rust over `X` in the
 //! `x87_1` .. `x87_8` functions below.
 //!
-//! Takes: the record the force goes to (`contact_record`, set by each caller just before).
+//! Takes: the record the force goes to.
 
 use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::{extended, rounded_value};
@@ -98,8 +98,7 @@ fn fill3(to: &[impl FloatLike], v: u32) {
     }
 }
 
-/// `record` the one the contact's force goes to (`contact_record`, set by each caller
-/// just before).
+/// `record` the one the contact's force goes to.
 pub(super) fn contact_force(
     contact: &ContactWork,
     numbers: &Numbers,

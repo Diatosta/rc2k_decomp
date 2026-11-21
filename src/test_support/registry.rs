@@ -397,7 +397,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.gfx.fonts.game_fonts_memory",
             on_game(&o.gfx.fonts.game_fonts_memory),
         ),
-        listed!("owners.race.frame.map", on_game(o.race.frame.map()),),
         listed!(
             "owners.gfx.drawing.surfaces",
             on_game(&o.gfx.drawing.surfaces),
@@ -453,13 +452,11 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.menus.screens.controls),
         ),
         listed!("owners.menus.play.slots", on_game(&o.menus.play.slots),),
-        listed!("owners.menus.cars.table", on_game(&o.menus.cars.table),),
         listed!("owners.menus.play.results", on_game(&o.menus.play.results),),
         listed!(
             "owners.system.records.stage_tables",
             on_game(&o.system.records().stage_tables),
         ),
-        listed!("owners.menus.cars.drivers", on_game(&o.menus.cars.drivers),),
         listed!("owners.saves.rally_times", on_game(&o.saves.rally_times),),
         listed!("owners.saves.best_times", on_game(&o.saves.best_times),),
         listed!(
@@ -620,10 +617,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.frame.frame_work.get()),
         ),
         listed!(
-            "owners.race.frame.sound_spots",
-            on_game(o.race.frame.sound_spots()),
-        ),
-        listed!(
             "owners.race.physics.contact",
             on_game(o.race.physics.contact.get()),
         ),
@@ -648,10 +641,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.race.physics.ground",
             on_game(o.race.physics.ground()),
-        ),
-        listed!(
-            "owners.race.frame.draw_batches",
-            on_game(o.race.frame.draw_batches()),
         ),
         listed!(
             "owners.menus.screens.carousel",

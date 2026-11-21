@@ -33,13 +33,7 @@ pub(super) fn drift_offsets(
 ) {
     let (mut r, k) = (weather.rain.borrow_mut(), &weather.rain_rules);
     {
-        let since = race
-            .shared
-            .physics_tables
-            .get()
-            .scene_clock
-            .get()
-            .wrapping_sub(r.drift_since);
+        let since = race.shared.run().scene_clock.wrapping_sub(r.drift_since);
         if since >= r.drift_wait {
             let s = next_seed(effects);
             let x = (s & 0xFFF).wrapping_sub(0x7FF);
@@ -47,7 +41,7 @@ pub(super) fn drift_offsets(
             let y = ((s >> 12) & 0xFFF).wrapping_sub(0x7FF);
             r.drift_target[2] = x87::int_times(y as i32, k.target_scale[1]);
             r.drift_wait = ((s >> 24) + 0x40) * 5;
-            r.drift_since = race.shared.physics_tables.get().scene_clock.get();
+            r.drift_since = race.shared.run().scene_clock;
             let s = next_seed(effects);
             r.drift_halves[0] = (s & 0xFFFF) << 8;
             r.drift_halves[2] = (s >> 16) << 8;

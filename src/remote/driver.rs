@@ -769,7 +769,7 @@ pub fn shots_loading(
     reseed(&race.shared.random, effects);
     // The scene's clock as the menus left it (their time on screen) is the snow's first
     // step's start: the held clock's from here.
-    race.shared.physics_tables.get().scene_clock.set(0x10000u32);
+    race.shared.run_mut().scene_clock = 0x10000u32;
     // The frame rate's text measures the host: not drawn.
     race.frame.counter_mut().show = 0;
 }

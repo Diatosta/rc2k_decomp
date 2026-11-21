@@ -91,7 +91,7 @@ fn owned(buffers: &PictureBuffers, handle: u32) -> Result<&Owned<Vec<u8>>, BadIn
 pub fn take(
     buffers: &PictureBuffers,
     which: Buffer,
-    list: &crate::memory::ListCells,
+    list: &impl crate::memory::HeldList,
     bytes: u32,
 ) -> Result<u32, Refused> {
     let memory = vec![0u8; crate::memory::owned::block_len(bytes)];

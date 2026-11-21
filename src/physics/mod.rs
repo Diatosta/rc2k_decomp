@@ -187,6 +187,7 @@ mod reset_point_blocked;
 mod reset_when_stuck;
 mod restore_saved_car;
 pub(crate) mod revs_from_wheels;
+pub(crate) mod run_store;
 mod save_car_state;
 mod scale_vector;
 mod scene_point_hits_car;

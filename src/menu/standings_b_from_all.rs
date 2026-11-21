@@ -46,7 +46,7 @@ pub fn standings_b_from_all(
     }
     let mut texts = Vec::new();
     for d in &drivers {
-        let id: u32 = crate::menu::drivers_store::name_string(&menus.cars, d.number)?;
+        let id: u32 = crate::menu::drivers_store::name_string(d.number)?;
         let mut text = Vec::new();
         crate::strings::append_string_by_id::push_string(so, &mut text, id)?;
         text.push(0);

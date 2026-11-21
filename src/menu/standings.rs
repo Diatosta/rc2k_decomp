@@ -5,8 +5,6 @@
 //! Also the drivers (-1 at the end) and the players.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::memory::session::PlainDword;
-use crate::menu::drivers_store::Driver;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::menu::owner::{Cars, Menus};
@@ -36,24 +34,20 @@ pub(super) fn player_in(play: &Play, n: u32) -> PlayerCell<'_> {
     &play.slots.records[n as usize]
 }
 
-/// The drivers as a `do .. while` walks them: the first always, then each while its first
-/// dword is not -1. The walk ends at the latest on the -1 after the 180 (`DriverTable.end`);
+/// How many drivers a `do .. while` walks: the first always, then each while its first dword
+/// is not -1. The walk ends at the latest on the -1 after the 180 (`DriverTables::end`);
 /// refused when that is gone.
-pub fn drivers(menus: &Menus) -> Result<&[Driver], BadInput> {
-    drivers_of(&menus.cars)
-}
-
-/// `drivers` for a caller that holds only the cars' state.
-pub(super) fn drivers_of(cars: &Cars) -> Result<&[Driver], BadInput> {
-    let all = &cars.drivers.drivers;
+pub fn walked(cars: &Cars) -> Result<usize, BadInput> {
+    let tables = cars.drivers.read();
+    let all = &tables.drivers;
     let count = 1 + all[1..]
         .iter()
-        .take_while(|d| d.name_entry.get() != u32::MAX)
+        .take_while(|d| d.name_entry != u32::MAX)
         .count();
-    if count == all.len() && cars.drivers.end.get() != u32::MAX {
+    if count == all.len() && tables.end != u32::MAX {
         return Err(BadInput("the drivers without their end entry"));
     }
-    Ok(&all[..count])
+    Ok(count)
 }
 
 /// `f` on table A; refused without it.
@@ -149,17 +143,18 @@ pub struct Found {
 pub(super) fn walked_drivers(
     cars: &Cars,
 ) -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadInput> {
-    Ok(drivers_of(cars)?
+    let count = walked(cars)?;
+    Ok(cars.drivers.read().drivers[..count]
         .iter()
         .map(|d| rc2k_core::saves::rankings::Driver {
-            number: d.name_entry.get(),
-            group: d.class.get(),
-            time: d.time.get(),
-            total: d.total.get(),
-            nation: d.nation.get(),
-            car: d.car.get(),
-            entered: d.in_event.get(),
-            points: d.results.each_ref().map(PlainDword::get),
+            number: d.name_entry,
+            group: d.class,
+            time: d.time,
+            total: d.total,
+            nation: d.nation,
+            car: d.car,
+            entered: d.in_event,
+            points: d.results,
         })
         .collect())
 }

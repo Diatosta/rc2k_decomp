@@ -53,7 +53,7 @@ fn draw_car_page(
             crate::strings::units::units(o.strings),
         );
         if d != before {
-            crate::menu::cars_store::description(&o.menus.cars.table, record)?.set(d);
+            crate::menu::cars_store::set_description(&o.menus.cars.table, record, d)?;
         }
         too_wide
     }

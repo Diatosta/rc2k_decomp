@@ -1,80 +1,20 @@
-//! The race frame's device batches and the view's backdrop under `race::draw_race_scene`: two
-//! batches of triangles flushed by the device (the platform's draw), and a quad over the view
-//! window.
+//! The race frame's two device batches' render states and the view's backdrop under
+//! `race::draw_race_scene`: a quad over the view window.
 
-use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
-use crate::memory::session::PlainDword;
 use crate::race::owner_course::CourseReads;
-use crate::race::owner_frame::Frame;
 
 /// The render states both batches set: (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (2, 0x14), (1, 0x1B)];
 
-/// A batch: its count, its first word (the draw's first argument), the vertices and indices, where
-/// the count is kept, and the second render state's value (state 0x14).
-pub struct Batch<'a> {
-    pub count: &'a PlainDword,
-    pub word: &'a PlainDword,
-    /// The platform's draw on the batch's vertices and indices (its result), given their counts.
-    pub draw: fn(&crate::scene::scratch_store::PartScratch, &Frame, u32, u32) -> u32,
-    pub kept: &'a PlainDword,
-    pub blend: u32,
-    pub text: &'static std::ffi::CStr,
-}
-
-/// The plain batch's description.
-pub fn plain(frame: &Frame) -> Batch<'_> {
-    Batch {
-        count: &frame.draw_batches().plain_count,
-        word: &frame.draw_batches().plain_word,
-        draw: |part, frame, vertices, indices| {
-            crate::d3d::device::draw_indexed(
-                part,
-                &frame.draw_batches().plain_vertices,
-                vertices,
-                &frame.draw_batches().plain_indices,
-                indices,
-            )
-        },
-        kept: &frame.draw_batches().plain_kept,
-        blend: 2,
-        text: c"drawtri",
-    }
-}
-
-/// The textured batch's description.
-pub fn textured(frame: &Frame) -> Batch<'_> {
-    Batch {
-        count: &frame.draw_batches().textured_count,
-        word: &frame.draw_batches().textured_word,
-        draw: |part, frame, vertices, indices| {
-            crate::d3d::device::draw_indexed(
-                part,
-                &frame.draw_batches().textured_vertices,
-                vertices,
-                &frame.draw_batches().textured_indices,
-                indices,
-            )
-        },
-        kept: &frame.draw_batches().textured_kept,
-        blend: 6,
-        text: c"drawtri",
-    }
-}
-
-/// Flushes a batch: a plain one sets texture
-/// `KindSlots.kind_first_slots[135]` (`scene::set_texture`); the render states; with
-/// triangles in the batch (its count also into its kept count) a textured one looks up its texture
-/// (`scene::look_up_texture`) and sets it; the draw, a failure logged as "drawtri" and its code
-/// (level 1); the count and word 0. In drawing part `part`'s render states.
+/// Sets the render states of the plain batch (`textured` false: it sets the plain texture first) or
+/// the textured batch (second render state's value 6) in drawing part `part`. The race adds no
+/// triangles to either batch, so there is nothing to draw.
 pub fn flush_batch(
     scene: &crate::scene::owner::Scene,
     part: &crate::scene::scratch_store::PartScratch,
-    frame: &Frame,
-    b: &Batch,
     textured: bool,
-) -> Result<(), Refused> {
+) {
     use crate::scene::{set_render_state::set_render_state, set_texture::set_texture};
     if !textured {
         set_texture(
@@ -83,32 +23,10 @@ pub fn flush_batch(
             scene.textures.kinds.get().kind_first_slots[135].get(),
         );
     }
+    let blend = if textured { 6 } else { 2 };
     for (value, state) in STATES {
-        set_render_state(part, if state == 0x14 { b.blend } else { value }, state);
+        set_render_state(part, if state == 0x14 { blend } else { value }, state);
     }
-    let count = b.count.get();
-    b.kept.set(count);
-    if count != 0 {
-        if textured {
-            crate::scene::look_up_texture::look_up_texture(
-                scene.scratch.front_end_polygon(),
-                scene,
-            );
-            set_texture(
-                part,
-                scene,
-                scene.scratch.front_end_polygon().polygon_texture.get(),
-            );
-        }
-        let result = (b.draw)(part, frame, b.word.get(), count);
-        if result != 0 {
-            crate::logfile::log_write::log_nul(&b.text, false, 1);
-            crate::logfile::log_hex8::log_hex8(result, false, 1);
-        }
-    }
-    b.count.set(0);
-    b.word.set(0);
-    Ok(())
 }
 
 /// (i + one) or (i - one) as a float.

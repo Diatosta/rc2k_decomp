@@ -10,7 +10,6 @@
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::cells::{set_changed, set_values_changed, values};
-use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::car_events::CarEvents;
 
 /// The work car's queue.
@@ -35,13 +34,13 @@ pub fn store(car: &Car, was: &CarEvents, now: &CarEvents) {
 
 pub(super) fn queue_car_event(
     car: &Car,
-    tables: &PhysicsTables,
+    scene_clock: u32,
     esi: u32,
     ebx: u32,
 ) -> Result<(), Refused> {
     let was = load(car);
     let mut q = was;
-    q.queue(tables.scene_clock.get(), esi, ebx)?;
+    q.queue(scene_clock, esi, ebx)?;
     store(car, &was, &q);
     Ok(())
 }

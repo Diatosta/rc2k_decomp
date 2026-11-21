@@ -23,11 +23,7 @@ pub fn driver_names(o: Owners<'static>) -> Result<DriverNames, Refused> {
     let so = crate::strings::append_string_by_id::StringOwners::of(o);
     let mut names = Vec::new();
     for n in 0..crate::saves::drivers::DRIVERS {
-        names.push(
-            crate::saves::drivers::Driver::of(o.menus, n)?
-                .name(so, o.menus)?
-                .1,
-        );
+        names.push(crate::saves::drivers::Driver::of(o.menus, n)?.name(so)?.1);
     }
     Ok(DriverNames(names))
 }

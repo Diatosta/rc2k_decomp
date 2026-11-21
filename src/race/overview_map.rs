@@ -78,9 +78,9 @@ pub fn update(race: &Race, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> 
         }
     }
     if panel.overview_drawn.get() == 0 {
-        let wide = pixel_width(race.frame.map().pixel_bytes.get()) as usize;
-        let black = race.frame.map().black.get();
-        let (_, _, format) = crate::race::game_map::take_format(gfx)?;
+        let wide = pixel_width(race.frame.map().pixel_bytes) as usize;
+        let black = race.frame.map().black;
+        let (_, format) = crate::race::game_map::take_format(gfx)?;
         // The box's pixels averaged, each colour on its own.
         let blend = |pixels: &[u32]| -> u32 {
             let mut sum = [0u32; 4];

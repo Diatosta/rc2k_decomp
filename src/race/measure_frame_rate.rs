@@ -24,8 +24,8 @@ pub fn measure_frame_rate(race: &Race, scene: &crate::scene::owner::Scene) {
     let shared = &race.shared;
     // Logic in `rc2k_core::race::frame_rate::{count_frame, nanos_since, frame_rate}`.
     use rc2k_core::race::frame_rate::{count_frame, frame_rate, nanos_since};
-    let (count, due) = count_frame(shared.physics_tables.get().frame_rate_count.get());
-    shared.physics_tables.get().frame_rate_count.set(count);
+    let (count, due) = count_frame(shared.run().frame_rate_count);
+    shared.run_mut().frame_rate_count = count;
     if !due {
         return;
     }

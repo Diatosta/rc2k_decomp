@@ -103,9 +103,9 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
         &race.shared,
         crate::clock::tick_count::tick_count(&o.system.session.picture_clock),
     );
-    let clock: u32 = race.shared.physics_tables.get().scene_clock.get();
-    race.shared.physics_tables.get().race_clock_now.set(clock);
-    race.shared.physics_tables.get().race_clock_base.set(clock);
+    let clock: u32 = race.shared.run().scene_clock;
+    race.shared.run_mut().race_clock_now = clock;
+    race.shared.run_mut().race_clock_base = clock;
     race.frame
         .panel_and_overlay
         .get()

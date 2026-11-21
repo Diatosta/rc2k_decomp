@@ -88,6 +88,16 @@ impl HeldList for ListCells {
     }
 }
 
+/// A list a store keeps in a `RefCell`.
+impl HeldList for std::cell::RefCell<MemoryList> {
+    fn get(&self) -> MemoryList {
+        *self.borrow()
+    }
+    fn set(&self, list: MemoryList) {
+        *self.borrow_mut() = list;
+    }
+}
+
 /// A list kept in a thread-shared record's four atomic dwords (head, total, cursor, remaining).
 impl HeldList for [crate::memory::session::Dword; 4] {
     fn get(&self) -> MemoryList {

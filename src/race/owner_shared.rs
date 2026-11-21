@@ -4,6 +4,7 @@
 use crate::errors::BadInput;
 use crate::memory::session::{DrawShared, GameThread};
 use crate::physics::car_store::Car;
+use crate::physics::run_store::PhysicsRun;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::buffers_store::Buffers;
@@ -62,6 +63,9 @@ struct SharedMain {
     replays: Replays,
     /// `race::viewer_buffers_store`: the replay viewer's buffers.
     viewer: ViewerBuffers,
+    /// The race's clocks and input words. Borrowed for one statement at a time; the drawing
+    /// parts read the scene clock from the copy their scope was opened with.
+    run: RefCell<PhysicsRun>,
 }
 
 impl RaceShared {
@@ -86,6 +90,7 @@ impl RaceShared {
                 replay_file: ReplayFileBlock::new(),
                 replays: Replays::new(),
                 viewer: ViewerBuffers::new(),
+                run: RefCell::new(PhysicsRun::new()),
             }),
         }
     }
@@ -99,6 +104,16 @@ impl RaceShared {
     /// reads them through its `scene::workers::DrawReads`).
     pub fn car_blocks(&self) -> &CarBlocks {
         self.car_blocks.get()
+    }
+
+    /// The race's clocks and input words, read: no write borrow may be held.
+    pub fn run(&self) -> Ref<'_, PhysicsRun> {
+        self.main.get().run.borrow()
+    }
+
+    /// The race's clocks and input words, to write: no other borrow may be held.
+    pub fn run_mut(&self) -> RefMut<'_, PhysicsRun> {
+        self.main.get().run.borrow_mut()
     }
 
     pub fn tables(&self) -> &RaceTables {

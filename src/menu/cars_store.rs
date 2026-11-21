@@ -2,40 +2,54 @@
 //! descriptions (`CarDescription`, 0x78 bytes each) and the texts they point at. One static.
 
 use crate::errors::BadInput;
-use crate::memory::session::{PlainBytes, PlainDword, Shared};
+use crate::memory::session::{GameThread, PlainDword};
 use crate::menu::owner::Menus;
 use rc2k_core::screens::car_pages::CarDescription;
+use std::cell::{Ref, RefCell, RefMut};
 
 /// The car table.
-#[derive(rc2k_derive::Cells)]
-pub struct CarTable {
+pub struct CarTables {
     /// The carousel entries' last index (0xE at start; `menu::start_event` sets 0xF for the repair
     /// set).
-    pub last_car: PlainDword,
+    pub last_car: u32,
     /// The 34 car descriptions by car number (handles, `car_handle`).
-    pub cars: [PlainDword; 34],
+    pub cars: [u32; 34],
     /// The car descriptions (the last is the Clio of the update disc).
-    pub descriptions: [Shared<CarDescription>; 34],
+    pub descriptions: [CarDescription; 34],
     /// The 24 texts of 0xB0 bytes the descriptions point at.
-    pub description_texts: PlainBytes<4224>,
+    pub description_texts: [u8; 4224],
 }
+
+/// The car table, behind one `RefCell`: the game's thread alone reads and writes it, each
+/// borrow lasting one statement.
+pub struct CarTable(GameThread<RefCell<CarTables>>);
 
 impl CarTable {
     pub const fn new() -> Self {
-        let mut cars = [const { PlainDword::new(0) }; 34];
-        let mut descriptions = [const { Shared::new(CarDescription::from_le_bytes([0; 120])) }; 34];
+        let mut cars = [0u32; 34];
+        let mut descriptions = [CarDescription::from_le_bytes([0; 120]); 34];
         let mut n = 0;
         while n < 34 {
-            cars[n] = car_cell(n);
-            descriptions[n] = Shared::new(description_of(&DESCRIPTIONS[n]));
+            cars[n] = car_handle(n);
+            descriptions[n] = description_of(&DESCRIPTIONS[n]);
             n += 1;
         }
-        CarTable {
-            last_car: PlainDword::new(0xE),
+        CarTable(GameThread::new(RefCell::new(CarTables {
+            last_car: 0xE,
             cars,
             descriptions,
-            description_texts: PlainBytes::new(figure_bytes()),
-        }
+            description_texts: figure_bytes(),
+        })))
+    }
+
+    /// The tables, to read.
+    pub fn read(&self) -> Ref<'_, CarTables> {
+        self.0.get().borrow()
+    }
+
+    /// The tables, to write.
+    pub fn write(&self) -> RefMut<'_, CarTables> {
+        self.0.get().borrow_mut()
     }
 }
 
@@ -407,8 +421,18 @@ pub fn car_of(handle: u32) -> Result<usize, BadInput> {
 }
 
 /// The description a handle names (`car_of`).
-pub fn description(table: &CarTable, handle: u32) -> Result<&Shared<CarDescription>, BadInput> {
-    Ok(&table.descriptions[car_of(handle)?])
+pub fn description(table: &CarTable, handle: u32) -> Result<CarDescription, BadInput> {
+    Ok(table.read().descriptions[car_of(handle)?])
+}
+
+/// `description` set to `value`.
+pub fn set_description(
+    table: &CarTable,
+    handle: u32,
+    value: CarDescription,
+) -> Result<(), BadInput> {
+    table.write().descriptions[car_of(handle)?] = value;
+    Ok(())
 }
 
 /// The table's entry for car `number` (refused past the 34).
@@ -416,9 +440,10 @@ pub fn car_entry(menus: &Menus, number: u32) -> Result<u32, BadInput> {
     menus
         .cars
         .table
+        .read()
         .cars
         .get(number as usize)
-        .map(PlainDword::get)
+        .copied()
         .ok_or(BadInput("a car number past the car table"))
 }
 
@@ -429,7 +454,7 @@ pub fn description_table(
     entry: u32,
 ) -> Result<DescriptionTable, crate::errors::BadInput> {
     const TEXTS: usize = 0x757558;
-    let table = description(table, entry)?.get().figures;
+    let table = description(table, entry)?.figures;
     if table == 0 {
         return Err(crate::errors::BadInput("a car without its table"));
     }
@@ -448,13 +473,13 @@ pub struct DescriptionTable(usize);
 impl DescriptionTable {
     /// The dword `offset` bytes into the figures; refused past the texts' end.
     pub fn dword(self, table: &CarTable, offset: usize) -> Result<u32, crate::errors::BadInput> {
-        let texts = &table.description_texts;
         let at = self.0 + offset;
         if at + 4 > 4224 {
             return Err(crate::errors::BadInput("a car's figures past the texts"));
         }
+        let tables = table.read();
         Ok(u32::from_le_bytes(std::array::from_fn(|k| {
-            texts.get(at + k)
+            tables.description_texts[at + k]
         })))
     }
 }
@@ -479,18 +504,18 @@ mod tests {
             );
         }
         let menu_cars = &crate::test_support::own::menus().cars;
-        assert_eq!(car_of(menu_cars.table.cars[33].get()), Ok(33));
+        assert_eq!(car_of(menu_cars.table.read().cars[33]), Ok(33));
         assert!(car_of(0x756568).is_err() && car_of(u32::MAX).is_err());
     }
 
     /// The table's whole record as bytes.
     fn dump(table: &CarTable) -> Vec<u8> {
-        let mut out = table.last_car.get().to_le_bytes().to_vec();
+        let table = table.read();
+        let mut out = table.last_car.to_le_bytes().to_vec();
         for cell in &table.cars {
-            out.extend(cell.get().to_le_bytes());
+            out.extend(cell.to_le_bytes());
         }
-        for description in &table.descriptions {
-            let d = description.get();
+        for d in &table.descriptions {
             let words = [
                 d.car,
                 d.name,
@@ -527,7 +552,7 @@ mod tests {
                 out.extend(word.to_le_bytes());
             }
         }
-        out.extend((0..4224).map(|i| table.description_texts.get(i)));
+        out.extend(table.description_texts);
         out
     }
 

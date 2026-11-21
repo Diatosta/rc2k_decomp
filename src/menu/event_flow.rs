@@ -5,22 +5,12 @@
 //! (the callees, the screens through `menu::screen_loop`).
 
 use crate::errors::BadInput;
-use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::menu::pages_store::MenuPages;
 use crate::records::stages_store::RecordRef;
 use crate::saves::best_times::BestTables;
 use crate::system::owner::System;
 use rc2k_core::menu::leaving::Switch;
-
-/// A game variable.
-pub fn get(v: &PlainDword) -> u32 {
-    v.get()
-}
-
-pub fn set(v: &PlainDword, x: u32) {
-    v.set(x);
-}
 
 /// A refusal where the caller's signature cannot carry one (a trait of the core's, an
 /// installer helper): the program ends naming it, as a refusal does at the top.

@@ -7,6 +7,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
+use crate::race::sound_spots_store::SoundSpot;
 use crate::race::view_grid::ViewGrid;
 use crate::scene::view_matrices::ViewMatrices;
 
@@ -67,29 +68,15 @@ fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Result
         if kind != 0xFF || !sound_object(kind, f.object()) {
             return Ok(());
         }
-        let count: u32 = race.frame.sound_spots().sound_spot_count.get();
+        let count: u32 = race.frame.sound_spots().count();
         if count == MOST_SPOTS {
             return Ok(());
         }
-        let spot = count as usize * 5; // 0x14 bytes each, in dwords
         let sound = f.sound() as u32;
         if !takes_spot(count, sound) {
             return Ok(());
         }
-        // The count only steps by one from 0 and stops at 0x24, so the spot (five dwords
-        // from count x 5, count at most 0x23) ends inside the 180 dwords.
-        let put = |o: u32, v: u32| -> Result<(), BadInput> {
-            race.frame
-                .sound_spots()
-                .sound_spots
-                .get(spot + (o / 4) as usize)
-                .ok_or(BadInput("a sound spot past the 0x24"))?
-                .set(v);
-            Ok(())
-        };
-        put(0x10, sound)?;
         let point = f.point(0);
-        put(0, point)?;
         let place = spot_place(
             crate::race::scene_points::point_number(
                 race.course.reads(),
@@ -100,10 +87,16 @@ fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Result
         );
         let t = { crate::scene::rotate_point::rotate_point(&view.view_matrix, place.map(int_80)) };
         let k = race.course.numbers.get().one_over_65536.get();
-        for (i, v) in t.into_iter().enumerate() {
-            put(4 + 4 * i as u32, scaled(v, k))?;
-        }
-        race.frame.sound_spots().sound_spot_count.set(count + 1);
+        let [x, y, z] = t.map(|v| scaled(v, k));
+        // The count is below the table's size (checked above).
+        race.frame
+            .sound_spots_mut()
+            .push(SoundSpot {
+                point,
+                place: [x, y, z],
+                sound,
+            })
+            .ok_or(BadInput("a sound spot past the 0x24"))?;
     }
     Ok(())
 }
@@ -151,7 +144,7 @@ pub(super) fn find_sound_spots(
     let grid = &view.grid;
     {
         check(&race.course, grid)?;
-        race.frame.sound_spots().sound_spot_count.set(0u32);
+        race.frame.sound_spots_mut().clear();
         for c in cells(&race.course) {
             cell_sound_spots(race, &view.matrices, grid, c)?;
         }

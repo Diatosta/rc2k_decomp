@@ -2,8 +2,7 @@
 //! lists (whole numbers, turned floats, heights, faces, shares; stride 0x100 bytes), the contact
 //! vectors of `physics::contact_force`, the wall and edge contacts, the lit faces, the car-to-car
 //! corner work and the draw batch's counts. The probe lists are 0x40 dwords each (the saved x, y,
-//! z lists are one 0xC0-dword run). It stops before the draw batch's vertex buffer
-//! (`DrawBatches.scene_vertices`, 0x4000 bytes). Names are readings unless taken from the game's
+//! z lists are one 0xC0-dword run). Names are readings unless taken from the game's
 //! own.
 
 use crate::memory::session::{PlainDword, PlainFloat};

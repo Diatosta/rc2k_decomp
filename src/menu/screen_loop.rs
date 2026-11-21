@@ -1126,14 +1126,7 @@ impl ScreenHost for MenuHost<'_> {
     fn note_set_up_time(&mut self) {
         let clocks = self.entry.owners.system.clocks();
         clocks.setup_time.set(clocks.frame.get());
-        self.entry
-            .owners
-            .race
-            .shared
-            .physics_tables
-            .get()
-            .scene_clock
-            .set(0u32);
+        self.entry.owners.race.shared.run_mut().scene_clock = 0u32;
     }
 
     fn put_frame_lists(&mut self, first: bool) {
@@ -1180,14 +1173,8 @@ impl ScreenHost for MenuHost<'_> {
 
     fn note_frame_time(&mut self) {
         let clocks = self.entry.owners.system.clocks();
-        self.entry
-            .owners
-            .race
-            .shared
-            .physics_tables
-            .get()
-            .scene_clock
-            .set(clocks.frame.get().wrapping_sub(clocks.setup_time.get()));
+        self.entry.owners.race.shared.run_mut().scene_clock =
+            clocks.frame.get().wrapping_sub(clocks.setup_time.get());
     }
 
     fn handle_keys(&mut self) -> Result<Pressed, Refused> {
@@ -1204,14 +1191,7 @@ impl ScreenHost for MenuHost<'_> {
         // The handler is handed the time since set-up, as noted for this frame.
         handle_keys(
             self.entry.owners,
-            self.entry
-                .owners
-                .race
-                .shared
-                .physics_tables
-                .get()
-                .scene_clock
-                .get(),
+            self.entry.owners.race.shared.run().scene_clock,
         )
     }
 

@@ -34,5 +34,5 @@ pub fn shown_description(menus: &Menus) -> Result<u32, Refused> {
 
 /// A description by handle (`cars_store::car_handle`).
 pub fn read(menus: &Menus, description: u32) -> Result<CarDescription, BadInput> {
-    Ok(crate::menu::cars_store::description(&menus.cars.table, description)?.get())
+    crate::menu::cars_store::description(&menus.cars.table, description)
 }

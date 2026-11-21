@@ -15,12 +15,11 @@ use rc2k_core::menu::event::KEEPS_SETUP;
 use rc2k_core::menu::player::Player;
 
 pub fn begin_event(cars: &Cars, play: &Play, screens: &Screens) -> Result<(), Refused> {
-    let drivers = crate::menu::standings::drivers_of(cars)?;
+    let count = crate::menu::standings::walked(cars)?;
     play.champ_view.write().services = 0u32;
     screens.event.write().stages_done = 0u32;
-    drivers
-        .iter()
-        .for_each(crate::menu::drivers_store::Driver::begin);
+    cars.drivers
+        .each(count, crate::menu::drivers_store::Driver::begin);
     screens.event.write().event_goes_on = 1u32;
     screens.event.write().event_out = 0u32;
     for n in 0..PLAYERS {

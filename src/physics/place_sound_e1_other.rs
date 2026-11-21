@@ -1,5 +1,5 @@
 //! When the car numbered `other_car_number` or the current car is listed, the bump band (`sound_bands::BUMP_BAND`)
-//! gives a band; a band not 0 goes into `sound_scratch_b` and to the current car's sound object as
+//! gives a band; a band not 0 goes to the current car's sound object as
 //! sound 0xE1 with that band, the place and the update flag set (see `physics/car_sounds.rs`). A
 //! reading: a sound of another car met.
 //!
@@ -23,7 +23,6 @@ pub fn place_sound_e1_other(c: &SoundInputs<'_>) -> Result<(), Refused> {
     if b == 0 {
         return Ok(());
     }
-    c.spots.sound_scratch_b.set(b);
     cue_plain(c, object(c), FIRST, SOUND_E1, b, None)?;
     Ok(())
 }

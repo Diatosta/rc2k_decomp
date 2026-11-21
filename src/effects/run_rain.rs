@@ -131,7 +131,7 @@ pub fn run_rain(
         keep_y(weather, e);
         rain.borrow_mut().last_views[e][2] = view[2];
         if setup.kind_floats.borrow().running != 0 {
-            let clock = race.shared.physics_tables.get().scene_clock.get() & 0xF_FFFF;
+            let clock = race.shared.run().scene_clock & 0xF_FFFF;
             rain.borrow_mut().drift =
                 x87::int_times_to_int(clock as i32, weather.rain_rules.drift_k) as u32;
         }

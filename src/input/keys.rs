@@ -103,16 +103,9 @@ pub fn end_frame(race: &Race, shots_on: u32, check: Screenshot) {
     let left = rc2k_core::input::frame::end_frame(shots_on, check);
     // Not cleared once the debug overlay's keys are used (`debug::overlay`).
     let kept = crate::debug::overlay::words();
-    for ((cell, value), kept) in race
-        .shared
-        .physics_tables
-        .get()
-        .debug
-        .iter()
-        .zip(left)
-        .zip(kept)
-    {
-        cell.set(value | kept);
+    let mut run = race.shared.run_mut();
+    for ((word, value), kept) in run.debug.iter_mut().zip(left).zip(kept) {
+        *word = value | kept;
     }
 }
 

@@ -9,10 +9,10 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 pub fn clear_result_slots(menus: &Menus) -> Result<(), Refused> {
-    let drivers = drivers(menus)?;
+    let count = walked(&menus.cars)?;
     for n in 0..4 {
         player(menus, n).update(rc2k_core::menu::player::Player::clear_results);
     }
-    drivers.iter().for_each(Driver::clear_results);
+    menus.cars.drivers.each(count, Driver::clear_results);
     Ok(())
 }

@@ -190,27 +190,25 @@ pub fn fetch_view_value(
     Ok(())
 }
 
-/// Sets the shared count = `race().frame.sound_spots().sound_spot_count` and copies that many
+/// Sets the shared count = the frame's sound spots' count and copies that many
 /// 0x14-byte spots (read by the sound side, `sound::match_spot_voices`). Refused (before anything):
 /// more than 36 (past both tables).
 pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let frame = &race.frame;
-    let n: u32 = frame.sound_spots().sound_spot_count.get();
+    let spots = frame.sound_spots();
+    let n: u32 = spots.count();
     let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
     let mut stage = sound.race.stage.get().borrow_mut();
     stage.shared_count = n;
-    let from = frame.sound_spots().sound_spots.chunks(5);
     for (spot, d) in stage
         .shared_spots
         .iter_mut()
-        .zip(from)
+        .zip(spots.spots())
         .take(bytes as usize / 0x14)
     {
-        spot.id = d[0].get();
-        for (p, c) in spot.place.iter_mut().zip(&d[1..4]) {
-            *p = f32::from_bits(c.get());
-        }
-        spot.kind = d[4].get();
+        spot.id = d.point;
+        spot.place = d.place.map(f32::from_bits);
+        spot.kind = d.sound;
     }
     Ok(())
 }

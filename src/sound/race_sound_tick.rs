@@ -12,12 +12,12 @@ pub fn race_sound_tick(frame: &Frame, o: crate::owners::Owners<'static>) -> Resu
     let race = o.race;
     // The logic is `rc2k_core::sound::turn::tick_due`.
     if !rc2k_core::sound::turn::tick_due(
-        race.shared.physics_tables.get().scene_clock.get(),
+        race.shared.run().scene_clock,
         frame.clock_ticks().sound_tick_last,
     ) {
         return Ok(());
     }
-    frame.clock_ticks_mut().sound_tick_last = race.shared.physics_tables.get().scene_clock.get();
+    frame.clock_ticks_mut().sound_tick_last = race.shared.run().scene_clock;
     crate::sound::race_turn_if::race_turn_if(o, race)?;
     Ok(())
 }
