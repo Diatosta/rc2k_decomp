@@ -20,7 +20,8 @@ use crate::test_support::own::race;
 /// wheel and body records (0x48 bytes each) are `MarkRecord`s; the tail after them is the lines'
 /// and the point morphs' part (`CAR_BLOCK`).
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct CarEffects {
     /// Whether the streaks are drawn (the first car's is the one `effects::run_ribbons`
     /// asks).
@@ -113,7 +114,8 @@ pub struct CarEffects {
 /// A wheel's or the body's record inside a car's (0x48 bytes): what the emitters keep per wheel.
 /// Names are readings.
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct MarkRecord {
     /// A flag the body's emitter flips each time (bit 0 the side).
     pub flip: PlainDword,
@@ -192,7 +194,8 @@ pub const CAR_LEN: usize = 0x4C8;
 /// The cars the record has room for.
 pub const CARS: usize = 8;
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct EffectsSettings {
     /// A 2-byte tab text that `effects::init_mark_step` takes a pointer to in place (probably
     /// the settings' text path start).
