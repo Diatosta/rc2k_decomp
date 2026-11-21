@@ -114,11 +114,12 @@ pub fn fog_table(
             length,
         },
     );
-    fog.far.set(set.far);
-    fog.length.set(length);
+    let mut fog = fog.borrow_mut();
+    fog.far = set.far;
+    fog.length = length;
     // The table's bytes (any length up to 0x1000; the rest kept).
     fog.set_levels(&set.table);
-    fog.next.set(set.next);
+    fog.next = set.next;
     Ok(())
 }
 
@@ -144,10 +145,10 @@ pub fn set_up_fog(
         prefs.fog_colour[1].get(),
         prefs.fog_colour[2].get(),
     );
-    fog.colour.set(colour);
+    fog.borrow_mut().colour = colour;
     fog_table(tables, prefs, fog, car, &poly.sun, &poly.window)?;
     crate::scene::set_fog_colour::set_fog_colour(
-        rc2k_core::race::view::device_fog_colour(fog.colour.get()),
+        rc2k_core::race::view::device_fog_colour(fog.borrow().colour),
         poly,
         part,
     );

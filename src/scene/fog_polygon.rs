@@ -37,7 +37,7 @@ pub fn fog_entries(
         return Err(BadInput("an entry without its record").into());
     }
     let length = table_length(view)?;
-    let fixed = (light.view_kind.get() == 4).then(|| fog.next.get());
+    let fixed = (light.view_kind.get() == 4).then(|| fog.borrow().next);
     for entry in entries {
         entry
             .fog
@@ -48,7 +48,7 @@ pub fn fog_entries(
 
 /// The view's fog table's length; refused above its room.
 fn table_length(view: &crate::race::view_scratch::ViewScratch) -> Result<u32, BadInput> {
-    let length: u32 = view.fog.length.get();
+    let length: u32 = view.fog.borrow().length;
     if length > TABLE_LEN {
         return Err(BadInput("a fog table longer than its room"));
     }
@@ -78,7 +78,7 @@ fn byte(
     } else {
         length.wrapping_sub(1)
     };
-    let level = u32::from(view.fog.level(place));
+    let level = u32::from(view.fog.borrow().level(place));
     (fixed.unwrap_or(level) ^ 0xFF) as u8
 }
 

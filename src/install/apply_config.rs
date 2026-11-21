@@ -18,23 +18,6 @@ pub(super) fn apply_record(record: &config::Record) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Sets the edition's markers; what the file does not give keeps its value.
-pub fn apply_sku(install: &crate::install::owner::Install, sku: &config::Sku) {
-    if sku.oem {
-        install.sku.oem.set(1u32);
-    }
-    if sku.dvd {
-        install.sku.dvd.set(1u32);
-    }
-    install.sku.number.set(sku.number);
-    if let Some(second) = sku.second {
-        install.sku.second.set(second);
-    }
-    if let Some(third) = sku.third {
-        install.sku.third.set(third);
-    }
-}
-
 /// Stores the languages found, keeps the usable slots at the front, counts them and chooses
 /// the first.
 pub(super) fn apply_languages(

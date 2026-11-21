@@ -1,60 +1,68 @@
 //! The DirectInput identifiers the input module names (the joystick device's interface, the
-//! axes and the force-feedback effects), as a `#[repr(C)]` struct of byte buffers. The effect
+//! axes and the force-feedback effects). The effect
 //! templates (`input::store::Devices`) name the effects' GUIDs by handle (`EffectGuid`).
 
-use crate::memory::session::{Bytes, with_runs};
+use crate::memory::session::with_runs;
 
-/// The DirectInput GUIDs.
-#[repr(C, align(16))]
-#[derive(rc2k_derive::Cells)]
+/// The DirectInput GUIDs, constants nothing writes.
 pub struct InputGuids {
-    /// Pads the struct so every field keeps the alignment it has in the game's layout (the struct
-    /// is 16-byte aligned).
-    pub _lead: Bytes<8>,
     /// `IID_IDirectInputDevice2A`: the joystick device's interface (`input::acquire_device`,
     /// `joystick_found`).
-    pub device2: Bytes<16>,
-    pub _gap_4f7e28: Bytes<16>,
-    /// `GUID_XAxis` .. `GUID_RzAxis`: the six axes' GUIDs, 16 bytes each (`input::axis_found`).
-    pub axes: Bytes<96>,
-    pub _gap_4f7e98: Bytes<128>,
-    pub constant_force: Bytes<16>,
-    pub ramp_force: Bytes<16>,
-    pub square: Bytes<16>,
-    pub sine: Bytes<16>,
-    pub triangle: Bytes<16>,
-    pub sawtooth_up: Bytes<16>,
-    pub sawtooth_down: Bytes<16>,
-    pub spring: Bytes<16>,
-    pub damper: Bytes<16>,
-    pub inertia: Bytes<16>,
-    pub friction: Bytes<16>,
-    pub _gap_4f7fc8: Bytes<16>,
-    /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: Bytes<8>,
+    pub device2: [u8; 16],
+    /// `GUID_XAxis` .. `GUID_RzAxis`: the six axes' GUIDs (`input::axis_found`).
+    pub axes: [[u8; 16]; 6],
+    pub constant_force: [u8; 16],
+    pub ramp_force: [u8; 16],
+    pub square: [u8; 16],
+    pub sine: [u8; 16],
+    pub triangle: [u8; 16],
+    pub sawtooth_up: [u8; 16],
+    pub sawtooth_down: [u8; 16],
+    pub spring: [u8; 16],
+    pub damper: [u8; 16],
+    pub inertia: [u8; 16],
+    pub friction: [u8; 16],
 }
 
 impl InputGuids {
     pub const fn new() -> Self {
+        let axes = with_runs::<96>(&[(0, b"\xe0\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xe1\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xe2\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xf4\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xf5\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xe3\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST")]);
+        let mut grouped = [[0u8; 16]; 6];
+        let mut n = 0;
+        while n < 6 {
+            let mut i = 0;
+            while i < 16 {
+                grouped[n][i] = axes[16 * n + i];
+                i += 1;
+            }
+            n += 1;
+        }
         InputGuids {
-    _lead: Bytes::new([0; 8]),
-    device2: Bytes::new(with_runs::<16>(&[(0, b"\x82\xe6DY.\xc9\xcf\x11\xbf\xc7DEST")])),
-    _gap_4f7e28: Bytes::new(with_runs::<16>(&[(0, b"\xc0\xf7\xe1\xe7\xd2\x88\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    axes: Bytes::new(with_runs::<96>(&[(0, b"\xe0\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xe1\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xe2\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xf4\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xf5\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xe3\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST")])),
-    _gap_4f7e98: Bytes::new(with_runs::<128>(&[(0, b"\xe4\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xf0\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00 \x82rU<\xd3\xcf\x11\xbf\xc7DEST\x00\x00\xf2\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00\xf3\x02m\xa3\xf3\xc9\xcf\x11\xbf\xc7DEST\x00\x00`+\x1do\xa0\xd5\xcf\x11\xbf\xc7DEST\x00\x00a+\x1do\xa0\xd5\xcf\x11\xbf\xc7DEST\x00\x00p+\x1do\xa0\xd5\xcf\x11\xbf\xc7DEST")])),
-    constant_force: Bytes::new(with_runs::<16>(&[(0, b" \x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    ramp_force: Bytes::new(with_runs::<16>(&[(0, b"!\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    square: Bytes::new(with_runs::<16>(&[(0, b"\"\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    sine: Bytes::new(with_runs::<16>(&[(0, b"#\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    triangle: Bytes::new(with_runs::<16>(&[(0, b"$\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    sawtooth_up: Bytes::new(with_runs::<16>(&[(0, b"%\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    sawtooth_down: Bytes::new(with_runs::<16>(&[(0, b"&\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    spring: Bytes::new(with_runs::<16>(&[(0, b"'\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    damper: Bytes::new(with_runs::<16>(&[(0, b"(\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    inertia: Bytes::new(with_runs::<16>(&[(0, b")\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    friction: Bytes::new(with_runs::<16>(&[(0, b"*\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    _gap_4f7fc8: Bytes::new(with_runs::<16>(&[(0, b"+\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
-    _tail: Bytes::new([0; 8]),
+            device2: with_runs::<16>(&[(0, b"\x82\xe6DY.\xc9\xcf\x11\xbf\xc7DEST")]),
+            axes: grouped,
+            constant_force: with_runs::<16>(&[(
+                0,
+                b" \x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5",
+            )]),
+            ramp_force: with_runs::<16>(&[(
+                0,
+                b"!\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5",
+            )]),
+            square: with_runs::<16>(&[(0, b"\"\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")]),
+            sine: with_runs::<16>(&[(0, b"#\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")]),
+            triangle: with_runs::<16>(&[(0, b"$\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")]),
+            sawtooth_up: with_runs::<16>(&[(
+                0,
+                b"%\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5",
+            )]),
+            sawtooth_down: with_runs::<16>(&[(
+                0,
+                b"&\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5",
+            )]),
+            spring: with_runs::<16>(&[(0, b"'\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")]),
+            damper: with_runs::<16>(&[(0, b"(\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")]),
+            inertia: with_runs::<16>(&[(0, b")\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")]),
+            friction: with_runs::<16>(&[(0, b"*\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")]),
         }
     }
 }
@@ -104,7 +112,7 @@ impl EffectGuid {
         Self::ALL.get(n as usize).copied()
     }
 
-    fn field(self, guids: &InputGuids) -> &Bytes<16> {
+    fn field(self, guids: &InputGuids) -> &[u8; 16] {
         match self {
             EffectGuid::ConstantForce => &guids.constant_force,
             EffectGuid::RampForce => &guids.ramp_force,
@@ -132,6 +140,5 @@ pub(super) fn guid_of(
     let effect = EffectGuid::from_handle(handle).ok_or(crate::errors::BadInput(
         "an effect's GUID handle that names none",
     ))?;
-    let field = effect.field(guids);
-    Ok(std::array::from_fn(|i| field.get(i)))
+    Ok(*effect.field(guids))
 }

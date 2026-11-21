@@ -162,7 +162,7 @@ impl ViewScratch {
         Self {
             slot: std::cell::Cell::new(slot),
             lists: SortLists::new(),
-            fog: crate::scene::fog::Fog::new(),
+            fog: PlainSlot::new(crate::scene::fog::FogValues::new()),
             object: crate::scene::object_place::ObjectPlace::new(),
             light: crate::scene::object_light::ObjectLight::new(),
             face: crate::race::face_work::FaceWork::new(),
@@ -208,7 +208,8 @@ impl ViewScratch {
     /// the sort lists' counts are set at each view's start (`race::reset_lamps`).
     pub fn begin(&self) {
         use crate::memory::cells::Cells;
-        self.fog.copy_from(&crate::scene::fog::Fog::new());
+        self.fog
+            .copy_from(&PlainSlot::new(crate::scene::fog::FogValues::new()));
         self.object
             .copy_from(&crate::scene::object_place::ObjectPlace::new());
         self.light

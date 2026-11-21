@@ -25,12 +25,11 @@ pub fn axis_found(
     object: &DiDeviceObjectInstance,
     entry: &Controller,
 ) -> Result<u32, BadInput> {
-    let mut axes = [[0u8; 16]; 6];
-    for (n, axis) in axes.iter_mut().enumerate() {
-        axis.copy_from_slice(&guids.axes.read_at(16 * n, 16, "an axis GUID")?);
-    }
-    let bits =
-        rc2k_core::input::joystick::axis_bits(entry.axis_bits.get(), &object.guid_type, &axes);
+    let bits = rc2k_core::input::joystick::axis_bits(
+        entry.axis_bits.get(),
+        &object.guid_type,
+        &guids.axes,
+    );
     entry.axis_bits.set(bits);
     Ok(1)
 }

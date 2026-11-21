@@ -177,7 +177,7 @@ pub(super) fn acquire_device(input: &Input, system: &System, record: &D) -> Resu
         return Err(NO_OBJECT.into());
     }
     let device = record.device.get();
-    let made = crate::input::di_objects::query_interface(device, &input.guids.device2.read());
+    let made = crate::input::di_objects::query_interface(device, &input.guids.device2);
     if crate::input::di_objects::store(&input.devices.new_joystick2, made) != 0 {
         return Err(fatal(0x8023_8318).into());
     }

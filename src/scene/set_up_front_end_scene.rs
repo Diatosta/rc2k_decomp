@@ -114,7 +114,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     course.stage_prefs.get().fog_near.set(0u32);
     course.stage_prefs.get().fog_start.set(0u32);
     course.stage_prefs.get().fog_end.set(0u32);
-    o.scene.scratch.front_end().fog.clear();
+    o.scene.scratch.front_end().fog.borrow_mut().clear();
     shared.switches.get().scene_set_up.set(1u32);
     fill_light_tables(scene, race)?;
 

@@ -15,29 +15,29 @@ use crate::errors::Refused;
 use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
 use crate::gfx::owner::Gfx;
-use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::service::owner::Service;
 use crate::service::state::{blink_on, edit_mode, repair_flag};
 use crate::text::draw_text::Canvas;
+use std::cell::Cell;
 
 pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};
 
-pub(super) fn lower_left_chosen(service: &Service) -> &PlainDword {
+pub(super) fn lower_left_chosen(service: &Service) -> &Cell<u32> {
     &service.setups[2].chosen
 }
-pub(super) fn lower_left_installed(service: &Service) -> &PlainDword {
+pub(super) fn lower_left_installed(service: &Service) -> &Cell<u32> {
     &service.setups[2].installed
 }
-pub(super) fn lower_right_chosen(service: &Service) -> &PlainDword {
+pub(super) fn lower_right_chosen(service: &Service) -> &Cell<u32> {
     &service.setups[3].chosen
 }
-pub(super) fn lower_right_installed(service: &Service) -> &PlainDword {
+pub(super) fn lower_right_installed(service: &Service) -> &Cell<u32> {
     &service.setups[3].installed
 }
 
 /// A setup value the markers read.
-pub type Setting = for<'a> fn(&'a Service) -> &'a PlainDword;
+pub type Setting = for<'a> fn(&'a Service) -> &'a Cell<u32>;
 
 /// One of the six functions.
 #[derive(Clone, Copy)]

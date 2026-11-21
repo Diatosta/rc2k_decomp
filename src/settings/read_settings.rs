@@ -261,7 +261,7 @@ const ENTRIES: [(&[u8], Target); 77] = [
     ),
     (
         b"usesavegamekeys",
-        dword!(o => o.saves.savegame_preview.use_savegame_keys),
+        plain_cell!(o => o.saves.savegame_preview.use_savegame_keys),
     ),
     (
         b"sensiblesaving",
@@ -388,7 +388,7 @@ mod tests {
 
     /// Where each setting's variable is: its store (a registry name) and the field in it, by
     /// path. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, &str); 60] = [
+    const PLACES: [(&str, &str, &str); 59] = [
         (
             "notaskswitch",
             "owners.system.window_loop",
@@ -457,11 +457,6 @@ mod tests {
         ),
         ("logfile", "logfile.write_line.state.LEVEL", ""),
         ("nofmv", "owners.system.machine", ".no_fmv"),
-        (
-            "usesavegamekeys",
-            "owners.saves.savegame_preview",
-            ".use_savegame_keys",
-        ),
         (
             "sensiblesaving",
             "owners.menus.screens.state",

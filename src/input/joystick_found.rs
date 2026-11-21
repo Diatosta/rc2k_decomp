@@ -25,7 +25,7 @@ fn look_over(
         return Ok(false);
     }
     let device = input.devices.new_joystick.get();
-    let made = di::query_interface(device, &input.guids.device2.read());
+    let made = di::query_interface(device, &input.guids.device2);
     if di::store(&input.devices.new_joystick2, made) != 0 {
         return Ok(false);
     }

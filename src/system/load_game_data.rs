@@ -10,7 +10,6 @@
 //! Refuses a default name that does not fit its place, and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::menu::name_lists::NAME_LEN;
 use crate::owners::Owners;
 use crate::strings::append_string_by_id::push_string;
@@ -226,11 +225,7 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
         }
         Call::ReadSettings => crate::settings::read_settings::read_settings(o)?,
         Call::ReadSku => {
-            if let Some(sku) =
-                crate::install::read_sku::read_sku(o.system, &o.install.sku.path.text())?
-            {
-                crate::install::apply_config::apply_sku(o.install, &sku);
-            }
+            crate::install::read_sku::read_sku(o.system, crate::install::read_sku::SKU_PATH)?;
         }
         Call::ReadDriverNames => {
             if let Some(names) = crate::settings::read_driver_names::read_driver_names(
@@ -292,16 +287,15 @@ pub fn load_in_game(o: Owners<'static>) -> Result<(), Refused> {
 }
 
 /// How many times the game was run.
-#[derive(rc2k_derive::Cells)]
 pub struct RunCount {
     /// The game's runs counted (the save file keeps it).
-    pub runs: PlainDword,
+    pub runs: std::cell::Cell<u32>,
 }
 
 impl RunCount {
     pub const fn new() -> Self {
         RunCount {
-            runs: PlainDword::new(0x0),
+            runs: std::cell::Cell::new(0x0),
         }
     }
 }

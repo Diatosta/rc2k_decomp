@@ -433,14 +433,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.sound.race.sounds_on.get()),
         ),
         listed!(
-            "owners.saves.savegame_preview",
-            on_game(&o.saves.savegame_preview),
-        ),
-        listed!(
-            "owners.menus.screens.controls",
-            on_game(&o.menus.screens.controls),
-        ),
-        listed!(
             "owners.menus.play.slots.pointers",
             on_game(&o.menus.play.slots.pointers),
         ),
@@ -455,11 +447,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.system.start().texts),
         ),
         listed!(
-            "owners.input.guids",
-            record_from(&o.input.guids, ".device2"),
-            0x1c0,
-        ),
-        listed!(
             "owners.sound.menu.menu_sounds",
             record_from(&o.sound.threads.menu_sounds, ".list"),
             0x28,
@@ -470,11 +457,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game_from(&o.install.pages, ".texts[0].dx"),
             0xa25,
         ),
-        listed!(
-            "owners.system.start.run_count",
-            on_game(&o.system.start().run_count),
-        ),
-        listed!("owners.install.sku", on_game(&o.install.sku),),
         listed!(
             "owners.strings.text.buffer",
             on_game(&o.strings.text.buffer),

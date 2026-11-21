@@ -444,7 +444,7 @@ pub(super) fn draw_screen_tint(
         return crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
     let sun = ctx.view.polygon.sun.on_screen.get();
-    let a = glare_alpha(fog.far.get());
+    let a = glare_alpha(fog.borrow().far);
     ctx.view.quad.borrow_mut().colour[1] = a;
     let mut done = Ok(());
     if a != 0 {
