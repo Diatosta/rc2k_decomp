@@ -6,54 +6,30 @@
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::race::owner_course::Course;
 use rc2k_core::effects::masks::{ShapeRows, Span};
 
 pub const MASK_LEN: u32 = rc2k_core::effects::masks::MASK_LEN as u32;
-
-/// The two point lists `collect_points` fills: count, ids, faces.
-#[derive(Clone, Copy)]
-pub struct PointList<'a> {
-    pub count: &'a PlainDword,
-    pub ids: &'a [PlainDword; 64],
-    pub faces: &'a [PlainDword; 64],
-}
-
-impl PointList<'_> {
-    /// List A.
-    pub fn a(drops: &WindscreenDrops) -> PointList<'_> {
-        PointList {
-            count: &drops.shape_work.work.count_a,
-            ids: &drops.shape_work.work.ids_a,
-            faces: &drops.shape_work.work.faces_a,
-        }
-    }
-
-    /// List B.
-    pub fn b(drops: &WindscreenDrops) -> PointList<'_> {
-        PointList {
-            count: &drops.shape_work.work.count_b,
-            ids: &drops.shape_work.work.ids_b,
-            faces: &drops.shape_work.work.faces_b,
-        }
-    }
-}
-pub const MOST_POINTS: u32 = rc2k_core::effects::masks::MOST_POINTS;
 
 /// `collect_points`: face `face`'s points (the count, then 16 bytes
 /// apart) added to the list unless there already, up to 0x40, each with the face. Refuses a list of
 /// more than 0x40. The logic is in `rc2k_core::effects::masks::PointList::add_face`.
 pub(super) fn collect_points(
     object_faces: &crate::scene::object_faces_store::ObjectFaces,
-    list: &PointList<'_>,
+    drops: &WindscreenDrops,
+    list: usize,
     face: u32,
 ) -> Result<(), Refused> {
-    let most = MOST_POINTS as usize;
-    let mut ids: Vec<u32> = (0..most).map(|n| list.ids[n].get()).collect();
-    let mut faces: Vec<u32> = (0..most).map(|n| list.faces[n].get()).collect();
+    let (count, mut ids, mut faces) = {
+        let work = drops.shape_work.borrow();
+        (
+            work.work.count[list],
+            work.work.ids[list].to_vec(),
+            work.work.faces[list].to_vec(),
+        )
+    };
     let mut points = rc2k_core::effects::masks::PointList {
-        count: list.count.get(),
+        count,
         ids: &mut ids,
         faces: &mut faces,
     };
@@ -65,11 +41,11 @@ pub(super) fn collect_points(
     });
     bad.done()?;
     added?;
-    list.count.set(points.count);
-    for n in 0..most {
-        list.ids[n].set(ids[n]);
-        list.faces[n].set(faces[n]);
-    }
+    let count = points.count;
+    let mut work = drops.shape_work.borrow_mut();
+    work.work.count[list] = count;
+    work.work.ids[list].copy_from_slice(&ids);
+    work.work.faces[list].copy_from_slice(&faces);
     Ok(())
 }
 /// `effects::reset_mask_cursor`: the cursor the work block, the runs from the start of
@@ -78,9 +54,10 @@ pub(super) fn collect_points(
 pub fn reset_mask_cursor(masks: &Masks) {
     // The work's first byte: offset 0.
     let c = rc2k_core::effects::masks::MaskCursor::reset(0, 0);
-    masks.vars.cursor.set(c.cursor);
-    masks.vars.runs.set(c.runs);
-    masks.vars.run_count.set(c.run_count);
+    let mut vars = masks.vars.borrow_mut();
+    vars.cursor = c.cursor;
+    vars.runs = c.runs;
+    vars.run_count = c.run_count;
 }
 
 /// Entry `index` of a list of shapes' rows (`entries` is the offset of the list in `run_table`): 16
@@ -114,29 +91,35 @@ fn shape_rows(masks: &Masks, entries: u32, index: u32) -> Result<ShapeRows, Refu
 /// `rc2k_core::effects::masks::draw_mask`.
 pub fn draw_mask(masks: &Masks, drops: &WindscreenDrops, n: u32) -> Result<(), Refused> {
     {
-        let shapes = masks
+        let shape = *masks
             .vars
+            .borrow()
             .shapes
             .get(n as usize)
             .ok_or(BadInput("a shape's number that names none"))?;
-        let place = [&masks.vars.mask_a, &masks.vars.mask_b][n as usize];
-        let count = shapes.count.get() as i32;
+        let count = shape.count as i32;
         if count <= 0 {
             return Err(BadInput("a mask of no shapes: the loop would run round").into());
         }
-        let entries = shapes.rows.get();
+        let entries = shape.rows;
         let mut rows = Vec::new();
         for k in 0..2 * count as u32 {
             let r = shape_rows(masks, entries, k)?;
             r.fit()?;
             rows.push(r);
         }
-        let mut mask = place.read_at(0, MASK_LEN as usize, "a mark mask")?;
+        let mut mask = masks.vars.borrow().masks[n as usize]
+            .get(..MASK_LEN as usize)
+            .ok_or(BadInput("a mark mask"))?
+            .to_vec();
         rc2k_core::effects::masks::draw_mask(&mut mask, &rows)?;
-        place.write_at(0, &mask, "a mark mask")?;
+        masks.vars.borrow_mut().masks[n as usize]
+            .get_mut(..MASK_LEN as usize)
+            .ok_or(BadInput("a mark mask"))?
+            .copy_from_slice(&mask);
         drops.picks.borrow_mut().mask = n;
         drops.picks.borrow_mut().shapes = n;
-        masks.vars.mask_value.set(count as u32 - 1);
+        masks.vars.borrow_mut().mask_value = count as u32 - 1;
     }
     Ok(())
 }
@@ -185,20 +168,20 @@ pub(super) fn make_masks(
 ) -> Result<(), Refused> {
     // The two shapes' ring-angle tables (each shape's mask, pixel and corner tables are
     // found by its number).
-    let ring_angles = [&masks.vars.ring_angles_a, &masks.vars.ring_angles_b];
-    let list = &masks.vars.list;
-    masks
-        .work
-        .take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
+    masks.work.take(
+        &masks.vars.borrow().list,
+        WORK_LEN,
+        vec![0; WORK_LEN as usize / 4],
+    )?;
     crate::logfile::load_times::mark("masks: make_shape_sets");
     crate::effects::shape_points::make_shape_sets(course, faces_table, drops, scene, effects)?;
     crate::logfile::load_times::mark("masks: make_corners");
     crate::effects::corners::make_corners(masks, drops, effects)?;
     reset_mask_cursor(masks);
     crate::logfile::load_times::mark("masks: span_ring");
-    for (n, (shape, angles)) in masks.vars.shapes.iter().zip(ring_angles).enumerate() {
-        masks.vars.ring_corners.set(n as u32);
-        crate::effects::rings::span_ring(masks, shape, angles, effects)?;
+    for n in 0..2 {
+        masks.vars.borrow_mut().ring_corners = n as u32;
+        crate::effects::rings::span_ring(masks, n, effects)?;
     }
     crate::logfile::load_times::mark("masks: draw_mask");
     for n in 0..2 {
@@ -209,7 +192,7 @@ pub(super) fn make_masks(
         crate::effects::pixels::map_shapes(masks, drops, n as u32, effects)?;
     }
     crate::remote::mask_hashes(masks, drops, effects);
-    crate::memory::free_list::free_list(list)?;
+    crate::memory::free_list::free_list(&masks.vars.borrow().list)?;
     masks.work.give_back();
     Ok(())
 }

@@ -63,9 +63,9 @@ pub fn run_shapes(
             let count = x87::int_times_plus_int_to_int(
                 setup.clock.borrow().frame_ticks as i32,
                 rate,
-                masks.vars.count.get() as i32,
+                masks.vars.borrow().count as i32,
             );
-            masks.vars.count.set(count as u32);
+            masks.vars.borrow_mut().count = count as u32;
             drops.picks.borrow_mut().index = (count as u32 >> 16) & 0xFF;
         }
         pick_shapes(masks, drops)?;

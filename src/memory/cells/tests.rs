@@ -248,7 +248,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         menus.text_buffers,
         audio.state,
         audio.sample_records,
-        menus.play.slots.records,
         menus.play.slots.pointers,
         effects.paths.spline_head,
         *race.physics.contact.get(),

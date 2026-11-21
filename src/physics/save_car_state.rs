@@ -7,7 +7,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::ProbeLists;
 use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::saved_car::save_count;
 
@@ -16,7 +16,7 @@ use rc2k_core::physics::saved_car::save_count;
 pub(super) fn save_car_state(
     car: &Car,
     tables: &PhysicsTables,
-    contact: &ContactWork,
+    probes: &mut ProbeLists,
 ) -> Result<(), Refused> {
     let n = save_count(car.probe_count.get())?;
     tables.clear_place_count.set(0);
@@ -26,11 +26,11 @@ pub(super) fn save_car_state(
     for (to, from) in tables.saved_matrix.iter().zip(&car.crash_matrix) {
         to.set(from.get());
     }
-    for (to, from) in contact.probe_saved_faces[..n]
-        .iter()
+    for (to, from) in probes.probe_saved_faces[..n]
+        .iter_mut()
         .zip(&car.probe_point_face[..n])
     {
-        to.set(from.get());
+        *to = from.get();
     }
     Ok(())
 }

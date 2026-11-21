@@ -20,7 +20,12 @@ pub(super) fn feel_ground(c: &GroundInputs<'_>) -> Result<(), Refused> {
     }
     crate::physics::note_surface_mode::note_surface_mode(c.car);
     crate::physics::probe_ground::probe_ground(c, c.car)?;
-    crate::physics::lowest_body_point::lowest_body_point(c.car, c.numbers, c.contact)?;
+    crate::physics::lowest_body_point::lowest_body_point(
+        c.car,
+        c.numbers,
+        c.contact,
+        &c.probes.borrow(),
+    )?;
     let off = WheelsOff::of([
         c.car.wheel_squeeze[0].bits(),
         c.car.wheel_squeeze[1].bits(),

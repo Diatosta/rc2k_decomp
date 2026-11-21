@@ -20,7 +20,8 @@ pub(super) fn drop_to_neutral(car: &Car, tables: &PhysicsTables) {
         return;
     }
     car.gear.set(0);
-    car.drive_cut_steps.set(tables.drive_cut_steps.get());
+    car.drive_cut_steps
+        .set(crate::physics::figures::DRIVE_CUT_STEPS);
     car.gear_change_hold.set(0x14);
     car.gear_changed.set(1);
     car.gear_change_pending.set(1);

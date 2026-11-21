@@ -10,16 +10,12 @@ use crate::physics::step_families::GroundInputs;
 
 /// The steps.
 fn probe_and_keep_at(c: &GroundInputs<'_>) -> Result<(), Refused> {
-    let contact = c.contact;
     probe_ground(c, c.car)?;
-    for k in 0..64 {
-        contact.saved_probe_x[k].set(contact.probe_x[k].get());
-    }
-    for k in 0..64 {
-        contact.saved_probe_z[k].set(contact.probe_z[k].get());
-    }
+    let mut probes = c.probes.borrow_mut();
+    probes.saved_probe_x = probes.probe_x;
+    probes.saved_probe_z = probes.probe_z;
     for k in 0..0x40 {
-        contact.saved_probe_faces[k].set(c.car.probe_point_face[k].get());
+        probes.saved_probe_faces[k] = c.car.probe_point_face[k].get();
     }
     Ok(())
 }

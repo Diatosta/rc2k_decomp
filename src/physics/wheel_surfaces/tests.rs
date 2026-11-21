@@ -4,12 +4,12 @@ use crate::test_support::own::race;
 use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
 /// The dwords of a test buffer a run with index `k` reads (`k + 8` of them).
-fn table(base: usize, k: usize) -> &'static [PlainDword] {
+fn table(base: usize, k: usize) -> &'static [u32] {
     // SAFETY: the buffer holds the offsets up to `k * 4 + 0x1C` and 16 bytes more,
     // lent for the run and aligned for its cells.
     unsafe {
         std::slice::from_raw_parts(
-            crate::test_support::vectors::block_vectors::at(base) as *const PlainDword,
+            crate::test_support::vectors::block_vectors::at(base) as *const u32,
             k + 8,
         )
     }
@@ -105,7 +105,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 x87_2(
-                    crate::test_support::own::race().physics.contact.get(),
+                    &crate::test_support::own::race().physics.probes().borrow(),
                     crate::test_support::own::race().course.numbers.get(),
                     crate::test_support::own::race().shared.car(),
                     a[1],
@@ -132,7 +132,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 x87_2(
-                    crate::test_support::own::race().physics.contact.get(),
+                    &crate::test_support::own::race().physics.probes().borrow(),
                     crate::test_support::own::race().course.numbers.get(),
                     crate::test_support::own::race().shared.car(),
                     a[1],
@@ -159,7 +159,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 x87_2(
-                    crate::test_support::own::race().physics.contact.get(),
+                    &crate::test_support::own::race().physics.probes().borrow(),
                     crate::test_support::own::race().course.numbers.get(),
                     crate::test_support::own::race().shared.car(),
                     a[1],

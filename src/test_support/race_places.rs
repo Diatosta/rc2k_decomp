@@ -6,6 +6,7 @@
 
 use crate::drive::finish_store::Finish;
 use crate::physics::camera_store::CameraWork;
+use crate::physics::contact_store::ProbeLists;
 use crate::physics::ground_query::GroundSearch;
 use std::sync::OnceLock;
 
@@ -256,12 +257,12 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x24BB74, "owners.race.replay.finish", ".limit_d"),
     (0x24BB78, "owners.race.replay.finish", ".camera_pitch_per_share"),
     (0x24BB7C, "owners.race.replay.finish", ".camera_height_per_share"),
-    (0x2D2A14, "owners.race.physics.contact", ".probe_share_u[0]"),
-    (0x2D2A18, "owners.race.physics.contact", ".probe_share_u[1]"),
-    (0x2D2A24, "owners.race.physics.contact", ".probe_share_u[4]"),
-    (0x2D2B14, "owners.race.physics.contact", ".probe_share_v[0]"),
-    (0x2D2B18, "owners.race.physics.contact", ".probe_share_v[1]"),
-    (0x2D2B24, "owners.race.physics.contact", ".probe_share_v[4]"),
+    (0x2D2A14, "owners.race.physics.probes", ".probe_share_u[0]"),
+    (0x2D2A18, "owners.race.physics.probes", ".probe_share_u[1]"),
+    (0x2D2A24, "owners.race.physics.probes", ".probe_share_u[4]"),
+    (0x2D2B14, "owners.race.physics.probes", ".probe_share_v[0]"),
+    (0x2D2B18, "owners.race.physics.probes", ".probe_share_v[1]"),
+    (0x2D2B24, "owners.race.physics.probes", ".probe_share_v[4]"),
     (0x2D307C, "owners.race.physics.contact", ".contact_normal[1]"),
     (0x2D3090, "owners.race.physics.contact", ".contact_point[0]"),
     (0x2D3094, "owners.race.physics.contact", ".contact_point[1]"),
@@ -579,6 +580,33 @@ fn search_field(path: &str) -> Option<SearchBits> {
     }
 }
 
+/// The probe lists (plain fields, not cells): their registry name.
+const PROBES: &str = "owners.race.physics.probes";
+
+/// How a field of the probe lists is read and written as bits.
+type ProbeBits = (fn(&ProbeLists) -> u32, fn(&mut ProbeLists, u32));
+
+/// The probe lists' field at `path` (the shares the recorded vectors touch).
+fn probes_field(path: &str) -> Option<ProbeBits> {
+    macro_rules! share {
+        ($list:ident, $i:expr) => {
+            Some((
+                |p| p.$list[$i].to_bits(),
+                |p, v| p.$list[$i] = f32::from_bits(v),
+            ))
+        };
+    }
+    match path {
+        ".probe_share_u[0]" => share!(probe_share_u, 0),
+        ".probe_share_u[1]" => share!(probe_share_u, 1),
+        ".probe_share_u[4]" => share!(probe_share_u, 4),
+        ".probe_share_v[0]" => share!(probe_share_v, 0),
+        ".probe_share_v[1]" => share!(probe_share_v, 1),
+        ".probe_share_v[4]" => share!(probe_share_v, 4),
+        _ => None,
+    }
+}
+
 /// The bytes of the field at `path` in the store `name` (the registry's, or a plain one).
 fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
     if name == FINISH {
@@ -605,6 +633,14 @@ fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
         let (get, _) = search_field(path)?;
         return Some(
             get(&super::own::race().physics.ground_search().borrow())
+                .to_le_bytes()
+                .to_vec(),
+        );
+    }
+    if name == PROBES {
+        let (get, _) = probes_field(path)?;
+        return Some(
+            get(&super::own::race().physics.probes().borrow())
                 .to_le_bytes()
                 .to_vec(),
         );
@@ -658,6 +694,16 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
         };
         set(
             &mut super::own::race().physics.ground_search().borrow_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    if name == PROBES {
+        let (Some((_, set)), Ok(word)) = (probes_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::race().physics.probes().borrow_mut(),
             u32::from_le_bytes(word),
         );
         return true;

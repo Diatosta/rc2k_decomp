@@ -4,7 +4,7 @@
 
 use crate::memory::session::{DrawShared, GameThread};
 use crate::physics::camera_store::CameraWork;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::{ContactWork, ProbeLists};
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_query::GroundSearch;
 use crate::physics::ground_store::GroundWork;
@@ -22,6 +22,7 @@ struct PhysicsMain {
     pub camera: RefCell<CameraWork>,
     pub ground: GroundWork,
     pub ground_search: RefCell<GroundSearch>,
+    pub probes: RefCell<ProbeLists>,
     pub pace: RefCell<PaceNotes>,
     pub split_tables: RefCell<SplitTables>,
     pub damage: RefCell<DamageModel>,
@@ -37,6 +38,7 @@ impl PhysicsMain {
             camera: RefCell::new(CameraWork::new()),
             ground: GroundWork::new(),
             ground_search: RefCell::new(GroundSearch::new()),
+            probes: RefCell::new(ProbeLists::new()),
             pace: RefCell::new(PaceNotes::new()),
             split_tables: RefCell::new(SplitTables::new()),
             damage: RefCell::new(DamageModel::new()),
@@ -87,6 +89,12 @@ impl Physics {
     /// search holds the borrow while it runs; nothing else reads it then.
     pub fn ground_search(&self) -> &RefCell<GroundSearch> {
         &self.main.get().ground_search
+    }
+
+    /// The probe points' lists: one routine borrows them at a time, none across a call that
+    /// borrows them again.
+    pub fn probes(&self) -> &RefCell<ProbeLists> {
+        &self.main.get().probes
     }
 
     /// The pace notes, read: no write borrow may be held.

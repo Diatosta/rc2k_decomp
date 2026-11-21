@@ -71,6 +71,6 @@ pub fn name_bytes(menus: &Menus, player: usize) -> [u8; NAME_LEN] {
 }
 
 /// The four players' records.
-pub fn cars(play: &Play) -> &'_ [crate::memory::session::Shared<crate::menu::player::Player>; 4] {
+pub fn cars(play: &Play) -> &'_ [crate::menu::players_store::PlayerRecord; 4] {
     &play.slots.records
 }

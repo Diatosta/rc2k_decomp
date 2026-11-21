@@ -6,13 +6,14 @@
 use crate::math::x87;
 use crate::math::x87::mul2_plus;
 use crate::physics::car_store::Car;
+use crate::physics::figures::DRIVE_FORCE_FACTOR;
 use crate::physics::tables_store::PhysicsTables;
 
 /// The forces' step.
 pub fn add_drive_forces(car: &Car, tables: &PhysicsTables) {
-    let mut factor = tables.drive_force_factor[0].get();
+    let mut factor = DRIVE_FORCE_FACTOR[0];
     if car.drive_kind.get() != 0 {
-        factor = tables.drive_force_factor[1].get();
+        factor = DRIVE_FORCE_FACTOR[1];
     }
     let loads = &tables.wheel_loads;
     tables.drive_force_scale.set(x87::sum4_times(

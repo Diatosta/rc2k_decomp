@@ -148,10 +148,10 @@ pub struct WindscreenDrops {
     pub hex: std::cell::RefCell<WindscreenDropVars>,
     pub state: std::cell::RefCell<crate::effects::windscreen_drop_state_store::WindscreenDropState>,
     pub work: std::cell::RefCell<crate::effects::windscreen_drop_state_store::WindscreenDropWork>,
-    pub shape_work: crate::effects::shape_work_store::ShapeWork,
+    pub shape_work: std::cell::RefCell<crate::effects::shape_work_store::ShapeWork>,
     pub tilt: std::cell::RefCell<crate::effects::tilt_shape_store::ShapeTilt>,
-    pub inputs: crate::effects::shape_points_store::ShapeInputs,
-    pub tuning: crate::effects::shape_points_store::ShapeSetTuning,
+    pub inputs: std::cell::RefCell<crate::effects::shape_points_store::ShapeInputs>,
+    pub tuning: std::cell::RefCell<crate::effects::shape_points_store::ShapeSetTuning>,
     pub picks: std::cell::RefCell<crate::effects::mask_picks_store::MaskPicks>,
     pub pixel_tables: crate::effects::mask_picks_store::PixelTables,
 }
@@ -166,10 +166,12 @@ impl WindscreenDrops {
             work: std::cell::RefCell::new(
                 crate::effects::windscreen_drop_state_store::WindscreenDropWork::new(),
             ),
-            shape_work: crate::effects::shape_work_store::ShapeWork::new(),
+            shape_work: std::cell::RefCell::new(crate::effects::shape_work_store::ShapeWork::new()),
             tilt: std::cell::RefCell::new(crate::effects::tilt_shape_store::ShapeTilt::new()),
-            inputs: crate::effects::shape_points_store::ShapeInputs::new(),
-            tuning: crate::effects::shape_points_store::ShapeSetTuning::new(),
+            inputs: std::cell::RefCell::new(crate::effects::shape_points_store::ShapeInputs::new()),
+            tuning: std::cell::RefCell::new(
+                crate::effects::shape_points_store::ShapeSetTuning::new(),
+            ),
             picks: std::cell::RefCell::new(crate::effects::mask_picks_store::MaskPicks::new()),
             pixel_tables: crate::effects::mask_picks_store::PixelTables::new(),
         }

@@ -66,7 +66,13 @@ pub(super) fn corner_hits_car(
     if !corner_inside(corner, c.numbers) {
         return Ok(());
     }
-    { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
+    {
+        crate::physics::restore_saved_car::restore_saved_car(
+            c.car,
+            c.tables,
+            &c.ground.probes.borrow(),
+        )
+    }?;
     { crate::physics::bump_cars::bump_cars(c, &corner.corner_turned, block, other_car_number) }?;
     Ok(())
 }

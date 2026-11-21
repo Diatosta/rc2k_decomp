@@ -7,9 +7,9 @@
 //! end).
 
 use crate::errors::Refused;
-use crate::memory::session::{Run, read_runs, write_runs};
+use crate::memory::session::{Run, write_runs};
 use crate::physics::car_store::Car;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::ProbeLists;
 use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
@@ -47,11 +47,21 @@ fn faces_and_after(car: &Car) -> [&dyn Run; 28] {
     ]
 }
 
+/// Dword `k` of the saved faces run on into the face flips (0x7C at most, the flips' list ends
+/// at 0x80).
+fn saved_face_or_flip(probes: &ProbeLists, k: usize) -> u32 {
+    if k < 64 {
+        probes.probe_saved_faces[k]
+    } else {
+        probes.probe_face_flip[k - 64]
+    }
+}
+
 /// Core: `rc2k_core::physics::saved_car::{restore_count, restored}`.
 pub(super) fn restore_saved_car(
     car: &Car,
     tables: &PhysicsTables,
-    contact: &ContactWork,
+    probes: &ProbeLists,
 ) -> Result<(), Refused> {
     let n = restore_count(car.probe_count.get())?;
     tables
@@ -65,10 +75,9 @@ pub(super) fn restore_saved_car(
     }
     // Up to 0x7C dwords from the saved faces (0x40), on into the face-flip list after them, into
     // the car's faces (0x40), on through the fields after them to the record's end (0x7C in all).
-    let from: [&dyn Run; 2] = [&contact.probe_saved_faces, &contact.probe_face_flip];
     let to = faces_and_after(car);
     for k in 0..n as usize {
-        let v = read_runs(&from, k, "the saved faces")?;
+        let v = saved_face_or_flip(probes, k);
         write_runs(&to, k, v, "the saved faces")?;
     }
     Ok(())
@@ -84,23 +93,22 @@ mod tests {
     fn faces_run_on_into_the_flips() {
         for n in 0..=0x7C {
             let new = Car::new();
-            let c_new = ContactWork::new();
-            for (k, cell) in c_new.probe_saved_faces.iter().enumerate() {
-                cell.set(0x100 + k as u32);
+            let mut c_new = ProbeLists::new();
+            for (k, cell) in c_new.probe_saved_faces.iter_mut().enumerate() {
+                *cell = 0x100 + k as u32;
             }
-            for (k, cell) in c_new.probe_face_flip.iter().enumerate() {
-                cell.set(0x200 + k as u32);
+            for (k, cell) in c_new.probe_face_flip.iter_mut().enumerate() {
+                *cell = 0x200 + k as u32;
             }
-            let from: [&dyn Run; 2] = [&c_new.probe_saved_faces, &c_new.probe_face_flip];
             let to = faces_and_after(&new);
             for k in 0..n {
-                write_runs(&to, k, read_runs(&from, k, "t").unwrap(), "t").unwrap();
+                write_runs(&to, k, saved_face_or_flip(&c_new, k), "t").unwrap();
             }
             for k in 0..0x7C {
                 let read =
                     crate::physics::car_offsets_1999::read_on_1999(&new, &new.probe_point_face, k);
                 let wanted = if k < n {
-                    read_runs(&from, k, "t").unwrap()
+                    saved_face_or_flip(&c_new, k)
                 } else {
                     0
                 };

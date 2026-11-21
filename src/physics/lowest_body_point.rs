@@ -8,7 +8,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::Car;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::{ContactWork, ProbeLists};
 use crate::race::numbers_store::Numbers;
 
 /// The lowest of the probe points past the first four (its depth and number), and the
@@ -17,6 +17,7 @@ pub(super) fn lowest_body_point(
     car: &Car,
     numbers: &Numbers,
     contact: &ContactWork,
+    probes: &ProbeLists,
 ) -> Result<(), Refused> {
     let n = car.probe_count.get();
     if n > 0x40 {
@@ -27,7 +28,7 @@ pub(super) fn lowest_body_point(
         lowest.set(0x64_0000);
         number.set(u32::MAX);
         for k in 4..n {
-            let depth = contact.probe_height[k as usize].get();
+            let depth = probes.probe_height[k as usize];
             if (depth.wrapping_sub(lowest.get()) as i32) < 0 {
                 lowest.set(depth);
                 number.set(k);

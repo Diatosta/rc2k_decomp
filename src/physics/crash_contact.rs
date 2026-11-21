@@ -22,7 +22,7 @@ use crate::math::x87::{loaded, mul};
 use crate::memory::session::{FloatLike, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::{ContactWork, ProbeLists};
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::FloatView;
 use crate::physics::flow::hold_high;
@@ -55,21 +55,22 @@ pub fn sign(v: u32) -> bool {
 /// into `contact_point`.
 pub(super) fn take_contact(
     contact: &ContactWork,
+    probes: &ProbeLists,
     course: &Course,
     car: &Car,
     n: usize,
 ) -> Result<(), Refused> {
     copy3(&contact.contact_car_speed, &car.velocity);
     let face = car.probe_point_face[n].get();
-    let parts = contacts::normal_offsets(contact.probe_face_flip[n].get());
+    let parts = contacts::normal_offsets(probes.probe_face_flip[n]);
     for (k, &o) in parts.iter().enumerate() {
         let v = crate::race::course_places::face_field::<u32>(course.reads(), face, o)?;
         contact.contact_normal[k].set(loaded(v));
     }
     copy3(&contact.contact_turn_speed, &car.spin);
-    contact.contact_point[0].set(contact.probe_turned_x[n].get());
-    contact.contact_point[1].set(contact.probe_turned_y[n].get());
-    contact.contact_point[2].set(contact.probe_turned_z[n].get());
+    contact.contact_point[0].set(probes.probe_turned_x[n]);
+    contact.contact_point[1].set(probes.probe_turned_y[n]);
+    contact.contact_point[2].set(probes.probe_turned_z[n]);
     Ok(())
 }
 
@@ -84,7 +85,7 @@ pub fn point_number(contact: &ContactWork) -> Result<usize, Refused> {
 // (the x87 steps stay).
 fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     c.car.contact_found.set(0);
-    { lowest_body_point(c.car, c.numbers, c.contact) }?;
+    { lowest_body_point(c.car, c.numbers, c.contact, &c.ground.probes.borrow()) }?;
     let depth = c.contact.lowest_depth.get();
     if !contacts::touches(
         depth,
@@ -95,13 +96,16 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
         return Ok(());
     }
     let n = point_number(c.contact)?;
-    c.car.contact_point_x.set(c.contact.probe_x[n].get());
-    c.car
-        .contact_point_ground
-        .set(c.contact.probe_ground_height[n].get());
-    c.car.contact_point_z.set(c.contact.probe_z[n].get());
-    c.car.contact_found.set(1);
-    take_contact(c.contact, c.course, c.car, n)?;
+    {
+        let probes = c.ground.probes.borrow();
+        c.car.contact_point_x.set(probes.probe_x[n]);
+        c.car
+            .contact_point_ground
+            .set(probes.probe_ground_height[n]);
+        c.car.contact_point_z.set(probes.probe_z[n]);
+        c.car.contact_found.set(1);
+        take_contact(c.contact, &probes, c.course, c.car, n)?;
+    }
     let up = {
         rotate_point(
             &c.car.crash_matrix,

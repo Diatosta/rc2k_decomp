@@ -11,7 +11,7 @@ use crate::physics::figures;
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Surface {
-    /// Where its table starts in `surface_tables`, as a dword's number (a multiple of 13).
+    /// Where its table starts in `figures::SURFACE_TABLES`, as a dword's number (a multiple of 13).
     pub table: PlainDword,
     /// Slide grip (`patchslidegrip`).
     pub slide_grip: PlainFloat,
@@ -109,31 +109,12 @@ pub struct PhysicsTables {
     /// The ground kinds' records (`physics::wheel_surfaces`; twelve patched by
     /// `physics::apply_patches`).
     pub surfaces: [Surface; 16],
-    /// Eight tables of 13 dwords the surface records point at: [0] then six figures by tyre kind
-    /// and six more (`physics::wheel_surfaces`).
-    pub surface_tables: [PlainDword; 104],
-    /// 2.4 / 1.6 by drive kind 1 or not (`physics::drive_grip_forces`).
-    pub grip_front_drive: [PlainFloat; 2],
-    /// 0.5 / 0.4 by drive kind 1 or not (`physics::drive_grip_forces`).
-    pub grip_rear_drive: [PlainFloat; 2],
     /// 2.0 (`physics::hold_spin_on_ground`).
     pub ground_spin_limit: PlainFloat,
-    /// 2.0 / 2.2 by drive kind (`physics::drive_grip_forces`).
-    pub grip_factor: [PlainFloat; 2],
-    /// 0.0045 / 0.0025 (`physics::add_drive_forces`).
-    pub drive_force_factor: [PlainFloat; 2],
     /// 0x76C, 0x640, 0x384, scaled into `spec_ints` (`physics::load_car_specs`).
     pub spec_default_bc0: [PlainDword; 3],
-    /// `physics::set_handling`'s (lo, hi) pairs for three of its figures.
-    pub handling_ranges_a: [PlainFloat; 6],
-    /// `physics::set_handling`'s pairs for two more figures (the second chosen by kind).
-    pub handling_ranges_b: [PlainFloat; 6],
     /// 1.0, 0.9, 0.85, 1.0 (`physics::wheel_surfaces`).
     pub surface_blend: [PlainFloat; 4],
-    /// `physics::set_handling`'s pairs for four more figures.
-    pub handling_ranges_c: [PlainFloat; 8],
-    /// 5: the steps the drive is cut after a change (`physics::gearbox`).
-    pub drive_cut_steps: PlainDword,
     /// 0.85, 0.75, 2.5: the car's turning inertia by axis (`physics::apply_torque`).
     pub inertia: [PlainFloat; 3],
     /// 3000.0 then one more, by spec (`physics::load_car_specs`, by drive kind 0 .. 2: kind 2 reads
@@ -141,12 +122,6 @@ pub struct PhysicsTables {
     pub rev_limits: [PlainFloat; 2],
     /// 9.8 (`physics::apply_patches`).
     pub gravity: PlainFloat,
-    /// The engine's torque curve read in pairs (`physics::engine_torque`).
-    pub torque_curve: [PlainFloat; 9],
-    /// `physics::find_clear_place`'s first step table.
-    pub clear_place_steps_a: [PlainDword; 16],
-    /// Its second step table.
-    pub clear_place_steps_b: [PlainDword; 16],
     /// The motion kept by `physics::keep_motion`.
     pub kept_motion: [PlainFloat; 3],
     /// `physics::stall_when_still`'s.
@@ -331,12 +306,8 @@ pub struct PhysicsTables {
     pub reset_candidate: PlainDword,
     /// The distance to the nearest checkpoint.
     pub nearest_checkpoint_distance: PlainFloat,
-    /// The events listed (`physics::queue_listed_event`).
-    pub listed_events: [PlainDword; 32],
     /// The distance to the split point.
     pub split_point_distance: PlainFloat,
-    /// Each slot's byte in the face.
-    pub pace_slot_offsets: [PlainDword; 8],
     /// The slot 0 .. 7.
     pub pace_slot: PlainDword,
 }
@@ -344,68 +315,16 @@ pub struct PhysicsTables {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The starting values of `surface_tables`.
-#[rustfmt::skip]
-const SURFACE_TABLES: [u32; 104] = [
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 120, 120, 115, 105, 90, 80, 75, 80, 95, 105, 85, 75, 75,
-    85, 65, 70, 75, 85, 80, 65, 60, 65, 70, 75, 80, 65, 75, 45, 50, 55, 75, 70, 55, 40, 45, 50, 65,
-    70, 55, 75, 40, 45, 50, 65, 70, 75, 40, 45, 50, 65, 70, 75, 70, 40, 45, 50, 70, 65, 50, 35, 40,
-    45, 60, 65, 50, 75, 35, 40, 45, 60, 65, 75, 35, 40, 45, 60, 65, 75, 65, 25, 30, 35, 50, 55, 65,
-    25, 30, 35, 50, 55, 65,
-];
-
-/// The starting values of `grip_front_drive`.
-#[rustfmt::skip]
-const GRIP_FRONT_DRIVE: [f32; 2] = [
-    2.4, 1.6,
-];
-
-/// The starting values of `grip_rear_drive`.
-#[rustfmt::skip]
-const GRIP_REAR_DRIVE: [f32; 2] = [
-    0.5, 0.4,
-];
-
-/// The starting values of `grip_factor`.
-#[rustfmt::skip]
-const GRIP_FACTOR: [f32; 2] = [
-    2.0, 2.2,
-];
-
-/// The starting values of `drive_force_factor`.
-#[rustfmt::skip]
-const DRIVE_FORCE_FACTOR: [f32; 2] = [
-    0.0045, 0.0025,
-];
-
 /// The starting values of `spec_default_bc0`.
 #[rustfmt::skip]
 const SPEC_DEFAULT_BC0: [u32; 3] = [
     0x76C, 0x640, 0x384,
 ];
 
-/// The starting values of `handling_ranges_a`.
-#[rustfmt::skip]
-const HANDLING_RANGES_A: [f32; 6] = [
-    0.1, 0.9, 0.5, 1.5, 0.25, 1.25,
-];
-
-/// The starting values of `handling_ranges_b`.
-#[rustfmt::skip]
-const HANDLING_RANGES_B: [f32; 6] = [
-    0.1, 0.2, 0.3, 0.16, 0.4, 0.26,
-];
-
 /// The starting values of `surface_blend`.
 #[rustfmt::skip]
 const SURFACE_BLEND: [f32; 4] = [
     1.0, 0.9, 0.85, 1.0,
-];
-
-/// The starting values of `handling_ranges_c`.
-#[rustfmt::skip]
-const HANDLING_RANGES_C: [f32; 8] = [
-    0.15, 0.1, 100.0, 200.0, 1.0, 2.0, 0.45, 0.3,
 ];
 
 /// The starting values of `inertia`.
@@ -418,39 +337,6 @@ const INERTIA: [f32; 3] = [
 #[rustfmt::skip]
 const REV_LIMITS: [f32; 2] = [
     3000.0, 2000.0,
-];
-
-/// The starting values of `torque_curve`.
-#[rustfmt::skip]
-const TORQUE_CURVE: [f32; 9] = [
-    0.0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0,
-];
-
-/// The starting values of `clear_place_steps_a`.
-#[rustfmt::skip]
-const CLEAR_PLACE_STEPS_A: [u32; 16] = [
-    0, 7, 10, 7, 0, 0xFFFFFFF9, 0xFFFFFFF6, 0xFFFFFFF9, 0, 10, 14, 10, 0, 0xFFFFFFF6, 0xFFFFFFF2,
-    0xFFFFFFF6,
-];
-
-/// The starting values of `clear_place_steps_b`.
-#[rustfmt::skip]
-const CLEAR_PLACE_STEPS_B: [u32; 16] = [
-    10, 7, 0, 0xFFFFFFF9, 0xFFFFFFF6, 0xFFFFFFF9, 0, 7, 14, 10, 0, 0xFFFFFFF6, 0xFFFFFFF2,
-    0xFFFFFFF6, 0, 10,
-];
-
-/// The starting values of `listed_events`.
-#[rustfmt::skip]
-const LISTED_EVENTS: [u32; 32] = [
-    0xFFFFFFFF, 8, 9, 10, 11, 12, 13, 14, 15, 8, 9, 10, 11, 12, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-    0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 0xFFFFFFFF, 0xFFFFFFFF,
-];
-
-/// The starting values of `pace_slot_offsets`.
-#[rustfmt::skip]
-const PACE_SLOT_OFFSETS: [u32; 8] = [
-    40, 41, 42, 43, 25, 26, 27, 32,
 ];
 
 /// The 16 ground kinds' starting values: the table start, then the eleven figures after it,
@@ -539,36 +425,22 @@ impl PhysicsTables {
             crash_depth: PlainDword::new(figures::CRASH_DEPTH),
             contact_steps: PlainDword::new(figures::CONTACT_STEPS),
             surfaces: Surface::rows(&SURFACE_ROWS),
-            surface_tables: PlainDword::array(SURFACE_TABLES),
-            grip_front_drive: PlainFloat::array(GRIP_FRONT_DRIVE),
-            grip_rear_drive: PlainFloat::array(GRIP_REAR_DRIVE),
             ground_spin_limit: PlainFloat::new(2.0),
-            grip_factor: PlainFloat::array(GRIP_FACTOR),
-            drive_force_factor: PlainFloat::array(DRIVE_FORCE_FACTOR),
             spec_default_bc0: PlainDword::array(SPEC_DEFAULT_BC0),
-            handling_ranges_a: PlainFloat::array(HANDLING_RANGES_A),
-            handling_ranges_b: PlainFloat::array(HANDLING_RANGES_B),
             surface_blend: PlainFloat::array(SURFACE_BLEND),
-            handling_ranges_c: PlainFloat::array(HANDLING_RANGES_C),
-            drive_cut_steps: PlainDword::new(5),
             inertia: PlainFloat::array(INERTIA),
             rev_limits: PlainFloat::array(REV_LIMITS),
             gravity: PlainFloat::new(9.8),
-            torque_curve: PlainFloat::array(TORQUE_CURVE),
-            clear_place_steps_a: PlainDword::array(CLEAR_PLACE_STEPS_A),
-            clear_place_steps_b: PlainDword::array(CLEAR_PLACE_STEPS_B),
-            listed_events: PlainDword::array(LISTED_EVENTS),
-            pace_slot_offsets: PlainDword::array(PACE_SLOT_OFFSETS),
             ..ZeroCells::ZERO
         }
     }
 }
 
 impl PhysicsTables {
-    /// The dwords of `surface_tables`.
-    const TABLES_LEN: usize = 104;
+    /// The dwords of `figures::SURFACE_TABLES`.
+    const TABLES_LEN: usize = figures::SURFACE_TABLES.len();
 
-    /// Where ground kind `n`'s table starts in `surface_tables`, as a dword's number. A kind past
+    /// Where ground kind `n`'s table starts in `figures::SURFACE_TABLES`, as a dword's number. A kind past
     /// the 16, or a start past the tables, is refused.
     pub(super) fn surface_table_index(&self, n: u32) -> Result<usize, crate::errors::BadInput> {
         let record = self
@@ -595,8 +467,8 @@ mod tests {
         for byte in &bytes {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
         }
-        assert_eq!(bytes.len(), 3448);
-        assert_eq!(hash, 13_924_757_970_912_996_448);
+        assert_eq!(bytes.len(), 2592);
+        assert_eq!(hash, 9_689_450_006_470_470_424);
     }
 
     #[test]

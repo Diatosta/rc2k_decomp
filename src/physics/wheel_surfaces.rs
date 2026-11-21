@@ -29,9 +29,9 @@ use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld, st};
-use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::ProbeLists;
+use crate::physics::figures::SURFACE_TABLES;
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::physics::step_families::WheelInputs;
 use crate::physics::tables_store::Surface;
@@ -52,7 +52,7 @@ fn info_byte(
 }
 
 /// `v[c]` x 65536 rounded to a whole number (`v` one of the probe shares).
-fn share_bit(course: &Course, v: &[PlainFloat; 64], c: u32) -> u32 {
+fn share_bit(course: &Course, v: &[f32; 64], c: u32) -> u32 {
     x87_1(course, v, c as usize)
 }
 
@@ -70,7 +70,6 @@ fn check(course: &Course, car: &Car) -> Result<(), Refused> {
 /// The steps (a refusal may come after some are written: `wheel_surfaces` puts them
 /// back).
 fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let contact = c.contact;
     check(c.course, c.car)?;
     for point in 0..5u32 {
         let cc = point as usize;
@@ -83,11 +82,12 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             )?))
         };
         let t1 = face_byte(1)?;
-        let mut share_v = share_bit(c.course, &contact.probe_share_v, point);
-        let mut share_u = share_bit(c.course, &contact.probe_share_u, point);
+        let probes = c.probes.borrow();
+        let mut share_v = share_bit(c.course, &probes.probe_share_v, point);
+        let mut share_u = share_bit(c.course, &probes.probe_share_u, point);
         share_v = (share_v >> 15) & 1;
         share_u = (share_u >> 15) & 1;
-        if contact.probe_face_flip[cc].get() == 1 {
+        if probes.probe_face_flip[cc] == 1 {
             share_v ^= 1;
             share_u ^= 1;
         }
@@ -138,7 +138,7 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
                 && c.car.wheel_surface_b[cc].get() != 0
                 && face_byte(0x21)? != 0
             {
-                let (x, y, z) = if contact.probe_face_flip[cc].get() == 1 {
+                let (x, y, z) = if probes.probe_face_flip[cc] == 1 {
                     (face_byte(0x25)?, face_byte(0x24)?, face_byte(0x23)?)
                 } else {
                     (face_byte(0x22)?, face_byte(0x23)?, face_byte(0x24)?)
@@ -146,7 +146,7 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
                 scene.draw_work_mut().surface_point[0] = x;
                 scene.draw_work_mut().surface_point[1] = y.wrapping_sub(x);
                 scene.draw_work_mut().surface_point[2] = z.wrapping_sub(x);
-                x87_2(contact, c.numbers, c.car, cc, scene);
+                x87_2(&probes, c.numbers, c.car, cc, scene);
             }
             if crate::race::course_places::face_number(c.course.reads(), f)?.switches() & 0x1000
                 != 0
@@ -178,8 +178,8 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             x87_4(
                 c.shared,
                 c.numbers,
-                &c.tables.surface_tables[ps..],
-                &c.tables.surface_tables[pd..],
+                &SURFACE_TABLES[ps..],
+                &SURFACE_TABLES[pd..],
                 k as usize,
             );
             x87_5_grips(c.shared, esi, edi, cc);
@@ -235,8 +235,8 @@ pub fn wheel_surfaces(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [result] = [t + c * 4] * [k65536]`
-fn x87_1(course: &Course, t: &[PlainFloat; 64], c: usize) -> u32 {
-    let t0 = t[c].ld();
+fn x87_1(course: &Course, t: &[f32; 64], c: usize) -> u32 {
+    let t0 = ld(t[c]);
     let t1 = course.numbers.get().k65536.ld();
     let t2 = t0 * t1;
     to_int(t2) as u32
@@ -245,17 +245,17 @@ fn x87_1(course: &Course, t: &[PlainFloat; 64], c: usize) -> u32 {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables named below (`[name]`: a
 /// float; `int [..]`: a whole number; `ext [..]`: 80 bits): A long formula, covered by the tests.
 fn x87_2(
-    contact: &ContactWork,
+    probes: &ProbeLists,
     numbers: &Numbers,
     car: &Car,
     c: usize,
     scene: &crate::scene::owner::Scene,
 ) {
     let t0 = int(scene.draw_work().surface_point[1] as i32);
-    let t1 = contact.probe_share_u[c].ld();
+    let t1 = ld(probes.probe_share_u[c]);
     let t2 = t0 * t1;
     let t3 = int(scene.draw_work().surface_point[2] as i32);
-    let t4 = contact.probe_share_v[c].ld();
+    let t4 = ld(probes.probe_share_v[c]);
     let t5 = t3 * t4;
     let t6 = int(scene.draw_work().surface_point[0] as i32);
     let t7 = t5 + t6;
@@ -284,9 +284,9 @@ fn x87_3(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[PlainDword], d: &[PlainDword], k: usize) {
-    let t6 = int(s[k + 1].get() as i32);
-    let t7 = int(s[k + 7].get() as i32);
+fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[u32], d: &[u32], k: usize) {
+    let t6 = int(s[k + 1] as i32);
+    let t7 = int(s[k + 7] as i32);
     let t8 = t7 - t6;
     let t9 = shared.car().surface_blend.ld();
     let t10 = t8 * t9;
@@ -294,8 +294,8 @@ fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[PlainDword], d: &[PlainDwo
     let t12 = numbers.hundredth_a.ld();
     let t13 = t11 * t12;
     shared.physics_tables.get().surface_scales[0].st(t13);
-    let t14 = int(d[k + 1].get() as i32);
-    let t15 = int(d[k + 7].get() as i32);
+    let t14 = int(d[k + 1] as i32);
+    let t15 = int(d[k + 7] as i32);
     let t16 = t15 - t14;
     let t17 = shared.car().surface_blend.ld();
     let t18 = t16 * t17;

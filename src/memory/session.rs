@@ -1603,6 +1603,21 @@ pub trait CarEntries {
     fn set_entry(&self, n: usize, value: u32);
 }
 
+/// What the saves do to a player's record whatever holds it: read it whole and write it whole.
+pub trait PlayerSlot {
+    fn get(&self) -> rc2k_core::menu::player::Player;
+    fn set(&self, value: rc2k_core::menu::player::Player);
+}
+
+impl dyn PlayerSlot + '_ {
+    /// The record changed by `change` (worked on a copy, then written back).
+    pub fn update(&self, change: impl FnOnce(&mut rc2k_core::menu::player::Player)) {
+        let mut record = self.get();
+        change(&mut record);
+        self.set(record);
+    }
+}
+
 /// What a buffer of the game's bytes offers whether it is shared (`Bytes`) or the game
 /// thread's (`PlainBytes`): the code that reads or writes a typed buffer without caring which.
 pub trait ByteBuffer {

@@ -27,7 +27,10 @@ use crate::math::x87_float::to_int;
 use crate::math::x87_float::{X, stf};
 use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
-use crate::physics::figures::{GRIP_EASE_STEP, GRIP_SLOW_SPEED, SIDE_GRIP_SHARE};
+use crate::physics::figures::{
+    GRIP_EASE_STEP, GRIP_FACTOR, GRIP_FRONT_DRIVE, GRIP_REAR_DRIVE, GRIP_SLOW_SPEED,
+    SIDE_GRIP_SHARE,
+};
 use crate::physics::flow::FloatView;
 use crate::physics::flow::{
     ZERO_BITS as ZERO, abs_below_or_unordered, c3, ease_zero, hold_high, hold_high_to,
@@ -70,9 +73,9 @@ pub fn drive_grip_forces(
     if !c3(&car.local_velocity[2], ZERO) {
         // The slip limit, by the drive kind's factor.
         let factor = if kind == 1 {
-            &tables.grip_factor[1]
+            GRIP_FACTOR[1]
         } else {
-            &tables.grip_factor[0]
+            GRIP_FACTOR[0]
         };
         grip_limit_for(car, tables, factor);
         scratch.set_float(car.grip_forces[0].get());
@@ -98,9 +101,9 @@ pub fn drive_grip_forces(
     }
     if car.parts_state.get() == 1 {
         let k = if kind == 1 {
-            &tables.grip_rear_drive[0]
+            GRIP_REAR_DRIVE[0]
         } else {
-            &tables.grip_rear_drive[1]
+            GRIP_REAR_DRIVE[1]
         };
         car.grip_forces[0].set(x87::mul(&car.grip_forces[0], k));
     }
@@ -138,9 +141,9 @@ pub fn drive_grip_forces(
     }
     if car.parts_state.get() == u32::MAX {
         let k = if kind == 1 {
-            &tables.grip_front_drive[0]
+            GRIP_FRONT_DRIVE[0]
         } else {
-            &tables.grip_front_drive[1]
+            GRIP_FRONT_DRIVE[1]
         };
         car.grip_forces[1].set(x87::mul(&car.grip_forces[1], k));
     }
@@ -211,11 +214,11 @@ fn lever_share_from_timer(
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: &PlainFloat) {
+fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: f32) {
     let t0 = tables.wheel_grips[4].ld();
     let t1 = tables.gravity.ld();
     let t2 = t0 * t1;
-    let t3 = f.ld();
+    let t3 = ld(f);
     let t4 = t2 * t3;
     let t5 = tables.grip_scale.ld();
     let t6 = t4 * t5;

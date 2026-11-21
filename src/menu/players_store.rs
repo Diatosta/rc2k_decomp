@@ -2,14 +2,52 @@
 //! records' addresses (nothing reads it) and the players' names, the one value the front end owns
 //! of the players and lends to the net, save and race code. (The cars are in `CarTable`.)
 
-use crate::memory::session::{PlainDword, Shared, with_runs};
+use crate::memory::session::{GameThread, PlainDword, with_runs};
 use crate::menu::names_store::Names;
 use rc2k_core::menu::player::Player;
+use std::cell::RefCell;
+
+/// One player's record: plain fields behind one cell the game's thread alone reaches. It is read by
+/// copy and written through `set` or `update`, each borrow lasting one call.
+pub struct PlayerRecord(GameThread<RefCell<Player>>);
+
+impl PlayerRecord {
+    pub const fn new(value: Player) -> Self {
+        Self(GameThread::new(RefCell::new(value)))
+    }
+
+    /// A copy of the record.
+    pub fn get(&self) -> Player {
+        *self.0.get().borrow()
+    }
+
+    pub fn set(&self, value: Player) {
+        *self.0.get().borrow_mut() = value;
+    }
+
+    /// The record changed by `change` (the closure works on a copy, so it may read the same
+    /// record through `get`).
+    pub fn update(&self, change: impl FnOnce(&mut Player)) {
+        let mut record = self.get();
+        change(&mut record);
+        self.set(record);
+    }
+}
+
+impl crate::memory::session::PlayerSlot for PlayerRecord {
+    fn get(&self) -> Player {
+        PlayerRecord::get(self)
+    }
+
+    fn set(&self, value: Player) {
+        PlayerRecord::set(self, value);
+    }
+}
 
 /// The four players: records, their table and names.
 pub struct PlayerSlots {
     /// The players' records (settings, and the state of each player's car).
-    pub records: [Shared<Player>; 4],
+    pub records: [PlayerRecord; 4],
     /// The records' file addresses, player 1 first; read by nothing.
     pub pointers: [PlainDword; 4],
     /// The players' names, and the other texts kept with them.
@@ -20,7 +58,7 @@ impl PlayerSlots {
     pub const fn new() -> Self {
         PlayerSlots {
             records: [
-                Shared::new(Player::from_le_bytes(with_runs::<652>(&[
+                PlayerRecord::new(Player::from_le_bytes(with_runs::<652>(&[
                     (
                         0x8,
                         &[
@@ -75,7 +113,7 @@ impl PlayerSlots {
                         ],
                     ),
                 ]))),
-                Shared::new(Player::from_le_bytes(with_runs::<652>(&[
+                PlayerRecord::new(Player::from_le_bytes(with_runs::<652>(&[
                     (
                         0x0,
                         &[
@@ -130,7 +168,7 @@ impl PlayerSlots {
                         ],
                     ),
                 ]))),
-                Shared::new(Player::from_le_bytes(with_runs::<652>(&[
+                PlayerRecord::new(Player::from_le_bytes(with_runs::<652>(&[
                     (
                         0x0,
                         &[
@@ -185,7 +223,7 @@ impl PlayerSlots {
                         ],
                     ),
                 ]))),
-                Shared::new(Player::from_le_bytes(with_runs::<652>(&[
+                PlayerRecord::new(Player::from_le_bytes(with_runs::<652>(&[
                     (
                         0x0,
                         &[

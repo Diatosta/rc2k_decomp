@@ -3,14 +3,12 @@
 //! row (`MaskVars.pixel_table`).
 
 use crate::effects::mask_store::Masks;
-use crate::effects::mask_vars_store::Shape;
 use crate::effects::spans::run_get;
 use crate::effects::turns::{scale_rows3, set_line_turn, turn_pair, turn_pair_with};
 use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
-use crate::memory::session::{PlainDword, PlainFloat, read_bits, write_bits};
 
 /// The pixel table `n` (0 or 1, the shape's: `MaskPicks.pixel_table_a`, `_b`).
 fn pixel_table(
@@ -23,10 +21,18 @@ fn pixel_table(
         .ok_or(BadInput("a pixel table's number that names none"))
 }
 
-/// The line of `MaskVars.lines` from dword `at` (0 or 6): its two ends, 3 dwords apart.
-fn line(masks: &Masks, at: usize) -> &[PlainDword; 6] {
-    let (lines, _) = masks.vars.lines.as_chunks::<6>();
-    &lines[at / 6]
+/// The line of `lines` (`MaskVars.lines`) from dword `at` (0 or 6): its two ends, 3 dwords
+/// apart.
+fn line(lines: &[u32; 12], at: usize) -> [u32; 6] {
+    let (lines, _) = lines.as_chunks::<6>();
+    lines[at / 6]
+}
+
+/// The turn's rows scaled to the set lengths (`scale_rows3` on `MaskVars.turn`).
+fn scale_turn(masks: &Masks, effects: &crate::effects::owner::Effects) {
+    let mut turn = masks.vars.borrow().turn;
+    scale_rows3(&mut turn, effects);
+    masks.vars.borrow_mut().turn = turn;
 }
 
 /// One half of `map_pixel`: against the line from dword `line` of `MaskVars.lines` (its
@@ -63,8 +69,8 @@ fn next_seed(s: u32) -> u32 {
 /// back), the line's start, the other line's ends turned into the line's frame, and the span
 /// and slope between them.
 pub struct HalfPlan {
-    forward: [PlainFloat; 9],
-    back: [PlainFloat; 9],
+    forward: [f32; 9],
+    back: [f32; 9],
     start: [u32; 2],
     /// The ends in the order a1, a0, b1, b0.
     ends: [f32; 4],
@@ -74,29 +80,24 @@ pub struct HalfPlan {
     negative: bool,
 }
 
-/// A copy of the turn's nine floats.
-fn turn_copy(masks: &Masks) -> [PlainFloat; 9] {
-    std::array::from_fn(|n| PlainFloat::from_bits(masks.vars.turn[n].bits()))
-}
-
 /// The two halves' plans for the lines now in `MaskVars.lines`: the work `map_pixel` would
 /// repeat for every pixel of a quad. Leaves the turn as the last pixel's second half does.
 fn plan_halves(masks: &Masks, effects: &crate::effects::owner::Effects) -> [HalfPlan; 2] {
     HALVES.each_ref().map(|half| {
-        let lines = &masks.vars.lines;
-        crate::math::matrix3::identity_matrix3(&masks.vars.turn);
-        set_line_turn(masks, line(masks, half.line), false);
-        scale_rows3(&masks.vars.turn, effects);
-        let forward = turn_copy(masks);
-        let (lx, ly) = (lines[half.line].get(), lines[half.line + 1].get());
+        let lines = masks.vars.borrow().lines;
+        masks.vars.borrow_mut().turn = rc2k_core::math::vector::IDENTITY;
+        set_line_turn(masks, line(&lines, half.line), false);
+        scale_turn(masks, effects);
+        let forward = masks.vars.borrow().turn;
+        let (lx, ly) = (lines[half.line], lines[half.line + 1]);
         let turned = |x: [u8; 10], y: [u8; 10]| turn_pair(masks, [y, x]);
         let a = turned(
-            x87::sub_80(lines[half.other].get(), lx),
-            x87::sub_80(lines[half.other + 1].get(), ly),
+            x87::sub_80(lines[half.other], lx),
+            x87::sub_80(lines[half.other + 1], ly),
         );
         let b = turned(
-            x87::sub_80(lines[half.other + 3].get(), lx),
-            x87::sub_80(lines[half.other + 4].get(), ly),
+            x87::sub_80(lines[half.other + 3], lx),
+            x87::sub_80(lines[half.other + 4], ly),
         );
         // The ends in the order a1, a0, b1, b0.
         let ends = [a[1], a[0], b[1], b[0]].map(rounded_value);
@@ -106,11 +107,11 @@ fn plan_halves(masks: &Masks, effects: &crate::effects::owner::Effects) -> [Half
         if negative {
             span = -span;
         }
-        set_line_turn(masks, line(masks, half.line), true);
-        scale_rows3(&masks.vars.turn, effects);
+        set_line_turn(masks, line(&lines, half.line), true);
+        scale_turn(masks, effects);
         HalfPlan {
             forward,
-            back: turn_copy(masks),
+            back: masks.vars.borrow().turn,
             start: [lx, ly],
             ends,
             span,
@@ -137,9 +138,13 @@ pub fn map_pixel(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
-    let table = pixel_table(drops, masks.vars.pixel_table.get())?;
-    masks.vars.pixel[0].set(x);
-    let pixel: [u32; 2] = read_bits(&masks.vars.pixel);
+    let pixel_table_number = masks.vars.borrow().pixel_table;
+    let table = pixel_table(drops, pixel_table_number)?;
+    let pixel = {
+        let mut vars = masks.vars.borrow_mut();
+        vars.pixel[0] = x;
+        vars.pixel
+    };
     let shake = setup.work.borrow().shake;
     let mut out = [0i32; 2];
     for (half, plan) in HALVES.iter().zip(plans) {
@@ -183,16 +188,14 @@ pub fn map_pixel(
             .ok_or(BadInput("a mask pixel past the end of its table"))?
             .copy_from_slice(&[out[0] as u8, out[1] as u8]);
     }
-    write_bits(&masks.vars.work_pixel, out.map(|v| v as u32));
+    let mut vars = masks.vars.borrow_mut();
+    vars.work_pixel = out.map(|v| v as u32);
     if let Some(last) = plans.last() {
-        for (cell, from) in masks.vars.turn.iter().zip(&last.back) {
-            cell.set_bits(from.bits());
-        }
+        vars.turn = last.back;
         for (n, end) in last.ends.iter().enumerate() {
-            masks.vars.ends[[0, 1, 3, 4][n]].set(*end);
+            vars.ends[[0, 1, 3, 4][n]] = *end;
         }
-        masks.vars.slope[0].set(last.span);
-        masks.vars.slope[1].set(last.rise);
+        vars.slope = [last.span, last.rise];
     }
     Ok(())
 }
@@ -243,24 +246,25 @@ pub(super) fn map_shape_rows(
             run_get(masks, e + 4)?,
             run_get(masks, e + 8)?,
         );
-        masks.vars.pixel[1].set(row);
+        masks.vars.borrow_mut().pixel[1] = row;
         let mut at = row.wrapping_mul(0x400);
         for i in 0..(count as i32).max(0) as u32 {
             let (x, len) = (
                 crate::effects::masks::work_get(masks, spans.wrapping_add(8 * i))?,
                 crate::effects::masks::work_get(masks, spans.wrapping_add(8 * i + 4))?,
             );
-            let y: u32 = masks.vars.pixel[1].get();
-            masks.vars.row_distance.set(x87::int_plus_less_squared(
-                y as i32,
-                effects.setup.mask_constants.borrow().row_add,
-                &masks.vars.middle[1],
-            ));
+            let (y, middle_y) = {
+                let vars = masks.vars.borrow();
+                (vars.pixel[1], vars.middle[1])
+            };
+            let row_add = effects.setup.mask_constants.borrow().row_add;
+            masks.vars.borrow_mut().row_distance =
+                x87::int_plus_less_squared(y as i32, row_add, middle_y);
             for n in 0..(len as i32).max(0) as u32 {
                 let plans = plans.get_or_insert_with(|| plan_halves(masks, effects));
                 map_pixel(masks, drops, at, x.wrapping_add(n), plans, effects)?;
             }
-            masks.vars.pixel[1].set(y.wrapping_add(1));
+            masks.vars.borrow_mut().pixel[1] = y.wrapping_add(1);
             at = at.wrapping_add(0x400);
         }
     }
@@ -272,16 +276,15 @@ pub(super) fn map_shape_rows(
 fn map_shape(
     masks: &Masks,
     drops: &WindscreenDrops,
-    shapes: &Shape,
+    entries: u32,
     shape: u32,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let entries = shapes.rows.get();
         let first = shape.wrapping_add(shape);
         rows_fit(masks, entries, first)?;
         rows_fit(masks, entries, first.wrapping_add(1))?;
-        masks.vars.mask_value.set(shape);
+        masks.vars.borrow_mut().mask_value = shape;
         // The quad's plans are made at its first pixel, for both its entries.
         let mut plans = None;
         map_shape_rows(masks, drops, entries, first, &mut plans, effects)?;
@@ -322,18 +325,18 @@ pub(super) fn map_shapes(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let shapes = masks
+        let shape = *masks
             .vars
+            .borrow()
             .shapes
             .get(n as usize)
             .ok_or(BadInput("a shape's number that names none"))?;
         let table = pixel_table(drops, n)?;
-        let corners = crate::effects::corners::tables(masks)[n as usize];
-        let count = shapes.count.get() as i32;
+        let count = shape.count as i32;
         if count <= 0 || count > 0x80 {
             return Err(BadInput("no shapes to map, or more than 0x80").into());
         }
-        let entries = shapes.rows.get();
+        let entries = shape.rows;
         for k in 0..2 * count as u32 {
             rows_fit(masks, entries, k)?;
         }
@@ -343,26 +346,30 @@ pub(super) fn map_shapes(
         drops.picks.borrow_mut().table_in_use = n;
         drops.picks.borrow_mut().corners = n;
         table.borrow_mut().fill(0);
-        masks
-            .vars
-            .pixel_table
-            .set(drops.picks.borrow().table_in_use);
-        masks.vars.pixel_corners.set(drops.picks.borrow().corners);
-        write_bits(
-            &masks.vars.middle,
-            [
-                x87::loaded(&shapes.middle[0]).to_bits(),
-                x87::loaded(&shapes.middle[1]).to_bits(),
-            ],
-        );
+        {
+            let (table_in_use, corner_table) = {
+                let picks = drops.picks.borrow();
+                (picks.table_in_use, picks.corners)
+            };
+            let mut vars = masks.vars.borrow_mut();
+            vars.pixel_table = table_in_use;
+            vars.pixel_corners = corner_table;
+            vars.middle = [x87::loaded(shape.middle[0]), x87::loaded(shape.middle[1])];
+        }
         for k in 0..count as u32 {
             let e = k * 0x18;
             for (to, from) in LINE_FROM {
-                let bytes = corners.read_at((e + from) as usize, 4, "a corner entry")?;
-                masks.vars.lines[to as usize / 4]
-                    .set(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]));
+                let word = {
+                    let vars = masks.vars.borrow();
+                    let at = (e + from) as usize;
+                    *vars.corners[n as usize]
+                        .get(at..)
+                        .and_then(|rest| rest.first_chunk::<4>())
+                        .ok_or(BadInput("a corner entry"))?
+                };
+                masks.vars.borrow_mut().lines[to as usize / 4] = u32::from_le_bytes(word);
             }
-            map_shape(masks, drops, shapes, k, effects)?;
+            map_shape(masks, drops, entries, k, effects)?;
         }
         x87::set_control_word(came);
     }

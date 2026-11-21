@@ -139,7 +139,7 @@ pub struct Masks {
     pub edge_settings: EdgeSettings,
     pub edge_mask: EdgeMask,
     pub kind_boxes: KindBoxes,
-    pub vars: crate::effects::mask_vars_store::MaskVars,
+    pub vars: core::cell::RefCell<crate::effects::mask_vars_store::MaskVars>,
 }
 
 impl Masks {
@@ -156,7 +156,7 @@ impl Masks {
             edge_settings: EdgeSettings::new(),
             edge_mask: EdgeMask::new(),
             kind_boxes: KindBoxes::new(),
-            vars: crate::effects::mask_vars_store::MaskVars::new(),
+            vars: core::cell::RefCell::new(crate::effects::mask_vars_store::MaskVars::new()),
         }
     }
 }

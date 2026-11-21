@@ -55,11 +55,11 @@ fn turn_pair_x87_matches() {
     };
     recorded("effects.turns.turn_pair_x87", &SPEC, |b| {
         // The turn's floats 0, 1, 3 and 4 (byte offsets 0, 4, 0xC, 0x10).
-        let m: [PlainFloat; 9] = std::array::from_fn(|n| {
+        let m: [f32; 9] = std::array::from_fn(|n| {
             if n < 5 {
-                cell(b[1] + 4 * n)
+                cell(b[1] + 4 * n).get()
             } else {
-                cell(b[1])
+                cell(b[1]).get()
             }
         });
         let out = super::turn_pair_x87(&pair(b[0]), &m);

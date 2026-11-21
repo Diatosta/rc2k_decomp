@@ -17,7 +17,7 @@ use rc2k_core::saves::rankings::{BKey, ChampHistory, HistoryEntry, RankedTimes};
 pub const ANY_GROUP: u32 = standings::ANY_GROUP;
 
 /// A player's record, typed.
-pub type PlayerCell<'a> = &'a crate::memory::session::Shared<rc2k_core::menu::player::Player>;
+pub type PlayerCell<'a> = &'a crate::menu::players_store::PlayerRecord;
 
 /// Whether any of the players has no name (a null name place).
 pub(super) fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInput> {

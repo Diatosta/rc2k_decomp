@@ -17,7 +17,7 @@
 use crate::math::matrix3::extended;
 use crate::math::x87;
 use crate::math::x87::{ext_div2, int_80, mul2, neg_rounded, negated, wheel_int};
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::ProbeLists;
 use crate::physics::figures::{PROBE_SHARE, SPRING_FORCE_SCALE, SPRING_SHARE};
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::blocks_store::CarBlocks;
@@ -33,7 +33,7 @@ fn below(x: f32, b: f32) -> bool {
 /// The exact version, for `physics::car_physics_step`.
 pub fn wheel_springs(
     car_blocks: &CarBlocks,
-    contact: &ContactWork,
+    probes: &ProbeLists,
     numbers: &Numbers,
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
@@ -45,7 +45,7 @@ pub fn wheel_springs(
         let old = x87::loaded(q);
         scene.draw_work_mut().work_dword = old.to_bits();
         c.wheel_squeeze_last[k].set(old);
-        let squeeze_distance = contact.probe_height[k].get().wrapping_neg();
+        let squeeze_distance = probes.probe_height[k].wrapping_neg();
         q.set(ext_div2(
             int_80(squeeze_distance as i32, false),
             &numbers.k65536,

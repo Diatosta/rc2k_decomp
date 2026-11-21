@@ -126,7 +126,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::save_car_state::save_car_state(
         race.shared.car(),
         race.shared.physics_tables.get(),
-        race.physics.contact.get(),
+        &mut race.physics.probes().borrow_mut(),
     )?;
     ph::clear_forces::clear_forces(race.shared.physics_tables.get())?;
     ph::set_wheel_weights::set_wheel_weights(
@@ -184,7 +184,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     );
     ph::wheel_springs::wheel_springs(
         race.car_blocks(),
-        race.physics.contact.get(),
+        &race.physics.probes().borrow(),
         race.course.numbers.get(),
         &race.shared,
         scene,

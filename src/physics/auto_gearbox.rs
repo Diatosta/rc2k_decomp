@@ -39,7 +39,7 @@ fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Ref
     wheels(car, tables)?;
     car.gear.set(car.gear.get().wrapping_add(1));
     revs(car, tables, numbers)?;
-    settle(car, tables);
+    settle(car);
     Ok(Shift::Done)
 }
 
@@ -49,7 +49,7 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
     car.gear.set(car.gear.get().wrapping_sub(1));
     revs(car, tables, numbers)?;
     if below(car.engine_speed.get(), tables.rev_limit.get()) {
-        settle(car, tables);
+        settle(car);
         return Ok(Shift::Done);
     }
     car.gear.set(car.gear.get().wrapping_add(1));
@@ -142,7 +142,7 @@ pub(super) fn auto_gearbox(
             Shift::Up => up(car, tables, numbers)?,
             Shift::Down => down(car, tables, numbers)?,
             Shift::Neutral => {
-                neutral(car, tables);
+                neutral(car);
                 Shift::Done
             }
             Shift::Start => {

@@ -30,7 +30,13 @@ fn word(course: &Course, face: u32) -> Result<u32, Refused> {
 fn after(c: &ContactInputs<'_>) -> Result<(), Refused> {
     c.car.contact_flag.set(1);
     c.car.wall_hit_timer.set(0x32);
-    { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
+    {
+        crate::physics::restore_saved_car::restore_saved_car(
+            c.car,
+            c.tables,
+            &c.ground.probes.borrow(),
+        )
+    }?;
     crate::physics::feel_ground::feel_ground(&c.ground)
 }
 
@@ -45,7 +51,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
         let now = c.car.probe_point_face[k].get();
         faces.set(WallFaces { now, ..faces.get() });
         let now_word = word(c.course, now)?;
-        let before = contact.probe_saved_faces[k].get();
+        let before = c.ground.probes.borrow().probe_saved_faces[k];
         let before_word = if now != before {
             faces.set(WallFaces { before, now });
             Some(word(c.course, before)?)

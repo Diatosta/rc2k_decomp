@@ -452,10 +452,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.menus.screens.controls),
         ),
         listed!(
-            "owners.menus.play.slots.records",
-            on_game(&o.menus.play.slots.records),
-        ),
-        listed!(
             "owners.menus.play.slots.pointers",
             on_game(&o.menus.play.slots.pointers),
         ),
@@ -650,10 +646,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.race.shared.state", &o.race.shared.state,),
         listed!(
-            "owners.effects.windscreen_drops.inputs",
-            on_game(&o.race.effects.get().windscreen_drops.inputs),
-        ),
-        listed!(
             "owners.effects.setup.frame",
             on_game(&o.race.effects.get().setup.frame),
         ),
@@ -688,18 +680,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.masks.kind_boxes",
             on_game(&o.race.effects.get().masks.kind_boxes),
-        ),
-        listed!(
-            "owners.effects.masks.vars",
-            on_game(&o.race.effects.get().masks.vars),
-        ),
-        listed!(
-            "owners.effects.windscreen_drops.shape_work",
-            on_game(&o.race.effects.get().windscreen_drops.shape_work,),
-        ),
-        listed!(
-            "owners.effects.windscreen_drops.tuning",
-            on_game(&o.race.effects.get().windscreen_drops.tuning),
         ),
         listed!(
             "owners.effects.windscreen_flakes.items",

@@ -630,6 +630,13 @@ mod vector_tests {
     /// The options store is plain fields: its five ranges here are read and written by hand.
     const OPTIONS: &str = "owners.menus.options";
 
+    const RECORDS: &str = "owners.menus.play.slots.records";
+
+    /// The player a record range (`[n]` of the players' records) names.
+    fn record_index(name: &str, path: &str) -> Option<usize> {
+        (name == RECORDS).then(|| path[1..path.len() - 1].parse().expect("a record number"))
+    }
+
     /// The word of a plain store's range, if `name` is one.
     fn plain_word(name: &str, path: &str) -> Option<u32> {
         let menus = Owners::the().menus;
@@ -924,8 +931,7 @@ mod vector_tests {
     ];
 
     /// The stores the test writes.
-    const STORES: [&str; 5] = [
-        "owners.menus.play.slots.records",
+    const STORES: [&str; 4] = [
         "owners.menus.play.slots.pointers",
         "owners.race.replay.viewer_and_kinds",
         "owners.race.shared.state",
@@ -1000,6 +1006,12 @@ mod vector_tests {
 
     /// `len` bytes of the cells from byte `skip` of the field `path` of the store `name`.
     fn read_range(name: &str, path: &str, skip: usize, len: usize) -> Vec<u8> {
+        if let Some(n) = record_index(name, path) {
+            let bytes = Owners::the().menus.play.slots.records[n]
+                .get()
+                .to_le_bytes();
+            return bytes[skip..skip + len].to_vec();
+        }
         if let Some(word) = plain_word(name, path) {
             return word.to_le_bytes()[skip..skip + len].to_vec();
         }
@@ -1011,6 +1023,13 @@ mod vector_tests {
 
     /// The cells `read_range` names set from `bytes`.
     fn write_range(name: &str, path: &str, skip: usize, bytes: &[u8]) {
+        if let Some(n) = record_index(name, path) {
+            let record = &Owners::the().menus.play.slots.records[n];
+            let mut whole = record.get().to_le_bytes();
+            whole[skip..skip + bytes.len()].copy_from_slice(bytes);
+            record.set(Player::from_le_bytes(whole));
+            return;
+        }
         if let Some(word) = plain_word(name, path) {
             let mut word = word.to_le_bytes();
             word[skip..skip + bytes.len()].copy_from_slice(bytes);
@@ -1241,6 +1260,13 @@ mod vector_tests {
     #[test]
     fn single_rally_is_the_originals() {
         let kept = Snapshot::of(&STORES);
+        let kept_records = Owners::the()
+            .menus
+            .play
+            .slots
+            .records
+            .each_ref()
+            .map(crate::menu::players_store::PlayerRecord::get);
         let kept_arcade = Owners::the().menus.play.arcade.read();
         let kept_flow = Owners::the().menus.screens.flow.read();
         let kept_event = Owners::the().menus.screens.event.read();
@@ -1266,6 +1292,16 @@ mod vector_tests {
             results += (places.contains(&7) && c.result == Some(u32::MAX)) as u32;
         }
         kept.restore();
+        for (record, saved) in Owners::the()
+            .menus
+            .play
+            .slots
+            .records
+            .iter()
+            .zip(kept_records)
+        {
+            record.set(saved);
+        }
         *Owners::the().menus.play.arcade.write() = kept_arcade;
         *Owners::the().menus.screens.flow.write() = kept_flow;
         *Owners::the().menus.screens.event.write() = kept_event;

@@ -7,7 +7,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::DwordLike;
 use crate::memory::session::PlainDword;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::ProbeLists;
 use crate::physics::step_families::{GroundInputs, ResetInputs};
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::matrices_store::SceneMatrices;
@@ -28,8 +28,13 @@ fn zero(cells: &[&PlainDword]) {
     }
 }
 
-fn wheels(contact: &ContactWork) -> [u32; 4] {
-    crate::memory::session::read_first(&contact.probe_height)
+fn wheels(probes: &ProbeLists) -> [u32; 4] {
+    [
+        probes.probe_height[0],
+        probes.probe_height[1],
+        probes.probe_height[2],
+        probes.probe_height[3],
+    ]
 }
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair (down when
@@ -53,7 +58,7 @@ fn matrix_and_wheels(
 ) -> Result<[u32; 4], Refused> {
     crate::race::stage_prefs::get_mat_crash(engine_tables, matrices, ground.car, scene);
     crate::physics::probe_ground::probe_ground(ground, ground.car)?;
-    Ok(wheels(ground.contact))
+    Ok(wheels(&ground.probes.borrow()))
 }
 
 /// Settles the work car on the ground: `physics::set_handling`; the work car's pitch and roll
@@ -105,12 +110,13 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     }
     shared.car().position[1].set(shared.car().position[1].get().wrapping_sub(lowest));
     // `probe_height` .. 20: the four wheels' heights (made by `physics::probe_ground`).
+    let mut probes = physics.probes().borrow_mut();
     for (k, h) in w.iter().enumerate() {
-        physics.contact.get().probe_height[k].set(h.wrapping_sub(lowest));
+        probes.probe_height[k] = h.wrapping_sub(lowest);
     }
     // `probe_y` .. 20: four more lowered with them.
-    for cell in &physics.contact.get().probe_y[..4] {
-        cell.set(cell.get().wrapping_sub(lowest));
+    for y in &mut probes.probe_y[..4] {
+        *y = y.wrapping_sub(lowest);
     }
     Ok(())
 }

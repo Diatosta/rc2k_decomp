@@ -40,7 +40,7 @@ pub fn pace_notes_step(
 ) -> Result<(), Refused> {
     let (physics, numbers, frame_work) = (c.physics, c.numbers, &c.frame_work);
     let (work, vars, replay_file) = (c.work, c.vars, c.shared.replay_file());
-    let (physics_tables, car) = (c.tables, c.car);
+    let car = c.car;
     let scene_clock = c.shared.run().scene_clock;
     if !calling(
         gates(work, replay_file, car),
@@ -70,7 +70,6 @@ pub fn pace_notes_step(
                 physics,
                 frame_work,
                 work,
-                physics_tables,
                 scene_clock,
                 car,
                 checkpoint,

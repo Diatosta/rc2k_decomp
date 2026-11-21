@@ -211,3 +211,120 @@ pub const OFF_LINE_WORD: u32 = 0x60000000;
 
 /// (`physics::pace_notes_step`).
 pub const PACE_SCALE: f32 = 1.0;
+
+/// 2.4 / 1.6 by drive kind 1 or not (`physics::drive_grip_forces`).
+pub const GRIP_FRONT_DRIVE: [f32; 2] = [2.4, 1.6];
+
+/// 0.5 / 0.4 by drive kind 1 or not (`physics::drive_grip_forces`).
+pub const GRIP_REAR_DRIVE: [f32; 2] = [0.5, 0.4];
+
+/// 2.0 / 2.2 by drive kind (`physics::drive_grip_forces`).
+pub const GRIP_FACTOR: [f32; 2] = [2.0, 2.2];
+
+/// 0.0045 / 0.0025 by drive kind (`physics::add_drive_forces`).
+pub const DRIVE_FORCE_FACTOR: [f32; 2] = [0.0045, 0.0025];
+
+/// `physics::set_handling`'s (lo, hi) pairs for three of its figures.
+pub const HANDLING_RANGES_A: [f32; 6] = [0.1, 0.9, 0.5, 1.5, 0.25, 1.25];
+
+/// `physics::set_handling`'s pairs for two more figures (the second chosen by kind).
+pub const HANDLING_RANGES_B: [f32; 6] = [0.1, 0.2, 0.3, 0.16, 0.4, 0.26];
+
+/// `physics::set_handling`'s pairs for four more figures.
+pub const HANDLING_RANGES_C: [f32; 8] = [0.15, 0.1, 100.0, 200.0, 1.0, 2.0, 0.45, 0.3];
+
+/// The events `physics::queue_listed_event` lists by number; -1 for none.
+pub const LISTED_EVENTS: [u32; 32] = [
+    0xFFFF_FFFF,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    8,
+    9,
+    10,
+    11,
+    12,
+    0xFFFF_FFFF,
+    0xFFFF_FFFF,
+    0xFFFF_FFFF,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    0,
+    1,
+    2,
+    3,
+    4,
+    0xFFFF_FFFF,
+    0xFFFF_FFFF,
+];
+
+/// Each pace-note slot's byte in the face (`race::pace_notes`).
+pub const PACE_SLOT_OFFSETS: [u32; 8] = [40, 41, 42, 43, 25, 26, 27, 32];
+
+/// The engine's torque curve read in pairs (`physics::engine_torque`).
+pub const TORQUE_CURVE: [f32; 9] = [0.0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0];
+
+/// 5: the steps the drive is cut after a change.
+pub const DRIVE_CUT_STEPS: u32 = 5;
+
+/// `physics::find_clear_place`'s first step table.
+pub const CLEAR_PLACE_STEPS_A: [u32; 16] = [
+    0,
+    7,
+    10,
+    7,
+    0,
+    0xFFFF_FFF9,
+    0xFFFF_FFF6,
+    0xFFFF_FFF9,
+    0,
+    10,
+    14,
+    10,
+    0,
+    0xFFFF_FFF6,
+    0xFFFF_FFF2,
+    0xFFFF_FFF6,
+];
+
+/// Its second step table.
+pub const CLEAR_PLACE_STEPS_B: [u32; 16] = [
+    10,
+    7,
+    0,
+    0xFFFF_FFF9,
+    0xFFFF_FFF6,
+    0xFFFF_FFF9,
+    0,
+    7,
+    14,
+    10,
+    0,
+    0xFFFF_FFF6,
+    0xFFFF_FFF2,
+    0xFFFF_FFF6,
+    0,
+    10,
+];
+
+/// Eight tables of 13 dwords the ground kinds' records point at: [0] then six figures by tyre kind
+/// and six more (`physics::wheel_surfaces`).
+#[rustfmt::skip]
+pub const SURFACE_TABLES: [u32; 104] = [
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 120, 120, 115, 105, 90, 80, 75, 80, 95, 105, 85, 75, 75,
+    85, 65, 70, 75, 85, 80, 65, 60, 65, 70, 75, 80, 65, 75, 45, 50, 55, 75, 70, 55, 40, 45, 50, 65,
+    70, 55, 75, 40, 45, 50, 65, 70, 75, 40, 45, 50, 65, 70, 75, 70, 40, 45, 50, 70, 65, 50, 35, 40,
+    45, 60, 65, 50, 75, 35, 40, 45, 60, 65, 75, 35, 40, 45, 60, 65, 75, 65, 25, 30, 35, 50, 55, 65,
+    25, 30, 35, 50, 55, 65,
+];

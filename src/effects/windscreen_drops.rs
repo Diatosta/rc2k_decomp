@@ -109,7 +109,7 @@ pub(super) fn expire_windscreen_drops(
                     let at = drops.picks.borrow().index.wrapping_add(k) & 0xFF;
                     drops.picks.borrow().values[at as usize]
                 },
-                |n| [&masks.vars.mask_a, &masks.vars.mask_b][n].get(c.at as usize),
+                |n| masks.vars.borrow().masks[n][c.at as usize],
             );
             if hit {
                 hex.set_item(e, 0);

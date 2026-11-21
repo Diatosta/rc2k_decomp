@@ -4,13 +4,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::menu::player::{Player, player};
+use crate::menu::player::player;
 use crate::screens::car_caption::put_string;
 
 pub const TEXT_LEN: usize = 0x100;
 const FIRST_STRING: u32 = 0x21F;
 
-pub fn current(menus: &Menus) -> Result<&'_ crate::memory::session::Shared<Player>, Refused> {
+pub fn current(menus: &Menus) -> Result<&'_ crate::menu::players_store::PlayerRecord, Refused> {
     Ok(player(menus, menus.screens.event.read().current_player)
         .ok_or(BadInput("a current player past the four"))?)
 }

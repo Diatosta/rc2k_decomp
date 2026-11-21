@@ -81,9 +81,7 @@ pub fn head(menus: &Menus) -> [HeadWord<'_>; 7] {
 pub use rc2k_core::saves::savegame::{CAR_LEN, CARS, RECORDS_LEN};
 
 /// The four players, if every one has its name pointer in `name_number`.
-pub fn cars(
-    play: &Play,
-) -> Result<&[crate::memory::session::Shared<crate::menu::player::Player>; CARS], BadInput> {
+pub fn cars(play: &Play) -> Result<[&dyn crate::memory::session::PlayerSlot; CARS], BadInput> {
     if play
         .slots
         .records
@@ -94,7 +92,11 @@ pub fn cars(
             "a car has no pointer at +0x18: the original reads through null",
         ));
     }
-    Ok(&play.slots.records)
+    Ok(play
+        .slots
+        .records
+        .each_ref()
+        .map(|record| record as &dyn crate::memory::session::PlayerSlot))
 }
 
 /// The saved game's bytes put into `file` from byte `base` on.
@@ -105,10 +107,14 @@ pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(
         // The savegame is a file's bytes.
         file.store(base + 4 * n, &at.get().to_le_bytes())?;
     }
-    cars[0].update(|p| {
-        p.saved_start_section = menus.screens.flow.read().start_section;
-        p.saved_start_section_a8 = menus.screens.flow.read().start_section_a8;
-    });
+    let (start_section, start_section_a8) = {
+        let flow = menus.screens.flow.read();
+        (flow.start_section, flow.start_section_a8)
+    };
+    let mut first = cars[0].get();
+    first.saved_start_section = start_section;
+    first.saved_start_section_a8 = start_section_a8;
+    cars[0].set(first);
     for (n, car) in cars.iter().enumerate() {
         let name = crate::menu::player_names::name_bytes(
             menus,
@@ -142,7 +148,7 @@ mod tests {
             .slots
             .records
             .each_ref()
-            .map(crate::memory::session::Shared::get);
+            .map(crate::memory::session::PlayerSlot::get);
         let original_names = std::array::from_fn::<_, 4, _>(|i| {
             crate::menu::player_names::name_bytes(crate::test_support::own::menus(), i)
         });
@@ -205,7 +211,7 @@ mod tests {
             .slots
             .records
             .each_ref()
-            .map(crate::memory::session::Shared::get);
+            .map(crate::memory::session::PlayerSlot::get);
         let names_before: [_; 4] =
             std::array::from_fn(|i| crate::menu::player_names::name_bytes(menus, i));
         let records_before = menus.cars.drivers.to_bytes();

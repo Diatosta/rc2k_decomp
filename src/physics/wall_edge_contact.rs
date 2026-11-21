@@ -116,9 +116,12 @@ pub fn steps(
     copy_cells(&c.contact.contact_car_speed, &c.car.velocity);
     copy_cells(&c.contact.contact_turn_speed, &c.car.spin);
     let n = n as usize;
-    c.contact.contact_point[0].set(c.contact.probe_turned_x[n].get());
-    c.contact.contact_point[1].set(c.contact.probe_turned_y[n].get());
-    c.contact.contact_point[2].set(c.contact.probe_turned_z[n].get());
+    {
+        let probes = c.ground.probes.borrow();
+        c.contact.contact_point[0].set(probes.probe_turned_x[n]);
+        c.contact.contact_point[1].set(probes.probe_turned_y[n]);
+        c.contact.contact_point[2].set(probes.probe_turned_z[n]);
+    }
     c.contact.contact_point[1].set(mul(&c.contact.contact_point[1], &c.numbers.tenth));
     c.contact.contact_slide_limit.set(0.0);
     contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[4]);

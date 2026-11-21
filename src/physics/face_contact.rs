@@ -160,7 +160,13 @@ pub fn steps(
         Inside::Touch => return touch(c, scene),
         Inside::Nothing => return Ok(()),
     }
-    { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
+    {
+        crate::physics::restore_saved_car::restore_saved_car(
+            c.car,
+            c.tables,
+            &c.ground.probes.borrow(),
+        )
+    }?;
     { crate::physics::feel_ground::feel_ground(&c.ground) }?;
     touch(c, scene)?;
     // Pushed back against the motion, level.

@@ -7,7 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::cells::Store;
-use crate::memory::session::{DwordLike, Run, Shared};
+use crate::memory::session::{DwordLike, PlayerSlot, Run};
 use crate::menu::player::Player;
 use crate::owners::Owners;
 use crate::records::stages_store::{RECORD_LEN, Record};
@@ -158,7 +158,7 @@ pub(crate) enum Field<'a> {
         set: Box<BytesSet<'a>>,
     },
     /// A player's record.
-    Player(&'a Shared<Player>),
+    Player(&'a dyn PlayerSlot),
     /// Records of the stage tables.
     Records(&'a [Record]),
     /// Best-time entries.
@@ -179,7 +179,7 @@ trait Move {
         get: &dyn Fn() -> Vec<u8>,
         set: &dyn Fn(&[u8]),
     ) -> Result<(), BadInput>;
-    fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput>;
+    fn player(&mut self, field: &dyn PlayerSlot) -> Result<(), BadInput>;
 }
 
 /// The file's bytes made from the fields.
@@ -221,7 +221,7 @@ impl Move for Put {
         Ok(())
     }
 
-    fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput> {
+    fn player(&mut self, field: &dyn PlayerSlot) -> Result<(), BadInput> {
         self.0.extend_from_slice(&field.get().to_le_bytes());
         Ok(())
     }
@@ -278,7 +278,7 @@ impl Move for Take<'_> {
         Ok(())
     }
 
-    fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput> {
+    fn player(&mut self, field: &dyn PlayerSlot) -> Result<(), BadInput> {
         let bytes = self
             .next(size_of::<Player>())?
             .try_into()
@@ -335,7 +335,7 @@ impl Field<'_> {
             Self::Value { get, set } => m.value(get, set),
             Self::Text { cells, from, len } => m.text(*cells, *from, *len),
             Self::Bytes { len, get, set } => m.bytes(*len, get, set),
-            Self::Player(player) => m.player(player),
+            Self::Player(player) => m.player(*player),
             Self::Records(records) => records.iter().try_for_each(|record| m.words(record)),
             Self::TimeEntries(entries) => entries.iter().try_for_each(|entry| time_entry(entry, m)),
         }

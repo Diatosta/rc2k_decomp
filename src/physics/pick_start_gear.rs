@@ -55,6 +55,6 @@ pub(super) fn pick_start_gear(
         &car.engine_speed,
     ));
     wheels(car, tables)?;
-    settle(car, tables);
+    settle(car);
     Ok(())
 }

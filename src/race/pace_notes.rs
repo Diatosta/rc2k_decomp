@@ -78,7 +78,7 @@ impl Stage for GameStage<'_> {
         crate::race::checkpoints_store::angle_run_on(self.race.checkpoints(), k as usize).get()
     }
     fn slot_offset(&self, slot: u32) -> u32 {
-        self.race.shared.physics_tables.get().pace_slot_offsets[slot as usize].get()
+        crate::physics::figures::PACE_SLOT_OFFSETS[slot as usize]
     }
     fn word(&self, tens: u32) -> u8 {
         self.race.physics.pace().distance_words[tens as usize]

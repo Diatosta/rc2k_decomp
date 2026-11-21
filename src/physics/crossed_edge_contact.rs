@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::math::x87::mul;
 use crate::memory::session::FloatLike;
 use crate::physics::contact_force::contact_force;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::ProbeLists;
 use crate::physics::step_families::ContactInputs;
 use crate::physics::wall_edge_contact::edge_normal;
 use rc2k_core::physics::walls;
@@ -40,16 +40,13 @@ fn side(path: &Path, x: u32, z: u32) -> bool {
 /// The steps, not guarded (the probe checked before).
 // Core: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
 pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
-    let n = c.contact.crossed_probe.get();
-    let k = n as usize;
+    let probes = c.ground.probes.borrow().clone();
+    let k = probes.crossed_probe as usize;
     let path = Path {
-        before: (
-            c.contact.saved_probe_x[k].get(),
-            c.contact.saved_probe_z[k].get(),
-        ),
-        now: (c.contact.probe_x[k].get(), c.contact.probe_z[k].get()),
+        before: (probes.saved_probe_x[k], probes.saved_probe_z[k]),
+        now: (probes.probe_x[k], probes.probe_z[k]),
     };
-    let face = c.contact.saved_probe_faces[k].get();
+    let face = probes.saved_probe_faces[k];
     let mut corners = [(0u32, 0u32); 4];
     for (j, corner) in corners.iter_mut().enumerate() {
         let point = crate::race::course_places::face_field::<u32>(
@@ -89,9 +86,9 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     )?;
     copy3(&c.contact.contact_car_speed, &c.car.velocity);
     copy3(&c.contact.contact_turn_speed, &c.car.spin);
-    c.contact.contact_point[0].set(c.contact.probe_turned_x[k].get());
-    c.contact.contact_point[1].set(c.contact.probe_turned_y[k].get());
-    c.contact.contact_point[2].set(c.contact.probe_turned_z[k].get());
+    c.contact.contact_point[0].set(probes.probe_turned_x[k]);
+    c.contact.contact_point[1].set(probes.probe_turned_y[k]);
+    c.contact.contact_point[2].set(probes.probe_turned_z[k]);
     c.contact.contact_point[1].set(mul(&c.contact.contact_point[1], &c.numbers.tenth));
     c.contact.contact_slide_limit.set(0.0);
     contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[1]);
@@ -100,6 +97,6 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
 }
 
 /// The probe checked: refused past 0x3F.
-pub fn check_probe(contact: &ContactWork) -> Result<(), Refused> {
-    Ok(walls::check_probe(contact.crossed_probe.get())?)
+pub fn check_probe(probes: &ProbeLists) -> Result<(), Refused> {
+    Ok(walls::check_probe(probes.crossed_probe)?)
 }

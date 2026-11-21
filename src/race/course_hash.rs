@@ -240,6 +240,81 @@ pub fn note_texture_row(texture: u32, level: u32, y: u32, row: &[u8]) {
     );
 }
 
+/// The hash of the one-time marks' mask variables, as the cell store they replaced hashed:
+/// one run per field (an array of cells, or a table of bytes, whole), a shape's fields by their
+/// own path, and the two zero runs of the store's unused words.
+#[cfg(feature = "remote")]
+fn mask_vars_hash(masks: &crate::effects::mask_store::Masks) -> u64 {
+    let v = &*masks.vars.borrow();
+    let mut sum = 0u64;
+    let mut dwords = |path: &str, run: &[u32]| sum = sum.wrapping_add(dword_run_hash(path, run));
+    let bits = |run: &[f32]| run.iter().map(|f| f.to_bits()).collect::<Vec<u32>>();
+    dwords(".spans_total", &[v.spans_total]);
+    let list = v.list.get();
+    dwords(".list.head", &[list.head]);
+    dwords(".list.total", &[list.total]);
+    dwords(".list.cursor", &[list.cursor]);
+    dwords(".list.remaining", &[list.remaining]);
+    dwords(".work", &[0]);
+    dwords(".count", &[v.count]);
+    dwords(".corner_scale[0]", &bits(&v.corner_scale));
+    dwords(".turn[0]", &bits(&v.turn));
+    dwords(".slope[0]", &bits(&v.slope));
+    dwords(".work_pixel[0]", &v.work_pixel);
+    dwords(".lines[0]", &v.lines);
+    dwords(".ends[0]", &bits(&v.ends));
+    dwords(".ring_corners", &[v.ring_corners]);
+    for (n, shape) in v.shapes.iter().enumerate() {
+        dwords(&format!(".shapes[{n}].ease_step"), &[shape.ease_step]);
+        dwords(&format!(".shapes[{n}].count"), &[shape.count]);
+        dwords(&format!(".shapes[{n}].rows"), &[shape.rows]);
+        dwords(&format!(".shapes[{n}].middle[0]"), &bits(&shape.middle));
+        dwords(
+            &format!(".shapes[{n}].angle_ends[0]"),
+            &bits(&shape.angle_ends),
+        );
+        dwords(&format!(".shapes[{n}].radii[0]"), &bits(&shape.radii));
+    }
+    dwords(".height", &[v.height.to_bits()]);
+    dwords(".row_int", &[v.row_int]);
+    dwords(".row", &[v.row.to_bits()]);
+    dwords(".slopes[0]", &bits(&v.slopes));
+    dwords(".xs[0]", &bits(&v.xs));
+    dwords(".split", &[v.split.to_bits()]);
+    dwords(".cursor", &[v.cursor]);
+    dwords(".runs", &[v.runs]);
+    dwords(".edge[0]", &v.edge);
+    dwords(".triangle[0]", &bits(&v.triangle));
+    dwords(".quad_triangle[0]", &bits(&v.quad_triangle));
+    dwords(".ring_quad[0]", &bits(&v.ring_quad));
+    dwords(".run_count", &[v.run_count]);
+    dwords(".ring_ends[0]", &bits(&v.ring_ends));
+    dwords(".ring_middle", &[v.ring_middle.to_bits()]);
+    dwords(".ring_half", &[v.ring_half.to_bits()]);
+    dwords(".ring_angles[0]", &bits(&v.ring_angles));
+    dwords(".ring_turns[0]", &bits(&v.ring_turns));
+    dwords(".ring_angle", &[v.ring_angle]);
+    dwords(".ring_step", &[v.ring_step.to_bits()]);
+    dwords(".pixel[0]", &v.pixel);
+    dwords(".mask_value", &[v.mask_value]);
+    dwords(".pixel_table", &[v.pixel_table]);
+    dwords(".middle[0]", &bits(&v.middle));
+    dwords(".row_distance", &[v.row_distance.to_bits()]);
+    dwords(".pixel_corners", &[v.pixel_corners]);
+    let mut bytes = |path: &str, run: &[u8]| sum = sum.wrapping_add(byte_run_hash(path, run));
+    bytes(".list_rest", &[0; 48]);
+    bytes(".corners_a", &v.corners[0]);
+    bytes(".corners_b", &v.corners[1]);
+    bytes(".control_word", &v.control_word.to_le_bytes());
+    bytes(".status_word", &v.status_word.to_le_bytes());
+    bytes(".run_table", &v.run_table);
+    bytes(".mask_a", &v.masks[0]);
+    bytes(".mask_b", &v.masks[1]);
+    bytes(".ring_angles_a", &v.ring_angle_tables[0]);
+    bytes(".ring_angles_b", &v.ring_angle_tables[1]);
+    sum
+}
+
 /// The hash of what the marks' masks leave: the picks (with both pixel tables), the mask
 /// variables and the marks' work cells, logged as `course hash masks <store>: <hex>`.
 #[cfg(feature = "remote")]
@@ -284,7 +359,7 @@ pub fn log_mask_hashes(
     }
     say("picks", picks_hash);
     drop(picks);
-    say("vars", record_hash(&masks.vars));
+    say("vars", mask_vars_hash(masks));
     let work = effects.setup.work.borrow();
     let fields: [(&str, u32); 9] = [
         (".fpu_status", work.fpu_status),

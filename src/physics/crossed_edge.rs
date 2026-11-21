@@ -7,7 +7,7 @@
 //! (what was written is put back).
 
 use crate::errors::Refused;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::ProbeLists;
 use crate::physics::crossed_edge_contact::check_probe;
 use crate::physics::step_families::ContactInputs;
 
@@ -15,7 +15,7 @@ use crate::physics::step_families::ContactInputs;
 // Core: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
 pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     let contact = c.contact;
-    let n = contact.crossed_probe.get();
+    let n = c.ground.probes.borrow().crossed_probe;
     if n == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
@@ -23,7 +23,13 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     c.car.contact_point[0].set(c.car.probe_point_x[k].get());
     c.car.contact_point[1].set(c.car.probe_point_y[k].get());
     c.car.contact_point[2].set(c.car.probe_point_z[k].get());
-    { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
+    {
+        crate::physics::restore_saved_car::restore_saved_car(
+            c.car,
+            c.tables,
+            &c.ground.probes.borrow(),
+        )
+    }?;
     crate::physics::crossed_edge_contact::steps(c)?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         contact.contact_speed_length.get(),
@@ -37,14 +43,14 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
 }
 
 /// The probe checked (-1 is none).
-pub fn check(contact: &ContactWork) -> Result<(), Refused> {
-    if contact.crossed_probe.get() == rc2k_core::physics::walls::NONE_CROSSED {
+pub fn check(probes: &ProbeLists) -> Result<(), Refused> {
+    if probes.crossed_probe == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
-    check_probe(contact)
+    check_probe(probes)
 }
 
 pub fn crossed_edge(c: &ContactInputs<'_>) -> Result<(), Refused> {
-    check(c.contact)?;
+    check(&c.ground.probes.borrow())?;
     steps(c)
 }

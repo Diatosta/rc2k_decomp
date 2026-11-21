@@ -2,34 +2,33 @@
 //! lengths, and two cosine-eased steps.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::math::x87;
-use crate::memory::session::{PlainDword, PlainFloat};
 
 /// `effects::set_line_turn` (and with `back`, the turn back):
 /// from the line (`line`'s dwords 0, 1 to 3, 4) dx into the turn's first and fifth cells, minus
 /// dy (dy when `back`) into its fourth, its negation into its second.
-pub fn set_line_turn(masks: &Masks, line: &[PlainDword; 6], back: bool) {
-    let dx = x87::sub(line[3].get(), line[0].get());
+pub fn set_line_turn(masks: &Masks, line: [u32; 6], back: bool) {
+    let dx = x87::sub(line[3], line[0]);
     let dy = if back {
-        x87::sub(line[4].get(), line[1].get())
+        x87::sub(line[4], line[1])
     } else {
-        x87::negated(x87::sub(line[4].get(), line[1].get()))
+        x87::negated(x87::sub(line[4], line[1]))
     };
-    masks.vars.turn[0].set(dx);
-    masks.vars.turn[3].set(dy);
-    masks.vars.turn[1].set(x87::negated(dy));
-    masks.vars.turn[4].set(x87::loaded(dx));
+    let mut vars = masks.vars.borrow_mut();
+    vars.turn[0] = dx;
+    vars.turn[3] = dy;
+    vars.turn[1] = x87::negated(dy);
+    vars.turn[4] = x87::loaded(dx);
 }
 
 /// `effects::scale_rows3`: the three rows of three floats each made the
 /// length the effects' row lengths say (`x87::scale_row`).
-pub fn scale_rows3(rows: &[PlainFloat; 9], effects: &crate::effects::owner::Effects) {
-    for (n, row) in rows.as_chunks::<3>().0.iter().enumerate() {
-        let values = [row[0].get(), row[1].get(), row[2].get()];
+pub fn scale_rows3(rows: &mut [f32; 9], effects: &crate::effects::owner::Effects) {
+    for (n, row) in rows.as_chunks_mut::<3>().0.iter_mut().enumerate() {
+        let values = [row[0], row[1], row[2]];
         let length = effects.setup.mask_constants.borrow().row_lengths[n];
-        for (cell, v) in row.iter().zip(x87::scale_row(values, length)) {
-            cell.set(v);
+        for (cell, v) in row.iter_mut().zip(x87::scale_row(values, length)) {
+            *cell = v;
         }
     }
 }
@@ -38,13 +37,11 @@ pub fn scale_rows3(rows: &[PlainFloat; 9], effects: &crate::effects::owner::Effe
 /// a step factor (a float), then the first result a + t - t cos(pi (n plus 1) / the step count)
 /// and the second the same with n over the second count.
 pub fn smooth_steps(
-    drops: &WindscreenDrops,
     n: u32,
     a: f32,
     b: u32,
     effects: &crate::effects::owner::Effects,
 ) -> (u32, u32) {
-    drops.inputs.scratch.set(a.to_bits());
     effects.setup.work.borrow_mut().scratch = a.to_bits();
     smooth_pair(n, a, b, effects)
 }
@@ -64,11 +61,12 @@ pub fn smooth_pair(n: u32, a: f32, b: u32, effects: &crate::effects::owner::Effe
 /// `effects::turn_pair`: the pair (a, b) turned by the line turn (m0 .. m3): a m3 + b m2,
 /// b m0 + a m1, unrounded.
 pub fn turn_pair(masks: &Masks, inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
-    turn_pair_x87(&inputs, &masks.vars.turn)
+    let turn = masks.vars.borrow().turn;
+    turn_pair_x87(&inputs, &turn)
 }
 
 /// `turn_pair` with a copy of the turn's nine floats.
-pub(super) fn turn_pair_with(turn: &[PlainFloat; 9], inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
+pub(super) fn turn_pair_with(turn: &[f32; 9], inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     turn_pair_x87(&inputs, turn)
 }
 
@@ -98,19 +96,18 @@ pub fn clamp_pair(
 }
 // ---- the plain versions (`rc2k_core::effects::turns`) ----
 
-use crate::effects::plain::ld_cell;
 use crate::math::x87_float as bh;
 
 /// `turn_pair`'s arithmetic as plain Rust on the x87 model, in the same order
 /// (`i` the two inputs, `m` the turn: the block reads its floats 0, 1, 3 and 4).
-fn turn_pair_x87(i: &[[u8; 10]; 2], m: &[PlainFloat; 9]) -> [[u8; 10]; 2] {
+fn turn_pair_x87(i: &[[u8; 10]; 2], m: &[f32; 9]) -> [[u8; 10]; 2] {
     let t0 = bh::from_f80(i[1]);
     let t1 = bh::from_f80(i[0]);
-    let t2 = t1 * ld_cell(&m[4]);
-    let t3 = t0 * ld_cell(&m[3]);
+    let t2 = t1 * bh::ld(m[4]);
+    let t3 = t0 * bh::ld(m[3]);
     let t4 = t2 + t3;
-    let t5 = t0 * ld_cell(&m[0]);
-    let t6 = t1 * ld_cell(&m[1]);
+    let t5 = t0 * bh::ld(m[0]);
+    let t6 = t1 * bh::ld(m[1]);
     let t7 = t5 + t6;
     [bh::f80(t4), bh::f80(t7)]
 }

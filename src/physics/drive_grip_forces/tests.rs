@@ -114,7 +114,7 @@ fn blocks() -> Vec<Block> {
                 grip_limit_for(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    view(a[1], 0),
+                    view::<PlainFloat>(a[1], 0).get(),
                 );
             },
         },

@@ -5,7 +5,7 @@
 
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::{ContactWork, ProbeLists};
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_query::GroundSearch;
 use crate::physics::step_inputs::StepInputs;
@@ -50,6 +50,7 @@ pub struct GroundInputs<'a> {
     pub tables: &'a PhysicsTables,
     pub course: &'a Course,
     pub contact: &'a ContactWork,
+    pub probes: &'a RefCell<ProbeLists>,
     pub search: &'a RefCell<GroundSearch>,
     pub probe: &'a RefCell<GroundProbe>,
     pub engine_tables: &'a crate::math::engine_tables::EngineTables,
@@ -184,7 +185,7 @@ pub struct WheelInputs<'a> {
     pub tables: &'a PhysicsTables,
     pub course: &'a Course,
     pub shared: &'a RaceShared,
-    pub contact: &'a ContactWork,
+    pub probes: &'a RefCell<ProbeLists>,
     pub view: &'a RaceView,
     pub vars: &'a RaceVars,
 }
@@ -256,6 +257,7 @@ impl<'a> StepInputs<'a> {
             tables: self.tables,
             course: self.course,
             contact: self.physics.contact.get(),
+            probes: self.physics.probes(),
             search: self.physics.ground_search(),
             probe: self.physics.ground_probe(),
             engine_tables: &self.shared.buffers.reads.get().engine_tables,
@@ -346,7 +348,7 @@ impl<'a> StepInputs<'a> {
             tables: self.tables,
             course: self.course,
             shared: self.shared,
-            contact: self.physics.contact.get(),
+            probes: self.physics.probes(),
             view: self.view,
             vars: self.vars,
         }

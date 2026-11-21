@@ -15,10 +15,10 @@ pub fn pick_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused
     let index = steps::shape_entry(drops.picks.borrow().index)?;
     // (the flag, the shape): `MaskPicks.flags[0]` / shape set A, `MaskPicks.flags[1]` /
     // shape set B.
-    for (n, shape) in masks.vars.shapes.iter().enumerate() {
+    for n in 0..2 {
         let picked = steps::pick_shapes(drops.picks.borrow().table[index] as i32);
         drops.picks.borrow_mut().flags[n] = picked.flag;
-        shape.ease_step.set(picked.shapes);
+        masks.vars.borrow_mut().shapes[n].ease_step = picked.shapes;
     }
     Ok(())
 }

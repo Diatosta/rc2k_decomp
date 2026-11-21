@@ -8,13 +8,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::cells::{Cells, Off};
 use crate::math::x87_float::{self as bh, ONE, Rounds, X, f80, from_f80, ld, st, stf};
 
-/// `scene::identity_matrix3`: the matrix `m` the identity.
-pub fn identity_matrix3(m: &(impl Cells + ?Sized)) {
-    for (n, &v) in rc2k_core::math::vector::IDENTITY.iter().enumerate() {
-        m.set_float(n, v);
-    }
-}
-
 /// `scene::multiply_matrices3`: `out` = `a` x `b`, column by column, each written as made (so
 /// an `out` that is one of the two behaves as written in place): a's row times b's column,
 /// p1 + (p2 + p3) (`math::x87::row_times_column_3`).
@@ -31,6 +24,22 @@ pub fn multiply_matrices3(
             }
         }
     });
+}
+
+/// `multiply_matrices3` on plain floats: `a` x `b` (the product has its own cells, as when no
+/// `out` is one of the two).
+pub fn multiply_matrices3_plain(a: &[f32; 9], b: &[f32; 9]) -> [f32; 9] {
+    bh::at_rounding!(|r| {
+        let mut out = [0.0f32; 9];
+        for column in 0..3 {
+            for row in 0..3 {
+                let p = |k: usize| r.ld(a[3 * row + k]) * r.ld(b[column + 3 * k]);
+                let (p1, p2, p3) = (p(0), p(1), p(2));
+                out[3 * row + column] = r.stf(p1 + (p2 + p3));
+            }
+        }
+        out
+    })
 }
 
 /// `math::x87::row_times_column` for 3 x 3 matrices: `a`'s first three cells times `b`'s
@@ -105,6 +114,45 @@ pub fn transform_int_points(
     }
     for n in 0..count {
         turn_int_point(from, m, to, n);
+    }
+    Ok(())
+}
+
+/// `transform_int_points` on plain bytes: `count` points of three little-endian whole numbers
+/// (12 bytes each) from `from` turned by the nine floats `m` into `to`. Refuses a count of
+/// 0x80000000 and one past either run's bytes. A caller that turns a run in place passes a copy
+/// of it as `from` (each point is read whole before it is written).
+pub fn transform_int_points_bytes(
+    from: &[u8],
+    to: &mut [u8],
+    count: u32,
+    m: &[f32; 9],
+) -> Result<(), Refused> {
+    if count == 0x8000_0000 {
+        return Err(BadInput("a count of 0x80000000: the original runs away").into());
+    }
+    let count = (count as i32).max(0) as usize;
+    if 12 * count > from.len() || 12 * count > to.len() {
+        return Err(BadInput("points past their run").into());
+    }
+    for n in 0..count {
+        let whole = |k: usize| {
+            let at = 12 * n + 4 * k;
+            i32::from_le_bytes([from[at], from[at + 1], from[at + 2], from[at + 3]])
+        };
+        let turned = bh::at_rounding!(|r| {
+            let int = |k: usize| r.int(whole(k));
+            let (x, y, z) = (int(0), int(1), int(2));
+            let c = |k: usize| r.ld(m[k]);
+            let first = x * c(0) + (y * c(1) + z * c(2));
+            let second = x * c(3) + (y * c(4) + z * c(5));
+            let third = y * c(7) + (x * c(6) + z * c(8));
+            [r.to_int(first), r.to_int(second), r.to_int(third)]
+        });
+        for (k, value) in turned.into_iter().enumerate() {
+            let at = 12 * n + 4 * k;
+            to[at..at + 4].copy_from_slice(&value.to_le_bytes());
+        }
     }
     Ok(())
 }

@@ -105,7 +105,7 @@ pub(super) fn note_view(frame: &Frame, scene: &crate::scene::owner::Scene) {
 /// yellow the ground. Above the window, and behind the eye skipped.
 fn draw_probes(race: &Race, system: &crate::system::owner::System, ui: &Ui) {
     let physics = &race.physics;
-    let wk = &physics.contact.get();
+    let wk = physics.probes().borrow();
     let Some((m, scale, centre)) = *VIEW
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -136,18 +136,18 @@ fn draw_probes(race: &Race, system: &crate::system::owner::System, ui: &Ui) {
     let size = ui.current_font_size() / 4.0;
     for n in 0..race.shared.car().probe_count.get().min(0x40) as usize {
         let (x, y, z) = (
-            wk.probe_x[n].get() as i32,
-            wk.probe_y[n].get() as i32,
-            wk.probe_z[n].get() as i32,
+            wk.probe_x[n] as i32,
+            wk.probe_y[n] as i32,
+            wk.probe_z[n] as i32,
         );
         let Some(p) = place([x, y, z]) else {
             continue;
         };
-        let found = wk.probe_found[n].get() != 0;
-        if found && let Some(g) = place([x, wk.probe_ground_height[n].get() as i32, z]) {
+        let found = wk.probe_found[n] != 0;
+        if found && let Some(g) = place([x, wk.probe_ground_height[n] as i32, z]) {
             list.add_line(p, g, [1.0, 1.0, 0.0, 1.0]).build();
         }
-        let colour = if found && (wk.probe_height[n].get() as i32) <= 0 {
+        let colour = if found && (wk.probe_height[n] as i32) <= 0 {
             [1.0, 0.2, 0.2, 1.0]
         } else if n < 4 {
             [0.2, 1.0, 0.2, 1.0]

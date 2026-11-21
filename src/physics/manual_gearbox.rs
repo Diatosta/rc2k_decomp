@@ -49,7 +49,7 @@ fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Ref
     };
     car.gear.set(to);
     revs(car, tables, numbers)?;
-    settle(car, tables);
+    settle(car);
     Ok(Shift::Done)
 }
 
@@ -73,7 +73,7 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
         car.gear_change_pending.set(1);
         return Ok(Shift::Done);
     }
-    settle(car, tables);
+    settle(car);
     Ok(Shift::Done)
 }
 
@@ -94,7 +94,7 @@ pub fn reverse(
             .set(x87::mul(&car.engine_speed, &numbers.quarter));
     }
     wheels(car, tables)?;
-    settle(car, tables);
+    settle(car);
     Ok(())
 }
 
@@ -181,7 +181,7 @@ pub(super) fn manual_gearbox(
             Shift::Up => up(car, tables, numbers)?,
             Shift::Down => down(car, tables, numbers)?,
             Shift::Neutral => {
-                neutral(car, tables);
+                neutral(car);
                 Shift::Done
             }
             Shift::Start => {

@@ -9,7 +9,6 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::physics::tables_store::PhysicsTables;
 use crate::race::frame_store::FrameWork;
 use crate::race::owner_physics::Physics;
 use crate::race::work_store::RaceWork;
@@ -29,7 +28,6 @@ pub fn queue_pace_note(
     physics: &Physics,
     frame_work: &FrameWork,
     work: &RaceWork,
-    physics_tables: &PhysicsTables,
     scene_clock: u32,
     car: &Car,
     checkpoint: u32,
@@ -70,14 +68,7 @@ pub fn queue_pace_note(
                 crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(
                     frame_work, work, byte, sound, audio,
                 )?;
-                {
-                    crate::physics::queue_listed_event::queue_listed_event(
-                        car,
-                        physics_tables,
-                        scene_clock,
-                        byte,
-                    )
-                }?;
+                { crate::physics::queue_listed_event::queue_listed_event(car, scene_clock, byte) }?;
                 at = at.wrapping_add(1);
             }
         }

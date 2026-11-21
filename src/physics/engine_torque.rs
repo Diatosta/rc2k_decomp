@@ -42,8 +42,8 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
             .engine_force
             .set(lerp_table(
                 s,
-                &shared_store.physics_tables.get().torque_curve[k],
-                &shared_store.physics_tables.get().torque_curve[k + 1],
+                crate::physics::figures::TORQUE_CURVE[k],
+                crate::physics::figures::TORQUE_CURVE[k + 1],
                 shared_store.physics_tables.get().spec_torque[k].get(),
                 shared_store.physics_tables.get().spec_torque[k + 1].get(),
             ));

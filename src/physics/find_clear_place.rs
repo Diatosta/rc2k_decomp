@@ -14,7 +14,7 @@
 
 use crate::errors::Refused;
 use crate::math::matrix3::extended;
-use crate::physics::figures::CLEAR_PLACE_SHARE;
+use crate::physics::figures::{CLEAR_PLACE_SHARE, CLEAR_PLACE_STEPS_A, CLEAR_PLACE_STEPS_B};
 use crate::physics::step_families::ClearPlaceInputs;
 use rc2k_core::physics::clear_place;
 
@@ -25,7 +25,7 @@ const PORKY: &std::ffi::CStr = c"porky";
 fn try_place(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let contact = &c.collisions.contact;
     { crate::physics::probe_ground::probe_ground(&c.reset.ground, c.reset.car) }?;
-    crate::physics::crossed_edge::check(contact.contact)?;
+    crate::physics::crossed_edge::check(&contact.ground.probes.borrow())?;
     crate::physics::crossed_edge::steps(contact)?;
     crate::physics::wall_contacts::check(c.reset.car)?;
     crate::physics::wall_contacts::steps(contact, scene)?;
@@ -41,17 +41,30 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     tables.clear_place_mark.set(clear_place::TRY_MARK);
     let factor = extended(CLEAR_PLACE_SHARE);
     crate::physics::scale_vector::scale_vector(&car.velocity, factor);
-    { crate::physics::restore_saved_car::restore_saved_car(car, tables, contact) }?;
-    { crate::physics::lowest_body_point::lowest_body_point(car, numbers, contact) }?;
+    {
+        crate::physics::restore_saved_car::restore_saved_car(
+            car,
+            tables,
+            &c.reset.ground.probes.borrow(),
+        )
+    }?;
+    {
+        crate::physics::lowest_body_point::lowest_body_point(
+            car,
+            numbers,
+            contact,
+            &c.reset.ground.probes.borrow(),
+        )
+    }?;
     tables.clear_place_face.set(contact.lowest_depth.get());
     let found = clear_place::tries(clear_place::first_try(car.step_clock.get()), |n| {
         tables.clear_place_count.set(0);
         let m = clear_place::try_move(n);
         for (table, place) in [
-            (&tables.clear_place_steps_a, &car.position[0]),
-            (&tables.clear_place_steps_b, &car.position[2]),
+            (&CLEAR_PLACE_STEPS_A, &car.position[0]),
+            (&CLEAR_PLACE_STEPS_B, &car.position[2]),
         ] {
-            let (part, _) = clear_place::move_part(m.step, table[m.entry as usize].get());
+            let (part, _) = clear_place::move_part(m.step, table[m.entry as usize]);
             place.set(place.get().wrapping_add(part));
         }
         try_place(c, scene)?;
@@ -60,7 +73,14 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     let Some(n) = found else {
         return crate::physics::reset_car::reset_car(&c.reset, scene);
     };
-    { crate::physics::lowest_body_point::lowest_body_point(car, numbers, contact) }?;
+    {
+        crate::physics::lowest_body_point::lowest_body_point(
+            car,
+            numbers,
+            contact,
+            &c.reset.ground.probes.borrow(),
+        )
+    }?;
     let depth = contact.lowest_depth.get();
     if let Some(height) = clear_place::lifted(car.position[1].get(), depth) {
         car.position[1].set(height);

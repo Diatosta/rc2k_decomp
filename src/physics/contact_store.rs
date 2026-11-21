@@ -8,46 +8,6 @@ use crate::memory::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ContactWork {
-    /// The probe points' x as whole numbers x 65536 plus the car's place
-    /// (`physics::probe_ground`); `crash_contact`, `crossed_edge_contact`; copied to
-    /// `saved_probe_x` (`probe_and_keep`, one 0xC0-dword run with y and z lists).
-    pub probe_x: [PlainDword; 64],
-    /// The probe points' y as whole numbers (`physics::probe_ground`); the first four are the
-    /// wheels, lowered by `race::car_starts`.
-    pub probe_y: [PlainDword; 64],
-    /// The probe points' z as whole numbers (`physics::probe_ground`, `crash_contact`).
-    pub probe_z: [PlainDword; 64],
-    /// The ground height under each probe point plus the bump, 0 when none found
-    /// (`physics::probe_ground`, `crash_contact`).
-    pub probe_ground_height: [PlainDword; 64],
-    /// Each probe point's x turned by the crash matrix, as a float (`physics::probe_ground`,
-    /// `crash_contact`, `wall_edge_contact`).
-    pub probe_turned_x: [PlainFloat; 64],
-    /// Each probe point's y turned (`physics::probe_ground`).
-    pub probe_turned_y: [PlainFloat; 64],
-    /// Each probe point's z turned (`physics::probe_ground`).
-    pub probe_turned_z: [PlainFloat; 64],
-    /// Each probe point's y less the ground (`physics::probe_ground`); the first four are the
-    /// wheels' heights (`wheel_springs`, `lowest_body_point`, `race::car_starts`).
-    pub probe_height: [PlainDword; 64],
-    /// Whether the ground was found under each probe point (`physics::probe_ground`).
-    pub probe_found: [PlainDword; 64],
-    /// The probe points' faces saved (`physics::save_car_state`, `restore_saved_car`,
-    /// `wall_contacts`).
-    pub probe_saved_faces: [PlainDword; 64],
-    /// The found face's half flag per probe point (`physics::probe_ground`, `wheel_surfaces`,
-    /// `crash_contact`).
-    pub probe_face_flip: [PlainDword; 64],
-    /// The point's share in the face's cell, first (`physics::probe_ground`, `wheel_surfaces`).
-    pub probe_share_u: [PlainFloat; 64],
-    /// The point's share in the face's cell, second (`physics::probe_ground`, `wheel_surfaces`).
-    pub probe_share_v: [PlainFloat; 64],
-    /// The probe x list kept before the step (`physics::probe_and_keep`, `crossed_edge_contact`).
-    pub saved_probe_x: [PlainDword; 64],
-    /// The probe z list kept (`physics::probe_and_keep`, `crossed_edge_contact`).
-    pub saved_probe_z: [PlainDword; 64],
-    /// The probe points' faces kept (`physics::probe_and_keep`, `crossed_edge_contact`).
-    pub saved_probe_faces: [PlainDword; 64],
     /// The contact force copied from the record (`physics::crash_contact`, `ground_contact`).
     pub ground_force: [PlainDword; 3],
     /// 0 then 1 in `physics::ground_contact`; shown on the developers' page.
@@ -102,9 +62,86 @@ pub struct ContactWork {
     pub face_speed: PlainDword,
     /// The point over the scale (`physics::point_hits_car`, `face_contact`).
     pub object_point_scaled: [PlainFloat; 3],
+}
+
+/// The probe points' lists, plain values on the game thread (`Physics::probes`, borrowed
+/// for one routine at a time): the 64 points' whole-number places, turned floats, heights, faces and
+/// shares, and the point that crossed an edge. Names are readings unless taken from the game's own.
+#[derive(Clone)]
+pub struct ProbeLists {
+    /// The probe points' x as whole numbers x 65536 plus the car's place
+    /// (`physics::probe_ground`); `crash_contact`, `crossed_edge_contact`; copied to
+    /// `saved_probe_x` (`probe_and_keep`, one 0xC0-dword run with y and z lists).
+    pub probe_x: [u32; 64],
+    /// The probe points' y as whole numbers (`physics::probe_ground`); the first four are the
+    /// wheels, lowered by `race::car_starts`.
+    pub probe_y: [u32; 64],
+    /// The probe points' z as whole numbers (`physics::probe_ground`, `crash_contact`).
+    pub probe_z: [u32; 64],
+    /// The ground height under each probe point plus the bump, 0 when none found
+    /// (`physics::probe_ground`, `crash_contact`).
+    pub probe_ground_height: [u32; 64],
+    /// Each probe point's x turned by the crash matrix, as a float (`physics::probe_ground`,
+    /// `crash_contact`, `wall_edge_contact`).
+    pub probe_turned_x: [f32; 64],
+    /// Each probe point's y turned (`physics::probe_ground`).
+    pub probe_turned_y: [f32; 64],
+    /// Each probe point's z turned (`physics::probe_ground`).
+    pub probe_turned_z: [f32; 64],
+    /// Each probe point's y less the ground (`physics::probe_ground`); the first four are the
+    /// wheels' heights (`wheel_springs`, `lowest_body_point`, `race::car_starts`).
+    pub probe_height: [u32; 64],
+    /// Whether the ground was found under each probe point (`physics::probe_ground`).
+    pub probe_found: [u32; 64],
+    /// The probe points' faces saved (`physics::save_car_state`, `restore_saved_car`,
+    /// `wall_contacts`).
+    pub probe_saved_faces: [u32; 64],
+    /// The found face's half flag per probe point (`physics::probe_ground`, `wheel_surfaces`,
+    /// `crash_contact`).
+    pub probe_face_flip: [u32; 64],
+    /// The point's share in the face's cell, first (`physics::probe_ground`, `wheel_surfaces`).
+    pub probe_share_u: [f32; 64],
+    /// The point's share in the face's cell, second (`physics::probe_ground`, `wheel_surfaces`).
+    pub probe_share_v: [f32; 64],
+    /// The probe x list kept before the step (`physics::probe_and_keep`, `crossed_edge_contact`).
+    pub saved_probe_x: [u32; 64],
+    /// The probe z list kept (`physics::probe_and_keep`, `crossed_edge_contact`).
+    pub saved_probe_z: [u32; 64],
+    /// The probe points' faces kept (`physics::probe_and_keep`, `crossed_edge_contact`).
+    pub saved_probe_faces: [u32; 64],
     /// The probe point that crossed an edge, -1 for none (`probe_ground`,
     /// `crossed_edge`).
-    pub crossed_probe: PlainDword,
+    pub crossed_probe: u32,
+}
+
+impl ProbeLists {
+    pub const fn new() -> Self {
+        ProbeLists {
+            probe_x: [0; 64],
+            probe_y: [0; 64],
+            probe_z: [0; 64],
+            probe_ground_height: [0; 64],
+            probe_turned_x: [0.0; 64],
+            probe_turned_y: [0.0; 64],
+            probe_turned_z: [0.0; 64],
+            probe_height: [0; 64],
+            probe_found: [0; 64],
+            probe_saved_faces: [0; 64],
+            probe_face_flip: [0; 64],
+            probe_share_u: [0.0; 64],
+            probe_share_v: [0.0; 64],
+            saved_probe_x: [0; 64],
+            saved_probe_z: [0; 64],
+            saved_probe_faces: [0; 64],
+            crossed_probe: 0,
+        }
+    }
+}
+
+impl Default for ProbeLists {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of

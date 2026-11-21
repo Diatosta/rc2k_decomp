@@ -26,8 +26,9 @@ pub fn below(a: impl crate::math::x87::Flt, b: impl crate::math::x87::Flt) -> bo
 }
 
 /// The common end of a change: `drive_cut_steps` from the tables, the hold 20, both change words 1.
-pub fn settle(car: &Car, tables: &PhysicsTables) {
-    car.drive_cut_steps.set(tables.drive_cut_steps.get());
+pub fn settle(car: &Car) {
+    car.drive_cut_steps
+        .set(crate::physics::figures::DRIVE_CUT_STEPS);
     car.gear_change_hold
         .set(rc2k_core::physics::gear_shifts::HOLD);
     car.gear_changed.set(1);
@@ -35,9 +36,9 @@ pub fn settle(car: &Car, tables: &PhysicsTables) {
 }
 
 /// Neutral, then `settle`.
-pub fn neutral(car: &Car, tables: &PhysicsTables) {
+pub fn neutral(car: &Car) {
     car.gear.set(0);
-    settle(car, tables);
+    settle(car);
 }
 
 /// `gear_bit`: true when the gear cannot be taken.

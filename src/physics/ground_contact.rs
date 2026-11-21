@@ -26,7 +26,7 @@ use crate::physics::step_families::ContactInputs;
 fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     let contact = c.contact;
     contact.ground_contact_started.set(0);
-    { lowest_body_point(c.car, c.numbers, c.contact) }?;
+    { lowest_body_point(c.car, c.numbers, c.contact, &c.ground.probes.borrow()) }?;
     let depth = contact.lowest_depth.get();
     let limit = rc2k_core::physics::contacts::GROUND_LIMIT;
     if !rc2k_core::physics::contacts::touches(depth, limit, c.car.all_wheels_off.get() != 0) {
@@ -37,7 +37,7 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     c.car.contact_point[0].set(c.car.probe_point_x[n].get());
     c.car.contact_point[1].set(c.car.probe_point_y[n].get());
     c.car.contact_point[2].set(c.car.probe_point_z[n].get());
-    take_contact(c.contact, c.course, c.car, n)?;
+    take_contact(c.contact, &c.ground.probes.borrow(), c.course, c.car, n)?;
     contact.contact_slide_limit.set(0.0);
     contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[2]);
     { place_sound_e1(&c.sound) }?;
@@ -49,7 +49,7 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     }
     copy_cells(&contact.ground_force, &c.tables.contacts[2].force);
     if sign(contact.lowest_depth.get()) {
-        { restore_saved_car(c.car, c.tables, c.contact) }?;
+        { restore_saved_car(c.car, c.tables, &c.ground.probes.borrow()) }?;
         { feel_ground(&c.ground) }?;
     }
     Ok(())

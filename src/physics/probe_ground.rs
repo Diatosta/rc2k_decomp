@@ -33,7 +33,7 @@ use crate::math::x87::less_plus_less_product_80;
 use crate::math::x87_float as bh;
 use crate::memory::session::{CellKind, DwordLike, FloatLike};
 use crate::physics::car_store::Car;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::ProbeLists;
 use crate::physics::figures::{PROBE_LIFT, PROBE_SHARE};
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::ground::*;
@@ -77,7 +77,7 @@ pub(super) fn probe_ground_at(
     car: &Car<impl CellKind>,
     q: &mut GroundSearch,
     points: &OwnPoints,
-    contact: &ContactWork,
+    work: &mut ProbeLists,
 ) -> Result<(), Refused> {
     let n = car.probe_count.get();
     if n < 1 {
@@ -87,7 +87,7 @@ pub(super) fn probe_ground_at(
         return Err(BadInput("more than 0x40 probe points (the lists' room)").into());
     }
 
-    probe_points(c, car, n, q, points, contact)
+    probe_points(c, car, n, q, points, work)
 }
 
 fn probe_points(
@@ -96,15 +96,14 @@ fn probe_points(
     n: u32,
     q: &mut GroundSearch,
     points: &OwnPoints,
-    contact: &ContactWork,
+    work: &mut ProbeLists,
 ) -> Result<(), Refused> {
     // The work values the point's steps spill through (each is stored before it is read).
     let scratch = crate::memory::session::PlainDword::new(0);
     let k65536 = c.numbers.k65536.get();
-    contact.crossed_probe.set(u32::MAX);
+    work.crossed_probe = u32::MAX;
     for b in 0..n {
         let i = b as usize;
-        let work = contact;
         let z = car.probe_point_z[i].get();
         let y = car.probe_point_y[i].get();
         let y = if b < 4 {
@@ -125,19 +124,19 @@ fn probe_points(
         let x = extended(car.probe_point_x[b as usize].get());
         let out = rotate_point(&car.crash_matrix, [x, y, extended(z)]);
         let [ox, oy, oz] = out.map(rounded_value);
-        work.probe_turned_x[i].set(ox);
-        work.probe_turned_y[i].set(oy);
-        work.probe_turned_z[i].set(oz);
+        work.probe_turned_x[i] = ox;
+        work.probe_turned_y[i] = oy;
+        work.probe_turned_z[i] = oz;
         for (v, place, list) in [
-            (ox, &car.position[0], &work.probe_x[i]),
-            (oy, &car.position[1], &work.probe_y[i]),
-            (oz, &car.position[2], &work.probe_z[i]),
+            (ox, &car.position[0], &mut work.probe_x[i]),
+            (oy, &car.position[1], &mut work.probe_y[i]),
+            (oz, &car.position[2], &mut work.probe_z[i]),
         ] {
             let w = (x87::mul_to_int(v, k65536) as u32).wrapping_add(place.get());
-            list.set(w);
+            *list = w;
         }
-        q.x = work.probe_x[i].get();
-        q.z = work.probe_z[i].get();
+        q.x = work.probe_x[i];
+        q.z = work.probe_z[i];
         // The search tries this face first.
         q.last = car.probe_point_face[b as usize].get();
         let env = GroundEnv {
@@ -146,14 +145,14 @@ fn probe_points(
             mark: SETTLE_MARK,
         };
         ground_search_at(env, q)?;
-        work.probe_ground_height[i].set(0);
+        work.probe_ground_height[i] = 0;
         if q.found == 0 {
-            contact.crossed_probe.set(b);
-            work.probe_found[i].set(0);
+            work.crossed_probe = b;
+            work.probe_found[i] = 0;
             continue;
         }
-        work.probe_found[i].set(1);
-        work.probe_ground_height[i].set(q.height);
+        work.probe_found[i] = 1;
+        work.probe_ground_height[i] = q.height;
         let cell = ground::noise_cell(q.x, q.z);
         let trap = crate::physics::cells::Trap::new();
         let noise = |i: u32| {
@@ -173,28 +172,25 @@ fn probe_points(
                 / c.numbers.hundred.ld(),
         );
         scratch.set(bump as u32);
-        work.probe_ground_height[i]
-            .set(work.probe_ground_height[i].get().wrapping_add(bump as u32));
-        work.probe_face_flip[i].set(q.half);
-        work.probe_share_u[i].set(q.plane_f);
-        work.probe_share_v[i].set(q.plane_g);
-        let d = work.probe_y[i]
-            .get()
-            .wrapping_sub(work.probe_ground_height[i].get());
-        work.probe_height[i].set(d);
+        work.probe_ground_height[i] = work.probe_ground_height[i].wrapping_add(bump as u32);
+        work.probe_face_flip[i] = q.half;
+        work.probe_share_u[i] = q.plane_f;
+        work.probe_share_v[i] = q.plane_g;
+        let d = work.probe_y[i].wrapping_sub(work.probe_ground_height[i]);
+        work.probe_height[i] = d;
         if b < 4 {
             scratch.set(x87::loaded(&car.crash_matrix[5]).to_bits());
             if x87::compare_status(scratch.get(), ZERO) & 0x100 != 0 {
                 scratch.set(x87::loaded(ZERO).to_bits());
             }
-            work.probe_height[i].set(x87::int_times_to_int(d as i32, scratch.get()) as u32);
+            work.probe_height[i] = x87::int_times_to_int(d as i32, scratch.get()) as u32;
         }
         car.probe_point_face[b as usize].set(q.slot);
     }
     for i in 0..4 {
-        car.wheel_ground_x[i].set(contact.probe_x[i].get());
-        car.wheel_ground_height[i].set(contact.probe_ground_height[i].get());
-        car.wheel_ground_z[i].set(contact.probe_z[i].get());
+        car.wheel_ground_x[i].set(work.probe_x[i]);
+        car.wheel_ground_height[i].set(work.probe_ground_height[i]);
+        car.wheel_ground_z[i].set(work.probe_z[i]);
     }
     Ok(())
 }
@@ -211,7 +207,7 @@ pub fn probe_ground(c: &GroundInputs<'_>, car: &Car) -> Result<(), Refused> {
         car,
         &mut c.search.borrow_mut(),
         &crate::race::scene_points::no_own(),
-        c.contact,
+        &mut c.probes.borrow_mut(),
     )
 }
 
@@ -228,6 +224,6 @@ pub fn probe_ground_in_view(
         car,
         &mut GroundSearch::default(),
         points,
-        &ContactWork::new(),
+        &mut ProbeLists::new(),
     )
 }
