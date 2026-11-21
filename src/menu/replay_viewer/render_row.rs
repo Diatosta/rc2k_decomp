@@ -171,10 +171,10 @@ pub fn render(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
         sound: chosen.sound,
         from,
         to,
-        hud_bits: [
+        hud_bits: crate::drive::replay_cameras::shown_hud().unwrap_or([
             race.shared.view.get().player_options[0].get(),
             race.shared.view.get().player_options[1].get(),
-        ],
+        ]),
     };
     crate::menu::replay_viewer::render_progress::run(o, &job);
     Ok(())

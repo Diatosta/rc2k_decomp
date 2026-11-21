@@ -187,8 +187,25 @@ fn viewing(race: &'static Race, o: Owners<'static>, start: Start) -> Result<View
     }
 }
 
+/// The HUD pieces the viewer shows for the first two cars when their HUD is switched on: a render's
+/// own (`--hud`), else those the last race took in, else (no race yet in this run, a replay
+/// opened from the list) the players' own settings, as a race would take them in.
+fn shown_hud(race: &Race, o: Owners<'static>) -> [u32; 2] {
+    if let Some(given) = crate::video::hud_bits() {
+        return given;
+    }
+    let view = race.shared.view.get();
+    std::array::from_fn(|car| match view.player_options[car].get() {
+        0 => crate::menu::player::player(o.menus, car as u32).map_or(0, |record| {
+            crate::race::settings_copy::player_hud_bits(&record.get())
+        }),
+        bits => bits,
+    })
+}
+
 /// The viewer's end: the replay closed, the front end back.
 fn end(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
+    crate::drive::replay_cameras::set_shown_hud(None);
     crate::race::close_viewed_replay::close_viewed_replay(race)?;
     crate::race::viewer_tidy_stage::viewer_tidy_stage(race, o)?;
     race.shared.replay_file().viewer_stopped.set(false);
@@ -198,6 +215,7 @@ fn end(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
 
 /// Up to the end.
 fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed, Refused> {
+    crate::drive::replay_cameras::set_shown_hud(Some(shown_hud(race, o)));
     let (system, list_state) = (o.system, &o.menus.list);
     let devices = &o.input.devices;
     let session = &system.session;

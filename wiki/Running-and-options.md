@@ -230,7 +230,7 @@ rc2k --render-replay savedata/replay/replay00 --out run.mp4 --size 1920x1080 --f
 | `--encoder` | `automatic` (the default) or `software`: see below. |
 | `--no-sound` | The video has no sound. |
 | `--from`, `--to` | The part of the replay to render, in seconds from its start (`12.5`; two decimals). `--from` is exact to a hundredth of a second; the part ends at the whole second after `--to`. Without them, the whole replay. |
-| `--hud` | `FIRST,SECOND`: the HUD pieces of the first two cars, as bits (the replay viewer passes the ones it shows). Without it a replay rendered from the command line has no HUD pieces: they are the players' settings, which only a race or replay started from the menus takes in. |
+| `--hud` | `FIRST,SECOND`: the HUD pieces of the first two cars, as bits (the replay viewer passes the ones it shows). Without it, as in the viewer: the pieces the last race took in, else players 1 and 2's own HUD settings (the visual preferences page's). A car's HUD shows only where the replay has it switched on (the viewer's HUD buttons). |
 | `--fps` | The frames a second, 1 .. 480 (60 if not given). The simulation ticks a hundred times a second; a frame between two ticks shows the blend of them (the options' "smooth frames", forced on here), so 60, 120 or 144 are all smooth. |
 
 The frames are piped as raw pixels to an `ffmpeg` found on the path (as NV12, converted on the card, when the GPU renderer runs on Vulkan and an `ffmpeg` is there; 32-bit pixels, converted by the encoder side, otherwise): H.264 (`libx264`, 4:2:0, an
