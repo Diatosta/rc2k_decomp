@@ -488,7 +488,7 @@ pub fn draw_own_car(
     ctx.view.vars.drawn_car.set(number);
     ctx.view.state.borrow_mut().drawn_car = number;
     // The state bits are the view's own; the rest, the car as seen.
-    if !seen_inside(ctx.view.cars.state_of(car)?.get()) {
+    if !seen_inside(ctx.view.cars.borrow().state_of(car)?) {
         return Ok(());
     }
     let block = ctx.reads.frame_cars.car(car)?;
@@ -504,7 +504,7 @@ pub fn draw_own_car(
     }
     // `race::draw_car_shined` reads only the car's block.
     crate::race::car_draw::draw_car_shined(ctx, car)?;
-    ctx.view.cars.group_mask.set(u32::MAX);
+    ctx.view.cars.borrow_mut().group_mask = u32::MAX;
     crate::scene::set_texture::set_texture_with(
         ctx.part,
         ctx.reads.object_tables,

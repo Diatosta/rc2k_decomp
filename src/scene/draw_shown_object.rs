@@ -28,7 +28,7 @@ struct Game<'a>(
 
 impl rc2k_core::scene::shown::RaceObject for Game<'_> {
     fn object(&self) -> u32 {
-        self.0.object_number.get()
+        self.0.borrow().object_number
     }
     fn kind_switch(&self) -> bool {
         self.2.work.in_credits.is_set()
@@ -65,7 +65,7 @@ pub fn draw_shown_object(
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<bool, Refused> {
     let in_race = reads.number_vars.in_race.is_set();
-    if in_race && cars.object_number.get() >= OBJECTS {
+    if in_race && cars.borrow().object_number >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }
     object.borrow_mut().drawing_object = 1u32;

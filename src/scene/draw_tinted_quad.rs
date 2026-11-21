@@ -64,7 +64,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     )?;
     if ctx.view.polygon.scalars.borrow().polygon_vertex_count >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(ctx.part, false);
-        ctx.view.face.polygon_mode.set(3);
+        ctx.view.face.borrow_mut().polygon_mode = 3;
         ctx.view.polygon.scalars.borrow_mut().polygon_textures[0] = 0xFFFF_FFFF;
         ctx.view.polygon.scalars.borrow_mut().polygon_textures[1] = 0xFFFF_FFFF;
         ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0;
@@ -75,7 +75,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
             ctx.reads,
             ctx.reads.screen,
         )?;
-        ctx.view.face.polygon_mode.set(0);
+        ctx.view.face.borrow_mut().polygon_mode = 0;
         crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
     }
     ctx.view.polygon.scalars.borrow_mut().polygon_colour = 0xFF_FFFF;

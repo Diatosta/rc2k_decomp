@@ -7,8 +7,8 @@
 //! end).
 
 use crate::errors::Refused;
-use crate::memory::session::{Run, write_runs};
-use crate::physics::car_store::Car;
+use crate::memory::session::Run;
+use crate::physics::car_store::{Car, put_dwords};
 use crate::physics::contact_store::ProbeLists;
 use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::saved_car::{restore_count, restored};
@@ -75,45 +75,57 @@ pub(super) fn restore_saved_car(
     }
     // Up to 0x7C dwords from the saved faces (0x40), on into the face-flip list after them, into
     // the car's faces (0x40), on through the fields after them to the record's end (0x7C in all).
-    let to = faces_and_after(car);
-    for k in 0..n as usize {
-        let v = saved_face_or_flip(probes, k);
-        write_runs(&to, k, v, "the saved faces")?;
-    }
+    put_dwords(
+        &faces_and_after(car),
+        0,
+        (0..n as usize).map(|k| saved_face_or_flip(probes, k)),
+    )?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::physics::car_offsets_1999::{bytes_1999, car_with_1999_bytes, write_on_1999};
 
-    /// The copy of every count up to the limit puts the saved faces and then the flips into the
-    /// work copy's list, and leaves the rest of the list as it was.
+    /// The copy of every count up to the limit does what the 1999 record's run did over a
+    /// randomly filled record: the saved faces and then the flips go into the work copy's list and
+    /// on through the fields after it, and every other field is as it was.
     #[test]
-    fn faces_run_on_into_the_flips() {
+    fn faces_run_on_as_the_old_run() {
+        let mut seed = 0x1234_5678_u32;
+        let mut random = move || {
+            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (seed >> 24) as u8
+        };
+        let fill: Vec<u8> = (0..crate::physics::car_offsets_1999::SIZE_1999)
+            .map(|_| random())
+            .collect();
+        let mut probes = ProbeLists::new();
+        for (k, cell) in probes.probe_saved_faces.iter_mut().enumerate() {
+            *cell = 0x100 + k as u32;
+        }
+        for (k, cell) in probes.probe_face_flip.iter_mut().enumerate() {
+            *cell = 0x200 + k as u32;
+        }
         for n in 0..=0x7C {
-            let new = Car::new();
-            let mut c_new = ProbeLists::new();
-            for (k, cell) in c_new.probe_saved_faces.iter_mut().enumerate() {
-                *cell = 0x100 + k as u32;
-            }
-            for (k, cell) in c_new.probe_face_flip.iter_mut().enumerate() {
-                *cell = 0x200 + k as u32;
-            }
-            let to = faces_and_after(&new);
+            let new = car_with_1999_bytes(|at| fill[at]);
+            let old = car_with_1999_bytes(|at| fill[at]);
+            put_dwords(
+                &faces_and_after(&new),
+                0,
+                (0..n).map(|k| saved_face_or_flip(&probes, k)),
+            )
+            .unwrap();
             for k in 0..n {
-                write_runs(&to, k, saved_face_or_flip(&c_new, k), "t").unwrap();
+                write_on_1999(
+                    &old,
+                    &old.probe_point_face,
+                    k,
+                    saved_face_or_flip(&probes, k),
+                );
             }
-            for k in 0..0x7C {
-                let read =
-                    crate::physics::car_offsets_1999::read_on_1999(&new, &new.probe_point_face, k);
-                let wanted = if k < n {
-                    saved_face_or_flip(&c_new, k)
-                } else {
-                    0
-                };
-                assert_eq!(read, wanted, "count {n}, dword {k}");
-            }
+            assert!(bytes_1999(&new) == bytes_1999(&old), "count {n}");
         }
     }
 }

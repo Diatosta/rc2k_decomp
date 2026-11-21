@@ -35,7 +35,7 @@ fn name(
         crate::strings::append_string_by_id::StringOwners::of(o),
         name.to_file(),
         &mut |bytes| {
-            if let Err(e) = crate::memory::cells::Store::store(text, written as usize, bytes) {
+            if let Err(e) = text.write_at(written as usize, bytes, "a split time's name") {
                 refused.get_or_insert(e);
             }
             written += bytes.len() as u32;

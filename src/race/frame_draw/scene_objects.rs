@@ -12,12 +12,12 @@ use crate::scene::draw_described_object::{DescribedMatrix, Description};
 /// `reflections_kept` 1.
 pub fn start_kept_reflections(view: &crate::race::view_scratch::ViewScratch) {
     view.object.borrow_mut().kept_reflections[..0x400].fill(0xFFFF_FC19);
-    view.face.reflections_kept.set(1u32);
+    view.face.borrow_mut().reflections_kept = 1u32;
 }
 
 /// `race::end_kept_reflections`: `reflections_kept` 0.
 pub fn end_kept_reflections(view: &crate::race::view_scratch::ViewScratch) {
-    view.face.reflections_kept.set(0u32);
+    view.face.borrow_mut().reflections_kept = 0u32;
 }
 
 /// `race::draw_slot_object`: the race slot's object (`part`, into `object_number`) drawn, unless
@@ -37,7 +37,7 @@ fn draw_slot_object(
     use crate::scene::matrix;
     check_slot_object(ctx.reads.work, slot)?;
     let object = slot.part.get();
-    ctx.view.cars.object_number.set(object);
+    ctx.view.cars.borrow_mut().object_number = object;
     let mode: u32 = ctx.reads.vars.run_kind.get();
     if ctx.reads.view.players.get() != 1 && mode != 0 && mode != 2 {
         let n = object.wrapping_sub(0x50);
@@ -182,11 +182,11 @@ pub fn draw_screen_quad(
     if poly.scalars.borrow().polygon_vertex_count >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(part, false);
         poly.scalars.borrow_mut().polygon_textures[0] = u32::MAX;
-        face.polygon_mode.set(0u32);
+        face.borrow_mut().polygon_mode = 0u32;
         poly.scalars.borrow_mut().polygon_sides[0] = 1u32;
         poly.scalars.borrow_mut().polygon_sides[1] = 0u32;
         crate::scene::draw_polygon::draw_polygon_in_game(view, part, reads, screen)?;
-        face.polygon_mode.set(0u32);
+        face.borrow_mut().polygon_mode = 0u32;
         crate::scene::depth_buffer_on::depth_buffer(part, true);
     }
     poly.scalars.borrow_mut().polygon_colour = 0x00FF_FFFFu32;
@@ -237,7 +237,7 @@ pub fn add_car_depth_entry(ctx: &DrawCtx, car: usize, number: u32) -> Result<(),
     ctx.view.object.borrow_mut().place[0] = from_int(t[0] as i32).to_bits();
     ctx.view.object.borrow_mut().place[1] = from_int(t[1] as i32).to_bits();
     let key = t[2].wrapping_add(0x200_0000) >> 10;
-    view.face.depth_key.set(key);
+    view.face.borrow_mut().depth_key = key;
     let second = number.wrapping_add(0x200_0000);
     let at = view.lists.depth_entry(n)?;
     at[0].set(key);
@@ -265,7 +265,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
         place,
         size: ctx.view.object.borrow().size,
         other_light: ctx.view.light.borrow().other_light,
-        object_number: ctx.view.cars.object_number.get(),
+        object_number: ctx.view.cars.borrow().object_number,
     };
     view.lamps.borrow_mut().set_flare(n as usize, flare);
     let out = crate::math::x87::rotate_rounding_z(
@@ -275,7 +275,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     ctx.view.object.borrow_mut().place[0] = out[0];
     ctx.view.object.borrow_mut().place[1] = out[1];
     let key = out[2].wrapping_add(0x200_0000) >> 10;
-    view.face.depth_key.set(key);
+    view.face.borrow_mut().depth_key = key;
     let entry: u32 = view.lists.depth_entry_count.get();
     let at = view.lists.depth_entry(entry)?;
     at[0].set(key);
@@ -296,7 +296,7 @@ pub(super) fn place_flare(ctx: &DrawCtx, car: usize, point: [u32; 3]) -> Result<
         ctx.view.object.borrow_mut().place[k] =
             v.wrapping_add(ctx.reads.frame_cars.car(car)?.position[k].get());
     }
-    ctx.view.cars.object_number.set(0x39u32);
+    ctx.view.cars.borrow_mut().object_number = 0x39u32;
     add_flare(ctx)?;
     Ok(())
 }
@@ -326,13 +326,13 @@ pub(super) fn light_pair(
         }
         Ok(u32::from(switches.get(n)))
     };
-    ctx.view.cars.light_left.set(0u32);
-    ctx.view.cars.light_right.set(0u32);
+    ctx.view.cars.borrow_mut().light_left = 0u32;
+    ctx.view.cars.borrow_mut().light_right = 0u32;
     if left != u32::MAX {
-        ctx.view.cars.light_left.set(byte(left)?);
+        ctx.view.cars.borrow_mut().light_left = byte(left)?;
     }
     if right != u32::MAX {
-        ctx.view.cars.light_right.set(byte(right)?);
+        ctx.view.cars.borrow_mut().light_right = byte(right)?;
     }
     let lights = &ctx
         .reads
@@ -352,10 +352,10 @@ pub(super) fn light_pair(
         return Ok(());
     }
     let y = y.wrapping_sub(GROUND_DROP);
-    if ctx.view.cars.light_right.get() != 0 {
+    if ctx.view.cars.borrow().light_right != 0 {
         place_flare(ctx, car, [x, y, z])?;
     }
-    if ctx.view.cars.light_left.get() != 0 {
+    if ctx.view.cars.borrow().light_left != 0 {
         place_flare(ctx, car, [x.wrapping_neg(), y, z])?;
     }
     Ok(())
@@ -392,10 +392,8 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
         ) {
             return Ok(());
         }
-        ctx.view
-            .cars
-            .parts_present
-            .set(ctx.reads.frame_cars.car(car)?.parts_present.get());
+        let present = ctx.reads.frame_cars.car(car)?.parts_present.get();
+        ctx.view.cars.borrow_mut().parts_present = present;
         // A second test of the same kind follows; it can never fail here.
     }
     // The kind held to 0 ..= 0x21 (by sign), through the kind tables' `kind_light_records`.
@@ -408,7 +406,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     ctx.view.light.borrow_mut().other_light = 0x0060_6060u32;
     let pair = |at: u32, left: u32, right: u32| light_pair(ctx, car, record, at, left, right);
     pair(0xA4, 0xAC0, 0xAC1)?;
-    if ctx.reads.light_work.marks_mask != 0 && ctx.view.cars.parts_present.get() >> 9 & 1 != 0 {
+    if ctx.reads.light_work.marks_mask != 0 && ctx.view.cars.borrow().parts_present >> 9 & 1 != 0 {
         pair(0xB0, 0xACA, 0xACB)?;
         pair(0xBC, 0xACC, 0xACD)?;
         pair(0xC8, 0xACE, 0xACF)?;
@@ -450,7 +448,7 @@ pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
     for n in 0..cars {
         let b = ctx.reads.work.block_number(n as usize)?;
         // Both only with the lights on:
-        if lights_on(ctx.view.cars.state_of(b)?.get()) {
+        if lights_on(ctx.view.cars.borrow().state_of(b)?) {
             add_car_depth_entry(ctx, b, n)?;
             car_light_flares(ctx, b)?;
         }
@@ -554,7 +552,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     if ctx.view.light.borrow().view_kind == 4 {
         return Ok(());
     }
-    let number = ctx.view.cars.object_number.get();
+    let number = ctx.view.cars.borrow().object_number;
     let kind = ctx.reads.object_tables.object_kind(number);
     // An object whose slot holds no kind (-1) takes the material record before the first.
     let material =
@@ -689,7 +687,7 @@ pub fn draw_flare(
     view.object.borrow_mut().place = held.place;
     view.object.borrow_mut().size = held.size;
     view.light.borrow_mut().other_light = held.other_light;
-    view.cars.object_number.set(held.object_number);
+    view.cars.borrow_mut().object_number = held.object_number;
     ctx.view.light.borrow_mut().view_kind = 2u32;
     place_object_matrix(ctx)?;
     ctx.view.light.borrow_mut().light_kind = 0u32;
@@ -712,10 +710,8 @@ fn draw_lamp_flare(ctx: &crate::race::view_scratch::DrawCtx<'_>, lamp: u32) -> R
     ctx.view.object.borrow_mut().place[2] = z;
     ctx.view.object.borrow_mut().size = lamp_record[1] << 3;
     ctx.view.light.borrow_mut().other_light = lamp_record[2];
-    ctx.view
-        .cars
-        .object_number
-        .set(ctx.reads.switches.marker_object.get());
+    let marker = ctx.reads.switches.marker_object.get();
+    ctx.view.cars.borrow_mut().object_number = marker;
     ctx.view.light.borrow_mut().view_kind = 2u32;
     place_object_matrix(ctx)?;
     ctx.view.light.borrow_mut().light_kind = 0u32;
@@ -734,7 +730,7 @@ fn draw_lamp_flare(ctx: &crate::race::view_scratch::DrawCtx<'_>, lamp: u32) -> R
 /// way, below 0x10 tinted, each with the texture filter's switches 1 around it and 0 after;
 /// any other kind draws nothing.
 fn draw_face_entry(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Result<(), Refused> {
-    ctx.view.face.course_face.set(face);
+    ctx.view.face.borrow_mut().course_face = face;
     let kind = crate::race::course_places::face_field::<u8>(ctx.reads.course(), face, 0)?;
     if kind == 0xFF || kind < 0x10 {
         ctx.view.polygon.scalars.borrow_mut().smooth = 1;

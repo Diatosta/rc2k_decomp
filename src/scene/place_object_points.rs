@@ -87,7 +87,7 @@ fn object(
     object_slots: crate::scene::object_slots_store::SlotShapesRef<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<Object, BadInput> {
-    let number: u32 = cars.object_number.get();
+    let number: u32 = cars.borrow().object_number;
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }

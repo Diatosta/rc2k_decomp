@@ -1,6 +1,7 @@
 //! The strings' owned state: the text buffer, the keyboard tables, the language and the lexicon in
 //! one struct, handed by reference to the code that uses them.
 
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{PlainBytes, PlainDword};
 use crate::strings::format_seal_code::SEAL_TEXT_LEN;
 use crate::strings::lexicon_memory::{EMPTY_MESSAGE_LEN, LexiconMemory, WORK_LEN};
@@ -18,7 +19,7 @@ pub struct Text {
     /// for a while.
     pub show_hours: PlainDword,
     /// The seal code's text (`format_seal_code`).
-    pub seal_text: PlainBytes<SEAL_TEXT_LEN>,
+    pub seal_text: PlainBuffer<SEAL_TEXT_LEN>,
 }
 
 impl Text {
@@ -27,7 +28,7 @@ impl Text {
             buffer: TextBuffer::new(),
             blend_mode: PlainDword::new(3),
             show_hours: PlainDword::new(0),
-            seal_text: PlainBytes::new([0; SEAL_TEXT_LEN]),
+            seal_text: PlainBuffer::new([0; SEAL_TEXT_LEN]),
         }
     }
 }
@@ -35,9 +36,9 @@ impl Text {
 /// The language and keyboard tables.
 pub struct Language {
     /// The `.loc` file's 0x30 bytes.
-    pub locale: PlainBytes<LOCALE_LEN>,
+    pub locale: PlainBuffer<LOCALE_LEN>,
     /// The plain-letters table.
-    pub plain_letters: PlainBytes<256>,
+    pub plain_letters: PlainBuffer<256>,
     /// 0 = imperial (Fahrenheit, miles) and non-zero = metric (0 at the start). Set by the language
     /// (`language::load_language`) and player 1's choice (`menu::take_player1_units`, `menu::options_loop`).
     pub units: PlainDword,
@@ -48,8 +49,8 @@ pub struct Language {
 impl Language {
     pub const fn new() -> Self {
         Language {
-            locale: PlainBytes::new(LOCALE_INIT),
-            plain_letters: PlainBytes::new(PLAIN_LETTERS_INIT),
+            locale: PlainBuffer::new(LOCALE_INIT),
+            plain_letters: PlainBuffer::new(PLAIN_LETTERS_INIT),
             units: PlainDword::new(0),
             own: std::sync::RwLock::new(None),
         }
@@ -59,14 +60,14 @@ impl Language {
 /// The lexicon compiler's memory.
 pub struct Lexicon {
     /// The work variables.
-    pub work: PlainBytes<WORK_LEN>,
+    pub work: PlainBuffer<WORK_LEN>,
     pub memory: LexiconMemory,
     /// The record all empty messages share.
-    pub empty_message: PlainBytes<EMPTY_MESSAGE_LEN>,
+    pub empty_message: PlainBuffer<EMPTY_MESSAGE_LEN>,
     /// 1 or more (signed) to recompile on the numpad plus key: a `var\ral.cfg` setting, 0 unless set.
     pub recompile_level: PlainDword,
     /// The lexicon's room: where `language::compile_lexicon` puts the table.
-    pub room: PlainBytes<LEXICON_ROOM>,
+    pub room: PlainBuffer<LEXICON_ROOM>,
     /// The finished table as the core reads it: a copy of the room, made once its bytes are written
     /// (`string_table::publish`). Readers never see the room itself, so a text being looked up
     /// cannot meet a language being loaded.
@@ -76,11 +77,11 @@ pub struct Lexicon {
 impl Lexicon {
     pub const fn new() -> Self {
         Lexicon {
-            work: PlainBytes::new([0; WORK_LEN]),
+            work: PlainBuffer::new([0; WORK_LEN]),
             memory: LexiconMemory::new(),
-            empty_message: PlainBytes::new([0; EMPTY_MESSAGE_LEN]),
+            empty_message: PlainBuffer::new([0; EMPTY_MESSAGE_LEN]),
             recompile_level: PlainDword::new(0),
-            room: PlainBytes::new([0; LEXICON_ROOM]),
+            room: PlainBuffer::new([0; LEXICON_ROOM]),
             published: std::sync::RwLock::new(None),
         }
     }

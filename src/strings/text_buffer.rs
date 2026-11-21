@@ -1,21 +1,20 @@
 //! The strings' text buffer (`strings::text_from_ids` and the screens that build a line there).
 
-use crate::memory::session::PlainBytes;
+use crate::memory::plain_buffer::PlainBuffer;
 
 /// The strings' text buffer.
 #[repr(align(16))]
-#[derive(rc2k_derive::Cells)]
 pub struct TextBuffer {
     /// The shared text buffer (the string of an id is built here, then drawn).
-    pub text: PlainBytes<1024>,
+    pub text: PlainBuffer<1024>,
 }
 
 /// One of the game's shared text buffers, which texts are built in and drawn from: the text buffer,
 /// or one of the screens' 0x100-byte line buffers. Reads and writes stay inside it.
 #[derive(Clone, Copy)]
 pub enum TextBuf {
-    Text(&'static PlainBytes<1024>),
-    Line(&'static PlainBytes<0x100>),
+    Text(&'static PlainBuffer<1024>),
+    Line(&'static PlainBuffer<0x100>),
 }
 
 impl TextBuf {
@@ -45,7 +44,7 @@ impl TextBuf {
 impl TextBuffer {
     pub const fn new() -> Self {
         TextBuffer {
-            text: PlainBytes::new([0; 1024]),
+            text: PlainBuffer::new([0; 1024]),
         }
     }
 }

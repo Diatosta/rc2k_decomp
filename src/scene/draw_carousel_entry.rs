@@ -128,6 +128,6 @@ pub fn draw_carousel_entry(
     view.object.borrow_mut().angles[1] = set.angle_y;
     view.polygon.window.borrow_mut().view_offset = [0; 2];
     menus.screens.carousel.write().kind = set.kind;
-    view.cars.object_number.set(set.object);
+    view.cars.borrow_mut().object_number = set.object;
     draw()
 }

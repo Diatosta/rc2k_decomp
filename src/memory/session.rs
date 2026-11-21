@@ -1824,6 +1824,12 @@ pub struct TextFrom<'a, B: ByteBuffer> {
     from: usize,
 }
 
+impl<'a, B: ByteBuffer> TextFrom<'a, B> {
+    pub(crate) fn new(buffer: &'a B, from: usize) -> Self {
+        TextFrom { buffer, from }
+    }
+}
+
 impl<const N: usize> PlainBytes<N> {
     /// The text that begins `from` bytes in.
     pub fn text_from(&self, from: usize) -> TextFrom<'_, Self> {

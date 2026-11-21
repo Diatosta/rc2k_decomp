@@ -34,7 +34,7 @@ fn texture_set(
 ) -> Result<(u32, u32), Refused> {
     use rc2k_core::scene::shown::SetError;
     {
-        let object: u32 = cars.object_number.get();
+        let object: u32 = cars.borrow().object_number;
         let t = rc2k_core::scene::shown::texture_set(
             object,
             reads.number_vars.in_race.is_set(),

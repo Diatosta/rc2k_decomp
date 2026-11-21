@@ -165,8 +165,8 @@ impl ViewScratch {
             fog: PlainSlot::new(crate::scene::fog::FogValues::new()),
             object: PlainSlot::new(crate::scene::object_place::ObjectPlaceValues::new()),
             light: PlainSlot::new(crate::scene::object_light::ObjectLightValues::new()),
-            face: crate::race::face_work::FaceWork::new(),
-            cars: crate::race::car_draw_state::CarDrawState::new(),
+            face: PlainSlot::new(crate::race::face_work::FaceValues::new()),
+            cars: PlainSlot::new(crate::race::car_draw_state::CarDrawValues::new()),
             matrices: PlainSlot::new(crate::scene::view_matrices::MatrixValues::new()),
             polygon: crate::scene::polygon_work_store::PolygonWork::new(),
             grid: PlainSlot::new(crate::race::view_grid::ViewGrid::new()),
@@ -207,7 +207,6 @@ impl ViewScratch {
     /// keep what its last drawing left (its light and sky read them before `race::reset_lamps`);
     /// the sort lists' counts are set at each view's start (`race::reset_lamps`).
     pub fn begin(&self) {
-        use crate::memory::cells::Cells;
         self.fog
             .copy_from(&PlainSlot::new(crate::scene::fog::FogValues::new()));
         self.object.copy_from(&PlainSlot::new(
@@ -216,10 +215,9 @@ impl ViewScratch {
         self.light.copy_from(&PlainSlot::new(
             crate::scene::object_light::ObjectLightValues::new(),
         ));
-        self.face
-            .copy_from(&crate::race::face_work::FaceWork::new());
+        self.face.reset(crate::race::face_work::FaceValues::new());
         self.cars
-            .copy_from(&crate::race::car_draw_state::CarDrawState::new());
+            .reset(crate::race::car_draw_state::CarDrawValues::new());
         self.matrices
             .reset(crate::scene::view_matrices::MatrixValues::new());
         // What the view's set-up gave before its scene is kept: the mirror's flag
@@ -417,19 +415,19 @@ mod tests {
             ViewScratch::new(0),
             ViewScratch::new(0),
         );
-        view.cars.car_depth.set(5);
+        view.cars.borrow_mut().car_depth = 5;
         view.light.borrow_mut().view_kind = 7;
         copy.copy_drawing_from(&view);
         taken.copy_drawing_from(&view);
         assert_eq!(copy.number(), 1);
         // The view draws on; the copy changes the depth and the object number.
         view.light.borrow_mut().view_kind = 2;
-        view.cars.object_number.set(3);
-        copy.cars.car_depth.set(9);
-        copy.cars.object_number.set(4);
+        view.cars.borrow_mut().object_number = 3;
+        copy.cars.borrow_mut().car_depth = 9;
+        copy.cars.borrow_mut().object_number = 4;
         view.merge_drawing(&copy, &taken);
-        assert_eq!(view.cars.car_depth.get(), 9);
-        assert_eq!(view.cars.object_number.get(), 4);
+        assert_eq!(view.cars.borrow().car_depth, 9);
+        assert_eq!(view.cars.borrow().object_number, 4);
         assert_eq!(view.light.borrow().view_kind, 2);
         assert_eq!(view.number(), 1);
     }

@@ -513,7 +513,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         o.scene.scratch.mirror(0),
         o.scene.scratch.mirror(1),
     ] {
-        slot.cars.cars_drawn.set(0);
+        slot.cars.borrow_mut().cars_drawn = 0;
     }
     scene.light_work_mut().marks_mask =
         (race.course.stage_prefs.get().refresh_flags_a.get() & 2) >> 1;

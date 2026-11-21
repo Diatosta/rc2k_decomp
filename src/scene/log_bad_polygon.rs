@@ -68,15 +68,15 @@ const AFTER: [(&std::ffi::CStr, Value); 2] = [
     }),
 ];
 const POLYGON_NUMBER: [(&std::ffi::CStr, Value); 1] = [(c"polynum", |view, _| {
-    Shown::Int(view.face.course_face.get() as i32)
+    Shown::Int(view.face.borrow().course_face as i32)
 })];
 const OBJECT: [(&std::ffi::CStr, Value); 2] = [
     // The view's whose polygon this is (every polygon work is a view slot's).
     (c"objdraw", |view, _| {
-        Shown::Int(view.cars.object_number.get() as i32)
+        Shown::Int(view.cars.borrow().object_number as i32)
     }),
     (c"objfaced", |view, _| {
-        Shown::Int(view.face.face_number.get() as i32)
+        Shown::Int(view.face.borrow().face_number as i32)
     }),
 ];
 /// How a vertex's dword is shown.

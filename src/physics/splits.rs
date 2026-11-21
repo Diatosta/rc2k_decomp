@@ -6,7 +6,7 @@
 //! `physics::compare_split_times` (against ten times kept per split). This file holds the shared
 //! names and the test.
 
-use crate::physics::car_store::Car;
+use crate::physics::car_store::{Car, put_dwords};
 
 /// Split `split`'s time into the car. The splits run to 0x3F (`split_due` refuses a later one),
 /// past the sixteen figures of `split_times`: they go into the car's next fields, named here in the
@@ -20,7 +20,7 @@ pub(super) fn put_split_time(
         time.set(v);
         return Ok(());
     }
-    crate::memory::session::write_runs(
+    put_dwords(
         &[
             &car.split_times,
             &car.drive_slip_speed,
@@ -61,29 +61,38 @@ pub(super) fn put_split_time(
             &car.front_wheels_off,
         ],
         split,
-        v,
-        "a split's time",
+        [v],
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::physics::car_offsets_1999::{
+        SIZE_1999, bytes_1999, car_with_1999_bytes, write_on_1999,
+    };
 
-    /// Each split to the last one takes writes the dword the old byte-offset write did.
+    /// Each split to the last one takes writes the dword the old byte-offset write did, over a
+    /// randomly filled record, and no other field changes.
     #[test]
     fn split_times_run_on_as_the_old_write() {
-        let (new, old) = (Car::new(), Car::new());
+        let mut seed = 0x9E37_79B9_u32;
+        let fill: Vec<u8> = (0..SIZE_1999)
+            .map(|_| {
+                seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                (seed >> 24) as u8
+            })
+            .collect();
         for n in 0..0x40 {
             let v = 0x3000_0000 + n as u32;
+            let (new, old) = (
+                car_with_1999_bytes(|at| fill[at]),
+                car_with_1999_bytes(|at| fill[at]),
+            );
             put_split_time(&new, n, v).unwrap();
-            crate::physics::car_offsets_1999::write_on_1999(&old, &old.split_times, n, v);
+            write_on_1999(&old, &old.split_times, n, v);
+            assert!(bytes_1999(&new) == bytes_1999(&old), "split {n}");
         }
-        for n in 0..0x40 + 8 {
-            let read =
-                |c: &Car| crate::physics::car_offsets_1999::read_on_1999(c, &c.split_times, n);
-            assert_eq!(read(&new), read(&old), "dword {n}");
-        }
-        assert!(put_split_time(&new, 0x40, 1).is_err());
+        assert!(put_split_time(&Car::new(), 0x40, 1).is_err());
     }
 }

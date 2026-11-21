@@ -147,7 +147,7 @@ fn draw_description(
     if shown {
         check_object(ctx.reads.number_vars, ctx.reads.work, object)?;
     }
-    ctx.view.cars.object_number.set(object);
+    ctx.view.cars.borrow_mut().object_number = object;
     let end = || {
         ctx.view.object.borrow_mut().only_object = 0u32;
         ctx.view.object.borrow_mut().object_place = u32::MAX;
@@ -227,7 +227,7 @@ fn draw_description(
     ctx.view.light.borrow_mut().view_kind = 2u32;
     crate::race::frame_draw::place_object_matrix(ctx)?;
     ctx.view.light.borrow_mut().light_kind = 2u32;
-    let object: u32 = ctx.view.cars.object_number.get();
+    let object: u32 = ctx.view.cars.borrow().object_number;
     let kind: u32 = ctx.reads.object_tables.object_kind(object);
     if crate::scene::polygon::material_run_byte(&ctx.reads.buffers.polygon_tables, kind, 0x1F)? != 0
     {

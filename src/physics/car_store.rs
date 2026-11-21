@@ -588,6 +588,32 @@ impl Car {
     }
 }
 
+/// Puts `values` into `fields`, the fields' dwords laid end to end in the order given, the first
+/// value into dword `skip`. A value past the last field is refused (nothing is written for it).
+pub(super) fn put_dwords(
+    fields: &[&dyn crate::memory::session::Run],
+    skip: usize,
+    values: impl IntoIterator<Item = u32>,
+) -> Result<(), crate::errors::BadInput> {
+    let mut values = values.into_iter().peekable();
+    let mut skip = skip;
+    for field in fields {
+        for i in skip.min(field.count())..field.count() {
+            let Some(v) = values.next() else {
+                return Ok(());
+            };
+            field.set_bits(i, v);
+        }
+        skip = skip.saturating_sub(field.count());
+    }
+    match values.peek() {
+        None => Ok(()),
+        Some(_) => Err(crate::errors::BadInput(
+            "a dword past the fields of its record",
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
 

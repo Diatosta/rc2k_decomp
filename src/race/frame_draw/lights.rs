@@ -37,14 +37,16 @@ pub fn car_light_modes(
     }
     let shown = race_view.view_car_number(view as usize)?;
     for n in 0..8 {
-        states.state_of(block(n)?)?.set(0);
+        let car_block = block(n)?;
+        states.borrow_mut().set_state(car_block, 0)?;
     }
     use rc2k_core::race::lights::{light_word, lights_drawn};
     let mode: u32 = vars.run_kind.get();
     for n in 0..cars {
         // The state bits are the view's own; what decides them, the physics'.
         let this_car = frame_cars.car(block(n)?)?;
-        let at = states.state_of(block(n)?)?;
+        let car_block = block(n)?;
+        let at = states.borrow().state_of(car_block)?;
         let me = n == shown;
         let drawn = lights_drawn(
             this_car.driver_kind.get() != 0,
@@ -54,17 +56,17 @@ pub fn car_light_modes(
             || mirrored,
         );
         if !drawn {
-            at.set(0);
+            states.borrow_mut().set_state(car_block, 0)?;
             continue;
         }
         let word = light_word(
-            at.get(),
+            at,
             me,
             || this_car.camera_mode_is_2_or_3.get() != 0,
             || this_car.camera_view.get(),
             vars.settings_words[3].get(),
         );
-        at.set(word);
+        states.borrow_mut().set_state(car_block, word)?;
     }
     Ok(())
 }
@@ -98,7 +100,7 @@ pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     view.object.borrow_mut().place[0] = out[0];
     view.object.borrow_mut().place[1] = out[1];
     let key = out[2].wrapping_add(0x200_0000) >> 10;
-    view.face.depth_key.set(key);
+    view.face.borrow_mut().depth_key = key;
     let second = view.lamps.borrow().lamp_count.wrapping_add(0x300_0000);
     let n: u32 = view.lists.depth_entry_count.get();
     let at = view.lists.depth_entry(n)?;

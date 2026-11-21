@@ -74,7 +74,7 @@ pub fn draw_shown_car(
     let kind = screens.carousel.read().kinds[car as usize];
     screens.carousel.write().kind = kind;
     let object = find_object_of_kind(kind, scene);
-    cars.object_number.set(object);
+    cars.borrow_mut().object_number = object;
     draw()
 }
 

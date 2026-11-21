@@ -116,7 +116,7 @@ fn face_hidden(
         0
     };
     let (_, hidden) = hidden_by_switches(shows, hiding, || {
-        face.switches() as u32 & ctx.view.face.face_hide_mask.get()
+        face.switches() as u32 & ctx.view.face.borrow().face_hide_mask
     });
     if hidden {
         return Ok(true);
@@ -184,7 +184,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
         }
     };
     let key = rc2k_core::race::faces::depth_key(key);
-    ctx.view.face.depth_key.set(key);
+    ctx.view.face.borrow_mut().depth_key = key;
     Ok(())
 }
 
@@ -197,7 +197,7 @@ fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
     let n: u32 = lists.depth_entry_count.get();
     rc2k_core::race::faces::depth_entry_room(n)?;
     face_depth(ctx, face)?;
-    let key: u32 = ctx.view.face.depth_key.get();
+    let key: u32 = ctx.view.face.borrow().depth_key;
     let at = lists.depth_entry(n)?;
     at[0].set(key);
     at[1].set(face);
@@ -294,7 +294,7 @@ pub fn gather_record_faces(ctx: &DrawCtx, record: u32) -> Result<(), Refused> {
     }
     let mut face = first;
     loop {
-        ctx.view.face.course_face.set(face);
+        ctx.view.face.borrow_mut().course_face = face;
         // The face read once for its kind, objects, switches and first point.
         let read = crate::race::course_places::face_number(ctx.reads.course(), face)?;
         let kind = read.kind();
@@ -350,9 +350,7 @@ pub fn face_hide_mask(
         return Ok(());
     }
     let word: u16 = face_field(reads.course(), ground, 2)?;
-    view.face
-        .face_hide_mask
-        .set(rc2k_core::race::faces::hide_mask(word));
+    view.face.borrow_mut().face_hide_mask = rc2k_core::race::faces::hide_mask(word);
     Ok(())
 }
 

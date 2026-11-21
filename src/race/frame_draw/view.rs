@@ -562,14 +562,14 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
         let mut kept = ctx.view.matrices.borrow_mut();
         kept.object_matrix_slots = kept.made_object_matrix.map(f32::to_bits);
     }
-    ctx.view.cars.object_number.set(1);
+    ctx.view.cars.borrow_mut().object_number = 1;
     ctx.view.light.borrow_mut().view_kind = 4;
     ctx.view.light.borrow_mut().light_lowest = 0xFF;
     ctx.view.light.borrow_mut().light_highest = 0xFF;
     ctx.view.light.borrow_mut().light_level = 0xFF;
     ctx.view.light.borrow_mut().light_turns[0] = 0;
     ctx.view.light.borrow_mut().light_turns[1] = 0;
-    ctx.view.face.no_far_clip.set(1);
+    ctx.view.face.borrow_mut().no_far_clip = 1;
     crate::scene::glow_render_states::glow_render_states(ctx.part);
     ctx.view.light.borrow_mut().light_kind = 0u32;
     // The matrix is taken where its copy was left: past `made_object_matrix`.
@@ -582,7 +582,7 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     )?;
     crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
     ctx.view.light.borrow_mut().view_kind = 0;
-    ctx.view.face.no_far_clip.set(0);
+    ctx.view.face.borrow_mut().no_far_clip = 0;
     place_sun(ctx)
 }
 

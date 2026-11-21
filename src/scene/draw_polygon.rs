@@ -347,7 +347,7 @@ fn clear_a_switch(
     if all == 0xFF {
         let info = tables
             .texture_infos
-            .get(face.texture_b.get() as usize)
+            .get(face.borrow().texture_b as usize)
             .ok_or(BadInput("a texture past the records"))?;
         // the third byte of the record's word 0xB
         if info.words[0xB].get().to_le_bytes()[2] == 0 {
@@ -423,7 +423,7 @@ pub fn draw_polygon(
     let kept: [u32; 3] = [
         poly.scalars.borrow().polygon_sides[0],
         poly.scalars.borrow().polygon_sides[1],
-        face.polygon_mode.get(),
+        face.borrow().polygon_mode,
     ];
     poly.scalars.borrow_mut().polygon_kept = kept;
     let mirrored = poly.scalars.borrow().view_mirrored != 0;
@@ -436,11 +436,13 @@ pub fn draw_polygon(
     }
     place(part, &poly.quads, &entries, mirrored, &poly.window);
 
-    if face.faded.get() != 0 {
-        let (mode, texture): (u32, u32) =
-            (face.polygon_mode.get(), poly.scalars.borrow().texture_page);
+    if face.borrow().faded != 0 {
+        let (mode, texture): (u32, u32) = (
+            face.borrow().polygon_mode,
+            poly.scalars.borrow().texture_page,
+        );
         // The faded first pass: each vertex fades by its own fog byte.
-        let (from, alpha): (u32, u32) = (poly.scalars.borrow().fade_from, face.fade_alpha.get());
+        let (from, alpha): (u32, u32) = (poly.scalars.borrow().fade_from, face.borrow().fade_alpha);
         let uv = crate::memory::session::read_bits(&reads.vars.fade_uv);
         for (n, &(_, entry)) in entries.iter().enumerate() {
             let out = out(buffer, n);
@@ -452,7 +454,7 @@ pub fn draw_polygon(
             out.v.set(f32::from_bits(uv[1]));
         }
         poly.scalars.borrow_mut().texture_page = FADE_TEXTURE;
-        face.polygon_mode.set(7u32);
+        face.borrow_mut().polygon_mode = 7u32;
         choose_texture(poly, outside, reads);
         for (state, value) in [(0x15, 4), (0x13, 5), (0x14, 6), (0x1B, 1), (0x1C, 0)] {
             outside.state(state, value);
@@ -465,11 +467,11 @@ pub fn draw_polygon(
             screen,
         );
         poly.scalars.borrow_mut().texture_page = texture;
-        face.polygon_mode.set(mode);
+        face.borrow_mut().polygon_mode = mode;
     }
 
     // The mode, with its fallbacks.
-    let mut mode: u32 = face.polygon_mode.get();
+    let mut mode: u32 = face.borrow().polygon_mode;
     if mode == 3 && reads.draw_switches.clears_switch != 0 {
         clear_a_switch(&reads.buffers.polygon_tables, poly, face, &entries)?;
     }
@@ -483,7 +485,7 @@ pub fn draw_polygon(
         };
         if let Some(fallback) = fallback {
             mode = fallback;
-            face.polygon_mode.set(mode);
+            face.borrow_mut().polygon_mode = mode;
         }
     }
     if let Some((how, passes)) = passes(mode) {
@@ -500,7 +502,7 @@ pub fn draw_polygon(
             }
             copy_set(buffer, &entries, pass.set);
             if let Some(as_mode) = pass.as_mode {
-                face.polygon_mode.set(as_mode);
+                face.borrow_mut().polygon_mode = as_mode;
             }
             if pass.no_depth {
                 outside.state(0x0E, 0);
@@ -517,7 +519,7 @@ pub fn draw_polygon(
                 screen,
             );
             if pass.as_mode.is_some() {
-                face.polygon_mode.set(mode);
+                face.borrow_mut().polygon_mode = mode;
             }
             if pass.no_depth {
                 outside.state(0x0E, 1);
@@ -530,7 +532,7 @@ pub fn draw_polygon(
     // The switches and the mode as they were.
     poly.scalars.borrow_mut().polygon_sides[0] = kept[0];
     poly.scalars.borrow_mut().polygon_sides[1] = kept[1];
-    face.polygon_mode.set(kept[2]);
+    face.borrow_mut().polygon_mode = kept[2];
     Ok(())
 }
 

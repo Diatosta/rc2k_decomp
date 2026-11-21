@@ -228,7 +228,7 @@ fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Re
         if ctx.view.polygon.scalars.borrow().polygon_vertex_count >= 3 {
             ctx.view.polygon.scalars.borrow_mut().polygon_colour = 0u32;
             crate::scene::depth_test_off::depth_test_off(ctx.part);
-            ctx.view.face.polygon_mode.set(3u32);
+            ctx.view.face.borrow_mut().polygon_mode = 3u32;
             ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0u32;
             ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1u32;
             crate::scene::draw_polygon::draw_polygon_in_game(
@@ -237,7 +237,7 @@ fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Re
                 ctx.reads,
                 ctx.reads.screen,
             )?;
-            ctx.view.face.polygon_mode.set(0u32);
+            ctx.view.face.borrow_mut().polygon_mode = 0u32;
             crate::scene::depth_test_on::depth_test_on(ctx.part);
         }
         ctx.view.polygon.scalars.borrow_mut().polygon_colour = 0x00FF_FFFFu32;

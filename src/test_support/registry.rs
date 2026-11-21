@@ -181,6 +181,67 @@ impl<S: Cells> Walk for OnGame<S> {
     }
 }
 
+/// A game-thread byte buffer (`PlainBuffer`) as a listed store: the path is always the whole
+/// buffer (it has no fields and no cells to point at).
+struct OnBuffer<const N: usize> {
+    buffer: &'static crate::memory::plain_buffer::PlainBuffer<N>,
+}
+
+#[allow(
+    unsafe_code,
+    reason = "the registry's stores are shared as the owners are"
+)]
+// SAFETY: as `GameThread`: the data is reached only after the game-thread check.
+unsafe impl<const N: usize> Sync for OnBuffer<N> {}
+
+impl<const N: usize> Walk for OnBuffer<N> {
+    fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
+        crate::memory::session::assert_game_thread();
+        path.is_empty().then(|| self.buffer.read().to_vec())
+    }
+
+    fn set_path_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        crate::memory::session::assert_game_thread();
+        let Ok(all) = <&[u8; N]>::try_from(bytes) else {
+            return false;
+        };
+        path.is_empty() && {
+            self.buffer.write(all);
+            true
+        }
+    }
+
+    fn range_bytes(&self, path: &str, length: usize) -> Vec<u8> {
+        crate::memory::session::assert_game_thread();
+        if !path.is_empty() {
+            return Vec::new();
+        }
+        self.buffer.read()[..length.min(N)].to_vec()
+    }
+
+    fn set_range_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        crate::memory::session::assert_game_thread();
+        path.is_empty() && self.buffer.write_at(0, bytes, "a registry store").is_ok()
+    }
+
+    fn first_addr(&self, _path: &str) -> Option<usize> {
+        None
+    }
+
+    fn keep(&self) -> Box<dyn Fn() + '_> {
+        crate::memory::session::assert_game_thread();
+        let copy = self.buffer.read();
+        Box::new(move || self.buffer.write(&copy))
+    }
+}
+
+/// A game-thread byte buffer as a listed store.
+fn on_buffer<const N: usize>(
+    buffer: &'static crate::memory::plain_buffer::PlainBuffer<N>,
+) -> &'static OnBuffer<N> {
+    Box::leak(Box::new(OnBuffer { buffer }))
+}
+
 /// The whole of a game-thread owner's part as a listed store (lives for the program).
 fn on_game<S: Cells>(whole: &'static S) -> &'static OnGame<S> {
     on_game_from(whole, "")
@@ -231,8 +292,12 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.strings.text.show_hours),
         ),
         listed!(
+            "owners.strings.text.buffer",
+            on_buffer(&o.strings.text.buffer.text),
+        ),
+        listed!(
             "owners.strings.text.seal_text",
-            on_game(&o.strings.text.seal_text),
+            on_buffer(&o.strings.text.seal_text),
         ),
         listed!(
             "owners.strings.lexicon.recompile_level",
@@ -240,20 +305,20 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!(
             "owners.strings.language.locale",
-            on_game(&o.strings.language.locale),
+            on_buffer(&o.strings.language.locale),
         ),
         listed!(
             "owners.strings.lexicon.room",
-            on_game(&o.strings.lexicon.room),
+            on_buffer(&o.strings.lexicon.room),
         ),
         listed!("strings.same_text.LOWER", &crate::strings::same_text::LOWER),
         listed!(
             "owners.strings.language.plain_letters",
-            on_game(&o.strings.language.plain_letters),
+            on_buffer(&o.strings.language.plain_letters),
         ),
         listed!(
             "owners.strings.lexicon.empty_message",
-            on_game(&o.strings.lexicon.empty_message),
+            on_buffer(&o.strings.lexicon.empty_message),
         ),
         listed!(
             "owners.strings.language.units",
@@ -261,7 +326,7 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!(
             "owners.strings.lexicon.work",
-            on_game(&o.strings.lexicon.work),
+            on_buffer(&o.strings.lexicon.work),
         ),
         listed!("memory.state.MOST_HELD", &crate::memory::state::MOST_HELD),
         listed!("memory.state.HELD", &crate::memory::state::HELD),
@@ -419,10 +484,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.install.pages",
             on_game_from(&o.install.pages, ".texts[0].dx"),
             0xa25,
-        ),
-        listed!(
-            "owners.strings.text.buffer",
-            on_game(&o.strings.text.buffer),
         ),
         listed!("owners.system.work.files", on_game(&o.system.work().files),),
         listed!(

@@ -244,7 +244,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     }
     cells_stores! {
         *race.shared.car(),
-        menus.text_buffers,
         audio.state,
         audio.sample_records,
         menus.play.slots.pointers,

@@ -4,6 +4,7 @@
 
 use crate::errors::BadInput;
 use crate::memory::cells::Store;
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{Bytes, PlainBytes, PlainDword};
 
 /// A run of bytes read and written in place.
@@ -34,6 +35,18 @@ impl<const N: usize> Run for PlainBytes<N> {
     }
     fn set(&self, n: usize, v: u8) {
         PlainBytes::set(self, n, v);
+    }
+}
+
+impl<const N: usize> Run for PlainBuffer<N> {
+    fn len(&self) -> usize {
+        N
+    }
+    fn get(&self, n: usize) -> u8 {
+        PlainBuffer::get(self, n)
+    }
+    fn set(&self, n: usize, v: u8) {
+        PlainBuffer::set(self, n, v);
     }
 }
 
@@ -69,6 +82,12 @@ impl<const N: usize> From<&'static Bytes<N>> for BytePlace {
 
 impl<const N: usize> From<&'static PlainBytes<N>> for BytePlace {
     fn from(b: &'static PlainBytes<N>) -> Self {
+        BytePlace::In(b, 0)
+    }
+}
+
+impl<const N: usize> From<&'static PlainBuffer<N>> for BytePlace {
+    fn from(b: &'static PlainBuffer<N>) -> Self {
         BytePlace::In(b, 0)
     }
 }

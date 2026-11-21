@@ -24,7 +24,7 @@ pub fn cached_reflection_coordinates(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::reflection::{cache_place, cached};
-    if view.face.reflections_kept.get() == 0 {
+    if view.face.borrow().reflections_kept == 0 {
         return Ok(reflection_coordinates(part, reads, object, m)?);
     }
     let asked: [u32; 2] = [

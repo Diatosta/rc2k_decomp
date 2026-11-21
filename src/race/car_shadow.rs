@@ -691,7 +691,7 @@ fn shadow_on_face(
     ctx.view.polygon.scalars.borrow_mut().polygon_textures[1] = work.texture.get();
     ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0u32;
     ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1u32;
-    ctx.view.face.polygon_mode.set(5u32);
+    ctx.view.face.borrow_mut().polygon_mode = 5u32;
     crate::scene::draw_polygon::draw_polygon_in_game(
         ctx.view,
         ctx.part,
@@ -719,7 +719,7 @@ fn shadow_on_record(
         return Ok(());
     };
     for face in first..=last {
-        ctx.view.face.course_face.set(face);
+        ctx.view.face.borrow_mut().course_face = face;
         let f = face_number(ctx.reads.course(), face)?;
         let takes = takes_shadow(f.kind(), || f.switches());
         if takes {
@@ -942,8 +942,8 @@ pub(super) fn cast_car_shadows(
         if !casts_shadow(
             ctx.view
                 .cars
-                .state_of(ctx.reads.work.block_number(n as usize)?)?
-                .get(),
+                .borrow()
+                .state_of(ctx.reads.work.block_number(n as usize)?)?,
         ) {
             continue;
         }

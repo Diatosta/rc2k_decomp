@@ -27,7 +27,7 @@ pub fn list_object_faces(
         // Room for every face at once: the list grows from nothing for each object otherwise.
         faces_list.reserve(faces.len());
         for (n, &face) in faces.iter().enumerate() {
-            work.face_number.set(n as u32);
+            work.borrow_mut().face_number = n as u32;
             list(faces_list, face as usize)?;
         }
         Ok(())

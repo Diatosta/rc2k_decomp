@@ -63,7 +63,7 @@ pub fn draw_highlighted(
     }
     screens.carousel.write().kind = kind;
     let object = find_object_of_kind(kind, scene);
-    cars.object_number.set(object);
+    cars.borrow_mut().object_number = object;
     draw()
 }
 

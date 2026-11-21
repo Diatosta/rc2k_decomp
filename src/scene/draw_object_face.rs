@@ -78,10 +78,10 @@ pub fn draw_object_face(
         && ctx.reads.vars.settings_words[1].get() != 0
         && view_kind != 4
         && face_shine != 0;
-    ctx.view.face.reflects.set(reflects as u32);
+    ctx.view.face.borrow_mut().reflects = reflects as u32;
     ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = count;
 
-    if ctx.reads.switches.scene_set_up.get() != 0 && ctx.view.cars.other_way_kind.get() == 2 {
+    if ctx.reads.switches.scene_set_up.get() != 0 && ctx.view.cars.borrow().other_way_kind == 2 {
         for (entry, vertex) in vertices {
             entry.point.set(fw(vertex).wrapping_neg());
             entry.u2.set(fw(vertex + 4));
@@ -95,15 +95,15 @@ pub fn draw_object_face(
         }
         ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0u32;
         ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1u32;
-        work.polygon_mode.set(4u32);
+        work.borrow_mut().polygon_mode = 4u32;
         step(Step::DepthTestOff)?;
         step(Step::Draw)?;
         step(Step::DepthTestOn)?;
-        work.polygon_mode.set(0u32);
+        work.borrow_mut().polygon_mode = 0u32;
         return Ok(());
     }
 
-    let (face_kind, face_unlit): (u32, u32) = (work.face_kind.get(), work.face_unlit.get());
+    let (face_kind, face_unlit): (u32, u32) = (work.borrow().face_kind, work.borrow().face_unlit);
     let lit = view_kind != 4
         && (face_kind == 0x1C || (face_kind != 5 && (face_kind < 0xA || face_unlit == 0)));
     let table = crate::scene::reading::PointRecords::new(ctx.reads.course_lists, ctx.part)?;
@@ -122,7 +122,7 @@ pub fn draw_object_face(
         entry.light.set(light);
     }
     if reflects {
-        ctx.view.face.face_any_shine.set(0u32);
+        ctx.view.face.borrow_mut().face_any_shine = 0u32;
         // The shine is scaled by the face's own fog: its first vertex's, as `scene::fog_polygon`
         // gives it once the face is projected (fixed: "A reflective face's shine scaled by the
         // previous polygon's fog" in `wiki/Fixed-bugs.md`).
@@ -151,19 +151,20 @@ pub fn draw_object_face(
             entry.v2.set(coordinates[1]);
             let amount = (face_shine.wrapping_mul(shine).wrapping_mul(first_fog) >> 12).min(0xFF);
             if amount != 0 {
-                ctx.view.face.face_any_shine.set(1u32);
+                ctx.view.face.borrow_mut().face_any_shine = 1u32;
             }
             entry.amount.set(amount as u8);
         }
         ctx.view.polygon.scalars.borrow_mut().polygon_textures[1] = REFLECTION_TEXTURE;
     }
-    let faded = work.fade_alpha.get() != 0 && light.borrow().face_bits == work.faded_bits.get();
-    work.faded.set(faded as u32);
-    if ctx.view.face.face_any_shine.get() == 0 {
-        ctx.view.face.reflects.set(0u32);
+    let faded =
+        work.borrow().fade_alpha != 0 && light.borrow().face_bits == work.borrow().faded_bits;
+    work.borrow_mut().faded = faded as u32;
+    if ctx.view.face.borrow().face_any_shine == 0 {
+        ctx.view.face.borrow_mut().reflects = 0u32;
     }
     ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 1u32;
-    ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = ctx.view.face.reflects.get();
+    ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = ctx.view.face.borrow().reflects;
     let see_through: u32 = object.borrow().see_through;
     if see_through != 0x100 {
         for entry in &entries[..0x10] {
@@ -173,17 +174,17 @@ pub fn draw_object_face(
         }
         ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0u32;
         ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1u32;
-        work.polygon_mode.set(3u32);
+        work.borrow_mut().polygon_mode = 3u32;
         {
             let first = ctx.view.polygon.scalars.borrow().polygon_textures[0];
             ctx.view.polygon.scalars.borrow_mut().polygon_textures[1] = first;
         }
     } else {
-        work.polygon_mode.set(4u32);
+        work.borrow_mut().polygon_mode = 4u32;
     }
     step(Step::Draw)?;
-    work.polygon_mode.set(0u32);
-    work.faded.set(0u32);
+    work.borrow_mut().polygon_mode = 0u32;
+    work.borrow_mut().faded = 0u32;
     Ok(())
 }
 

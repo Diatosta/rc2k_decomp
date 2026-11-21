@@ -73,7 +73,7 @@ pub fn draw_flat_quad(
     crate::scene::scale_texture_coordinates::scale_texture_coordinates(&part.polygon, poly)?;
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part, poly, course)?;
     if poly.scalars.borrow().polygon_vertex_count >= 3 {
-        face.polygon_mode.set(6);
+        face.borrow_mut().polygon_mode = 6;
         poly.scalars.borrow_mut().polygon_sides[0] = 1;
         poly.scalars.borrow_mut().polygon_sides[1] = 0;
         crate::scene::depth_buffer_on::depth_buffer(part, false);

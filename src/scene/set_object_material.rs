@@ -36,7 +36,7 @@ fn state(
     data: &crate::race::course_places_store::CourseData,
     face: &crate::race::face_work::FaceWork,
 ) -> Option<u32> {
-    crate::race::course_places::held(data).then(|| face.course_face.get())
+    crate::race::course_places::held(data).then(|| face.borrow().course_face)
 }
 
 /// Where the state's four dwords start in the face's record, in bytes.
@@ -90,7 +90,7 @@ fn step_shape(
 }
 
 pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
-    let object: u32 = ctx.view.cars.object_number.get();
+    let object: u32 = ctx.view.cars.borrow().object_number;
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
@@ -106,7 +106,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     }
     ctx.view.object.borrow_mut().move_by = 0;
     ctx.view.polygon.scalars.borrow_mut().polygon_colour = 0x00FF_FFFFu32;
-    ctx.view.cars.other_way_kind.set(way);
+    ctx.view.cars.borrow_mut().other_way_kind = way;
     if let (4, Some(state)) = (way, state) {
         let points: [u32; 2] = [
             ctx.reads.object_slots.first_point(object as usize),

@@ -57,7 +57,7 @@ impl FaceWorld for GameFace<'_> {
         self.7.number_vars.in_race.is_set()
     }
     fn object(&self) -> u32 {
-        self.4.object_number.get()
+        self.4.borrow().object_number
     }
     fn object_kind(&self, object: u32) -> u32 {
         self.7.object_tables.object_kind(object)
@@ -77,16 +77,19 @@ impl FaceWorld for GameFace<'_> {
         )
     }
     fn hidden_groups(&self) -> [u32; 2] {
-        crate::memory::session::read_first(&self.4.group_masks[13..15])
+        let masks = self.4.borrow().group_masks;
+        [masks[13], masks[14]]
     }
     fn set_hidden_groups(&mut self, groups: [u32; 2]) {
-        crate::memory::session::write_first(&self.4.group_masks[13..15], &groups);
+        self.4.borrow_mut().group_masks[13..15].copy_from_slice(&groups);
     }
     fn other_groups(&self) -> [u32; 2] {
-        [15, 16].map(|k| self.4.group_masks[k].get())
+        [15, 16].map(|k| self.4.borrow().group_masks[k])
     }
+    // The mask asked for here is the groups of the parts still on the car, not the face group mask.
+    #[allow(clippy::misnamed_getters)]
     fn group_mask(&self) -> u32 {
-        self.4.shown_groups.get()
+        self.4.borrow().shown_groups
     }
     fn mask_kind(&self) -> u32 {
         self.7.switches.mask_kind.get()
@@ -104,16 +107,16 @@ impl FaceWorld for GameFace<'_> {
         self.5.camera_switch_active.get()
     }
     fn second_mask(&self) -> u32 {
-        self.4.group_mask.get()
+        self.4.borrow().group_mask
     }
     fn lone_group(&self) -> u32 {
-        self.4.group_masks[17].get()
+        self.4.borrow().group_masks[17]
     }
     fn lone_group_on(&self) -> u32 {
         self.7.light_work.marks_mask
     }
     fn groups_which(&self) -> u32 {
-        self.4.groups_which.get()
+        self.4.borrow().groups_which
     }
     fn see_through_on(&self) -> u32 {
         self.3.borrow().fading
@@ -219,7 +222,7 @@ pub fn list_object_face(
     // faces writes over the object tables" in `wiki/Fixed-bugs.md`).
     let key = listed_key(bytes, ctx.view.polygon.scalars.borrow().face_sort_key);
     list.push([
-        ctx.view.face.face_number.get(),
+        ctx.view.face.borrow().face_number,
         key,
         ctx.view.polygon.scalars.borrow().entry_third,
         ctx.view.object.borrow().see_through,

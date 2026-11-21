@@ -40,7 +40,7 @@ pub fn own_car(ctx: &DrawCtx<'_>) -> Option<u32> {
         return None;
     }
     let block = ctx.reads.work.block_number(n as usize).ok()?;
-    lights_on(ctx.view.cars.state_of(block).ok()?.get()).then_some(n)
+    lights_on(ctx.view.cars.borrow().state_of(block).ok()?).then_some(n)
 }
 
 /// Whether the view's sort list (`lists.sort_entries`, its first `count`) holds a course face
@@ -121,8 +121,13 @@ pub(super) fn draw_with_car_aside<'a, R>(
 
 /// The count a piece of the view's drawing adds to (cars drawn): its own added to what the view
 /// counted meanwhile, where the other cells take the piece's value.
-pub(crate) fn counted(view: &ViewScratch) -> &crate::memory::session::PlainDword {
-    &view.cars.cars_drawn
+pub(crate) fn counted(view: &ViewScratch) -> u32 {
+    view.cars.borrow().cars_drawn
+}
+
+/// The count set (see `counted`).
+pub(crate) fn set_counted(view: &ViewScratch, cars: u32) {
+    view.cars.borrow_mut().cars_drawn = cars;
 }
 
 /// The car's depth entry drawn (`race::draw_list_entry`'s car).
@@ -143,11 +148,9 @@ impl CarAside<'_, '_> {
         let run = self.aside.join()?;
         let copy = ctx.scene.scratch.car_view();
         let taken = ctx.scene.scratch.taken();
-        let cars = counted(ctx.view)
-            .get()
-            .wrapping_add(counted(&copy).get().wrapping_sub(counted(taken).get()));
+        let cars = counted(ctx.view).wrapping_add(counted(&copy).wrapping_sub(counted(taken)));
         ctx.view.merge_drawing(&copy, taken);
-        counted(ctx.view).set(cars);
+        set_counted(ctx.view, cars);
         drop(copy);
         self.aside.put(run)
     }
