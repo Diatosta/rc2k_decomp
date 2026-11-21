@@ -371,12 +371,12 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         CAR.gear.get(),
         CAR.gearbox_kind.get(),
         CAR.driver_kind.get(),
-        race.shared.physics_tables.get().input_steer.get() as i32,
-        race.shared.physics_tables.get().input_throttle.get(),
-        race.shared.physics_tables.get().input_brake.get(),
-        race.shared.physics_tables.get().input_handbrake.get(),
-        race.shared.physics_tables.get().input_gear_up.get(),
-        race.shared.physics_tables.get().input_gear_down.get(),
+        race.shared.run().gear_inputs.steer as i32,
+        race.shared.run().gear_inputs.first,
+        race.shared.run().gear_inputs.second,
+        race.shared.run().gear_inputs.hold,
+        race.shared.run().gear_inputs.gear_up,
+        race.shared.run().gear_inputs.gear_down,
         CAR.crash_matrix[..12]
             .iter()
             .map(|cell| format!("{:.2}", cell.get()))

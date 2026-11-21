@@ -6,6 +6,7 @@ use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::abs_compare;
 use crate::physics::car_store::Car;
+use crate::physics::figures::{LOW_SPEED_ADD, LOW_SPEED_LIMIT, LOW_SPEED_SCALE};
 use crate::physics::tables_store::PhysicsTables;
 
 /// The factor, the speed and the two forces; the exact version, for
@@ -14,14 +15,16 @@ pub(super) fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables) {
     let factor = &tables.low_speed_share;
     let speed = &car.local_velocity[2];
     factor.set(1.0);
-    let limit = &tables.low_speed_limit;
+    let limit = LOW_SPEED_LIMIT;
     if abs_compare(speed, limit) & 0x100 == 0 {
         return;
     }
     // The product is rounded to a float where it is stored.
-    factor
-        .st((speed.ld().abs() / limit.ld() + tables.low_speed_add.ld())
-            * tables.low_speed_scale.ld());
+    factor.st(
+        (speed.ld().abs() / crate::math::x87_float::ld(LOW_SPEED_LIMIT)
+            + crate::math::x87_float::ld(LOW_SPEED_ADD))
+            * crate::math::x87_float::ld(LOW_SPEED_SCALE),
+    );
     for f in &tables.drive_forces {
         f.set(x87::mul(f, factor));
     }

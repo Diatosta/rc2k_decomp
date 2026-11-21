@@ -11,6 +11,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
+use crate::physics::figures::{OFF_LINE_DISTANCE, OFF_LINE_WORD};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::frame_store::FrameWork;
 use crate::race::replay_file_store::ReplayFileBlock;
@@ -75,7 +76,7 @@ pub fn off_line_warnings(
     }
     let near = x87_below(
         physics_tables.nearest_checkpoint_distance.get() as f64,
-        physics_tables.off_line_distance.get() as f64,
+        OFF_LINE_DISTANCE as f64,
     );
     let mut w = load(car);
     w.count_off(off_line(near, || spread(cp, car.reset_checkpoint.get())));
@@ -84,7 +85,7 @@ pub fn off_line_warnings(
             car.car_heading.get(),
             crate::race::checkpoints_store::angle_run_on(checkpoints, cp as usize).get(),
         ),
-        physics_tables.off_line_word.get(),
+        OFF_LINE_WORD,
     );
     store(car, &w);
     if replay_file.hold_car_revs.get() != 0 {

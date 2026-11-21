@@ -40,15 +40,11 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
         .entry
         .set_sound(rc2k_core::menu::keys::MenuSound::None);
     menus.screens.flow.write().turning = 1u32;
-    menus.screens.carousel.menu.set(0u32);
+    menus.screens.carousel.write().menu = 0u32;
     carousel(entry, None)?;
     let item = menus.screens.items.current(slot::MAIN_MENU);
     menus.screens.loop_flags.write().item = item;
-    menus
-        .screens
-        .carousel
-        .front
-        .set(crate::menu::web_limits::carousel_entry(item));
+    menus.screens.carousel.write().front = crate::menu::web_limits::carousel_entry(item);
     Ok(())
 }
 

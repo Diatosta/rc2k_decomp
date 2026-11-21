@@ -21,11 +21,11 @@ pub fn add_clio_car(menus: &Menus) -> Result<(), BadInput> {
     let mut ends = Vec::new();
     for list in lists {
         if let Some(n) = place_if_missing(&read_list(list)?, clio) {
-            ends.push(&list.0[n]);
+            ends.push((list.0, n));
         }
     }
-    for end in ends {
-        end.set(clio);
+    for (list, n) in ends {
+        list.set_entry(n, clio);
     }
     Ok(())
 }

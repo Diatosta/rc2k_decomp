@@ -97,14 +97,6 @@ pub fn write_first<C: Cell32>(cells: &[C], values: &[u32]) {
     }
 }
 
-/// Stores `values` into the first cells of a run of dwords (the rest keep their values).
-pub fn write_prefix<C: Cell32>(cells: &[C], values: &[u32]) {
-    assert!(values.len() <= cells.len());
-    for (cell, &value) in cells.iter().zip(values) {
-        cell.set_bits(value);
-    }
-}
-
 /// One of the game's floats: an atomic cell holding its bits.
 #[repr(transparent)]
 pub struct Float(AtomicU32);
@@ -1601,6 +1593,14 @@ impl<const N: usize> TextPlace for [u8; N] {
             "a write into one of the program's own texts",
         ))
     }
+}
+
+/// What the menus and saves do to a list of car handles whatever its room: read and write an entry.
+pub trait CarEntries {
+    /// How many entries it has room for.
+    fn room(&self) -> usize;
+    fn entry(&self, n: usize) -> u32;
+    fn set_entry(&self, n: usize, value: u32);
 }
 
 /// What a buffer of the game's bytes offers whether it is shared (`Bytes`) or the game

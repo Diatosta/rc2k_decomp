@@ -39,7 +39,7 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
                     RunStep::Controls => read_car_controls::read_car_controls(race, scene, o.net)?,
                     RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(
                         race.shared.car(),
-                        race.shared.physics_tables.get(),
+                        &mut race.shared.run_mut().gear_inputs,
                         race.shared.vars.get(),
                     ),
                     RunStep::Steering => steer_inputs::steer_inputs(race, scene),

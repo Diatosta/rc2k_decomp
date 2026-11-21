@@ -451,8 +451,14 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.menus.screens.controls",
             on_game(&o.menus.screens.controls),
         ),
-        listed!("owners.menus.play.slots", on_game(&o.menus.play.slots),),
-        listed!("owners.menus.play.results", on_game(&o.menus.play.results),),
+        listed!(
+            "owners.menus.play.slots.records",
+            on_game(&o.menus.play.slots.records),
+        ),
+        listed!(
+            "owners.menus.play.slots.pointers",
+            on_game(&o.menus.play.slots.pointers),
+        ),
         listed!(
             "owners.system.records.stage_tables",
             on_game(&o.system.records().stage_tables),
@@ -642,10 +648,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.physics.ground",
             on_game(o.race.physics.ground()),
         ),
-        listed!(
-            "owners.menus.screens.carousel",
-            on_game(&o.menus.screens.carousel),
-        ),
         listed!("owners.race.shared.state", &o.race.shared.state,),
         listed!(
             "owners.effects.windscreen_drops.inputs",
@@ -654,10 +656,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.setup.frame",
             on_game(&o.race.effects.get().setup.frame),
-        ),
-        listed!(
-            "owners.effects.setup.settings",
-            on_game(&o.race.effects.get().setup.settings),
         ),
         listed!(
             "owners.effects.paths.spline_head",
@@ -694,10 +692,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.masks.vars",
             on_game(&o.race.effects.get().masks.vars),
-        ),
-        listed!(
-            "owners.effects.windscreen_drops.pixel_tables",
-            on_game(&o.race.effects.get().windscreen_drops.pixel_tables),
         ),
         listed!(
             "owners.effects.windscreen_drops.shape_work",
@@ -763,10 +757,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.kinds.particle_tuning",
             on_game(&o.race.effects.get().kinds.particle_tuning),
-        ),
-        listed!(
-            "owners.effects.setup.clock_k",
-            on_game(&o.race.effects.get().setup.clock_k),
         ),
     ]
 }

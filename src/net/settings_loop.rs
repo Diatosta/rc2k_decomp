@@ -57,7 +57,8 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             }
         }
         if moved {
-            list_state.write().move_clock = list_state.read().frame_clock;
+            let value = list_state.read().frame_clock;
+            list_state.write().move_clock = value;
         }
         if system.session.flags.quitting.is_set() {
             break;

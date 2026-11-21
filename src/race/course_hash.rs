@@ -278,10 +278,9 @@ pub fn log_mask_hashes(
         sum.wrapping_add(dword_run_hash(path, run))
     });
     for (name, table) in tables {
-        if let Ok(bytes) = table.read_at(0, 0x2_0000, "a pixel table") {
-            picks_hash = picks_hash.wrapping_add(byte_run_hash(&format!(".{name}"), &bytes));
-            say(name, bytes_hash(&bytes));
-        }
+        let bytes = table.borrow();
+        picks_hash = picks_hash.wrapping_add(byte_run_hash(&format!(".{name}"), &*bytes));
+        say(name, bytes_hash(&*bytes));
     }
     say("picks", picks_hash);
     drop(picks);

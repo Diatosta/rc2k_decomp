@@ -1,7 +1,5 @@
 //! The masks' picks and pixel tables.
 
-use crate::memory::session::PlainBytes;
-
 /// The masks' shape picks and pixel tables.
 pub struct MaskPicks {
     /// 2 or 0 by the shape picked (A, B)
@@ -28,20 +26,19 @@ pub struct MaskPicks {
     pub masks: [u32; 9],
 }
 
-/// The two pixel tables (0x80 rows of 0x400 each), held as cells.
-#[derive(rc2k_derive::Cells)]
+/// The two pixel tables (0x80 rows of 0x400 each).
 pub struct PixelTables {
     /// The first pixel table
-    pub a: PlainBytes<131072>,
+    pub a: core::cell::RefCell<[u8; 131072]>,
     /// The second pixel table
-    pub b: PlainBytes<131072>,
+    pub b: core::cell::RefCell<[u8; 131072]>,
 }
 
 impl PixelTables {
     pub const fn new() -> Self {
         PixelTables {
-            a: PlainBytes::new([0; 131072]),
-            b: PlainBytes::new([0; 131072]),
+            a: core::cell::RefCell::new([0; 131072]),
+            b: core::cell::RefCell::new([0; 131072]),
         }
     }
 }
@@ -138,7 +135,7 @@ mod image_bytes_tests {
         ]);
         words.extend(picks.masks);
         let mut bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
-        bytes.extend(crate::memory::cells::flatten(&PixelTables::new()));
+        bytes.extend(std::iter::repeat_n(0u8, 2 * 131072));
         let mut hash = 0xcbf2_9ce4_8422_2325_u64;
         for byte in &bytes {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);

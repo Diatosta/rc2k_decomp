@@ -8,6 +8,7 @@ use crate::math::x87;
 use crate::math::x87::toward_one;
 use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
+use crate::physics::figures::{TORQUE_SHARE_A, TORQUE_SHARE_B, TORQUE_SHARE_C};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use std::cmp::Ordering;
@@ -28,13 +29,13 @@ pub fn drive_torque_share(
     // The step's count: stored before it is read, as a whole number.
     let count = crate::memory::session::PlainDword::new(0);
     let n = if car.drive_kind.get() == 1 {
-        tables.torque_share_a.get()
+        TORQUE_SHARE_A
     } else {
-        tables.torque_share_b.get()
+        TORQUE_SHARE_B
     };
     count.set(n);
     speed_share.set(bh::stf(
-        car.local_velocity[2].ld().abs() / bh::int(tables.torque_share_c.get()),
+        car.local_velocity[2].ld().abs() / bh::int(TORQUE_SHARE_C),
     ));
     let one = numbers.one.get();
     let below = !matches!(

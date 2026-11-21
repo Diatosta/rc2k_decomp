@@ -14,6 +14,7 @@
 
 use crate::errors::Refused;
 use crate::math::matrix3::extended;
+use crate::physics::figures::CLEAR_PLACE_SHARE;
 use crate::physics::step_families::ClearPlaceInputs;
 use rc2k_core::physics::clear_place;
 
@@ -38,7 +39,7 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     let (car, tables, numbers) = (c.reset.car, c.reset.tables, c.reset.numbers);
     let contact = c.collisions.contact.contact;
     tables.clear_place_mark.set(clear_place::TRY_MARK);
-    let factor = extended(tables.clear_place_share.get());
+    let factor = extended(CLEAR_PLACE_SHARE);
     crate::physics::scale_vector::scale_vector(&car.velocity, factor);
     { crate::physics::restore_saved_car::restore_saved_car(car, tables, contact) }?;
     { crate::physics::lowest_body_point::lowest_body_point(car, numbers, contact) }?;

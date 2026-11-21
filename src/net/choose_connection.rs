@@ -39,7 +39,8 @@ pub(super) fn choose_connection(o: crate::owners::Owners<'static>) -> Result<u32
         list_state.write().frame_clock = system.session.key_clock.ticks.get();
         let key = list_key(list_state, o.input)?;
         if list_move(list_state, key, net.link.connections().get()) {
-            list_state.write().move_clock = list_state.read().frame_clock;
+            let value = list_state.read().frame_clock;
+            list_state.write().move_clock = value;
         } else if ListKey::of(key) == ListKey::Enter {
             return Ok(list_state.read().choice);
         } else if ListKey::of(key) == ListKey::Escape {

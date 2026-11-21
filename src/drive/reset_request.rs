@@ -8,6 +8,7 @@
 //! Refuses what `physics::reset_car` refuses.
 
 use crate::errors::Refused;
+use crate::physics::figures::RESET_SPEED_LIMIT;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
@@ -36,17 +37,7 @@ pub fn reset_request(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
     if !reset_held(
         race_owner.shared.car().input_keys.get(),
         race_owner.shared.vars.get().run_kind.get(),
-        || {
-            c0(
-                race_owner.shared.car().speed.get(),
-                race_owner
-                    .shared
-                    .physics_tables
-                    .get()
-                    .reset_speed_limit
-                    .get(),
-            )
-        },
+        || c0(race_owner.shared.car().speed.get(), RESET_SPEED_LIMIT),
     ) {
         if race_owner.shared.car().reset_key_count.get() != 0 {
             clear_notice(&race.shared);

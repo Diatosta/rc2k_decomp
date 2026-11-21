@@ -647,7 +647,7 @@ impl GameAnswers<'_> {
                 }
             }
         };
-        menus.screens.carousel.front.set(shown);
+        menus.screens.carousel.write().front = shown;
         menus.screens.event.write().shown.car = shown;
         if let Some(choice) = &self.launch.gearbox {
             let gearing = self.gearbox(choice)?;

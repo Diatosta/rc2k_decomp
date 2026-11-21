@@ -11,6 +11,7 @@ use crate::race::owner::Race;
 pub fn race_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     crate::drive::race_clock_tick::race_clock_tick(&race.shared, &o.system.session.picture_clock);
     if race.shared.run().debug[1] == 0 {
+        // Read first: the ticks write the record, so no borrow may be held across them.
         let tenths = race.shared.run().race_tenths;
         rc2k_core::drive::race_ticks::run_ticks(tenths, |ecx| {
             crate::debug::timing::note_tick();

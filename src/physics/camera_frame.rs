@@ -10,7 +10,8 @@ use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::{int, ld, st};
 use crate::memory::session::PlainDword;
-use crate::physics::flow::{hold_high, hold_low, negate};
+use crate::physics::figures::CAMERA_FRAME_LIMIT;
+use crate::physics::flow::{hold_high_to, hold_low_to, negated};
 use crate::physics::step_families::CameraInputs;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
@@ -27,10 +28,8 @@ fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(),
         x87_1(c.shared, scene);
         // The holds work on a dword the shake's bits are copied into and out of.
         let y = PlainDword::new(scene.line_and_shake().camera_shake_y);
-        hold_high(&y, &c.tables.camera_frame_limit);
-        negate(&c.tables.camera_frame_limit);
-        hold_low(&y, &c.tables.camera_frame_limit);
-        negate(&c.tables.camera_frame_limit);
+        hold_high_to(&y, CAMERA_FRAME_LIMIT);
+        hold_low_to(&y, negated(CAMERA_FRAME_LIMIT));
         scene.line_and_shake_mut().camera_shake_y = y.get();
         let random = c.shared.random.next_random();
         x87_2(c.numbers, random, scene);

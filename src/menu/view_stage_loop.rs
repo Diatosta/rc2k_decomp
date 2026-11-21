@@ -28,7 +28,8 @@ fn before(screens: &Screens) -> Result<(), Refused> {
     stack.push(screens.event.read().section);
     stack.push(screens.event.read().stage_in_section);
     drop(stack);
-    screens.event.write().stage.first_on_page = screens.event.read().stage_in_section;
+    let value = screens.event.read().stage_in_section;
+    screens.event.write().stage.first_on_page = value;
 
     Ok(())
 }

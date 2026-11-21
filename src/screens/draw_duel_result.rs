@@ -61,8 +61,8 @@ pub fn draw_duel_result(
         return Err(BadInput("a stage line past the line buffer").into());
     }
     let (label1, label2) = (
-        label(results.players[0].position.get())?,
-        label(results.players[1].position.get())?,
+        label(results.read().players[0].position)?,
+        label(results.read().players[1].position)?,
     );
     // The logic is in `rc2k_core::screens::duel_result`.
     use rc2k_core::screens::player_result::Player;
@@ -81,10 +81,10 @@ pub fn draw_duel_result(
     let figures = rc2k_core::screens::duel_result::Figures {
         labels: [label1, label2],
         best: [
-            results.players[0].time_bonus.get(),
-            results.players[1].time_bonus.get(),
+            results.read().players[0].time_bonus,
+            results.read().players[1].time_bonus,
         ],
-        columns: [0, 1].map(|p| results.players[p].get().column()),
+        columns: [0, 1].map(|p| results.read().players[p].column()),
     };
     rc2k_core::screens::duel_result::duel_result(
         &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas, o),

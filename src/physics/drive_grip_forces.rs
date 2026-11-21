@@ -27,10 +27,11 @@ use crate::math::x87_float::to_int;
 use crate::math::x87_float::{X, stf};
 use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
+use crate::physics::figures::{GRIP_EASE_STEP, GRIP_SLOW_SPEED, SIDE_GRIP_SHARE};
 use crate::physics::flow::FloatView;
 use crate::physics::flow::{
-    ZERO_BITS as ZERO, abs_below_or_unordered, c3, ease_zero, hold_high, hold_low, hold_low_bits,
-    negate,
+    ZERO_BITS as ZERO, abs_below_or_unordered, c3, ease_zero, hold_high, hold_high_to,
+    hold_low_bits, hold_low_to, negate, negated,
 };
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
@@ -80,7 +81,7 @@ pub fn drive_grip_forces(
         negate(&car.grip_forces[0]);
         hold_high(&car.grip_forces[0], &tables.grip_limit);
         negate(&car.grip_forces[0]);
-        let slow = |v: &PlainFloat| abs_below_or_unordered(v, &tables.grip_slow_speed);
+        let slow = |v: &PlainFloat| abs_below_or_unordered(v, GRIP_SLOW_SPEED);
         if !slow(&car.local_velocity[2]) && slow(&car.drive_speed_a) {
             car.grip_forces[0].set(0.0);
         }
@@ -88,7 +89,7 @@ pub fn drive_grip_forces(
             if scratch.get() == 0 {
                 car.steering.set(0);
             } else {
-                divide_into_scratch(&car.grip_forces[0], &scratch, &scratch);
+                divide_into_scratch(&car.grip_forces[0], scratch.float(), &scratch);
                 hold_high(&scratch, &numbers.one);
                 hold_low_bits(&scratch, ZERO);
                 scale_steering(car, &scratch);
@@ -106,7 +107,7 @@ pub fn drive_grip_forces(
     car.grip_forces[3].set(0.0);
     if kind == 0 {
         ground_speed_into_scratch(car, &scratch);
-        hold_high(&scratch, &tables.grip_ramp);
+        hold_high_to(&scratch, tables.grip_ramp.get());
         lean_force(
             car,
             tables,
@@ -133,7 +134,7 @@ pub fn drive_grip_forces(
     tables.grip_drive_word.set(braking_word as i32);
     engine_braking_force(car, tables, numbers);
     if product_below(car.grip_forces[1].bits(), car.grip_forces[0].bits(), ZERO) {
-        car.grip_forces[1].set(x87::mul(&car.grip_forces[1], &tables.side_grip_share));
+        car.grip_forces[1].set(x87::mul(&car.grip_forces[1], SIDE_GRIP_SHARE));
     }
     if car.parts_state.get() == u32::MAX {
         let k = if kind == 1 {
@@ -147,16 +148,14 @@ pub fn drive_grip_forces(
     if kind == 1 {
         abs_speed_into_work(car, scene);
         let work_float = crate::memory::session::PlainFloat::new(scene.draw_work().work_float_a);
-        hold_high(&work_float, &tables.grip_slip_limit);
+        hold_high_to(&work_float, tables.grip_slip_limit.get());
         scene.draw_work_mut().work_float_a = work_float.get();
         yaw_share_from_limit(tables, scene);
         scratch.set(x87::loaded(&car.drive_slip_speed).to_bits());
-        // Held to ±`grip_force_limit`, the limit negated in place between and put back.
-        hold_high(&scratch, &tables.grip_force_limit);
-        negate(&tables.grip_force_limit);
-        hold_low(&scratch, &tables.grip_force_limit);
-        negate(&tables.grip_force_limit);
-        divide_into_scratch(&scratch, &tables.grip_force_limit, &scratch);
+        // Held to ±`GRIP_FORCE_LIMIT`.
+        hold_high_to(&scratch, tables.grip_force_limit.get());
+        hold_low_to(&scratch, negated(tables.grip_force_limit.get()));
+        divide_into_scratch(&scratch, tables.grip_force_limit.get(), &scratch);
         yaw_force(
             car,
             tables,
@@ -177,7 +176,7 @@ pub fn drive_grip_forces(
     car.eased_yaw_spin.set(x87::loaded(&car.spin[1]));
     let old = car.eased_yaw_spin.bits();
     numbers.grip_change.set(x87::sub(old, &car.grip_force_sum));
-    ease_zero(&numbers.grip_change, &tables.grip_ease_step);
+    ease_zero(&numbers.grip_change, GRIP_EASE_STEP);
     ease_yaw_twist(car, tables, numbers, old, &scratch);
 }
 
@@ -229,13 +228,9 @@ fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: &PlainFloat) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[scratch] = [rc + o0] / [rc + o1]`
-fn divide_into_scratch(
-    o0: &impl FloatView,
-    o1: &impl FloatView,
-    scratch: &crate::memory::session::PlainDword,
-) {
+fn divide_into_scratch(o0: &impl FloatView, o1: f32, scratch: &crate::memory::session::PlainDword) {
     let t0 = crate::math::x87_float::ld(o0.float());
-    let t1 = crate::math::x87_float::ld(o1.float());
+    let t1 = crate::math::x87_float::ld(o1);
     let t2 = t0 / t1;
     scratch.st(t2);
 }

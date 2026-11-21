@@ -71,12 +71,12 @@ fn settings(
         return Err(BadInput("a carousel entry past the table"));
     }
     let [spacing, y, z, forward] = [
-        screens.carousel.spacing.get(),
-        screens.carousel.y.get(),
-        screens.carousel.z.get(),
-        screens.carousel.forward.get(),
+        screens.carousel.read().spacing,
+        screens.carousel.read().y,
+        screens.carousel.read().z,
+        screens.carousel.read().forward,
     ];
-    let turn: u32 = screens.carousel.angle.get();
+    let turn: u32 = screens.carousel.read().angle;
     let high = |a: u32, b: u32| ((a as u64 * b as u64) >> 32) as u32;
     let x = high(spacing, !turn)
         .wrapping_add((spacing as i32).wrapping_mul(row.wrapping_sub(1) as i32) as u32);
@@ -91,7 +91,7 @@ fn settings(
         size: None,
         angle_x: 0,
         angle_y: ((clock as u16) << 3) as u32,
-        kind: screens.carousel.kinds[entry as usize].get(),
+        kind: screens.carousel.read().kinds[entry as usize],
         object: 0,
     };
     if set.kind as i32 > 0x258 {
@@ -127,7 +127,7 @@ pub fn draw_carousel_entry(
     view.object.angles[0].set(set.angle_x);
     view.object.angles[1].set(set.angle_y);
     crate::memory::session::write_bits(&view.polygon.window.view_offset, [0u32; 2]);
-    menus.screens.carousel.kind.set(set.kind);
+    menus.screens.carousel.write().kind = set.kind;
     view.cars.object_number.set(set.object);
     draw()
 }

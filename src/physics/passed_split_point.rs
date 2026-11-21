@@ -17,6 +17,7 @@ use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
+use crate::physics::figures::SPLIT_DISTANCE;
 use crate::physics::ground_query::GroundSearch;
 use crate::physics::split_tables_store::SplitTables;
 use crate::physics::step_families::CheckpointInputs;
@@ -103,7 +104,7 @@ pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
         c.tables
             .split_point_distance
             .get()
-            .partial_cmp(&c.tables.split_distance.get()),
+            .partial_cmp(&SPLIT_DISTANCE),
         Some(Ordering::Greater | Ordering::Equal)
     );
     if !within {

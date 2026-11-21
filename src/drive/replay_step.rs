@@ -29,7 +29,7 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
         crate::drive::read_car_controls::read_car_controls(race, scene, net)?;
         crate::physics::gear_input_rules::gear_input_rules(
             race.shared.car(),
-            race.shared.physics_tables.get(),
+            &mut race.shared.run_mut().gear_inputs,
             race.shared.vars.get(),
         );
         crate::drive::steer_inputs::steer_inputs(race, scene);

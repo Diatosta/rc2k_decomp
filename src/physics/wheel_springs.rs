@@ -18,6 +18,7 @@ use crate::math::matrix3::extended;
 use crate::math::x87;
 use crate::math::x87::{ext_div2, int_80, mul2, neg_rounded, negated, wheel_int};
 use crate::physics::contact_store::ContactWork;
+use crate::physics::figures::{PROBE_SHARE, SPRING_FORCE_SCALE, SPRING_SHARE};
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::numbers_store::Numbers;
@@ -56,11 +57,7 @@ pub fn wheel_springs(
         if !below(q.get(), numbers.one.get()) {
             q.set(x87::loaded(&numbers.one));
         }
-        force.set(negated(mul2(
-            q,
-            &ph.spring_force_scale,
-            &ph.forces[0].force[1],
-        )));
+        force.set(negated(mul2(q, SPRING_FORCE_SCALE, &ph.forces[0].force[1])));
         damping.set(x87::sub_mul(
             q,
             scene.draw_work().work_dword,
@@ -81,9 +78,9 @@ pub fn wheel_springs(
         let v = wheel_int([
             car_blocks.cars[0].probe_point_y[6].get(),
             ph.handling[2].get(),
-            ph.spring_share.get(),
+            SPRING_SHARE,
             c.wheel_squeeze[k].get(),
-            ph.probe_share.get(),
+            PROBE_SHARE,
             ph.handling[3].get(),
             numbers.k65536.get(),
         ]);

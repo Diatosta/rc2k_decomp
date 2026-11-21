@@ -278,6 +278,8 @@ impl Run for OwnRun<'_> {
 enum Segment<'a> {
     Own(OwnRun<'a>),
     Foreign(&'a dyn Run),
+    /// The carousel's eight texture numbers.
+    Textures(&'a crate::menu::carousel_store::Carousel),
 }
 
 impl Run for Segment<'_> {
@@ -285,18 +287,21 @@ impl Run for Segment<'_> {
         match self {
             Segment::Own(run) => run.count(),
             Segment::Foreign(run) => run.count(),
+            Segment::Textures(_) => 8,
         }
     }
     fn bits(&self, i: usize) -> u32 {
         match self {
             Segment::Own(run) => run.bits(i),
             Segment::Foreign(run) => run.bits(i),
+            Segment::Textures(carousel) => carousel.read().textures[i],
         }
     }
     fn set_bits(&self, i: usize, v: u32) {
         match self {
             Segment::Own(run) => run.set_bits(i, v),
             Segment::Foreign(run) => run.set_bits(i, v),
+            Segment::Textures(carousel) => carousel.write().textures[i] = v,
         }
     }
 }
@@ -718,7 +723,7 @@ impl MenuLists {
             own(Part::Durations),
             own(Part::ServicePictures),
             own(Part::GapAfterServicePictures),
-            Segment::Foreign(&carousel.textures),
+            Segment::Textures(carousel),
             own(Part::FrontBackPath),
         ]
     }
@@ -1124,24 +1129,44 @@ mod run_on_tests {
         let total: usize = all.iter().map(|r| r.count()).sum();
         let foreign = |at: usize| match &segments[at] {
             Segment::Foreign(run) => Some(std::ptr::from_ref(*run).cast::<u8>()),
-            Segment::Own(_) => None,
+            Segment::Own(_) | Segment::Textures(_) => None,
         };
-        for (list, table) in [
-            (CarList::First, &cars.cars_first[..]),
-            (CarList::Second, &cars.cars_second[..]),
-            (CarList::WithClio, &cars.cars_with_clio[..]),
-            (CarList::Championship, &cars.cars_championship[..]),
-            (CarList::A8, &cars.a8_championship_cars[..]),
-            (CarList::Shown, &cars.shown_cars[..]),
+        for (list, table_start, table_len) in [
+            (
+                CarList::First,
+                std::ptr::from_ref(&cars.cars_first).cast::<u8>(),
+                cars.cars_first.count(),
+            ),
+            (
+                CarList::Second,
+                std::ptr::from_ref(&cars.cars_second).cast::<u8>(),
+                cars.cars_second.count(),
+            ),
+            (
+                CarList::WithClio,
+                std::ptr::from_ref(&cars.cars_with_clio).cast::<u8>(),
+                cars.cars_with_clio.count(),
+            ),
+            (
+                CarList::Championship,
+                std::ptr::from_ref(&cars.cars_championship).cast::<u8>(),
+                cars.cars_championship.count(),
+            ),
+            (
+                CarList::A8,
+                std::ptr::from_ref(&cars.a8_championship_cars).cast::<u8>(),
+                cars.a8_championship_cars.count(),
+            ),
+            (
+                CarList::Shown,
+                std::ptr::from_ref(&cars.shown_cars).cast::<u8>(),
+                cars.shown_cars.count(),
+            ),
         ] {
             let start = MenuLists::car_list_start(list);
-            assert_eq!(
-                foreign(start),
-                Some(table.as_ptr().cast::<u8>()),
-                "{list:?}"
-            );
+            assert_eq!(foreign(start), Some(table_start), "{list:?}");
             let left: usize = all[start..].iter().map(|r| r.count()).sum();
-            assert!(left <= total && left > table.len());
+            assert!(left <= total && left > table_len);
             assert!(
                 l.car_entry(CarListParts::of(menus), list, (left - 1) as u32)
                     .is_ok()

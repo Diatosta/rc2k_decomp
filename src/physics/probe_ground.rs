@@ -34,6 +34,7 @@ use crate::math::x87_float as bh;
 use crate::memory::session::{CellKind, DwordLike, FloatLike};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
+use crate::physics::figures::{PROBE_LIFT, PROBE_SHARE};
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::ground::*;
 use crate::physics::ground_query::{GroundEnv, GroundSearch};
@@ -114,8 +115,8 @@ fn probe_points(
             less_plus_less_product_80(
                 &car.probe_point_y[6],
                 &c.tables.handling[2],
-                add.then(|| c.tables.probe_lift.get()),
-                &c.tables.probe_share,
+                add.then_some(PROBE_LIFT),
+                PROBE_SHARE,
                 &c.tables.handling[3],
             )
         } else {

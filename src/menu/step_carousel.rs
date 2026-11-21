@@ -19,21 +19,21 @@ pub fn step_carousel(screens: &Screens, race: &Race) -> Result<(), BadInput> {
     // anything is written.
     use rc2k_core::menu::navigation::{Turn, passed, spin};
     let clock: u32 = race.shared.run().scene_clock;
-    let passed = passed(clock, screens.carousel.last_clock.get());
+    let passed = passed(clock, screens.carousel.read().last_clock);
     let t = Turn {
-        count: screens.carousel.count.get() as i32,
-        value: screens.carousel.front.get() as i32,
-        way: screens.carousel.direction.get(),
-        step: screens.carousel.angle.get(),
+        count: screens.carousel.read().count as i32,
+        value: screens.carousel.read().front as i32,
+        way: screens.carousel.read().direction,
+        step: screens.carousel.read().angle,
     };
     let turned = spin(t, passed)?;
-    screens.carousel.last_clock.set(clock);
-    screens.carousel.passed.set(passed);
+    screens.carousel.write().last_clock = clock;
+    screens.carousel.write().passed = passed;
     if t.way != 0 {
-        screens.carousel.angle.set(turned.step);
-        screens.carousel.direction.set(turned.way);
+        screens.carousel.write().angle = turned.step;
+        screens.carousel.write().direction = turned.way;
         if turned.value != t.value {
-            screens.carousel.front.set(turned.value as u32);
+            screens.carousel.write().front = turned.value as u32;
         }
     }
     Ok(())

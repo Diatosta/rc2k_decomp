@@ -165,8 +165,10 @@ fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
     let up = figure(&race.gear().shift_up_point);
     let clutch = figure(&race.gear().shift_down_clutch_point);
     let down = figure(&race.gear().shift_down_point);
-    let air = figure(&shared.physics_tables.get().air_drag);
-    let rolling = figure(&shared.physics_tables.get().rolling_drag);
+    let (air, rolling) = (
+        shared.physics_tables.get().air_drag.get(),
+        shared.physics_tables.get().rolling_drag.get(),
+    );
     let k = course.numbers.get().k10000.get();
     Some(kept(shared, scene, || {
         let mut gears = Vec::new();

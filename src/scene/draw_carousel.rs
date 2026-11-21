@@ -34,8 +34,12 @@ pub fn draw_carousel(
             &mut || draw_menu_object_in_game(ctx),
         )
     };
-    let count: u32 = carousel.count.get();
-    match drawn(count, || carousel.front.get(), || carousel.angle.get() != 0) {
+    let count: u32 = carousel.read().count;
+    match drawn(
+        count,
+        || carousel.read().front,
+        || carousel.read().angle != 0,
+    ) {
         Drawn::Nothing => Ok(()),
         Drawn::Lone => entry(0, lone_row),
         Drawn::Row(entries) => {

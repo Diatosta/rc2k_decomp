@@ -2451,7 +2451,7 @@ pub static GROUPS: &[Group] = &[
                 "Steering input",
                 "inputst",
                 Shown::Hex,
-                indexed_cell!(|o| o.race.shared.physics_tables.get(), input_steer),
+                indexed_cell!(|o| o.race.shared.run(), gear_inputs.steer),
                 false,
                 (468, 430),
             ),

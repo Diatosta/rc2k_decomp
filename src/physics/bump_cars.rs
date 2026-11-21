@@ -1,17 +1,17 @@
-//! Bumps the work car against another (`other_car_block`, number `other_car_number`): the corner
-//! met goes into `contact_point`; contact record 6's
+//! Bumps the work car against another (given its block and number): the corner
+//! met (`corner_turned`) goes into `contact_point`; contact record 6's
 //! force is zeroed and both cars' contact flags set; the relative speed goes into
-//! the relative speed (its length into `bump_speed_length`); the speeds are shared out
+//! the relative speed (its length goes to the bump sound); the speeds are shared out
 //! (`SHARE_A` / `SHARE_B`), the places' difference / 65536 times the push scale becomes
 //! the push, times `three`, added to the work car's speed and taken from the other's; both
 //! speeds are turned into the cars' frames; finally `physics::place_sound_e1_other`.
 //!
 //! The straight float runs are plain Rust over `X` in the named helpers below.
 //!
-//! Refuses a null block (before anything), and what `place_sound_e1_other` refuses (what was
+//! Refuses what `place_sound_e1_other` refuses (what was
 //! written is put back).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::X;
 use crate::memory::session::PlainFloat;
@@ -45,12 +45,17 @@ const SHARE_B: f32 = 0.6;
 /// The places' difference over 65536 is scaled by this into the push.
 const PUSH_SCALE: f32 = 0.5;
 
-fn steps(c: &ContactInputs<'_>, other_car: &Car) -> Result<(), Refused> {
+fn steps(
+    c: &ContactInputs<'_>,
+    corner_turned: &[PlainFloat; 3],
+    other_car: &Car,
+    other_car_number: u32,
+) -> Result<(), Refused> {
     // The relative speed and the push: each is made before it is read, within this bump.
     let relative: [PlainFloat; 3] = PlainFloat::array([0.0; 3]);
     let push: [PlainFloat; 3] = PlainFloat::array([0.0; 3]);
     for k in 0..3 {
-        c.contact.contact_point[k].set(loaded(&c.contact.corner_turned[k]));
+        c.contact.contact_point[k].set(loaded(&corner_turned[k]));
     }
     for v in &c.tables.contacts[6].force {
         v.set(0.0);
@@ -58,10 +63,7 @@ fn steps(c: &ContactInputs<'_>, other_car: &Car) -> Result<(), Refused> {
     c.car.contact_flag.set(1);
     other_car.contact_flag.set(1);
     relative_speed(c.car, &relative, &other_car.velocity);
-    c.contact
-        .bump_speed_length
-        .set(rounded_value(vector_length(&relative)));
-    // The car `other_car_block` names is `other_car`.
+    let bump_speed_length = rounded_value(vector_length(&relative));
     share_out_speeds(
         c.car,
         crate::math::x87_float::ld(SHARE_A.to_bits()),
@@ -81,16 +83,24 @@ fn steps(c: &ContactInputs<'_>, other_car: &Car) -> Result<(), Refused> {
     add_push(c.car, &push, &other_car.velocity);
     turn_speed(other_car);
     turn_speed(c.car);
-    { crate::physics::place_sound_e1_other::place_sound_e1_other(&c.sound) }?;
+    {
+        crate::physics::place_sound_e1_other::place_sound_e1_other(
+            &c.sound,
+            other_car_number,
+            bump_speed_length,
+        )
+    }?;
     Ok(())
 }
 
-/// `other_car` the other car's block.
-pub fn bump_cars(c: &ContactInputs<'_>, other_car: &Car) -> Result<(), Refused> {
-    if c.contact.other_car_block.get() == 0 {
-        return Err(BadInput("a null car block").into());
-    }
-    steps(c, other_car)
+/// `corner_turned` the corner met, `other_car` the other car's block, `other_car_number` its number.
+pub fn bump_cars(
+    c: &ContactInputs<'_>,
+    corner_turned: &[PlainFloat; 3],
+    other_car: &Car,
+    other_car_number: u32,
+) -> Result<(), Refused> {
+    steps(c, corner_turned, other_car, other_car_number)
 }
 
 // ---- the x87 arithmetic ----

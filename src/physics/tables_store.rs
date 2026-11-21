@@ -1,9 +1,10 @@
-//! The physics' tables and work variables: the control inputs, the ground kinds' records, the
+//! The physics' tables and work variables: the ground kinds' records, the
 //! handling constants, the car's working figures, the force and contact records, the gearbox and
 //! the spec's figures (the race clock and the recorded input words are in `physics::run_store`). Most names are readings from the code's uses.
 
 use crate::memory::cells::ZeroCells;
 use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
+use crate::physics::figures;
 
 /// A kind of ground (0x30 bytes, `PhysicsTables.surfaces[0].table`): what `physics::wheel_surfaces`
 /// blends between for each point, and `physics::apply_patches` patches (readings).
@@ -52,90 +53,18 @@ pub struct ForceRecord {
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PhysicsTables {
-    /// 5.0: a reset is allowed below this speed (`drive::reset_request`).
-    pub reset_speed_limit: PlainFloat,
-    /// 0.01: the physics step's length in seconds.
-    pub step_time: PlainFloat,
-    /// The steering input (`drive::read_car_controls`, `drive::steer_inputs`).
-    pub input_steer: PlainDword,
-    /// The throttle input.
-    pub input_throttle: PlainDword,
-    /// The brake input.
-    pub input_brake: PlainDword,
-    /// The handbrake input (500 at the start line, `physics::gear_input_rules`).
-    pub input_handbrake: PlainDword,
-    /// The gear-up key (`physics::manual_gearbox`).
-    pub input_gear_up: PlainDword,
-    /// The gear-down key.
-    pub input_gear_down: PlainDword,
-    /// The gear asked for, -1 none (`physics::auto_gearbox`).
-    pub input_gear_wanted: PlainDword,
-    /// The ground kinds' records (`physics::wheel_surfaces`; twelve patched by
-    /// `physics::apply_patches`).
-    pub surfaces: [Surface; 16],
-    /// Eight tables of 13 dwords the surface records point at: [0] then six figures by tyre kind
-    /// and six more (`physics::wheel_surfaces`).
-    pub surface_tables: [PlainDword; 104],
-    /// 8.0: below it the car may stall (`physics::stall_when_still`).
-    pub stall_speed: PlainFloat,
-    /// 0.5 (`physics::stall_when_still`).
-    pub stall_share: PlainFloat,
-    /// 800.0 (`physics::cap_drive_speed`).
-    pub drive_speed_cap: PlainFloat,
-    /// 20.0 (`physics::cap_drive_speed`).
-    pub drive_speed_cap_a: PlainFloat,
-    /// 20.0 (`physics::cap_drive_speed`).
-    pub drive_speed_cap_b: PlainFloat,
-    /// 2.4 / 1.6 by drive kind 1 or not (`physics::drive_grip_forces`).
-    pub grip_front_drive: [PlainFloat; 2],
-    /// 0.5 / 0.4 by drive kind 1 or not (`physics::drive_grip_forces`).
-    pub grip_rear_drive: [PlainFloat; 2],
-    /// 20.0 (`physics::ease_low_speed_forces`).
-    pub low_speed_limit: PlainFloat,
-    /// 1.0 (`physics::ease_low_speed_forces`).
-    pub low_speed_add: PlainFloat,
-    /// 0.5 (`physics::ease_low_speed_forces`).
-    pub low_speed_scale: PlainFloat,
-    /// 4.0: the spin held to it (`physics::limit_motion`).
-    pub spin_limit: PlainFloat,
-    /// 80.0: the motion held to it (`physics::limit_motion`).
-    pub velocity_limit: PlainFloat,
     /// 7.5 (`physics::drive_grip_forces`).
     pub grip_slide_scale: PlainFloat,
     /// 5.0 (`physics::drive_grip_forces`).
     pub grip_slip_limit: PlainFloat,
     /// 10.0, held both ways (`physics::drive_grip_forces`).
     pub grip_force_limit: PlainFloat,
-    /// 1.0 (`physics::drive_grip_forces`).
-    pub grip_slow_speed: PlainFloat,
     /// 0.9 (`physics::load_car_specs`).
     pub spec_scale_a4: PlainFloat,
-    /// 0.15 (`physics::probe_ground`).
-    pub probe_lift: PlainFloat,
-    /// 1.0 (`physics::auto_gearbox`).
-    pub auto_gear_speed_up: PlainFloat,
-    /// -1.0 (`physics::auto_gearbox`).
-    pub auto_gear_speed_down: PlainFloat,
-    /// 0.95: the engine's speed eased by it (`physics::gearbox_step`).
-    pub engine_ease: PlainFloat,
-    /// 2.0 (`physics::hold_spin_on_ground`).
-    pub ground_spin_limit: PlainFloat,
-    /// 0.1 (`physics::drive_grip_forces`).
-    pub grip_ease_step: PlainFloat,
-    /// 2.0 / 2.2 by drive kind (`physics::drive_grip_forces`).
-    pub grip_factor: [PlainFloat; 2],
-    /// 0.5 (`physics::drive_grip_forces`).
-    pub side_grip_share: PlainFloat,
     /// 8500.0 (`physics::load_car_specs`).
     pub rev_limit_scale: PlainFloat,
-    /// 0.65 (`physics::spin_wheels`).
-    pub wheel_spin_share: PlainFloat,
-    /// 0.325 (`physics::wheel_springs`).
-    pub spring_share: PlainFloat,
     /// 2.5 (`physics::drive_wheels_step`).
     pub drive_speed_scale: PlainFloat,
-    /// 15.0, held both ways (`physics::car_physics_step`).
-    pub side_speed_limit: PlainFloat,
     /// 0.05 (`physics::drive_grip_forces`).
     pub side_force_scale: PlainFloat,
     /// 0.5 (`physics::drive_wheels_step`).
@@ -148,65 +77,14 @@ pub struct PhysicsTables {
     pub wheel_speed_gap: PlainFloat,
     /// 1.0 (`physics::car_sound_state`).
     pub sound_speed_scale: PlainFloat,
-    /// 0.0045 / 0.0025 (`physics::add_drive_forces`).
-    pub drive_force_factor: [PlainFloat; 2],
-    /// 8 (`physics::drive_torque_share`).
-    pub torque_share_a: PlainDword,
-    /// 0x20 (`physics::drive_torque_share`).
-    pub torque_share_b: PlainDword,
-    /// 32.0's bits, divided by as an integer (`physics::drive_torque_share`).
-    pub torque_share_c: PlainInt,
-    /// 0x1000 (`physics::crash_contact`).
-    pub crash_depth: PlainDword,
-    /// 2.4, copied into the spec's grip (`physics::load_car_specs`).
-    pub spec_default_ba0: PlainFloat,
-    /// 0.5, copied into the spec's second grip.
-    pub spec_default_ba4: PlainFloat,
-    /// 0x76C, 0x640, 0x384, scaled into `spec_ints` (`physics::load_car_specs`).
-    pub spec_default_bc0: [PlainDword; 3],
     /// 0.85 (`physics::load_car_specs`).
     pub spec_scale_1b8: PlainFloat,
-    /// 4.0, copied into the spec's wheel figure.
-    pub spec_default_ba8: PlainFloat,
-    /// 0.95 (`physics::auto_gearbox`).
-    pub auto_gear_engine_share: PlainFloat,
-    /// `physics::set_handling`'s (lo, hi) pairs for three of its figures.
-    pub handling_ranges_a: [PlainFloat; 6],
     /// 2.0 (`physics::drive_grip_forces`).
     pub grip_ramp: PlainFloat,
     /// 0.25 (`physics::drive_grip_forces`).
     pub grip_ramp_share: PlainFloat,
-    /// 1.0 (`physics::settle_drive_speeds`).
-    pub settle_fast_step: PlainFloat,
-    /// 0.01 (`physics::settle_drive_speeds`).
-    pub settle_slow_step: PlainFloat,
-    /// `physics::set_handling`'s pairs for two more figures (the second chosen by kind).
-    pub handling_ranges_b: [PlainFloat; 6],
-    /// 1.0, 0.9, 0.85, 1.0 (`physics::wheel_surfaces`).
-    pub surface_blend: [PlainFloat; 4],
-    /// `physics::set_handling`'s pairs for four more figures.
-    pub handling_ranges_c: [PlainFloat; 8],
-    /// 0.5 (`physics::probe_ground`, `physics::wheel_springs`).
-    pub probe_share: PlainFloat,
-    /// 2.0 (`physics::wheel_springs`).
-    pub spring_force_scale: PlainFloat,
-    /// 0.25 (`physics::engine_torque`).
-    pub torque_ease: PlainFloat,
-    /// 5: the steps the drive is cut after a change (`physics::gearbox`).
-    pub drive_cut_steps: PlainDword,
-    /// 0.85, 0.75, 2.5: the car's turning inertia by axis (`physics::apply_torque`).
-    pub inertia: [PlainFloat; 3],
-    /// 0.0001 (`physics::set_downforce`).
-    pub downforce_factor: PlainFloat,
-    /// 3000.0 then one more, by spec (`physics::load_car_specs`, by drive kind 0 .. 2: kind 2 reads
-    /// the next field, `camera_drop`: a slip kept as is).
-    pub rev_limits: [PlainFloat; 2],
     /// 0.7 (`physics::update_camera`, the car's shadow).
     pub camera_drop: PlainFloat,
-    /// 0xB333: the car's places dropped by it (`race::start_place`, `scene::add_object_shape`).
-    pub ground_drop: PlainDword,
-    /// 9.8 (`physics::apply_patches`).
-    pub gravity: PlainFloat,
     /// 5.0 (`physics::air_drag`, the test drive).
     pub air_drag: PlainFloat,
     /// 0.75 (the test drive).
@@ -215,26 +93,60 @@ pub struct PhysicsTables {
     pub free_rev_add: PlainFloat,
     /// 0.005 (`physics::free_rev`).
     pub free_rev_scale: PlainFloat,
-    /// 0.9 (`physics::find_clear_place`).
-    pub clear_place_share: PlainFloat,
-    /// 0.99 (`physics::pick_start_gear`).
-    pub start_gear_share: PlainFloat,
     /// 1.2 (`physics::load_car_specs`).
     pub rev_top_scale: PlainFloat,
-    /// 0.001 (`physics::make_gear_ratios`).
-    pub gear_ratio_step: PlainFloat,
     /// 0.0025 (`physics::wheel_surfaces`).
     pub wheel_load_scale: PlainFloat,
+    /// 0.05 (`physics::camera_frame`).
+    pub camera_frame_scale: PlainFloat,
+    /// 0.01: the physics step's length in seconds (`figures::STEP_TIME`, the same value; the
+    /// contact routines still read the cell).
+    pub step_time: PlainFloat,
+    /// 0x1000 (`physics::crash_contact`; `figures::CRASH_DEPTH`, the same value).
+    pub crash_depth: PlainDword,
+    /// 10: the contact steps' limit (`figures::CONTACT_STEPS`, the same value).
+    pub contact_steps: PlainDword,
+    /// The ground kinds' records (`physics::wheel_surfaces`; twelve patched by
+    /// `physics::apply_patches`).
+    pub surfaces: [Surface; 16],
+    /// Eight tables of 13 dwords the surface records point at: [0] then six figures by tyre kind
+    /// and six more (`physics::wheel_surfaces`).
+    pub surface_tables: [PlainDword; 104],
+    /// 2.4 / 1.6 by drive kind 1 or not (`physics::drive_grip_forces`).
+    pub grip_front_drive: [PlainFloat; 2],
+    /// 0.5 / 0.4 by drive kind 1 or not (`physics::drive_grip_forces`).
+    pub grip_rear_drive: [PlainFloat; 2],
+    /// 2.0 (`physics::hold_spin_on_ground`).
+    pub ground_spin_limit: PlainFloat,
+    /// 2.0 / 2.2 by drive kind (`physics::drive_grip_forces`).
+    pub grip_factor: [PlainFloat; 2],
+    /// 0.0045 / 0.0025 (`physics::add_drive_forces`).
+    pub drive_force_factor: [PlainFloat; 2],
+    /// 0x76C, 0x640, 0x384, scaled into `spec_ints` (`physics::load_car_specs`).
+    pub spec_default_bc0: [PlainDword; 3],
+    /// `physics::set_handling`'s (lo, hi) pairs for three of its figures.
+    pub handling_ranges_a: [PlainFloat; 6],
+    /// `physics::set_handling`'s pairs for two more figures (the second chosen by kind).
+    pub handling_ranges_b: [PlainFloat; 6],
+    /// 1.0, 0.9, 0.85, 1.0 (`physics::wheel_surfaces`).
+    pub surface_blend: [PlainFloat; 4],
+    /// `physics::set_handling`'s pairs for four more figures.
+    pub handling_ranges_c: [PlainFloat; 8],
+    /// 5: the steps the drive is cut after a change (`physics::gearbox`).
+    pub drive_cut_steps: PlainDword,
+    /// 0.85, 0.75, 2.5: the car's turning inertia by axis (`physics::apply_torque`).
+    pub inertia: [PlainFloat; 3],
+    /// 3000.0 then one more, by spec (`physics::load_car_specs`, by drive kind 0 .. 2: kind 2 reads
+    /// the next field, `camera_drop`: a slip kept as is).
+    pub rev_limits: [PlainFloat; 2],
+    /// 9.8 (`physics::apply_patches`).
+    pub gravity: PlainFloat,
     /// The engine's torque curve read in pairs (`physics::engine_torque`).
     pub torque_curve: [PlainFloat; 9],
     /// `physics::find_clear_place`'s first step table.
     pub clear_place_steps_a: [PlainDword; 16],
     /// Its second step table.
     pub clear_place_steps_b: [PlainDword; 16],
-    /// 0.02, held both ways (`physics::camera_frame`).
-    pub camera_frame_limit: PlainFloat,
-    /// 0.05 (`physics::camera_frame`).
-    pub camera_frame_scale: PlainFloat,
     /// The motion kept by `physics::keep_motion`.
     pub kept_motion: [PlainFloat; 3],
     /// `physics::stall_when_still`'s.
@@ -273,8 +185,6 @@ pub struct PhysicsTables {
     pub start_gear_figures: [PlainFloat; 3],
     /// Steps since a contact (`physics::car_physics_step`, `physics::apply_contact_torques`).
     pub contact_step: PlainDword,
-    /// 10: the contact steps' limit.
-    pub contact_steps: PlainDword,
     /// 1 for each point on hard ground (`physics::wheel_surfaces`).
     pub hard_ground: [PlainDword; 5],
     /// `physics::drive_grip_forces`' integer.
@@ -419,18 +329,8 @@ pub struct PhysicsTables {
     pub reset_offset: PlainDword,
     /// The checkpoint tried (`physics::reset_point_blocked`).
     pub reset_candidate: PlainDword,
-    /// (`physics::blend_wheel_load`).
-    pub wheel_load_limit: PlainFloat,
     /// The distance to the nearest checkpoint.
     pub nearest_checkpoint_distance: PlainFloat,
-    /// (`physics::off_line_warnings`).
-    pub off_line_distance: PlainFloat,
-    /// (`physics::passed_split_point`).
-    pub split_distance: PlainFloat,
-    /// (`physics::off_line_warnings`).
-    pub off_line_word: PlainDword,
-    /// (`physics::pace_notes_step`).
-    pub pace_scale: PlainFloat,
     /// The events listed (`physics::queue_listed_event`).
     pub listed_events: [PlainDword; 32],
     /// The distance to the split point.
@@ -612,95 +512,51 @@ impl PhysicsTables {
     /// The piece, with the image's first values.
     pub const fn new() -> Self {
         Self {
-            reset_speed_limit: PlainFloat::new(5.0),
-            step_time: PlainFloat::new(0.01),
+            grip_slide_scale: PlainFloat::new(figures::GRIP_SLIDE_SCALE),
+            grip_slip_limit: PlainFloat::new(figures::GRIP_SLIP_LIMIT),
+            grip_force_limit: PlainFloat::new(figures::GRIP_FORCE_LIMIT),
+            spec_scale_a4: PlainFloat::new(figures::SPEC_SCALE_A4),
+            rev_limit_scale: PlainFloat::new(figures::REV_LIMIT_SCALE),
+            drive_speed_scale: PlainFloat::new(figures::DRIVE_SPEED_SCALE),
+            side_force_scale: PlainFloat::new(figures::SIDE_FORCE_SCALE),
+            slip_blend: PlainFloat::new(figures::SLIP_BLEND),
+            slip_share: PlainFloat::new(figures::SLIP_SHARE),
+            wheel_speed_margin: PlainFloat::new(figures::WHEEL_SPEED_MARGIN),
+            wheel_speed_gap: PlainFloat::new(figures::WHEEL_SPEED_GAP),
+            sound_speed_scale: PlainFloat::new(figures::SOUND_SPEED_SCALE),
+            spec_scale_1b8: PlainFloat::new(figures::SPEC_SCALE_1B8),
+            grip_ramp: PlainFloat::new(figures::GRIP_RAMP),
+            grip_ramp_share: PlainFloat::new(figures::GRIP_RAMP_SHARE),
+            camera_drop: PlainFloat::new(figures::CAMERA_DROP),
+            air_drag: PlainFloat::new(figures::AIR_DRAG),
+            rolling_drag: PlainFloat::new(figures::ROLLING_DRAG),
+            free_rev_add: PlainFloat::new(figures::FREE_REV_ADD),
+            free_rev_scale: PlainFloat::new(figures::FREE_REV_SCALE),
+            rev_top_scale: PlainFloat::new(figures::REV_TOP_SCALE),
+            wheel_load_scale: PlainFloat::new(figures::WHEEL_LOAD_SCALE),
+            camera_frame_scale: PlainFloat::new(figures::CAMERA_FRAME_SCALE),
+            step_time: PlainFloat::new(figures::STEP_TIME),
+            crash_depth: PlainDword::new(figures::CRASH_DEPTH),
+            contact_steps: PlainDword::new(figures::CONTACT_STEPS),
             surfaces: Surface::rows(&SURFACE_ROWS),
             surface_tables: PlainDword::array(SURFACE_TABLES),
-            stall_speed: PlainFloat::new(8.0),
-            stall_share: PlainFloat::new(0.5),
-            drive_speed_cap: PlainFloat::new(800.0),
-            drive_speed_cap_a: PlainFloat::new(20.0),
-            drive_speed_cap_b: PlainFloat::new(20.0),
             grip_front_drive: PlainFloat::array(GRIP_FRONT_DRIVE),
             grip_rear_drive: PlainFloat::array(GRIP_REAR_DRIVE),
-            low_speed_limit: PlainFloat::new(20.0),
-            low_speed_add: PlainFloat::new(1.0),
-            low_speed_scale: PlainFloat::new(0.5),
-            spin_limit: PlainFloat::new(4.0),
-            velocity_limit: PlainFloat::new(80.0),
-            grip_slide_scale: PlainFloat::new(7.5),
-            grip_slip_limit: PlainFloat::new(5.0),
-            grip_force_limit: PlainFloat::new(10.0),
-            grip_slow_speed: PlainFloat::new(1.0),
-            spec_scale_a4: PlainFloat::new(0.9),
-            probe_lift: PlainFloat::new(0.15),
-            auto_gear_speed_up: PlainFloat::new(1.0),
-            auto_gear_speed_down: PlainFloat::new(-1.0),
-            engine_ease: PlainFloat::new(0.95),
             ground_spin_limit: PlainFloat::new(2.0),
-            grip_ease_step: PlainFloat::new(0.1),
             grip_factor: PlainFloat::array(GRIP_FACTOR),
-            side_grip_share: PlainFloat::new(0.5),
-            rev_limit_scale: PlainFloat::new(8500.0),
-            wheel_spin_share: PlainFloat::new(0.65),
-            spring_share: PlainFloat::new(0.325),
-            drive_speed_scale: PlainFloat::new(2.5),
-            side_speed_limit: PlainFloat::new(15.0),
-            side_force_scale: PlainFloat::new(0.05),
-            slip_blend: PlainFloat::new(0.5),
-            slip_share: PlainFloat::new(0.5),
-            wheel_speed_margin: PlainFloat::new(1.5),
-            wheel_speed_gap: PlainFloat::new(0.1),
-            sound_speed_scale: PlainFloat::new(1.0),
             drive_force_factor: PlainFloat::array(DRIVE_FORCE_FACTOR),
-            torque_share_a: PlainDword::new(8),
-            torque_share_b: PlainDword::new(32),
-            torque_share_c: PlainInt::new(0x42000000),
-            crash_depth: PlainDword::new(0x1000),
-            spec_default_ba0: PlainFloat::new(2.4),
-            spec_default_ba4: PlainFloat::new(0.5),
             spec_default_bc0: PlainDword::array(SPEC_DEFAULT_BC0),
-            spec_scale_1b8: PlainFloat::new(0.85),
-            spec_default_ba8: PlainFloat::new(4.0),
-            auto_gear_engine_share: PlainFloat::new(0.95),
             handling_ranges_a: PlainFloat::array(HANDLING_RANGES_A),
-            grip_ramp: PlainFloat::new(2.0),
-            grip_ramp_share: PlainFloat::new(0.25),
-            settle_fast_step: PlainFloat::new(1.0),
-            settle_slow_step: PlainFloat::new(0.01),
             handling_ranges_b: PlainFloat::array(HANDLING_RANGES_B),
             surface_blend: PlainFloat::array(SURFACE_BLEND),
             handling_ranges_c: PlainFloat::array(HANDLING_RANGES_C),
-            probe_share: PlainFloat::new(0.5),
-            spring_force_scale: PlainFloat::new(2.0),
-            torque_ease: PlainFloat::new(0.25),
             drive_cut_steps: PlainDword::new(5),
             inertia: PlainFloat::array(INERTIA),
-            downforce_factor: PlainFloat::new(0.0001),
             rev_limits: PlainFloat::array(REV_LIMITS),
-            camera_drop: PlainFloat::new(0.7),
-            ground_drop: PlainDword::new(0xB333),
             gravity: PlainFloat::new(9.8),
-            air_drag: PlainFloat::new(5.0),
-            rolling_drag: PlainFloat::new(0.75),
-            free_rev_add: PlainFloat::new(5.0),
-            free_rev_scale: PlainFloat::new(0.005),
-            clear_place_share: PlainFloat::new(0.9),
-            start_gear_share: PlainFloat::new(0.99),
-            rev_top_scale: PlainFloat::new(1.2),
-            gear_ratio_step: PlainFloat::new(0.001),
-            wheel_load_scale: PlainFloat::new(0.0025),
             torque_curve: PlainFloat::array(TORQUE_CURVE),
             clear_place_steps_a: PlainDword::array(CLEAR_PLACE_STEPS_A),
             clear_place_steps_b: PlainDword::array(CLEAR_PLACE_STEPS_B),
-            camera_frame_limit: PlainFloat::new(0.02),
-            camera_frame_scale: PlainFloat::new(0.05),
-            contact_steps: PlainDword::new(10),
-            wheel_load_limit: PlainFloat::new(4.0),
-            off_line_distance: PlainFloat::new(32.0),
-            split_distance: PlainFloat::new(32.0),
-            off_line_word: PlainDword::new(0x60000000),
-            pace_scale: PlainFloat::new(1.0),
             listed_events: PlainDword::array(LISTED_EVENTS),
             pace_slot_offsets: PlainDword::array(PACE_SLOT_OFFSETS),
             ..ZeroCells::ZERO
@@ -739,8 +595,22 @@ mod tests {
         for byte in &bytes {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
         }
-        assert_eq!(bytes.len(), 3652);
-        assert_eq!(hash, 0x6ead_3fdd_01f7_d82d);
+        assert_eq!(bytes.len(), 3448);
+        assert_eq!(hash, 13_924_757_970_912_996_448);
+    }
+
+    #[test]
+    fn the_cells_kept_for_the_contact_routines_hold_the_figures_constants() {
+        let tables = super::PhysicsTables::new();
+        assert_eq!(tables.step_time.get(), crate::physics::figures::STEP_TIME);
+        assert_eq!(
+            tables.crash_depth.get(),
+            crate::physics::figures::CRASH_DEPTH
+        );
+        assert_eq!(
+            tables.contact_steps.get(),
+            crate::physics::figures::CONTACT_STEPS
+        );
     }
 
     #[test]

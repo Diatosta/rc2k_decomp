@@ -15,14 +15,14 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let menus = set_up.menus;
     menus.tables.captions.write().left_by_key = false;
     menus.screens.flow.write().turning = 0x1u32;
-    menus.screens.carousel.menu.set(0x2u32);
+    menus.screens.carousel.write().menu = 0x2u32;
     set_up.carousel_with(None)?;
     let item = menus
         .screens
         .items
         .current(slot::CHAMPIONSHIP_NEW_SIMULATION);
     menus.screens.loop_flags.write().item = item;
-    menus.screens.carousel.front.set(item.wrapping_sub(1));
+    menus.screens.carousel.write().front = item.wrapping_sub(1);
     set_up.set_view(7, 10, 0x100);
     set_up.prepare_scene();
     Ok(())

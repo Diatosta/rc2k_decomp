@@ -12,6 +12,7 @@ use crate::math::x87::{ext_to_int, int_80};
 use crate::math::x87_float as bh;
 use crate::memory::session::DwordLike;
 use crate::memory::session::PlainFloat;
+use crate::physics::figures::GROUND_DROP;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
 use crate::scene::matrix::multiply_matrices;
@@ -121,7 +122,7 @@ pub fn set_listener(
     ));
     race.effects_settings().listener_figures[1].set(view.sun.place[0].get());
     race.effects_settings().listener_figures[2].set(view.sun.place[1].get());
-    let f = listener::listener_points(f, race.shared.physics_tables.get().ground_drop.get());
+    let f = listener::listener_points(f, GROUND_DROP);
     for (k, &v) in f.iter().enumerate() {
         physics.camera_mut().listener_points[k] = v as u32;
     }

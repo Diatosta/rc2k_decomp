@@ -1,5 +1,4 @@
-//! The contact of the probe point that crossed a face's edge (`crossed_probe`, into
-//! `probe_index`). The side of the probe's
+//! The contact of the probe point that crossed a face's edge (`crossed_probe`). The side of the probe's
 //! path each corner lies on (the sign of the 64-bit cross product of the move) picks the edge crossed: p1 -> p2, p2 -> p4, p4 -> p3, else p3
 //! -> p1, into `crossed_edge`. Then the normal across the edge (`physics::wall_edge_contact`'s
 //! `edge_normal`; the heading also into `crossed_heading`), the speeds and the probe's point (y
@@ -42,7 +41,6 @@ fn side(path: &Path, x: u32, z: u32) -> bool {
 // Core: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
 pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     let n = c.contact.crossed_probe.get();
-    c.contact.probe_index.set(n);
     let k = n as usize;
     let path = Path {
         before: (

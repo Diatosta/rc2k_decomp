@@ -42,14 +42,14 @@ pub fn draw_highlighted(
     if item >= ENTRIES {
         return Err(BadInput("a highlighted item of 0 or past the carousel's kinds").into());
     }
-    let kind = screens.carousel.kinds[item as usize].get();
+    let kind = screens.carousel.read().kinds[item as usize];
     let own = (kind as i32 > 0x258).then(|| kind.wrapping_sub(0x259));
     if own.is_some_and(|own| own >= OWN) {
         return Err(BadInput("a kind past the records of the kinds' own places").into());
     }
     let clock: u32 = shared.run().scene_clock;
     object_place.angles[1].set((clock << 3) & 0xFFFF);
-    object_place.place[2].set(screens.carousel.z.get());
+    object_place.place[2].set(screens.carousel.read().z);
     object_place.place[0].set(0u32);
     if let Some(own) = own {
         let [size, y, angle] = own_place(&menus.lists, own)?;
@@ -61,7 +61,7 @@ pub fn draw_highlighted(
             object_place.angles[0].set(angle);
         }
     }
-    screens.carousel.kind.set(kind);
+    screens.carousel.write().kind = kind;
     let object = find_object_of_kind(kind, scene);
     cars.object_number.set(object);
     draw()

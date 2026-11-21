@@ -114,7 +114,8 @@ pub(super) fn choose_session(
             }
         }
         if any && list_move(list_state, key, net.link.sessions().get()) {
-            list_state.write().move_clock = list_state.read().frame_clock;
+            let value = list_state.read().frame_clock;
+            list_state.write().move_clock = value;
         } else if any && ListKey::of(key) == ListKey::Enter {
             return Ok(list_state.read().choice);
         } else if ListKey::of(key) == ListKey::Escape {

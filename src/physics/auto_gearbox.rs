@@ -21,6 +21,7 @@
 use crate::errors::Refused;
 use crate::math::x87::{mul_div_status, mul_status};
 use crate::physics::car_store::Car;
+use crate::physics::figures::{AUTO_GEAR_ENGINE_SHARE, AUTO_GEAR_SPEED_DOWN, AUTO_GEAR_SPEED_UP};
 use crate::physics::gear_store::GearFigures;
 use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::reverse;
@@ -28,6 +29,7 @@ use crate::physics::pick_start_gear::pick_start_gear;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
+use rc2k_core::physics::gearbox::GearInputs;
 
 /// Up.
 fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
@@ -68,12 +70,7 @@ fn tests(car: &Car, tables: &PhysicsTables, gear_figures: &GearFigures) -> Resul
         || car.all_wheels_off.get() != 0,
         || car.brake.get() != 0,
         || !below(over, gear_figures.shift_up_point.get()),
-        || {
-            !below(
-                car.local_velocity[2].get(),
-                tables.auto_gear_speed_down.get(),
-            )
-        },
+        || !below(car.local_velocity[2].get(), AUTO_GEAR_SPEED_DOWN),
         || {
             let over = over_top(car).to_bits();
             if !shifts::above_first(gear) {
@@ -90,7 +87,7 @@ fn tests(car: &Car, tables: &PhysicsTables, gear_figures: &GearFigures) -> Resul
             };
             Ok(below(over, point))
         },
-        || below(car.local_velocity[2].get(), tables.auto_gear_speed_up.get()),
+        || below(car.local_velocity[2].get(), AUTO_GEAR_SPEED_UP),
     )
 }
 
@@ -99,6 +96,7 @@ fn tests(car: &Car, tables: &PhysicsTables, gear_figures: &GearFigures) -> Resul
 pub(super) fn auto_gearbox(
     car: &Car,
     tables: &PhysicsTables,
+    inputs: &GearInputs,
     numbers: &Numbers,
     gear_figures: &GearFigures,
 ) -> Result<(), Refused> {
@@ -113,14 +111,14 @@ pub(super) fn auto_gearbox(
         if car.gear.get() == 0 {
             if mul_status(
                 &car.engine_speed_limit,
-                &tables.auto_gear_engine_share,
+                AUTO_GEAR_ENGINE_SHARE,
                 &car.engine_speed,
             ) & 0x100
                 == 0
             {
                 return Ok(());
             }
-            break 'first if tables.input_gear_wanted.get() == u32::MAX {
+            break 'first if inputs.joined == u32::MAX {
                 Shift::Reverse
             } else {
                 Shift::Start

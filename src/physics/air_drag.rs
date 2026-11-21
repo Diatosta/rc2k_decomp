@@ -9,7 +9,7 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 /// The drag of this step against each of the car's three motions.
 pub fn air_drag(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
-    let (k, d, zero) = (&tables.air_drag, &numbers.k10000, ZERO);
+    let (k, d, zero) = (tables.air_drag.get(), &numbers.k10000, ZERO);
     for i in 0..3 {
         let (motion, force) = (&car.local_velocity[i], &tables.forces[5].force[i]);
         force.set_float(square_times_over(motion.get(), k, d));

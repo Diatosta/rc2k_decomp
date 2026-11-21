@@ -21,7 +21,7 @@ pub fn apply_torque(tables: &PhysicsTables, contact: &ContactWork, rec: &ForceRe
     }
     turn_cells(&car.car_inverse_matrix, work);
     cross_product(&rec.force, &rec.point, cross);
-    let step = &tables.step_time;
+    let step = tables.step_time.get();
     for k in 0..3 {
         work[k].set(neg_product2_plus(
             &cross[k],

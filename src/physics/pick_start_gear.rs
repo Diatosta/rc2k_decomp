@@ -12,6 +12,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::sub_mul_add;
 use crate::physics::car_store::Car;
+use crate::physics::figures::START_GEAR_SHARE;
 use crate::physics::gear_store::GearFigures;
 use crate::physics::gearbox::*;
 use crate::physics::tables_store::PhysicsTables;
@@ -50,7 +51,7 @@ pub(super) fn pick_start_gear(
     car.engine_speed.set(sub_mul_add(
         tables.start_gear_figures[2].get(),
         &car.engine_speed,
-        &tables.start_gear_share,
+        START_GEAR_SHARE,
         &car.engine_speed,
     ));
     wheels(car, tables)?;

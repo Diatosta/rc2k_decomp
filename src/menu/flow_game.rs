@@ -87,6 +87,11 @@ enum PlainField {
     ChampResetTimes,
     ChampServices,
     SpeechChannel,
+    Round,
+    /// Player `n`'s total before the stage.
+    ClearedBefore(usize),
+    /// Player `n`'s total.
+    ClearedTotal(usize),
 }
 
 impl PlainField {
@@ -105,6 +110,9 @@ impl PlainField {
             PlainField::ChampResetTimes => menus.play.champ_view.read().reset_times,
             PlainField::ChampServices => menus.play.champ_view.read().services,
             PlainField::SpeechChannel => menus.options.read().menu_voices_volume,
+            PlainField::Round => menus.play.results.read().round,
+            PlainField::ClearedBefore(k) => menus.play.results.read().players[k].before,
+            PlainField::ClearedTotal(k) => menus.play.results.read().players[k].total,
         }
     }
 
@@ -122,6 +130,9 @@ impl PlainField {
             PlainField::ChampResetTimes => menus.play.champ_view.write().reset_times = value,
             PlainField::ChampServices => menus.play.champ_view.write().services = value,
             PlainField::SpeechChannel => menus.options.write().menu_voices_volume = value,
+            PlainField::Round => menus.play.results.write().round = value,
+            PlainField::ClearedBefore(k) => menus.play.results.write().players[k].before = value,
+            PlainField::ClearedTotal(k) => menus.play.results.write().players[k].total = value,
         }
     }
 }
@@ -140,7 +151,7 @@ enum Place<'a> {
     Refused(&'static str),
 }
 
-fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
+fn place(race: &Race, v: Var) -> Place<'_> {
     use Place::Cell;
     match v {
         Var::Answer => Place::Plain(PlainField::Answer),
@@ -149,7 +160,7 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
         Var::EventType => Place::Plain(PlainField::Event(EventWord::EventType)),
         Var::Mode => Place::Plain(PlainField::ChampMode),
         Var::Current => Place::Plain(PlainField::Event(EventWord::CurrentPlayer)),
-        Var::Round => Cell(&menus.play.results.round),
+        Var::Round => Place::Plain(PlainField::Round),
         Var::Qualifies => Place::Plain(PlainField::Event(EventWord::TrialQualifies)),
         Var::ServiceDue => Place::Plain(PlainField::Event(EventWord::ServiceDue)),
         Var::RaceResult => Cell(&race.shared.state.results.results[0].result),
@@ -158,8 +169,8 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
         Var::CarListKind => Place::Plain(PlainField::CarListKind),
         Var::Cheats => Place::Plain(PlainField::Cheats),
         // The eight cleared figures are the four totals before the stage, then the four totals.
-        Var::Cleared(k @ 0..4) => Cell(&menus.play.results.players[k as usize].before),
-        Var::Cleared(k @ 4..8) => Cell(&menus.play.results.players[k as usize - 4].total),
+        Var::Cleared(k @ 0..4) => Place::Plain(PlainField::ClearedBefore(k as usize)),
+        Var::Cleared(k @ 4..8) => Place::Plain(PlainField::ClearedTotal(k as usize - 4)),
         Var::Cleared(_) => Place::Refused("a cleared figure past the eight"),
         Var::PlayerTime(n) => Place::Player(n, PlayerField::Time),
         Var::PlayerEntry(n) => Place::Player(n, PlayerField::Entry),
@@ -201,7 +212,7 @@ impl flow::Game for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        match place(self.menus, self.owners.race, v) {
+        match place(self.owners.race, v) {
             Place::Cell(cell) => cell.get(),
             Place::Plain(field) => field.get(self.menus),
             Place::Player(n, field) => *field.of(&mut player(self.menus, n).get()),
@@ -217,7 +228,7 @@ impl flow::Game for Game<'_> {
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        match place(self.menus, self.owners.race, v) {
+        match place(self.owners.race, v) {
             Place::Cell(cell) => cell.set(value),
             Place::Plain(field) => field.set(self.menus, value),
             Place::Player(n, field) => player(self.menus, n).update(|q| *field.of(q) = value),
@@ -550,25 +561,23 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let menus = crate::test_support::own::menus();
         let race = crate::test_support::own::race();
-        let players = &menus.play.results.players;
-        let kept: Vec<(u32, u32)> = players
-            .iter()
-            .map(|p| (p.before.get(), p.total.get()))
-            .collect();
+        let figures = || -> Vec<(u32, u32)> {
+            let results = menus.play.results.read();
+            results
+                .players
+                .iter()
+                .map(|p| (p.before, p.total))
+                .collect()
+        };
+        let kept = menus.play.results.read().players;
         for k in 0..8u32 {
-            match place(menus, race, Var::Cleared(k)) {
-                Place::Cell(cell) => cell.set(0x100 + k),
-                _ => panic!("cleared figure {k} is not a cell"),
+            match place(race, Var::Cleared(k)) {
+                Place::Plain(field) => field.set(menus, 0x100 + k),
+                _ => panic!("cleared figure {k} is not a plain field"),
             }
         }
-        let read: Vec<(u32, u32)> = players
-            .iter()
-            .map(|p| (p.before.get(), p.total.get()))
-            .collect();
-        for (p, (before, total)) in players.iter().zip(kept) {
-            p.before.set(before);
-            p.total.set(total);
-        }
+        let read = figures();
+        menus.play.results.write().players = kept;
         assert_eq!(
             read,
             vec![
@@ -578,9 +587,6 @@ mod tests {
                 (0x103, 0x107)
             ]
         );
-        assert!(matches!(
-            place(menus, race, Var::Cleared(8)),
-            Place::Refused(_)
-        ));
+        assert!(matches!(place(race, Var::Cleared(8)), Place::Refused(_)));
     }
 }

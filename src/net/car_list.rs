@@ -4,6 +4,7 @@
 //! match a -1 entry (kept). Lists with no end are refused.
 
 use crate::errors::Refused;
+use crate::memory::session::CarEntries;
 use crate::menu::car_lists_store::CarLists;
 use crate::menu::lists_store::CarList;
 
@@ -14,20 +15,17 @@ use crate::menu::lists_store::CarList;
 /// `menu::arcade_steps` and `saves::rebuild_car_lists`, each within its first 0x28 entries
 /// with a -1 inside them, and the entries from 0x28 on keep their -1. An entry past the
 /// field is refused.
-pub fn any_won(
-    secret: &[impl crate::memory::session::Cell32],
-    won: &[impl crate::memory::session::Cell32],
-) -> Result<bool, Refused> {
+pub fn any_won(secret: &dyn CarEntries, won: &dyn CarEntries) -> Result<bool, Refused> {
     // The logic is in `rc2k_core::net::cars::any_won`, the lists' dwords by index.
     // The core asks infallibly: the first refusal is kept and raised after.
     let refused = std::cell::Cell::new(None);
     fn reader<'a>(
-        list: &'a [impl crate::memory::session::Cell32],
+        list: &'a dyn CarEntries,
         refused: &'a std::cell::Cell<Option<crate::errors::BadInput>>,
     ) -> impl Fn(u32) -> u32 + 'a {
-        move |n: u32| match list.get(n as usize) {
-            Some(entry) => entry.bits(),
-            None => {
+        move |n: u32| match (n as usize) < list.room() {
+            true => list.entry(n as usize),
+            false => {
                 refused.set(Some(crate::errors::BadInput(
                     "a car list's entry past its field",
                 )));

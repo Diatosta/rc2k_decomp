@@ -7,7 +7,6 @@ use crate::menu::names_store::Names;
 use rc2k_core::menu::player::Player;
 
 /// The four players: records, their table and names.
-#[derive(rc2k_derive::Cells)]
 pub struct PlayerSlots {
     /// The players' records (settings, and the state of each player's car).
     pub records: [Shared<Player>; 4],

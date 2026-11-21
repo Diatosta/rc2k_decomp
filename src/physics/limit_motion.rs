@@ -13,24 +13,22 @@ use crate::math::matrix3::rounded_value;
 use crate::math::x87_float::compare;
 use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
+use crate::physics::figures::{SPIN_LIMIT, VELOCITY_LIMIT};
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
 use std::cmp::Ordering;
 
-/// The value at `v` held to +-(the limit at `l`): the limit is negated in place for the second
-/// compare and put back.
-fn hold(v: &impl Cell32, l: &impl Cell32) {
-    let limit = l.ld();
+/// The value at `v` held to +-`limit` (a float's bits).
+fn hold(v: &impl Cell32, limit: u32) {
+    let limit = crate::math::x87_float::ld(limit);
     if compare(v.ld(), limit) & 0x100 == 0 {
         v.st(limit);
     }
-    l.st(-l.ld());
-    let negated = l.ld();
+    let negated = -limit;
     if compare(v.ld(), negated) & 0x100 != 0 {
         v.st(negated);
     }
-    l.st(-l.ld());
 }
 
 /// The exact version, for `physics::car_physics_step` and `physics::find_clear_place`.
@@ -55,10 +53,10 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables) {
         }
     }
     for item in car.spin.iter().take(3usize) {
-        hold(&item, &tables.spin_limit);
+        hold(&item, SPIN_LIMIT.to_bits());
     }
     for k in [0usize, 2, 1] {
-        hold(&car.velocity[k], &tables.velocity_limit);
+        hold(&car.velocity[k], VELOCITY_LIMIT.to_bits());
     }
     let length = rounded_value(vector_length(&car.velocity));
     let top = tables.top_speed.get();
@@ -94,7 +92,7 @@ mod reference_vectors {
             plain: |a| {
                 hold(
                     &crate::math::x87_mem::HostCell(a[0]),
-                    &crate::math::x87_mem::HostCell(a[1]),
+                    crate::math::x87_mem::HostCell(a[1]).bits(),
                 );
             },
         }];

@@ -7,12 +7,12 @@
 //! its own length, and a number of 0x400 or more.
 
 use crate::errors::BadInput;
-use crate::memory::session::PlainDword;
+use crate::memory::session::CarEntries;
 use crate::menu::owner::Menus;
 use crate::system::checked_reads::CheckedReads;
 
 /// (the numbers, the pointers, how many entries each has)
-fn lists(menus: &Menus) -> [([u32; 40], &[PlainDword], usize); 2] {
+fn lists(menus: &Menus) -> [([u32; 40], &dyn CarEntries, usize); 2] {
     let numbers = menus.cars.numbers.read();
     [
         (numbers.first_numbers, &menus.cars.lists.cars_second, 0x28),
@@ -41,7 +41,7 @@ pub fn rebuild_car_lists(menus: &Menus) -> Result<(), BadInput> {
     }
     for ((_, pointers, _), list) in lists.into_iter().zip(found) {
         for (n, v) in list.into_iter().flatten().enumerate() {
-            pointers[n].set(v);
+            pointers.set_entry(n, v);
         }
     }
     Ok(())

@@ -19,11 +19,11 @@ fn before(screens: &Screens) -> Result<(), Refused> {
 fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let screens = &set_up.menus.screens;
     screens.flow.write().turning = 0x1u32;
-    screens.carousel.menu.set(0xCu32);
+    screens.carousel.write().menu = 0xCu32;
     set_up.carousel_with(None)?;
     screens.loop_flags.write().item = screens.items.current(SLOT);
     screens.flow.write().turning = 0x0u32;
-    screens.carousel.front.set(0x0u32);
+    screens.carousel.write().front = 0x0u32;
     screens.event.write().shown.car = 0x0u32;
     set_up.set_view(7, -50, 0x100);
     set_up.prepare_scene();

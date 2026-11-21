@@ -9,9 +9,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::memory::session::PlainDword;
+use crate::physics::figures::{SETTLE_FAST_STEP, SETTLE_SLOW_STEP};
 use crate::physics::flow::FloatView;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
-use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 
@@ -59,7 +59,6 @@ fn settle(v: &(impl FloatView + ?Sized), step: f32) {
 
 /// The steps.
 fn settle_drive_speeds_at(
-    tables: &PhysicsTables,
     numbers: &Numbers,
     g: &GearPlaces<'_>,
     s: &SettlePlaces<'_>,
@@ -70,9 +69,9 @@ fn settle_drive_speeds_at(
     }
     let step = || {
         if s.fast.is_set() {
-            tables.settle_fast_step.get()
+            SETTLE_FAST_STEP
         } else {
-            tables.settle_slow_step.get()
+            SETTLE_SLOW_STEP
         }
     };
     if s.first.is_set() && gear == 0 {
@@ -92,7 +91,6 @@ fn settle_drive_speeds_at(
 /// The exact version, for `physics::car_physics_step`.
 pub(super) fn settle_drive_speeds(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     settle_drive_speeds_at(
-        shared.physics_tables.get(),
         numbers,
         &GearPlaces::game(shared.car(), shared.physics_tables.get()),
         &SettlePlaces::game(shared),

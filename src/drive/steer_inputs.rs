@@ -43,7 +43,7 @@ fn key_step(shared: &RaceShared, scene: &crate::scene::owner::Scene) -> u32 {
 
 /// One steering value moved by the key step.
 fn steer(shared: &RaceShared, cell: &impl DwordLike, step: u32) {
-    let word = shared.physics_tables.get().input_steer.get();
+    let word = shared.run().gear_inputs.steer;
     let v = cell.get();
     if word != 0 {
         if sign(word) {
@@ -77,7 +77,7 @@ fn steer(shared: &RaceShared, cell: &impl DwordLike, step: u32) {
 pub fn steer_inputs(race: &Race, scene: &crate::scene::owner::Scene) {
     let race_owner = race;
     let course = &race_owner.course;
-    let mut keys = race_owner.shared.physics_tables.get().input_steer.get() == 0;
+    let mut keys = race_owner.shared.run().gear_inputs.steer == 0;
     if !keys && race_owner.shared.car().driver_kind.get() != 2 {
         keys = race_owner.shared.car().input_keys.get() & 0x1000 != 0;
     }
@@ -94,8 +94,8 @@ pub fn steer_inputs(race: &Race, scene: &crate::scene::owner::Scene) {
         );
     } else {
         race_owner.shared.car().steering.set(0);
-        let product = i64::from(race_owner.shared.physics_tables.get().input_steer.get() as i32)
-            * i64::from(RIGHT as i32);
+        let product =
+            i64::from(race_owner.shared.run().gear_inputs.steer as i32) * i64::from(RIGHT as i32);
         scene.draw_work_mut().scratch = (product >> 8) as u32;
         {
             let scratch = scene.scratch_cell();

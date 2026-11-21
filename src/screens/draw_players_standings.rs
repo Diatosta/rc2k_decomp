@@ -15,7 +15,7 @@ pub fn draw_players_standings(
         if menus.play.slots.records[row].get().name_player().is_none() {
             return Err(BadInput("a standings row without its name").into());
         }
-        *total = menus.play.results.player(row)?.total.get();
+        *total = menus.play.results.player(row)?.total;
     }
     // The logic is in `rc2k_core::screens::players_results::standings`.
     let player = |row: usize| menus.play.slots.records[row].get();

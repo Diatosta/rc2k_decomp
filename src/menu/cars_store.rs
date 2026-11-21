@@ -2,7 +2,7 @@
 //! descriptions (`CarDescription`, 0x78 bytes each) and the texts they point at. One static.
 
 use crate::errors::BadInput;
-use crate::memory::session::{GameThread, PlainDword};
+use crate::memory::session::GameThread;
 use crate::menu::owner::Menus;
 use rc2k_core::screens::car_pages::CarDescription;
 use std::cell::{Ref, RefCell, RefMut};
@@ -394,15 +394,10 @@ pub const CAR_TAG: u32 = 0xCA00_0000;
 /// How many descriptions there are.
 const DESCRIPTION_COUNT: u32 = 34;
 
-/// A cell holding description `n`'s handle (one past the descriptions fails to compile).
-pub const fn car_cell(n: usize) -> PlainDword {
+/// Description `n`'s handle (one past the descriptions fails to compile).
+pub const fn listed_car_handle(n: usize) -> u32 {
     assert!(n < DESCRIPTION_COUNT as usize);
-    PlainDword::new(car_handle(n))
-}
-
-/// A cell holding a car list's end mark.
-pub(super) const fn no_car_cell() -> PlainDword {
-    PlainDword::new(u32::MAX)
+    car_handle(n)
 }
 
 /// The handle of description `n`.

@@ -14,7 +14,6 @@
 //! run its `run` (`menu::table_routes`).
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::write_all;
 use crate::menu::owner::{Menus, Screens};
 use crate::race::owner_shared::RaceShared;
 use crate::scene::assign_kind_textures::assign_kind_textures;
@@ -44,11 +43,14 @@ pub fn picked(car: u32, count: u32) -> [u32; 4] {
 /// Picks the carousel's four pictures around the car shown.
 pub fn pick_pictures(menus: &Menus, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let screens = &menus.screens;
-    if screens.carousel.menu.get() != 0xB {
+    if screens.carousel.read().menu != 0xB {
         return Ok(());
     }
-    let entries = picked(screens.event.read().shown.car, screens.carousel.count.get());
-    write_all(&screens.carousel.pictures.wanted, entries);
+    let entries = picked(
+        screens.event.read().shown.car,
+        screens.carousel.read().count,
+    );
+    screens.carousel.write().pictures.wanted = entries;
     update(menus, scene, entries)?;
     Ok(())
 }
@@ -68,9 +70,9 @@ pub fn draw_shown_car(
     }
     let clock: u32 = shared.run().scene_clock;
     object_place.angles[1].set((clock << 3) & 0xFFFF);
-    object_place.place[2].set(screens.carousel.z.get());
-    let kind = screens.carousel.kinds[car as usize].get();
-    screens.carousel.kind.set(kind);
+    object_place.place[2].set(screens.carousel.read().z);
+    let kind = screens.carousel.read().kinds[car as usize];
+    screens.carousel.write().kind = kind;
     let object = find_object_of_kind(kind, scene);
     cars.object_number.set(object);
     draw()

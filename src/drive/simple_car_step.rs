@@ -9,6 +9,7 @@
 //! Refuses what its calls refuse.
 
 use crate::errors::Refused;
+use crate::physics::figures::GROUND_DROP;
 use crate::race::owner::Race;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
@@ -74,7 +75,7 @@ pub fn simple_car_step(
             .ground_search()
             .borrow()
             .height
-            .wrapping_add(race.shared.physics_tables.get().ground_drop.get());
+            .wrapping_add(GROUND_DROP);
         race.course.course.get().place_y.set(y);
         race.car_blocks().cars[0].position[1].set(y);
     }

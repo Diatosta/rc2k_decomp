@@ -246,10 +246,10 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     cells_stores! {
         *race.shared.car(),
         menus.text_buffers,
-        menus.play.results,
         audio.state,
         audio.sample_records,
-        menus.play.slots,
+        menus.play.slots.records,
+        menus.play.slots.pointers,
         effects.paths.spline_head,
         *race.physics.contact.get(),
         *race.physics.lit_faces.get(),

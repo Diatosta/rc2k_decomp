@@ -160,11 +160,11 @@ fn steps(
         revs(car, physics_tables, course.numbers.get())?;
         // The wheels' drag on each drive speed.
         brake_step_for_a(car, physics_tables, course.numbers.get());
-        ease_zero(&car.drive_speed_a, &physics_tables.wheel_speed_step);
+        ease_zero(&car.drive_speed_a, physics_tables.wheel_speed_step.get());
         brake_step_for_b(car, physics_tables, course.numbers.get());
-        ease_zero(&car.drive_speed_b, &physics_tables.wheel_speed_step);
+        ease_zero(&car.drive_speed_b, physics_tables.wheel_speed_step.get());
         handbrake_step_for_b(car, physics_tables, course.numbers.get());
-        ease_zero(&car.drive_speed_b, &physics_tables.wheel_speed_step);
+        ease_zero(&car.drive_speed_b, physics_tables.wheel_speed_step.get());
         if car.handbrake.get() != 0 {
             let status = handbrake_stop_status(
                 &car.drive_speed_a,
@@ -239,7 +239,7 @@ fn steps(
         );
         // The car-frame side speed eased by the side grip.
         scratch.set_float(car.local_velocity[0].get());
-        ease_zero(&scratch, &physics_tables.drive_limits[2]);
+        ease_zero(&scratch, physics_tables.drive_limits[2].get());
         side_slip_forces(car, physics_tables, course.numbers.get(), &scratch);
         store_loaded(&physics_tables.slip_limit, &physics_tables.drive_limits[0]);
         store_loaded(

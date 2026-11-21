@@ -104,6 +104,7 @@ mod face_contacts;
 mod face_contacts_around;
 mod false_start;
 mod feel_ground;
+pub(crate) mod figures;
 mod fill_race_slot;
 mod fill_rival_table;
 mod fill_slot_on_bit;

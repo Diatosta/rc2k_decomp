@@ -1,10 +1,10 @@
 use crate::errors::Refused;
 use crate::memory::session::DwordLike;
-use crate::memory::session::PlainDword;
 use crate::menu::event_flow::{set_switch, switch_is_set};
 use crate::menu::event_store::EventWord;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
+use crate::menu::results_store::ResultsData;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::race::owner::Race;
@@ -35,13 +35,15 @@ fn cell(race: &Race, v: Var) -> Option<&dyn DwordLike> {
     })
 }
 
-fn address(menus: &Menus, v: Var) -> &'_ PlainDword {
+/// The first player's figure a variable names, in the results.
+fn figure(results: &mut ResultsData, v: Var) -> &mut u32 {
+    let player = &mut results.players[0];
     match v {
-        Var::TotalA8 => &menus.play.results.players[0].before,
-        Var::Total798 => &menus.play.results.players[0].sum,
-        Var::TotalB8 => &menus.play.results.players[0].total,
-        Var::Figure768 => &menus.play.results.players[0].position,
-        Var::Figure758 => &menus.play.results.players[0].time_bonus,
+        Var::TotalA8 => &mut player.before,
+        Var::Total798 => &mut player.sum,
+        Var::TotalB8 => &mut player.total,
+        Var::Figure768 => &mut player.position,
+        Var::Figure758 => &mut player.time_bonus,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
         Var::PlayerCount
         | Var::EventMode
@@ -81,7 +83,7 @@ impl arcade::Arcade for Game<'_> {
         }
         match cell(self.owners.race, v) {
             Some(cell) => cell.get(),
-            None => address(menus, v).get(),
+            None => *figure(&mut menus.play.results.write(), v),
         }
     }
 
@@ -100,7 +102,7 @@ impl arcade::Arcade for Game<'_> {
             Var::PlayerCount => EventWord::PlayerCount.set(&menus.screens.event, value),
             _ => match cell(self.owners.race, v) {
                 Some(cell) => cell.set(value),
-                None => address(menus, v).set(value),
+                None => *figure(&mut menus.play.results.write(), v) = value,
             },
         }
     }

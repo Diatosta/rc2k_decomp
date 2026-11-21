@@ -9,7 +9,7 @@ use crate::effects::kind_store::{KindExtra2, KindExtras1, QuadWork};
 use crate::effects::mark_slots_store::{MarkSlots, SlotTuning};
 use crate::effects::mask_constants_store::MaskConstants;
 use crate::effects::particles_store::{BurstColours, ParticleTuning};
-use crate::effects::setup_store::{ClockK, MarksClock, SettingsPointer};
+use crate::effects::setup_store::{MarksClock, SettingsPointer};
 use crate::effects::tuning_store::{MarksFloats, MarksFrame, MarksKindFloats};
 use crate::effects::view_vectors_store::{KeptView, ViewSources};
 use crate::effects::work_store::MarksWork;
@@ -117,7 +117,6 @@ impl Kinds {
 /// The marks' clock, settings pointer, tuning floats, mask constants and work piece.
 pub struct Setup {
     pub clock: core::cell::RefCell<MarksClock>,
-    pub clock_k: ClockK,
     pub settings: SettingsPointer,
     /// The race's settings record `init_marks` was handed, what `Effects::settings` gives.
     pub marks:
@@ -139,7 +138,6 @@ impl Setup {
     pub const fn new() -> Self {
         Setup {
             clock: core::cell::RefCell::new(MarksClock::new()),
-            clock_k: ClockK::new(),
             settings: SettingsPointer::new(),
             marks: core::cell::Cell::new(None),
             car_blocks: core::cell::Cell::new(None),

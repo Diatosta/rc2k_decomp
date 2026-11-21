@@ -9,6 +9,7 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::auto_gearbox::auto_gearbox;
+use crate::physics::figures::ENGINE_EASE;
 use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::manual_gearbox;
 use crate::physics::take_asked_gear::take_asked_gear;
@@ -31,11 +32,14 @@ pub(super) fn gearbox_step(
         || shared.car().input_keys.get(),
         || shared.car().gearbox_kind.get(),
     );
+    // Nothing in the step writes the inputs (the rules run before it).
+    let inputs = shared.run().gear_inputs;
     match turn {
         GearboxTurn::Idle => {}
         GearboxTurn::Manual => manual_gearbox(
             shared.car(),
             shared.physics_tables.get(),
+            &inputs,
             numbers,
             gear_figures,
         )?,
@@ -46,15 +50,16 @@ pub(super) fn gearbox_step(
         GearboxTurn::Auto => auto_gearbox(
             shared.car(),
             shared.physics_tables.get(),
+            &inputs,
             numbers,
             gear_figures,
         )?,
     }
     if shared.car().gear_changed.get() == 1 {
-        shared.car().engine_speed.set(x87::mul(
-            &shared.car().engine_speed,
-            &shared.physics_tables.get().engine_ease,
-        ));
+        shared
+            .car()
+            .engine_speed
+            .set(x87::mul(&shared.car().engine_speed, ENGINE_EASE));
     }
     wheels(shared.car(), shared.physics_tables.get())
 }

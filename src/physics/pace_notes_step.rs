@@ -12,6 +12,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
+use crate::physics::figures::PACE_SCALE;
 use crate::physics::step_families::CheckpointInputs;
 use crate::race::replay_file_store::ReplayFileBlock;
 use crate::race::work_store::RaceWork;
@@ -51,7 +52,7 @@ pub fn pace_notes_step(
     // Multiply, divide, round (the extra division by 1.0 is exact).
     let ahead = crate::math::x87::mul_div_div_to_int(
         &car.local_velocity[2],
-        &physics_tables.pace_scale,
+        PACE_SCALE,
         &numbers.eight,
         ONE_F32,
     );

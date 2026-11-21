@@ -68,7 +68,8 @@ pub fn read_car_controls(
         &race_owner.shared.car().input_steering,
         &race_owner.shared.car().input_brake,
     ];
-    for (to, from) in words.into_iter().zip(race_owner.shared.run().input_words) {
+    let input_words = race_owner.shared.run().input_words;
+    for (to, from) in words.into_iter().zip(input_words) {
         to.set(from);
     }
     // A held race (`RC2K_HELD_RACE`) takes no key from the players: a key still held from the
@@ -85,42 +86,16 @@ pub fn read_car_controls(
     );
     let pressed = keys.pressed;
     race_owner.shared.car().keys_pressed.set(pressed);
-    race_owner
-        .shared
-        .physics_tables
-        .get()
-        .input_throttle
-        .set(race_owner.shared.car().input_throttle.get());
-    race_owner
-        .shared
-        .physics_tables
-        .get()
-        .input_steer
-        .set(race_owner.shared.car().input_steering.get());
-    race_owner
-        .shared
-        .physics_tables
-        .get()
-        .input_brake
-        .set(race_owner.shared.car().input_brake.get());
-    race_owner
-        .shared
-        .physics_tables
-        .get()
-        .input_handbrake
-        .set(keys.hand);
-    race_owner
-        .shared
-        .physics_tables
-        .get()
-        .input_gear_up
-        .set(keys.up);
-    race_owner
-        .shared
-        .physics_tables
-        .get()
-        .input_gear_down
-        .set(keys.down);
+    {
+        let mut run = race_owner.shared.run_mut();
+        let inputs = &mut run.gear_inputs;
+        inputs.first = race_owner.shared.car().input_throttle.get();
+        inputs.steer = race_owner.shared.car().input_steering.get();
+        inputs.second = race_owner.shared.car().input_brake.get();
+        inputs.hold = keys.hand;
+        inputs.gear_up = keys.up;
+        inputs.gear_down = keys.down;
+    }
     let network_game = net.race_slot.is_on();
     if network_game
         || race_owner.shared.work.get().current_car.get()
@@ -169,19 +144,16 @@ pub fn read_car_controls(
         race_owner.shared.work.get().driver_start_blend.set(1.0f32);
     }
     drive_computer_car(race, scene)?;
-    let (ph, w) = (
-        race_owner.shared.physics_tables.get(),
-        race_owner.shared.work.get(),
-    );
-    for (to, from) in [
-        (&ph.input_steer, &w.driver_steer),
-        (&ph.input_throttle, &w.driver_throttle),
-        (&ph.input_brake, &w.driver_brake),
-        (&ph.input_handbrake, &w.driver_flags[0]),
-        (&ph.input_gear_up, &w.driver_flags[1]),
-        (&ph.input_gear_down, &w.driver_flags[2]),
-    ] {
-        to.set(from.get());
+    {
+        let w = race_owner.shared.work.get();
+        let mut run = race_owner.shared.run_mut();
+        let inputs = &mut run.gear_inputs;
+        inputs.steer = w.driver_steer.get();
+        inputs.first = w.driver_throttle.get();
+        inputs.second = w.driver_brake.get();
+        inputs.hold = w.driver_flags[0].get();
+        inputs.gear_up = w.driver_flags[1].get();
+        inputs.gear_down = w.driver_flags[2].get();
     }
     // A test's switch (`tools/remote.py pilot`): a stalled car reset as a player would,
     // with the reset key.
@@ -194,14 +166,10 @@ pub fn read_car_controls(
         if keys != 0 {
             // Off the throttle and on the brake while the key is held, as a player would:
             // the reset needs the car slow throughout.
-            race_owner.shared.physics_tables.get().input_throttle.set(0);
-            race_owner
-                .shared
-                .physics_tables
-                .get()
-                .input_brake
-                .set(0x100);
-            race_owner.shared.physics_tables.get().input_steer.set(0);
+            let mut run = race_owner.shared.run_mut();
+            run.gear_inputs.first = 0;
+            run.gear_inputs.second = 0x100;
+            run.gear_inputs.steer = 0;
         }
         race_owner
             .shared

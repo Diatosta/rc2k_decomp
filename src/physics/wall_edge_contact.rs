@@ -1,11 +1,11 @@
-//! The wall met between two faces, `wall_face_before` (the wall) and `wall_face_now`. The wall's
+//! The wall met between two faces, the faces before (the wall) and now. The wall's
 //! four edges ((p1, p2), (p3, p1), (p4, p3), (p2, p4) of its corner words) are looked for in the
 //! other face (`rc2k_core::physics::faces::has_edge`); none shared: `physics::wall_push_back`. The
 //! first shared, its ends swapped, goes into `wall_edge_from`, `wall_edge_to`; their scene points'
 //! x, z into `edge_points`; the edge's heading (arctangent of the differences, x `one_over_two_pi`
 //! x 65536, & 0xFFFF) << 16 + 0x40000000 into `wall_heading`; the normal (0, 0, 1) turned by it
-//! (`math::rotate_float_point_about_y`) into `contact_normal`; the speeds taken, the point of probe
-//! `probe_index` (its y x `tenth`), no slide limit; `physics::contact_force` into contact record 4,
+//! (`math::rotate_float_point_about_y`) into `contact_normal`; the speeds taken, the point of
+//! the met probe (its y x `tenth`), no slide limit; `physics::contact_force` into contact record 4,
 //! `physics::place_sound_e1`.
 //!
 //! Refuses a probe point past 0x3F on the edge path (the tables' room), and what its calls refuse
@@ -81,17 +81,29 @@ pub(super) fn edge_normal(
     Ok(())
 }
 
-/// The steps, not guarded.
+/// The two faces of the wall met: the probe point's face now and before.
+#[derive(Clone, Copy)]
+pub struct WallFaces {
+    pub before: u32,
+    pub now: u32,
+}
+
+/// The steps, not guarded; `probe` the probe point that met the wall.
 // Core: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
-pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let face_corners = corners(c.course, c.contact.wall_face_now.get())?;
-    let wall_corners = corners(c.course, c.contact.wall_face_before.get())?;
+pub fn steps(
+    c: &ContactInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+    faces: WallFaces,
+    probe: u32,
+) -> Result<(), Refused> {
+    let face_corners = corners(c.course, faces.now)?;
+    let wall_corners = corners(c.course, faces.before)?;
     let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], face_corners);
     if !shared {
         return crate::physics::wall_push_back::steps(c, scene);
     }
     // Along the edge.
-    let n = c.contact.probe_index.get();
+    let n = probe;
     walls::check_probe(n)?;
     edge_normal(
         &c.shared.buffers.reads.get().engine_tables,

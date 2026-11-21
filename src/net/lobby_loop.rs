@@ -93,7 +93,8 @@ fn step_item(
     step: u32,
 ) {
     loop {
-        list_state.write().choice = list_state.read().choice.wrapping_add(step);
+        let value = list_state.read().choice.wrapping_add(step);
+        list_state.write().choice = value;
         let c = list_state.read().choice;
         if c == 1 && net.lobby().car_item.get() != 1 {
             continue;
@@ -291,7 +292,8 @@ pub(super) fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             }
         }
         if moved {
-            list_state.write().move_clock = list_state.read().frame_clock;
+            let value = list_state.read().frame_clock;
+            list_state.write().move_clock = value;
         }
         let everyone_ready = net.vars.own.state().is_host()
             && net.race_slot.players() >= 2

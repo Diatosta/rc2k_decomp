@@ -6,6 +6,7 @@
 use crate::math::x87;
 use crate::math::x87::over_abs_plus_minus;
 use crate::physics::car_store::Car;
+use crate::physics::figures::{DRIVE_SPEED_CAP, DRIVE_SPEED_CAP_A, DRIVE_SPEED_CAP_B};
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
 use std::cmp::Ordering;
@@ -23,10 +24,10 @@ pub fn cap_drive_speed(car: &Car, tables: &PhysicsTables) {
     let drive_speed = &car.drive_speed_a;
     let zero = f32::from_bits(ZERO);
     allowance.set(over_abs_plus_minus(
-        &tables.drive_speed_cap,
+        DRIVE_SPEED_CAP,
         speed.get(),
-        &tables.drive_speed_cap_a,
-        &tables.drive_speed_cap_b,
+        DRIVE_SPEED_CAP_A,
+        DRIVE_SPEED_CAP_B,
     ));
     if below(allowance.get(), zero) {
         allowance.set(x87::loaded(zero));

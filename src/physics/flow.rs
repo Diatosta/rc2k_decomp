@@ -148,19 +148,19 @@ pub fn negated(x: f32) -> f32 {
 
 /// The value at `v` brought toward 0 by the step at `step`, never past it; 0 (either
 /// sign) or unordered left alone.
-pub(super) fn ease_zero(v: &impl FloatView, step: &impl FloatView) {
+pub(super) fn ease_zero(v: &impl FloatView, step: f32) {
     let x = v.float();
     if c3(x, 0.0) {
         return;
     }
     if c0(x, 0.0) {
-        let y = x87::add(x, step.float());
+        let y = x87::add(x, step);
         v.set_float(y);
         if !c0(y, 0.0) {
             v.set_float(0.0);
         }
     } else {
-        let y = x87::sub(x, step.float());
+        let y = x87::sub(x, step);
         v.set_float(y);
         if c0(y, 0.0) {
             v.set_float(0.0);

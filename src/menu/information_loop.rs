@@ -16,11 +16,11 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     set_up.prepare_scene();
     set_up.set_clip_sides(-40, 760);
     screens.flow.write().turning = 0x1u32;
-    screens.carousel.menu.set(0x9u32);
+    screens.carousel.write().menu = 0x9u32;
     set_up.carousel_with(None)?;
     let item = screens.items.current(slot::INFORMATION);
     screens.loop_flags.write().item = item;
-    screens.carousel.front.set(item.wrapping_sub(1));
+    screens.carousel.write().front = item.wrapping_sub(1);
     Ok(())
 }
 

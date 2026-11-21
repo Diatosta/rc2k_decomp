@@ -6,6 +6,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::copy_cells;
 use crate::memory::session::PlainFloat;
+use crate::physics::figures::GROUND_DROP;
 use crate::race::owner::Race;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
 
@@ -19,10 +20,7 @@ fn axles(race: &Race, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
         .ok_or(BadInput("a car model past the 34 records"))?
         .axles;
     let record: [u32; 5] = std::array::from_fn(|k| axles[k].get());
-    Ok(rc2k_core::race::car_parts::axles(
-        record,
-        race.shared.physics_tables.get().ground_drop.get(),
-    ))
+    Ok(rc2k_core::race::car_parts::axles(record, GROUND_DROP))
 }
 
 /// For a car: `shown_engine_speed` the engine speed (not below `idle_engine_speed`); the switch

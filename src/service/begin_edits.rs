@@ -34,7 +34,8 @@ pub fn begin_edit(menus: &Menus, e: Edit) -> Result<(), Refused> {
     ) {
         let item = &setup_item(&menus.service, e.setup);
         item.start.set(item.chosen.get());
-        screens.state.write().service_ui.box_shown = !screens.state.read().service_ui.box_shown;
+        let value = !screens.state.read().service_ui.box_shown;
+        screens.state.write().service_ui.box_shown = value;
         screens.state.write().service_ui.box_page = e.page;
     }
 

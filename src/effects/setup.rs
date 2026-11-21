@@ -49,11 +49,11 @@ pub(super) fn clear_slots(effects: &crate::effects::owner::Effects) {
 }
 
 /// `effects::tick_clock`. The first time (not started yet): started, the last, now and
-/// before the scene clock, the ticks 0, the reciprocal `ClockK.first_reciprocal`. Then:
+/// before the scene clock, the ticks 0, the reciprocal `CLOCK_FIRST_RECIPROCAL`. Then:
 /// before the last, now and the last the clock, the ticks the difference (0 unless the
 /// settings' `other_marks_shown` is 1), a quarter and a sixteenth of them (shifted), the reciprocal one
 /// over them and that times `MarksFloats.quarter`, and the ticks' bits taken as a float
-/// (a slip kept as is) times `ClockK.ticks_scale`.
+/// (a slip kept as is) times `CLOCK_TICKS_SCALE`.
 pub(super) fn tick_clock(
     shared: &RaceShared,
     effects: &crate::effects::owner::Effects,
@@ -68,7 +68,7 @@ pub(super) fn tick_clock(
             c.now = clock;
             c.before = clock;
             c.frame_ticks = 0;
-            c.reciprocal = x87::loaded(&setup.clock_k.first_reciprocal);
+            c.reciprocal = x87::loaded(super::setup_store::CLOCK_FIRST_RECIPROCAL);
             return Ok(());
         }
         c.now = clock;
@@ -88,7 +88,7 @@ pub(super) fn tick_clock(
             x87::reciprocal_int_and_times(ticks as i32, setup.floats.quarter);
         c.reciprocal = reciprocal;
         c.reciprocal_scaled = scaled;
-        c.ticks_scaled = x87::mul(ticks, &setup.clock_k.ticks_scale);
+        c.ticks_scaled = x87::mul(ticks, super::setup_store::CLOCK_TICKS_SCALE);
     }
     Ok(())
 }

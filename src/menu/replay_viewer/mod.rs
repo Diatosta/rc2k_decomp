@@ -289,7 +289,8 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
             lost?;
         }
         list_state.write().frame_clock = session.key_clock.ticks.get();
-        list_state.write().choice_before = list_state.read().choice;
+        let value = list_state.read().choice;
+        list_state.write().choice_before = value;
         let mut key = crate::menu::list_take_key::list_take_key(list_state, o.input);
         if session.flags.quitting.is_set() {
             return Ok(Viewed::Left);
@@ -491,7 +492,8 @@ fn mark(
                 }
             }
             // Else back where it was.
-            list_state.write().choice = list_state.read().choice_before;
+            let value = list_state.read().choice_before;
+            list_state.write().choice = value;
             if !list_item_unusable(list_state, list) {
                 return Ok(());
             }
@@ -503,7 +505,8 @@ fn mark(
         }
     }
     if (key as i8) > 0 {
-        list_state.write().move_clock = list_state.read().frame_clock;
+        let value = list_state.read().frame_clock;
+        list_state.write().move_clock = value;
     }
     Ok(())
 }

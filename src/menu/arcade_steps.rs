@@ -20,7 +20,7 @@
 //! list.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::{PlainDword, read_all, write_all};
+use crate::menu::car_lists_store::CarEntries;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::standings::{name_id_of, name_of, name_player, with_kept_name};
@@ -109,7 +109,7 @@ pub fn keep_arcade_stage_best(
 
 pub(super) fn check_arcade_level_score(menus: &Menus, tables: &BestTables) -> Result<(), Refused> {
     let best = with_level_scores(&menus.play, tables, |ten| ten[9].key)?;
-    if bests::makes_score(menus.play.results.players[0].total.get(), best) {
+    if bests::makes_score(menus.play.results.read().players[0].total, best) {
         menus.screens.event.write().trial.qualifies = 1;
     }
     Ok(())
@@ -191,7 +191,7 @@ pub(super) fn enter_arcade_level_score(menus: &Menus, tables: &BestTables) -> Re
     with_level_scores(&menus.play, tables, |_| ())?;
     let (n, player) = current(menus)?;
     name_player(&player.get())?;
-    let score = menus.play.results.players[usize::from(n == 1)].total.get();
+    let score = menus.play.results.read().players[usize::from(n == 1)].total;
     let best = new_best(menus, player, score, None, None)?;
     with_level_scores(&menus.play, tables, |ten| {
         ten[9].enter(&best);
@@ -205,8 +205,7 @@ pub(super) fn enter_arcade_level_score(menus: &Menus, tables: &BestTables) -> Re
 pub(super) fn score_arcade_stage(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     let first = crate::menu::standings::player(menus, 0);
-    let player = &play.results.players[0];
-    let mut figures = player.get();
+    let mut figures = play.results.read().players[0];
     figures.before = figures.total;
     figures.extra = first.get().figure;
     figures.points = standings::arcade_points(play.arcade.read().places, figures.position);
@@ -215,7 +214,7 @@ pub(super) fn score_arcade_stage(menus: &Menus) -> Result<(), Refused> {
         .wrapping_add(figures.time_bonus)
         .wrapping_add(figures.extra);
     figures.total = figures.before.wrapping_add(figures.sum);
-    player.set(figures);
+    play.results.write().players[0] = figures;
     Ok(())
 }
 
@@ -245,19 +244,19 @@ pub(super) fn take_arcade_stage_best(
 }
 
 /// The place of a list's end mark.
-fn end_of(list: &[PlainDword], len: u32) -> Result<u32, Refused> {
+fn end_of(list: &dyn CarEntries, len: u32) -> Result<u32, Refused> {
     (0..len)
-        .find(|&k| list[k as usize].get() == u32::MAX)
+        .find(|&k| list.entry(k as usize) == u32::MAX)
         .ok_or(BadInput("a list of cars without its end").into())
 }
 
 pub fn add_shown_car(menus: &Menus) -> Result<(), Refused> {
     use rc2k_core::menu::car_lists::{entries, shown_car};
-    let list = |cells: &[PlainDword], len: u32| entries(len as usize, |k| cells[k].get());
+    let list = |cells: &dyn CarEntries, len: u32| entries(len as usize, |k| cells.entry(k));
     let shown = menus.screens.event.read().shown.car;
     let car = shown_car(&list(&menus.cars.lists.shown_cars, SHOWN_LIST_LEN)?, shown)?;
     let end = list(&menus.cars.lists.cars_second, CARS_LEN)?.len();
-    menus.cars.lists.cars_second[end].set(car);
+    menus.cars.lists.cars_second.set_entry(end, car);
     Ok(())
 }
 
@@ -272,8 +271,8 @@ pub(super) fn remove_shown_car(
     if shown >= end {
         return Err(BadInput("a shown car past the list").into());
     }
-    let mut cars: [u32; SHOWN_LIST_LEN as usize] = read_all(&menus.cars.lists.shown_cars);
+    let mut cars: [u32; SHOWN_LIST_LEN as usize] = menus.cars.lists.shown_cars.read();
     standings::remove_at(&mut cars, shown as usize, end as usize);
-    write_all(&menus.cars.lists.shown_cars, cars);
+    menus.cars.lists.shown_cars.write(cars);
     then()
 }

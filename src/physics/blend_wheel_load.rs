@@ -6,14 +6,14 @@
 use crate::math::x87;
 use crate::math::x87::{compare_full, toward_one};
 use crate::physics::car_store::Car;
+use crate::physics::figures::WHEEL_LOAD_LIMIT;
 use crate::physics::flow::ZERO_BITS as ZERO;
-use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 /// The blend of this step.
-pub(super) fn blend_wheel_load(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
+pub(super) fn blend_wheel_load(car: &Car, numbers: &Numbers) {
     let depth = &car.contact_depth;
     let less = |a: f32, b: f32| compare_full(a, b) & 0x100 != 0;
-    if less(depth.get(), tables.wheel_load_limit.get()) {
+    if less(depth.get(), WHEEL_LOAD_LIMIT) {
         return;
     }
     let zero = f32::from_bits(ZERO);

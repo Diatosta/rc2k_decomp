@@ -5,6 +5,7 @@
 
 use crate::math::x87::square_times_plus_times;
 use crate::physics::car_store::Car;
+use crate::physics::figures::DOWNFORCE_FACTOR;
 use crate::physics::tables_store::PhysicsTables;
 
 pub(super) fn set_downforce(car: &Car, tables: &PhysicsTables) {
@@ -13,7 +14,7 @@ pub(super) fn set_downforce(car: &Car, tables: &PhysicsTables) {
     }
     let (load, negative) = square_times_plus_times(
         &car.local_velocity[2],
-        &tables.downforce_factor,
+        DOWNFORCE_FACTOR,
         &tables.downforce_spec,
         &tables.gravity,
     );

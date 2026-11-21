@@ -32,7 +32,8 @@ use crate::math::x87::loaded;
 use crate::memory::session::DwordLike;
 use crate::physics as ph;
 use crate::physics::car_store::Car;
-use crate::physics::flow::{hold_high, hold_low, negate};
+use crate::physics::figures::SIDE_SPEED_LIMIT;
+use crate::physics::flow::{hold_high, hold_high_to, hold_low, hold_low_to, negated};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
@@ -142,16 +143,11 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         .car()
         .side_speed_held
         .set(race.shared.car().local_velocity[0].get());
-    hold_high(
+    hold_high_to(&race.shared.car().side_speed_held, SIDE_SPEED_LIMIT);
+    hold_low_to(
         &race.shared.car().side_speed_held,
-        &race.shared.physics_tables.get().side_speed_limit,
+        negated(SIDE_SPEED_LIMIT),
     );
-    negate(&race.shared.physics_tables.get().side_speed_limit);
-    hold_low(
-        &race.shared.car().side_speed_held,
-        &race.shared.physics_tables.get().side_speed_limit,
-    );
-    negate(&race.shared.physics_tables.get().side_speed_limit);
     ph::drive_grip_forces::drive_grip_forces(
         race.shared.car(),
         race.shared.physics_tables.get(),
@@ -355,11 +351,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     )?;
     ph::car_lighting::car_lighting(&inputs.lighting(), scene)?;
     ph::sum_forces::sum_forces(race.shared.physics_tables.get());
-    ph::blend_wheel_load::blend_wheel_load(
-        race.shared.car(),
-        race.shared.physics_tables.get(),
-        race.course.numbers.get(),
-    );
+    ph::blend_wheel_load::blend_wheel_load(race.shared.car(), race.course.numbers.get());
     ph::share_engine_sound::share_engine_sound(race.shared.car(), sound, race.shared.work.get())?;
     ph::false_start::false_start(&inputs.reset(), scene, &o.net.race_slot)?;
     ph::value_notice::value_notice(race.shared.car());

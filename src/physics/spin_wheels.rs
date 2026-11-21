@@ -6,14 +6,15 @@
 
 use crate::math::x87::div_mul3_to_int;
 use crate::physics::car_store::Car;
+use crate::physics::figures::WHEEL_SPIN_SHARE;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 
 /// The exact version, for `physics::car_physics_step`: the last turn added.
 pub(super) fn spin_wheels(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> u32 {
     let (wheel, dt, k65536, scale) = (
-        &tables.wheel_spin_share,
-        &tables.step_time,
+        WHEEL_SPIN_SHARE,
+        tables.step_time.get(),
         &numbers.k65536,
         &numbers.one_over_pi,
     );

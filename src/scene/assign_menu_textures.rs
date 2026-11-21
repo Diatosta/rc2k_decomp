@@ -6,7 +6,6 @@
 //! slot past the table.
 
 use crate::errors::BadInput;
-use crate::memory::session::read_all;
 use crate::menu::carousel_store::Carousel;
 
 // ---- game data ----
@@ -19,7 +18,7 @@ pub fn assign_menu_textures(
     let textures = &scene.textures;
     // Logic: `rc2k_core::scene::textures::menu_textures`.
     let wanted = rc2k_core::scene::textures::menu_textures(
-        read_all(&carousel.textures),
+        carousel.read().textures,
         textures.kinds.get().kind_first_slots[KIND].get(),
         textures.first_textures()[KIND],
     )?;

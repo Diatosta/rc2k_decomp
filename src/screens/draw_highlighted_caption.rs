@@ -29,7 +29,7 @@ pub fn draw_highlighted_caption(
     canvas: &mut dyn Canvas,
 ) -> Result<Option<bool>, Refused> {
     let menus = o.menus;
-    let menu: u32 = menus.screens.carousel.menu.get();
+    let menu: u32 = menus.screens.carousel.read().menu;
     let list = if menu == PLAYERS_MENU {
         PLAYERS_LIST
     } else if let Some(&list) = LISTS.get(menu as usize) {

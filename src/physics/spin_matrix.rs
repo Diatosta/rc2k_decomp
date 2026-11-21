@@ -32,7 +32,7 @@ pub fn spin_matrix(
         unit_vector(course.reads(), &car.spin, &lists.spin_axis);
         lists
             .spin_angle
-            .set(x87::mul(&car.spin_length, &physics_tables.step_time));
+            .set(x87::mul(&car.spin_length, physics_tables.step_time.get()));
         axis_turn_matrix(course, turn);
         square_matrix(course.reads(), turn);
         multiply_matrices(&car.crash_matrix, turn, turned);

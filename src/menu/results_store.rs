@@ -1,8 +1,10 @@
 //! The players' results: the rounds of a multi-player event, the order of the places, and each
-//! player's place, points and totals. One static, owned by the menus.
+//! player's place, points and totals. Plain fields behind one `RefCell` (the game's thread alone
+//! reads and writes them, each borrow lasting one statement); owned by the menus.
 
 use crate::errors::BadInput;
-use crate::memory::session::PlainDword;
+use crate::memory::session::GameThread;
+use std::cell::{Ref, RefCell, RefMut};
 
 /// The title string ids of the two stage groups.
 const GROUP_TITLES: [u32; 2] = [0x340, 0x341];
@@ -40,86 +42,53 @@ impl Figures {
     }
 }
 
-/// One player's figures in their cells.
-#[derive(rc2k_derive::Cells)]
-pub struct PlayerFigures {
-    pub position: PlainDword,
-    pub time_bonus: PlainDword,
-    pub points: PlainDword,
-    pub extra: PlainDword,
-    pub sum: PlainDword,
-    pub before: PlainDword,
-    pub total: PlainDword,
-}
-
-impl PlayerFigures {
-    const fn new() -> Self {
-        PlayerFigures {
-            position: PlainDword::new(0),
-            time_bonus: PlainDword::new(0),
-            points: PlainDword::new(0),
-            extra: PlainDword::new(0),
-            sum: PlainDword::new(0),
-            before: PlainDword::new(0),
-            total: PlainDword::new(0),
-        }
-    }
-
-    /// The figures as values.
-    pub fn get(&self) -> Figures {
-        Figures {
-            position: self.position.get(),
-            time_bonus: self.time_bonus.get(),
-            points: self.points.get(),
-            extra: self.extra.get(),
-            sum: self.sum.get(),
-            before: self.before.get(),
-            total: self.total.get(),
-        }
-    }
-
-    /// Every figure 0 (the start of an event).
-    pub fn clear(&self) {
-        self.set(Figures::default());
-    }
-
-    /// Every figure from `figures`.
-    pub fn set(&self, figures: Figures) {
-        self.position.set(figures.position);
-        self.time_bonus.set(figures.time_bonus);
-        self.points.set(figures.points);
-        self.extra.set(figures.extra);
-        self.sum.set(figures.sum);
-        self.before.set(figures.before);
-        self.total.set(figures.total);
-    }
+/// The results' fields.
+pub struct ResultsData {
+    /// The rounds of a multi-player event.
+    pub round: u32,
+    /// The players in the order of their places, as the byte offsets of their records in the
+    /// player table (0, 4, 8, 12); the first two are the duel's order.
+    pub order: [u32; 4],
+    /// The four players' figures.
+    pub players: [Figures; 4],
 }
 
 /// The players' results.
-#[derive(rc2k_derive::Cells)]
-pub struct Results {
-    /// The rounds of a multi-player event.
-    pub round: PlainDword,
-    /// The players in the order of their places, as the byte offsets of their records in the
-    /// player table (0, 4, 8, 12); the first two are the duel's order.
-    pub order: [PlainDword; 4],
-    /// The four players' figures.
-    pub players: [PlayerFigures; 4],
-}
+pub struct Results(GameThread<RefCell<ResultsData>>);
 
 impl Results {
     pub const fn new() -> Self {
-        Results {
-            round: PlainDword::new(0),
-            order: [const { PlainDword::new(0) }; 4],
-            players: [const { PlayerFigures::new() }; 4],
-        }
+        Results(GameThread::new(RefCell::new(ResultsData {
+            round: 0,
+            order: [0; 4],
+            players: [Figures {
+                position: 0,
+                time_bonus: 0,
+                points: 0,
+                extra: 0,
+                sum: 0,
+                before: 0,
+                total: 0,
+            }; 4],
+        })))
+    }
+
+    /// The fields, for reading (one statement).
+    pub fn read(&self) -> Ref<'_, ResultsData> {
+        self.0.get().borrow()
+    }
+
+    /// The fields, for writing (one statement).
+    pub fn write(&self) -> RefMut<'_, ResultsData> {
+        self.0.get().borrow_mut()
     }
 
     /// Player `k`'s figures, refused past the four.
-    pub fn player(&self, k: usize) -> Result<&PlayerFigures, BadInput> {
-        self.players
+    pub fn player(&self, k: usize) -> Result<Figures, BadInput> {
+        self.read()
+            .players
             .get(k)
+            .copied()
             .ok_or(BadInput("a results figure past the four players"))
     }
 
@@ -133,9 +102,8 @@ impl Results {
 
     /// The figures an event's start clears: every player's, and the round (the order is kept).
     pub(super) fn clear_for_event(&self) {
-        self.round.set(0);
-        for player in &self.players {
-            player.clear();
-        }
+        let mut results = self.write();
+        results.round = 0;
+        results.players = [Figures::default(); 4];
     }
 }

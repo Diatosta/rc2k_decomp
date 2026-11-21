@@ -39,7 +39,7 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
         }
     }
     let found = rc2k_core::menu::cars::find_car(&cars, car);
-    menus.screens.carousel.front.set(found);
+    menus.screens.carousel.write().front = found;
     menus.screens.event.write().shown.car = found;
 
     Ok(())
@@ -58,19 +58,19 @@ fn turn(menus: &Menus, on: bool) {
     let c = turn_carousel(
         Carousel {
             turn: Turn {
-                count: menus.screens.carousel.count.get() as i32,
-                value: menus.screens.carousel.front.get() as i32,
-                way: menus.screens.carousel.direction.get(),
-                step: menus.screens.carousel.angle.get(),
+                count: menus.screens.carousel.read().count as i32,
+                value: menus.screens.carousel.read().front as i32,
+                way: menus.screens.carousel.read().direction,
+                step: menus.screens.carousel.read().angle,
             },
             shown: menus.screens.event.read().shown.car,
             last: menus.cars.table.read().last_car,
         },
         on,
     );
-    menus.screens.carousel.front.set(c.turn.value as u32);
-    menus.screens.carousel.direction.set(c.turn.way);
-    menus.screens.carousel.angle.set(c.turn.step);
+    menus.screens.carousel.write().front = c.turn.value as u32;
+    menus.screens.carousel.write().direction = c.turn.way;
+    menus.screens.carousel.write().angle = c.turn.step;
     menus.screens.event.write().shown.car = c.shown;
     menus.screens.loop_flags.write().leave_screen = false;
 }

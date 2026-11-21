@@ -1,7 +1,6 @@
 //! The contact and probe work of the physics step: the face weights' scratch, the 64 probe points'
 //! lists (whole numbers, turned floats, heights, faces, shares; stride 0x100 bytes), the contact
-//! vectors of `physics::contact_force`, the wall and edge contacts, the lit faces, the car-to-car
-//! corner work and the draw batch's counts. The probe lists are 0x40 dwords each (the saved x, y,
+//! vectors of `physics::contact_force`, the wall and edge contacts, the lit faces and the draw batch's counts. The probe lists are 0x40 dwords each (the saved x, y,
 //! z lists are one 0xC0-dword run). Names are readings unless taken from the game's
 //! own.
 
@@ -79,15 +78,8 @@ pub struct ContactWork {
     /// The across speed's length, into the car's contact value (`contact_force`,
     /// `crash_contact`).
     pub contact_value: PlainFloat,
-    /// `physics::wall_contacts`: the probe's face before (the wall).
-    pub wall_face_before: PlainDword,
-    /// `physics::wall_contacts`: the probe's face now.
-    pub wall_face_now: PlainDword,
     /// `race::set_up_car_points`' count of the car's points.
     pub car_point_count: PlainDword,
-    /// The probe point being handled (`wall_contacts`, `crossed_edge_contact`,
-    /// `wall_edge_contact`).
-    pub probe_index: PlainDword,
     /// The course face tried (`physics::face_contact`, `touch_face`).
     pub face_number: PlainDword,
     /// The object the face names (`physics::face_contact`, `object_hits_car`,
@@ -113,18 +105,6 @@ pub struct ContactWork {
     /// The probe point that crossed an edge, -1 for none (`probe_ground`,
     /// `crossed_edge`).
     pub crossed_probe: PlainDword,
-    /// The other car's block (`car_collisions`, `bump_cars`).
-    pub other_car_block: PlainDword,
-    /// The corner turned and scaled (`physics::corner_hits_car`, `bump_cars`).
-    pub corner_turned: [PlainFloat; 3],
-    /// The other car's corner being tried (`physics::car_collisions`, `corner_hits_car`).
-    pub corner_in: [PlainFloat; 3],
-    /// The matrix between the cars (96 bytes; `car_collisions`, `corner_hits_car`).
-    pub corner_matrix: [PlainFloat; 24],
-    /// The length of the speed between the cars (`physics::bump_cars`, sound bands).
-    pub bump_speed_length: PlainFloat,
-    /// The number of the other car (`car_collisions`, `bump_cars`, `place_sound_e1_other`).
-    pub other_car_number: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of

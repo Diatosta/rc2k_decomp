@@ -23,7 +23,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::DwordLike;
-use crate::memory::session::{write_all, write_prefix};
 use crate::menu::lists_store::{CarList, CarListParts};
 use crate::scene::carousel_set_ups::PLAIN;
 
@@ -51,19 +50,21 @@ pub enum Field {
 }
 
 impl Field {
-    pub fn cell(self, carousel: &Carousel) -> &dyn DwordLike {
+    /// `value` stored in the field.
+    pub fn set(self, carousel: &Carousel, value: u32) {
+        let mut fields = carousel.write();
         match self {
-            Field::SetUp => &carousel.set_up,
-            Field::Texture(k) => &carousel.textures[k],
-            Field::Kind(k) => &carousel.kinds[k],
-            Field::Count => &carousel.count,
-            Field::Front => &carousel.front,
-            Field::Angle => &carousel.angle,
-            Field::Direction => &carousel.direction,
-            Field::Spacing => &carousel.spacing,
-            Field::Y => &carousel.y,
-            Field::Z => &carousel.z,
-            Field::Forward => &carousel.forward,
+            Field::SetUp => fields.set_up = value,
+            Field::Texture(k) => fields.textures[k] = value,
+            Field::Kind(k) => fields.kinds[k] = value,
+            Field::Count => fields.count = value,
+            Field::Front => fields.front = value,
+            Field::Angle => fields.angle = value,
+            Field::Direction => fields.direction = value,
+            Field::Spacing => fields.spacing = value,
+            Field::Y => fields.y = value,
+            Field::Z => fields.z = value,
+            Field::Forward => fields.forward = value,
         }
     }
 }
@@ -101,7 +102,7 @@ const FIXED_KINDS: [u32; 6] = [0x195, 0x199, 0x19F, 0x1A5, 0x1AD, 0x1BD];
 /// A store of the tables (never a `Fill`).
 fn run_op(carousel: &Carousel, scratch: &crate::scene::scratch_store::DrawingScratch, op: Op) {
     match op {
-        Op::Set(field, value) => field.cell(carousel).set(value),
+        Op::Set(field, value) => field.set(carousel, value),
         Op::Run(cell, value) => cell(scratch).set(value),
         Op::Fill => unreachable!("the cars' tail has no fill"),
     }
@@ -163,7 +164,7 @@ fn cars(
     size: u32,
 ) -> Result<(), BadInput> {
     {
-        parts.carousel.set_up.set(1);
+        parts.carousel.write().set_up = 1;
         parts.carousel.set_list(list);
         let mut n = 0;
         loop {
@@ -180,10 +181,10 @@ fn cars(
                 .car_kinds
                 .get(first as usize)
                 .ok_or(BadInput("a car past the 35 car kinds"))?;
-            parts.carousel.kinds[n].set(kind);
+            parts.carousel.write().kinds[n] = kind;
             n += 1;
         }
-        parts.carousel.count.set(n as u32);
+        parts.carousel.write().count = n as u32;
         let last = (n as u32).wrapping_sub(1);
         parts.cars.table.write().last_car = last;
         scratch.front_end().object.size.set(size);
@@ -203,7 +204,7 @@ pub fn set_up_carousel(
 ) -> Result<(), Refused> {
     let given = || list.ok_or(BadInput("no list of cars"));
     {
-        let menu: u32 = parts.carousel.menu.get();
+        let menu: u32 = parts.carousel.read().menu;
         if menu >= MENUS {
             return Ok(());
         }
@@ -213,11 +214,11 @@ pub fn set_up_carousel(
                 cars(parts, scratch, CarList::First, 0xF)?;
             }
             0xC => {
-                parts.carousel.set_up.set(1);
+                parts.carousel.write().set_up = 1;
                 parts.carousel.set_list(CarList::A8);
                 scratch.front_end().object.size.set(0xCu32);
-                write_prefix(&parts.carousel.kinds, &FIXED_KINDS);
-                parts.carousel.count.set(6u32);
+                parts.carousel.write().kinds[..FIXED_KINDS.len()].copy_from_slice(&FIXED_KINDS);
+                parts.carousel.write().count = 6u32;
                 parts.cars.table.write().last_car = 5u32;
                 for op in CARS_TAIL {
                     run_op(parts.carousel, scratch, op);
@@ -231,7 +232,7 @@ pub fn set_up_carousel(
             0xE => {
                 let list = given()?;
                 check_cars(parts, list, true)?;
-                parts.carousel.set_up.set(1);
+                parts.carousel.write().set_up = 1;
                 let count = reading(parts, list, |read| carousel::list_end(read, 1).unwrap_or(0))?;
                 if count == 1 {
                     let first = list_entry(parts, list, 0)?;
@@ -243,17 +244,17 @@ pub fn set_up_carousel(
                 let ops = PLAIN[menu as usize].ok_or(BadInput("a menu without its list"))?;
                 for op in ops {
                     match *op {
-                        Op::Set(field, value) => field.cell(parts.carousel).set(value),
+                        Op::Set(field, value) => field.set(parts.carousel, value),
                         Op::Run(cell, value) => cell(scratch).set(value),
-                        Op::Fill => write_all(&parts.carousel.textures, [u32::MAX; 8]),
+                        Op::Fill => parts.carousel.write().textures = [u32::MAX; 8],
                     }
                 }
                 // Without network play the main menu has no network entry in its carousel.
                 if !crate::platform::caps::NETWORK && menu == 0 {
-                    let kinds = &parts.carousel.kinds;
-                    kinds[2].set(kinds[3].get());
-                    kinds[3].set(kinds[4].get());
-                    parts.carousel.count.set(4u32);
+                    let mut carousel = parts.carousel.write();
+                    carousel.kinds[2] = carousel.kinds[3];
+                    carousel.kinds[3] = carousel.kinds[4];
+                    carousel.count = 4u32;
                 }
             }
         }

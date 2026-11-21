@@ -8,14 +8,14 @@
 //! numbers' room, and a null entry.
 
 use crate::errors::BadInput;
-use crate::memory::session::PlainDword;
+use crate::memory::session::CarEntries;
 use crate::menu::owner::Menus;
 use crate::system::checked_reads::CheckedReads;
 
 /// How many dwords of each list of numbers are filled.
 const FILLED: usize = 0x28;
 /// (the numbers, the pointers)
-fn lists(menus: &Menus) -> [&[PlainDword]; 2] {
+fn lists(menus: &Menus) -> [&dyn CarEntries; 2] {
     [&menus.cars.lists.cars_second, &menus.cars.lists.shown_cars]
 }
 
@@ -25,7 +25,7 @@ pub fn list_car_numbers_in(menus: &Menus) -> Result<(), BadInput> {
     {
         let mut found = Vec::new();
         for pointers in lists {
-            let list: Vec<u32> = (0..FILLED).map(|n| pointers[n].get()).collect();
+            let list: Vec<u32> = (0..FILLED).map(|n| pointers.entry(n)).collect();
             let reads = CheckedReads::new();
             let answer = rc2k_core::saves::cars::numbers(&list, |car| {
                 reads.value(

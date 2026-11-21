@@ -101,7 +101,8 @@ pub(super) fn walk_section_records(
         }
         screens.event.write().stage_in_section =
             menus.screens.event.read().stage_in_section.wrapping_add(1);
-        screens.event.write().stages_done = screens.event.read().stages_done.wrapping_add(1);
+        let done = screens.event.read().stages_done.wrapping_add(1);
+        screens.event.write().stages_done = done;
         rpt::reset_player_totals(menus)?;
     }
     rdc::reset_driver_condition(menus)?;

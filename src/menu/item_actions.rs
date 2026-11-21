@@ -26,7 +26,8 @@ pub(super) fn previous_save_page(tables: &Tables) {
 
 /// The steering (page 3) or brake (page 4) box.
 pub(super) fn open_service_box(screens: &Screens, page: u32) {
-    screens.state.write().service_ui.box_shown = !screens.state.read().service_ui.box_shown;
+    let shown = !screens.state.read().service_ui.box_shown;
+    screens.state.write().service_ui.box_shown = shown;
     screens.state.write().service_ui.box_page = page;
 }
 

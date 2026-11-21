@@ -1,8 +1,8 @@
 //! The work car against the other cars, in race modes 0 and 2 (`run_kind`; else nothing). For
 //! each car below the race's car count but the current one whose block has `driver_kind` set (the
-//! block goes to `other_car_block`, its number to `other_car_number`): the difference of the
+//! block and number are passed down): the difference of the
 //! places becomes the place, the crash matrix times it goes into the turned matrix, and that times
-//! the block's `car_inverse_matrix` goes into `corner_matrix`; then each of its eight corners
+//! the block's `car_inverse_matrix` goes into the corner work's matrix; then each of its eight corners
 //! goes through `physics::corner_hits_car`. `corner_inside` starts at 0.
 //!
 //! Returns the cars' count (at least 1) in modes 0 and 2.
@@ -11,7 +11,7 @@
 //! `corner_hits_car` refuses (what was written is put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::corner_hits_car::corner_hits_car;
+use crate::physics::corner_hits_car::{CornerWork, corner_hits_car};
 use crate::physics::step_families::CollisionInputs;
 use crate::race::view_store::RaceView;
 use crate::scene::matrix::{multiply_matrices, set_place};
@@ -34,7 +34,7 @@ const CORNERS: [[f32; 3]; 8] = [
 ];
 
 pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
-    let (physics, work, car_now) = (c.contact.contact, c.contact.work, c.contact.car);
+    let (work, car_now) = (c.contact.work, c.contact.car);
     if !matches!(c.vars.run_kind.get(), 0 | 2) {
         return Ok(());
     }
@@ -46,12 +46,11 @@ pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
         return Err(BadInput("a null car block").into());
     }
     {
+        let corner_work = CornerWork::new();
         for car in 0..n {
             if car == work.current_car.get() {
                 continue;
             }
-            physics.other_car_number.set(car);
-            physics.other_car_block.set(work.car_handle(car as usize));
             // A car block of the eight, not null (both checked above).
             let block = c.contact.shared.race_car_or_end(car as usize);
             if block.driver_kind.get() == 0 {
@@ -71,13 +70,13 @@ pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
             multiply_matrices(
                 &c.matrices.turned_matrix,
                 &block.car_inverse_matrix,
-                &physics.corner_matrix,
+                &corner_work.matrix,
             );
             for corner in CORNERS {
-                for (cell, value) in physics.corner_in.iter().zip(corner) {
+                for (cell, value) in corner_work.corner_in.iter().zip(corner) {
                     cell.set(value);
                 }
-                { corner_hits_car(&c.contact, block) }?;
+                { corner_hits_car(&c.contact, &corner_work, block, car) }?;
             }
         }
         Ok(())

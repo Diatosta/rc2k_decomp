@@ -3,6 +3,7 @@
 
 use super::*;
 use crate::errors::{BadInput, Refused};
+use crate::physics::figures::GROUND_DROP;
 use crate::race::view_scratch::DrawCtx;
 use crate::scene::draw_described_object::Description;
 
@@ -362,7 +363,7 @@ pub(super) fn light_pair(
     if x | y | z == 0 {
         return Ok(());
     }
-    let y = y.wrapping_sub(ctx.reads.physics_tables.ground_drop.get());
+    let y = y.wrapping_sub(GROUND_DROP);
     if ctx.view.cars.light_right.get() != 0 {
         place_flare(ctx, car, [x, y, z])?;
     }
@@ -385,7 +386,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
             ctx.reads.frame_work.part_place[0].get(),
             ctx.reads.frame_work.part_place[1]
                 .get()
-                .wrapping_sub(ctx.reads.physics_tables.ground_drop.get()),
+                .wrapping_sub(GROUND_DROP),
             ctx.reads.frame_work.part_place[2].get(),
         ];
         ctx.view.light.other_light.set(0x00F0_F0F0u32);

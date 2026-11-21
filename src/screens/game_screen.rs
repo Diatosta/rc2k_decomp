@@ -58,6 +58,8 @@ enum Slot {
     Money,
     /// The inspection's score (`state.driver_stats.score`).
     Score,
+    /// The place `n` of the players' order in the results (`results.order`).
+    Order(usize),
 }
 
 impl<T: DwordLike> From<&'static T> for Slot {
@@ -616,6 +618,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
             Some(Slot::RowEnd) => self.menus.play.champ_view.write().rows.row_end = value,
             Some(Slot::Money) => self.menus.screens.state.write().driver_stats.money = value,
             Some(Slot::Score) => self.menus.screens.state.write().driver_stats.score = value,
+            Some(Slot::Order(n)) => self.menus.play.results.write().order[n] = value,
             None => {}
         }
     }
@@ -899,11 +902,10 @@ impl GameFont for rc2k_core::screens::duel_result::Font {
 }
 
 impl GameWork for rc2k_core::screens::duel_result::Work {
-    fn cell(self, menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
-        let play = &menus.play;
+    fn cell(self, _menus: &'static Menus, _race: &'static Race) -> Option<Slot> {
         match self {
-            rc2k_core::screens::duel_result::Work::First => Some((&play.results.order[0]).into()),
-            rc2k_core::screens::duel_result::Work::Second => Some((&play.results.order[1]).into()),
+            rc2k_core::screens::duel_result::Work::First => Some(Slot::Order(0)),
+            rc2k_core::screens::duel_result::Work::Second => Some(Slot::Order(1)),
         }
     }
 }

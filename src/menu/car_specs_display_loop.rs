@@ -12,13 +12,13 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let menus = set_up.menus;
     let screens = &menus.screens;
     screens.flow.write().turning = 0x1u32;
-    screens.carousel.menu.set(0xEu32);
+    screens.carousel.write().menu = 0xEu32;
     set_up.carousel()?;
     let item = screens.items.current(slot::CAR_SPECS_DISPLAY);
     screens.loop_flags.write().item = item;
-    screens.carousel.front.set(item.wrapping_sub(1));
+    screens.carousel.write().front = item.wrapping_sub(1);
     screens.flow.write().turning = 0x0u32;
-    screens.carousel.front.set(0x0u32);
+    screens.carousel.write().front = 0x0u32;
     screens.event.write().shown.car = 0x0u32;
     crate::menu::car_choice::find_player_car(menus)?;
     set_up.set_view(7, -50, 0x100);

@@ -51,10 +51,10 @@ pub(super) fn move_highlight(o: Owners<'static>, direction: Direction) -> Result
         let item = item_at(menus, highlighted)?;
         let turned = (sideways && screens.flow.read().turning == 1).then(|| {
             let t = Turn {
-                count: screens.carousel.count.get() as i32,
-                value: screens.carousel.front.get() as i32,
-                way: screens.carousel.direction.get(),
-                step: screens.carousel.angle.get(),
+                count: screens.carousel.read().count as i32,
+                value: screens.carousel.read().front as i32,
+                way: screens.carousel.read().direction,
+                step: screens.carousel.read().angle,
             };
             turn(t, direction == Direction::Right)
         });
@@ -68,9 +68,9 @@ pub(super) fn move_highlight(o: Owners<'static>, direction: Direction) -> Result
             _ => None,
         };
         if let Some(t) = turned {
-            screens.carousel.front.set(t.value as u32);
-            screens.carousel.direction.set(t.way);
-            screens.carousel.angle.set(t.step);
+            screens.carousel.write().front = t.value as u32;
+            screens.carousel.write().direction = t.way;
+            screens.carousel.write().angle = t.step;
         }
         if link(next) == Link::None {
             return Ok(());

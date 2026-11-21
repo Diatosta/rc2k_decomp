@@ -135,7 +135,8 @@ pub fn run_page(
             if steps > round {
                 return Err(NO_CHOICE.into());
             }
-            list_state.write().choice = list_state.read().choice.wrapping_add(1);
+            let value = list_state.read().choice.wrapping_add(1);
+            list_state.write().choice = value;
             if count == list_state.read().choice {
                 list_state.write().choice = 0;
             }
@@ -167,7 +168,8 @@ pub fn run_page(
                 show(o);
             }
             list_state.write().frame_clock = system.session.key_clock.ticks.get();
-            list_state.write().choice_before = list_state.read().choice;
+            let value = list_state.read().choice;
+            list_state.write().choice_before = value;
             // The key, as the callees leave it (an edit changes it).
             let mut key = list_take_key(list_state, o.input)? as u32;
             if system.session.flags.quitting.is_set() {
@@ -187,7 +189,8 @@ pub fn run_page(
                     key = left;
                     let moved = took || step_highlight(list_state, key, count as u8);
                     if moved {
-                        list_state.write().move_clock = list_state.read().frame_clock;
+                        let value = list_state.read().frame_clock;
+                        list_state.write().move_clock = value;
                     }
                     mark(list_state, &facts, &mut def)?;
                     if !unusable(list_state, &def)? {

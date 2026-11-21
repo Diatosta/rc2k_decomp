@@ -9,6 +9,7 @@ use crate::math::matrix3::rounded_value;
 use crate::math::x87::{abs_compare, compare_full, ext_div2};
 use crate::physics::car_store::Car;
 use crate::physics::dot_product::dot_product;
+use crate::physics::figures::{STALL_SHARE, STALL_SPEED};
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
@@ -23,10 +24,10 @@ pub(super) fn stall_when_still(car: &Car, tables: &PhysicsTables) {
             length,
         ));
     }
-    if abs_compare(length, &tables.stall_speed) & 0x100 != 0 {
+    if abs_compare(length, STALL_SPEED) & 0x100 != 0 {
         return;
     }
-    if compare_full(&tables.stall_figure, &tables.stall_share) & 0x100 == 0 {
+    if compare_full(&tables.stall_figure, STALL_SHARE) & 0x100 == 0 {
         return;
     }
     if tables.no_auto_neutral.get() != 0 {

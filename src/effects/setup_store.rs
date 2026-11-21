@@ -1,7 +1,5 @@
 //! The marks' clock, settings flag and clock constants.
 
-use crate::memory::session::{PlainDword, PlainFloat};
-
 /// The marks' clock (`effects::tick_clock`).
 pub struct MarksClock {
     /// 0 until `effects::tick_clock` has run once (`init_marks` clears it).
@@ -50,35 +48,20 @@ impl MarksClock {
 /// The marks' settings flag: it is 1 once the game has handed `effects::init_marks` the
 /// settings, and 0 before (nothing runs without them). The settings are the race's one
 /// record, `EFFECTS_SETTINGS`.
-#[derive(rc2k_derive::Cells)]
 pub struct SettingsPointer {
     /// 1 when the settings are set, else 0.
-    pub is_set: PlainDword,
+    pub is_set: core::cell::Cell<u32>,
 }
 
 impl SettingsPointer {
     pub const fn new() -> Self {
         Self {
-            is_set: PlainDword::new(0),
+            is_set: core::cell::Cell::new(0),
         }
     }
 }
 
-/// The marks' clock constants.
-#[derive(rc2k_derive::Cells)]
-pub struct ClockK {
-    /// The reciprocal the first tick starts with
-    pub first_reciprocal: PlainFloat,
-    /// The ticks' scale
-    pub ticks_scale: PlainFloat,
-}
-
-impl ClockK {
-    /// ClockK's first values.
-    pub const fn new() -> Self {
-        Self {
-            first_reciprocal: PlainFloat::new(1e-6),
-            ticks_scale: PlainFloat::new(0.1),
-        }
-    }
-}
+/// The reciprocal the marks' clock's first tick starts with.
+pub const CLOCK_FIRST_RECIPROCAL: f32 = 1e-6;
+/// The ticks' scale.
+pub const CLOCK_TICKS_SCALE: f32 = 0.1;

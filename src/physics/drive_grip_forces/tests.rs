@@ -129,7 +129,7 @@ fn blocks() -> Vec<Block> {
                 let scratch = scene().scratch_cell();
                 divide_into_scratch(
                     &crate::test_support::own::race().shared.car().grip_forces[0],
-                    &*scratch,
+                    scratch.float(),
                     &scratch,
                 );
             },
@@ -349,11 +349,12 @@ fn blocks() -> Vec<Block> {
                 let scratch = scene().scratch_cell();
                 divide_into_scratch(
                     &*scratch,
-                    &crate::test_support::own::race()
+                    crate::test_support::own::race()
                         .shared
                         .physics_tables
                         .get()
-                        .grip_force_limit,
+                        .grip_force_limit
+                        .get(),
                     &scratch,
                 );
             },

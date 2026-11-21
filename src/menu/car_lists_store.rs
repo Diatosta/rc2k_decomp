@@ -3,28 +3,73 @@
 //! handles ended by -1. The saves and the menus write them; `MenuLists::car_entry` reads a list
 //! on past its end into the lists that follow, in the order of the fields.
 
-use crate::memory::session::PlainDword;
-use crate::menu::cars_store::{car_cell, no_car_cell};
+pub use crate::memory::session::CarEntries;
+use crate::memory::session::{GameThread, Run};
+use crate::menu::cars_store::listed_car_handle;
+use std::cell::RefCell;
+
+/// A row of `N` car handles ended by -1, plain dwords behind one `RefCell` (the game's thread
+/// alone reads and writes them, each borrow lasting one statement).
+pub struct CarRow<const N: usize>(GameThread<RefCell<[u32; N]>>);
+
+impl<const N: usize> CarRow<N> {
+    const fn new(entries: [u32; N]) -> Self {
+        Self(GameThread::new(RefCell::new(entries)))
+    }
+
+    /// All of it.
+    pub fn read(&self) -> [u32; N] {
+        *self.0.get().borrow()
+    }
+
+    pub fn write(&self, entries: [u32; N]) {
+        *self.0.get().borrow_mut() = entries;
+    }
+}
+
+impl<const N: usize> CarEntries for CarRow<N> {
+    fn room(&self) -> usize {
+        N
+    }
+    fn entry(&self, n: usize) -> u32 {
+        self.0.get().borrow()[n]
+    }
+    fn set_entry(&self, n: usize, value: u32) {
+        self.0.get().borrow_mut()[n] = value;
+    }
+}
+
+impl<const N: usize> Run for CarRow<N> {
+    fn count(&self) -> usize {
+        N
+    }
+    fn bits(&self, i: usize) -> u32 {
+        self.entry(i)
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        self.set_entry(i, v);
+    }
+}
 
 /// The lists of cars.
 pub struct CarLists {
     /// The championship's car list (`menu::event_flow`).
-    pub cars_championship: [PlainDword; 26],
+    pub cars_championship: CarRow<26>,
     /// The A8 rally championship's car list (45 entries ended by -1; `menu::remove_secret_cars`
     /// edits it with the first list).
-    pub a8_championship_cars: [PlainDword; 45],
+    pub a8_championship_cars: CarRow<45>,
     /// The car list without the Clio, the first.
-    pub cars_first: [PlainDword; 34],
+    pub cars_first: CarRow<34>,
     /// The car list with the Clio and the extra cars.
-    pub cars_with_clio: [PlainDword; 62],
+    pub cars_with_clio: CarRow<62>,
     /// The cars won.
-    pub secret_cars: [PlainDword; 12],
+    pub secret_cars: CarRow<12>,
     /// The scratch list `menu::remove_secret_cars` builds.
-    pub cars_scratch: [PlainDword; 50],
+    pub cars_scratch: CarRow<50>,
     /// The second car list (arcade events).
-    pub cars_second: [PlainDword; 59],
+    pub cars_second: CarRow<59>,
     /// The list of the cars shown (`menu::arcade_steps`).
-    pub shown_cars: [PlainDword; 48],
+    pub shown_cars: CarRow<48>,
 }
 
 /// The end mark in a row of car numbers: no car.
@@ -81,30 +126,30 @@ const SHOWN_CARS: [usize; 48] = [
     END, END, END, END, END, END, END, END,
 ];
 
-/// The cells of a row of car numbers, `END` as the end mark.
-const fn car_cells<const N: usize>(cars: [usize; N]) -> [PlainDword; N] {
-    let mut cells: [PlainDword; N] = [const { no_car_cell() }; N];
+/// The handles of a row of car numbers, `END` as the end mark.
+const fn car_row<const N: usize>(cars: [usize; N]) -> CarRow<N> {
+    let mut entries = [u32::MAX; N];
     let mut n = 0;
     while n < N {
         if cars[n] != END {
-            cells[n] = car_cell(cars[n]);
+            entries[n] = listed_car_handle(cars[n]);
         }
         n += 1;
     }
-    cells
+    CarRow::new(entries)
 }
 
 impl CarLists {
     pub const fn new() -> Self {
         CarLists {
-            cars_championship: car_cells(CARS_CHAMPIONSHIP),
-            a8_championship_cars: car_cells(A8_CHAMPIONSHIP_CARS),
-            cars_first: car_cells(CARS_FIRST),
-            cars_with_clio: car_cells(CARS_WITH_CLIO),
-            secret_cars: car_cells(SECRET_CARS),
-            cars_scratch: [const { no_car_cell() }; 50],
-            cars_second: car_cells(CARS_SECOND),
-            shown_cars: car_cells(SHOWN_CARS),
+            cars_championship: car_row(CARS_CHAMPIONSHIP),
+            a8_championship_cars: car_row(A8_CHAMPIONSHIP_CARS),
+            cars_first: car_row(CARS_FIRST),
+            cars_with_clio: car_row(CARS_WITH_CLIO),
+            secret_cars: car_row(SECRET_CARS),
+            cars_scratch: CarRow::new([u32::MAX; 50]),
+            cars_second: car_row(CARS_SECOND),
+            shown_cars: car_row(SHOWN_CARS),
         }
     }
 }
@@ -119,18 +164,18 @@ mod image_bytes_tests {
         let bytes: Vec<u8> = {
             let lists = CarLists::new();
             [
-                &lists.cars_championship[..],
-                &lists.a8_championship_cars[..],
-                &lists.cars_first[..],
-                &lists.cars_with_clio[..],
-                &lists.secret_cars[..],
-                &lists.cars_scratch[..],
-                &lists.cars_second[..],
-                &lists.shown_cars[..],
+                &lists.cars_championship.read()[..],
+                &lists.a8_championship_cars.read()[..],
+                &lists.cars_first.read()[..],
+                &lists.cars_with_clio.read()[..],
+                &lists.secret_cars.read()[..],
+                &lists.cars_scratch.read()[..],
+                &lists.cars_second.read()[..],
+                &lists.shown_cars.read()[..],
             ]
             .iter()
             .flat_map(|list| list.iter())
-            .flat_map(|cell| cell.get().to_le_bytes())
+            .flat_map(|entry| entry.to_le_bytes())
             .collect()
         };
         let mut hash = 0xcbf2_9ce4_8422_2325_u64;

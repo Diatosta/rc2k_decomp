@@ -33,12 +33,8 @@ pub const OBJECT_BAND: Band = Band {
     step: 10,
 };
 
-/// A bump between cars: the bump's speed.
-pub const BUMP_BAND: Band = Band {
-    value: |c| c.contact.bump_speed_length.get(),
-    factor: |_| BUMP_BAND_SCALE,
-    step: 10,
-};
+/// The step of a car-bump band.
+const BUMP_BAND_STEP: u32 = 10;
 
 /// A crash: the car's speed.
 pub const CRASH_BAND: Band = Band {
@@ -74,4 +70,9 @@ fn band_at_plain(value: f32, factor: f32, step: u32) -> u32 {
 /// The converted band on the game's variables.
 pub(super) fn band_value_plain(c: &SoundInputs<'_>, band: &Band) -> u32 {
     band_at_plain((band.value)(c), (band.factor)(c), band.step)
+}
+
+/// The converted band of a bump between cars: the bump's speed.
+pub(super) fn bump_band_plain(speed: f32) -> u32 {
+    band_at_plain(speed, BUMP_BAND_SCALE, BUMP_BAND_STEP)
 }

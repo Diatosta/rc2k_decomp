@@ -20,11 +20,11 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     entry.set_view(-156, 39, 0x140);
     prepare_scene(&entry.owners);
     menus.screens.flow.write().turning = 0x1u32;
-    menus.screens.carousel.menu.set(0x7u32);
+    menus.screens.carousel.write().menu = 0x7u32;
     carousel(entry, None)?;
     let item = menus.screens.items.current(slot::OPTIONS);
     menus.screens.loop_flags.write().item = item;
-    menus.screens.carousel.front.set(item.wrapping_sub(1));
+    menus.screens.carousel.write().front = item.wrapping_sub(1);
     menus.screens.flow.write().turning = 0x0u32;
     Ok(())
 }

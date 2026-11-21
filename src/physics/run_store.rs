@@ -2,6 +2,8 @@
 //! game's thread (`race::owner_shared::RaceShared::run`). The drawing parts read the scene clock
 //! from the copy their scope was opened with (`scene::workers::DrawReads::scene_clock`).
 
+use rc2k_core::physics::gearbox::GearInputs;
+
 /// The race clock, the recorded input words and the small counters of the race's loop.
 #[derive(Clone, Debug)]
 pub struct PhysicsRun {
@@ -26,6 +28,9 @@ pub struct PhysicsRun {
     /// skips the physics ticks while set); `input::end_frame` sets both every frame
     /// (`debug::overlay`).
     pub debug: [u32; 2],
+    /// The car's control inputs (`drive::read_car_controls`, `drive::steer_inputs`,
+    /// `drive::pedal_inputs`), the gearbox's hold and the gear asked for: `joined`, -1 for none.
+    pub gear_inputs: GearInputs,
     /// The noise's state (`scene::next_noise`).
     pub noise_state: u32,
 }
@@ -43,6 +48,15 @@ impl PhysicsRun {
             input_words: [0; 4],
             view_counters: [0x10C, 0x10D, 0x10E, 0x10F, 0x110, 0x111, 0x112],
             debug: [0; 2],
+            gear_inputs: GearInputs {
+                steer: 0,
+                first: 0,
+                second: 0,
+                hold: 0,
+                gear_up: 0,
+                gear_down: 0,
+                joined: 0,
+            },
             noise_state: 0,
         }
     }

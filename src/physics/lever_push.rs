@@ -42,7 +42,7 @@ pub(super) fn lever_push(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
             &car.position[2],
         ),
     ] {
-        let v = mul2_to_int(from.get(), &numbers.k65536, &tables.step_time) as u32;
+        let v = mul2_to_int(from.get(), &numbers.k65536, tables.step_time.get()) as u32;
         int.set(v);
         place.set(place.get().wrapping_add(int.get()));
     }

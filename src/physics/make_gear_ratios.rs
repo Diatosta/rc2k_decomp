@@ -14,6 +14,7 @@ use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::math::x87::{ext_add, gear_step_80, lerp_int_over2};
 use crate::physics::car_store::Car;
+use crate::physics::figures::GEAR_RATIO_STEP;
 use crate::physics::gear_store::GearFigures;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
@@ -68,6 +69,6 @@ pub(super) fn make_gear_ratios(
     }
     ratio(7).set(rounded_value(acc));
     ratio(-1).set(x87::negated(ratio(1).get()));
-    ratio(0).set(x87::loaded(tables.gear_ratio_step.get()));
+    ratio(0).set(x87::loaded(GEAR_RATIO_STEP));
     Ok(n)
 }

@@ -10,6 +10,7 @@
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::{lerp_table, trunc_mul_to_int};
+use crate::physics::figures::TORQUE_EASE;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
@@ -61,7 +62,7 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
         .engine_torque
         .st(
             shared_store.car().engine_speed.ld() / shared_store.car().engine_speed_limit.ld()
-                * shared_store.physics_tables.get().torque_ease.ld(),
+                * crate::math::x87_float::ld(TORQUE_EASE),
         );
     shared_store.physics_tables.get().engine_force.set(x87::mul(
         &shared_store.physics_tables.get().engine_force,

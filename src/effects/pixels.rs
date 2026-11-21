@@ -10,10 +10,13 @@ use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
-use crate::memory::session::{PlainBytes, PlainDword, PlainFloat, read_bits, write_bits};
+use crate::memory::session::{PlainDword, PlainFloat, read_bits, write_bits};
 
 /// The pixel table `n` (0 or 1, the shape's: `MaskPicks.pixel_table_a`, `_b`).
-fn pixel_table(drops: &WindscreenDrops, n: u32) -> Result<&PlainBytes<0x2_0000>, BadInput> {
+fn pixel_table(
+    drops: &WindscreenDrops,
+    n: u32,
+) -> Result<&core::cell::RefCell<[u8; 0x2_0000]>, BadInput> {
     [&drops.pixel_tables.a, &drops.pixel_tables.b]
         .get(n as usize)
         .copied()
@@ -173,7 +176,12 @@ pub fn map_pixel(
         let (qx, qy) = (rounded_value(q[1]), rounded_value(q[0]));
         out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
         let at = row.wrapping_add(x.wrapping_mul(4)).wrapping_add(half.bytes);
-        table.write_at(at as usize, &[out[0] as u8, out[1] as u8], "a mask pixel")?;
+        let at = at as usize;
+        table
+            .borrow_mut()
+            .get_mut(at..at + 2)
+            .ok_or(BadInput("a mask pixel past the end of its table"))?
+            .copy_from_slice(&[out[0] as u8, out[1] as u8]);
     }
     write_bits(&masks.vars.work_pixel, out.map(|v| v as u32));
     if let Some(last) = plans.last() {
@@ -334,7 +342,7 @@ pub(super) fn map_shapes(
         drops.picks.borrow_mut().shapes = n;
         drops.picks.borrow_mut().table_in_use = n;
         drops.picks.borrow_mut().corners = n;
-        table.write_at(0, &vec![0; 0x2_0000], "the pixel table")?;
+        table.borrow_mut().fill(0);
         masks
             .vars
             .pixel_table

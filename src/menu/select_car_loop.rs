@@ -22,13 +22,13 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     };
     screens.flow.write().shown_gearing = player.get().gearing;
     screens.flow.write().turning = 0x1u32;
-    screens.carousel.menu.set(0xDu32);
+    screens.carousel.write().menu = 0xDu32;
     set_up.carousel()?;
     let item = screens.items.current(slot::SELECT_CAR);
     screens.loop_flags.write().item = item;
-    screens.carousel.front.set(item.wrapping_sub(1));
+    screens.carousel.write().front = item.wrapping_sub(1);
     screens.flow.write().turning = 0x0u32;
-    screens.carousel.front.set(0x0u32);
+    screens.carousel.write().front = 0x0u32;
     screens.event.write().shown.car = 0x0u32;
     crate::menu::car_choice::find_player_car(menus)?;
     set_up.set_view(7, -50, 0x100);

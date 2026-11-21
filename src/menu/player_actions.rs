@@ -53,11 +53,13 @@ pub fn lower_strength(menus: &Menus) -> Result<(), Refused> {
 }
 
 pub fn next_scores_page(tables: &Tables) {
-    tables.pages.write().scores_page = steps::scores_page(tables.pages.read().scores_page, true);
+    let value = steps::scores_page(tables.pages.read().scores_page, true);
+    tables.pages.write().scores_page = value;
 }
 
 pub fn previous_scores_page(tables: &Tables) {
-    tables.pages.write().scores_page = steps::scores_page(tables.pages.read().scores_page, false);
+    let value = steps::scores_page(tables.pages.read().scores_page, false);
+    tables.pages.write().scores_page = value;
 }
 
 pub(super) fn previous_replay_range(
@@ -65,7 +67,8 @@ pub(super) fn previous_replay_range(
     tables: &Tables,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), BadInput> {
-    tables.pages.write().replay_page = steps::replay_range(tables.pages.read().replay_page, false);
+    let value = steps::replay_range(tables.pages.read().replay_page, false);
+    tables.pages.write().replay_page = value;
     crate::screens::best_scores::replay_range_caption(&menus.tables.pages, text)
 }
 
@@ -74,7 +77,8 @@ pub(super) fn next_replay_range(
     tables: &Tables,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), BadInput> {
-    tables.pages.write().replay_page = steps::replay_range(tables.pages.read().replay_page, true);
+    let value = steps::replay_range(tables.pages.read().replay_page, true);
+    tables.pages.write().replay_page = value;
     crate::screens::best_scores::replay_range_caption(&menus.tables.pages, text)
 }
 

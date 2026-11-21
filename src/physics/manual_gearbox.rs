@@ -35,6 +35,7 @@ use crate::physics::pick_start_gear::pick_start_gear;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
+use rc2k_core::physics::gearbox::GearInputs;
 
 /// Up.
 fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
@@ -101,12 +102,13 @@ pub fn reverse(
 fn start_line(
     car: &Car,
     tables: &PhysicsTables,
+    inputs: &GearInputs,
     gear_figures: &GearFigures,
 ) -> Result<Shift, Refused> {
     let gear = car.gear.get();
-    if let Some(shift) = shifts::start_line_keys(gear, tables.input_gear_down.get() != 0, || {
-        tables.input_gear_up.get() != 0
-    }) {
+    if let Some(shift) =
+        shifts::start_line_keys(gear, inputs.gear_down != 0, || inputs.gear_up != 0)
+    {
         return Ok(shift);
     }
     if car.all_wheels_off.get() != 0 {
@@ -148,13 +150,14 @@ fn start_line(
 pub(super) fn manual_gearbox(
     car: &Car,
     tables: &PhysicsTables,
+    inputs: &GearInputs,
     numbers: &Numbers,
     gear_figures: &GearFigures,
 ) -> Result<(), Refused> {
     car.gear_changed.set(0);
     let mut to = 'first: {
         if car.driver_kind.get() == 2 {
-            break 'first start_line(car, tables, gear_figures)?;
+            break 'first start_line(car, tables, inputs, gear_figures)?;
         }
         let gear = car.gear.get();
         if bit(car, gear)? || car.forced_neutral.get() != 0 {
@@ -169,11 +172,9 @@ pub(super) fn manual_gearbox(
             return Ok(());
         }
         if car.gearbox_kind.get() != 0 {
-            break 'first start_line(car, tables, gear_figures)?;
+            break 'first start_line(car, tables, inputs, gear_figures)?;
         }
-        shifts::manual_keys(tables.input_gear_up.get() != 0, || {
-            tables.input_gear_down.get() != 0
-        })
+        shifts::manual_keys(inputs.gear_up != 0, || inputs.gear_down != 0)
     };
     loop {
         to = match to {

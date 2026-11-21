@@ -3,7 +3,6 @@
 //! of `results.order`, one per player; the differences are the `Layout`.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::results_store::Results;
@@ -17,7 +16,7 @@ fn rows(menus: &Menus) -> usize {
 }
 
 fn offset(results: &Results, row: usize) -> u32 {
-    results.order[row].get()
+    results.read().order[row]
 }
 
 /// The row's player record, refused for an offset past the four or a missing record or name.
@@ -38,8 +37,8 @@ fn player<'a>(
 }
 
 /// The row's points: the sum of its player's figures.
-fn points_at(results: &Results, row: usize) -> Result<&PlainDword, Refused> {
-    Ok(&results.player(offset(results, row) as usize / 4)?.sum)
+fn points_at(results: &Results, row: usize) -> Result<u32, Refused> {
+    Ok(results.player(offset(results, row) as usize / 4)?.sum)
 }
 
 /// The section's first record and the stage's (by `EventState.stage.group` and
@@ -144,7 +143,7 @@ pub fn draw_players_results(
                 time: p.get().time,
                 speed,
                 points: if layout.points {
-                    points_at(results, row)?.get()
+                    points_at(results, row)?
                 } else {
                     0
                 },

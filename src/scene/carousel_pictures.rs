@@ -3,7 +3,6 @@
 //! `update`.
 
 use crate::errors::BadInput;
-use crate::memory::session::{read_all, write_all};
 use crate::menu::lists_store::CarListParts;
 use crate::menu::owner::Menus;
 use crate::scene::textures::SLOTS;
@@ -47,13 +46,16 @@ pub fn update(
         return Err(BadInput("the pictures' slots lie past the table"));
     }
     let first_texture: u32 = scene_textures.first_textures()[KIND];
-    write_all(&carousel.pictures.shown, wanted);
+    carousel.write().pictures.shown = wanted;
 
     // Logic: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.
     let (wanted, held) =
-        rc2k_core::scene::carousel::keep_held(wanted, read_all(&carousel.pictures.held));
-    write_all(&carousel.pictures.wanted, wanted);
-    write_all(&carousel.pictures.held, held);
+        rc2k_core::scene::carousel::keep_held(wanted, carousel.read().pictures.held);
+    {
+        let mut kept = carousel.write();
+        kept.pictures.wanted = wanted;
+        kept.pictures.held = held;
+    }
     let textures = rc2k_core::scene::carousel::picture_textures(held, first_texture);
     for (n, texture) in textures.into_iter().enumerate() {
         scene.texture_places_mut().slot_wanted[first_slot as usize + n] = texture;

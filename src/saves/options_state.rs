@@ -369,10 +369,18 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
     let work = &menus.options;
     let numbers = &menus.cars.numbers;
     let tables = &system.records().stage_tables;
-    let names = |n: usize| Field::Text {
-        cells: &menus.play.slots.names.player_names,
-        from: 0x20 * n,
+    let names = |n: usize| Field::Bytes {
         len: 0x20,
+        get: Box::new(move || menus.play.slots.names.player_names.read()[0x20 * n..][..0x20].to_vec()),
+        set: Box::new(move |bytes| {
+            menus
+                .play
+                .slots
+                .names
+                .player_names
+                .write_at(0x20 * n, bytes, "a player's name")
+                .expect("the four names lie inside their area");
+        }),
     };
     [
         Field::Dword(&system.start().run_count.runs),                   // how many times the game was run

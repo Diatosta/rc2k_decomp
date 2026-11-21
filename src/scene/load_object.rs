@@ -24,6 +24,7 @@
 use crate::errors::{FatalError, Refused};
 use crate::files::read_whole_file::read_whole_file_plain_bytes;
 use crate::memory::session::TextPlace;
+use crate::physics::figures::GROUND_DROP;
 use crate::scene::add_object_shape::add_object_shape;
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::measure_object;
@@ -117,7 +118,7 @@ pub fn load_object(
         group_mask,
         all_points,
         turned: (0x190..0x258).contains(&kind),
-        ground_drop: race.shared.physics_tables.get().ground_drop.get(),
+        ground_drop: GROUND_DROP,
     };
     if slot < FIRST_CAR_SLOT {
         let planned = plan(&file, slot, request(u32::MAX, true), false)?;
