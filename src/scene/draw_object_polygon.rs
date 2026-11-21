@@ -40,8 +40,8 @@ fn needs_clipping(
     }
     let edges = Edges {
         least: course.numbers.zero.get(),
-        right: poly.window.clip_screen[3].get(),
-        bottom: poly.window.clip_screen[1].get(),
+        right: poly.window.borrow().clip_screen[3],
+        bottom: poly.window.borrow().clip_screen[1],
     };
     rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
         let record = crate::scene::polygon::entry(polygon_work, n)?.record.get();

@@ -543,10 +543,22 @@ fn race_cell(off: usize) -> RacePlace {
         .window;
     let m = &crate::test_support::own::race().frame.matrices.get();
     match off {
-        0x224088 => RacePlace::in_cell(&w.view_scale),
-        0x22409C => RacePlace::in_cell(&w.view_centre[0]),
-        0x2240A0 => RacePlace::in_cell(&w.view_centre[1]),
-        0x2241C8 => RacePlace::in_cell(&w.farthest),
+        0x224088 => RacePlace {
+            bits: Box::new(|| w.borrow().view_scale.to_bits()),
+            set_bits: Box::new(|bits| w.borrow_mut().view_scale = f32::from_bits(bits)),
+        },
+        0x22409C => RacePlace {
+            bits: Box::new(|| w.borrow().view_centre[0].to_bits()),
+            set_bits: Box::new(|bits| w.borrow_mut().view_centre[0] = f32::from_bits(bits)),
+        },
+        0x2240A0 => RacePlace {
+            bits: Box::new(|| w.borrow().view_centre[1].to_bits()),
+            set_bits: Box::new(|bits| w.borrow_mut().view_centre[1] = f32::from_bits(bits)),
+        },
+        0x2241C8 => RacePlace {
+            bits: Box::new(|| w.borrow().farthest.to_bits()),
+            set_bits: Box::new(|bits| w.borrow_mut().farthest = f32::from_bits(bits)),
+        },
         // The status word of the effects' x87 blocks, where the test finds it.
         0x31C814 => RacePlace {
             bits: Box::new(|| {

@@ -54,7 +54,7 @@ pub fn draw_mirror_view(
     view.vars.view_scale.set(reads.numbers.k256.get());
     let drawn = (|| {
         crate::race::frame_views::mirror_view_window(race, view, part, reads)?;
-        view.polygon.window.view_depth[1].set(view.course.view_value_kept.get());
+        view.polygon.window.borrow_mut().view_depth[1] = view.course.view_value_kept.get();
         crate::race::frame_flush::draw_view_backdrop(reads, view, part);
         // A mirror starts from no filter switches (`race::view_scratch::filter_input`: only the
         // first view's slot reads the front end's).

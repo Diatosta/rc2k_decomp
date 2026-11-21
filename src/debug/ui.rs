@@ -86,10 +86,28 @@ static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
 pub(super) fn note_view(frame: &Frame, scene: &crate::scene::owner::Scene) {
     let view = (
         std::array::from_fn(|n| frame.matrices.get().view_matrix[n].get()),
-        scene.scratch.main_view(0).polygon.window.view_scale.get(),
+        scene
+            .scratch
+            .main_view(0)
+            .polygon
+            .window
+            .borrow()
+            .view_scale,
         [
-            scene.scratch.main_view(0).polygon.window.view_centre[0].get(),
-            scene.scratch.main_view(0).polygon.window.view_centre[1].get(),
+            scene
+                .scratch
+                .main_view(0)
+                .polygon
+                .window
+                .borrow()
+                .view_centre[0],
+            scene
+                .scratch
+                .main_view(0)
+                .polygon
+                .window
+                .borrow()
+                .view_centre[1],
         ],
     );
     *VIEW

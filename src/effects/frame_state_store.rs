@@ -53,9 +53,9 @@ impl DrawWork {
     pub(super) fn view_k(&self, front: &crate::scene::polygon_work_store::PolygonWork) -> [f32; 4] {
         let window = &front.window;
         [
-            window.view_scale.get(),
-            window.view_centre[0].get(),
-            window.view_centre[1].get(),
+            window.borrow().view_scale,
+            window.borrow().view_centre[0],
+            window.borrow().view_centre[1],
             self.z_k,
         ]
     }

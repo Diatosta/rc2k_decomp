@@ -12,7 +12,6 @@
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 
 const CELLS: u32 = 0x41;
@@ -106,24 +105,24 @@ fn ribbon_x87(
     dw: &mut DrawWork,
     vv: &mut ViewVars,
 ) {
-    let t0 = ld(front.window.view_scale.get());
+    let t0 = ld(front.window.borrow().view_scale);
     let t1 = t0 / bh::ld(dw.turned[2]);
     let t2 = t1 * bh::ld(dw.turned[0]);
     let t3 = t1 * bh::ld(dw.turned[1]);
     let t4 = -t3;
-    let t5 = t4 + front.window.view_centre[1].ld();
+    let t5 = t4 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     dw.turned[1] = bh::stf(t5);
-    let t6 = t2 + front.window.view_centre[0].ld();
+    let t6 = t2 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     dw.turned[0] = bh::stf(t6);
     dw.ends_scale[0] = bh::stf(t1);
-    let t7 = ld(front.window.view_scale.get());
+    let t7 = ld(front.window.borrow().view_scale);
     let t8 = t7 / bh::ld(dw.second[2]);
     let t9 = t8 * bh::ld(dw.second[0]);
     let t10 = t8 * bh::ld(dw.second[1]);
     let t11 = -t10;
-    let t12 = t11 + front.window.view_centre[1].ld();
+    let t12 = t11 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     dw.second[1] = bh::stf(t12);
-    let t13 = t9 + front.window.view_centre[0].ld();
+    let t13 = t9 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     dw.second[0] = bh::stf(t13);
     dw.ends_scale[1] = bh::stf(t8);
     let t14 = bh::ld(dw.second[0]);

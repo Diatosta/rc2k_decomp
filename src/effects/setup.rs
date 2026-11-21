@@ -201,11 +201,16 @@ pub(super) fn make_noise_curve(
     let first = x87::loaded(light.quad_first);
     weather.snow.borrow_mut().quad_a = [first; 4];
     // The view's centre (`SceneDraw.view_centre[0]`, `SceneDraw.view_centre[1]`).
-    let centre = &scene.scratch.front_end_polygon().window.view_centre;
+    let centre = scene
+        .scratch
+        .front_end_polygon()
+        .window
+        .borrow()
+        .view_centre;
     {
         let mut snow = weather.snow.borrow_mut();
-        snow.quad_b = [centre[0].get(); 4];
-        snow.quad_c = [centre[1].get(); 4];
+        snow.quad_b = [centre[0]; 4];
+        snow.quad_c = [centre[1]; 4];
     }
     Ok(())
 }

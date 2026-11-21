@@ -19,11 +19,11 @@ pub fn full_view_window(
     window: &crate::scene::view_window::ViewWindow,
 ) {
     let session = &system.session;
-    window.view_size[0].set(session.screen.get().width.get());
-    window.view_size[1].set(session.screen.get().height.get());
-    window.view_offset[0].set(0);
-    window.view_offset[1].set(0);
-    window.view_zoom.set(0x100);
+    window.borrow_mut().view_size[0] = session.screen.get().width.get();
+    window.borrow_mut().view_size[1] = session.screen.get().height.get();
+    window.borrow_mut().view_offset[0] = 0;
+    window.borrow_mut().view_offset[1] = 0;
+    window.borrow_mut().view_zoom = 0x100;
     let draw = *scene.drawing.scene.borrow();
     crate::scene::set_view_window::set_view_window(
         race.course.reads(),
@@ -98,15 +98,15 @@ pub fn mirror_view_window(
     };
     trap.finish()?;
     let (x, y) = ((place_x + inset_x) & !1, place_y + inset_y);
-    poly.window.view_offset[0].set(x);
-    poly.window.view_offset[1].set(y);
-    poly.window.view_size[0].set(sx);
-    poly.window.view_size[1].set(sy);
+    poly.window.borrow_mut().view_offset[0] = x;
+    poly.window.borrow_mut().view_offset[1] = y;
+    poly.window.borrow_mut().view_size[0] = sx;
+    poly.window.borrow_mut().view_size[1] = sy;
     poly.cleared_rectangle[0].set(x);
     poly.cleared_rectangle[1].set(y);
     poly.cleared_rectangle[2].set(x.wrapping_add(sx));
     poly.cleared_rectangle[3].set(y.wrapping_add(sy));
-    poly.window.view_zoom.set(0x100);
+    poly.window.borrow_mut().view_zoom = 0x100;
     crate::scene::set_view_window::set_view_window_reaching(
         reads.course(),
         draw,
@@ -419,8 +419,8 @@ pub(super) fn forget_view_textures(
 fn window_corners(view: &crate::race::view_scratch::ViewScratch) {
     view.quad.borrow_mut().corners[0] = 0;
     view.quad.borrow_mut().corners[4] = 0;
-    view.quad.borrow_mut().corners[1] = view.polygon.window.view_size[0].get();
-    view.quad.borrow_mut().corners[5] = view.polygon.window.view_size[1].get();
+    view.quad.borrow_mut().corners[1] = view.polygon.window.borrow().view_size[0];
+    view.quad.borrow_mut().corners[5] = view.polygon.window.borrow().view_size[1];
 }
 
 /// Draws a tinted quad over the view window: `in_credits` 0x283080 half through; else the sun's
@@ -441,7 +441,7 @@ pub(super) fn draw_screen_tint(
         ctx.view.quad.borrow_mut().colour[0] = NIGHT_COLOUR;
         return crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
-    let sun = ctx.view.polygon.sun.on_screen.get();
+    let sun = ctx.view.polygon.sun.borrow().on_screen;
     let a = glare_alpha(fog.borrow().far);
     ctx.view.quad.borrow_mut().colour[1] = a;
     let mut done = Ok(());
@@ -613,15 +613,15 @@ pub fn run_view_marks(
     }
     race.car_record(view as usize)?.streaks_on.set(1);
     let centre = (
-        ctx.view.polygon.window.view_centre[0].get(),
-        ctx.view.polygon.window.view_centre[1].get(),
+        ctx.view.polygon.window.borrow().view_centre[0],
+        ctx.view.polygon.window.borrow().view_centre[1],
     );
     // The effects project through the front end's window (a copy of the view's, made before the
     // view's overlays), so a part's middle goes there.
     let effects_window = &scene.scratch.front_end_polygon().window;
     let effects_centre = (
-        effects_window.view_centre[0].get(),
-        effects_window.view_centre[1].get(),
+        effects_window.borrow().view_centre[0],
+        effects_window.borrow().view_centre[1],
     );
     let part_split = ctx.reads.view.players.get() > 2;
     if part_split {
@@ -630,22 +630,25 @@ pub fn run_view_marks(
         // the third and fourth views).
         let window = &ctx.view.polygon.window;
         for axis in 0..2 {
-            let middle = window.view_offset[axis].get() + window.view_size[axis].get() / 2;
-            effects_window.view_centre[axis].set(middle as f32);
+            let middle = window.borrow().view_offset[axis] + window.borrow().view_size[axis] / 2;
+            effects_window.borrow_mut().view_centre[axis] = middle as f32;
         }
         crate::effects::clip_quad::cut_to_part(effects, true);
     } else {
         let n = crate::race::frame_store::VIEW_LAYOUTS[layout_at as usize] as usize;
-        ctx.view.polygon.window.view_centre[0].set(int_over_times(
+        let centre_x = int_over_times(
             session.screen.get().width.get(),
             ctx.reads.numbers.k800.get(),
             crate::race::frame_store::VIEW_SCALE_X[n],
-        ));
-        ctx.view.polygon.window.view_centre[1].set(int_over_times(
+        );
+        let centre_y = int_over_times(
             session.screen.get().height.get(),
             ctx.reads.numbers.k600.get(),
             crate::race::frame_store::VIEW_SCALE_Y[n],
-        ));
+        );
+        let mut window = ctx.view.polygon.window.borrow_mut();
+        window.view_centre[0] = centre_x;
+        window.view_centre[1] = centre_y;
     }
     // No register is read or left.
     let done = crate::effects::frame_marks::frame_marks(race, scene, effects).and_then(|_| {
@@ -664,12 +667,12 @@ pub fn run_view_marks(
             Ok(())
         }
     });
-    ctx.view.polygon.window.view_centre[1].set(centre.1);
-    ctx.view.polygon.window.view_centre[0].set(centre.0);
+    ctx.view.polygon.window.borrow_mut().view_centre[1] = centre.1;
+    ctx.view.polygon.window.borrow_mut().view_centre[0] = centre.0;
     if part_split {
         crate::effects::clip_quad::cut_to_part(effects, false);
-        effects_window.view_centre[0].set(effects_centre.0);
-        effects_window.view_centre[1].set(effects_centre.1);
+        effects_window.borrow_mut().view_centre[0] = effects_centre.0;
+        effects_window.borrow_mut().view_centre[1] = effects_centre.1;
     }
     done
 }

@@ -126,7 +126,7 @@ pub fn draw_carousel_entry(
     }
     view.object.borrow_mut().angles[0] = set.angle_x;
     view.object.borrow_mut().angles[1] = set.angle_y;
-    crate::memory::session::write_bits(&view.polygon.window.view_offset, [0u32; 2]);
+    view.polygon.window.borrow_mut().view_offset = [0; 2];
     menus.screens.carousel.write().kind = set.kind;
     view.cars.object_number.set(set.object);
     draw()

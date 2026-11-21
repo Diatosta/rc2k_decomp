@@ -28,11 +28,12 @@ pub fn choose_view_window(
             session.screen.get().height.get(),
         ]
     });
-    window.view_size[0].set(chosen.size[0]);
-    window.view_size[1].set(chosen.size[1]);
-    window.view_offset[0].set(chosen.offset[0]);
-    window.view_offset[1].set(chosen.offset[1]);
-    window.view_zoom.set(chosen.scale);
+    {
+        let mut window = window.borrow_mut();
+        window.view_size = chosen.size;
+        window.view_offset = chosen.offset;
+        window.view_zoom = chosen.scale;
+    }
     let draw = *scene.drawing.scene.borrow();
     crate::scene::set_view_window::set_view_window(
         race.course.reads(),

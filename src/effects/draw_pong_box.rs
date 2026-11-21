@@ -10,7 +10,6 @@
 use crate::effects::pong_store::{Pong, PongState};
 use crate::effects::tuning_store::MarksFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
-use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 
 /// The sides, from the four values; the place's two values (left untouched) popped after.
@@ -176,45 +175,45 @@ fn projected_x87(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     sq: &mut WindscreenFlakeTables,
 ) {
-    let t0 = bh::ld(front.window.view_scale.get());
+    let t0 = bh::ld(front.window.borrow().view_scale);
     let t1 = t0 / bh::ld(sq.corners[3][2]);
-    let t2 = bh::ld(front.window.view_scale.get());
+    let t2 = bh::ld(front.window.borrow().view_scale);
     let t3 = t2 / bh::ld(sq.corners[2][2]);
-    let t4 = bh::ld(front.window.view_scale.get());
+    let t4 = bh::ld(front.window.borrow().view_scale);
     let t5 = t4 / bh::ld(sq.corners[1][2]);
-    let t6 = bh::ld(front.window.view_scale.get());
+    let t6 = bh::ld(front.window.borrow().view_scale);
     let t7 = t6 / bh::ld(sq.corners[0][2]);
     let t8 = bh::ld(sq.corners[0][1]);
     let t9 = t8 * t7;
     let t10 = t7 * bh::ld(sq.corners[0][0]);
     let t11 = -t9;
-    let t12 = t11 + front.window.view_centre[1].ld();
+    let t12 = t11 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     st_cell(&buffer.vertices[0].y, t12);
-    let t13 = t10 + front.window.view_centre[0].ld();
+    let t13 = t10 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     st_cell(&buffer.vertices[0].x, t13);
     let t14 = bh::ld(sq.corners[1][1]);
     let t15 = t14 * t5;
     let t16 = t5 * bh::ld(sq.corners[1][0]);
     let t17 = -t15;
-    let t18 = t17 + front.window.view_centre[1].ld();
+    let t18 = t17 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     st_cell(&buffer.vertices[1].y, t18);
-    let t19 = t16 + front.window.view_centre[0].ld();
+    let t19 = t16 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     st_cell(&buffer.vertices[1].x, t19);
     let t20 = bh::ld(sq.corners[2][1]);
     let t21 = t20 * t3;
     let t22 = t3 * bh::ld(sq.corners[2][0]);
     let t23 = -t21;
-    let t24 = t23 + front.window.view_centre[1].ld();
+    let t24 = t23 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     st_cell(&buffer.vertices[2].y, t24);
-    let t25 = t22 + front.window.view_centre[0].ld();
+    let t25 = t22 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     st_cell(&buffer.vertices[2].x, t25);
     let t26 = bh::ld(sq.corners[3][1]);
     let t27 = t26 * t1;
     let t28 = t1 * bh::ld(sq.corners[3][0]);
     let t29 = -t27;
-    let t30 = t29 + front.window.view_centre[1].ld();
+    let t30 = t29 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     st_cell(&buffer.vertices[3].y, t30);
-    let t31 = t28 + front.window.view_centre[0].ld();
+    let t31 = t28 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     st_cell(&buffer.vertices[3].x, t31);
     let t32 = bh::ld(sq.corners[0][2]);
     let t33 = t32 * bh::ld(sq.inverse);

@@ -160,14 +160,14 @@ fn clip_to_part(
 ) -> bool {
     let window = &scene.scratch.front_end_polygon().window;
     let (x, y) = (
-        window.view_offset[0].get() as f32,
-        window.view_offset[1].get() as f32,
+        window.borrow().view_offset[0] as f32,
+        window.borrow().view_offset[1] as f32,
     );
     let rect = [
         x,
         y,
-        x + window.view_size[0].get() as f32,
-        y + window.view_size[1].get() as f32,
+        x + window.borrow().view_size[0] as f32,
+        y + window.borrow().view_size[1] as f32,
     ];
     let polygon: Vec<Corner> = buffer.vertices[..4]
         .iter()

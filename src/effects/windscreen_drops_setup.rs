@@ -57,7 +57,7 @@ pub fn windscreen_drops_setup(
             .polygon_vertex_count
             .set(6);
         drops.work.borrow_mut().inverse =
-            x87::reciprocal(&scene.scratch.front_end_polygon().window.farthest);
+            x87::reciprocal(scene.scratch.front_end_polygon().window.borrow().farthest);
     }
 }
 

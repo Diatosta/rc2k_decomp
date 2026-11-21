@@ -93,8 +93,11 @@ pub(crate) fn to_screen(
     checked: impl Base,
 ) {
     let screen = Screen {
-        scale: window.view_scale.get(),
-        centre: [window.view_centre[0].get(), window.view_centre[1].get()],
+        scale: window.borrow().view_scale,
+        centre: [
+            window.borrow().view_centre[0],
+            window.borrow().view_centre[1],
+        ],
         flat_depth: flat_depth as i32,
     };
     let view = [4, 5, 6].map(|k| f32::from_bits(record[k]));

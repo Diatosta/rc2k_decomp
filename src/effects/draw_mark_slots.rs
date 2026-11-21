@@ -118,12 +118,22 @@ pub fn draw_mark_slots(
             continue;
         }
         let [px, py, half] = x87::slot_project(
-            scene.scratch.front_end_polygon().window.view_scale.get(),
+            scene.scratch.front_end_polygon().window.borrow().view_scale,
             x,
             z,
-            &scene.scratch.front_end_polygon().window.view_centre[0],
+            scene
+                .scratch
+                .front_end_polygon()
+                .window
+                .borrow()
+                .view_centre[0],
             y,
-            &scene.scratch.front_end_polygon().window.view_centre[1],
+            scene
+                .scratch
+                .front_end_polygon()
+                .window
+                .borrow()
+                .view_centre[1],
             effects.blocks.slots.borrow().slots[0].size,
         )
         .map(f32::from_bits);

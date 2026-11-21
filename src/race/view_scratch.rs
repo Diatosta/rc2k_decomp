@@ -230,7 +230,7 @@ impl ViewScratch {
         let fresh = crate::scene::polygon_work_store::PolygonWork::new();
         fresh.window.copy_from(&self.polygon.window);
         fresh.view_mirrored.set(self.polygon.view_mirrored.get());
-        fresh.sun.view_out.set(self.polygon.sun.view_out.get());
+        fresh.sun.borrow_mut().view_out = self.polygon.sun.borrow().view_out;
         self.polygon.copy_from(&fresh);
         // The course grid is kept: it is made again only when the view's corner moves, and a
         // stage's start marks every corner unknown (`view_grid::reset_corners`).

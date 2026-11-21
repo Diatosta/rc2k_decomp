@@ -5,7 +5,6 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::math::cell_x87::CellX87;
 
 /// A whole number plus a float, as an 80-bit extended value.
 #[cfg(test)]
@@ -37,14 +36,14 @@ pub(crate) fn project_record(
 ) {
     use crate::math::x87_float::{ONE, int, ld, st};
     let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
-    let reach = window.view_scale.ld();
+    let reach = crate::math::x87_float::ld(window.borrow().view_scale);
     let scale = if prefs.flat_depth.get() != 0 {
         reach / (int(flat_depth as i32) + ONE)
     } else {
         reach / z
     };
-    v[3] = st(x * scale + window.view_centre[0].ld());
-    v[7] = st(-(y * scale) + window.view_centre[1].ld());
+    v[3] = st(x * scale + crate::math::x87_float::ld(window.borrow().view_centre[0]));
+    v[7] = st(-(y * scale) + crate::math::x87_float::ld(window.borrow().view_centre[1]));
 }
 
 /// A skidmark point turned and projected: words 3 .. 8 of its vertex record.
@@ -310,15 +309,18 @@ mod vector_tests {
         let kept_course = *course.course.borrow();
         let mut vectors = Vectors::open("race.skidmarks.project_vertex", Kind::Exact, 8);
         let mut r = Rng(4);
-        let win = crate::scene::view_window::ViewWindow::new();
+        let win = crate::scene::view_window::first_window();
         at_each_control_word(|| {
             for n in 0..20000 {
                 let flat = n % 2 == 0;
                 course.stage_prefs.get().flat_depth.set(flat as u32);
                 course.course.borrow_mut().flat_depth = r.int() as u32;
                 // The recorded run read the scene's window; this code reads the window it is given.
-                for own in [&win.view_scale, &win.view_centre[1], &win.view_centre[0]] {
-                    own.set(f32::from_bits(r.float()));
+                {
+                    let mut win = win.borrow_mut();
+                    win.view_scale = f32::from_bits(r.float());
+                    win.view_centre[1] = f32::from_bits(r.float());
+                    win.view_centre[0] = f32::from_bits(r.float());
                 }
                 crate::test_support::own::scene().draw_work_mut().scratch = 0xAAAA_AAAAu32;
                 let mut a = [0xAAAA_AAAAu32; 8];

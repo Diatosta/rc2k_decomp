@@ -188,11 +188,7 @@ fn snapshot(menus: &Menus) -> Snapshot {
             .collect(),
         floats: SCENE_FLOATS
             .iter()
-            .map(|v| {
-                v.cell(&crate::owners::Owners::the().scene.scratch)
-                    .get()
-                    .to_bits()
-            })
+            .map(|v| v.get(&crate::owners::Owners::the().scene.scratch).to_bits())
             .collect(),
     }
 }
@@ -212,8 +208,7 @@ fn fill(menus: &Menus) {
         );
     }
     for (at, var) in SCENE_FLOATS.iter().enumerate() {
-        var.cell(&crate::owners::Owners::the().scene.scratch)
-            .set(0.5 + at as f32);
+        var.set(&crate::owners::Owners::the().scene.scratch, 0.5 + at as f32);
     }
     for flag in FLAGS {
         flag.set(menus, false);
@@ -317,8 +312,10 @@ fn data_steps_write_what_they_name_and_nothing_else() {
         var.set(&crate::owners::Owners::the().scene.scratch, *value);
     }
     for (var, bits) in SCENE_FLOATS.iter().zip(&saved.floats) {
-        var.cell(&crate::owners::Owners::the().scene.scratch)
-            .set(f32::from_bits(*bits));
+        var.set(
+            &crate::owners::Owners::the().scene.scratch,
+            f32::from_bits(*bits),
+        );
     }
 }
 

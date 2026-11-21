@@ -28,9 +28,9 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     menus.screens.event.write().event_over = false;
     // menu::load_background (whether it failed is not looked at)
     Callee::LoadBackground(|m| &m.texts.main_menu_picture).run(entry)?;
-    entry.front_end.window.view_offset[0].set(7u32);
-    entry.front_end.window.view_offset[1].set(0xAu32);
-    entry.front_end.window.view_zoom.set(0x100u32);
+    entry.front_end.window.borrow_mut().view_offset[0] = 7u32;
+    entry.front_end.window.borrow_mut().view_offset[1] = 0xAu32;
+    entry.front_end.window.borrow_mut().view_zoom = 0x100u32;
     prepare_scene(&entry.owners); // scene::prepare_menu_scene
     menus.screens.loop_flags.write().ask_leave = false;
     Callee::TakeKey.run(entry)?; // input::take_key

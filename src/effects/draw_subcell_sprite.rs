@@ -172,7 +172,7 @@ fn square_x87(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     dw: &mut DrawWork,
 ) {
-    let t0 = ld(front.window.view_scale.get());
+    let t0 = ld(front.window.borrow().view_scale);
     let t1 = t0 / bh::ld(dw.turned[2]);
     let t2 = bh::ld(dw.turned[2]);
     let t3 = t2 * bh::ld(dw.z_k);
@@ -187,7 +187,7 @@ fn square_x87(
     let t6 = t1 * bh::ld(dw.turned[0]);
     let t7 = t1 * bh::ld(dw.turned[1]);
     let t8 = -t7;
-    let t9 = t8 + front.window.view_centre[1].ld();
+    let t9 = t8 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     let t10 = t9 - bh::ld(dw.half[1]);
     st_cell(&buffer.vertices[0].y, t10);
     let t11 = t9 - bh::ld(dw.half[1]);
@@ -196,7 +196,7 @@ fn square_x87(
     st_cell(&buffer.vertices[2].y, t12);
     let t13 = t9 + bh::ld(dw.half[1]);
     st_cell(&buffer.vertices[3].y, t13);
-    let t14 = t6 + front.window.view_centre[0].ld();
+    let t14 = t6 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     let t15 = t14 - bh::ld(dw.half[0]);
     st_cell(&buffer.vertices[0].x, t15);
     let t16 = t14 + bh::ld(dw.half[0]);

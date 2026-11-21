@@ -24,7 +24,6 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::input::take_key::take_key;
-use crate::memory::session::{DwordLike, PlainFloat};
 use crate::menu::handle_keys::handle_keys;
 use crate::menu::lists_store::{CarList, CarListParts};
 use crate::menu::menus_store::MenuId;
@@ -234,27 +233,43 @@ pub enum SceneVar {
 }
 
 impl SceneVar {
-    /// The variable's cell, for the ones that are cells (the window's and the object's).
-    fn plain_cell(
-        self,
-        scratch: &crate::scene::scratch_store::DrawingScratch,
-    ) -> Option<&dyn DwordLike> {
-        let window = &scratch.front_end_polygon().window;
+    /// The variable's value among the window's, for the ones that are the window's.
+    #[cfg(test)]
+    fn window_value(self, scratch: &crate::scene::scratch_store::DrawingScratch) -> Option<u32> {
+        let window = scratch.front_end_polygon().window.borrow();
         Some(match self {
-            SceneVar::ViewOffsetX => &window.view_offset[0],
-            SceneVar::ViewOffsetY => &window.view_offset[1],
-            SceneVar::ViewZoom => &window.view_zoom,
-            SceneVar::ClipLeft => &window.clip_edges[2],
-            SceneVar::ClipRight => &window.clip_edges[3],
+            SceneVar::ViewOffsetX => window.view_offset[0],
+            SceneVar::ViewOffsetY => window.view_offset[1],
+            SceneVar::ViewZoom => window.view_zoom,
+            SceneVar::ClipLeft => window.clip_edges[2],
+            SceneVar::ClipRight => window.clip_edges[3],
             _ => return None,
         })
+    }
+
+    /// Sets the variable if it is the window's; says whether it was.
+    fn set_window_value(
+        self,
+        scratch: &crate::scene::scratch_store::DrawingScratch,
+        value: u32,
+    ) -> bool {
+        let mut window = scratch.front_end_polygon().window.borrow_mut();
+        match self {
+            SceneVar::ViewOffsetX => window.view_offset[0] = value,
+            SceneVar::ViewOffsetY => window.view_offset[1] = value,
+            SceneVar::ViewZoom => window.view_zoom = value,
+            SceneVar::ClipLeft => window.clip_edges[2] = value,
+            SceneVar::ClipRight => window.clip_edges[3] = value,
+            _ => return false,
+        }
+        true
     }
 
     /// The variable's value in the front end's scene.
     #[cfg(test)]
     pub fn get(self, scratch: &crate::scene::scratch_store::DrawingScratch) -> u32 {
-        if let Some(cell) = self.plain_cell(scratch) {
-            return cell.get();
+        if let Some(value) = self.window_value(scratch) {
+            return value;
         }
         if self == SceneVar::ObjectLightStrength {
             return scratch.front_end().object.borrow().light_strength;
@@ -271,8 +286,7 @@ impl SceneVar {
 
     /// Sets the variable in the front end's scene.
     pub fn set(self, scratch: &crate::scene::scratch_store::DrawingScratch, value: u32) {
-        if let Some(cell) = self.plain_cell(scratch) {
-            cell.set(value);
+        if self.set_window_value(scratch, value) {
             return;
         }
         if self == SceneVar::ObjectLightStrength {
@@ -300,12 +314,22 @@ pub enum SceneFloat {
 }
 
 impl SceneFloat {
-    /// The variable in the front end's scene.
-    pub fn cell(self, scratch: &crate::scene::scratch_store::DrawingScratch) -> &PlainFloat {
-        let window = &scratch.front_end_polygon().window;
+    /// The variable's value in the front end's scene.
+    #[cfg(test)]
+    pub fn get(self, scratch: &crate::scene::scratch_store::DrawingScratch) -> f32 {
+        let window = scratch.front_end_polygon().window.borrow();
         match self {
-            SceneFloat::ClipLeft => &window.clip_screen[2],
-            SceneFloat::ClipRight => &window.clip_screen[3],
+            SceneFloat::ClipLeft => window.clip_screen[2],
+            SceneFloat::ClipRight => window.clip_screen[3],
+        }
+    }
+
+    /// Sets the variable in the front end's scene.
+    pub fn set(self, scratch: &crate::scene::scratch_store::DrawingScratch, value: f32) {
+        let mut window = scratch.front_end_polygon().window.borrow_mut();
+        match self {
+            SceneFloat::ClipLeft => window.clip_screen[2] = value,
+            SceneFloat::ClipRight => window.clip_screen[3] = value,
         }
     }
 }
@@ -369,7 +393,7 @@ impl Step {
             Step::WriteFlag(flag, on) => flag.set(menus, on),
             Step::Sound(sound) => menus.screens.entry.set_sound(sound),
             Step::WriteScene(variable, value) => variable.set(scratch, value),
-            Step::WriteSceneF32(variable, value) => variable.cell(scratch).set(value),
+            Step::WriteSceneF32(variable, value) => variable.set(scratch, value),
             Step::Call(_)
             | Step::CallOrFatal(..)
             | Step::Do(_)
@@ -620,9 +644,9 @@ impl Entry {
     /// The view's offset and zoom a front-end screen draws with.
     pub(super) fn set_view(&self, x: i32, y: i32, zoom: u32) {
         let window = &self.front_end.window;
-        window.view_offset[0].set(x as u32);
-        window.view_offset[1].set(y as u32);
-        window.view_zoom.set(zoom);
+        window.borrow_mut().view_offset[0] = x as u32;
+        window.borrow_mut().view_offset[1] = y as u32;
+        window.borrow_mut().view_zoom = zoom;
     }
 
     /// Entered with nothing carried in.
@@ -677,18 +701,18 @@ impl SetUp<'_> {
     /// The view's offset and zoom the screen draws with.
     pub(super) fn set_view(&self, x: i32, y: i32, zoom: u32) {
         let window = &self.front_end.window;
-        window.view_offset[0].set(x as u32);
-        window.view_offset[1].set(y as u32);
-        window.view_zoom.set(zoom);
+        window.borrow_mut().view_offset[0] = x as u32;
+        window.borrow_mut().view_offset[1] = y as u32;
+        window.borrow_mut().view_zoom = zoom;
     }
 
     /// The clip's left and right edges (also as the floats the clipper reads).
     pub(super) fn set_clip_sides(&self, left: i32, right: i32) {
         let window = &self.front_end.window;
-        window.clip_edges[2].set(left as u32);
-        window.clip_edges[3].set(right as u32);
-        window.clip_screen[2].set(left as f32);
-        window.clip_screen[3].set(right as f32);
+        window.borrow_mut().clip_edges[2] = left as u32;
+        window.borrow_mut().clip_edges[3] = right as u32;
+        window.borrow_mut().clip_screen[2] = left as f32;
+        window.borrow_mut().clip_screen[3] = right as f32;
     }
 
     /// Prepares the menu scene.

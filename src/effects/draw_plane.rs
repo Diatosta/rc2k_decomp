@@ -327,41 +327,41 @@ fn plane_corners_x87(sq: &mut WindscreenFlakeTables, q: &mut QuadWork) {
 
 /// `plane_projected`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn plane_projected_x87(front: &crate::scene::polygon_work_store::PolygonWork, q: &mut QuadWork) {
-    let t0 = crate::math::x87_float::ld(front.window.view_scale.get());
+    let t0 = crate::math::x87_float::ld(front.window.borrow().view_scale);
     let t1 = t0 / bh::ld(q.corners[0][2]);
     let t2 = t1 * bh::ld(q.corners[0][0]);
-    let t3 = t2 + crate::math::x87_float::ld(front.window.view_centre[0].get());
+    let t3 = t2 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     q.corners[0][0] = bh::stf(t3);
     let t4 = t1 * bh::ld(q.corners[0][1]);
     let t5 = -t4;
-    let t6 = t5 + crate::math::x87_float::ld(front.window.view_centre[1].get());
+    let t6 = t5 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     q.corners[0][1] = bh::stf(t6);
-    let t7 = crate::math::x87_float::ld(front.window.view_scale.get());
+    let t7 = crate::math::x87_float::ld(front.window.borrow().view_scale);
     let t8 = t7 / bh::ld(q.corners[1][2]);
     let t9 = t8 * bh::ld(q.corners[1][0]);
-    let t10 = t9 + crate::math::x87_float::ld(front.window.view_centre[0].get());
+    let t10 = t9 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     q.corners[1][0] = bh::stf(t10);
     let t11 = t8 * bh::ld(q.corners[1][1]);
     let t12 = -t11;
-    let t13 = t12 + crate::math::x87_float::ld(front.window.view_centre[1].get());
+    let t13 = t12 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     q.corners[1][1] = bh::stf(t13);
-    let t14 = crate::math::x87_float::ld(front.window.view_scale.get());
+    let t14 = crate::math::x87_float::ld(front.window.borrow().view_scale);
     let t15 = t14 / bh::ld(q.corners[2][2]);
     let t16 = t15 * bh::ld(q.corners[2][0]);
-    let t17 = t16 + crate::math::x87_float::ld(front.window.view_centre[0].get());
+    let t17 = t16 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     q.corners[2][0] = bh::stf(t17);
     let t18 = t15 * bh::ld(q.corners[2][1]);
     let t19 = -t18;
-    let t20 = t19 + crate::math::x87_float::ld(front.window.view_centre[1].get());
+    let t20 = t19 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     q.corners[2][1] = bh::stf(t20);
-    let t21 = crate::math::x87_float::ld(front.window.view_scale.get());
+    let t21 = crate::math::x87_float::ld(front.window.borrow().view_scale);
     let t22 = t21 / bh::ld(q.corners[3][2]);
     let t23 = t22 * bh::ld(q.corners[3][0]);
-    let t24 = t23 + crate::math::x87_float::ld(front.window.view_centre[0].get());
+    let t24 = t23 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     q.corners[3][0] = bh::stf(t24);
     let t25 = t22 * bh::ld(q.corners[3][1]);
     let t26 = -t25;
-    let t27 = t26 + crate::math::x87_float::ld(front.window.view_centre[1].get());
+    let t27 = t26 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     q.corners[3][1] = bh::stf(t27);
 }
 

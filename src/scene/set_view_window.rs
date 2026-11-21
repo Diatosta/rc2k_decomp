@@ -59,11 +59,9 @@ pub fn set_view_window_reaching(
     reach: u32,
 ) {
     let depth = reach.wrapping_mul(0x20);
-    crate::memory::session::write_bits(&window.view_depth, [depth, depth]);
-    let [width, height]: [u32; 2] = crate::memory::session::read_bits(&window.view_size);
+    let [width, height]: [u32; 2] = window.borrow().view_size;
     let middle = [width >> 1, height >> 1];
-    crate::memory::session::write_bits(&window.view_middle, middle);
-    let offsets: [u32; 2] = crate::memory::session::read_bits(&window.view_offset);
+    let offsets: [u32; 2] = window.borrow().view_offset;
     // top, bottom, left, right
     let edges = if course.number_vars.in_race.is_set() {
         [0, height, 0, width]
@@ -75,15 +73,15 @@ pub fn set_view_window_reaching(
             width.wrapping_sub(offsets[0]),
         ]
     };
-    crate::memory::session::write_bits(&window.clip_edges, edges);
-    window.view_scale.set(bh::stf(
+    let zoom = window.borrow().view_zoom;
+    let view_scale = bh::stf(
         bh::int(
             rc2k_core::scene::view_window::design_width(screen.width.get(), screen.height.get())
                 as i32,
         ) * bh::ld(vars.view_scale.get())
-            * bh::int(window.view_zoom.get() as i32)
+            * bh::int(zoom as i32)
             * bh::ld(scale_factor.get()),
-    ));
+    );
     // Held to 90 ..= 100, compared by the signs of the differences as the game does.
     let mut nearer = 100u32.wrapping_sub(course.stage_prefs.nearer.get());
     if (nearer.wrapping_sub(0x5A) as i32) < 0 {
@@ -96,24 +94,26 @@ pub fn set_view_window_reaching(
     let product = depth as u64 * 0x1_0000;
     let low = product as u32;
     let farthest = x87::int_over(low as i32, divisor);
-    window.farthest.set(farthest);
-    window.one_over_farthest.set(x87::reciprocal(farthest));
-    window.farthest_scaled.set(x87::mul_div_div_to_int(
+    let farthest_scaled = x87::mul_div_div_to_int(
         farthest,
         draw.fade_a,
         draw.fade_b,
         course.numbers.k65536.get(),
-    ) as u32);
-    window
-        .clip_farthest
-        .set(x87::mul_to_int(farthest, draw.clip_factor) as u32);
+    ) as u32;
+    let clip_farthest = x87::mul_to_int(farthest, draw.clip_factor) as u32;
     let float = |value: u32| x87::from_int(value as i32);
-    crate::memory::session::write_bits(
-        &window.view_offset_float,
-        offsets.map(float).map(f32::to_bits),
-    );
-    crate::memory::session::write_bits(&window.clip_screen, edges.map(float).map(f32::to_bits));
-    crate::memory::session::write_bits(&window.view_centre, middle.map(float).map(f32::to_bits));
+    let mut window = window.borrow_mut();
+    window.view_depth = [depth, depth];
+    window.view_middle = middle;
+    window.clip_edges = edges;
+    window.view_scale = view_scale;
+    window.farthest = farthest;
+    window.one_over_farthest = x87::reciprocal(farthest);
+    window.farthest_scaled = farthest_scaled;
+    window.clip_farthest = clip_farthest;
+    window.view_offset_float = offsets.map(float);
+    window.clip_screen = edges.map(float);
+    window.view_centre = middle.map(float);
 }
 
 /// `set_view_window` in plain floats. The x87 version above stays for the callers that have not
@@ -128,17 +128,17 @@ pub fn set_view_window_plain(
     scale_factor: &crate::memory::session::PlainFloat,
 ) {
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
+    let (size, offsets, zoom) = {
+        let window = window.borrow();
+        (window.view_size, window.view_offset, window.view_zoom)
+    };
     let i = WindowInputs {
         reach: course.stage_prefs.grid_reach.get(),
-        size: crate::memory::session::read_bits(&window.view_size),
-        offsets: crate::memory::session::read_bits(&window.view_offset),
+        size,
+        offsets,
         in_race: course.number_vars.in_race.is_set(),
         screen_width: rc2k_core::scene::view_window::design_width(design.0, design.1),
-        scale: (
-            vars.view_scale.get(),
-            window.view_zoom.get(),
-            scale_factor.get(),
-        ),
+        scale: (vars.view_scale.get(), zoom, scale_factor.get()),
         nearer: course.stage_prefs.nearer.get(),
         nearer_factor: course.numbers.hundredth_a.get(),
         fade: [draw.fade_a, draw.fade_b],
@@ -147,20 +147,16 @@ pub fn set_view_window_plain(
         one: course.numbers.one.get(),
     };
     let w = window_settings(&i);
-    crate::memory::session::write_bits(&window.view_depth, [w.depth, w.depth]);
-    crate::memory::session::write_bits(&window.view_middle, w.middle);
-    crate::memory::session::write_bits(&window.clip_edges, w.edges);
-    window.view_scale.set(w.scale);
-    window.farthest.set(w.farthest);
-    window.one_over_farthest.set(w.reciprocal);
-    window.farthest_scaled.set(w.fade_depth as u32);
-    window.clip_farthest.set(w.clip_farthest as u32);
-    let set = |cells: &[crate::memory::session::PlainFloat], v: &[f32]| {
-        for (cell, &x) in cells.iter().zip(v) {
-            cell.set(x);
-        }
-    };
-    set(&window.view_offset_float, &w.offset_floats);
-    set(&window.clip_screen, &w.edge_floats);
-    set(&window.view_centre, &w.middle_floats);
+    let mut window = window.borrow_mut();
+    window.view_depth = [w.depth, w.depth];
+    window.view_middle = w.middle;
+    window.clip_edges = w.edges;
+    window.view_scale = w.scale;
+    window.farthest = w.farthest;
+    window.one_over_farthest = w.reciprocal;
+    window.farthest_scaled = w.fade_depth as u32;
+    window.clip_farthest = w.clip_farthest as u32;
+    window.view_offset_float = w.offset_floats;
+    window.clip_screen = w.edge_floats;
+    window.view_centre = w.middle_floats;
 }

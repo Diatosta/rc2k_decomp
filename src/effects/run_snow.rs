@@ -96,7 +96,7 @@ pub fn run_snow(
             .front_end_polygon()
             .polygon_vertex_count
             .set(4);
-        let inverse = x87::reciprocal(&scene.scratch.front_end_polygon().window.farthest);
+        let inverse = x87::reciprocal(scene.scratch.front_end_polygon().window.borrow().farthest);
         snow.borrow_mut().inverses = [inverse; 4];
         snow.borrow_mut().inverse = inverse;
         let marks = effects.settings()?;
@@ -115,7 +115,7 @@ pub fn run_snow(
             s.fall &= 0x0FFF_FFFF;
             s.last_clock = clock;
             s.wide_turn = s.matrix_copy.map(|v| [v; 4]);
-            s.wide_focal = [scene.scratch.front_end_polygon().window.view_scale.get(); 4];
+            s.wide_focal = [scene.scratch.front_end_polygon().window.borrow().view_scale; 4];
         }
         crate::effects::draw_snow::draw_snow(buffer, weather, scene, effects)?;
         crate::scene::depth_test_on::depth_test_on(part);

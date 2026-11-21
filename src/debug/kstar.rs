@@ -181,11 +181,10 @@ pub fn tab(race: &Race, scene: &Scene, ui: &Ui) {
         if ui.checkbox("Mark the sun's point on the screen", &mut on) {
             SUN.store(on, Relaxed);
         }
+        let sun = *scene.scratch.main_view(0).polygon.sun.borrow();
         ui.text(format!(
             "On the screen: {}; at ({}, {})",
-            scene.scratch.main_view(0).polygon.sun.on_screen.get(),
-            scene.scratch.main_view(0).polygon.sun.hit[0].get() as i32,
-            scene.scratch.main_view(0).polygon.sun.hit[1].get() as i32
+            sun.on_screen, sun.hit[0] as i32, sun.hit[1] as i32
         ));
     }
 }
@@ -422,15 +421,15 @@ pub(super) fn over_picture(
     scene: &crate::scene::owner::Scene,
     ui: &Ui,
 ) {
-    if !SUN.load(Relaxed) || scene.scratch.main_view(0).polygon.sun.on_screen.get() == 0 {
+    let sun = *scene.scratch.main_view(0).polygon.sun.borrow();
+    if !SUN.load(Relaxed) || sun.on_screen == 0 {
         return;
     }
     let [w, h] = ui.io().display_size();
     let (width, height) = crate::shell::frame::screen_size(system);
     let at = [
-        scene.scratch.main_view(0).polygon.sun.hit[0].get() as i32 as f32 * w / width.max(1) as f32,
-        scene.scratch.main_view(0).polygon.sun.hit[1].get() as i32 as f32 * h
-            / height.max(1) as f32,
+        sun.hit[0] as i32 as f32 * w / width.max(1) as f32,
+        sun.hit[1] as i32 as f32 * h / height.max(1) as f32,
     ];
     let size = ui.current_font_size() / 2.0;
     ui.get_foreground_draw_list()

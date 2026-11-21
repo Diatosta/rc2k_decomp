@@ -14,7 +14,6 @@
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::rain_store::{RainRules, RainState, Weather};
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 
 /// The point scaled and turned, and the last place.
@@ -147,9 +146,9 @@ fn project_x87(
     k: &RainRules,
 ) {
     let t0 = bh::ld(r.second[2]);
-    let t1 = bh::ld(front.window.view_scale.get()) / t0;
+    let t1 = bh::ld(front.window.borrow().view_scale) / t0;
     let t2 = bh::ld(r.turned[2]);
-    let t3 = bh::ld(front.window.view_scale.get()) / t2;
+    let t3 = bh::ld(front.window.borrow().view_scale) / t2;
     let t4 = bh::ld(r.second[0]);
     let t5 = bh::ld(r.second[1]);
     let t6 = bh::ld(r.turned[0]);
@@ -160,20 +159,20 @@ fn project_x87(
     let t11 = t7 * t3;
     let t12 = t1 * bh::ld(k.view_scale[0]);
     let t13 = t3 * bh::ld(k.view_scale[1]);
-    let t14 = t8 + front.window.view_centre[0].ld();
+    let t14 = t8 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     r.ends[0][0] = f32::from_bits(bh::st(t14));
     let t15 = -t9;
-    let t16 = t15 + front.window.view_centre[1].ld();
+    let t16 = t15 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     r.ends[0][1] = f32::from_bits(bh::st(t16));
-    let t17 = t10 + front.window.view_centre[0].ld();
+    let t17 = t10 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     r.ends[1][0] = f32::from_bits(bh::st(t17));
     let t18 = -t11;
-    let t19 = t18 + front.window.view_centre[1].ld();
+    let t19 = t18 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     r.ends[1][1] = f32::from_bits(bh::st(t19));
     r.ends[0][2] = f32::from_bits(bh::st(t12));
     r.ends[1][2] = f32::from_bits(bh::st(t13));
     let t20 = bh::ONE;
-    let t21 = t20 / bh::ld(front.window.farthest.get());
+    let t21 = t20 / bh::ld(front.window.borrow().farthest);
     let t22 = bh::ld(r.ends[1][0]);
     let t23 = t22 - bh::ld(r.ends[0][0]);
     r.edge_a[1] = f32::from_bits(bh::st(t23));

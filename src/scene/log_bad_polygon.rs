@@ -38,16 +38,16 @@ const HEAD: [(&std::ffi::CStr, Value); 10] = [
     (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy"
     (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy"
     (c"r", |view, _| {
-        Shown::Float(view.polygon.window.clip_screen[3].get())
+        Shown::Float(view.polygon.window.borrow().clip_screen[3])
     }),
     (c"l", |view, _| {
-        Shown::Float(view.polygon.window.clip_screen[2].get())
+        Shown::Float(view.polygon.window.borrow().clip_screen[2])
     }),
     (c"b", |view, _| {
-        Shown::Float(view.polygon.window.clip_screen[1].get())
+        Shown::Float(view.polygon.window.borrow().clip_screen[1])
     }),
     (c"t", |view, _| {
-        Shown::Float(view.polygon.window.clip_screen[0].get())
+        Shown::Float(view.polygon.window.borrow().clip_screen[0])
     }),
     (c"donezcut", |view, _| {
         Shown::Int(view.polygon.depth_clipped.get() as i32)

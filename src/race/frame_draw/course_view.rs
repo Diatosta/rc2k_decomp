@@ -57,8 +57,8 @@ pub fn side_widening(
 ) -> f32 {
     // With more than two players the view is a part of the screen, with a shape of its own.
     let (width, height) = if reads.view.players.get() > 2 {
-        let size = &view.polygon.window.view_size;
-        (size[0].get(), size[1].get())
+        let size = view.polygon.window.borrow().view_size;
+        (size[0], size[1])
     } else {
         (reads.screen.width.get(), reads.screen.height.get())
     };

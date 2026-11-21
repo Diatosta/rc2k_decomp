@@ -168,7 +168,7 @@ pub fn view_value(
     sun: &crate::scene::polygon_work_store::ViewSun,
     view: u32,
 ) -> Result<(usize, u32), Refused> {
-    Ok((drawn_view(race_view, view)?, sun.on_screen.get()))
+    Ok((drawn_view(race_view, view)?, sun.borrow().on_screen))
 }
 
 /// The value into the view's block `eased_target` (`view_value`).
@@ -186,7 +186,8 @@ pub fn fetch_view_value(
     view: u32,
 ) -> Result<(), Refused> {
     let b = drawn_view(race_view, view)?;
-    sun.view_out.set(cars.car(b)?.eased_value.get());
+    let value = cars.car(b)?.eased_value.get();
+    sun.borrow_mut().view_out = value;
     Ok(())
 }
 

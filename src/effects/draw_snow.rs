@@ -239,15 +239,15 @@ fn square_x87(
     l: &SnowLight,
 ) {
     let t0 = bh::ld(s.turned[2]);
-    let t1 = crate::math::x87_float::ld(front.window.view_scale.get()) / t0;
+    let t1 = crate::math::x87_float::ld(front.window.borrow().view_scale) / t0;
     s.depth = bh::st(t1);
     let t2 = bh::ld(s.turned[1]);
     let t3 = t2 * t1;
     let t4 = t1 * bh::ld(s.turned[0]);
     let t5 = -t3;
-    let t6 = t5 + crate::math::x87_float::ld(front.window.view_centre[1].get());
+    let t6 = t5 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     st(vt, 0x4, t6);
-    let t7 = t4 + crate::math::x87_float::ld(front.window.view_centre[0].get());
+    let t7 = t4 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     st(vt, 0x0, t7);
     let t8 = bh::ld(l.side);
     let t9 = t8 * bh::ld(s.depth);

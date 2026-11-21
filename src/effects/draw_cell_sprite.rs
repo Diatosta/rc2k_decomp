@@ -208,7 +208,7 @@ fn square_x87(
     dw: &mut DrawWork,
     cs: &CornerSlopes,
 ) -> u32 {
-    let t0 = crate::math::x87_float::ld(front.window.view_scale.get());
+    let t0 = crate::math::x87_float::ld(front.window.borrow().view_scale);
     let t1 = t0 / bh::ld(dw.turned[2]);
     let t2 = bh::ld(dw.turned[2]);
     let t3 = t2 * bh::ld(dw.z_k);
@@ -251,7 +251,7 @@ fn square_x87(
     let t28 = t1 * bh::ld(dw.turned[0]);
     let t29 = t1 * bh::ld(dw.turned[1]);
     let t30 = -t29;
-    let t31 = t30 + crate::math::x87_float::ld(front.window.view_centre[1].get());
+    let t31 = t30 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
     let t32 = t31 - bh::ld(dw.sprite_half[1]);
     st_cell(&buffer.vertices[0].y, t32);
     let t33 = t31 - bh::ld(dw.sprite_half[3]);
@@ -260,7 +260,7 @@ fn square_x87(
     st_cell(&buffer.vertices[2].y, t34);
     let t35 = t31 + bh::ld(dw.sprite_half[3]);
     st_cell(&buffer.vertices[3].y, t35);
-    let t36 = t28 + crate::math::x87_float::ld(front.window.view_centre[0].get());
+    let t36 = t28 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
     let t37 = t36 - bh::ld(dw.sprite_half[0]);
     st_cell(&buffer.vertices[0].x, t37);
     let t38 = t36 - bh::ld(dw.sprite_half[2]);

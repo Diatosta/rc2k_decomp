@@ -45,7 +45,7 @@ pub fn project_entries(
     {
         return Err(BadInput("no points or no records for them").into());
     }
-    let far = view.polygon.window.farthest.get();
+    let far = view.polygon.window.borrow().farthest;
     let mut outside = 0u32;
     for entry in entries {
         let point = project_point(part, entry.point.get(), reads, view)?;

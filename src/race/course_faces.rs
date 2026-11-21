@@ -371,12 +371,12 @@ fn face_off_screen(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
         };
         n += 1;
     }
-    let clip = &ctx.view.polygon.window.clip_screen;
+    let clip = ctx.view.polygon.window.borrow().clip_screen;
     let edges = ScreenEdges {
-        top: clip[0].get(),
-        bottom: clip[1].get(),
-        left: clip[2].get(),
-        right: clip[3].get(),
+        top: clip[0],
+        bottom: clip[1],
+        left: clip[2],
+        right: clip[3],
     };
     Ok(off_screen(
         &corners[..n],
@@ -602,10 +602,10 @@ fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
         return Ok(triangles);
     }
     let [left, right, top, bottom] = screen_inside(
-        ctx.view.polygon.window.clip_edges[2].get(),
-        ctx.view.polygon.window.clip_edges[3].get(),
-        ctx.view.polygon.window.clip_edges[0].get(),
-        ctx.view.polygon.window.clip_edges[1].get(),
+        ctx.view.polygon.window.borrow().clip_edges[2],
+        ctx.view.polygon.window.borrow().clip_edges[3],
+        ctx.view.polygon.window.borrow().clip_edges[0],
+        ctx.view.polygon.window.borrow().clip_edges[1],
     );
     let inside = |v: u32, low: u32, high: u32| {
         let n = crate::math::x87::to_int(v) as u32;
@@ -1180,14 +1180,17 @@ mod vector_tests {
         let kept = Snapshot::of(&["owners.scene.draw_work", "owners.race.course.stage_prefs"]);
         let mut vectors = Vectors::open("race.course_faces.halfway_vertex", Kind::Exact, 8);
         let mut r = Rng(13);
-        let win = crate::scene::view_window::ViewWindow::new();
+        let win = crate::scene::view_window::first_window();
         at_each_control_word(|| {
             for n in 0..20000 {
                 course.stage_prefs.get().flat_depth.set((n % 2) as u32);
                 course.course.borrow_mut().flat_depth = r.int() as u32;
                 // The recorded run read the scene's window; this code reads the window it is given.
-                for own in [&win.view_scale, &win.view_centre[1], &win.view_centre[0]] {
-                    own.set(f32::from_bits(r.float()));
+                {
+                    let mut win = win.borrow_mut();
+                    win.view_scale = f32::from_bits(r.float());
+                    win.view_centre[1] = f32::from_bits(r.float());
+                    win.view_centre[0] = f32::from_bits(r.float());
                 }
                 let half = if r.below(2) == 0 {
                     0.5

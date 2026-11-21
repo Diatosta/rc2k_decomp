@@ -96,17 +96,21 @@ pub fn fog_table(
     sun: &crate::scene::polygon_work_store::ViewSun,
     window: &crate::scene::view_window::ViewWindow,
 ) -> Result<(), Refused> {
-    let length = window.view_depth[1].get().wrapping_shl(3);
+    let length = window.borrow().view_depth[1].wrapping_shl(3);
     if length == 0 || length > 0x1000 {
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
     let noise = sample_noise(tables, car, 0)?;
+    let (sun_size, sun_view_out) = {
+        let sun = sun.borrow();
+        (sun.size, sun.view_out)
+    };
     let set = rc2k_core::race::view::fog_table(
         noise,
         &rc2k_core::race::view::FogSettings {
             low: prefs.fog_low.get(),
             high: prefs.fog_high.get(),
-            scale: [sun.size.get(), sun.view_out.get()],
+            scale: [sun_size, sun_view_out],
             near: prefs.fog_near.get(),
             far: prefs.fog_far.get(),
             start: prefs.fog_start.get(),
@@ -136,7 +140,7 @@ pub fn set_up_fog(
     car: &crate::physics::car_store::ViewCar,
     part: &crate::scene::scratch_store::PartScratch,
 ) -> Result<(), Refused> {
-    let length = poly.window.view_depth[1].get().wrapping_shl(3);
+    let length = poly.window.borrow().view_depth[1].wrapping_shl(3);
     if length == 0 || length > 0x1000 {
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
@@ -259,7 +263,7 @@ pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Ba
     ctx.view.object.borrow_mut().place[1] = height;
     matrix::set_place(&m.placed_matrix, [0, height, 0]);
     matrix::copy_matrix_with_place(&m.turn_y_matrix, &m.placed_matrix, &m.turned_matrix);
-    let size = ctx.view.polygon.window.farthest_scaled.get() << 4;
+    let size = ctx.view.polygon.window.borrow().farthest_scaled << 4;
     ctx.view.object.borrow_mut().size = size;
     let scale = crate::math::x87::int_over_16(size as i32);
     for cell in &m.turned_matrix {
@@ -497,11 +501,11 @@ pub fn camera_view(
     if reads.view.players.get() > 2 {
         // A part of a larger split screen: the projection's scale follows the part's own shape
         // (as where the part's window is first set, `race::draw_race_scene`), not the screen's.
-        let size = &view.polygon.window.view_size;
+        let size = view.polygon.window.borrow().view_size;
         crate::scene::set_view_window::set_view_window_plain(
             reads.course(),
             &reads.scene_draw,
-            (size[0].get(), size[1].get()),
+            (size[0], size[1]),
             &view.polygon.window,
             &view.vars,
             &reads.vars.scale_factor,
@@ -578,8 +582,11 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
 fn place_sun(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     use crate::math::x87::{sun_direction, sun_on_screen, sun_size, tbyte_to_int, to_tbyte};
     let sun = &ctx.view.polygon.sun;
-    sun.on_screen.set(0);
-    sun.size.set(0);
+    {
+        let mut sun = sun.borrow_mut();
+        sun.on_screen = 0;
+        sun.size = 0;
+    }
     if ctx
         .reads
         .stage_prefs
@@ -624,27 +631,31 @@ fn place_sun(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused
             place[2] as i32,
             ctx.reads.course_work.get().flat_depth as i32,
         ],
-        window.view_scale.get(),
-        [window.view_centre[1].get(), window.view_centre[0].get()],
+        window.borrow().view_scale,
+        [
+            window.borrow().view_centre[1],
+            window.borrow().view_centre[0],
+        ],
         flat,
         &crate::memory::session::Dword::new(0),
     );
     let (ix, iy) = (ix as u32, iy as u32);
-    sun.place[0].set(fx.to_bits());
-    sun.hit[0].set(ix);
-    sun.place[1].set(fy.to_bits());
-    sun.hit[1].set(iy);
     let on = ix < ctx.reads.screen.width.get() && iy < ctx.reads.screen.height.get();
-    sun.on_screen.set(u32::from(on));
+    {
+        let mut sun = sun.borrow_mut();
+        sun.place = [fx.to_bits(), fy.to_bits()];
+        sun.hit = [ix, iy];
+        sun.on_screen = u32::from(on);
+    }
     let size = sun_size(
         fx,
-        ctx.view.polygon.window.view_centre[0].get(),
+        ctx.view.polygon.window.borrow().view_centre[0],
         fy,
-        ctx.view.polygon.window.view_centre[1].get(),
+        ctx.view.polygon.window.borrow().view_centre[1],
         ctx.reads.numbers.half.get(),
         ctx.reads.numbers.k256.get(),
     );
-    sun.size.set(if (size as i32) < 0 { 0 } else { size });
+    sun.borrow_mut().size = if (size as i32) < 0 { 0 } else { size };
     Ok(())
 }
 

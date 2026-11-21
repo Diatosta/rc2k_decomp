@@ -10,7 +10,6 @@
 //! clipping that runs out of entries (what it had written is put back first).
 
 use crate::errors::BadInput;
-use crate::memory::session::PlainFloat;
 use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
 
 // ---- game data ----
@@ -22,12 +21,12 @@ fn outside_mask<'p>(
 ) -> Result<(crate::scene::polygon::Listed<'p>, u32), BadInput> {
     let polygon_work = &part.polygon;
     let entries = listed_with_records(polygon_work, poly)?;
-    let edge = |cell: &PlainFloat| cell.get() as f64;
+    let screen = poly.window.borrow().clip_screen;
     let (left, right, top, bottom) = (
-        edge(&poly.window.clip_screen[2]),
-        edge(&poly.window.clip_screen[3]),
-        edge(&poly.window.clip_screen[0]),
-        edge(&poly.window.clip_screen[1]),
+        screen[2] as f64,
+        screen[3] as f64,
+        screen[0] as f64,
+        screen[1] as f64,
     );
     let mut mask = 0;
     for entry in &entries {
@@ -72,10 +71,10 @@ pub fn clip_polygon_to_screen(
     or_undone(|| {
         let mut listed = Some(entries);
         for (bit, edge, inside_past) in [
-            (1, Edge::X(poly.window.clip_screen[2].get()), true),
-            (2, Edge::X(poly.window.clip_screen[3].get()), false),
-            (4, Edge::Y(poly.window.clip_screen[0].get()), true),
-            (8, Edge::Y(poly.window.clip_screen[1].get()), false),
+            (1, Edge::X(poly.window.borrow().clip_screen[2]), true),
+            (2, Edge::X(poly.window.borrow().clip_screen[3]), false),
+            (4, Edge::Y(poly.window.borrow().clip_screen[0]), true),
+            (8, Edge::Y(poly.window.borrow().clip_screen[1]), false),
         ] {
             if mask & bit != 0 {
                 listed = clip_pass(part, poly, course, listed, edge, inside_past)?;

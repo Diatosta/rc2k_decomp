@@ -146,14 +146,11 @@ fn view_rest(
 ) -> Result<(), Refused> {
     let view = o.scene.scratch.main_view(car);
     // The overlays (the effects, the HUD's quads) draw in the front end's window: the view's.
-    {
-        use crate::memory::cells::Cells;
-        o.scene
-            .scratch
-            .front_end_polygon()
-            .window
-            .copy_from(&view.polygon.window);
-    }
+    o.scene
+        .scratch
+        .front_end_polygon()
+        .window
+        .copy_from(&view.polygon.window);
     // The debug UI's probe points need this view.
     if car == 0 {
         crate::debug::imgui_sdl::view_drawn(&o.race.frame, o.scene);
@@ -668,11 +665,12 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             let Some(part) = split.and_then(|split| split.part_of(views, view, (w, h))) else {
                 return;
             };
-            own.view_size[0].set(part.width);
-            own.view_offset[0].set(part.x);
-            own.view_size[1].set(part.height);
-            own.view_offset[1].set(part.y);
-            own.view_zoom.set(0x100);
+            {
+                let mut own = own.borrow_mut();
+                own.view_size = [part.width, part.height];
+                own.view_offset = [part.x, part.y];
+                own.view_zoom = 0x100;
+            }
             crate::scene::set_view_window::set_view_window_plain(
                 reads.course(),
                 &reads.scene_draw,

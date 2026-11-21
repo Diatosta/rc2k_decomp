@@ -60,12 +60,13 @@ pub(super) fn draw_view_backdrop(
     let buffer = &part.vertices;
     view.quad.borrow_mut().uv[0] = 0xF8_0000;
     view.quad.borrow_mut().uv[4] = 0x8_0000;
-    let left = view.polygon.window.view_offset[0].get();
+    let left = view.polygon.window.borrow().view_offset[0];
     view.quad.borrow_mut().corners[0] = left;
-    view.quad.borrow_mut().corners[1] = left.wrapping_add(view.polygon.window.view_size[0].get());
-    let top = view.polygon.window.view_offset[1].get();
+    view.quad.borrow_mut().corners[1] =
+        left.wrapping_add(view.polygon.window.borrow().view_size[0]);
+    let top = view.polygon.window.borrow().view_offset[1];
     view.quad.borrow_mut().corners[4] = top;
-    view.quad.borrow_mut().corners[5] = top.wrapping_add(view.polygon.window.view_size[1].get());
+    view.quad.borrow_mut().corners[5] = top.wrapping_add(view.polygon.window.borrow().view_size[1]);
     let v = &buffer.vertices;
     let x0 = int_and_one(reads.course(), view.quad.borrow().corners[0], false);
     v[0].x.set(x0);

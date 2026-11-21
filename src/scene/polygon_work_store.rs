@@ -8,8 +8,8 @@
 //! read by every view's drawing).
 
 use crate::memory::session::{PlainDword, PlainFloat};
+use crate::race::plain_slot::{Merge, PlainSlot, merge_run, merge_value};
 
-#[derive(rc2k_derive::Cells)]
 pub struct PolygonWork {
     /// The next free record of the pool.
     pub polygon_next_record: PlainDword,
@@ -84,24 +84,70 @@ pub struct PolygonWork {
 /// `scene::draw_polygon`, clears it), its size, its place on the screen as whole numbers and as
 /// floats' bits, and the view's value fetched from its block (`race::fetch_view_value`), which
 /// scales the fog with the size.
-#[derive(rc2k_derive::Cells)]
-pub struct ViewSun {
-    pub on_screen: PlainDword,
-    pub size: PlainDword,
-    pub hit: [PlainDword; 2],
-    pub place: [PlainDword; 2],
-    pub view_out: PlainDword,
+pub type ViewSun = PlainSlot<SunValues>;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct SunValues {
+    pub on_screen: u32,
+    pub size: u32,
+    pub hit: [u32; 2],
+    pub place: [u32; 2],
+    pub view_out: u32,
 }
 
-impl ViewSun {
+impl SunValues {
     pub const fn new() -> Self {
         Self {
-            on_screen: PlainDword::new(0),
-            size: PlainDword::new(0),
-            hit: [const { PlainDword::new(0) }; 2],
-            place: [const { PlainDword::new(0) }; 2],
-            view_out: PlainDword::new(0),
+            on_screen: 0,
+            size: 0,
+            hit: [0; 2],
+            place: [0; 2],
+            view_out: 0,
         }
+    }
+}
+
+impl Merge for SunValues {
+    fn merge_changes(&mut self, now: &Self, start: &Self) {
+        merge_value(&mut self.on_screen, &now.on_screen, &start.on_screen);
+        merge_value(&mut self.size, &now.size, &start.size);
+        merge_run(&mut self.hit, &now.hit, &start.hit);
+        merge_run(&mut self.place, &now.place, &start.place);
+        merge_value(&mut self.view_out, &now.view_out, &start.view_out);
+    }
+}
+
+/// The cells' fields, listed once for the two walks (the sun is a plain record, so the work
+/// cannot derive `Cells`).
+macro_rules! each_cell_field {
+    ($walk:ident, $($args:expr),*) => {
+        $walk!($($args,)* polygon_next_record, polygon_textures, texture_page, polygon_colour, polygon_texture, polygon_sides, polygon_kept, polygon_outside_count, polygon_vertex_count, polygon_next_entry, polygon_clip_mask, clip_plane, screen_clipped, depth_clipped, entry_third, face_sort_key, clip_work, clip_out_words, quad_vertices, smooth, plain_first, plain_second, cleared_rectangle, crossing_amount, fade_from, view_mirrored)
+    };
+}
+
+impl PolygonWork {
+    /// Every field set from `other`'s.
+    pub fn copy_from(&self, other: &Self) {
+        use crate::memory::cells::Cells;
+        macro_rules! copy {
+            ($to:expr, $from:expr, $($f:ident),*) => { $( $to.$f.copy_from(&$from.$f); )* };
+        }
+        each_cell_field!(copy, self, other);
+        self.sun.copy_from(&other.sun);
+        self.window.copy_from(&other.window);
+    }
+
+    /// What `now` changed since it was `start` put into this record, field by field.
+    pub fn merge_changes(&self, now: &Self, start: &Self) {
+        use crate::memory::cells::Cells;
+        macro_rules! merge {
+            ($to:expr, $now:expr, $start:expr, $($f:ident),*) => {
+                $( $to.$f.merge_changes(&$now.$f, &$start.$f); )*
+            };
+        }
+        each_cell_field!(merge, self, now, start);
+        self.sun.merge_changes(&now.sun, &start.sun);
+        self.window.merge_changes(&now.window, &start.window);
     }
 }
 
@@ -139,8 +185,8 @@ impl PolygonWork {
             crossing_amount: PlainDword::new(0),
             fade_from: PlainDword::new(0),
             view_mirrored: PlainDword::new(0),
-            sun: ViewSun::new(),
-            window: crate::scene::view_window::ViewWindow::new(),
+            sun: PlainSlot::new(SunValues::new()),
+            window: PlainSlot::new(crate::scene::view_window::WindowValues::new()),
         }
     }
 }

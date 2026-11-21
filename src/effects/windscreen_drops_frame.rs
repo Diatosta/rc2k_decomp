@@ -14,7 +14,6 @@ use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::effects::windscreen_drops::{ITEM_LEN, ITEMS};
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
 /// The vertex batch's bytes, past the 0x40 records of 0xC0 bytes.
@@ -228,7 +227,7 @@ fn sprite_corners_x87(
     c: usize,
 ) -> bh::X {
     let mut work = drops.work.borrow_mut();
-    let inverse_depth = bh::ld(front.window.view_scale.get()) / bh::ld(work.cell[2]);
+    let inverse_depth = bh::ld(front.window.borrow().view_scale) / bh::ld(work.cell[2]);
     // Axis by axis (x, y, z), each of the six corners.
     for axis in 0..3 {
         for corner in 0..6 {
@@ -254,7 +253,7 @@ fn sprite_project_x87(
     let hex = drops.hex.borrow();
     let mut work = drops.work.borrow_mut();
     let records = &gfx.card.windscreen_drop_batch.records;
-    let centre = |axis: usize| front.window.view_centre[axis].ld();
+    let centre = |axis: usize| crate::math::x87_float::ld(front.window.borrow().view_centre[axis]);
     work.cell[2] = stf(inverse_depth);
     // The centre.
     let up = -(bh::ld(work.cell[1]) * bh::ld(work.cell[2]));

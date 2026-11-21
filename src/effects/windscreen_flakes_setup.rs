@@ -61,6 +61,6 @@ pub(super) fn setup_with(
             .polygon_vertex_count
             .set(4);
         fl.tables.borrow_mut().inverse =
-            x87::reciprocal(&scene.scratch.front_end_polygon().window.farthest);
+            x87::reciprocal(scene.scratch.front_end_polygon().window.borrow().farthest);
     }
 }

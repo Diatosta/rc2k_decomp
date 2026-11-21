@@ -107,12 +107,13 @@ pub fn set_listener(
     for (k, figure) in listener::TURN_FIGURES.into_iter().enumerate() {
         race.effects_settings().listener_turn[k].set(view.view_turn_matrix[figure].get());
     }
+    let sun = *view.sun.borrow();
     race.effects_settings().listener_figures[0].set(listener::first_figure(
         race.shared.vars.get().settings_words[0].get(),
-        || view.sun.view_out.get(),
+        || sun.view_out,
     ));
-    race.effects_settings().listener_figures[1].set(view.sun.place[0].get());
-    race.effects_settings().listener_figures[2].set(view.sun.place[1].get());
+    race.effects_settings().listener_figures[1].set(sun.place[0]);
+    race.effects_settings().listener_figures[2].set(sun.place[1]);
     let f = listener::listener_points(f, GROUND_DROP);
     for (k, &v) in f.iter().enumerate() {
         physics.camera_mut().listener_points[k] = v as u32;

@@ -209,10 +209,14 @@ fn hit_test(
     sun: &crate::scene::polygon_work_store::ViewSun,
     entries: &[Listed],
 ) {
-    if sun.on_screen.get() == 0 {
+    let (on_screen, hit) = {
+        let sun = sun.borrow();
+        (sun.on_screen, sun.hit)
+    };
+    if on_screen == 0 {
         return;
     }
-    let point = crate::memory::session::read_bits(&sun.hit).map(|v| v as i32);
+    let point = hit.map(|v| v as i32);
     if entries.len() < 3 {
         return;
     }
@@ -236,7 +240,7 @@ fn hit_test(
             return;
         }
     }
-    sun.on_screen.set(0);
+    sun.borrow_mut().on_screen = 0;
 }
 
 /// The positions into the vertex buffer, mirrored for a mirrored view.
@@ -263,11 +267,11 @@ fn place_with<R: x87_float::Rounds>(
 ) {
     let buffer = &part.vertices;
     let (x_offset, y_offset) = (
-        window.view_offset_float[0].get(),
-        window.view_offset_float[1].get(),
+        window.borrow().view_offset_float[0],
+        window.borrow().view_offset_float[1],
     );
-    let depth_factor = window.one_over_farthest.get();
-    let mirror_at = window.view_centre[0].get();
+    let depth_factor = window.borrow().one_over_farthest;
+    let mirror_at = window.borrow().view_centre[0];
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let vertex = entry.record.get();
         let out = out(buffer, n);

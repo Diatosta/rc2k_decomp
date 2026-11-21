@@ -196,9 +196,9 @@ pub fn draw_view_tint(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     view.quad.borrow_mut().corners[0] = 0u32;
-    view.quad.borrow_mut().corners[1] = view.polygon.window.view_size[0].get();
+    view.quad.borrow_mut().corners[1] = view.polygon.window.borrow().view_size[0];
     view.quad.borrow_mut().corners[4] = 0u32;
-    view.quad.borrow_mut().corners[5] = view.polygon.window.view_size[1].get();
+    view.quad.borrow_mut().corners[5] = view.polygon.window.borrow().view_size[1];
     view.quad.borrow_mut().colour[0] = 0x20_4080u32;
     poly.polygon_textures[0].set(u32::MAX);
     poly.polygon_sides[0].set(1u32);
