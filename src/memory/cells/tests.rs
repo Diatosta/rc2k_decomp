@@ -235,7 +235,6 @@ macro_rules! cells_stores {
 fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     let audio = crate::test_support::own::audio();
     let scene = crate::test_support::own::scene();
-    let effects = crate::test_support::own::effects();
     let menus = crate::test_support::own::menus();
     let race = crate::test_support::own::race();
     let _lock = crate::test_support::test_lock();
@@ -249,7 +248,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         audio.state,
         audio.sample_records,
         menus.play.slots.pointers,
-        effects.paths.spline_head,
         *race.physics.contact.get(),
         *race.physics.lit_faces.get(),
         *race.physics.ground(),

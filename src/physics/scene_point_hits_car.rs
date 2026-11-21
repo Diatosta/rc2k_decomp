@@ -1,6 +1,5 @@
 //! `physics::point_hits_car` for the scene point whose number is the record's second dword (the
-//! scene points, 12 bytes each), with no offset: `scene_point_hits` is incremented and
-//! `object_offset` set to 0.
+//! scene points, 12 bytes each), with no offset: `object_offset` set to 0.
 
 use crate::errors::Refused;
 use crate::physics::flow::fill_cells;
@@ -14,9 +13,6 @@ pub(super) fn scene_point_hits_car(
     face: u32,
 ) -> Result<(bool, u32), Refused> {
     let number = crate::race::course_places::face_field::<u32>(c.course.reads(), face, 4)?;
-    c.tables
-        .scene_point_hits
-        .set(c.tables.scene_point_hits.get().wrapping_add(1));
     fill_cells(&c.contact.object_offset, 0.0);
     let place = crate::race::scene_points::point_number(
         c.course.reads(),

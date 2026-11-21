@@ -38,9 +38,9 @@ fn refusal(paths: &Paths, s: Spline) -> Result<(), Refused> {
             }
             turnable_record(paths, s, turns)?;
         }
-        if paths.spline_head.switch.get() != paths.spline_kinds.chosen[0].get()
-            && s.get(paths, 0x30)? >= MOST_POINTS
-        {
+        let switch = paths.spline_head.borrow().switch;
+        let chosen = paths.spline_kinds.borrow().chosen[0];
+        if switch != chosen && s.get(paths, 0x30)? >= MOST_POINTS {
             return Err(BadInput("a spline point number of 0x80 or more").into());
         }
     }

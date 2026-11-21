@@ -16,7 +16,6 @@ use crate::effects::paths_store::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
-use crate::memory::session::PlainFloat;
 use crate::race::owner::Race;
 use crate::scene::rotate_point::rotate_point;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
@@ -81,9 +80,10 @@ pub fn draw_mark_slots(
         let at = |n: usize| {
             paths
                 .spline_head
+                .borrow()
                 .points
                 .get(p + n)
-                .map(PlainFloat::get)
+                .copied()
                 .ok_or(BadInput("a mark slot's point past the car models'"))
         };
         let [a, b, c] = [-at(0)?, at(1)?, at(2)?];

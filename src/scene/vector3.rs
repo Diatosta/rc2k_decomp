@@ -3,7 +3,7 @@
 //! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the tests compare against
 //! recorded vectors (`data/vectors`).
 
-use crate::math::cells::{Cells, load};
+use crate::math::cells::Cells;
 use crate::math::x87_float::{ONE, compare, ld, stf};
 use crate::math::x87_mem::{Base, cells, fld, fnstsw, fstp80};
 
@@ -67,35 +67,6 @@ fn cosine(a: impl Base, b: impl Base, s: impl Base) {
     let t2 = fld(b, 0x0);
     let t3 = compare(t1, t2);
     fnstsw(s, 0x0, t3); // status word C3 C2 C0 (TOP not modelled)
-}
-
-/// `scene::angle_between_vectors`: the two vectors normalised in
-/// place (in order), their dot product kept as a float, and the angle whose cosine it
-/// is found by 16 halvings from pi / 2 by pi / 4 (floats each step; out when the compare
-/// is unordered); the last compare's C0 .. C2 in the shared FPU status cell.
-/// Returns the angle (a float, loaded).
-pub fn angle_between_vectors(
-    a: &(impl Cells + ?Sized),
-    b: &(impl Cells + ?Sized),
-    work: &std::cell::RefCell<crate::effects::work_store::MarksWork>,
-) -> [u8; 10] {
-    let mut angle = crate::math::x87::loaded(work.borrow().cosine_start);
-    let mut step = crate::math::x87::loaded(work.borrow().cosine_step);
-    normalise(b);
-    normalise(a);
-    let dot = crate::math::matrix3::rounded(dot_product3(load(a), load(b)));
-    let half: u32 = work.borrow().cosine_half;
-    for _ in 0..16 {
-        let status = cosine_against(angle.to_bits(), dot);
-        work.borrow_mut().fpu_status = status;
-        match status {
-            0x400 => break,
-            0x100 => angle = crate::math::x87::sub(angle, step),
-            _ => angle = crate::math::x87::add(angle, step),
-        }
-        step = crate::math::x87::mul(step, half);
-    }
-    crate::math::matrix3::extended(angle)
 }
 
 /// `angle_between_vectors` on plain float vectors.

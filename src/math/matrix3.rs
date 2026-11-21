@@ -5,26 +5,9 @@
 //! recorded vectors (`data/vectors`).
 
 use crate::errors::{BadInput, Refused};
-use crate::math::cells::{Cells, Off};
+#[cfg(test)]
+use crate::math::cells::Cells;
 use crate::math::x87_float::{self as bh, ONE, Rounds, X, f80, from_f80, ld, st, stf};
-
-/// `scene::multiply_matrices3`: `out` = `a` x `b`, column by column, each written as made (so
-/// an `out` that is one of the two behaves as written in place): a's row times b's column,
-/// p1 + (p2 + p3) (`math::x87::row_times_column_3`).
-pub fn multiply_matrices3(
-    a: &(impl Cells + ?Sized),
-    b: &(impl Cells + ?Sized),
-    out: &(impl Cells + ?Sized),
-) {
-    bh::at_rounding!(|r| {
-        for column in 0..3 {
-            for row in 0..3 {
-                let v = row_times_column(r, &Off(a, 3 * row), &Off(b, column));
-                out.set_float(3 * row + column, r.stf(v));
-            }
-        }
-    });
-}
 
 /// `multiply_matrices3` on plain floats: `a` x `b` (the product has its own cells, as when no
 /// `out` is one of the two).
@@ -42,6 +25,7 @@ pub fn multiply_matrices3_plain(a: &[f32; 9], b: &[f32; 9]) -> [f32; 9] {
     })
 }
 
+#[cfg(test)]
 /// `math::x87::row_times_column` for 3 x 3 matrices: `a`'s first three cells times `b`'s
 /// cells 0, 3 and 6, p1 + (p2 + p3), before it is stored; at the rounding `r`.
 fn row_times_column<R: Rounds>(
@@ -60,6 +44,7 @@ pub(crate) fn row_times_column_3(a: &(impl Cells + ?Sized), b: &(impl Cells + ?S
     bh::at_rounding!(|r| r.st(row_times_column(r, a, b)))
 }
 
+#[cfg(test)]
 /// Cells holding whole numbers (a point's three dwords).
 trait WholeCells: Cells {
     /// Cell `n` as the whole number it holds.
@@ -72,8 +57,10 @@ trait WholeCells: Cells {
     }
 }
 
+#[cfg(test)]
 impl<C: Cells + ?Sized> WholeCells for C {}
 
+#[cfg(test)]
 /// A point of three whole numbers at cells `from + 3 n` turned by the matrix `m` into cells
 /// `to + 3 n`: x m0 + (y m1 + z m2), x m3 + (y m4 + z m5), y m7 + (x m6 + z m8), each
 /// rounded to a whole number as made (`to` may be `from`).
@@ -94,28 +81,6 @@ pub(crate) fn turn_int_point(
         let third = y * c(7) + (x * c(6) + z * c(8));
         to.set_whole(3 * n + 2, r.to_int(third));
     });
-}
-
-/// `scene::transform_int_points`: `count` points of three whole numbers from
-/// `from` turned by the matrix `m` into `to`. Refuses a count of 0x80000000 (the count would
-/// run away) and one past either run's cells.
-pub fn transform_int_points(
-    from: &(impl Cells + ?Sized),
-    to: &(impl Cells + ?Sized),
-    count: u32,
-    m: &(impl Cells + ?Sized),
-) -> Result<(), Refused> {
-    if count == 0x8000_0000 {
-        return Err(BadInput("a count of 0x80000000: the original runs away").into());
-    }
-    let count = (count as i32).max(0) as usize;
-    if 3 * count > from.count() || 3 * count > to.count() {
-        return Err(BadInput("points past their run").into());
-    }
-    for n in 0..count {
-        turn_int_point(from, m, to, n);
-    }
-    Ok(())
 }
 
 /// `transform_int_points` on plain bytes: `count` points of three little-endian whole numbers
@@ -175,19 +140,6 @@ pub fn turnable(angle: &[u8; 10]) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The matrix `m` a turn by the angle about `axis`.
-/// Refuses an angle `fsincos` cannot take.
-pub fn turn_matrix3(axis: Axis, m: &(impl Cells + ?Sized), angle: [u8; 10]) -> Result<(), Refused> {
-    turnable(&angle)?;
-    let order = match axis {
-        Axis::X => TURN_X,
-        Axis::Y => TURN_Y,
-        Axis::Z => TURN_Z,
-    };
-    turn(order, angle, m);
-    Ok(())
-}
-
 /// `turn_matrix3` on nine plain floats.
 pub fn turn_matrix3_plain(axis: Axis, m: &mut [f32; 9], angle: [u8; 10]) -> Result<(), Refused> {
     turnable(&angle)?;
@@ -231,6 +183,7 @@ fn turn_values(angle: [u8; 10]) -> [X; 9] {
     ]
 }
 
+#[cfg(test)]
 fn turn(stores: Stores, angle: [u8; 10], m: &(impl Cells + ?Sized)) {
     for (cell, value) in stores.into_iter().zip(turn_values(angle)) {
         m.set_float(cell, stf(value));

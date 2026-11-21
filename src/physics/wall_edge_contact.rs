@@ -2,8 +2,8 @@
 //! four edges ((p1, p2), (p3, p1), (p4, p3), (p2, p4) of its corner words) are looked for in the
 //! other face (`rc2k_core::physics::faces::has_edge`); none shared: `physics::wall_push_back`. The
 //! first shared, its ends swapped, goes into `wall_edge_from`, `wall_edge_to`; their scene points'
-//! x, z into `edge_points`; the edge's heading (arctangent of the differences, x `one_over_two_pi`
-//! x 65536, & 0xFFFF) << 16 + 0x40000000 into `wall_heading`; the normal (0, 0, 1) turned by it
+//! x, z give the edge's heading (arctangent of the differences, x `one_over_two_pi`
+//! x 65536, & 0xFFFF) << 16 + 0x40000000; the normal (0, 0, 1) turned by it
 //! (`math::rotate_float_point_about_y`) into `contact_normal`; the speeds taken, the point of
 //! the met probe (its y x `tenth`), no slide limit; `physics::contact_force` into contact record 4,
 //! `physics::place_sound_e1`.
@@ -21,7 +21,6 @@ use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::copy_cells;
 use crate::physics::step_families::ContactInputs;
-use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use rc2k_core::physics::walls;
@@ -34,15 +33,13 @@ fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
 }
 
 /// The normal across the edge from scene point `first` to `second` (also used by
-/// `crossed_edge_contact`): their x, z go into `edge_points`; the heading (the arctangent of the
-/// differences, x `one_over_two_pi` x 65536, & 0xFFFF) << 16 + 0x40000000 goes into
-/// `wall_heading`; (0, 0, 1) turned by it (`math::rotate_float_point_about_y`) goes into
-/// `contact_normal`.
+/// `crossed_edge_contact`): the heading (the arctangent of the differences of their x, z, x
+/// `one_over_two_pi` x 65536, & 0xFFFF) << 16 + 0x40000000 turns (0, 0, 1)
+/// (`math::rotate_float_point_about_y`) into `contact_normal`.
 pub(super) fn edge_normal(
     engine_tables: &crate::math::engine_tables::EngineTables,
     contact: &ContactWork,
     course: &Course,
-    physics_tables: &PhysicsTables,
     first: u32,
     second: u32,
 ) -> Result<(), Refused> {
@@ -54,20 +51,13 @@ pub(super) fn edge_normal(
             k,
         )
     };
-    physics_tables.edge_points[0].set(rd(first, 0)?);
-    physics_tables.edge_points[1].set(rd(first, 2)?);
-    physics_tables.edge_points[2].set(rd(second, 0)?);
-    physics_tables.edge_points[3].set(rd(second, 2)?);
-    let dx = physics_tables.edge_points[2]
-        .get()
-        .wrapping_sub(physics_tables.edge_points[0].get());
-    let dz = physics_tables.edge_points[3]
-        .get()
-        .wrapping_sub(physics_tables.edge_points[1].get());
+    let (first_x, first_z) = (rd(first, 0)?, rd(first, 2)?);
+    let (second_x, second_z) = (rd(second, 0)?, rd(second, 2)?);
+    let dx = second_x.wrapping_sub(first_x);
+    let dz = second_z.wrapping_sub(first_z);
     let d = [dx, dz];
     let turns = x87_1(course.numbers.get(), d) & 0xFFFF;
     let heading = (turns << 16).wrapping_add(0x4000_0000);
-    physics_tables.wall_heading.set(heading);
     let (out, _) = rotate_float_point_about_y(
         engine_tables,
         0.0,
@@ -109,7 +99,6 @@ pub fn steps(
         &c.shared.buffers.reads.get().engine_tables,
         c.contact,
         c.course,
-        c.tables,
         to,
         from,
     )?;

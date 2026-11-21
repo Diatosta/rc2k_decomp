@@ -5,9 +5,6 @@
 /// One past the last try; none clear: the car is reset.
 pub(crate) const TRIES_END: u32 = 0x100;
 
-/// The car's speed scale before the tries' figure.
-pub const TRY_MARK: u32 = 0x5A;
-
 /// The first try: 0x70 + (the car's clock & 0xF).
 pub fn first_try(clock: u32) -> u32 {
     (clock & 0xF) + 0x70

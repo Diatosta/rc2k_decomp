@@ -1,8 +1,7 @@
 //! Pushes the work car back off a wall against its motion: minus its speed (`velocity`) goes into
 //! `work_vector` (0 when its length, `physics::vector_length`, is 0), made one long
 //! (`race::normalise_work_vector`) as the normal; the speed and the turn speed taken, the point 0,
-//! no slide limit; `physics::contact_force` into contact record 4, `physics::place_sound_e1`;
-//! `wall_heading` = -1.
+//! no slide limit; `physics::contact_force` into contact record 4, `physics::place_sound_e1`.
 //!
 //! Refuses what `place_sound_e1` refuses (what was written is put back).
 
@@ -34,6 +33,5 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     c.contact.contact_slide_limit.set(0.0);
     contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[4]);
     { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
-    c.tables.wall_heading.set(u32::MAX);
     Ok(())
 }

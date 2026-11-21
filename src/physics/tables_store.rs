@@ -142,12 +142,6 @@ pub struct PhysicsTables {
     pub top_speed: PlainFloat,
     /// The engine's highest speed.
     pub rev_limit: PlainFloat,
-    /// Hits of scene points on the car this step.
-    pub scene_point_hits: PlainDword,
-    /// Hits of objects on the car this step.
-    pub object_hits: PlainDword,
-    /// Hits of points on the car this step.
-    pub point_hits: PlainDword,
     /// The face `physics::find_clear_place` logs.
     pub clear_place_face: PlainDword,
     /// The two surfaces' scales by tyre kind (`physics::wheel_surfaces`).
@@ -174,16 +168,8 @@ pub struct PhysicsTables {
     pub downforce: PlainFloat,
     /// The wheels' spring forces (`physics::wheel_springs`).
     pub spring_forces: [PlainFloat; 4],
-    /// The wall edge's two points' x and z (`physics::wall_edge_contact`).
-    pub edge_points: [PlainDword; 4],
-    /// The wall's heading, -1 none.
-    pub wall_heading: PlainDword,
-    /// Physics steps counted (`physics::car_physics_step`).
-    pub step_count: PlainDword,
     /// The two axles' pushes (`physics::drive_wheels_step`, `physics::wheel_springs`).
     pub wheel_spin_push: [PlainFloat; 2],
-    /// (`physics::feel_ground`).
-    pub feel_word: PlainDword,
     /// The car's place saved (`physics::restore_saved_car`).
     pub saved_place: [PlainDword; 3],
     /// The car's matrix saved.
@@ -229,8 +215,6 @@ pub struct PhysicsTables {
     pub surface_seconds: [PlainDword; 5],
     /// `physics::find_clear_place`'s count, 0 when clear.
     pub clear_place_count: PlainDword,
-    /// Its tries.
-    pub clear_place_tries: PlainDword,
     /// (`physics::drive_force`, `physics::free_rev`).
     pub drive_ratio: PlainFloat,
     /// (`physics::engine_torque`).
@@ -270,8 +254,6 @@ pub struct PhysicsTables {
     pub spec_torque: [PlainDword; 9],
     /// The spec's grip (`physics::drive_grip_forces`).
     pub spec_grip: PlainFloat,
-    /// The spec's second grip.
-    pub spec_grip_b: PlainFloat,
     /// The spec's wheel figure (`physics::drive_wheels_step`).
     pub spec_wheel: PlainFloat,
     /// (`physics::drive_wheels_step`).
@@ -290,8 +272,6 @@ pub struct PhysicsTables {
     pub ride_height_handling_scale: PlainDword,
     /// (`physics::drive_wheels_step`).
     pub axle_slip_limits: [PlainFloat; 2],
-    /// (`physics::find_clear_place`).
-    pub clear_place_mark: PlainDword,
     /// `physics::sum_forces`' five sums.
     pub force_sums: [PlainFloat; 5],
     /// The gear asked for (`physics::take_asked_gear`).
@@ -467,8 +447,8 @@ mod tests {
         for byte in &bytes {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
         }
-        assert_eq!(bytes.len(), 2592);
-        assert_eq!(hash, 9_689_450_006_470_470_424);
+        assert_eq!(bytes.len(), 2540);
+        assert_eq!(hash, 14_233_736_814_369_797_016);
     }
 
     #[test]

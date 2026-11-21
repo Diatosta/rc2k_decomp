@@ -1,5 +1,5 @@
 //! Whether any point of the object hit (`face_object`) lies inside the work car's box.
-//! `object_hits` is incremented; `physics::object_turn_matrix` runs; then each of the object's
+//! `physics::object_turn_matrix` runs; then each of the object's
 //! points (in `object_points`, three whole numbers each) is turned by `object_turn_matrix`
 //! (`scene::rotate_point`) and rounded into the offset `object_offset`, then
 //! `physics::point_hits_car` runs with the caller's object; the first inside ends it.
@@ -35,9 +35,6 @@ pub fn object_hits_car(
             scene,
         )
     }?;
-    c.tables
-        .object_hits
-        .set(c.tables.object_hits.get().wrapping_add(1));
     let count = objects.slots.get().point_counts[number as usize].get();
     // The points' table is read only when there are some.
     let points = if count == 0 {

@@ -20,7 +20,7 @@ use crate::math::x87;
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
 use crate::physics::car_store::Car;
-use crate::physics::figures::{SPEC_DEFAULT_BA0, SPEC_DEFAULT_BA4, SPEC_DEFAULT_BA8};
+use crate::physics::figures::{SPEC_DEFAULT_BA0, SPEC_DEFAULT_BA8};
 use crate::physics::gear_store::GearFigures;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::car_specs_store::CarSpec;
@@ -94,7 +94,6 @@ pub fn load_car_specs(
         scale_default_ratios(physics_tables, course.numbers.get());
     }
     physics_tables.spec_grip.set(SPEC_DEFAULT_BA0);
-    physics_tables.spec_grip_b.set(SPEC_DEFAULT_BA4);
     physics_tables.spec_wheel.set(SPEC_DEFAULT_BA8);
     scale_record_grips(physics_tables, spec);
     physics_tables.downforce_spec.set(spec.downforce);

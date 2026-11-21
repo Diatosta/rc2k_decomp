@@ -7,7 +7,6 @@
 use crate::effects::paths_store::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::memory::session::{PlainBytes, PlainDword, read_bits};
 use crate::race::owner_course::Course;
 
 pub(super) const SPLINE_LEN: u32 = 0xE90;
@@ -38,16 +37,6 @@ impl Spline {
         Spline(t as u32 * TABLE_LEN + n * SPLINE_LEN)
     }
 
-    /// The table byte `at` of the four tables is in.
-    fn table_byte(paths: &Paths, at: u32) -> &PlainBytes<29824> {
-        [
-            &paths.spline_tables.a,
-            &paths.spline_tables.b,
-            &paths.spline_tables.c,
-            &paths.spline_tables.d,
-        ][(at / TABLE_LEN) as usize]
-    }
-
     /// The four bytes at `o` from the record, refused past the tables.
     fn place(self, o: u32) -> Result<u32, BadInput> {
         match self.0.checked_add(o) {
@@ -59,10 +48,11 @@ impl Spline {
     /// The dword at `o` (unaligned: the records are).
     pub fn get(self, paths: &Paths, o: u32) -> Result<u32, BadInput> {
         let at = self.place(o)?;
+        let store = paths.spline_tables.borrow();
         let mut v = [0u8; 4];
         for (k, b) in v.iter_mut().enumerate() {
             let at = at + k as u32;
-            *b = Self::table_byte(paths, at).get((at % TABLE_LEN) as usize);
+            *b = store.tables[(at / TABLE_LEN) as usize][(at % TABLE_LEN) as usize];
         }
         Ok(u32::from_le_bytes(v))
     }
@@ -70,9 +60,10 @@ impl Spline {
     /// The dword at `o` set to `v`.
     pub fn put(self, paths: &Paths, o: u32, v: u32) -> Result<(), BadInput> {
         let at = self.place(o)?;
+        let mut store = paths.spline_tables.borrow_mut();
         for (k, b) in v.to_le_bytes().into_iter().enumerate() {
             let at = at + k as u32;
-            Self::table_byte(paths, at).set((at % TABLE_LEN) as usize, b);
+            store.tables[(at / TABLE_LEN) as usize][(at % TABLE_LEN) as usize] = b;
         }
         Ok(())
     }
@@ -111,13 +102,14 @@ impl Spline {
         Ok(rc2k_core::effects::splines::points(self.get(paths, COUNT)?)? as u32)
     }
 
-    /// The `n` points from point `first` (from `COORDS`), as cells for the matrix helpers.
-    pub fn points(self, paths: &Paths, first: u32, n: u32) -> Result<Vec<PlainDword>, BadInput> {
+    /// The `n` points from point `first` (from `COORDS`) as little-endian bytes, 12 a point,
+    /// for the matrix helpers.
+    pub fn points(self, paths: &Paths, first: u32, n: u32) -> Result<Vec<u8>, BadInput> {
         Ok(self
             .triples(paths, COORDS + 12 * first, n)?
             .as_flattened()
             .iter()
-            .map(|&v| PlainDword::new(v))
+            .flat_map(|v| v.to_le_bytes())
             .collect())
     }
 }
@@ -262,14 +254,14 @@ fn gather_spline_points(
             return Err(BadInput("an object's faces past g_faces").into());
         }
         s.put(paths, COUNT, 0)?;
-        paths.spline_head.found.set(0);
+        paths.spline_head.borrow_mut().found = 0;
         for f in first..first + faces {
             let face: u32 = crate::scene::objects::face_cell(faces_table, f as usize).get();
             if (course.stage.object_faces.byte(face + 7)? & 0x1F) as u32 == kind {
-                paths
-                    .spline_head
-                    .found
-                    .set(paths.spline_head.found.get().wrapping_add(1));
+                {
+                    let mut head = paths.spline_head.borrow_mut();
+                    head.found = head.found.wrapping_add(1);
+                }
                 add_face_points(&course.stage.object_faces, paths, s, face)?;
             }
         }
@@ -297,22 +289,19 @@ fn negated(f: u32) -> [u8; 10] {
     a
 }
 
-/// The X x Y x Z products of `turn_spline_points` and `turn_record`.
-fn multiply_turns(paths: &Paths) {
-    for (a, b, out) in [
-        (
-            &paths.spline_work.turn_x,
-            &paths.spline_work.turn_y,
-            &paths.spline_work.turn_xy,
-        ),
-        (
-            &paths.spline_work.turn_xy,
-            &paths.spline_work.turn_z,
-            &paths.spline_work.turn,
-        ),
-    ] {
-        crate::math::matrix3::multiply_matrices3(a, b, out);
+/// The turns about X, Y and Z by `angles`, multiplied: X x Y, then that x Z.
+fn multiplied_turns(angles: [[u8; 10]; 3]) -> Result<[f32; 9], Refused> {
+    use crate::math::matrix3::{Axis, multiply_matrices3_plain, turn_matrix3_plain};
+    let mut turns = [[0.0f32; 9]; 3];
+    for ((axis, to), angle) in [Axis::X, Axis::Y, Axis::Z]
+        .into_iter()
+        .zip(turns.iter_mut())
+        .zip(angles)
+    {
+        turn_matrix3_plain(axis, to, angle)?;
     }
+    let xy = multiply_matrices3_plain(&turns[0], &turns[1]);
+    Ok(multiply_matrices3_plain(&xy, &turns[2]))
 }
 
 /// `effects::turn_spline_points`: the turns about X, Y, Z by minus record `s`'s three angles
@@ -320,7 +309,7 @@ fn multiply_turns(paths: &Paths) {
 /// record's points turned by it in place. Refuses more than 0x80 points or an angle with
 /// no sine and cosine, before writing anything.
 fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
-    use crate::math::matrix3::{Axis, turn_matrix3, turnable};
+    use crate::math::matrix3::turnable;
     s.count(paths)?;
     let mut angles = [negated(0); 3];
     for (a, o) in angles.iter_mut().zip([0x20u32, 0x24, 0x28]) {
@@ -329,28 +318,17 @@ fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     for a in &angles {
         turnable(a)?;
     }
-    for ((axis, to), angle) in [
-        (Axis::X, &paths.spline_work.turn_x),
-        (Axis::Y, &paths.spline_work.turn_y),
-        (Axis::Z, &paths.spline_work.turn_z),
-    ]
-    .into_iter()
-    .zip(angles)
-    {
-        turn_matrix3(axis, to, angle)?;
-    }
-    multiply_turns(paths);
+    paths.spline_work.borrow_mut().turn = multiplied_turns(angles)?;
     let n = s.count(paths)?;
     let points = s.points(paths, 0, n)?;
-    crate::math::matrix3::transform_int_points(
-        &points[..],
-        &points[..],
-        n,
-        &paths.spline_work.turn,
-    )?;
-    let turned: Vec<u32> = points
+    let mut turned = vec![0u8; points.len()];
+    let turn = paths.spline_work.borrow().turn;
+    crate::math::matrix3::transform_int_points_bytes(&points, &mut turned, n, &turn)?;
+    let turned: Vec<u32> = turned
+        .as_chunks::<4>()
+        .0
         .iter()
-        .map(crate::memory::session::PlainDword::get)
+        .map(|w| u32::from_le_bytes(*w))
         .collect();
     s.put_words(paths, COORDS, &turned)?;
     Ok(())
@@ -397,18 +375,12 @@ pub(super) fn turnable_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Re
 /// turns, X x Y into the XY turn, that x Z into the turn, as
 /// `effects::place_shape_points` and `effects::place_graded_points` do.
 pub(super) fn turn_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<(), Refused> {
-    use crate::math::matrix3::{Axis, extended, turn_matrix3};
-    for ((axis, to), o) in [
-        (Axis::X, &paths.spline_work.turn_x),
-        (Axis::Y, &paths.spline_work.turn_y),
-        (Axis::Z, &paths.spline_work.turn_z),
-    ]
-    .into_iter()
-    .zip(offsets)
-    {
-        turn_matrix3(axis, to, extended(s.get(paths, o)?))?;
+    use crate::math::matrix3::extended;
+    let mut angles = [[0u8; 10]; 3];
+    for (angle, o) in angles.iter_mut().zip(offsets) {
+        *angle = extended(s.get(paths, o)?);
     }
-    multiply_turns(paths);
+    paths.spline_work.borrow_mut().turn = multiplied_turns(angles)?;
     Ok(())
 }
 
@@ -425,12 +397,18 @@ pub(super) fn transform_int_points_from(
         return Err(BadInput("points past the record's 0x80").into());
     }
     let points = s.points(paths, first, count)?;
-    crate::math::matrix3::transform_int_points(
-        &points[..],
-        &paths.spline_work.ordered_coords,
-        count,
-        &paths.spline_work.turn,
-    )
+    let mut turned = vec![0u8; points.len()];
+    let turn = paths.spline_work.borrow().turn;
+    crate::math::matrix3::transform_int_points_bytes(&points, &mut turned, count, &turn)?;
+    let mut work = paths.spline_work.borrow_mut();
+    for (cell, w) in work
+        .ordered_coords
+        .iter_mut()
+        .zip(turned.as_chunks::<4>().0)
+    {
+        *cell = u32::from_le_bytes(*w);
+    }
+    Ok(())
 }
 
 /// Ordered point `k` plus record `s`'s centre written through the record's pointer
@@ -444,13 +422,15 @@ pub(super) fn write_point(
 ) -> Result<(), Refused> {
     {
         let to = s.get(paths, IDS + 4 * pointer)?;
-        let ordered = &paths.spline_work.ordered_coords;
         for c in 0..3 {
-            let from = ordered
+            let from = *paths
+                .spline_work
+                .borrow()
+                .ordered_coords
                 .get((3 * k + c) as usize)
                 .ok_or(BadInput("an ordered point past 0x80"))?;
             // `to` is a place of `scene::object_points_store`.
-            let v = from.get().wrapping_add(s.get(paths, CENTRE + 4 * c)?);
+            let v = from.wrapping_add(s.get(paths, CENTRE + 4 * c)?);
             object_points.write(to + 4 * c, &v.to_le_bytes())?;
         }
     }
@@ -469,21 +449,19 @@ pub fn order_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
         if (s.get(paths, COUNT)? as i32) < 0 {
             return Err(BadInput("a spline of a negative count: the moves would run away").into());
         }
-        let (ids, coords) = (
-            &paths.spline_work.ordered_ids,
-            &paths.spline_work.ordered_coords,
-        );
         let n_us = n as usize;
         // What the moves back read: the ordered tables' first `n`, those not placed as
         // they were.
-        let mut ordered_ids: Vec<u32> = ids[..n_us]
-            .iter()
-            .map(crate::memory::session::PlainDword::get)
-            .collect();
-        let mut ordered_coords: Vec<[u32; 3]> = coords[..3 * n_us]
-            .chunks(3)
-            .map(|p| [p[0].get(), p[1].get(), p[2].get()])
-            .collect();
+        let (mut ordered_ids, mut ordered_coords): (Vec<u32>, Vec<[u32; 3]>) = {
+            let work = paths.spline_work.borrow();
+            (
+                work.ordered_ids[..n_us].to_vec(),
+                work.ordered_coords[..3 * n_us]
+                    .chunks(3)
+                    .map(|p| [p[0], p[1], p[2]])
+                    .collect(),
+            )
+        };
         let o = rc2k_core::effects::splines::order(
             &s.words(paths, GRADES, n)?,
             &s.words(paths, IDS, n)?,
@@ -492,11 +470,18 @@ pub fn order_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
             &mut ordered_coords,
         );
         let placed = o.placed as usize;
-        for (cell, &v) in ids.iter().zip(&ordered_ids[..placed]) {
-            cell.set(v);
-        }
-        for (cell, &v) in coords.iter().zip(ordered_coords[..placed].as_flattened()) {
-            cell.set(v);
+        {
+            let mut work = paths.spline_work.borrow_mut();
+            for (cell, &v) in work.ordered_ids.iter_mut().zip(&ordered_ids[..placed]) {
+                *cell = v;
+            }
+            for (cell, &v) in work
+                .ordered_coords
+                .iter_mut()
+                .zip(ordered_coords[..placed].as_flattened())
+            {
+                *cell = v;
+            }
         }
         s.put_words(paths, 0, &o.starts)?;
         s.put_words(paths, 0xC, &o.counts)?;
@@ -521,13 +506,19 @@ pub fn bound_spline_points(
     let n = s.count(paths)?;
     let b = rc2k_core::effects::splines::bounds(&s.triples(paths, COORDS, n)?);
     let size = b.size;
-    let (up, size_at) = (&paths.spline_work.up, &paths.spline_work.size);
-    size_at[1].set(x87::from_int(size[1]));
-    size_at[2].set(x87::from_int(size[2]));
+    {
+        let mut guard = paths.spline_work.borrow_mut();
+        guard.size[1] = x87::from_int(size[1]);
+        guard.size[2] = x87::from_int(size[2]);
+    }
     for (c, &m) in b.middle.iter().enumerate() {
         s.put(paths, CENTRE + 4 * c as u32, m as u32)?;
     }
-    let angle = crate::scene::vector3::angle_between_vectors(up, size_at, work);
+    let angle = {
+        let mut guard = paths.spline_work.borrow_mut();
+        let w = &mut *guard;
+        crate::scene::vector3::angle_between_vectors_plain(&mut w.up, &mut w.size, work)
+    };
     s.put(paths, 0x20, crate::math::matrix3::rounded(angle))?;
     Ok(())
 }
@@ -549,7 +540,7 @@ fn spline_checks(
         return Err(BadInput("an object's faces past g_faces").into());
     }
     for item in paths.spline_constants.angles.iter().take(12) {
-        crate::math::matrix3::turnable(&negated(item.get().to_bits()))?;
+        crate::math::matrix3::turnable(&negated(item.to_bits()))?;
     }
     Ok(())
 }
@@ -571,8 +562,7 @@ fn make_spline(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     {
-        paths.spline_work.object.set(object);
-        let place = paths.spline_work.place.get() as i32;
+        let place = paths.spline_work.borrow().place as i32;
         if place >= 8 {
             return Ok(());
         }
@@ -580,19 +570,10 @@ fn make_spline(
             return Err(BadInput("a negative spline place").into());
         }
         spline_checks(paths, object, scene)?;
-        let offset = place as u32 * SPLINE_LEN;
-        paths.spline_work.offset.set(offset);
         for t in 0..4 {
             let record = Spline::record(t, place as u32);
-            gather_spline_points(
-                course,
-                faces_table,
-                paths,
-                record,
-                object,
-                paths.spline_kinds.chosen[1 + t].get(),
-                scene,
-            )?;
+            let kind = paths.spline_kinds.borrow().chosen[1 + t];
+            gather_spline_points(course, faces_table, paths, record, object, kind, scene)?;
             bound_spline_points(paths, work, record)?;
             if t == 1 || t == 2 {
                 for o in [CENTRE, CENTRE + 4, CENTRE + 8, 0x20] {
@@ -604,7 +585,7 @@ fn make_spline(
                 record.put(
                     paths,
                     o,
-                    x87::loaded(&paths.spline_constants.angles[3 * t + k]).to_bits(),
+                    x87::loaded(paths.spline_constants.angles[3 * t + k]).to_bits(),
                 )?;
             }
             turn_spline_points(paths, record)?;
@@ -616,7 +597,7 @@ fn make_spline(
                 find_spline_ends(paths, record)?;
             }
             if t == 2 {
-                let shift: [u32; 3] = read_bits(&paths.spline_head.shift);
+                let shift: [u32; 3] = paths.spline_head.borrow().shift;
                 let p = COORDS.wrapping_add(record.get(paths, 0x30)?.wrapping_mul(12));
                 for c in 0..3 {
                     let v = record.get(paths, p.wrapping_add(4 * c))?;
@@ -624,7 +605,7 @@ fn make_spline(
                 }
             }
         }
-        paths.spline_work.place.set(place as u32 + 1);
+        paths.spline_work.borrow_mut().place = place as u32 + 1;
     }
     Ok(())
 }
@@ -661,22 +642,25 @@ pub(super) fn load_splines(
     for &o in objects.iter().take(8) {
         spline_checks(paths, o, scene)?;
     }
-    if !paths.spline_kinds.loaded.is_set() {
-        crate::files::read_whole_file::read_whole_file_plain_bytes(
-            &crate::files::cstring(&paths.spline_path.path, "a spline file's path")?,
-            &paths.spline_head.file,
-        )?;
-        paths.spline_kinds.loaded.set(true);
+    let loaded = paths.spline_kinds.borrow().loaded;
+    if !loaded {
+        let path = crate::files::cstring_in(&paths.spline_path.path)?;
+        let mut file = paths.spline_head.borrow().file;
+        crate::files::read_whole_file::read_whole_file_into(&path, &mut file)?;
+        paths.spline_head.borrow_mut().file = file;
+        paths.spline_kinds.borrow_mut().loaded = true;
     }
-    for n in 0..5 {
-        let v = paths.spline_kinds.by_kind[(n * KINDS + kind) as usize].get();
-        paths.spline_kinds.chosen[n as usize].set(v);
+    {
+        let mut kinds = paths.spline_kinds.borrow_mut();
+        for n in 0..5 {
+            kinds.chosen[n as usize] = kinds.by_kind[(n * KINDS + kind) as usize];
+        }
     }
-    paths.spline_work.place.set(0);
+    paths.spline_work.borrow_mut().place = 0;
     for o in objects {
         make_spline(course, faces_table, paths, &effects.setup.work, o, scene)?;
     }
-    paths.spline_head.made.set(0);
+    paths.spline_head.borrow_mut().made = 0;
     Ok(())
 }
 
@@ -688,14 +672,15 @@ mod spline_handle_tests {
     fn a_record_reads_on_into_the_next_table_and_not_past_the_last() {
         let paths = &crate::test_support::own::effects().paths;
         let last_of_a = Spline::record(0, 7);
+        let tables = paths.spline_tables.borrow().tables;
         assert_eq!(
             last_of_a.get(paths, SPLINE_LEN).unwrap(),
-            paths.spline_tables.b.get_u32(0)
+            u32::from_le_bytes([tables[1][0], tables[1][1], tables[1][2], tables[1][3]])
         );
         // A dword across the tables' seam, bytes from both.
         let across = last_of_a.get(paths, SPLINE_LEN - 2).unwrap().to_le_bytes();
-        assert_eq!(across[2], paths.spline_tables.b.get(0));
-        assert_eq!(across[0], paths.spline_tables.a.get(29822));
+        assert_eq!(across[2], tables[1][0]);
+        assert_eq!(across[0], tables[0][29822]);
         let last = Spline::record(3, 7);
         assert!(last.get(paths, SPLINE_LEN - 4).is_ok());
         assert!(last.get(paths, SPLINE_LEN - 3).is_err());

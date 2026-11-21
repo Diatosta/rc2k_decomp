@@ -80,7 +80,6 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
         &c.shared.buffers.reads.get().engine_tables,
         c.contact,
         c.course,
-        c.tables,
         from,
         to,
     )?;

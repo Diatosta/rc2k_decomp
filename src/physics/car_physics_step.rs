@@ -12,7 +12,7 @@
 //! ground, the crossed edge, the walls, the probes, the other cars, the faces, the motion kept,
 //! the contacts' forces and torques; a round that restored nothing (`clear_place_count` 0) ends
 //! it, else the car stalls when still, its motion is redone and the round counted; with all
-//! rounds used: `physics::limit_motion`, `physics::find_clear_place`, `step_count` + 1. With
+//! rounds used: `physics::limit_motion`, `physics::find_clear_place`. With
 //! rounds done, the motion is put back and limited. Then the ground, the stuck reset, the engine
 //! sound, the wheels' spin, the checkpoints, the pace notes (`physics::pace_notes_step`), the
 //! count down, the wheel angles, the mean drive speed and the height change
@@ -29,7 +29,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::rounded_value;
 use crate::math::x87::loaded;
-use crate::memory::session::DwordLike;
 use crate::physics as ph;
 use crate::physics::car_store::Car;
 use crate::physics::figures::SIDE_SPEED_LIMIT;
@@ -92,16 +91,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         .get()
         .vertical_speed
         .set(loaded(&race.shared.car().velocity[1]));
-    let cleared: [&dyn DwordLike; 5] = [
-        &race.shared.physics_tables.get().clear_place_mark,
-        &race.shared.car().contact_flag,
-        &race.shared.physics_tables.get().scene_point_hits,
-        &race.shared.physics_tables.get().object_hits,
-        &race.shared.physics_tables.get().point_hits,
-    ];
-    for cell in cleared {
-        cell.set(0);
-    }
+    race.shared.car().contact_flag.set(0);
     for figure in race
         .shared
         .car()
@@ -267,15 +257,6 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         {
             ph::limit_motion::limit_motion(race.shared.car(), race.shared.physics_tables.get());
             ph::find_clear_place::find_clear_place(&inputs.clear_place(sound), scene)?;
-
-            race.shared.physics_tables.get().step_count.set(
-                race.shared
-                    .physics_tables
-                    .get()
-                    .step_count
-                    .get()
-                    .wrapping_add(1),
-            );
             break;
         }
     }

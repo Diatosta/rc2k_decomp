@@ -1,4 +1,4 @@
-//! Whether a point of an object lies inside the work car's box. `point_hits` is incremented; the
+//! Whether a point of an object lies inside the work car's box. The
 //! point (three whole numbers) plus the object's place plus `object_offset` less the car's
 //! `position` goes into `object_point_offset`; that divided by 65536 (`k65536`) goes into
 //! `object_point_scaled` and `object_point_turned`, is turned by the car's heading
@@ -35,9 +35,6 @@ pub(super) fn point_hits_car(
     let contact = c.contact;
     let rd =
         |offset: u32| crate::race::course_places::face_field::<u32>(c.course.reads(), face, offset);
-    c.tables
-        .point_hits
-        .set(c.tables.point_hits.get().wrapping_add(1));
     let mut y = 0;
     for k in 0..3u32 {
         let v = contacts::point_part(

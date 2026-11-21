@@ -11,7 +11,7 @@
 
 use crate::effects::paths_store::Paths;
 use crate::effects::place_graded_points::place_graded_points;
-use crate::effects::splines::{SPLINE_LEN, Spline, place_shape_points as place_shape};
+use crate::effects::splines::{Spline, place_shape_points as place_shape};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::{self, Flt};
 
@@ -45,8 +45,7 @@ pub fn place_spline(
         return Err(BadInput("a spline number of 8 or more").into());
     }
     {
-        let k = paths.spline_constants.place_k.each_ref();
-        paths.spline_work.offset.set(n * SPLINE_LEN);
+        let k = paths.spline_constants.place_k;
         let [a, b, c, d] = records(n);
         let (abc, dsize) = sizes(&marks.listener_scale, k[0], k[1]);
         for r in [a, b, c] {
@@ -60,13 +59,13 @@ pub fn place_spline(
         setup.work.borrow_mut().fpu_status = status as u32;
         let f = if status == 0x100 { k[4] } else { k[3] };
         b.put(paths, 0x2C, x87::mul(b.get(paths, 0x24)?, f).to_bits())?;
-        paths.spline_head.switch.set(0);
+        paths.spline_head.borrow_mut().switch = 0;
         place_graded_points(&effects.stage()?.object_points, paths, b)?;
         let status = x87::compare_status(c.get(paths, 0x24)?, k[5]);
         setup.work.borrow_mut().fpu_status = status as u32;
         let f = if status == 0 { k[7] } else { k[6] };
         c.put(paths, 0x2C, x87::mul(c.get(paths, 0x24)?, f).to_bits())?;
-        paths.spline_head.switch.set(1);
+        paths.spline_head.borrow_mut().switch = 1;
         place_graded_points(&effects.stage()?.object_points, paths, c)?;
     }
     Ok(())

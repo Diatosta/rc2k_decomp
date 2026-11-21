@@ -26,7 +26,7 @@ fn step_made(
 ) -> Result<(), Refused> {
     let marks = effects.settings()?;
     {
-        let mut m = paths.spline_head.made.get() as i32;
+        let mut m = paths.spline_head.borrow().made as i32;
         let h = half as i32;
         if marks.spline_handbrake.get() != 0 {
             marks.spline_gear_changed.set(0);
@@ -60,7 +60,7 @@ fn step_made(
                 }
             }
         }
-        paths.spline_head.made.set(m as u32);
+        paths.spline_head.borrow_mut().made = m as u32;
     }
     Ok(())
 }
@@ -71,7 +71,7 @@ pub fn run_splines(paths: &Paths, effects: &crate::effects::owner::Effects) -> R
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let places = paths.spline_work.place.get() as i32;
+    let places = paths.spline_work.borrow().place as i32;
     if places > MOST_SPLINES {
         return Err(BadInput("more than 8 splines").into());
     }
@@ -84,20 +84,20 @@ pub fn run_splines(paths: &Paths, effects: &crate::effects::owner::Effects) -> R
             .wrapping_mul(0x9D)
             .wrapping_add(0x47);
         setup.work.borrow_mut().seed = s;
-        let k = paths
-            .spline_constants
-            .wave_k
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get);
+        let k = paths.spline_constants.wave_k;
+        let previous = paths.spline_head.borrow().angle;
         let (angle, wave) = x87::angle_and_wave(
-            &paths.spline_head.angle,
+            previous,
             (s & 0xFF).wrapping_sub(0x80) as i32,
             k[0],
             k[1],
             k[2],
         );
-        paths.spline_head.angle.set(angle);
-        paths.spline_head.wave.set(wave);
+        {
+            let mut head = paths.spline_head.borrow_mut();
+            head.angle = angle;
+            head.wave = wave;
+        }
         for n in (0..places.max(0) as u32).rev() {
             place_spline(paths, n, effects)?;
         }

@@ -2,8 +2,8 @@
 //! `physics::lowest_body_point`; then which wheels are off the ground: `front_wheels_off` 1
 //! when the first two are both 0, `rear_wheels_off` the same for the last two, `all_wheels_off`
 //! 1 when all four are; `driven_wheels_off` the driven ones' (the first pair's, or all four's
-//! with the drive kind not 0), and `stuck_count` 0 when they are not off; `feel_word` the
-//! face word under probe point 4 (`Car.probe_point_face[4]`). A reading: the wheels in the air,
+//! with the drive kind not 0), and `stuck_count` 0 when they are not off; the face word
+//! under probe point 4 (`Car.probe_point_face[4]`) is read, to refuse a face off the course. A reading: the wheels in the air,
 //! the ground's kind.
 //!
 //! Refuses (before anything) more than 0x40 probe points; `probe_ground`'s refusals mid-way (it
@@ -40,12 +40,11 @@ pub(super) fn feel_ground(c: &GroundInputs<'_>) -> Result<(), Refused> {
     if driven == 0 {
         c.car.stuck_count.set(0);
     }
-    c.tables
-        .feel_word
-        .set(u32::from(crate::race::course_places::face_field::<u16>(
-            c.course.reads(),
-            c.car.probe_point_face[4].get(),
-            0x26,
-        )?));
+    // The face's word is not kept; the read still refuses a face outside the course.
+    crate::race::course_places::face_field::<u16>(
+        c.course.reads(),
+        c.car.probe_point_face[4].get(),
+        0x26,
+    )?;
     Ok(())
 }

@@ -21,7 +21,6 @@ use crate::effects::paths_store::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::memory::session::read_first;
 use crate::race::effects_settings_store::CarEffects;
 
 const MODELS: u32 = 34;
@@ -66,8 +65,12 @@ pub fn emit_exhaust_smoke(
     let car = emitting_car(effects)?;
     let cells = car.whole(effects.car_blocks()?)?;
     let mut set = particles.kind13_set.borrow_mut();
-    let t: [f32; 3] =
-        read_first::<_, 3>(&paths.spline_head.points[3 * model..]).map(f32::from_bits);
+    let t: [f32; 3] = {
+        let head = paths.spline_head.borrow();
+        let first = &head.points[3 * model..];
+        assert!(3 <= first.len());
+        [first[0], first[1], first[2]]
+    };
     let [x, y, y_less, z] = x87::turned_place_less_f32(
         t,
         effects.setup.floats.particle_13_place_k,

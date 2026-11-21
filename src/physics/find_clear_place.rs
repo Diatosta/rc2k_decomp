@@ -1,5 +1,4 @@
-//! Moves the work car, after a reset, to a place where nothing touches it. `clear_place_mark` =
-//! 0x5A; its speed times `clear_place_share` (`physics::scale_vector`);
+//! Moves the work car, after a reset, to a place where nothing touches it. Its speed times `clear_place_share` (`physics::scale_vector`);
 //! `physics::restore_saved_car`; `physics::lowest_body_point`, the depth into
 //! `clear_place_face`. Then tries n = 0x70 + (`step_clock` & 0xF) .. 0xFF: `clear_place_count`
 //! (counted by `restore_saved_car`) = 0, the place moved by 2^((n >> 4) + 1) x
@@ -8,7 +7,7 @@
 //! `physics::car_collisions`, `physics::face_contacts`; a try that restored nothing ends it.
 //! None: `physics::reset_car`. Found: `lowest_body_point`, a depth below 0 taken off the
 //! height; the log line "porky" with n, the first depth and the last (level 1);
-//! `clear_place_tries` + 1; `physics::limit_motion`.
+//! `physics::limit_motion`.
 //!
 //! Refuses (before anything) a probe count of 0 or past 0x40; what its calls refuse.
 
@@ -38,7 +37,6 @@ fn try_place(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
 pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let (car, tables, numbers) = (c.reset.car, c.reset.tables, c.reset.numbers);
     let contact = c.collisions.contact.contact;
-    tables.clear_place_mark.set(clear_place::TRY_MARK);
     let factor = extended(CLEAR_PLACE_SHARE);
     crate::physics::scale_vector::scale_vector(&car.velocity, factor);
     {
@@ -89,9 +87,6 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     crate::logfile::log_int::log_int(n as i32, false, 1);
     crate::logfile::log_hex8::log_hex8(tables.clear_place_face.get(), false, 1);
     crate::logfile::log_hex8::log_hex8(contact.lowest_depth.get(), true, 1);
-    tables
-        .clear_place_tries
-        .set(tables.clear_place_tries.get().wrapping_add(1));
     crate::physics::limit_motion::limit_motion(car, tables);
     Ok(())
 }

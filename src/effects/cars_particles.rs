@@ -161,9 +161,15 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         ];
         effects.kinds.emitter.borrow_mut().side_a = a;
         let model = car.model.get();
-        effects.kinds.emitter.borrow_mut().looks[0] = paths.spline_head.look(2 * model as usize);
-        effects.kinds.emitter.borrow_mut().looks[1] =
-            paths.spline_head.look(2 * model as usize + 2);
+        let looks = {
+            let head = paths.spline_head.borrow();
+            [
+                head.look(2 * model as usize),
+                head.look(2 * model as usize + 2),
+            ]
+        };
+        effects.kinds.emitter.borrow_mut().looks[0] = looks[0];
+        effects.kinds.emitter.borrow_mut().looks[1] = looks[1];
         if car.reset_wait.get() != 0 {
             car.reset_wait.set(car.reset_wait.get().wrapping_sub(1));
         } else {

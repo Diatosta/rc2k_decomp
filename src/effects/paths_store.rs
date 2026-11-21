@@ -12,11 +12,11 @@ use crate::memory::owned::Owned;
 /// The paths' state.
 pub struct Paths {
     pub spline_constants: SplineConstants,
-    pub spline_kinds: SplineKinds,
+    pub spline_kinds: core::cell::RefCell<SplineKinds>,
     pub spline_path: SplinePath,
-    pub spline_tables: SplineTables,
-    pub spline_work: SplineWork,
-    pub spline_head: SplineHead,
+    pub spline_tables: core::cell::RefCell<SplineTables>,
+    pub spline_work: core::cell::RefCell<SplineWork>,
+    pub spline_head: core::cell::RefCell<SplineHead>,
     pub wave_levels: core::cell::RefCell<WaveLevels>,
     /// The block last taken for a settings block's points (`lines::set_up_blocks`).
     pub morph_taken: core::cell::Cell<u32>,
@@ -31,11 +31,11 @@ impl Paths {
     pub const fn new() -> Self {
         Paths {
             spline_constants: SplineConstants::new(),
-            spline_kinds: SplineKinds::new(),
+            spline_kinds: core::cell::RefCell::new(SplineKinds::new()),
             spline_path: SplinePath::new(),
-            spline_tables: SplineTables::new(),
-            spline_work: SplineWork::new(),
-            spline_head: SplineHead::new(),
+            spline_tables: core::cell::RefCell::new(SplineTables::new()),
+            spline_work: core::cell::RefCell::new(SplineWork::new()),
+            spline_head: core::cell::RefCell::new(SplineHead::new()),
             wave_levels: core::cell::RefCell::new(WaveLevels::new()),
             morph_taken: core::cell::Cell::new(0),
             spread_random: core::cell::Cell::new(0),

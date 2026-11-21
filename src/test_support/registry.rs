@@ -650,30 +650,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().setup.frame),
         ),
         listed!(
-            "owners.effects.paths.spline_head",
-            on_game(&o.race.effects.get().paths.spline_head),
-        ),
-        listed!(
-            "owners.effects.paths.spline_work",
-            on_game(&o.race.effects.get().paths.spline_work),
-        ),
-        listed!(
-            "owners.effects.paths.spline_tables",
-            on_game(&o.race.effects.get().paths.spline_tables),
-        ),
-        listed!(
-            "owners.effects.paths.spline_kinds",
-            on_game(&o.race.effects.get().paths.spline_kinds),
-        ),
-        listed!(
-            "owners.effects.paths.spline_path",
-            on_game(&o.race.effects.get().paths.spline_path),
-        ),
-        listed!(
-            "owners.effects.paths.spline_constants",
-            on_game(&o.race.effects.get().paths.spline_constants),
-        ),
-        listed!(
             "owners.effects.masks.edge_mask",
             on_game(&o.race.effects.get().masks.edge_mask),
         ),

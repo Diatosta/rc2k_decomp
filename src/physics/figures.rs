@@ -119,9 +119,6 @@ pub const CRASH_DEPTH: u32 = 0x1000;
 /// 2.4, copied into the spec's grip (`physics::load_car_specs`).
 pub const SPEC_DEFAULT_BA0: f32 = 2.4;
 
-/// 0.5, copied into the spec's second grip.
-pub const SPEC_DEFAULT_BA4: f32 = 0.5;
-
 /// 0.85 (`physics::load_car_specs`).
 pub const SPEC_SCALE_1B8: f32 = 0.85;
 
