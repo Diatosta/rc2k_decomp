@@ -1,112 +1,25 @@
-//! The car shadow's and the skid marks' work: the shadow's points (records of 0x20 bytes), its
-//! farthest length and record, its sun slant and hull count; the skid marks' wheel grip and
-//! lift, a wheel's place, the ring of links (8 bytes each), the work values of the point being
-//! laid, the next point, the cars' bit and the ring of points (0xC bytes each). `#[repr(C)]`,
-//! laid over the race block's bytes. Plain cells: a drawing store (`session::DrawShared`),
-//! written on the game's thread between frames and read by the drawing parts (the skid marks)
-//! through their `scene::workers::DrawReads`. The shadow now keeps its own work
-//! (`race::car_shadow::ShadowWork`), so the shadow fields here are unused and only keep the layout.
+//! The skid marks' work: the least grip that lays a mark, the lift of a point, a wheel's place,
+//! the ring of links (8 bytes each), the next point, the cars' bit and the ring of points (0xC
+//! bytes each). Plain cells: a drawing store (`session::DrawShared`), written on the game's thread
+//! between frames and read by the drawing parts (the skid marks) through their
+//! `scene::workers::DrawReads`. The tables are 40 KB of byte cells: kept as cells, since a copy per
+//! drawing scope would cost more than it saves for the one reader.
 
 use crate::memory::cells::ZeroCells;
 
 use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 
-/// One shadow point (0x20 bytes): the corner of the car's shadow, first as floats, then
-/// as whole numbers (`race::car_shadow`).
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
-pub(super) struct ShadowPoint {
-    /// X.
-    pub x: PlainDword,
-    /// Y.
-    pub y: PlainDword,
-    /// Z.
-    pub z: PlainDword,
-    /// The angle from the first point (`fpatan` of x and z), then whole numbers.
-    pub angle: PlainDword,
-    /// The distance from the car.
-    pub length: PlainDword,
-    /// 0 once the angles are laid (`race::car_shadow::shadow_angles`).
-    pub zeroed: PlainDword,
-    /// The record's last two dwords; only moved with the record when points are swapped or
-    /// sorted, never read for a value.
-    pub carried_words: [PlainDword; 2],
-}
-
-const _: () = assert!(core::mem::size_of::<ShadowPoint>() == 0x20);
-
-impl ShadowPoint {
-    /// A record of zeros.
-    pub const fn new() -> Self {
-        Self {
-            x: PlainDword::new(0),
-            y: PlainDword::new(0),
-            z: PlainDword::new(0),
-            angle: PlainDword::new(0),
-            length: PlainDword::new(0),
-            zeroed: PlainDword::new(0),
-            carried_words: [PlainDword::new(0), PlainDword::new(0)],
-        }
-    }
-
-    /// The record's eight dwords, in order (it is swapped and sorted whole).
-    pub fn words(&self) -> [&PlainDword; 8] {
-        [
-            &self.x,
-            &self.y,
-            &self.z,
-            &self.angle,
-            &self.length,
-            &self.zeroed,
-            &self.carried_words[0],
-            &self.carried_words[1],
-        ]
-    }
-}
-
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ShadowSkids {
-    /// The shadow's points, 0x100 records of 0x20 bytes (`ShadowPoint`; 0x40 at most) and
-    /// the hull's records after, held as bytes. Unused.
-    pub shadow_points: PlainBytes<0x2000>,
-    /// Five dwords of the shadow's work. Unused.
-    pub shadow_work: [PlainDword; 5],
-    /// The length of the farthest point. Unused.
-    pub farthest_length: PlainFloat,
-    /// The farthest point's number. Unused.
-    pub farthest: PlainDword,
-    /// The first point's angle. Unused.
-    pub first_angle: PlainFloat,
-    /// Cos(turn) x cot(sun). Unused.
-    pub slant_x: PlainFloat,
-    /// Sin(turn) x cot(sun). Unused.
-    pub slant_z: PlainFloat,
-    /// The number of the shadow hull's points. Unused.
-    pub hull_count: PlainDword,
     /// The least grip that lays a skid mark (`race::skid_laying`).
     pub skid_grip: PlainFloat,
     /// The lift of a skid point (`race::skidmarks`).
     pub skid_lift: PlainFloat,
     /// The wheel's place, three dwords (`race::skid_laying`).
     pub skid_place: [PlainDword; 3],
-    /// The views that show the skid marks, as bits. Nothing reads or writes it; it only
-    /// keeps the layout.
-    pub reserved_2040: PlainDword,
     /// 0x400 links of 8 bytes each (`race::skid_laying`, `race::skidmarks`,
     /// `race::stage_prefs`).
     pub skid_links: PlainBytes<0x2000>,
-    /// The last point's turned work values (`race::skid_laying`).
-    pub skid_turned: [PlainDword; 3],
-    /// The last point's work values.
-    pub skid_from: [PlainDword; 3],
-    /// The new point's angle.
-    pub skid_angle: PlainDword,
-    /// The last point's turned angle.
-    pub skid_turned_angle: PlainDword,
-    /// The edge offset's x.
-    pub skid_offset_x: PlainDword,
-    /// The edge offset's z.
-    pub skid_offset_z: PlainDword,
     /// The next point of the ring (`race::skid_laying`, `race::stage_prefs`).
     pub skid_next: PlainDword,
     /// The bit of the car being laid for.

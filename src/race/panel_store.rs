@@ -75,8 +75,6 @@ pub struct Marks {
 pub struct Panel {
     /// The HUD record's first dword (the first car's split gap 6, `panel_values_plain`).
     pub split_6: PlainDword,
-    /// The first car's split gap 5.
-    pub split_5: PlainDword,
     /// The first view's values.
     pub view_a: ViewA,
     /// The second view's values.

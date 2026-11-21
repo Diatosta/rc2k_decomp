@@ -54,8 +54,6 @@ pub struct SceneMatrices {
     pub object_matrix_slots: [PlainDword; 32],
     /// The view's matrix, place (the last row of its 4 x 4 floats) (`effects::view_motion`, `race::frame_views`).
     pub view_place: [PlainFloat; 16],
-    /// Unused; it only keeps the layout.
-    pub unused_object_matrix: PlainDword,
     /// The vector reflected (`scene::reflect_vector`); now each view's
     /// (`scene::view_matrices`); unused.
     pub reflect_vector: [PlainFloat; 3],

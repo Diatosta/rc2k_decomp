@@ -1,39 +1,21 @@
-//! The frame's draw work: the counts of a frame (flares, lamps, cars drawn and culled), the sun's
-//! place and size, the mirror, the views' layouts and scales, the lead car's camera kept, each
-//! car's listed sound, the car parts' matrices and decal places, and the car shadow's work. The
-//! fields keep a fixed layout.
+//! The frame's draw work: the sun's depth and size, the mirror, the views' layouts and scales, the
+//! lead car's camera kept, each car's listed sound, and the car parts' matrices and decal places.
 
 use crate::memory::cells::ZeroCells;
 use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameWork {
-    /// The flares this frame. Unused: each view keeps its own (`race::lamp_work::LampWork`).
-    pub flare_count: PlainDword,
-    /// Unused; nothing reads or writes it.
-    pub lamp_entry_count: PlainDword,
-    /// Unused: each view counts its own (`ctx.view.cars.cars_drawn`).
-    pub cars_drawn: PlainDword,
-    /// Unused; nothing reads or writes it.
-    pub cars_culled: PlainDword,
-    /// Unused: each view keeps its own (`ctx.view.cars.car_kept`).
-    pub car_kept: [PlainDword; 2],
     /// The car's depth, 0x50000 at first. Unused: each view keeps its own
     /// (`ctx.view.cars.car_depth`).
     pub car_depth: PlainDword,
     /// The sun's depth, used by `race::frame_draw`.
     pub sun_depth: PlainFloat,
-    /// The sun's direction; nothing reads or writes it now.
-    pub sun_floats: [PlainFloat; 3],
-    /// The sun's turned point; nothing reads or writes it now.
-    pub sun_points: [PlainDword; 3],
     /// Whether the sun is on the screen, set by the polygon hit test. Unused: each view keeps its
     /// own (`ViewSun`).
     pub sun_on_screen: PlainDword,
     /// The sun's point on the screen, x and y. Unused: each view keeps its own (`ViewSun::hit`).
     pub sun_hit: [PlainDword; 2],
-    /// The sun's x and y as float bits. Unused: each view keeps its own (`ViewSun::place`).
-    pub sun_place: [PlainDword; 2],
     /// The view's value read by the listener's placing. Unused: each view keeps its own
     /// (`ViewSun::view_out`).
     pub view_out: PlainDword,
@@ -41,8 +23,6 @@ pub struct FrameWork {
     pub sun_size: PlainDword,
     /// Whether the mirror's picture is wanted this frame.
     pub mirror_wanted: PlainFlag,
-    /// Unused: each view keeps its own (`scene::object_light`).
-    pub view_light: PlainDword,
     /// The mirror's switch, used by `race::frame_views`.
     pub mirror_switch: PlainDword,
     /// The views' values kept between steps of `race::frame_views`.
@@ -57,8 +37,6 @@ pub struct FrameWork {
     /// `effects::stage_record`'s number, [7] `effects::draw_plane`'s switch and `effects::pong`'s
     /// shown flag.
     pub lead_kept: [PlainDword; 8],
-    /// Unused: each view keeps its own (`race::face_work::FaceWork`).
-    pub face_hide_mask: PlainDword,
     /// Each car's listed sound, -1 for none.
     pub listed_car_sounds: [PlainDword; 8],
     /// The views' layouts, used by `race::frame_views`.
@@ -80,46 +58,12 @@ pub struct FrameWork {
     pub decal_limit: PlainFloat,
     /// The car part's place used by `race::frame_draw`.
     pub part_place: [PlainDword; 3],
-    /// Written by nothing now; unused.
-    pub part_kind: PlainDword,
-    /// The car's parts present. Unused: each view keeps its own
-    /// (`race::car_draw_state::CarDrawState`).
-    pub parts_present: PlainDword,
-    /// Unused: each view keeps its own (`race::car_draw_state::CarDrawState`).
-    pub light_left: PlainDword,
-    /// Unused: each view keeps its own (`race::car_draw_state::CarDrawState`).
-    pub light_right: PlainDword,
     /// The car's placed matrix and the next, used by `race::car_parts`; the drawing's are the
     /// view's (`CarDrawState::car_turn`).
     pub placed_matrices: [PlainFloat; 32],
     /// The car parts' four matrices, used by `race::car_parts`; the drawing's are the view's
     /// (`CarDrawState::part_matrices`).
     pub part_matrices: [PlainFloat; 64],
-    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
-    pub shadow_strength: PlainDword,
-    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
-    pub shadow_point_count: PlainDword,
-    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
-    pub shadow_texture: PlainDword,
-    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
-    pub shadow_light: [PlainDword; 3],
-    /// The shadow's corners, x and z twice. Unused: the shadow keeps its own work
-    /// (`race::car_shadow::ShadowWork`); kept for the layout.
-    pub shadow_corners: [PlainDword; 4],
-    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
-    pub shadow_work: [PlainDword; 14],
-    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
-    pub shadow_scene: PlainDword,
-    /// The shadow circle's radius and unit, 2^23 and 2^24; never written
-    /// (`race::car_shadow::CIRCLE`).
-    pub shadow_circle: [PlainFloat; 2],
-    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
-    pub shadow_list: [PlainDword; 64],
-    /// Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.
-    pub shadow_list_count: PlainDword,
-    /// The ground's height. Unused: the shadow keeps its own work (`race::car_shadow::ShadowWork`);
-    /// kept for the layout.
-    pub shadow_ground: PlainDword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -204,7 +148,6 @@ impl FrameWork {
                 PlainDword::new(0xC000),
                 PlainDword::new(0x20000),
             ],
-            shadow_circle: [PlainFloat::new(8388608.0), PlainFloat::new(16777216.0)],
             ..ZeroCells::ZERO
         }
     }

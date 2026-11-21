@@ -14,10 +14,62 @@ use crate::physics::car_store::Car;
 use crate::physics::ground_query::{GroundEnv, GroundSearch};
 use crate::race::owner_course::CourseReads;
 use crate::race::scene_points::{OwnPoints, point_word, point_xz, put_point_word};
-use crate::race::shadow_skids_store::ShadowPoint;
 use crate::race::trap::Trap;
 use crate::scene::polygon::{list_cell, old_list_cell};
 use crate::scene::polygon_store::PolygonEntry;
+
+/// One shadow point (0x20 bytes): the corner of the car's shadow, first as floats, then
+/// as whole numbers.
+#[repr(C)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
+pub(super) struct ShadowPoint {
+    /// X.
+    pub x: PlainDword,
+    /// Y.
+    pub y: PlainDword,
+    /// Z.
+    pub z: PlainDword,
+    /// The angle from the first point (`fpatan` of x and z), then whole numbers.
+    pub angle: PlainDword,
+    /// The distance from the car.
+    pub length: PlainDword,
+    /// 0 once the angles are laid (`race::car_shadow::shadow_angles`).
+    pub zeroed: PlainDword,
+    /// The record's last two dwords; only moved with the record when points are swapped or
+    /// sorted, never read for a value.
+    pub carried_words: [PlainDword; 2],
+}
+
+const _: () = assert!(core::mem::size_of::<ShadowPoint>() == 0x20);
+
+impl ShadowPoint {
+    /// A record of zeros.
+    pub const fn new() -> Self {
+        Self {
+            x: PlainDword::new(0),
+            y: PlainDword::new(0),
+            z: PlainDword::new(0),
+            angle: PlainDword::new(0),
+            length: PlainDword::new(0),
+            zeroed: PlainDword::new(0),
+            carried_words: [PlainDword::new(0), PlainDword::new(0)],
+        }
+    }
+
+    /// The record's eight dwords, in order (it is swapped and sorted whole).
+    pub fn words(&self) -> [&PlainDword; 8] {
+        [
+            &self.x,
+            &self.y,
+            &self.z,
+            &self.angle,
+            &self.length,
+            &self.zeroed,
+            &self.carried_words[0],
+            &self.carried_words[1],
+        ]
+    }
+}
 
 /// The shadow's working state: what `cast_car_shadows` writes and reads within itself, one for each
 /// call, given down to its parts. Every value is written before it is read, so nothing carries over

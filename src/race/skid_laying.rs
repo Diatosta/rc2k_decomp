@@ -74,7 +74,7 @@ pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
     let n = skids.skid_next.get();
     let last = slot.get();
     let place = crate::memory::session::read_bits(&skids.skid_place);
-    let a = add_skid_point(
+    add_skid_point(
         Tables(skids),
         n,
         last,
@@ -84,20 +84,6 @@ pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
         |angle, y| offsets(race.engine_tables(), angle, y),
     )?;
     slot.set(n);
-    skids.skid_angle.set(a.angle);
-    skids.skid_offset_x.set(a.offset.0);
-    skids.skid_offset_z.set(a.offset.1);
-    if let Some(m) = a.from {
-        for (i, v) in m.iter().enumerate() {
-            skids.skid_from[i].set(*v);
-        }
-    }
-    if let Some((turned, m)) = a.turned {
-        skids.skid_turned_angle.set(turned);
-        for (i, v) in m.iter().enumerate() {
-            skids.skid_turned[i].set(*v);
-        }
-    }
     skids.skid_next.set(next_point(skids.skid_next.get()));
     Ok(())
 }

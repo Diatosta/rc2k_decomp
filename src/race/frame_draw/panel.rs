@@ -326,7 +326,6 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     if first {
         panel.view_a.front.set(car.split_gaps[3].get());
         panel.view_a.back.set(car.split_gaps[4].get());
-        panel.split_5.set(car.split_gaps[5].get());
         panel.split_6.set(car.split_gaps[6].get());
     }
     Ok(())
