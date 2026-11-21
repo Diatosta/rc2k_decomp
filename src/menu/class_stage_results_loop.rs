@@ -23,7 +23,7 @@ fn set_first_item(menus: &Menus) -> Result<(), Refused> {
         .class_stage_results
         .id()
         .items(&menus.tables.menus)[0]
-        .string
+        .string_id()
         .set(title);
 
     Ok(())

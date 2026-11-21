@@ -187,8 +187,10 @@ pub(super) fn style_stage_item(menus: &Menus, b: bool) -> Result<(), Refused> {
             crate::gfx::typefaces::fonts::STAGE_TITLE,
         )
     };
-    item.behind.set(a);
-    item.sprites.set(c)?;
-    item.highlight_font.set(font);
+    item.update(|item| {
+        item.behind = a;
+        item.sprites = c;
+        item.highlight_font = font;
+    });
     Ok(())
 }

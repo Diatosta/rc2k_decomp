@@ -15,9 +15,11 @@ pub fn set(tables: &Tables, n: u32, look: Look) -> Result<(), crate::errors::Bad
         .items(&tables.menus)
         .get(n as usize)
         .ok_or(crate::errors::BadInput("an item past the in-game options"))?;
-    item.string.set(look.string);
-    item.skip_mark.set(look.state);
-    item.behind.set(look.behind);
+    item.update(|state| {
+        state.string = look.string;
+        state.skip_mark = look.state;
+        state.behind = look.behind;
+    });
     Ok(())
 }
 

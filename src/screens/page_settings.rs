@@ -70,7 +70,7 @@ fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Res
     items
         .get(n as usize)
         .ok_or(BadInput("an item past its menu's end"))?
-        .string
+        .string_id()
         .set(v);
     Ok(())
 }

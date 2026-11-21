@@ -82,7 +82,7 @@ pub fn draw_axes_page(
     let Some(now) = shown(o, input)? else {
         for item in 2..=9 {
             set_look(menus, item, shown_look(id::BLANK), true)?;
-            item_at(menus, item)?.raised.set(0);
+            item_at(menus, item)?.update(|item| item.raised = 0);
         }
         return none_note(o, canvas);
     };
@@ -103,7 +103,7 @@ pub fn draw_axes_page(
     // The wheel's rows follow the last axis row shown, with no empty places between.
     let raised = (ROWS - shown_rows) as u32 * ROW_SPACING as u32;
     for item in [8, 9] {
-        item_at(menus, item)?.raised.set(raised);
+        item_at(menus, item)?.update(|item| item.raised = raised);
     }
     set_look(menus, 8, shown_look(id::WHEEL), false)?;
     set_look(menus, 9, shown_look(id::FULL_ROTATION), !now.profile.wheel)?;

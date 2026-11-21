@@ -29,9 +29,11 @@ pub fn shown_look(string: u32) -> Look {
 pub fn set_look(menus: &Menus, number: u32, look: Look, hidden: bool) -> Result<(), BadInput> {
     let item = item_at(menus, number)?;
     let look = if hidden { HIDDEN } else { look };
-    item.string.set(look.string);
-    item.skip_mark.set(look.state);
-    item.behind.set(look.behind);
+    item.update(|state| {
+        state.string = look.string;
+        state.skip_mark = look.state;
+        state.behind = look.behind;
+    });
     Ok(())
 }
 

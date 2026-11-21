@@ -462,10 +462,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.saves.rally_times", on_game(&o.saves.rally_times),),
         listed!("owners.saves.best_times", on_game(&o.saves.best_times),),
         listed!(
-            "owners.menus.tables.menus.labels",
-            on_game(&o.menus.tables.menus.labels),
-        ),
-        listed!(
             "owners.system.start.texts",
             on_game(&o.system.start().texts),
         ),

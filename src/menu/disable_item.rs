@@ -20,8 +20,10 @@ pub fn set_item(menus: &Menus, number: u32, on: bool) -> Result<(), Refused> {
         Font::Plain => PLAIN_FONT,
         Font::Grey => GREY_FONT,
     };
-    item.skip_mark.set(state);
-    item.font.set(font);
+    item.update(|item| {
+        item.skip_mark = state;
+        item.font = font;
+    });
     Ok(())
 }
 

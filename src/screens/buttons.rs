@@ -147,7 +147,7 @@ pub(super) fn draw_item_button(
         item.fixed().width_or_text_x as u32,
         (item.fixed().x, item.fixed().y),
         item.fixed().alignment_or_text_y as u32,
-        item.sprites.get(),
+        item.state().sprites,
         canvas,
     )
 }
@@ -169,7 +169,7 @@ pub(super) fn draw_text_button(
     )?;
     let measured = measure_string_by_id_at(
         crate::strings::append_string_by_id::StringOwners::of(o),
-        item.string.get(),
+        item.state().string,
         font,
         0,
         canvas,
@@ -180,7 +180,7 @@ pub(super) fn draw_text_button(
         rc2k_core::screens::buttons::text_width(measured.width),
         (item.fixed().x, item.fixed().y),
         align,
-        item.sprites.get(),
+        item.state().sprites,
         canvas,
     )
 }

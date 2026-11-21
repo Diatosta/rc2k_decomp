@@ -6,7 +6,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::marker_calls;
 use crate::gfx::owner::Gfx;
-use crate::memory::session::DwordLike;
+use crate::menu::menus_store::ItemString;
 use crate::menu::owner::Screens;
 use crate::records::stages_store::RecordRef;
 use crate::records::stages_store::TrackField;
@@ -237,9 +237,7 @@ pub(super) fn menu_item_id<'a>(
     screens: &'a Screens,
     tables: &'a crate::menu::menus_store::MenuTables,
     n: u32,
-) -> Option<&'a dyn DwordLike> {
+) -> Option<ItemString<'a>> {
     let menu = screens.loop_flags.menu.get().ok()?;
-    menu.items(tables)
-        .get(n as usize)
-        .map(|i| &i.string as &dyn DwordLike)
+    menu.items(tables).get(n as usize).map(|i| i.string_id())
 }

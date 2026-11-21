@@ -48,6 +48,7 @@ pub fn draw_menu_items(
     let list: Vec<Item<MenuFont>> = all[..shown]
         .iter()
         .map(|i| {
+            let state = i.state();
             // The web build has no network play: the main menu's network item draws nothing.
             if crate::menu::web_limits::hidden(i.fixed()) {
                 return Item {
@@ -56,9 +57,9 @@ pub fn draw_menu_items(
                     text_x: i.fixed().width_or_text_x as u32,
                     text_y: i.text_y(),
                     kind: i.fixed().id,
-                    id: i.string.get(),
-                    font: MenuFont::Object(i.font.get()),
-                    pulse_font: MenuFont::Object(i.highlight_font.get()),
+                    id: state.string,
+                    font: MenuFont::Object(state.font),
+                    pulse_font: MenuFont::Object(state.highlight_font),
                     behind: rc2k_core::screens::menus::NOTHING_EITHER,
                     sprite: rc2k_core::screens::menus::ItemSprite::Number(
                         rc2k_core::screens::menus::NOTHING_EITHER,
@@ -72,11 +73,11 @@ pub fn draw_menu_items(
                 text_x: i.fixed().width_or_text_x as u32,
                 text_y: i.text_y(),
                 kind: i.fixed().id,
-                id: i.string.get(),
-                font: MenuFont::Object(i.font.get()),
-                pulse_font: MenuFont::Object(i.highlight_font.get()),
-                behind: i.behind.get(),
-                sprite: match i.sprites.get() {
+                id: state.string,
+                font: MenuFont::Object(state.font),
+                pulse_font: MenuFont::Object(state.highlight_font),
+                behind: state.behind,
+                sprite: match state.sprites {
                     ItemSprite::Sprite(n) => rc2k_core::screens::menus::ItemSprite::Number(n),
                     ItemSprite::List(n) => rc2k_core::screens::menus::ItemSprite::List(n),
                 },

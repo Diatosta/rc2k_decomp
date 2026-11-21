@@ -34,7 +34,7 @@ pub fn set_stage_choice_titles(
     build_second_heading(o, s.record)?;
     let group_title = group_title(s.group)?;
     tables.menus.select_stage.id().items(&tables.menus)[0]
-        .string
+        .string_id()
         .set(group_title);
     tables
         .menus

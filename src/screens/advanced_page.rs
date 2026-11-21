@@ -87,8 +87,7 @@ pub fn draw_advanced(
             ItemSprite::Sprite(SETTING_SPRITE)
         };
         crate::menu::item_at::item_at(o.menus, 2 + slot as u32)?
-            .sprites
-            .set(sprite)?;
+            .update(|item| item.sprites = sprite);
     }
     let turn = if page == 0 {
         id::ADVANCED_MORE
@@ -97,7 +96,7 @@ pub fn draw_advanced(
     };
     // A button: only its text changes.
     crate::menu::item_at::item_at(o.menus, 2 + ROW_SLOTS as u32 + 1)?
-        .string
+        .string_id()
         .set(turn);
     for n in shown_rows {
         let row = &ROWS[n];

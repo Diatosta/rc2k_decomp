@@ -24,7 +24,7 @@ fn set_first_item(menus: &Menus) -> Result<(), Refused> {
         .overall_rally_results
         .id()
         .items(&menus.tables.menus)[0]
-        .string
+        .string_id()
         .set(title);
 
     Ok(())

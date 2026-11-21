@@ -62,7 +62,7 @@ pub(super) fn move_highlight(o: Owners<'static>, direction: Direction) -> Result
         let to = match link(next) {
             Link::To(n) if !sideways => Some(walk(n, |n| {
                 let it = item_at(menus, n).map_err(|e| rc2k_core::Invalid(e.0))?;
-                Ok((it.fixed().links[way], it.skip_mark.get()))
+                Ok((it.fixed().links[way], it.state().skip_mark))
             })?),
             Link::To(n) => passing_hidden(menus, n, way)?,
             _ => None,
