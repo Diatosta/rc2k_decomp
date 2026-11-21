@@ -40,7 +40,7 @@ pub fn draw_frame(
     if !crate::race::course_places::info_held(&race.course.stage.course) {
         return Err(BadInput("no course info").into());
     }
-    let m = &race.frame.matrices.get().view_place;
+    let m = &race.frame.view_kept.get().view_place;
     for n in 0..3 {
         let p: [u32; 3] = effects.frame.draw_frame.borrow().points[n].map(f32::to_bits);
         let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);

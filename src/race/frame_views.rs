@@ -596,7 +596,7 @@ pub fn run_view_marks(
     race.effects_settings().marks_layout.set(layout);
     crate::math::cells::copy_cells(
         &ctx.reads.car_blocks.cars[ctx.reads.view.view_number(view as usize)?].whole_matrix,
-        &race.frame.matrices.get().view_place,
+        &race.frame.view_kept.get().view_place,
         16,
     );
     crate::drive::share_all_cars::share_all_cars(

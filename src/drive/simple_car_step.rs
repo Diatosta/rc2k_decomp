@@ -84,7 +84,7 @@ pub fn simple_car_step(
     race.car_blocks().cars[0].car_roll.set(0);
     crate::race::stage_prefs::get_mat_crash(
         race.engine_tables(),
-        race.frame.matrices.get(),
+        &race.frame.matrices,
         race.shared.car(),
         scene,
     );

@@ -14,8 +14,7 @@ use crate::memory::session::PlainFloat;
 use crate::physics::figures::GROUND_DROP;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::scene::matrix::{matrix_of, product, store_matrix};
-use crate::scene::rotate_point::rotate_point;
+use crate::scene::matrix::{matrix_of, product};
 use rc2k_core::drive::listener;
 use rc2k_core::net::net_race::NetRace;
 
@@ -65,8 +64,8 @@ impl<'a> ListenerView<'a> {
         let frame = &race.frame;
         Self {
             drawn_view: race.shared.view.get().drawn_view.get(),
-            view_matrix: &frame.matrices.get().view_matrix,
-            view_turn_matrix: &frame.matrices.get().view_turn_matrix,
+            view_matrix: &frame.view_kept.get().view_matrix,
+            view_turn_matrix: &frame.view_kept.get().view_turn_matrix,
             view_place: crate::memory::session::read_bits(
                 &frame.view_and_records.get().view_vars.view_place,
             ),
@@ -119,23 +118,17 @@ pub fn set_listener(
         physics.camera_mut().listener_points[k] = v as u32;
     }
     // The car block 0's body matrix, turned by the car's turn and then by the view's matrix.
-    let matrices = race.frame.matrices.get();
     let turned = matrix_of(&car.body_matrix);
-    store_matrix(&matrices.turned_matrix, &turned);
-    let lit = product(
-        &turned,
-        &matrix_of(&car.place_matrix),
-        matrix_of(&matrices.lit_matrix),
-    );
-    store_matrix(&matrices.lit_matrix, &lit);
-    let made_matrix = product(
-        &lit,
-        &matrix_of(view.view_matrix),
-        matrix_of(&matrices.made_object_matrix),
-    );
-    store_matrix(&matrices.made_object_matrix, &made_matrix);
-    store_matrix(&matrices.listener_matrix, &made_matrix);
-    let made = &matrices.made_object_matrix;
+    let place_matrix = matrix_of(&car.place_matrix);
+    let view_matrix = matrix_of(view.view_matrix);
+    let made = {
+        let mut kept = race.frame.matrices.borrow_mut();
+        kept.turned_matrix = turned;
+        kept.lit_matrix = product(&turned, &place_matrix, kept.lit_matrix);
+        kept.made_object_matrix = product(&kept.lit_matrix, &view_matrix, kept.made_object_matrix);
+        kept.listener_matrix = kept.made_object_matrix;
+        kept.made_object_matrix
+    };
     for (first, out, negate) in [
         (0, &race.effects_settings().light_point_a_negated, true),
         (0, &race.effects_settings().light_point_a, false),
@@ -147,7 +140,7 @@ pub fn set_listener(
             int_80(f[first + 1], false),
             int_80(f[first + 2], false),
         ];
-        let r = rotate_point(made, p);
+        let r = crate::scene::rotate_point::rotate_point_by(&made, p);
         for (cell, e) in out.iter().zip(r.iter()) {
             cell.set(ext_to_int(*e) as u32);
         }

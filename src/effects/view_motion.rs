@@ -14,7 +14,7 @@ use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise};
 
 pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
-    let m = &frame.matrices.get().view_place;
+    let m = &frame.view_kept.get().view_place;
     // Six floats: the third row, then the step.
     let local: [PlainFloat; 6] = std::array::from_fn(|_| PlainFloat::new(0.0));
     for k in 0..3 {

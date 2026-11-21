@@ -125,7 +125,6 @@ pub fn load_object(
         return check(race, scene);
     }
     let known = find_object_kind(race, kind);
-    race.frame.matrices.get().known_object.set(known);
     // The kind's light record, from its groups; a kind none of the known ones takes the place
     // after the 34 records, which reads on into the gear figures (`group_at`).
     let mut groups = [u32::MAX; PARTS];

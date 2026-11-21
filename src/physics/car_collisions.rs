@@ -62,12 +62,15 @@ pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
                     .wrapping_sub(block.position[k].get())
             });
             let at_place = placed(PLACED_BASE, place);
-            let turned = product(
-                &matrix_of(&car_now.crash_matrix),
-                &at_place,
-                matrix_of(&c.matrices.turned_matrix),
-            );
-            store_matrix(&c.matrices.turned_matrix, &turned);
+            let turned = {
+                let mut kept = c.matrices.borrow_mut();
+                kept.turned_matrix = product(
+                    &matrix_of(&car_now.crash_matrix),
+                    &at_place,
+                    kept.turned_matrix,
+                );
+                kept.turned_matrix
+            };
             let between = product(
                 &turned,
                 &matrix_of(&block.car_inverse_matrix),

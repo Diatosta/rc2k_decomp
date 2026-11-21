@@ -150,7 +150,7 @@ pub fn set_view_matrices(
     scratch: &ViewMatrices,
 ) {
     crate::memory::session::write_bits(
-        &frame.matrices.get().view_turn_matrix,
+        &frame.view_kept.get().view_turn_matrix,
         crate::memory::session::read_bits(&crate::race::matrices_store::identity_matrix()),
     );
     let angles: [u32; 3] =
@@ -166,7 +166,7 @@ pub fn set_view_matrices(
     matrix::multiply_matrices(
         &scratch.lit_matrix,
         &scratch.turn_z_matrix,
-        &frame.matrices.get().view_turn_matrix,
+        &frame.view_kept.get().view_turn_matrix,
     );
     let place = crate::memory::session::read_bits::<_, 3>(
         &frame.view_and_records.get().view_vars.view_place,
@@ -174,21 +174,21 @@ pub fn set_view_matrices(
     .map(u32::wrapping_neg);
     matrix::set_place(&scratch.placed_matrix, place);
     crate::memory::session::write_bits(
-        &frame.matrices.get().view_place_matrix,
+        &frame.view_kept.get().view_place_matrix,
         crate::memory::session::read_bits(&scratch.placed_matrix),
     );
     matrix::multiply_matrices(
         &scratch.placed_matrix,
-        &frame.matrices.get().view_turn_matrix,
-        &frame.matrices.get().view_matrix,
+        &frame.view_kept.get().view_turn_matrix,
+        &frame.view_kept.get().view_matrix,
     );
     invert_turn(
         course,
-        &frame.matrices.get().view_turn_matrix,
-        &frame.matrices.get().view_back_matrix,
+        &frame.view_kept.get().view_turn_matrix,
+        &frame.view_kept.get().view_back_matrix,
     );
     // The front end's own (its drawing reads them).
-    let m = &frame.matrices.get();
+    let m = &frame.view_kept.get();
     use crate::math::cells::copy_cells;
     copy_cells(&m.view_turn_matrix, &scratch.view_turn_matrix, 16);
     copy_cells(&m.view_place_matrix, &scratch.view_place_matrix, 16);

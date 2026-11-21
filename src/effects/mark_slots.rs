@@ -12,7 +12,7 @@ pub(super) fn slot_matrix(
     handle: u32,
 ) -> Result<&[crate::memory::session::PlainFloat; 16], crate::errors::BadInput> {
     match handle {
-        VIEW_PLACE_MATRIX => Ok(&frame.matrices.get().view_place),
+        VIEW_PLACE_MATRIX => Ok(&frame.view_kept.get().view_place),
         _ => Err(crate::errors::BadInput(
             "a mark slot's matrix handle that names none",
         )),

@@ -17,7 +17,7 @@ use crate::math::x87::{ext_times, ints_diff_80};
 use crate::math::x87_float::X;
 use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
-use crate::race::matrices_store::SceneMatrices;
+use crate::race::matrices_store::ViewKept;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::rotate_point::rotate_point;
@@ -49,7 +49,7 @@ fn listener(shared: &RaceShared) -> Option<&crate::physics::car_store::Car> {
 /// The exact x87 version (for `physics::engine_sound`).
 pub fn car_sound_state(
     numbers: &Numbers,
-    matrices: &SceneMatrices,
+    matrices: &ViewKept,
     shared: &RaceShared,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {

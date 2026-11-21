@@ -66,7 +66,7 @@ fn turn_light_x87_matches() {
         with_laid::<RefCell<SnowLight>, _>(b[1], |l| {
             super::turn_light_x87(
                 &race().frame,
-                &race().frame.matrices.get().view_matrix,
+                &race().frame.view_kept.get().view_matrix,
                 &mut l.borrow_mut(),
             );
         });

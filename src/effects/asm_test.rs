@@ -541,7 +541,7 @@ fn race_cell(off: usize) -> RacePlace {
         .scratch
         .front_end_polygon()
         .window;
-    let m = &crate::test_support::own::race().frame.matrices.get();
+    let m = &crate::test_support::own::race().frame.view_kept.get();
     match off {
         0x224088 => RacePlace {
             bits: Box::new(|| w.borrow().view_scale.to_bits()),

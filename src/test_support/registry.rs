@@ -534,8 +534,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.course.lists.get()),
         ),
         listed!(
-            "owners.race.frame.matrices",
-            on_game(o.race.frame.matrices.get()),
+            "owners.race.frame.view_kept",
+            on_game(o.race.frame.view_kept.get()),
         ),
         listed!("owners.race.shared.tables", on_game(o.race.shared.tables()),),
         listed!(

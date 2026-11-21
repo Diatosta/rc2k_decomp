@@ -3,6 +3,7 @@
 //! probe, the contact steps (which hold the other two), the camera, the reset chain and the
 //! clear-place search, the checkpoints, the lighting and the moving slots.
 
+use crate::memory::session::DrawPlain;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::{ContactWork, ProbeLists};
@@ -34,7 +35,8 @@ pub struct SoundInputs<'a> {
     pub numbers: &'a Numbers,
     pub work: &'a RaceWork,
     pub frame_work: &'a FrameWork,
-    pub matrices: &'a SceneMatrices,
+    pub matrices: &'a DrawPlain<SceneMatrices>,
+    pub view_kept: &'a crate::race::matrices_store::ViewKept,
     pub heard_turn: &'a crate::race::heard_turn::HeardTurn,
     pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
     pub contact: &'a RefCell<ContactWork>,
@@ -124,7 +126,7 @@ pub struct ResetInputs<'a> {
     /// The finish state's "no place" switch.
     pub no_place: u32,
     pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
-    pub matrices: &'a SceneMatrices,
+    pub matrices: &'a DrawPlain<SceneMatrices>,
     pub ground: GroundInputs<'a>,
 }
 
@@ -133,7 +135,7 @@ pub struct ResetInputs<'a> {
 #[derive(Clone, Copy)]
 pub struct CollisionInputs<'a> {
     pub contact: ContactInputs<'a>,
-    pub matrices: &'a SceneMatrices,
+    pub matrices: &'a DrawPlain<SceneMatrices>,
     pub vars: &'a RaceVars,
     pub view: &'a RaceView,
 }
@@ -198,7 +200,7 @@ pub struct SlotInputs<'a> {
     pub tables: &'a PhysicsTables,
     pub course: &'a Course,
     pub work: &'a RaceWork,
-    pub matrices: &'a SceneMatrices,
+    pub matrices: &'a DrawPlain<SceneMatrices>,
     pub search: &'a RefCell<GroundSearch>,
     pub probe: &'a RefCell<GroundProbe>,
 }
@@ -242,7 +244,8 @@ impl<'a> StepInputs<'a> {
             numbers: self.numbers,
             work: self.work,
             frame_work: self.frame.frame_work.get(),
-            matrices: self.frame.matrices.get(),
+            matrices: &self.frame.matrices,
+            view_kept: self.frame.view_kept.get(),
             heard_turn: self.shared.heard_turn.get(),
             polygon_tables: &self.shared.buffers.reads.get().polygon_tables,
             contact: self.physics.contact(),
@@ -293,7 +296,7 @@ impl<'a> StepInputs<'a> {
             view: self.view,
             no_place: self.replay.no_place(),
             car_blocks: self.shared.car_blocks.get(),
-            matrices: self.frame.matrices.get(),
+            matrices: &self.frame.matrices,
             ground: self.ground(),
         }
     }
@@ -301,7 +304,7 @@ impl<'a> StepInputs<'a> {
     pub fn collisions(&self, sound: &'a crate::sound::owner::Sound) -> CollisionInputs<'a> {
         CollisionInputs {
             contact: self.contact(sound),
-            matrices: self.frame.matrices.get(),
+            matrices: &self.frame.matrices,
             vars: self.vars,
             view: self.view,
         }
@@ -360,7 +363,7 @@ impl<'a> StepInputs<'a> {
             tables: self.tables,
             course: self.course,
             work: self.work,
-            matrices: self.frame.matrices.get(),
+            matrices: &self.frame.matrices,
             search: self.physics.ground_search(),
             probe: self.physics.ground_probe(),
         }

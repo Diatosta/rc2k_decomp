@@ -375,7 +375,7 @@ fn finish_level(
         &mut || {
             stage_prefs::get_mat_crash(
                 race.engine_tables(),
-                race.frame.matrices.get(),
+                &race.frame.matrices,
                 race.shared.car(),
                 scene,
             );

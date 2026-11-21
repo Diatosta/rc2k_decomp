@@ -3,7 +3,7 @@
 //! camera. Until the first view of a stage is drawn, the current matrix is used.
 
 use crate::memory::session::{PlainFlag, PlainFloat};
-use crate::race::matrices_store::SceneMatrices;
+use crate::race::matrices_store::ViewKept;
 
 /// The kept turn of the first view of this stage, held by `RaceShared`.
 pub struct HeardTurn {
@@ -36,7 +36,7 @@ impl HeardTurn {
     }
 
     /// The turn the race's sounds are placed by.
-    pub fn turn<'a>(&'a self, matrices: &'a SceneMatrices) -> &'a [PlainFloat; 16] {
+    pub fn turn<'a>(&'a self, matrices: &'a ViewKept) -> &'a [PlainFloat; 16] {
         if self.kept.is_set() {
             &self.turn
         } else {

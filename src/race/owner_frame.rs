@@ -3,7 +3,7 @@
 //! map.
 
 use crate::memory::MemoryList;
-use crate::memory::session::{DrawShared, GameThread};
+use crate::memory::session::{DrawPlain, DrawShared, GameThread};
 use crate::race::clock_ticks_store::ClockTicks;
 use crate::race::error_list_store::ErrorList;
 use crate::race::frame_counter_store::FrameCounter;
@@ -11,7 +11,7 @@ use crate::race::frame_store::FrameWork;
 use crate::race::frame_text::Credits;
 use crate::race::game_map_store::MapVars;
 use crate::race::groups_store::{LightsAndGear, PanelAndOverlay, ViewAndRecords};
-use crate::race::matrices_store::SceneMatrices;
+use crate::race::matrices_store::{SceneMatrices, ViewKept};
 use crate::race::scratch_store::FrameScratch;
 use crate::race::shadow_skids_store::ShadowSkids;
 use crate::race::sound_spots_store::SoundSpots;
@@ -44,9 +44,12 @@ pub struct Frame {
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it (the two
     /// counters nobody reads stay atomic).
     pub frame_work: DrawShared<FrameWork>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it (the held
-    /// columns are each part's own, `scene::view_matrices::Held`, merged in the parts' order).
-    pub matrices: DrawShared<SceneMatrices>,
+    /// A plain record, lent to the drawing parts as a copy (`scene::workers::DrawReads`): no part
+    /// writes it (the held columns are each part's own, `scene::view_matrices::Held`, merged in
+    /// the parts' order).
+    pub matrices: DrawPlain<SceneMatrices>,
+    /// The views' matrices kept for what is drawn or heard after them; the game's thread's.
+    pub view_kept: DrawShared<ViewKept>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing only reads it.
     pub shadow_skids: DrawShared<ShadowSkids>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the mirror's window and the
@@ -86,7 +89,8 @@ impl Frame {
             overview_picture: std::sync::Mutex::new(None),
             last_frame_nanos: std::sync::atomic::AtomicU64::new(0),
             frame_work: DrawShared::new(FrameWork::new()),
-            matrices: DrawShared::new(SceneMatrices::new()),
+            matrices: DrawPlain::new(SceneMatrices::new()),
+            view_kept: DrawShared::new(ViewKept::new()),
             shadow_skids: DrawShared::new(ShadowSkids::new()),
             panel_and_overlay: DrawShared::new(PanelAndOverlay::new()),
             view_and_records: DrawShared::new(ViewAndRecords::new()),

@@ -29,6 +29,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::rounded_value;
 use crate::math::x87::loaded;
+use crate::memory::session::DrawPlain;
 use crate::physics as ph;
 use crate::physics::car_store::Car;
 use crate::physics::figures::SIDE_SPEED_LIMIT;
@@ -42,7 +43,7 @@ use crate::race::switches_store::FrameSwitches;
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
 fn motion(
     course: &Course,
-    matrices: &SceneMatrices,
+    matrices: &DrawPlain<SceneMatrices>,
     switches: &FrameSwitches,
     physics_tables: &PhysicsTables,
     car: &Car,
@@ -193,7 +194,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     )?;
     motion(
         &race.course,
-        race.frame.matrices.get(),
+        &race.frame.matrices,
         race.shared.switches.get(),
         race.shared.physics_tables.get(),
         race.shared.car(),
@@ -239,7 +240,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
 
         motion(
             &race.course,
-            race.frame.matrices.get(),
+            &race.frame.matrices,
             race.shared.switches.get(),
             race.shared.physics_tables.get(),
             race.shared.car(),
@@ -273,7 +274,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::reset_when_stuck::reset_when_stuck(&inputs.reset(), scene)?;
     ph::engine_sound::engine_sound(
         &race.course.numbers,
-        race.frame.matrices.get(),
+        race.frame.view_kept.get(),
         &race.shared,
         sound,
     )?;
@@ -299,7 +300,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     )?;
     ph::hit_part_checks::hit_part_checks(
         &race.course.numbers,
-        race.frame.matrices.get(),
+        race.frame.view_kept.get(),
         &race.shared,
         race.kind_tables(),
         scene,

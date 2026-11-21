@@ -8,7 +8,7 @@ use crate::errors::Refused;
 use crate::physics::drop_hit_parts::hit_tests;
 use crate::physics::sound_on_bit::sound_on_bit;
 use crate::race::kind_store::KindTables;
-use crate::race::matrices_store::SceneMatrices;
+use crate::race::matrices_store::ViewKept;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
@@ -16,7 +16,7 @@ use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
 // Core: `rc2k_core::physics::parts::{has_hit_sounds, hit_tests, SOUND_TESTS}`.
 pub fn sound_hit_parts(
     numbers: &Numbers,
-    matrices: &SceneMatrices,
+    matrices: &ViewKept,
     shared: &RaceShared,
     kind_tables: &KindTables,
     sound: &crate::sound::owner::Sound,

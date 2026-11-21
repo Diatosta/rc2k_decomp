@@ -15,7 +15,7 @@ use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::physics::step_families::SoundInputs;
 use crate::race::frame_store::FrameWork;
-use crate::race::matrices_store::SceneMatrices;
+use crate::race::matrices_store::ViewKept;
 use crate::race::numbers_store::Numbers;
 use crate::scene::rotate_point::rotate_point;
 use crate::sound::store::SoundObjectCell;
@@ -37,7 +37,7 @@ pub fn object<'a>(c: &SoundInputs<'a>) -> &'a SoundObjectCell {
 /// The place (with `offset` added to the car's, when given), turned and scaled.
 pub fn place(
     numbers: &Numbers,
-    matrices: &SceneMatrices,
+    matrices: &ViewKept,
     heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
     listener: &Car,
@@ -62,7 +62,7 @@ pub fn place(
 /// The converted place (`rc2k_core::physics::sound_places::place`).
 fn place_plain(
     numbers: &Numbers,
-    matrices: &SceneMatrices,
+    matrices: &ViewKept,
     heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
     listener: &Car,
@@ -103,7 +103,7 @@ pub(super) fn cue_plain(
     *band_cell = band;
     let place = place_plain(
         c.numbers,
-        c.matrices,
+        c.view_kept,
         c.heard_turn,
         c.car,
         c.listener,

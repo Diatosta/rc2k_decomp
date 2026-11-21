@@ -23,7 +23,7 @@ use crate::math::matrix3::{Axis, extended, rounded_value, turn_matrix3_plain, tu
 use crate::math::x87;
 use crate::memory::session::PlainFloat;
 use crate::scene::cross_product3::cross_plain;
-use crate::scene::rotate_point::rotate_point;
+use crate::scene::rotate_point::rotate_point_by;
 use crate::scene::vector3::normalise_plain;
 
 /// A shadow's variables (the typed statics of `effects::kind_store`: the second shadow's,
@@ -171,11 +171,11 @@ pub(super) fn draw_shadow_with(
         normalise_plain(&mut q.way);
     }
     corners_in_x87(sh);
-    let view = &race.frame.matrices.get().listener_matrix;
+    let view = race.frame.matrices.borrow().listener_matrix;
     {
         let mut q = sh.quad.borrow_mut();
         for item in q.corners.iter_mut().take(4) {
-            let turned = rotate_point(view, (*item).map(extended));
+            let turned = rotate_point_by(&view, (*item).map(extended));
             for (k, v) in turned.into_iter().enumerate() {
                 item[k] = rounded_value(v);
             }

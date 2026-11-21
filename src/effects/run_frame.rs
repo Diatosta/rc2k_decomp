@@ -69,7 +69,7 @@ impl<'a> EffectsView<'a> {
         let front_end = scene.scratch.front_end();
         Self {
             fog: &front_end.fog,
-            view_matrix: &race.frame.matrices.get().view_matrix,
+            view_matrix: &race.frame.view_kept.get().view_matrix,
             light: front_end.light.borrow().view_light,
             engine_tables: race.engine_tables(),
         }

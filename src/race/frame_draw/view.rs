@@ -320,7 +320,7 @@ pub fn view_matrices(
 /// game's thread, once the view is drawn, in the views' order (`race::draw_race_scene`'s
 /// `view_drawn`; no drawing part reads them).
 pub fn hand_on_view_matrices(race: &Race, m: &ViewMatrices) {
-    let shared = &race.frame.matrices.get();
+    let shared = &race.frame.view_kept.get();
     use crate::math::cells::copy_cells;
     copy_cells(&m.view_turn_matrix, &shared.view_turn_matrix, 16);
     copy_cells(&m.view_place_matrix, &shared.view_place_matrix, 16);

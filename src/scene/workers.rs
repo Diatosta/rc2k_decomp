@@ -144,7 +144,7 @@ pub struct Lent<'s> {
     physics_tables:
         crate::memory::session::PhaseRead<'s, crate::physics::tables_store::PhysicsTables>,
     // The frame's matrices and the physics' contact work.
-    matrices: crate::memory::session::PhaseRead<'s, crate::race::matrices_store::SceneMatrices>,
+    matrices: crate::memory::session::PlainRead<crate::race::matrices_store::SceneMatrices>,
     lit_faces: crate::memory::session::PhaseRead<'s, crate::physics::lit_faces_store::LitFaces>,
     // The race's buffers the parts read.
     buffers: crate::memory::session::PhaseRead<'s, crate::race::buffers_store::BufferReads>,
@@ -207,7 +207,7 @@ impl<'s> Lent<'s> {
             work: PhaseRead::lend(&race.shared.work, scope),
             physics_tables: PhaseRead::lend(&race.shared.physics_tables, scope),
             // The frame's matrices and the physics' contact work.
-            matrices: PhaseRead::lend(&race.frame.matrices, scope),
+            matrices: crate::memory::session::PlainRead::lend(&race.frame.matrices, scope),
             lit_faces: PhaseRead::lend(&race.physics.lit_faces, scope),
             // The race's buffers the parts read.
             buffers: PhaseRead::lend(&race.shared.buffers.reads, scope),
@@ -257,7 +257,7 @@ impl<'s> Lent<'s> {
             work: &self.work,
             physics_tables: &self.physics_tables,
             // The frame's matrices and the physics' contact work.
-            matrices: &self.matrices,
+            matrices: (&self.matrices).into(),
             lit_faces: &self.lit_faces,
             // The race's buffers the parts read.
             buffers: &self.buffers,
@@ -357,7 +357,7 @@ pub struct DrawReads<'a> {
     // The frame's matrices and the physics' contact work.
     /// The frame's matrices (`race::owner_frame::Frame::matrices`): the identity and the work
     /// matrices the views are made from, the fourth columns the views hold from.
-    pub matrices: &'a crate::race::matrices_store::SceneMatrices,
+    pub matrices: crate::race::matrices_store::SceneMatricesRef<'a>,
     /// The physics' lit faces (`race::owner_physics::Physics::lit_faces`): the lamps are gathered
     /// from them.
     pub lit_faces: &'a crate::physics::lit_faces_store::LitFaces,
@@ -443,7 +443,7 @@ impl<'a> DrawReads<'a> {
             work: race.shared.work.get(),
             physics_tables: race.shared.physics_tables.get(),
             // The frame's matrices and the physics' contact work.
-            matrices: race.frame.matrices.get(),
+            matrices: (&race.frame.matrices).into(),
             lit_faces: race.physics.lit_faces.get(),
             // The race's buffers the parts read.
             buffers: race.shared.buffers.reads.get(),
@@ -655,7 +655,7 @@ fn draw_parts(
     // matrices; every part, the first too, holds its own while the scope is open.
     let point_count = owners.race.course.course.borrow().scene_point_count;
     let matrices = &owners.race.frame.matrices;
-    let columns_start = crate::scene::view_matrices::columns(matrices.get());
+    let columns_start = crate::scene::view_matrices::columns(&matrices.borrow());
     begin_list();
     let control = crate::math::x87::control_word();
     // Whether a race is on, as the parts' noted drawing reads it inside the scope (`in_race`).
@@ -761,7 +761,7 @@ fn draw_parts(
     drop(scope);
     let (first, first_columns) = first;
     // Part 0's held columns go into the store before anything runs on the game's thread.
-    crate::scene::view_matrices::merge_columns(matrices.get(), &columns_start, &first_columns);
+    crate::scene::view_matrices::merge_columns(matrices, &columns_start, &first_columns);
     let mut result = first;
     // Part 0 is put back: what follows it draws on the game's thread, every part ended.
     if result.is_ok() {
@@ -774,7 +774,7 @@ fn draw_parts(
         crate::d3d::run_states::patch(&mut run.noted.commands, &run.states, &carried);
         crate::d3d::device::put_noted(scratch_owner.game_scratch(), run.noted);
         crate::d3d::run_states::carry(first_cache, &run.states, &cache_start);
-        crate::scene::view_matrices::merge_columns(matrices.get(), &columns_start, &run.columns);
+        crate::scene::view_matrices::merge_columns(matrices, &columns_start, &run.columns);
         if result.is_ok() {
             // What it draws takes the merged states.
             crate::d3d::device::forget_states(scratch_owner.game_scratch());

@@ -93,11 +93,7 @@ fn car_part_matrices(
     scene.object_work_mut().part_values[2] = c.shown_steering.get();
     scene.object_work_mut().part_values[0] = p.driven_wheel_turns[0].get();
     scene.object_work_mut().part_values[1] = p.driven_wheel_turns[1].get();
-    copy_cells(
-        &p.crash_matrix,
-        &race.frame.matrices.get().body_turn_matrix,
-        16,
-    );
+    race.frame.matrices.borrow_mut().body_turn_matrix = matrix_of(&p.crash_matrix);
     for (weight, force) in scene
         .object_work_mut()
         .part_weights
@@ -106,7 +102,7 @@ fn car_part_matrices(
     {
         *weight = force.get();
     }
-    let matrices = race.frame.matrices.get();
+    let matrices = &race.frame.matrices;
     let car_place = placed(
         PLACED_BASE,
         [
@@ -165,15 +161,21 @@ fn car_part_matrices(
             ],
         );
         let (turn_x, _) = turned_x(race.engine_tables(), TURN_X_BASE, spin);
-        let turned = product(&back, &turn_x, matrix_of(&matrices.turned_matrix));
-        store_matrix(&matrices.turned_matrix, &turned);
+        let turned = {
+            let mut kept = matrices.borrow_mut();
+            kept.turned_matrix = product(&back, &turn_x, kept.turned_matrix);
+            kept.turned_matrix
+        };
         let (turn_y, _) = turned_y(
             race.engine_tables(),
             TURN_Y_BASE,
             scene.object_work().part_values[2],
         );
-        let lit = product(&turned, &turn_y, matrix_of(&matrices.lit_matrix));
-        store_matrix(&matrices.lit_matrix, &lit);
+        let lit = {
+            let mut kept = matrices.borrow_mut();
+            kept.lit_matrix = product(&turned, &turn_y, kept.lit_matrix);
+            kept.lit_matrix
+        };
         let at_axle = placed(back, [x, lift, z]);
         store_matrix(out, &product(&lit, &at_axle, matrix_of(out)));
     }
@@ -221,15 +223,18 @@ pub(super) fn ready_car_parts(
             {
                 copy_cells(from, to, 16);
             }
-            copy_cells(&frame.matrices.get().body_turn_matrix, kept[4], 16);
+            let body_turn = frame.matrices.borrow().body_turn_matrix;
+            for (to, value) in kept[4].iter().zip(body_turn) {
+                to.set(value);
+            }
             copy_cells(&work.placed_matrices[..16], kept[5], 16);
             let whole = product(
-                &matrix_of(&frame.matrices.get().body_turn_matrix),
+                &body_turn,
                 &matrix_of(&frame.frame_work.get().placed_matrices),
-                matrix_of(&frame.matrices.get().view_place),
+                matrix_of(&frame.view_kept.get().view_place),
             );
-            store_matrix(&frame.matrices.get().view_place, &whole);
-            copy_cells(&frame.matrices.get().view_place, &block.whole_matrix, 16);
+            store_matrix(&frame.view_kept.get().view_place, &whole);
+            copy_cells(&frame.view_kept.get().view_place, &block.whole_matrix, 16);
         }
         c += 1;
         if c == count {

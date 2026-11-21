@@ -61,7 +61,7 @@ fn turn_x87_matches() {
                 super::turn_x87(
                     &crate::test_support::own::race()
                         .frame
-                        .matrices
+                        .view_kept
                         .get()
                         .view_matrix,
                     &place,

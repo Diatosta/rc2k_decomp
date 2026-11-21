@@ -21,7 +21,7 @@ use crate::math::x87_float::to_int;
 use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::car_store::Car;
 use crate::physics::gear_change_sound::gear_change_sound;
-use crate::race::matrices_store::SceneMatrices;
+use crate::race::matrices_store::ViewKept;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::engine::ease_revs;
@@ -61,7 +61,7 @@ fn run_at(car: &Car, numbers: &Numbers) {
 // and the rounding stay x87).
 pub(super) fn engine_sound(
     numbers: &Numbers,
-    matrices: &SceneMatrices,
+    matrices: &ViewKept,
     shared: &RaceShared,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {

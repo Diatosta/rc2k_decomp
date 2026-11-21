@@ -165,7 +165,7 @@ mod same_as_old {
         let ring = &effects().ring;
         let view_matrix = &crate::test_support::own::race()
             .frame
-            .matrices
+            .view_kept
             .get()
             .view_matrix;
         let mut clock = MarksClock::new();
@@ -324,7 +324,7 @@ mod reference_vectors {
                 super::first_frame_x87(
                     &crate::test_support::own::race()
                         .frame
-                        .matrices
+                        .view_kept
                         .get()
                         .view_matrix,
                     ring,
@@ -430,7 +430,7 @@ mod reference_vectors {
                     super::turn_place_x87(
                         &crate::test_support::own::race()
                             .frame
-                            .matrices
+                            .view_kept
                             .get()
                             .view_matrix,
                         ring,

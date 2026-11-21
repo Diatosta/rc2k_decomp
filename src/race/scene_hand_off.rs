@@ -99,11 +99,12 @@ impl SceneHandOff {
     /// `scene::view_matrices::current_matrix`).
     pub fn keep(
         &self,
-        m: &crate::race::matrices_store::SceneMatrices,
+        m: crate::race::matrices_store::SceneMatricesRef<'_>,
         part: &crate::scene::scratch_store::PartScratch,
     ) {
-        let lit = crate::scene::view_matrices::current_matrix(m, part, 1);
-        let made = crate::scene::view_matrices::current_matrix(m, part, 2);
+        let m = m.get();
+        let lit = crate::scene::view_matrices::current_matrix(&m, part, 1);
+        let made = crate::scene::view_matrices::current_matrix(&m, part, 2);
         let mut kept = self.0.borrow_mut();
         kept.lit = lit;
         kept.made = made;
@@ -111,15 +112,9 @@ impl SceneHandOff {
 
     /// The kept values set again (before the view's overlays).
     pub fn put(&self, race: &Race) {
-        let m = &race.frame.matrices.get();
         let kept = *self.0.borrow();
-        for (kept, now) in [kept.lit, kept.made]
-            .into_iter()
-            .zip([&m.lit_matrix, &m.made_object_matrix])
-        {
-            for (bits, v) in kept.into_iter().zip(now) {
-                v.set(f32::from_bits(bits));
-            }
-        }
+        let mut m = race.frame.matrices.borrow_mut();
+        m.lit_matrix = kept.lit.map(f32::from_bits);
+        m.made_object_matrix = kept.made.map(f32::from_bits);
     }
 }

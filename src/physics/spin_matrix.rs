@@ -8,6 +8,7 @@
 
 use crate::math::matrix3::rounded_value;
 use crate::math::x87;
+use crate::memory::session::DrawPlain;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
@@ -19,7 +20,7 @@ use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 pub fn spin_matrix(
     course: &Course,
-    matrices: &SceneMatrices,
+    matrices: &DrawPlain<SceneMatrices>,
     physics_tables: &PhysicsTables,
     car: &Car,
 ) {
@@ -28,22 +29,20 @@ pub fn spin_matrix(
     if car.spin_length.get().to_bits() != 0 {
         let lists = course.lists.get();
         let turn = &lists.turn_matrix;
-        let turned = &matrices.turned_matrix;
         unit_vector(course.reads(), &car.spin, &lists.spin_axis);
         lists
             .spin_angle
             .set(x87::mul(&car.spin_length, physics_tables.step_time.get()));
         axis_turn_matrix(course, turn);
         square_matrix(course.reads(), turn);
-        let crashed = product(
-            &matrix_of(&car.crash_matrix),
-            &matrix_of(turn),
-            matrix_of(turned),
-        );
-        store_matrix(turned, &crashed);
-        for k in 0..16 {
-            car.crash_matrix[k].set(matrices.turned_matrix[k].get());
-        }
+        let crash = matrix_of(&car.crash_matrix);
+        let turn_now = matrix_of(turn);
+        let mut kept = matrices.borrow_mut();
+        // Only the first three columns are worked out; the fourth stays what the last copy left.
+        let crashed = product(&crash, &turn_now, kept.turned_matrix);
+        kept.turned_matrix = crashed;
+        drop(kept);
+        store_matrix(&car.crash_matrix, &crashed);
     }
     square_matrix(course.reads(), &car.crash_matrix);
 }

@@ -21,6 +21,18 @@ pub fn rotate_point(m: &(impl Cells + ?Sized), p: [[u8; 10]; 3]) -> [[u8; 10]; 3
     out
 }
 
+/// `rotate_point` by a matrix held as values (its first fifteen floats, as their bits).
+pub fn rotate_point_by(m: &crate::scene::matrix::Matrix, p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
+    let mut out = [[0u8; 10]; 3];
+    let m: [u32; 15] = std::array::from_fn(|n| m[n].to_bits());
+    rotate(
+        &p[..],
+        &m[..],
+        std::cell::Cell::from_mut(&mut out[..]).as_slice_of_cells(),
+    );
+    out
+}
+
 /// `fld tbyte` x3, the three rows' sums of products plus the place, `fstp tbyte` x3.
 fn rotate(p: impl Base, m: impl Base, o: impl Base) {
     at_rounding!(|r| {

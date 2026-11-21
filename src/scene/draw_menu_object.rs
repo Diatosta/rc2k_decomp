@@ -46,7 +46,7 @@ pub fn draw_menu_object_in_game(
                 make_object_matrix(
                     &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices,
-                    &race.frame.matrices.get().view_turn_matrix,
+                    &race.frame.view_kept.get().view_turn_matrix,
                     &ctx.view.light,
                     &ctx.view.object,
                 );

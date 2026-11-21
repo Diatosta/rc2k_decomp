@@ -12,7 +12,6 @@ use crate::math::x87::{ext_to_int, int_80};
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::step_families::ContactInputs;
-use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
 
 /// Whether one of the object's points is inside the car ; `point` and `object` are
@@ -67,7 +66,10 @@ pub fn object_hits_car(
                     return false;
                 }
             };
-            let turned = rotate_point(&c.sound.matrices.object_turn_matrix, [x, y, z]);
+            let turned = crate::scene::rotate_point::rotate_point_by(
+                &c.sound.matrices.borrow().object_turn_matrix,
+                [x, y, z],
+            );
             for (k, e) in turned.iter().enumerate() {
                 c.contact.borrow_mut().object_offset[k] = ext_to_int(*e) as u32;
             }

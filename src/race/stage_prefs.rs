@@ -5,6 +5,7 @@
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::memory::cells::Store;
+use crate::memory::session::DrawPlain;
 use crate::physics::car_store::Car;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
@@ -101,7 +102,7 @@ pub(super) fn load_lights_data(race: &Race) -> Result<(), Refused> {
 /// x Y into `crash_matrix`.
 pub fn get_mat_crash(
     engine_tables: &crate::math::engine_tables::EngineTables,
-    matrices: &SceneMatrices,
+    matrices: &DrawPlain<SceneMatrices>,
     car: &Car,
     scene: &crate::scene::owner::Scene,
 ) {
@@ -118,8 +119,11 @@ pub fn get_mat_crash(
     let (turn_x, _) = turned_x(engine_tables, TURN_X_BASE, turns[0]);
     let (turn_y, _) = turned_y(engine_tables, TURN_Y_BASE, turns[1]);
     let (turn_z, _) = turned_z_16(engine_tables, TURN_Z_BASE, turns[2]);
-    let lit = product(&turn_z, &turn_x, matrix_of(&matrices.lit_matrix));
-    store_matrix(&matrices.lit_matrix, &lit);
+    let lit = {
+        let mut kept = matrices.borrow_mut();
+        kept.lit_matrix = product(&turn_z, &turn_x, kept.lit_matrix);
+        kept.lit_matrix
+    };
     let crash = product(&lit, &turn_y, matrix_of(&car.crash_matrix));
     store_matrix(&car.crash_matrix, &crash);
 }

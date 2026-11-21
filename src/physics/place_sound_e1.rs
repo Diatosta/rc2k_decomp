@@ -21,7 +21,14 @@ pub fn place_sound_e1(c: &SoundInputs<'_>) -> Result<(), Refused> {
     let o = object(c);
     o.borrow_mut().hit_sound = 0xE1;
     o.borrow_mut().hit_volume = b;
-    let at = place(c.numbers, c.matrices, c.heard_turn, c.car, c.listener, None);
+    let at = place(
+        c.numbers,
+        c.view_kept,
+        c.heard_turn,
+        c.car,
+        c.listener,
+        None,
+    );
     o.borrow_mut().hit_place = at;
     // The play switch, the cell the revs' new reading flag shares.
     o.borrow_mut().new_revs = 1;

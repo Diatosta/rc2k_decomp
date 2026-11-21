@@ -7,7 +7,7 @@
 use crate::errors::Refused;
 use crate::physics::drop_hit_parts::drop_hit_parts;
 use crate::physics::sound_hit_parts::sound_hit_parts;
-use crate::race::matrices_store::SceneMatrices;
+use crate::race::matrices_store::ViewKept;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::parts::parts_left;
@@ -15,7 +15,7 @@ use rc2k_core::physics::parts::parts_left;
 // Core: `rc2k_core::physics::parts::parts_left`.
 pub(super) fn hit_part_checks(
     numbers: &Numbers,
-    matrices: &SceneMatrices,
+    matrices: &ViewKept,
     shared: &RaceShared,
     kind_tables: &crate::race::kind_store::KindTables,
     scene: &crate::scene::owner::Scene,

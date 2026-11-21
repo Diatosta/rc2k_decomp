@@ -25,7 +25,7 @@ use crate::math::matrix3::rounded_value;
 use crate::math::x87;
 use crate::math::x87::{abs_compare, mul, mul2_to_int, negated};
 use crate::math::x87_float as bh;
-use crate::memory::session::{FloatLike, PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::step_families::SlotInputs;
 use crate::race::work_store::{RaceSlot, RaceWork};
@@ -34,13 +34,6 @@ use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 /// A place (three whole numbers) copied.
 fn copy_place(from: &[PlainDword; 3], to: &[PlainDword; 3]) {
-    for (t, f) in to.iter().zip(from) {
-        t.set(f.get());
-    }
-}
-
-/// A matrix's floats copied.
-fn copy_matrix(from: &[impl FloatLike; 16], to: &[impl FloatLike; 16]) {
     for (t, f) in to.iter().zip(from) {
         t.set(f.get());
     }
@@ -97,13 +90,14 @@ pub fn move_slot(c: &SlotInputs<'_>, s: &RaceSlot, number: usize) -> Result<(), 
             .set(x87::mul(&s.spin_length, dt));
         axis_turn_matrix(c.course, &c.course.lists.get().turn_matrix);
         square_matrix(c.course.reads(), &c.course.lists.get().turn_matrix);
-        let turned = product(
-            &matrix_of(&s.matrix),
-            &matrix_of(&c.course.lists.get().turn_matrix),
-            matrix_of(&c.matrices.turned_matrix),
-        );
-        store_matrix(&c.matrices.turned_matrix, &turned);
-        copy_matrix(&c.matrices.turned_matrix, &s.matrix);
+        let slot_matrix = matrix_of(&s.matrix);
+        let turn_now = matrix_of(&c.course.lists.get().turn_matrix);
+        let turned = {
+            let mut kept = c.matrices.borrow_mut();
+            kept.turned_matrix = product(&slot_matrix, &turn_now, kept.turned_matrix);
+            kept.turned_matrix
+        };
+        store_matrix(&s.matrix, &turned);
     }
     for k in [1, 0, 2] {
         let d = mul2_to_int(&s.motion[k], dt, k65536) as u32;

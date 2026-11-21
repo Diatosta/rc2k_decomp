@@ -5,6 +5,7 @@
 //! Uses `physics::set_handling` and `physics::probe_ground`.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::session::DrawPlain;
 use crate::memory::session::DwordLike;
 use crate::memory::session::PlainDword;
 use crate::physics::contact_store::ProbeLists;
@@ -53,7 +54,7 @@ fn settle_step(low: u32, high: u32, angle: &impl DwordLike, step: &impl DwordLik
 fn matrix_and_wheels(
     engine_tables: &crate::math::engine_tables::EngineTables,
     ground: &GroundInputs<'_>,
-    matrices: &SceneMatrices,
+    matrices: &DrawPlain<SceneMatrices>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<[u32; 4], Refused> {
     crate::race::stage_prefs::get_mat_crash(engine_tables, matrices, ground.car, scene);

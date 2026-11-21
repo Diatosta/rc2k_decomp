@@ -12,7 +12,8 @@
 //! matrix, the identity, the frame draw's two work matrices, and the listener's matrix.
 
 use crate::memory::session::{Cell32, PlainDword, PlainFloat};
-use crate::race::matrices_store::SceneMatrices;
+use crate::race::matrices_store::{SceneMatrices, SceneMatricesRef};
+use crate::scene::matrix::Matrix;
 
 #[derive(rc2k_derive::Cells)]
 pub struct ViewMatrices {
@@ -79,7 +80,7 @@ pub struct ViewMatrices {
 /// the parts' order (`merge_columns`).
 pub struct Held<'a> {
     view: &'a ViewMatrices,
-    store: &'a SceneMatrices,
+    store: SceneMatricesRef<'a>,
     part: &'a crate::scene::scratch_store::PartScratch,
 }
 
@@ -91,8 +92,16 @@ pub struct Columns([u32; 12]);
 
 const CELLS: [usize; 4] = [3, 7, 11, 15];
 
-fn held(m: &SceneMatrices) -> [&[PlainFloat; 16]; 3] {
+fn held(m: &SceneMatrices) -> [&Matrix; 3] {
     [&m.turned_matrix, &m.lit_matrix, &m.made_object_matrix]
+}
+
+fn held_mut(m: &mut SceneMatrices) -> [&mut Matrix; 3] {
+    [
+        &mut m.turned_matrix,
+        &mut m.lit_matrix,
+        &mut m.made_object_matrix,
+    ]
 }
 
 fn view_held(m: &ViewMatrices) -> [&[PlainFloat; 16]; 3] {
@@ -101,6 +110,10 @@ fn view_held(m: &ViewMatrices) -> [&[PlainFloat; 16]; 3] {
 
 fn read_columns<C: Cell32>(from: [&[C; 16]; 3]) -> Columns {
     Columns(std::array::from_fn(|n| from[n / 4][CELLS[n % 4]].bits()))
+}
+
+fn plain_columns(from: [&Matrix; 3]) -> Columns {
+    Columns(std::array::from_fn(|n| from[n / 4][CELLS[n % 4]].to_bits()))
 }
 
 fn write_columns<C: Cell32>(c: &Columns, to: [&[C; 16]; 3]) {
@@ -144,13 +157,13 @@ pub fn current_matrix(
     let c = part.columns.get();
     std::array::from_fn(|cell| match (c, CELLS.iter().position(|&k| k == cell)) {
         (Some(c), Some(row)) => c.0[m * 4 + row],
-        _ => held(store)[m][cell].bits(),
+        _ => held(store)[m][cell].to_bits(),
     })
 }
 
 /// The store's columns now.
 pub fn columns(store: &SceneMatrices) -> Columns {
-    read_columns(held(store))
+    plain_columns(held(store))
 }
 
 /// Part `part` (not the first) begins, its columns `start`.
@@ -175,11 +188,16 @@ pub fn end_part(part: &crate::scene::scratch_store::PartScratch) -> Option<Colum
 }
 
 /// A part's columns `left` into the store where they differ from `start`.
-pub fn merge_columns(store: &SceneMatrices, start: &Columns, left: &Columns) {
-    let to = held(store);
+pub fn merge_columns(
+    store: &crate::memory::session::DrawPlain<SceneMatrices>,
+    start: &Columns,
+    left: &Columns,
+) {
+    let mut kept = store.borrow_mut();
+    let to = held_mut(&mut kept);
     for (n, (&s, &l)) in start.0.iter().zip(&left.0).enumerate() {
         if s != l {
-            to[n / 4][CELLS[n % 4]].set_bits(l);
+            to[n / 4][CELLS[n % 4]] = f32::from_bits(l);
         }
     }
 }
@@ -189,10 +207,10 @@ impl ViewMatrices {
     /// part other than the first) taken into the view's until the returned hold is dropped.
     pub fn hold<'a>(
         &'a self,
-        store: &'a SceneMatrices,
+        store: SceneMatricesRef<'a>,
         part: &'a crate::scene::scratch_store::PartScratch,
     ) -> Held<'a> {
-        let c = part.columns.get().unwrap_or_else(|| columns(store));
+        let c = part.columns.get().unwrap_or_else(|| columns(&store.get()));
         write_columns(&c, view_held(self));
         Held {
             view: self,
@@ -208,7 +226,20 @@ impl Drop for Held<'_> {
         if self.part.columns.get().is_some() {
             self.part.columns.set(Some(c));
         } else {
-            write_columns(&c, held(self.store));
+            // Only a hold outside a drawing scope (the front end's) reaches the store itself: a
+            // drawing part's copy is never written (every part holds columns of its own).
+            match self.store {
+                SceneMatricesRef::Store(store) => {
+                    let mut kept = store.borrow_mut();
+                    let to = held_mut(&mut kept);
+                    for (n, &value) in c.0.iter().enumerate() {
+                        to[n / 4][CELLS[n % 4]] = f32::from_bits(value);
+                    }
+                }
+                SceneMatricesRef::Copy(_) => {
+                    debug_assert!(false, "a drawing part held without columns of its own");
+                }
+            }
         }
     }
 }
