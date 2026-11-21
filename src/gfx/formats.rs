@@ -1,50 +1,31 @@
-//! The pixel formats' work variables (format numbers, scratch bytes, component format). The row
+//! The pixel formats' work variables (format numbers and the component format). The row
 //! table follows (`ROW_TABLE`).
 
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::session::PlainDword;
+use std::cell::Cell;
 
-/// A pixel layout's number and its masks' summary (`describe_format` picks the number of the layout
-/// whose bits the masks match).
-#[derive(rc2k_derive::Cells)]
-pub struct Numbered {
-    /// The layout's number.
-    pub number: PlainDword,
-    /// The layout (the three masks' top bits as one dword).
-    pub layout: PlainDword,
-}
-
-impl Numbered {
-    const fn new(number: u32, layout: u32) -> Self {
-        Self {
-            number: PlainDword::new(number),
-            layout: PlainDword::new(layout),
-        }
-    }
-}
-
-#[derive(rc2k_derive::Cells)]
 pub struct Formats {
-    /// `Formats.numbers[0].number`: six of (number, layout).
-    pub numbers: [Numbered; 6],
-    /// Four bytes `components_to_pixel` shifts the components out of.
-    pub scratch: PlainBytes<4>,
-    /// The component format, a pixel format record (layout, four masks, number).
+    /// The pixel layouts' (number, layout) table: 1 .. 4 the 16-bit formats, 5 and 6 the 32-bit
+    /// ones.
+    pub numbers: [(u32, u32); 6],
     pub component_format: [PlainDword; 6],
+    /// The bytes the pixel packers leave behind (kept as the game's work area; never read).
+    pub scratch: Cell<[u8; 4]>,
 }
 
 impl Formats {
     pub const fn new() -> Self {
         Formats {
             numbers: [
-                Numbered::new(1, 0xe0f8fbfd),
-                Numbered::new(2, 0xe0f7fafd),
-                Numbered::new(3, 0xf0f7fafd),
-                Numbered::new(4, 0xf0f4f8fc),
-                Numbered::new(5, 0xe0000000),
-                Numbered::new(6, 0x80000000),
+                (1, 0xe0f8fbfd),
+                (2, 0xe0f7fafd),
+                (3, 0xf0f7fafd),
+                (4, 0xf0f4f8fc),
+                (5, 0xe0000000),
+                (6, 0x80000000),
             ],
-            scratch: PlainBytes::new([0; 4]),
             component_format: [const { PlainDword::new(0) }; 6],
+            scratch: Cell::new([0; 4]),
         }
     }
 }

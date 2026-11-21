@@ -154,8 +154,8 @@ pub fn draw_view_strip(overlay: &Overlay, view: u32) -> Result<(), Refused> {
     }
     {
         let top = strips::top_entry(view, frame.panel_and_overlay.get().panel.flat.get());
-        let top: u32 = strips.tops[top as usize].get();
-        let left: u32 = strips.lefts[view as usize].get();
+        let top: u32 = strips.tops[top as usize];
+        let left: u32 = strips.lefts[view as usize];
         // Two players side by side each keep to their own half.
         let rule = if view_layout(race) == 1 {
             Rule::Halves

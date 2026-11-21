@@ -2,18 +2,15 @@
 //! 1; the film player, the mode trial and the texture allocation clear it around calls that may
 //! fail.
 
-use crate::memory::session::PlainDword;
+use std::cell::Cell;
 
-#[derive(rc2k_derive::Cells)]
 pub struct Reports {
     /// 1 while Direct3D's errors are reported (fatal).
-    pub on: PlainDword,
+    pub on: Cell<u32>,
 }
 
 impl Reports {
     pub const fn new() -> Self {
-        Reports {
-            on: PlainDword::new(1),
-        }
+        Reports { on: Cell::new(1) }
     }
 }

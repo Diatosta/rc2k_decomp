@@ -1,18 +1,17 @@
 //! The surface-locked switch.
 
-use crate::memory::session::PlainDword;
+use std::cell::Cell;
 
 /// The surface-locked switch.
-#[derive(rc2k_derive::Cells)]
 pub struct Locked {
     /// 1 while the screen's surface is locked for drawing.
-    pub surface: PlainDword,
+    pub surface: Cell<u32>,
 }
 
 impl Locked {
     pub const fn new() -> Self {
         Locked {
-            surface: PlainDword::new(0),
+            surface: Cell::new(0),
         }
     }
 }

@@ -9,7 +9,7 @@ use crate::test_support::paths::{bytes, first_addr, get_u32, set_bytes, set_u32}
 /// The size of the 1999 record.
 const SIZE_1999: usize = 0xFE0;
 
-const FIELDS: [(&str, usize, usize); 263] = [
+const FIELDS: [(&str, usize, usize); 262] = [
     ("frame_head", 0x0, 8),
     ("step_clock", 0x8, 4),
     ("noise_word", 0xc, 4),
@@ -191,7 +191,6 @@ const FIELDS: [(&str, usize, usize); 263] = [
     ("camera_zoom", 0x6c8, 4),
     ("kept_focus_point", 0x6cc, 36),
     ("camera_mode_is_2_or_3", 0x6f0, 4),
-    ("state_bits", 0x6fc, 4),
     ("part_wake_counts", 0x700, 24),
     ("shown_engine_speed", 0x718, 4),
     ("notice_id", 0x71c, 4),
@@ -413,7 +412,7 @@ mod tests {
             }
         }
         let missing: usize = covered.iter().filter(|&&b| !b).count();
-        assert_eq!(missing, 64 + 4 + 8 + 8);
+        assert_eq!(missing, 64 + 4 + 8 + 8 + 4);
         let flat = crate::test_support::paths::field_bytes(&Car::new(), "").len();
         assert_eq!(flat, SIZE_1999 - missing);
     }

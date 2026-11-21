@@ -10,18 +10,11 @@
 
 use crate::gfx::formats::Formats;
 
-const NUMBERS: usize = 6;
 pub use rc2k_core::gfx::pixels::describe;
 
 /// The layout and number of a format of `masks` (blue, green, red, alpha), with the number table.
 pub fn describe_masks(formats: &Formats, masks: [u32; 4]) -> (u32, u32) {
-    let numbers: [(u32, u32); NUMBERS] = std::array::from_fn(|n| {
-        (
-            formats.numbers[n].number.get(),
-            formats.numbers[n].layout.get(),
-        )
-    });
-    describe(masks, &numbers)
+    describe(masks, &formats.numbers)
 }
 
 /// On a format record (layout, four masks, number).

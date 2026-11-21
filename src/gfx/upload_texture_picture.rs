@@ -144,7 +144,7 @@ pub fn upload_texture_picture(
                 )
                 .map_err(BadInput::from)?;
                 if let Some(scratch) = kept {
-                    gfx.pixel.formats.scratch.write(&scratch);
+                    gfx.pixel.formats.scratch.set(scratch);
                 }
                 crate::remote::texture_row(texture, level, y, &row);
                 rows.write(y, 0, &row, "a texture's row")?;

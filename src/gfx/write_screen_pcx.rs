@@ -12,14 +12,16 @@ use crate::gfx::shots::Shots;
 
 /// The screenshot name's three digits one more (999 goes round to 000).
 fn next_shot_name(shots: &Shots) {
+    let mut name = shots.name.get();
     for n in (0..3).rev() {
-        let d = shots.name.get(n).wrapping_add(1);
+        let d = name[n].wrapping_add(1);
         if d <= b'9' {
-            shots.name.set(n, d);
+            name[n] = d;
             break;
         }
-        shots.name.set(n, b'0');
+        name[n] = b'0';
     }
+    shots.name.set(name);
 }
 
 /// Whether it worked. `name` is the file's path without its NUL, or None for the next numbered
@@ -41,7 +43,7 @@ pub fn write_screen_pcx(
         Some(name) => name.to_vec(),
         None => {
             next_shot_name(shots);
-            shots.name.text()
+            shots.name.get().to_vec()
         }
     };
     with_stream(|stream| {

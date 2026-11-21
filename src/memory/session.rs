@@ -961,6 +961,15 @@ impl DwordLike for PlainDword {
     }
 }
 
+impl DwordLike for Cell<u32> {
+    fn get(&self) -> u32 {
+        Cell::get(self)
+    }
+    fn set(&self, value: u32) {
+        Cell::set(self, value);
+    }
+}
+
 /// A signed cell read and written as a number, shared (`Int`) or the game thread's
 /// (`PlainInt`); its bits through `Cell32`.
 pub trait IntLike: Cell32 {

@@ -35,6 +35,8 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 pub fn car_blocks_groups(blocks: &CarBlocks) -> Vec<(String, u64)> {
     let mut hasher = GroupHasher::default();
     blocks.visit(&mut hasher);
+    #[cfg(any(test, feature = "remote"))]
+    hasher.add_removed_fields();
     hasher.groups
 }
 
@@ -96,7 +98,7 @@ pub fn dword_run_hash(path: &str, dwords: &[u32]) -> u64 {
 }
 
 /// The hash `record_hash` adds for one run of bytes at `path`.
-#[cfg(feature = "remote")]
+#[cfg(any(test, feature = "remote"))]
 pub fn byte_run_hash(path: &str, bytes: &[u8]) -> u64 {
     let mut entry = path.as_bytes().to_vec();
     entry.push(0);
@@ -120,6 +122,23 @@ struct GroupHasher {
     /// The path's length before each part entered.
     marks: Vec<usize>,
     groups: Vec<(String, u64)>,
+}
+
+impl GroupHasher {
+    /// Adds the runs of the cars' fields that were removed, which always held 0 (`state_bits`),
+    /// so that the hash of a state stays the one it always was.
+    #[cfg(any(test, feature = "remote"))]
+    fn add_removed_fields(&mut self) {
+        for car in 0..crate::race::blocks_store::BLOCK_COUNT {
+            let path = format!(".cars[{car}].state_bits");
+            let hash = byte_run_hash(&path, &[0; 4]);
+            let group = path_group(&path);
+            match self.groups.iter_mut().find(|g| g.0 == group) {
+                Some(g) => g.1 = g.1.wrapping_add(hash),
+                None => self.groups.push((group, hash)),
+            }
+        }
+    }
 }
 
 impl CellVisitor for GroupHasher {

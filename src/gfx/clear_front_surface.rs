@@ -12,7 +12,7 @@ use crate::system::owner::System;
 
 /// The lock fails, so only the checks are made.
 pub fn clear_front_surface(gfx: &Gfx, system: &System) -> Result<(), Refused> {
-    if gfx.drawing.surfaces.front.is_set() && system.session.screen.get().height.get() == 0 {
+    if gfx.drawing.surfaces.front.get() != 0 && system.session.screen.get().height.get() == 0 {
         return Err(BadInput("a screen height of 0 (2^32 rows)").into());
     }
     Ok(())

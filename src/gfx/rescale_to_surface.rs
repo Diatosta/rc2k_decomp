@@ -139,7 +139,7 @@ pub fn rescale_to_surface(
         }
     }
     if let Some(scratch) = made.last_scratch {
-        gfx.pixel.formats.scratch.write(&scratch);
+        gfx.pixel.formats.scratch.set(scratch);
     }
     crate::remote::texture_row(u32::MAX, 0, 0, &made.fold.to_le_bytes());
     let work = &made.work;

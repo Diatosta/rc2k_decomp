@@ -335,7 +335,6 @@ fn set_screen_mode(
         bits,
         pixels,
     });
-    gfx.display.mode.mode_set.set(mode);
     crate::d3d::device::describe_texture_formats(gfx);
     log(&format!(
         "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"

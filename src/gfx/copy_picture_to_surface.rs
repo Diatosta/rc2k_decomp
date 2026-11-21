@@ -45,7 +45,7 @@ pub struct GameSurface<'a>(
 
 impl PictureSurface for GameSurface<'_> {
     fn locked(&self) -> bool {
-        self.0.locked.surface.is_set()
+        self.0.locked.surface.get() != 0
     }
     fn lock(&mut self) -> bool {
         // Locked.

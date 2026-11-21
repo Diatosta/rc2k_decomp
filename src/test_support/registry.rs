@@ -310,29 +310,23 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.gfx.drawing.blit", on_game(&o.gfx.drawing.blit),),
         listed!("owners.gfx.rescale", on_game(&o.gfx.rescale),),
-        listed!("owners.gfx.strips", on_game(&o.gfx.strips),),
         listed!(
             "owners.gfx.drawing.row_table",
             on_game(&o.gfx.drawing.row_table),
         ),
-        listed!("owners.gfx.pixel.formats", on_game(&o.gfx.pixel.formats),),
         listed!("owners.gfx.drawing.thirds", on_game(&o.gfx.drawing.thirds),),
         listed!("owners.gfx.display.modes", on_game(&o.gfx.display.modes),),
-        listed!("owners.gfx.reports", on_game(&o.gfx.reports),),
-        listed!("owners.gfx.shots", on_game(&o.gfx.shots),),
         listed!(
             "owners.gfx.pictures.picture",
             on_game(&o.gfx.pictures.picture),
         ),
         listed!("owners.gfx.grading", on_game(&o.gfx.grading),),
-        listed!("owners.gfx.drawing.bar", on_game(&o.gfx.drawing.bar),),
         listed!("owners.gfx.png.file", on_game(&o.gfx.png.file),),
         listed!("owners.gfx.png.header", on_game(&o.gfx.png.header),),
         listed!(
             "owners.gfx.pictures.planes",
             on_game(&o.gfx.pictures.planes),
         ),
-        listed!("owners.gfx.card.upload", on_game(&o.gfx.card.upload),),
         listed!(
             "owners.install.vars",
             on_game_from(&o.install.vars, "._gap_529dad"),
@@ -397,11 +391,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.gfx.fonts.game_fonts_memory",
             on_game(&o.gfx.fonts.game_fonts_memory),
         ),
-        listed!(
-            "owners.gfx.drawing.surfaces",
-            on_game(&o.gfx.drawing.surfaces),
-        ),
-        listed!("owners.gfx.locked", on_game(&o.gfx.locked),),
         listed!(
             "owners.gfx.card.windscreen_drop_batch",
             on_game(&o.gfx.card.windscreen_drop_batch),
@@ -491,7 +480,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.strings.text.buffer),
         ),
         listed!("owners.system.work.files", on_game(&o.system.work().files),),
-        listed!("owners.gfx.display.mode", on_game(&o.gfx.display.mode),),
         listed!(
             "owners.gfx.drawing.draw_surface",
             on_game(&o.gfx.drawing.draw_surface),

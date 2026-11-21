@@ -130,7 +130,7 @@ impl FaceWorld for GameFace<'_> {
             if which >= BLOCKS || !self.7.work.has_car_block(which as usize) {
                 return Err(rc2k_core::Invalid("no block for a face of kind 0x1C"));
             }
-            // The core asks for 1 ..= 6: the six parts' wake counts, after `state_bits`.
+            // The core asks for 1 ..= 6: the six parts' wake counts.
             crate::race::owner_shared::RaceShared::race_car_or_end_in(
                 self.7.work,
                 self.7.car_blocks,

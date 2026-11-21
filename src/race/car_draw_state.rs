@@ -8,7 +8,7 @@ use crate::memory::session::PlainDword;
 
 #[derive(rc2k_derive::Cells)]
 pub struct CarDrawState {
-    /// Each car block's state bits as the view draws it (the block's `state_bits`: lights, seen
+    /// Each car block's state bits as the view draws it (lights, seen
     /// from inside 0x10, casts a shadow, ...), set at the view's start (`car_light_modes`), by
     /// block number.
     pub car_states: [PlainDword; crate::race::blocks_store::BLOCK_COUNT],

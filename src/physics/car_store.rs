@@ -382,9 +382,6 @@ pub struct Car<K: CellKind = PlainCells> {
     pub kept_focus_point: [K::Dword; 9],
     /// 1 when the camera mode is 2 or 3.
     pub camera_mode_is_2_or_3: K::Dword,
-    /// Unused: each view keeps the car's state bits (lights, seen from inside, casts a shadow)
-    /// in `race::car_draw_state::CarDrawState::car_states`.
-    pub state_bits: K::Dword,
     /// The six parts' wake counts (`race::frame_draw`'s lights,
     /// `drive::share_car_state`).
     pub part_wake_counts: [K::Dword; 6],

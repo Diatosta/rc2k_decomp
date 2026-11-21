@@ -63,6 +63,26 @@ macro_rules! dword {
     };
 }
 
+/// `plain_cell!(o => o.owner.field)`: a plain `Cell<u32>` as a `Target`.
+macro_rules! plain_cell {
+    ($o:ident => $($path:tt)+) => {
+        Target::Plain {
+            get: {
+                fn get($o: Owners<'static>) -> u32 {
+                    $($path)+.get()
+                }
+                get
+            },
+            set: {
+                fn set($o: Owners<'static>, number: u32) {
+                    $($path)+.set(number);
+                }
+                set
+            },
+        }
+    };
+}
+
 /// `plain!(o => o.owner.store, field)`: a field of a store that keeps plain values behind
 /// `read()` / `write()`, as a `Target`.
 macro_rules! plain {
@@ -174,8 +194,14 @@ const ENTRIES: [(&[u8], Target); 77] = [
         dword!(o => o.gfx.d3d.cards.get().force_fogging),
     ),
     (b"textflashmode", dword!(o => o.strings.text.blend_mode)),
-    (b"videomodemain", dword!(o => o.gfx.display.mode.menu_mode)),
-    (b"videomodegame", dword!(o => o.gfx.display.mode.race_mode)),
+    (
+        b"videomodemain",
+        plain_cell!(o => o.gfx.display.mode.menu_mode),
+    ),
+    (
+        b"videomodegame",
+        plain_cell!(o => o.gfx.display.mode.race_mode),
+    ),
     (
         b"v3driverfix",
         dword!(o => o.scene.drawing.scene.get().v3_driver_fix),
@@ -197,7 +223,7 @@ const ENTRIES: [(&[u8], Target); 77] = [
     ),
     (b"nonetwork", dword!(o => o.net.vars.receive_done)),
     (b"inetport", dword!(o => o.net.setup().port)),
-    (b"screensnapshot", dword!(o => o.gfx.shots.on)),
+    (b"screensnapshot", plain_cell!(o => o.gfx.shots.on)),
     (
         b"framecounter",
         Target::Plain {
@@ -362,7 +388,7 @@ mod tests {
 
     /// Where each setting's variable is: its store (a registry name) and the field in it, by
     /// path. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, &str); 63] = [
+    const PLACES: [(&str, &str, &str); 60] = [
         (
             "notaskswitch",
             "owners.system.window_loop",
@@ -395,8 +421,6 @@ mod tests {
         ("force3dshadow", "owners.gfx.d3d.cards", ".force_shadow"),
         ("force3dfogging", "owners.gfx.d3d.cards", ".force_fogging"),
         ("textflashmode", "owners.strings.text.blend_mode", ""),
-        ("videomodemain", "owners.gfx.display.mode", ".menu_mode"),
-        ("videomodegame", "owners.gfx.display.mode", ".race_mode"),
         (
             "v3driverfix",
             "owners.scene.drawing.scene",
@@ -421,7 +445,6 @@ mod tests {
         ),
         ("nonetwork", "owners.net.vars", ".receive_done"),
         ("inetport", "owners.net.main.setup", ".port"),
-        ("screensnapshot", "owners.gfx.shots", ".on"),
         (
             "noreplay",
             "owners.race.shared.replay_file",
