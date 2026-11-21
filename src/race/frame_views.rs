@@ -24,9 +24,10 @@ pub fn full_view_window(
     window.view_offset[0].set(0);
     window.view_offset[1].set(0);
     window.view_zoom.set(0x100);
+    let draw = *scene.drawing.scene.borrow();
     crate::scene::set_view_window::set_view_window(
         race.course.reads(),
-        scene.drawing.scene.get(),
+        &draw,
         session.screen.get(),
         window,
         &race.frame.view_and_records.get().view_vars,
@@ -50,7 +51,7 @@ pub fn mirror_view_window(
     part: &crate::scene::scratch_store::PartScratch,
     reads: crate::scene::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
-    let draw = reads.scene_draw;
+    let draw = &reads.scene_draw;
     let (fog, poly, car, vars) = (&view.fog, &view.polygon, &view.car, &view.vars);
     let drawn_view = view.drawn_view(race);
     // Logic in `rc2k_core::race::view::{mirror_entry, mirror_window}`.
@@ -231,7 +232,7 @@ fn copy_mirror_picture(
     use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
     let (from, to) = (
-        scene.drawing.scene.get().mirror_picture.get(),
+        scene.drawing.scene.borrow().mirror_picture,
         scene.textures.first_textures()[200],
     );
     if !lock_texture_in(gfx, from)? {
@@ -476,7 +477,11 @@ fn clear_view_depth(
     poly.cleared_rectangle[1].set(0);
     poly.cleared_rectangle[2].set(session.screen.get().width.get());
     poly.cleared_rectangle[3].set(session.screen.get().height.get());
-    clear_viewport_unless_held(scene.drawing.scene.get(), part, &poly.cleared_rectangle);
+    clear_viewport_unless_held(
+        scene.drawing.v3_driver_fix.get().get(),
+        part,
+        &poly.cleared_rectangle,
+    );
 }
 
 /// In a race, when the drawn view's car (`drawn_car`) is seen from inside: sets `view_light_base`
@@ -678,11 +683,11 @@ pub fn run_view_marks(
 /// The same clear as `d3d::clear_viewport` (flag 2) over `cleared_rectangle`, unless
 /// `v3_driver_fix` is not 0.
 fn clear_viewport_unless_held(
-    draw: &crate::scene::draw_store::SceneDraw,
+    v3_driver_fix: u32,
     part: &crate::scene::scratch_store::PartScratch,
     own: &[crate::memory::session::PlainDword; 4],
 ) {
-    if draw.v3_driver_fix.get() == 0 {
+    if v3_driver_fix == 0 {
         crate::d3d::device::clear_viewport(part, own);
     }
 }

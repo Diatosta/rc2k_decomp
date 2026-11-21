@@ -11,7 +11,7 @@ pub fn copy_screen_to_texture(
 ) {
     if frame.frame_work.get().mirror_wanted.is_set() {
         crate::d3d::device::copy_screen_to_system_texture(
-            scene.drawing.scene.get().mirror_picture.get(),
+            scene.drawing.scene.borrow().mirror_picture,
             screen,
         );
     }

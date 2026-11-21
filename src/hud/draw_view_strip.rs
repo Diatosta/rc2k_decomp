@@ -89,7 +89,7 @@ fn quad(
     if let Some(t) = texture {
         polygon.polygon_textures[0].set(t);
     }
-    scene.drawing.scene.get().polygon_alpha.set(0xFF);
+    scene.drawing.scene.borrow_mut().polygon_alpha = 0xFF;
     set_quad_input(scratch, 0, 0xFFFF_FFFF);
     polygon.polygon_sides[0].set(1);
     polygon.polygon_sides[1].set(0);

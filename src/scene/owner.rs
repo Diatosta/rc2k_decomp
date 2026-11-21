@@ -2,7 +2,7 @@
 //! it in place of global stores. The file numbers of the object loaders, the draw switches, the
 //! light tables and the car icon upload join it first; the other stores follow one by one.
 
-use crate::memory::session::{DrawPlain, DrawShared, GameThread};
+use crate::memory::session::{DrawPlain, GameThread};
 use crate::scene::draw_store::{DrawWork, SceneDraw};
 use crate::scene::draw_switches_store::DrawSwitches;
 use crate::scene::file_numbers_store::{ObjectFileNumbers, PathText};
@@ -14,7 +14,7 @@ use crate::scene::object_slots_store::{LoadedSlots, SlotShapes};
 use crate::scene::object_store::ObjectWork;
 use crate::scene::object_tables_store::{ObjectKinds, TextureLevels};
 use crate::scene::texture_places_store::{PlaceSlots, TexturePlaces};
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 
 /// The scene's state.
 pub struct Scene {
@@ -168,10 +168,11 @@ impl Scene {
 
 /// The drawing state: the draw variables and the scene objects' work.
 pub struct Drawing {
-    /// The scene's draw variables (`DRAW`).
-    /// Written between frames (mostly the physics' work dwords), read by the drawing parts
-    /// through their reads (`scene::workers::DrawReads`).
-    pub scene: DrawShared<SceneDraw>,
+    /// The scene's draw variables: written between frames, read by the drawing parts through
+    /// their reads (`scene::workers::DrawReads`).
+    pub scene: DrawPlain<SceneDraw>,
+    /// The `v3driverfix` setting (read on the game's thread).
+    pub v3_driver_fix: GameThread<Cell<u32>>,
 }
 
 /// The object tables: the slots and the kinds' tables.
@@ -215,7 +216,8 @@ impl Scene {
             light_tables: DrawPlain::new(LightTables::new()),
             scratch: crate::scene::scratch_store::DrawingScratch::new(),
             drawing: Drawing {
-                scene: DrawShared::new(SceneDraw::new()),
+                scene: DrawPlain::new(SceneDraw::new()),
+                v3_driver_fix: GameThread::new(Cell::new(0)),
             },
             objects: Objects {
                 slots: DrawPlain::new(SlotShapes::new()),

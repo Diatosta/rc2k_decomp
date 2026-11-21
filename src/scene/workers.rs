@@ -104,7 +104,7 @@ pub struct Lent<'s> {
     kind_textures: crate::memory::session::PlainRead<crate::scene::kind_texture_store::KindSlots>,
     place_slots: crate::memory::session::PlainRead<crate::scene::texture_places_store::PlaceSlots>,
     // The scene's draw variables.
-    scene_draw: crate::memory::session::PhaseRead<'s, crate::scene::draw_store::SceneDraw>,
+    scene_draw: crate::memory::session::PlainRead<crate::scene::draw_store::SceneDraw>,
     // The race's stores.
     /// The ground probe's mark as the scope opened.
     ground_probe: crate::physics::ground_probe_store::GroundProbe,
@@ -173,7 +173,7 @@ impl<'s> Lent<'s> {
                 scope,
             ),
             // The scene's draw variables.
-            scene_draw: PhaseRead::lend(&scene.drawing.scene, scope),
+            scene_draw: crate::memory::session::PlainRead::lend(&scene.drawing.scene, scope),
             // The race's stores.
             ground_probe: *race.physics.ground_probe().borrow(),
             scene_clock: race.shared.run().scene_clock,
@@ -226,7 +226,7 @@ impl<'s> Lent<'s> {
             kind_textures: (&self.kind_textures).into(),
             place_slots: (&self.place_slots).into(),
             // The scene's draw variables.
-            scene_draw: &self.scene_draw,
+            scene_draw: *self.scene_draw,
             // The race's stores.
             ground_probe: self.ground_probe,
             scene_clock: self.scene_clock,
@@ -287,8 +287,8 @@ pub struct DrawReads<'a> {
     pub place_slots: crate::scene::texture_places_store::PlaceSlotsRef<'a>,
     // The scene's draw variables.
     /// The scene's draw variables (`scene::owner::Drawing::scene`): the polygons' alpha, the
-    /// fade and clip factors, the mirror picture's texture, the `v3driverfix` setting.
-    pub scene_draw: &'a crate::scene::draw_store::SceneDraw,
+    /// fade and clip factors, the mirror picture's texture, as they were when the reads were made.
+    pub scene_draw: crate::scene::draw_store::SceneDraw,
     // The race's stores (`race::owner::Race`).
     /// The ground probe's mark (`race::owner_physics::Physics::ground_probe`), as it was when the reads were made.
     pub ground_probe: crate::physics::ground_probe_store::GroundProbe,
@@ -410,7 +410,7 @@ impl<'a> DrawReads<'a> {
                 &scene.textures.place_slots,
             ),
             // The scene's draw variables.
-            scene_draw: scene.drawing.scene.get(),
+            scene_draw: *scene.drawing.scene.borrow(),
             // The race's stores.
             ground_probe: *race.physics.ground_probe().borrow(),
             scene_clock: race.shared.run().scene_clock,

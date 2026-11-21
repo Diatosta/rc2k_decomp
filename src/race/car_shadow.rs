@@ -1146,7 +1146,6 @@ mod vector_tests {
     #[test]
     fn crossing_block_is_the_originals() {
         let kept = Snapshot::of(&[
-            "owners.scene.drawing.scene",
             "owners.scene.draw_work",
             "owners.race.frame.frame_work",
             "owners.race.physics.ground",
@@ -1221,11 +1220,7 @@ mod vector_tests {
 
     #[test]
     fn sun_slant_and_angle_are_the_originals() {
-        let kept = Snapshot::of(&[
-            "owners.scene.drawing.scene",
-            "owners.scene.draw_work",
-            "owners.race.frame.shadow_skids",
-        ]);
+        let kept = Snapshot::of(&["owners.scene.draw_work", "owners.race.frame.shadow_skids"]);
         let mut vectors = Vectors::open("race.car_shadow.sun_slant_and_angle", Kind::Close, 3);
         let mut r = Rng(26);
         at_each_control_word(|| {

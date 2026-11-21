@@ -374,7 +374,7 @@ fn shade(
                 continue;
             }
             Shade::WithAlpha => {
-                put(0x24, draw.polygon_alpha.get() << 24 | colour);
+                put(0x24, draw.polygon_alpha << 24 | colour);
                 put(0x28, 0);
                 continue;
             }
@@ -491,7 +491,7 @@ pub fn draw_polygon(
         }
     }
     if let Some((how, passes)) = passes(mode) {
-        shade(poly, reads.scene_draw, &entries, how);
+        shade(poly, &reads.scene_draw, &entries, how);
         for pass in passes {
             let (texture, smooth) = match pass.set {
                 Set::A => (&poly.polygon_textures[0], &poly.plain_first),

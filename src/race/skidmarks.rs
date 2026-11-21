@@ -301,11 +301,7 @@ mod vector_tests {
     use crate::test_support::state::Snapshot;
 
     /// The stores the test writes.
-    const STORES: [&str; 3] = [
-        "owners.scene.drawing.scene",
-        "owners.scene.draw_work",
-        "owners.race.course.stage_prefs",
-    ];
+    const STORES: [&str; 2] = ["owners.scene.draw_work", "owners.race.course.stage_prefs"];
 
     #[test]
     fn project_vertex_is_the_originals() {

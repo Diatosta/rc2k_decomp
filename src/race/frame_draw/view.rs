@@ -499,7 +499,7 @@ pub fn camera_view(
         let size = &view.polygon.window.view_size;
         crate::scene::set_view_window::set_view_window_plain(
             reads.course(),
-            reads.scene_draw,
+            &reads.scene_draw,
             (size[0].get(), size[1].get()),
             &view.polygon.window,
             &view.vars,
@@ -508,7 +508,7 @@ pub fn camera_view(
     } else {
         crate::scene::set_view_window::set_view_window(
             reads.course(),
-            reads.scene_draw,
+            &reads.scene_draw,
             reads.screen,
             &view.polygon.window,
             &view.vars,

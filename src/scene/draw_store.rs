@@ -1,41 +1,37 @@
 //! The scene's draw variables. `SceneDraw` holds what the drawing parts read (the polygons' alpha,
-//! the fade and clip factors, the mirror picture's texture, the `v3driverfix` setting), a lent
-//! store (`session::DrawShared`) written on the game's thread between frames and read through
-//! `scene::workers::DrawReads`. `DrawWork` holds the work words only the game's thread reaches
+//! the fade and clip factors) and the mirror picture's texture; it is written on the game's
+//! thread between frames and read through `scene::workers::DrawReads`. `DrawWork` holds the work words only the game's thread reaches
 //! (the x87 code's shared dword, the physics' work floats, the turns' sines): plain fields
 //! (`scene::owner::Scene::draw_work`).
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::PlainDword;
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// The scene's draw variables: a plain record (`session::DrawPlain`), written on the game's
+/// thread between frames and read there and, as a copy made when a drawing scope opens, by the
+/// drawing parts through their `scene::workers::DrawReads`.
+#[derive(Clone, Copy)]
 pub struct SceneDraw {
     /// The polygon's alpha (set by `hud::draw_view_strip` only, read by every view).
-    pub polygon_alpha: PlainDword,
+    pub polygon_alpha: u32,
     /// The fade's second figure (`scene::set_view_window`).
-    pub fade_b: PlainFloat,
+    pub fade_b: f32,
     /// The fade's first figure (`scene::set_view_window`).
-    pub fade_a: PlainFloat,
+    pub fade_a: f32,
     /// The farthest clip depth is the farthest depth times it.
-    pub clip_factor: PlainFloat,
+    pub clip_factor: f32,
     /// The mirror picture's texture.
-    pub mirror_picture: PlainDword,
-    /// The `v3driverfix` setting.
-    pub v3_driver_fix: PlainDword,
+    pub mirror_picture: u32,
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-
 impl SceneDraw {
-    /// The store with its first values (every field not named here starts at zero).
+    /// The record with its first values.
     pub const fn new() -> Self {
         Self {
-            polygon_alpha: PlainDword::new(0xFF),
-            fade_b: PlainFloat::new(1.5),
-            fade_a: PlainFloat::new(0.9),
-            clip_factor: PlainFloat::new(0.9),
-            ..ZeroCells::ZERO
+            polygon_alpha: 0xFF,
+            fade_b: 1.5,
+            fade_a: 0.9,
+            clip_factor: 0.9,
+            mirror_picture: 0,
         }
     }
 }

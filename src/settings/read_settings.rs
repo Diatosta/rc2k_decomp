@@ -204,7 +204,7 @@ const ENTRIES: [(&[u8], Target); 77] = [
     ),
     (
         b"v3driverfix",
-        dword!(o => o.scene.drawing.scene.get().v3_driver_fix),
+        plain_cell!(o => o.scene.drawing.v3_driver_fix.get()),
     ),
     (b"nopngdecode", dword!(o => o.gfx.png.setting)),
     (b"nojoy", dword!(o => o.input.devices.no_joysticks)),
@@ -388,7 +388,7 @@ mod tests {
 
     /// Where each setting's variable is: its store (a registry name) and the field in it, by
     /// path. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, &str); 59] = [
+    const PLACES: [(&str, &str, &str); 58] = [
         (
             "notaskswitch",
             "owners.system.window_loop",
@@ -421,11 +421,6 @@ mod tests {
         ("force3dshadow", "owners.gfx.d3d.cards", ".force_shadow"),
         ("force3dfogging", "owners.gfx.d3d.cards", ".force_fogging"),
         ("textflashmode", "owners.strings.text.blend_mode", ""),
-        (
-            "v3driverfix",
-            "owners.scene.drawing.scene",
-            ".v3_driver_fix",
-        ),
         ("nopngdecode", "owners.gfx.png.setting", ""),
         ("nojoy", "owners.input.devices", ".no_joysticks"),
         ("joymode", "owners.input.devices", ".joy_mode"),

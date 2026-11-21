@@ -533,8 +533,7 @@ mod vector_tests {
     }
 
     /// The stores the test writes.
-    const STORES: [&str; 4] = [
-        "owners.scene.drawing.scene",
+    const STORES: [&str; 3] = [
         "owners.scene.draw_work",
         "owners.race.frame.frame_work",
         "owners.race.shared.work",

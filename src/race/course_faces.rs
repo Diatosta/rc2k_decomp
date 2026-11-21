@@ -1177,11 +1177,7 @@ mod vector_tests {
     fn halfway_vertex_is_the_originals() {
         let course = &race().course;
         let kept_course = *course.course.borrow();
-        let kept = Snapshot::of(&[
-            "owners.scene.drawing.scene",
-            "owners.scene.draw_work",
-            "owners.race.course.stage_prefs",
-        ]);
+        let kept = Snapshot::of(&["owners.scene.draw_work", "owners.race.course.stage_prefs"]);
         let mut vectors = Vectors::open("race.course_faces.halfway_vertex", Kind::Exact, 8);
         let mut r = Rng(13);
         let win = crate::scene::view_window::ViewWindow::new();

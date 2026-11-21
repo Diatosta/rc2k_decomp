@@ -27,9 +27,10 @@ pub fn prepare_menu_scene(
         &[0u32; 3],
     );
     crate::memory::session::write_bits(&scratch.polygon.window.view_size, [0x320u32, 0x258]);
+    let draw = *scene.drawing.scene.borrow();
     set_view_window(
         race.course.reads(),
-        scene.drawing.scene.get(),
+        &draw,
         system.session.screen.get(),
         &scratch.polygon.window,
         &race.frame.view_and_records.get().view_vars,

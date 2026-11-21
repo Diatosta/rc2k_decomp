@@ -100,13 +100,13 @@ pub fn set_view_window_reaching(
     window.one_over_farthest.set(x87::reciprocal(farthest));
     window.farthest_scaled.set(x87::mul_div_div_to_int(
         farthest,
-        draw.fade_a.get(),
-        draw.fade_b.get(),
+        draw.fade_a,
+        draw.fade_b,
         course.numbers.k65536.get(),
     ) as u32);
     window
         .clip_farthest
-        .set(x87::mul_to_int(farthest, &draw.clip_factor) as u32);
+        .set(x87::mul_to_int(farthest, draw.clip_factor) as u32);
     let float = |value: u32| x87::from_int(value as i32);
     crate::memory::session::write_bits(
         &window.view_offset_float,
@@ -141,9 +141,9 @@ pub fn set_view_window_plain(
         ),
         nearer: course.stage_prefs.nearer.get(),
         nearer_factor: course.numbers.hundredth_a.get(),
-        fade: [draw.fade_a.get(), draw.fade_b.get()],
+        fade: [draw.fade_a, draw.fade_b],
         turn: course.numbers.k65536.get(),
-        clip_factor: draw.clip_factor.get(),
+        clip_factor: draw.clip_factor,
         one: course.numbers.one.get(),
     };
     let w = window_settings(&i);

@@ -675,7 +675,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             own.view_zoom.set(0x100);
             crate::scene::set_view_window::set_view_window_plain(
                 reads.course(),
-                reads.scene_draw,
+                &reads.scene_draw,
                 // The projection's scale follows the part's own shape when the screen holds more
                 // than two (a wide part keeps the vertical field of view of a 4:3 one).
                 if views > 2 {

@@ -33,9 +33,10 @@ pub fn choose_view_window(
     window.view_offset[0].set(chosen.offset[0]);
     window.view_offset[1].set(chosen.offset[1]);
     window.view_zoom.set(chosen.scale);
+    let draw = *scene.drawing.scene.borrow();
     crate::scene::set_view_window::set_view_window(
         race.course.reads(),
-        scene.drawing.scene.get(),
+        &draw,
         system.session.screen.get(),
         window,
         &race.frame.view_and_records.get().view_vars,
