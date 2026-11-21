@@ -127,7 +127,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.shared.car_blocks.get(),
         *race.shared.car_parts.get(),
         *race.frame.view_and_records.get(),
-        *race.shared.tables(),
         *race.shared.work.get(),
     }
 }

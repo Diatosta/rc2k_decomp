@@ -6,7 +6,7 @@
 use crate::memory::cells::ZeroCells;
 use crate::memory::session::{PlainDword, PlainFloat};
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
 pub struct RaceTables {
     /// The factor by section for the last three record times (`menu::scale_stage_times`).
     pub stage_time_factors_last: [PlainFloat; 6],
@@ -311,7 +311,17 @@ mod run_on_tests {
     /// The record's whole bytes, as a checksum: a wrong dword in a row shows here.
     #[test]
     fn the_race_tables_keep_the_bytes_of_the_image() {
-        let bytes = crate::memory::cells::flatten(&RaceTables::new());
+        let tables = RaceTables::new();
+        // Every dword in field order: the two factor rows, then the listed run from the first
+        // table to the record's end.
+        let words: Vec<u32> = tables
+            .stage_time_factors_last
+            .iter()
+            .chain(&tables.stage_time_factors_first)
+            .map(|f| f.get().to_bits())
+            .chain((0..).map_while(|n| tables.dword_from(Listed::ArcadeCarsByRally, n).ok()))
+            .collect();
+        let bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
         let mut hash = 0xcbf2_9ce4_8422_2325_u64;
         for byte in &bytes {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);

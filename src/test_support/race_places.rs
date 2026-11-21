@@ -557,6 +557,9 @@ fn work_field(path: &str) -> Option<WorkBits> {
     }
 }
 
+/// The start and tables work (not walked by path: its one place here is `view_share`).
+const TABLES: &str = "owners.race.shared.tables";
+
 /// The best-line place and the camera shake (plain fields, not cells): their registry name.
 const LINE_AND_SHAKE: &str = "owners.scene.line_and_shake";
 
@@ -857,6 +860,10 @@ fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
         let tables = super::own::race().shared.buffers.engine_tables.borrow();
         return Some(tables.sines.get(n)?.to_bits().to_le_bytes().to_vec());
     }
+    if name == TABLES && path == ".view_share" {
+        let share = super::own::race().shared.tables().view_share.get();
+        return Some(share.to_bits().to_le_bytes().to_vec());
+    }
     if name == CAMERA {
         let (get, _) = camera_field(path)?;
         return Some(
@@ -986,6 +993,14 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
             return false;
         };
         *entry = f32::from_bits(u32::from_le_bytes(word));
+        return true;
+    }
+    if name == TABLES && path == ".view_share" {
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        let share = &super::own::race().shared.tables().view_share;
+        share.set(f32::from_bits(u32::from_le_bytes(word)));
         return true;
     }
     if name == CAMERA {

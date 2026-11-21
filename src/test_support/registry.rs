@@ -860,7 +860,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.course.grip_change",
             on_game(o.race.course.grip_change()),
         ),
-        listed!("owners.race.shared.tables", on_game(o.race.shared.tables()),),
         listed!(
             "owners.race.frame.view_and_records",
             on_game(o.race.frame.view_and_records.get()),
