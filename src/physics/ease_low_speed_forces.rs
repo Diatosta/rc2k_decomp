@@ -8,10 +8,12 @@ use crate::math::x87::abs_compare;
 use crate::physics::car_store::Car;
 use crate::physics::figures::{LOW_SPEED_ADD, LOW_SPEED_LIMIT, LOW_SPEED_SCALE};
 use crate::physics::tables_store::PhysicsTables;
+use crate::physics::wheel_work::WheelWork;
+use std::cell::RefCell;
 
 /// The factor, the speed and the two forces; the exact version, for
 /// `physics::drive_wheels_step`.
-pub(super) fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables) {
+pub(super) fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables, work: &RefCell<WheelWork>) {
     let factor = &tables.low_speed_share;
     let speed = &car.local_velocity[2];
     factor.set(1.0);
@@ -25,7 +27,8 @@ pub(super) fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables) {
             + crate::math::x87_float::ld(LOW_SPEED_ADD))
             * crate::math::x87_float::ld(LOW_SPEED_SCALE),
     );
-    for f in &tables.drive_forces {
-        f.set(x87::mul(f, factor));
+    let factor = factor.get();
+    for f in &mut work.borrow_mut().drive_forces {
+        *f = x87::mul(*f, factor).to_bits();
     }
 }

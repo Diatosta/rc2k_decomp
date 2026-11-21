@@ -106,7 +106,7 @@ fn blocks() -> Vec<Block> {
                     race().shared.physics_tables.get(),
                     race().course.numbers.get(),
                     view::<PlainFloat>(a[0], 0),
-                    view::<PlainFloat>(a[2], 0),
+                    view::<PlainFloat>(a[2], 0).bits(),
                     view::<PlainFloat>(a[3], 0),
                     view::<PlainFloat>(a[4], 0),
                 );
@@ -183,6 +183,7 @@ fn blocks() -> Vec<Block> {
                 drive_forces_from_grips(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
+                    race().physics.wheel_work(),
                     if a[1] == 0 {
                         &crate::test_support::own::race()
                             .shared
@@ -230,6 +231,7 @@ fn blocks() -> Vec<Block> {
                 drive_forces_from_grips(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
+                    race().physics.wheel_work(),
                     if a[1] == 0 {
                         &crate::test_support::own::race()
                             .shared
@@ -401,7 +403,7 @@ fn blocks() -> Vec<Block> {
                 writes: &[(0x214234, Out::F), (0x214238, Out::F)],
             }],
             ulps: 0,
-            plain: |_| slip_gaps(race().shared.car(), race().shared.physics_tables.get()),
+            plain: |_| slip_gaps(race().shared.car(), race().physics.wheel_work()),
         },
         Block {
             name: "drive_wheels_step line 308",
@@ -416,7 +418,12 @@ fn blocks() -> Vec<Block> {
                 writes: &[(0x214244, Out::F), (0x214248, Out::F), (0x21424C, Out::F)],
             }],
             ulps: 0,
-            plain: |_| scale_axle_forces(race().shared.physics_tables.get()),
+            plain: |_| {
+                scale_axle_forces(
+                    race().shared.physics_tables.get(),
+                    race().physics.wheel_work(),
+                );
+            },
         },
         Block {
             name: "drive_wheels_step line 331",
@@ -440,6 +447,7 @@ fn blocks() -> Vec<Block> {
                 side_slip_forces(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
+                    race().physics.wheel_work(),
                     race().course.numbers.get(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );
@@ -458,7 +466,12 @@ fn blocks() -> Vec<Block> {
                 writes: &[(0x2141D4, Out::F), (0x214254, Out::F)],
             }],
             ulps: 0,
-            plain: |_| slip_side_share(race().shared.physics_tables.get()),
+            plain: |_| {
+                slip_side_share(
+                    race().shared.physics_tables.get(),
+                    race().physics.wheel_work(),
+                );
+            },
         },
         Block {
             name: "drive_wheels_step line 362",

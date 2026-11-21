@@ -12,6 +12,7 @@ use crate::physics::lit_faces_store::LitFaces;
 use crate::physics::pace_store::PaceNotes;
 use crate::physics::split_tables_store::SplitTables;
 use crate::physics::store::DamageModel;
+use crate::physics::wheel_work::WheelWork;
 use crate::race::car_specs_store::CarSpecs;
 use std::cell::{Ref, RefCell, RefMut};
 
@@ -24,6 +25,7 @@ struct PhysicsMain {
     pub ground_search: RefCell<GroundSearch>,
     pub probes: RefCell<ProbeLists>,
     pub contact: RefCell<ContactWork>,
+    pub wheel_work: RefCell<WheelWork>,
     pub pace: RefCell<PaceNotes>,
     pub split_tables: RefCell<SplitTables>,
     pub damage: RefCell<DamageModel>,
@@ -41,6 +43,7 @@ impl PhysicsMain {
             ground_search: RefCell::new(GroundSearch::new()),
             probes: RefCell::new(ProbeLists::new()),
             contact: RefCell::new(ContactWork::new()),
+            wheel_work: RefCell::new(WheelWork::new()),
             pace: RefCell::new(PaceNotes::new()),
             split_tables: RefCell::new(SplitTables::new()),
             damage: RefCell::new(DamageModel::new()),
@@ -100,6 +103,12 @@ impl Physics {
     /// again (`contact_force` borrows it only to read its inputs and to write its results).
     pub fn contact(&self) -> &RefCell<ContactWork> {
         &self.main.get().contact
+    }
+
+    /// The drive's working figures: one routine borrows them at a time, none across a call that
+    /// borrows them again.
+    pub fn wheel_work(&self) -> &RefCell<WheelWork> {
+        &self.main.get().wheel_work
     }
 
     /// The pace notes, read: no write borrow may be held.

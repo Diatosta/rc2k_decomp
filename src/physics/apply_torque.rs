@@ -8,8 +8,7 @@ use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::ForceRecord;
 use crate::physics::tables_store::PhysicsTables;
-use crate::physics::vector_bits::{bits_of, turn};
-use crate::scene::view_matrix::cross_product;
+use crate::physics::vector_bits::{bits_of, cross, turn};
 use std::cell::RefCell;
 
 /// The exact version, for `physics::apply_torques`: the force record at `rec` (a record of the
@@ -20,12 +19,11 @@ pub fn apply_torque(
     rec: &ForceRecord,
     car: &Car,
 ) {
-    let cross = &tables.torque_cross;
     let mut work = turn(&car.car_inverse_matrix, bits_of(&car.spin));
-    cross_product(&rec.force, &rec.point, cross);
+    let cross = cross(bits_of(&rec.force), bits_of(&rec.point));
     let step = tables.step_time.get();
     for k in 0..3 {
-        work[k] = neg_product2_plus(&cross[k], step, &tables.inertia[k], work[k]).to_bits();
+        work[k] = neg_product2_plus(cross[k], step, &tables.inertia[k], work[k]).to_bits();
     }
     work = turn(&car.crash_matrix, work);
     for (s, w) in car.spin.iter().zip(work) {

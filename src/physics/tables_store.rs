@@ -130,10 +130,6 @@ pub struct PhysicsTables {
     pub drive_shares: [PlainFloat; 3],
     /// The gear ratios from gear -1 (reverse) to 7 (`physics::make_gear_ratios`).
     pub gear_ratios: [PlainFloat; 9],
-    /// The two lever pushes (`physics::lever_push`).
-    pub lever_pushes: [PlainDword; 2],
-    /// `physics::add_drive_forces`'.
-    pub drive_force_scale: PlainFloat,
     /// The engine's lowest speed (`physics::load_car_specs`).
     pub idle_engine_speed: PlainFloat,
     /// The idle speed + a step, the drop to neutral below it.
@@ -146,8 +142,6 @@ pub struct PhysicsTables {
     pub clear_place_face: PlainDword,
     /// The two surfaces' scales by tyre kind (`physics::wheel_surfaces`).
     pub surface_scales: [PlainFloat; 2],
-    /// The wheels' spring damping (`physics::wheel_springs`).
-    pub spring_damping: [PlainFloat; 4],
     /// The car's vertical speed kept (`physics::car_physics_step`).
     pub vertical_speed: PlainFloat,
     /// `physics::pick_start_gear`'s: 100, 0, the engine speed it began with.
@@ -166,8 +160,6 @@ pub struct PhysicsTables {
     pub weight: PlainFloat,
     /// (`physics::set_downforce`).
     pub downforce: PlainFloat,
-    /// The wheels' spring forces (`physics::wheel_springs`).
-    pub spring_forces: [PlainFloat; 4],
     /// The two axles' pushes (`physics::drive_wheels_step`, `physics::wheel_springs`).
     pub wheel_spin_push: [PlainFloat; 2],
     /// The car's place saved (`physics::restore_saved_car`).
@@ -178,16 +170,8 @@ pub struct PhysicsTables {
     pub wheel_speed_step: PlainFloat,
     /// (`physics::wheel_surfaces`).
     pub surface_softness: PlainFloat,
-    /// |front / rear wheel speed - the car's| (`physics::drive_wheels_step`).
-    pub wheel_slips: [PlainFloat; 2],
     /// (`physics::drive_wheels_step`).
     pub drive_limits: [PlainFloat; 3],
-    /// The two axles' drive forces.
-    pub drive_forces: [PlainFloat; 2],
-    /// The drive's slip and its eased value.
-    pub drive_slip: [PlainFloat; 2],
-    /// The two axles' slips.
-    pub axle_slips: [PlainFloat; 2],
     /// (`physics::drive_grip_forces`).
     pub grip_limit: PlainFloat,
     /// (`physics::drive_wheels_step`).
@@ -196,8 +180,6 @@ pub struct PhysicsTables {
     pub wheel_load: PlainFloat,
     /// The pitch and roll steps of a car settling (`race::car_starts`).
     pub settle_steps: [PlainDword; 2],
-    /// (`physics::apply_torque`).
-    pub torque_cross: [PlainFloat; 3],
     /// The five points' loads (`physics::wheel_surfaces` writes all five; `physics::crash_contact`
     /// reads the fifth).
     pub wheel_loads: [PlainFloat; 5],
@@ -240,12 +222,6 @@ pub struct PhysicsTables {
     pub contacts: [ForceRecord; 7],
     /// The push `physics::apply_force` takes.
     pub push_record: [PlainDword; 4],
-    /// `physics::lever_push`'s vector.
-    pub lever_push_vector: [PlainDword; 4],
-    /// The push turned by the car's matrix.
-    pub lever_push_turned: [PlainDword; 4],
-    /// The place turned by the inverse.
-    pub lever_push_place: [PlainFloat; 4],
     /// (`physics::drive_grip_forces`).
     pub grip_scale: PlainFloat,
     /// (`physics::drive_grip_forces`).
@@ -272,14 +248,8 @@ pub struct PhysicsTables {
     pub ride_height_handling_scale: PlainDword,
     /// (`physics::drive_wheels_step`).
     pub axle_slip_limits: [PlainFloat; 2],
-    /// `physics::sum_forces`' five sums.
-    pub force_sums: [PlainFloat; 5],
     /// The gear asked for (`physics::take_asked_gear`).
     pub gear_asked: PlainInt,
-    /// (`physics::lever_pushes`).
-    pub lever_share_start: PlainFloat,
-    /// (`physics::lever_pushes`).
-    pub lever_share_left: PlainFloat,
     /// (`physics::reset_car`).
     pub reset_offset: PlainDword,
     /// The checkpoint tried (`physics::reset_point_blocked`).
@@ -447,8 +417,8 @@ mod tests {
         for byte in &bytes {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
         }
-        assert_eq!(bytes.len(), 2540);
-        assert_eq!(hash, 14_233_736_814_369_797_016);
+        assert_eq!(bytes.len(), 2376);
+        assert_eq!(hash, 9_046_352_354_328_914_456);
     }
 
     #[test]

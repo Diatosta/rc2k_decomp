@@ -8,6 +8,7 @@ use crate::drive::finish_store::Finish;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::contact_store::{ContactWork, ProbeLists};
 use crate::physics::ground_query::GroundSearch;
+use crate::physics::wheel_work::WheelWork;
 use std::sync::OnceLock;
 
 /// `(offset, store, field path)`, sorted by offset.
@@ -145,15 +146,15 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x2141D8, "owners.race.shared.physics_tables", ".wheel_spin_push[1]"),
     (0x21422C, "owners.race.shared.physics_tables", ".wheel_speed_step"),
     (0x214230, "owners.race.shared.physics_tables", ".surface_softness"),
-    (0x214234, "owners.race.shared.physics_tables", ".wheel_slips[0]"),
-    (0x214238, "owners.race.shared.physics_tables", ".wheel_slips[1]"),
+    (0x214234, "owners.race.physics.wheel_work", ".wheel_slips[0]"),
+    (0x214238, "owners.race.physics.wheel_work", ".wheel_slips[1]"),
     (0x21423C, "owners.race.shared.physics_tables", ".drive_limits[0]"),
     (0x214240, "owners.race.shared.physics_tables", ".drive_limits[1]"),
     (0x214244, "owners.race.shared.physics_tables", ".drive_limits[2]"),
-    (0x214248, "owners.race.shared.physics_tables", ".drive_forces[0]"),
-    (0x21424C, "owners.race.shared.physics_tables", ".drive_forces[1]"),
-    (0x214250, "owners.race.shared.physics_tables", ".drive_slip[0]"),
-    (0x214254, "owners.race.shared.physics_tables", ".drive_slip[1]"),
+    (0x214248, "owners.race.physics.wheel_work", ".drive_forces[0]"),
+    (0x21424C, "owners.race.physics.wheel_work", ".drive_forces[1]"),
+    (0x214250, "owners.race.physics.wheel_work", ".drive_slip[0]"),
+    (0x214254, "owners.race.physics.wheel_work", ".drive_slip[1]"),
     (0x214260, "owners.race.shared.physics_tables", ".grip_limit"),
     (0x214264, "owners.race.shared.physics_tables", ".slip_limit"),
     (0x214268, "owners.race.shared.physics_tables", ".wheel_load"),
@@ -634,11 +635,30 @@ fn contact_word<'a>(work: &'a mut ContactWork, path: &str) -> Option<&'a mut u32
     array.get_mut(index)
 }
 
+/// The drive's working figures (plain fields, not cells): their registry name.
+const WHEEL_WORK: &str = "owners.race.physics.wheel_work";
+
+/// The word of the drive's working figures at `path` (`.name[index]`).
+fn wheel_word<'a>(work: &'a mut WheelWork, path: &str) -> Option<&'a mut u32> {
+    let (name, index) = path.strip_suffix(']')?.rsplit_once('[')?;
+    let array = match name {
+        ".wheel_slips" => &mut work.wheel_slips[..],
+        ".drive_forces" => &mut work.drive_forces[..],
+        ".drive_slip" => &mut work.drive_slip[..],
+        _ => return None,
+    };
+    array.get_mut(index.parse::<usize>().ok()?)
+}
+
 /// The bytes of the field at `path` in the store `name` (the registry's, or a plain one).
 fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
     if name == CONTACT {
         let mut work = super::own::race().physics.contact().borrow().clone();
         return Some(contact_word(&mut work, path)?.to_le_bytes().to_vec());
+    }
+    if name == WHEEL_WORK {
+        let mut work = super::own::race().physics.wheel_work().borrow().clone();
+        return Some(wheel_word(&mut work, path)?.to_le_bytes().to_vec());
     }
     if name == FINISH {
         let (get, _) = finish_field(path)?;
@@ -695,6 +715,17 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
         };
         let mut work = super::own::race().physics.contact().borrow_mut();
         let Some(slot) = contact_word(&mut work, path) else {
+            return false;
+        };
+        *slot = u32::from_le_bytes(word);
+        return true;
+    }
+    if name == WHEEL_WORK {
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        let mut work = super::own::race().physics.wheel_work().borrow_mut();
+        let Some(slot) = wheel_word(&mut work, path) else {
             return false;
         };
         *slot = u32::from_le_bytes(word);

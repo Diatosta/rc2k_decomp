@@ -3,9 +3,9 @@
 //!   dword;
 //! - the new squeeze = -`probe_height[k]` (the wheel's height, as a whole number) over 65536 and
 //!   the handling table's scale (`handling[3]`), held to 0 ..= 1;
-//! - its force `spring_forces[k]` = -(squeeze x `spring_force_scale` x the first force record's y);
-//!   the damping `spring_damping[k]` = (squeeze - last) x `handling[5]`, times `handling[0]` when
-//!   below 0 (or unordered), added to the force unless the squeeze is 0 (or unordered).
+//! - its spring force = -(squeeze x `spring_force_scale` x the first force record's y); the
+//!   damping = (squeeze - last) x `handling[5]`, times `handling[0]` when below 0 (or
+//!   unordered), added to the force unless the squeeze is 0 (or unordered).
 //!
 //! Then `wheel_spring_force[k]` = the rounded result of the ride-height sum (`handling[2]` - the
 //! first car's probe point y, + `spring_share`, + (squeeze - `probe_share`) x `handling[3]`) x
@@ -39,9 +39,9 @@ pub fn wheel_springs(
     scene: &crate::scene::owner::Scene,
 ) {
     let (c, ph) = (shared.car(), shared.physics_tables.get());
+    let mut spring_forces = [0.0f32; 4];
     for k in 0..4 {
         let q = &c.wheel_squeeze[k];
-        let (force, damping) = (&ph.spring_forces[k], &ph.spring_damping[k]);
         let old = x87::loaded(q);
         scene.draw_work_mut().work_dword = old.to_bits();
         c.wheel_squeeze_last[k].set(old);
@@ -57,22 +57,19 @@ pub fn wheel_springs(
         if !below(q.get(), numbers.one.get()) {
             q.set(x87::loaded(&numbers.one));
         }
-        force.set(negated(mul2(q, SPRING_FORCE_SCALE, &ph.forces[0].force[1])));
-        damping.set(x87::sub_mul(
-            q,
-            scene.draw_work().work_dword,
-            &ph.handling[5],
-        ));
-        if below(damping.get(), 0.0) {
-            damping.set(x87::mul(damping, &ph.handling[0]));
+        let mut force = negated(mul2(q, SPRING_FORCE_SCALE, &ph.forces[0].force[1]));
+        let mut damping = x87::sub_mul(q, scene.draw_work().work_dword, &ph.handling[5]);
+        if below(damping, 0.0) {
+            damping = x87::mul(damping, &ph.handling[0]);
         }
         let zero_or_none = q
             .get()
             .partial_cmp(&0.0)
             .is_none_or(|o| o == Ordering::Equal);
         if !zero_or_none {
-            force.set(x87::add(damping, force));
+            force = x87::add(damping, force);
         }
+        spring_forces[k] = force;
     }
     for k in 0..4 {
         let v = wheel_int([
@@ -88,7 +85,7 @@ pub fn wheel_springs(
     }
     // The springs' records (6 .. 9): the force up, the wheels' places.
     for k in 0..4 {
-        ph.forces[6 + k].force[1].set(x87::loaded(&ph.spring_forces[k]));
+        ph.forces[6 + k].force[1].set(x87::loaded(spring_forces[k]));
     }
     for (row, from) in [&c.probe_point_x, &c.probe_point_y, &c.probe_point_z]
         .into_iter()

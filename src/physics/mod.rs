@@ -237,4 +237,5 @@ mod wall_edge_contact;
 mod wall_push_back;
 mod wheel_springs;
 pub(crate) mod wheel_surfaces;
+pub(crate) mod wheel_work;
 mod wheels_from_revs;

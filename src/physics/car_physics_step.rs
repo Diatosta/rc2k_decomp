@@ -149,6 +149,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         &race.course,
         race.shared.vars.get(),
         race.shared.physics_tables.get(),
+        race.physics.wheel_work(),
         race.shared.car(),
         scene,
     )?;
@@ -331,7 +332,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         scene,
     )?;
     ph::car_lighting::car_lighting(&inputs.lighting(), scene)?;
-    ph::sum_forces::sum_forces(race.shared.physics_tables.get());
+    ph::sum_forces::sum_forces(race.shared.physics_tables.get(), race.physics.wheel_work());
     ph::blend_wheel_load::blend_wheel_load(race.shared.car(), race.course.numbers.get());
     ph::share_engine_sound::share_engine_sound(race.shared.car(), sound, race.shared.work.get())?;
     ph::false_start::false_start(&inputs.reset(), scene, &o.net.race_slot)?;
