@@ -47,7 +47,7 @@ fn get(course: &Course, n: u32, k: u32) -> Result<u32, BadInput> {
 /// `checkpoint_count`) and the next one (held so too) and their headings
 /// (`Buffers.checkpoints.angles`) by `line_fraction` / 65536. The result goes into `place_x`,
 /// `place_y` (plus `ground_drop`), `place_z` and `place_heading`, then into the work car's place
-/// and heading; the first face's number goes into `place_face`. Refuses no checkpoints or more
+/// and heading; refuses no checkpoints or more
 /// than the lists.
 pub fn place_car_on_line(
     shared: &RaceShared,
@@ -59,8 +59,7 @@ pub fn place_car_on_line(
     {
         let (c, n) = line_neighbours(scene.line_and_shake().line_place, count)?;
         let t: u32 = scene.line_and_shake().line_fraction;
-        let (face, a) = check_point(&shared.buffers.reads.get().checkpoints, course, c)?;
-        course.course.get().place_face.set(face);
+        let (_, a) = check_point(&shared.buffers.reads.get().checkpoints, course, c)?;
         let (_, b) = check_point(&shared.buffers.reads.get().checkpoints, course, n)?;
         let (x, _) = lerp(get(course, a, 0)?, get(course, b, 0)?, t);
         let (y, _) = lerp(get(course, a, 1)?, get(course, b, 1)?, t);
@@ -74,10 +73,13 @@ pub fn place_car_on_line(
             .get()
         };
         let (heading, _) = lerp(heading_of(c), heading_of(n), t);
-        course.course.get().place_x.set(x);
-        course.course.get().place_y.set(y);
-        course.course.get().place_z.set(z);
-        course.course.get().place_heading.set(heading);
+        {
+            let mut place = course.course.borrow_mut();
+            place.place_x = x;
+            place.place_y = y;
+            place.place_z = z;
+            place.place_heading = heading;
+        }
         shared.car().position[0].set(x);
         shared.car().position[2].set(z);
         shared.car().car_heading.set(heading);
@@ -216,7 +218,7 @@ fn measure_held(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::with_faces_and_points;
-    let (course_work, data) = (course.course.get(), &course.stage.course);
+    let data = &course.stage.course;
     if !crate::race::course_places::held(data) || !crate::race::scene_points::held(data) {
         return Ok(());
     }
@@ -228,7 +230,7 @@ fn measure_held(
     // and its root is not taken (the bound is exact while the nearest is below 2^26).
     let plain = crate::math::x87::rounds_to_nearest();
     let mut last = None;
-    let point_count = course_work.scene_point_count.get();
+    let point_count = course.course.borrow().scene_point_count;
     let changes = crate::race::course_places::first_points_changes(data);
     let measured = PLACES.with_borrow_mut(|kept| {
         if kept.changes != changes || kept.point_count != point_count {

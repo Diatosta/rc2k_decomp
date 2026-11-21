@@ -34,7 +34,6 @@ use crate::physics::car_store::Car;
 use crate::physics::flow::{ZERO_BITS as ZERO, hold_high, hold_low, hold_low_bits};
 use crate::physics::step_families::CameraInputs;
 use crate::physics::tables_store::PhysicsTables;
-use crate::race::course_store::CourseWork;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::numbers_store::Numbers;
 use crate::race::view_vars_store::ViewVars;
@@ -144,23 +143,17 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         return Ok(());
     }
     // The camera at the car, the views blended.
-    for (k, copy) in [
-        &c.course.course.get().place_x,
-        &c.course.course.get().place_y,
-        &c.course.course.get().place_z,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let v = c.car.position[k].get();
-        copy.set(v);
+    let position = [0, 1, 2].map(|k| c.car.position[k].get());
+    for (k, v) in position.into_iter().enumerate() {
         c.car.camera_position[k].set(v);
     }
-    c.course
-        .course
-        .get()
-        .place_heading
-        .set(c.car.car_heading.get());
+    {
+        let mut place = c.course.course.borrow_mut();
+        place.place_x = position[0];
+        place.place_y = position[1];
+        place.place_z = position[2];
+        place.place_heading = c.car.car_heading.get();
+    }
     if c.car.camera_switch_active.get() != 0 {
         if camera_view::switch_over(
             c.car.step_clock.get(),
@@ -228,12 +221,13 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     crate::physics::ease_view_angles::ease_view_angles(c.numbers, c.shared, c.view_records)?;
     crate::physics::ease_view_blend::ease_view_blend(c)?;
     crate::physics::camera_avoid_ground::steps(c, scene)?;
-    x87_9(&c.camera.borrow(), c.course.course.get());
-    c.course
-        .course
-        .get()
-        .camera_first
-        .set(c.view_records.view_vars.view_angles[1].get());
+    let flat_depth = x87_9(&c.camera.borrow());
+    let camera_first = c.view_records.view_vars.view_angles[1].get();
+    {
+        let mut course = c.course.course.borrow_mut();
+        course.flat_depth = flat_depth;
+        course.camera_first = camera_first;
+    }
     Ok(())
 }
 
@@ -411,7 +405,7 @@ fn x87_8(camera: &CameraWork, car: &Car) {
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables named below (`[name]`: a
 /// float; `int [..]`: a whole number; `ext [..]`: 80 bits): A long formula, covered by the tests.
-fn x87_9(camera: &CameraWork, course_work: &CourseWork) {
+fn x87_9(camera: &CameraWork) -> u32 {
     let t0 = int(camera.camera_offset_x as i32);
     let t1 = t0 * t0;
     let t2 = int(camera.camera_offset_y as i32);
@@ -421,7 +415,7 @@ fn x87_9(camera: &CameraWork, course_work: &CourseWork) {
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    course_work.flat_depth.set(to_int(t8) as u32);
+    to_int(t8) as u32
 }
 
 #[cfg(test)]

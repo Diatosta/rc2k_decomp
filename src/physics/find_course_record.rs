@@ -22,7 +22,7 @@ pub fn find_course_record(course: CourseReads<'_>, key: u32) -> Result<Option<u3
         key,
         first,
         last,
-        course_store.course.course_record_count.get(),
+        course_store.course.get().course_record_count,
         |n| {
             trap.keep(crate::race::course_places::record_field::<u32>(
                 course, n, 0,

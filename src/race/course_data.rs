@@ -1,4 +1,4 @@
-//! Reads the course's data (`cdat00c`): its first 0x100 bytes are the header (`course_header`: the
+//! Reads the course's data (`cdat00c`): its first 0x100 bytes are the header (the
 //! counts of the layout in `race/norms.rs`), the 0x20-byte records are grouped by kind, the faces'
 //! lights reset, then the best line is built. This file holds the small steps.
 
@@ -18,36 +18,20 @@ pub(super) fn set_cdat_number(course: &Course, number: u32) {
     course.level_paths_mut().set_cdat_number(digits);
 }
 
-/// Stores the course file's header dwords in `course_header` and the fields after it, in their
-/// order: the counts, the start place and the fields nothing reads.
+/// Stores the header dwords the game reads: the counts, the camera's first figure, the start
+/// place's heading and place and the flat depth (the file's other header words are read by
+/// nothing).
 fn store_course_header(course: &Course, header: &[u32; HEADER_WORDS]) {
-    let c = course.course.get();
-    let fields: [&[crate::memory::session::PlainDword]; 18] = [
-        std::slice::from_ref(&c.course_header),
-        std::slice::from_ref(&c.course_record_count),
-        std::slice::from_ref(&c.course_face_count),
-        std::slice::from_ref(&c.scene_point_count),
-        std::slice::from_ref(&c.reserved_134),
-        std::slice::from_ref(&c.place_face),
-        &c.reserved_13c,
-        std::slice::from_ref(&c.camera_first),
-        &c.reserved_154,
-        std::slice::from_ref(&c.place_heading),
-        &c.reserved_174,
-        std::slice::from_ref(&c.flat_depth),
-        &c.reserved_194,
-        std::slice::from_ref(&c.place_x),
-        &c.reserved_1b4,
-        std::slice::from_ref(&c.place_y),
-        &c.reserved_1d4,
-        std::slice::from_ref(&c.place_z),
-    ];
-    let mut words = header.iter();
-    for dword in fields.into_iter().flatten().chain(&c.reserved_1f4) {
-        if let Some(&word) = words.next() {
-            dword.set(word);
-        }
-    }
+    let mut work = course.course.borrow_mut();
+    work.course_record_count = header[1];
+    work.course_face_count = header[2];
+    work.scene_point_count = header[3];
+    work.camera_first = header[11];
+    work.place_heading = header[19];
+    work.flat_depth = header[27];
+    work.place_x = header[35];
+    work.place_y = header[43];
+    work.place_z = header[51];
 }
 
 /// Sets the lit faces' count to 0.
@@ -61,7 +45,7 @@ pub fn reset_face_lights(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     let physics = &race.physics;
     {
-        let count: u32 = course.course.get().course_face_count.get();
+        let count: u32 = course.course.borrow().course_face_count;
         rc2k_core::race::faces::check_face_count(count)?;
         // Each record is read inside the faces; it is written back only when changed
         // (`rc2k_core::race::faces::reset_lights`).
@@ -92,7 +76,7 @@ fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
     // The records are read whole: every one is swapped into place, so all of them are read
     // (`rc2k_core::race::stage::group_by_kind`).
     {
-        let count: u32 = course.course.get().course_record_count.get();
+        let count: u32 = course.course.borrow().course_record_count;
         if count > MOST_RECORDS {
             return Err(BadInput("more records than a course file holds").into());
         }

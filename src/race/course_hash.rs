@@ -167,7 +167,26 @@ pub fn log_hashes(
         "object_faces",
         table(race.course.stage.object_faces.table()),
     );
-    say("course", format!("{:016x}", record_hash(reads.course)));
+    // The course store's fields as they stood before the unused ones were deleted (their sum
+    // was the old "course" line, which the deleted fields' values made unrepeatable): one line
+    // for each field kept, hashed as the one cell it was.
+    let work = reads.course.get();
+    for (path, value) in [
+        (".course_record_count", work.course_record_count),
+        (".course_face_count", work.course_face_count),
+        (".scene_point_count", work.scene_point_count),
+        (".camera_first", work.camera_first),
+        (".place_heading", work.place_heading),
+        (".flat_depth", work.flat_depth),
+        (".place_x", work.place_x),
+        (".place_y", work.place_y),
+        (".place_z", work.place_z),
+    ] {
+        say(
+            &format!("course_field{path}"),
+            format!("{:016x}", dword_run_hash(path, &[value])),
+        );
+    }
     say("lists", format!("{:016x}", record_hash(reads.lists)));
     say(
         "stage_prefs",
@@ -408,21 +427,21 @@ pub fn log_started_hashes(race: &crate::race::owner::Race) {
 mod tests {
     use super::*;
 
-    /// The hashing scheme is frozen: a fresh (zero) course header and an empty table keep their
+    /// The hashing scheme is frozen: a fresh numbers record and an empty table keep their
     /// hashes, so a change to how a store is hashed (not to the store) shows here.
     #[test]
     fn hashing_scheme_is_frozen() {
         let _lock = crate::test_support::test_lock();
-        let course = crate::race::course_store::CourseWork::new();
-        let zero = record_hash(&course);
+        let numbers = crate::race::numbers_store::Numbers::new();
+        let zero = record_hash(&numbers);
         assert_eq!(
             zero,
-            record_hash(&crate::race::course_store::CourseWork::new())
+            record_hash(&crate::race::numbers_store::Numbers::new())
         );
         assert_eq!(bytes_hash(&[]), 0xa8c7_f832_281a_39c5);
         assert_eq!(bytes_hash(&[1, 2, 3]), bytes_hash(&[1, 2, 3]));
         assert_ne!(bytes_hash(&[1, 2, 3]), bytes_hash(&[1, 2, 4]));
-        eprintln!("course header zero hash {zero:016x}");
+        eprintln!("numbers record fresh hash {zero:016x}");
     }
 
     /// A taken table shows as its bytes' hash, a given-back one as "none".

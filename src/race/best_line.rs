@@ -87,7 +87,7 @@ fn point_xz(race: &Race, n: u32) -> Result<[u32; 2], BadInput> {
 fn sort_checkpoints(race: &Race, kind: u8) -> Result<(Vec<u32>, Option<u32>), Refused> {
     use rc2k_core::race::checkpoints::chain;
     let course = &race.course;
-    let n: u32 = course.course.get().course_face_count.get();
+    let n: u32 = course.course.borrow().course_face_count;
     if n == 0 || n >= MOST_FACES {
         return Err(BadInput("no faces, or 0x100000 or more").into());
     }
@@ -290,7 +290,7 @@ fn replay_cameras(
     left: &RefCell<Leftovers>,
 ) -> Result<CameraSet, Refused> {
     let course = &race.course;
-    let total: u32 = course.course.get().course_face_count.get();
+    let total: u32 = course.course.borrow().course_face_count;
     if total == 0 || total >= MOST_FACES {
         return Err(BadInput("no faces, or 0x100000 or more").into());
     }
@@ -372,7 +372,7 @@ fn surface_shares(race: &Race, faces: &[u32]) -> Result<[u32; 16], Refused> {
     let course = &race.course;
     let count = faces.len() as i32;
     let shares: [PlainFloat; 16] = std::array::from_fn(|_| PlainFloat::new(0.0));
-    let face_count: u32 = course.course.get().course_face_count.get();
+    let face_count: u32 = course.course.borrow().course_face_count;
     let info_byte = |info: u32, offset: u32| -> Result<u32, BadInput> {
         Ok(crate::scene::polygon::texture_info_byte(race.polygon_tables(), info, offset)?.into())
     };
@@ -654,23 +654,21 @@ pub(super) fn with_course<R>(
     let data = &race.course.stage.course;
     crate::race::course_places::take(data, &face_bytes, &[]).unwrap();
     crate::race::scene_points::take(data, &point_bytes).unwrap();
-    let before = (
-        race.course.course.get().course_face_count.get(),
-        race.course.course.get().scene_point_count.get(),
-    );
-    race.course
-        .course
-        .get()
-        .course_face_count
-        .set(faces.len() as u32);
-    race.course
-        .course
-        .get()
-        .scene_point_count
-        .set(points.len() as u32);
+    let before = {
+        let counts = race.course.course.borrow();
+        (counts.course_face_count, counts.scene_point_count)
+    };
+    {
+        let mut counts = race.course.course.borrow_mut();
+        counts.course_face_count = faces.len() as u32;
+        counts.scene_point_count = points.len() as u32;
+    }
     let result = check(race);
-    race.course.course.get().course_face_count.set(before.0);
-    race.course.course.get().scene_point_count.set(before.1);
+    {
+        let mut counts = race.course.course.borrow_mut();
+        counts.course_face_count = before.0;
+        counts.scene_point_count = before.1;
+    }
     crate::race::course_places::give_back(data);
     crate::race::scene_points::give_back(data);
     result

@@ -148,7 +148,7 @@ pub fn record_offset(
     rc2k_core::scene::projection::record_offset(
         point,
         reads.object_tables.point_count.get(),
-        reads.course_work.scene_point_count.get(),
+        reads.course_work.get().scene_point_count,
     )
     .map_err(|e| match e {
         TooHigh::Object => TOO_HIGH_OBJECT,
@@ -195,7 +195,7 @@ pub(crate) fn make_scene_record(
         to_screen(
             &mut r,
             &view.polygon.window,
-            reads.course_work.flat_depth.get(),
+            reads.course_work.get().flat_depth,
             flat,
             &crate::memory::session::Dword::new(0),
         );

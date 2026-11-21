@@ -179,7 +179,7 @@ fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
         x as i32,
         0,
         z as i32,
-        course.course.get().place_heading.get(),
+        course.course.borrow().place_heading,
     );
     add(&shared.car().position[0], x);
     add(&shared.car().position[2], z);

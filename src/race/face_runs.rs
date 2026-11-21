@@ -105,7 +105,7 @@ pub(super) fn draw_sort_list<'a>(
         helper,
         ctx.part,
         view,
-        ctx.reads.course_work.scene_point_count.get(),
+        ctx.reads.course_work.get().scene_point_count,
         count,
         runs,
         &draw,

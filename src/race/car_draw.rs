@@ -413,7 +413,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
 }
 
 /// The car's nearness: `car_nearness` = (`car_depth` - 0xA0000) / 0x140000 held to 0 .. 1 (`zero`,
-/// `one`); `shine` (and `shine_whole`) is multiplied by 1 less it.
+/// `one`); `shine` is multiplied by 1 less it.
 fn nearness(
     numbers: &crate::race::numbers_store::Numbers,
     cars: &CarDrawState,
@@ -533,13 +533,17 @@ mod vector_tests {
     use crate::test_support::race_vectors::{Kind, Vectors};
     use crate::test_support::state::Snapshot;
 
+    thread_local! {
+        /// The shine the blocks start from and leave (a view's own in the game).
+        static SHINE: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+    }
+
     /// The stores the test writes.
-    const STORES: [&str; 6] = [
+    const STORES: [&str; 5] = [
         "owners.scene.drawing.scene",
         "owners.scene.draw_work",
         "owners.race.frame.frame_work",
         "owners.race.shared.work",
-        "owners.race.course.course",
         "owners.race.course.numbers",
     ];
 
@@ -551,7 +555,7 @@ mod vector_tests {
         [
             race.frame.frame_work.get().car_depth.get(),
             race.shared.work.get().car_nearness.get().to_bits(),
-            race.course.course.get().shine.get(),
+            SHINE.get(),
             race.course.numbers.get().zero.get().to_bits(),
             race.course.numbers.get().one.get().to_bits(),
         ]
@@ -571,7 +575,7 @@ mod vector_tests {
             .get()
             .car_nearness
             .set(f32::from_bits(r.float()));
-        race.course.course.get().shine.set(r.int() as u32);
+        SHINE.set(r.int() as u32);
         race.course.numbers.get().zero.set(if r.below(4) == 0 {
             f32::from_bits(r.float())
         } else {
@@ -591,9 +595,9 @@ mod vector_tests {
         cars.car_depth
             .set(race.frame.frame_work.get().car_depth.get());
         let mine = crate::race::view_course::ViewCourse::new();
-        mine.shine.set(race.course.course.get().shine.get());
+        mine.shine.set(SHINE.get());
         nearness(race.course.numbers.get(), &cars, &mine);
-        race.course.course.get().shine.set(mine.shine.get());
+        SHINE.set(mine.shine.get());
         race.shared
             .work
             .get()

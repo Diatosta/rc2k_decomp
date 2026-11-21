@@ -227,7 +227,7 @@ pub fn course_grid(
     let (gx, gz) = grid_corner(vars.view_x.get(), vars.view_z.get(), half);
     let mut grid = view.borrow_mut();
     let unchanged = gx == grid.x && gz == grid.z;
-    let count: u32 = course.course.course_record_count.get();
+    let count: u32 = course.course.get().course_record_count;
     if !unchanged && count == 0 {
         return Err(BadInput("no course records (the loop would not end)?").into());
     }
@@ -451,7 +451,7 @@ pub fn prepare_course_view(
 
 /// `course_grid`'s refusal, before anything.
 pub(super) fn check_course_grid(course: CourseReads<'_>) -> Result<(), Refused> {
-    if course.course.course_record_count.get() == 0 {
+    if course.course.get().course_record_count == 0 {
         return Err(BadInput("no course records").into());
     }
     Ok(())
@@ -465,7 +465,7 @@ pub fn visible_records(
     let grid = view.borrow();
     let list = rc2k_core::race::view::visible_records(
         grid.cells.iter().copied(),
-        course.course.course_record_count.get(),
+        course.course.get().course_record_count,
     )
     .into_iter()
     .collect();

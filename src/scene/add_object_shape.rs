@@ -99,7 +99,6 @@ pub fn add_object_shape(
     if let Some(reach) = shape.last_reach {
         scene.draw_work_mut().scratch = reach;
     }
-    course.course.get().shape_radius.set(shape.radius);
     scene.loaded_slots_mut().radii[slot] = shape.radius;
     scene.objects.slots.get().point_counts[slot].set(count - first_point);
     let first_normal = count;

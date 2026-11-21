@@ -215,7 +215,7 @@ fn shadow_polygon(
     if n == 0 || n > 0x40 {
         return Err(BadInput("a shadow hull of no points or more than 0x40").into());
     }
-    let scene_points: u32 = reads.course_work.scene_point_count.get();
+    let scene_points: u32 = reads.course_work.get().scene_point_count;
     for k in 0..n {
         // The hull's points follow the course's points and 16 more.
         let (record, point) = (
@@ -573,7 +573,7 @@ fn shadow_on_face(
         // polygon's list and the point marks are made afresh by the next face that is near.
         ctx.view.polygon.polygon_vertex_count.set(0u32);
         ctx.view.polygon.polygon_next_entry.set(0x20u32);
-        let scene_points: u32 = ctx.reads.course_work.scene_point_count.get();
+        let scene_points: u32 = ctx.reads.course_work.get().scene_point_count;
         work.next_point.set(scene_points.wrapping_add(0x30));
         ctx.view.polygon.polygon_sides[0].set(0u32);
         ctx.view.polygon.polygon_sides[1].set(1u32);
@@ -586,7 +586,7 @@ fn shadow_on_face(
     ctx.view.polygon.polygon_vertex_count.set(count);
     list_cell(polygon, count as usize).set(work.list[0].get());
     ctx.view.polygon.polygon_next_entry.set(0x20u32);
-    let scene_points: u32 = ctx.reads.course_work.scene_point_count.get();
+    let scene_points: u32 = ctx.reads.course_work.get().scene_point_count;
     work.next_point.set(scene_points.wrapping_add(0x30));
     ctx.view.polygon.polygon_sides[0].set(0u32);
     ctx.view.polygon.polygon_sides[1].set(1u32);
@@ -704,7 +704,7 @@ fn shadow_faces(
     work: &ShadowWork,
     car: &Car,
 ) -> Result<(), Refused> {
-    let count: u32 = ctx.reads.course_work.course_record_count.get();
+    let count: u32 = ctx.reads.course_work.get().course_record_count;
     shadow_on_record(ctx, work, car, count.wrapping_sub(1))?;
     if count == 0 {
         return Ok(());
@@ -1037,11 +1037,8 @@ mod vector_tests {
 
     #[test]
     fn inside_edge_is_the_originals() {
-        let kept = Snapshot::of(&[
-            "owners.race.physics.ground",
-            "owners.race.frame.frame_work",
-            "owners.race.course.course",
-        ]);
+        let kept_course = *crate::test_support::own::race().course.course.borrow();
+        let kept = Snapshot::of(&["owners.race.physics.ground", "owners.race.frame.frame_work"]);
         let mut vectors = Vectors::open("race.car_shadow.inside_edge", Kind::Exact, 3);
         let mut r = Rng(24);
         let mut points = [0u32; 12];
@@ -1089,6 +1086,7 @@ mod vector_tests {
             }
         });
         kept.restore();
+        *crate::test_support::own::race().course.course.borrow_mut() = kept_course;
         vectors.finish();
         assert!(yes > 1000 && no > 1000, "{yes} {no}");
     }

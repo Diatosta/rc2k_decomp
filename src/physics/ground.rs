@@ -57,7 +57,7 @@ pub fn face_shares_at(env: GroundEnv<'_>, q: &mut GroundSearch) -> Result<(), Re
 
 /// `face_under_point`'s refusal, worked out without writing.
 fn face_refusal(course: CourseReads<'_>, face: u32) -> Option<&'static str> {
-    ground_search::check_face(face, course.course.course_face_count.get())
+    ground_search::check_face(face, course.course.get().course_face_count)
         .err()
         .map(|e| e.0)
 }
@@ -118,14 +118,14 @@ fn record_refusal(course: CourseReads<'_>, record: u32) -> Option<&'static str> 
     let course_store = course;
     {
         if let Err(e) =
-            ground_search::check_record(record, course_store.course.course_record_count.get())
+            ground_search::check_record(record, course_store.course.get().course_record_count)
         {
             return Some(e.0);
         }
         let Ok((first, last)) = record_faces(course_store, record) else {
             return Some("a course record outside every allocation");
         };
-        ground_search::check_record_faces(first, last, course_store.course.course_face_count.get())
+        ground_search::check_record_faces(first, last, course_store.course.get().course_face_count)
             .err()
             .map(|e| e.0)
     }
@@ -170,7 +170,7 @@ fn search_cell_at(
 // Core: `rc2k_core::physics::ground_search::last_face`.
 pub(super) fn try_last_face_at(env: GroundEnv<'_>, q: &mut GroundSearch) -> Result<bool, Refused> {
     let last = q.last;
-    if ground_search::last_face(last, env.course.course.course_face_count.get()).is_none() {
+    if ground_search::last_face(last, env.course.course.get().course_face_count).is_none() {
         return Ok(false);
     }
     face_under_point_at(env, q, last)

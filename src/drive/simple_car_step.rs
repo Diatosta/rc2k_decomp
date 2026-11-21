@@ -59,8 +59,9 @@ pub fn simple_car_step(
     }?;
     {
         let mut search = race.physics.ground_search().borrow_mut();
-        search.x = race.course.course.get().place_x.get();
-        search.z = race.course.course.get().place_z.get();
+        let place = *race.course.course.borrow();
+        search.x = place.place_x;
+        search.z = place.place_z;
     }
     {
         crate::physics::find_ground::find_ground(
@@ -76,7 +77,7 @@ pub fn simple_car_step(
             .borrow()
             .height
             .wrapping_add(GROUND_DROP);
-        race.course.course.get().place_y.set(y);
+        race.course.course.borrow_mut().place_y = y;
         race.car_blocks().cars[0].position[1].set(y);
     }
     race.car_blocks().cars[0].car_pitch.set(0);

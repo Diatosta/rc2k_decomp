@@ -71,7 +71,7 @@ fn refusal(race: &Race) -> Option<&'static str> {
     if count > MOST {
         return Some("more than 0x100 lit faces (past g_litFaces)");
     }
-    let faces: u32 = race.course.course.get().course_face_count.get();
+    let faces: u32 = race.course.course.borrow().course_face_count;
     for k in 0..count {
         if list(&race.physics, k).get() >= faces {
             return Some("a lit face past g_courseFaceCount");

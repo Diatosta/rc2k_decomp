@@ -143,7 +143,7 @@ fn cut(
             to_screen(
                 &mut point,
                 &poly.window,
-                course.course.flat_depth.get(),
+                course.course.get().flat_depth,
                 flat,
                 crate::math::x87_mem::cells(&mut scratch),
             );

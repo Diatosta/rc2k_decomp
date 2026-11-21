@@ -31,7 +31,7 @@ use crate::scene::measure_object::measure_object;
 use crate::scene::objects::{FACES, FILE_ROOM, SLOTS};
 use crate::scene::set_object_file_names::set_object_file_names;
 use rc2k_core::scene::object_shape::{
-    PART_CELLS, PARTS, Parsed, REST_CELL, ShapeRequest, car_masks, first_part_slots, parse_shape,
+    PARTS, Parsed, ShapeRequest, car_masks, first_part_slots, parse_shape,
 };
 use rc2k_core::scene::objects::{Measures, measure};
 
@@ -82,7 +82,6 @@ pub fn load_object(
     scene: &crate::scene::owner::Scene,
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
-    let course = &race.course;
     let kind: u32 = scene.object_work().loading_kind;
     if kind == 0 {
         return Ok(());
@@ -136,10 +135,6 @@ pub fn load_object(
                 .group_at(&race.frame.lights_and_gear.get().gear, known, offset)?;
     }
     let masks = car_masks(groups, known);
-    for (part, &cell) in PART_CELLS.iter().enumerate() {
-        course.course.get().group_masks[cell].set(masks.parts[part]);
-    }
-    course.course.get().group_masks[REST_CELL].set(masks.rest);
     let (car, part) = (
         (slot - FIRST_CAR_SLOT) / 0x14,
         (slot - FIRST_CAR_SLOT) % 0x14,

@@ -146,7 +146,7 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             to_screen(
                 &mut r,
                 &ctx.view.polygon.window,
-                ctx.reads.course_work.flat_depth.get(),
+                ctx.reads.course_work.get().flat_depth,
                 flat,
                 &crate::memory::session::Dword::new(0),
             );

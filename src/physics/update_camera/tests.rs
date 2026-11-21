@@ -191,10 +191,12 @@ fn blocks() -> Vec<Block> {
             }],
             ulps: 0,
             plain: |_| {
-                x87_9(
-                    &crate::test_support::own::race().physics.camera(),
-                    crate::test_support::own::race().course.course.get(),
-                );
+                let flat_depth = x87_9(&crate::test_support::own::race().physics.camera());
+                crate::test_support::own::race()
+                    .course
+                    .course
+                    .borrow_mut()
+                    .flat_depth = flat_depth;
             },
         },
     ]

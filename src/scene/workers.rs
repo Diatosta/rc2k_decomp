@@ -136,7 +136,7 @@ pub struct Lent<'s> {
     course_lists:
         crate::memory::session::PhaseRead<'s, crate::race::course_lists_store::CourseLists>,
     stage_prefs: crate::memory::session::PhaseRead<'s, crate::race::prefs_store::StagePrefs>,
-    course_work: crate::memory::session::PhaseRead<'s, crate::race::course_store::CourseWork>,
+    course_work: crate::memory::session::PlainRead<crate::race::course_store::CourseWork>,
     stage: &'s crate::race::stage_data_store::StageData,
     kind_records: crate::memory::session::PlainRead<crate::race::kind_records_store::KindRecords>,
     numbers: crate::memory::session::PhaseRead<'s, crate::race::numbers_store::Numbers>,
@@ -193,7 +193,7 @@ impl<'s> Lent<'s> {
             // The course's groups.
             course_lists: PhaseRead::lend(&race.course.lists, scope),
             stage_prefs: PhaseRead::lend(&race.course.stage_prefs, scope),
-            course_work: PhaseRead::lend(&race.course.course, scope),
+            course_work: crate::memory::session::PlainRead::lend(&race.course.course, scope),
             stage: &race.course.stage,
             kind_records: crate::memory::session::PlainRead::lend(
                 race.course.kind_records(),
@@ -245,7 +245,7 @@ impl<'s> Lent<'s> {
             // The course's groups.
             course_lists: &self.course_lists,
             stage_prefs: &self.stage_prefs,
-            course_work: &self.course_work,
+            course_work: (&self.course_work).into(),
             stage: self.stage,
             kind_records: (&self.kind_records).into(),
             numbers: &self.numbers,
@@ -327,7 +327,7 @@ pub struct DrawReads<'a> {
     pub stage_prefs: &'a crate::race::prefs_store::StagePrefs,
     /// The course's data and the scene's state: the records, faces and scene points and their
     /// counts, the flat depth (`race::owner_course::Course::course`).
-    pub course_work: &'a crate::race::course_store::CourseWork,
+    pub course_work: crate::race::course_store::CourseWorkRef<'a>,
     /// The loaded stage's tables (`race::owner_course::Course::stage`).
     pub stage: &'a crate::race::stage_data_store::StageData,
     /// The course kinds' first and last records (`race::owner_course::Course::kind_records`).
@@ -415,7 +415,7 @@ impl<'a> DrawReads<'a> {
             // The course's groups.
             course_lists: race.course.lists.get(),
             stage_prefs: race.course.stage_prefs.get(),
-            course_work: race.course.course.get(),
+            course_work: crate::race::course_store::CourseWorkRef::Store(&race.course.course),
             stage: &race.course.stage,
             kind_records: crate::race::kind_records_store::KindRecordsRef::Store(
                 race.course.kind_records(),
@@ -637,7 +637,7 @@ fn draw_parts(
     let cache_start = crate::d3d::render_cache::current(first_cache);
     // The held matrix columns likewise (`scene::view_matrices::Held`), in the race's
     // matrices; every part, the first too, holds its own while the scope is open.
-    let point_count = owners.race.course.course.get().scene_point_count.get();
+    let point_count = owners.race.course.course.borrow().scene_point_count;
     let matrices = &owners.race.frame.matrices;
     let columns_start = crate::scene::view_matrices::columns(matrices.get());
     begin_list();

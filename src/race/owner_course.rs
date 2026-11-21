@@ -4,7 +4,7 @@
 
 use crate::memory::session::{DrawPlain, DrawShared, GameThread};
 use crate::race::course_lists_store::CourseLists;
-use crate::race::course_store::CourseWork;
+use crate::race::course_store::{CourseWork, CourseWorkRef};
 use crate::race::kind_records_store::{KindRecords, KindRecordsRef};
 use crate::race::league_store::League;
 use crate::race::level_paths_store::LevelPaths;
@@ -16,8 +16,8 @@ use std::cell::{Ref, RefCell, RefMut};
 
 /// The race's course state.
 pub struct Course {
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
-    pub course: DrawShared<CourseWork>,
+    /// A copy is lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
+    pub course: DrawPlain<CourseWork>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
     pub lists: DrawShared<CourseLists>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it (the fog
@@ -40,7 +40,7 @@ pub struct Course {
 /// `scene::workers::DrawReads::course` in a part.
 #[derive(Clone, Copy)]
 pub struct CourseReads<'a> {
-    pub course: &'a CourseWork,
+    pub course: CourseWorkRef<'a>,
     pub lists: &'a CourseLists,
     pub stage_prefs: &'a StagePrefs,
     pub numbers: &'a Numbers,
@@ -59,7 +59,7 @@ struct CourseMain {
 impl Course {
     pub const fn new() -> Self {
         Course {
-            course: DrawShared::new(CourseWork::new()),
+            course: DrawPlain::new(CourseWork::new()),
             lists: DrawShared::new(CourseLists::new()),
             stage_prefs: DrawShared::new(StagePrefs::new()),
             numbers: DrawShared::new(Numbers::new()),
@@ -77,7 +77,7 @@ impl Course {
     /// The drawing stores, on the game's thread outside a drawing scope.
     pub fn reads(&self) -> CourseReads<'_> {
         CourseReads {
-            course: self.course.get(),
+            course: CourseWorkRef::Store(&self.course),
             lists: self.lists.get(),
             stage_prefs: self.stage_prefs.get(),
             numbers: self.numbers.get(),

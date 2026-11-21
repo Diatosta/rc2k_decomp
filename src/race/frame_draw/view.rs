@@ -176,13 +176,13 @@ pub fn place_view(
 ) -> Result<(), BadInput> {
     use crate::math::x87::from_int;
     let place = &view.vars.view_place;
-    place[0].set(course.course.place_x.get());
-    place[1].set(course.course.place_y.get());
-    place[2].set(course.course.place_z.get());
+    place[0].set(course.course.get().place_x);
+    place[1].set(course.course.get().place_y);
+    place[2].set(course.course.get().place_z);
     view.state.borrow_mut().view_place = [
-        course.course.place_x.get(),
-        course.course.place_y.get(),
-        course.course.place_z.get(),
+        course.course.get().place_x,
+        course.course.get().place_y,
+        course.course.get().place_z,
     ];
     let zero = || {
         for a in [2, 4, 3, 5] {
@@ -192,17 +192,17 @@ pub fn place_view(
     };
     if course.stage_prefs.flat_depth.get() != 0 {
         let at = &view.car.camera_position[1];
-        at.set(at.get().wrapping_add(course.course.flat_depth.get()));
-        view.vars.view_angles[0].set(course.course.place_heading.get());
+        at.set(at.get().wrapping_add(course.course.get().flat_depth));
+        view.vars.view_angles[0].set(course.course.get().place_heading);
         view.vars.view_angles[1].set(0x4000_0000u32);
-        view.state.borrow_mut().view_angles[0] = course.course.place_heading.get();
+        view.state.borrow_mut().view_angles[0] = course.course.get().place_heading;
         view.state.borrow_mut().view_angles[1] = 0x4000_0000u32;
         zero();
         return Ok(());
     }
-    let first: u32 = course.course.camera_first.get();
-    let second: u32 = course.course.place_heading.get();
-    let back = (course.course.flat_depth.get()).wrapping_neg();
+    let first: u32 = course.course.get().camera_first;
+    let second: u32 = course.course.get().place_heading;
+    let back = (course.course.get().flat_depth).wrapping_neg();
     let [x1, z1, _] = crate::math::rotate_point_about_y_ecx::rotate_point_about_y_ecx(
         tables,
         back as i32,
@@ -621,7 +621,7 @@ fn place_sun(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused
             place[0] as i32,
             place[1] as i32,
             place[2] as i32,
-            ctx.reads.course_work.flat_depth.get() as i32,
+            ctx.reads.course_work.get().flat_depth as i32,
         ],
         window.view_scale.get(),
         [window.view_centre[1].get(), window.view_centre[0].get()],

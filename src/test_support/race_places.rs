@@ -469,6 +469,20 @@ fn finish_field(path: &str) -> Option<FinishBits> {
     }
 }
 
+/// The course's counts and places (plain fields, not cells): their registry name.
+const COURSE_WORK: &str = "owners.race.course.course";
+
+/// The course record's field at `path` (the ones the recorded vectors touch).
+fn course_word<'a>(
+    work: &'a mut crate::race::course_store::CourseWork,
+    path: &str,
+) -> Option<&'a mut u32> {
+    match path {
+        ".flat_depth" => Some(&mut work.flat_depth),
+        _ => None,
+    }
+}
+
 /// The camera work (plain fields, not cells): its registry name.
 const CAMERA: &str = "owners.race.physics.camera";
 
@@ -656,6 +670,10 @@ fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
         let mut work = super::own::race().physics.contact().borrow().clone();
         return Some(contact_word(&mut work, path)?.to_le_bytes().to_vec());
     }
+    if name == COURSE_WORK {
+        let mut work = *super::own::race().course.course.borrow();
+        return Some(course_word(&mut work, path)?.to_le_bytes().to_vec());
+    }
     if name == WHEEL_WORK {
         let mut work = super::own::race().physics.wheel_work().borrow().clone();
         return Some(wheel_word(&mut work, path)?.to_le_bytes().to_vec());
@@ -715,6 +733,17 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
         };
         let mut work = super::own::race().physics.contact().borrow_mut();
         let Some(slot) = contact_word(&mut work, path) else {
+            return false;
+        };
+        *slot = u32::from_le_bytes(word);
+        return true;
+    }
+    if name == COURSE_WORK {
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        let mut work = super::own::race().course.course.borrow_mut();
+        let Some(slot) = course_word(&mut work, path) else {
             return false;
         };
         *slot = u32::from_le_bytes(word);

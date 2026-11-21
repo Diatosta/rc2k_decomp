@@ -117,9 +117,9 @@ fn face_normals(
     use rc2k_core::race::faces::{
         NORMAL_TRIANGLES, normal_made, repeated_points, takes_normals, with_repeated,
     };
-    let count: u32 = race.course.course.get().course_face_count.get();
+    let count: u32 = race.course.course.borrow().course_face_count;
     rc2k_core::race::faces::check_face_count(count)?;
-    let points: u32 = race.course.course.get().scene_point_count.get();
+    let points: u32 = race.course.course.borrow().scene_point_count;
     // The fourth corner the last drawn face left is -1 for a face of three points.
     let fourth_corner_set =
         crate::race::face_work::last_fourth_corner(&race.shared, scratch) != u32::MAX;
@@ -160,7 +160,7 @@ fn face_normals(
 /// the work vector, plane work and scratch word the work leaves.
 /// Refuses no faces or 0x100000 or more.
 pub(super) fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let count: u32 = race.course.course.get().course_face_count.get();
+    let count: u32 = race.course.course.borrow().course_face_count;
     rc2k_core::race::faces::check_face_count(count)?;
     let work_vector = race.frame.scratch().work_vector;
     let normals = face_normals(race, &scene.scratch, work_vector)?;

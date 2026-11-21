@@ -27,7 +27,7 @@ pub fn steps(
     ground_search::each_face(
         first,
         last,
-        c.course.course.get().course_face_count.get(),
+        c.course.course.borrow().course_face_count,
         |number| face_contact::steps(c, number, scene),
     )?;
     Ok(())

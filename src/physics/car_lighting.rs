@@ -1,5 +1,5 @@
 //! The light on the work car from the face under it. The car's x and z become the probe point, the
-//! old light is kept in `light_kept`, `car_light_colour` is 0 and the last face goes into
+//! old light is kept, `car_light_colour` is 0 and the last face goes into
 //! `ground_face_last`; then `physics::find_ground`; no face: done. With `ground_half` 1 the shares
 //! are taken from 0x10000 and kept in `ground_texture_s`. The face's four corner lights (each
 //! scaled by a texture byte when its texture asks for it) are blended by the shares into the car's
@@ -14,16 +14,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::ground_query::GroundSearch;
 use crate::physics::step_families::LightingInputs;
-use crate::race::course_store::CourseWork;
 use rc2k_core::physics::lighting;
 
-/// The two-way blend of the four corners now in `face_light_bytes` ..: into `5CCCA4`,
-/// `5CCCA0`, returned.
-fn corners(ground: &GroundSearch, course_work: &CourseWork) -> u32 {
-    let c = [0usize, 1, 2, 3].map(|k| course_work.face_light_bytes[k].get());
-    let ([a, b], v, _) = lighting::corners(c, ground.share_s, ground.share_t);
-    course_work.face_light_a.set(a);
-    course_work.face_light_b.set(b);
+/// The two-way blend of the four corner lights by the ground search's shares.
+fn corners(ground: &GroundSearch, corner_lights: [u32; 4]) -> u32 {
+    let (_, v, _) = lighting::corners(corner_lights, ground.share_s, ground.share_t);
     v
 }
 
@@ -38,11 +33,7 @@ pub fn car_lighting(
         search.z = c.car.position[2].get();
         search.last = c.car.probe_point_face[4].get();
     }
-    c.course
-        .course
-        .get()
-        .light_kept
-        .set(c.car.light_level.get());
+    let light_kept = c.car.light_level.get();
     { crate::physics::find_ground::find_ground(c.probe, c.search, c.course) }?;
     let face = c.search.borrow().slot;
     if face == u32::MAX {
@@ -64,24 +55,20 @@ pub fn car_lighting(
             offset,
         )?))
     };
+    let mut corner_lights = [0u32; 4];
     for k in 0..4u32 {
-        c.course.course.get().face_light_bytes[k as usize].set(face_byte(0x14 + k)?);
+        corner_lights[k as usize] = face_byte(0x14 + k)?;
     }
     if crate::scene::polygon::texture_info_byte(c.polygon_tables, face_byte(0x21)?, 0x2C)? == 1 {
         for k in 0..4u32 {
-            let at = &c.course.course.get().face_light_bytes[k as usize];
-            let (v, _) = lighting::shaded(at.get(), face_byte(0x22 + k)? as u8);
-            at.set(v);
+            let (v, _) = lighting::shaded(corner_lights[k as usize], face_byte(0x22 + k)? as u8);
+            corner_lights[k as usize] = v;
         }
     }
-    let light = corners(&c.search.borrow(), c.course.course.get());
+    let light = corners(&c.search.borrow(), corner_lights);
     c.car.light_level.set(light);
     if c.car.light_hold_steps.get() != 0 {
-        let held = lighting::hold_change(
-            light,
-            c.course.course.get().light_kept.get(),
-            c.vars.scene_switch.get() != 0,
-        );
+        let held = lighting::hold_change(light, light_kept, c.vars.scene_switch.get() != 0);
         c.car.light_level.set(held.light);
     }
     let light = c.car.light_level.get();
@@ -97,10 +84,11 @@ pub fn car_lighting(
         (0x28u32, &scene.light_tables.get().lamp_table_a),
         (0x2C, &scene.light_tables.get().lamp_table_b),
     ] {
+        let mut corner_lights = [0u32; 4];
         for k in 0..4u32 {
-            c.course.course.get().face_light_bytes[k as usize].set(face_byte(first + k)?);
+            corner_lights[k as usize] = face_byte(first + k)?;
         }
-        let i = corners(&c.search.borrow(), c.course.course.get());
+        let i = corners(&c.search.borrow(), corner_lights);
         if i >= lighting::TABLE {
             return Err(BadInput("a colour index past 0xFF").into());
         }

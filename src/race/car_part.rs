@@ -112,7 +112,7 @@ pub(super) fn draw_with_car_aside<'a, R>(
         };
         draw_car(&ctx, number)
     });
-    let point_count = ctx.reads.course_work.scene_point_count.get();
+    let point_count = ctx.reads.course_work.get().scene_point_count;
     crate::scene::workers::draw_aside(helper, ctx.part, point_count, piece, |aside| {
         rest(&CarAside { aside, number })
     })

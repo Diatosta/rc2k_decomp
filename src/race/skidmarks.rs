@@ -31,7 +31,7 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 /// `view_centre[1]` less y times it.
 pub(crate) fn project_record(
     prefs: &crate::race::prefs_store::StagePrefs,
-    work: &crate::race::course_store::CourseWork,
+    flat_depth: u32,
     v: &mut crate::scene::point_records::Record,
     window: &crate::scene::view_window::ViewWindow,
 ) {
@@ -39,7 +39,7 @@ pub(crate) fn project_record(
     let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
     let reach = window.view_scale.ld();
     let scale = if prefs.flat_depth.get() != 0 {
-        reach / (int(work.flat_depth.get() as i32) + ONE)
+        reach / (int(flat_depth as i32) + ONE)
     } else {
         reach / z
     };
@@ -107,7 +107,7 @@ fn turn_skid_point(
         if !crate::math::x87::below_or_unordered(made[6], &ctx.reads.numbers.k4096_a) {
             project_record(
                 ctx.reads.stage_prefs,
-                ctx.reads.course_work,
+                ctx.reads.course_work.get().flat_depth,
                 &mut made,
                 &ctx.view.polygon.window,
             );
@@ -301,10 +301,9 @@ mod vector_tests {
     use crate::test_support::state::Snapshot;
 
     /// The stores the test writes.
-    const STORES: [&str; 4] = [
+    const STORES: [&str; 3] = [
         "owners.scene.drawing.scene",
         "owners.scene.draw_work",
-        "owners.race.course.course",
         "owners.race.course.stage_prefs",
     ];
 
@@ -312,6 +311,7 @@ mod vector_tests {
     fn project_vertex_is_the_originals() {
         let course = &race().course;
         let kept = Snapshot::of(&STORES);
+        let kept_course = *course.course.borrow();
         let mut vectors = Vectors::open("race.skidmarks.project_vertex", Kind::Exact, 8);
         let mut r = Rng(4);
         let win = crate::scene::view_window::ViewWindow::new();
@@ -319,7 +319,7 @@ mod vector_tests {
             for n in 0..20000 {
                 let flat = n % 2 == 0;
                 course.stage_prefs.get().flat_depth.set(flat as u32);
-                course.course.get().flat_depth.set(r.int() as u32);
+                course.course.borrow_mut().flat_depth = r.int() as u32;
                 // The recorded run read the scene's window; this code reads the window it is given.
                 for own in [&win.view_scale, &win.view_centre[1], &win.view_centre[0]] {
                     own.set(f32::from_bits(r.float()));
@@ -330,11 +330,17 @@ mod vector_tests {
                     *q = r.float();
                 }
                 let from = a;
-                project_record(course.stage_prefs.get(), course.course.get(), &mut a, &win);
+                project_record(
+                    course.stage_prefs.get(),
+                    course.course.borrow().flat_depth,
+                    &mut a,
+                    &win,
+                );
                 vectors.check(&a, same, || format!("flat {flat} from {from:x?}"));
             }
         });
         kept.restore();
+        *course.course.borrow_mut() = kept_course;
         vectors.finish();
     }
 }

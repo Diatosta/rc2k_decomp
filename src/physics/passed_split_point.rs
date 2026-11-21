@@ -63,7 +63,7 @@ fn point(
     let split = car.splits_passed.get();
     let cp = progress::check_split_point(split, || split_tables.checkpoints[1 + split as usize])?;
     let face = crate::race::checkpoints_store::face_run_on(checkpoints, cp as usize).get();
-    if !progress::face_known(face, course.course.get().course_face_count.get()) {
+    if !progress::face_known(face, course.course.borrow().course_face_count) {
         return Err(FatalError {
             code: progress::SEGMENT_FATAL,
             message: "\u{1}",

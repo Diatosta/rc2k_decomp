@@ -125,7 +125,7 @@ fn draw_description(
     let object = head[1] as u32;
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
     let shown = object <= 0x64
-        && place < ctx.reads.course_work.scene_point_count.get()
+        && place < ctx.reads.course_work.get().scene_point_count
         && !(ctx.reads.switches.scene_set_up.get() != 0 && object == 0x3F);
     if shown {
         check_object(ctx.reads.numbers, ctx.reads.work, object)?;
@@ -139,7 +139,7 @@ fn draw_description(
         end();
         return Ok(());
     }
-    if place >= ctx.reads.course_work.scene_point_count.get() {
+    if place >= ctx.reads.course_work.get().scene_point_count {
         end();
         return Ok(());
     }

@@ -506,7 +506,7 @@ pub(super) fn face_texture_coordinates(
 fn face_corners_to_new_points(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let work = &ctx.view.face;
     crate::race::frame_draw::points_there(ctx)?;
-    let count: u32 = ctx.reads.course_work.scene_point_count.get();
+    let count: u32 = ctx.reads.course_work.get().scene_point_count;
     let corners: [u32; 4] = crate::memory::session::read_bits(&work.corners);
     let (marked, copies) = rc2k_core::race::faces::new_points(count, corners);
     for n in marked {
@@ -784,7 +784,12 @@ fn halfway_record(
     if below_or_unordered(v[6], course.numbers.k4096_a.get()) {
         return;
     }
-    crate::race::skidmarks::project_record(course.stage_prefs, course.course, v, window);
+    crate::race::skidmarks::project_record(
+        course.stage_prefs,
+        course.course.get().flat_depth,
+        v,
+        window,
+    );
 }
 
 /// The new entry of `draw_lit_triangle` between entries `first` and `second`, into `to`: the
@@ -1123,9 +1128,9 @@ mod vector_tests {
     #[test]
     fn face_turned_to_view_is_the_originals() {
         let race = race();
+        let kept_course = *race.course.course.borrow();
         let kept = Snapshot::of(&[
             "owners.race.shared.switches",
-            "owners.race.course.course",
             "owners.race.frame.view_and_records",
         ]);
         let mut vectors = Vectors::open("race.course_faces.face_turned_to_view", Kind::Exact, 1);
@@ -1156,6 +1161,7 @@ mod vector_tests {
             }
         });
         kept.restore();
+        *race.course.course.borrow_mut() = kept_course;
         vectors.finish();
     }
 
@@ -1170,10 +1176,10 @@ mod vector_tests {
     #[test]
     fn halfway_vertex_is_the_originals() {
         let course = &race().course;
+        let kept_course = *course.course.borrow();
         let kept = Snapshot::of(&[
             "owners.scene.drawing.scene",
             "owners.scene.draw_work",
-            "owners.race.course.course",
             "owners.race.course.stage_prefs",
             "owners.race.course.numbers",
         ]);
@@ -1183,7 +1189,7 @@ mod vector_tests {
         at_each_control_word(|| {
             for n in 0..20000 {
                 course.stage_prefs.get().flat_depth.set((n % 2) as u32);
-                course.course.get().flat_depth.set(r.int() as u32);
+                course.course.borrow_mut().flat_depth = r.int() as u32;
                 // The recorded run read the scene's window; this code reads the window it is given.
                 for own in [&win.view_scale, &win.view_centre[1], &win.view_centre[0]] {
                     own.set(f32::from_bits(r.float()));
@@ -1208,6 +1214,7 @@ mod vector_tests {
             }
         });
         kept.restore();
+        *course.course.borrow_mut() = kept_course;
         vectors.finish();
     }
 

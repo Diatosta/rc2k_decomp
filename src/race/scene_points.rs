@@ -340,7 +340,7 @@ fn write(
     let caller = std::panic::Location::caller();
     // The points below the count are the course's own (the ones past it are copies made
     // while drawing): a change to them is noted.
-    let counted = (course.course.scene_point_count.get() as usize).saturating_mul(12);
+    let counted = (course.course.get().scene_point_count as usize).saturating_mul(12);
     let tables = &course.stage.course;
     let refused = || {
         outside(
