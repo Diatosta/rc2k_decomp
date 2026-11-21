@@ -130,7 +130,9 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     }
     x87_2(&ground_scale, c.car, c.numbers);
     hold_high(&ground_scale, &c.numbers.one);
-    c.car.spin[1].set(mul(&ground_scale, &c.car.spin[1]));
+    c.car
+        .spin
+        .set_at(1, mul(&ground_scale, c.car.spin.bits_at(1)));
     let contact_value = c.contact.borrow().contact_value;
     c.car.contact_value.set_bits(contact_value);
     Ok(())

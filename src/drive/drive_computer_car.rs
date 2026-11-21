@@ -141,8 +141,8 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     }
     race.shared.work.get().driver_lookahead.set(1);
     let speed = (float_hypot_to_int(
-        race.shared.car().velocity[0].get(),
-        race.shared.car().velocity[2].get(),
+        race.shared.car().velocity.at(0),
+        race.shared.car().velocity.at(2),
     ) as u32)
         << 1;
     race.shared.work.get().driver_speed.set(speed);
@@ -337,8 +337,8 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
             .wrapping_add(race.shared.work.get().driver_step_z.get()),
     );
     let here = slot_point(&race.shared.work.get().driver_points_now, slot)?;
-    here[0].set(race.shared.car().position[0].get());
-    here[2].set(race.shared.car().position[2].get());
+    here[0].set(race.shared.car().position.bits_at(0));
+    here[2].set(race.shared.car().position.bits_at(2));
     here[1].set(0);
     flat_way(
         here,

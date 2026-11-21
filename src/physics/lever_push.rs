@@ -24,8 +24,9 @@ pub(super) fn lever_push(
     for factor in [share_left, tables.lever_share.get()] {
         turned = scale(turned, extended(factor));
     }
-    for (from, position) in [(turned[0], &car.position[0]), (turned[2], &car.position[2])] {
+    for (from, axis) in [(turned[0], 0), (turned[2], 2)] {
         let push = mul2_to_int(from, numbers.k65536, numbers.step_time.get()) as u32;
-        position.set(position.get().wrapping_add(push));
+        car.position
+            .set_bits_at(axis, car.position.bits_at(axis).wrapping_add(push));
     }
 }

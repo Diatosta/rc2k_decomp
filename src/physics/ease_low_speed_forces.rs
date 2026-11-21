@@ -15,18 +15,17 @@ use std::cell::RefCell;
 /// `physics::drive_wheels_step`.
 pub(super) fn ease_low_speed_forces(car: &Car, tables: &PhysicsTables, work: &RefCell<WheelWork>) {
     let factor = &tables.low_speed_share;
-    let speed = &car.local_velocity[2];
+    let speed = car.local_velocity.bits_at(2);
     factor.set(1.0);
     let limit = LOW_SPEED_LIMIT;
     if abs_compare(speed, limit) & 0x100 == 0 {
         return;
     }
     // The product is rounded to a float where it is stored.
-    factor.st(
-        (speed.ld().abs() / crate::math::x87_float::ld(LOW_SPEED_LIMIT)
-            + crate::math::x87_float::ld(LOW_SPEED_ADD))
-            * crate::math::x87_float::ld(LOW_SPEED_SCALE),
-    );
+    factor.st((crate::math::x87_float::ld(speed).abs()
+        / crate::math::x87_float::ld(LOW_SPEED_LIMIT)
+        + crate::math::x87_float::ld(LOW_SPEED_ADD))
+        * crate::math::x87_float::ld(LOW_SPEED_SCALE));
     let factor = factor.get();
     for f in &mut work.borrow_mut().drive_forces {
         *f = x87::mul(*f, factor).to_bits();

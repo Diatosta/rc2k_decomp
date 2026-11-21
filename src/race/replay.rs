@@ -6,7 +6,7 @@
 //! primitives are `files::handle`'s.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::session::PlainBytes;
 use crate::menu::owner::Menus;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
@@ -300,11 +300,7 @@ pub fn write_replay_block(race: &Race, system: &System, replay: &Replay) -> Resu
 /// (`race::write_replay_block`) and the cursor and count go back. Refuses frames past the block's
 /// room (before anything). Its one caller adds the padding frame (the replay view's
 /// `pad_frame`): here the frame's cells, `bytes` their size.
-pub(super) fn add_replay_frame(
-    race: &Race,
-    system: &System,
-    frame: &[PlainDword],
-) -> Result<(), Refused> {
+pub(super) fn add_replay_frame(race: &Race, system: &System, frame: &[u32]) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     if !shared.replay_file().replay_open.is_set() {
@@ -328,8 +324,8 @@ pub(super) fn add_replay_frame(
         replay.replay_view().frames_in_block.set(in_block);
     }
     let first = used as usize / 4;
-    for (k, cell) in frame.iter().enumerate() {
-        race.viewer_buffers().block[first + k].set(cell.get());
+    for (k, word) in frame.iter().enumerate() {
+        race.viewer_buffers().block[first + k].set(*word);
     }
     race.viewer_buffers().block_used.set(used + bytes);
     if full {

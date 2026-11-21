@@ -25,8 +25,8 @@ pub(super) fn find_car_checkpoint(
 ) -> Result<u32, Refused> {
     {
         let mut search = physics.ground_search().borrow_mut();
-        search.x = shared.car().position[0].get();
-        search.z = shared.car().position[2].get();
+        search.x = shared.car().position.bits_at(0);
+        search.z = shared.car().position.bits_at(2);
     }
     if shared.vars.get().checkpoint_count.get() == 0 {
         return Ok(0);

@@ -88,7 +88,7 @@ pub struct CameraInputs<'a> {
     pub step_first: u32,
     pub checkpoints: crate::race::checkpoints_store::CheckpointsRef<'a>,
     pub kind_tables: &'a crate::race::kind_store::KindTables,
-    pub light_records: &'a crate::race::light_records_store::LightRecords,
+    pub light_records: crate::race::light_records_store::LightRecordsRef<'a>,
     pub ground: CameraGroundInputs<'a>,
 }
 
@@ -222,7 +222,9 @@ impl<'a> StepInputs<'a> {
             step_first: self.step_first,
             checkpoints: self.shared.checkpoints(),
             kind_tables: &crate::race::kind_store::KIND_TABLES,
-            light_records: &self.frame.lights_and_gear.get().light_records,
+            light_records: crate::race::light_records_store::LightRecordsRef::Store(
+                &self.frame.light_records,
+            ),
             ground: self.camera_ground(),
         }
     }

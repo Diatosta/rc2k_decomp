@@ -51,7 +51,7 @@ pub fn pace_notes_step(
     }
     // Multiply, divide, round (the extra division by 1.0 is exact).
     let ahead = crate::math::x87::mul_div_div_to_int(
-        &car.local_velocity[2],
+        car.local_velocity.bits_at(2),
         PACE_SCALE,
         numbers.eight,
         ONE_F32,

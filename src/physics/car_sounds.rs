@@ -11,7 +11,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::rounded_value;
 use crate::math::x87::ext_times;
 use crate::math::x87_float::{f80, int};
-use crate::memory::session::PlainDword;
+use crate::memory::plain_floats::PlainFloats;
 use crate::physics::car_store::Car;
 use crate::physics::step_families::SoundInputs;
 use crate::race::frame_store::FrameWorkStore;
@@ -47,8 +47,8 @@ pub fn place(
     // an offset load the car's, subtract): each rounds to the control word's precision, so a
     // big difference keeps fewer bits at 24.
     let part = |k: usize| {
-        let here = car.position[k].get();
-        let listener = listener.camera_position[k].get();
+        let here = car.position.bits_at(k);
+        let listener = listener.camera_position.bits_at(k);
         match offset {
             Some(o) => offset_part(o[k], here, listener),
             None => car_part(here, listener),
@@ -68,7 +68,7 @@ fn place_plain(
     listener: &Car,
     offset: Option<[u32; 3]>,
 ) -> [f32; 3] {
-    let whole = |x: &[PlainDword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
+    let whole = |x: &PlainFloats<3>| x.bits().map(|k| k as i32);
     let turn = heard_turn.turn(view_turn);
     rc2k_core::physics::sound_places::place(
         whole(&car.position),

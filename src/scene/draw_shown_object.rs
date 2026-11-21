@@ -34,7 +34,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
         self.2.work.in_credits.is_set()
     }
     fn kind_mode(&self) -> u32 {
-        self.2.vars.run_kind.get()
+        self.2.vars.run_kind()
     }
     fn kind(&self, object: u32) -> u32 {
         self.2.object_tables.object_kind(object)
@@ -43,7 +43,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
         self.2.switches.scene_set_up()
     }
     fn shown(&self) -> u32 {
-        self.2.stage_prefs.shown.get()
+        self.2.stage_prefs.read(|p| p.shown)
     }
     fn which(&self) -> u32 {
         self.2.work.stage_direction.get()

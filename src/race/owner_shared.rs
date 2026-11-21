@@ -32,7 +32,7 @@ pub struct RaceShared {
     /// The checkpoint tables: shared with the drawing parts copy-on-write.
     pub checkpoints: DrawArc<Checkpoints>,
     /// One copy: no drawing part writes it.
-    pub vars: DrawShared<RaceVars>,
+    pub vars: crate::memory::session::GameThread<RaceVars>,
     /// One copy: no drawing part writes it.
     pub view: DrawShared<RaceView>,
     /// One copy: no drawing part writes it.
@@ -81,7 +81,7 @@ impl RaceShared {
             state: RaceState::new(),
             buffers: Buffers::new(),
             checkpoints: DrawArc::new(Checkpoints::new),
-            vars: DrawShared::new(RaceVars::new()),
+            vars: crate::memory::session::GameThread::new(RaceVars::new()),
             view: DrawShared::new(RaceView::new()),
             switches: DrawPlain::new(FrameSwitches::new()),
             physics_tables: DrawShared::new(PhysicsTables::new()),

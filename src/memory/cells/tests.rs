@@ -242,8 +242,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         race.shared.replay_file().index,
     }
     cells_stores! {
-        *race.course.stage_prefs.get(),
-        *race.replay.replay_view(),
         *race.shared.car(),
         audio.state,
         audio.sample_records,
@@ -255,15 +253,12 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.shared.viewer_buffers(),
         *race.shared.car_blocks.get(),
         *race.shared.car_parts.get(),
-        *race.frame.lights_and_gear.get(),
         *race.frame.overlay.get(),
-        race.replay.viewer_and_kinds,
         *race.frame.view_and_records.get(),
         *race.course.number_vars.get(),
         *race.shared.replay_file(),
         *race.frame.shadow_skids.get(),
         *race.shared.tables(),
-        *race.shared.vars.get(),
         *race.shared.view.get(),
         *race.shared.work.get(),
     }

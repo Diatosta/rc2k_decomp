@@ -90,17 +90,10 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         .physics_tables
         .get()
         .vertical_speed
-        .set(loaded(&race.shared.car().velocity[1]));
+        .set(loaded(race.shared.car().velocity.bits_at(1)));
     race.shared.car().contact_flag.set(0);
-    for figure in race
-        .shared
-        .car()
-        .contact_point
-        .iter()
-        .chain([&race.shared.car().contact_depth])
-    {
-        figure.set(0.0);
-    }
+    race.shared.car().contact_point.set([0.0; 3]);
+    race.shared.car().contact_depth.set(0.0);
     crate::race::start_place::invert_car_matrix(&race.course, race.shared.car(), scene);
     ph::feel_ground::feel_ground(&inputs.ground())?;
     ph::start_skid_mark::start_skid_mark(race.shared.car());
@@ -109,7 +102,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::count_down_timers::count_down_timers(race.shared.car(), race.shared.vars.get());
     ph::wheel_surfaces::wheel_surfaces(&inputs.wheels(), scene)?;
     ph::surface_noise::surface_noise(
-        race.course.stage_prefs.get(),
+        crate::race::prefs_store::StagePrefsRef::Store(&race.course.stage_prefs),
         &race.course.numbers,
         &race.shared,
     )?;
@@ -132,7 +125,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     race.shared
         .car()
         .side_speed_held
-        .set(race.shared.car().local_velocity[0].get());
+        .set(race.shared.car().local_velocity.at(0));
     hold_high_to(&race.shared.car().side_speed_held, SIDE_SPEED_LIMIT);
     hold_low_to(
         &race.shared.car().side_speed_held,
@@ -361,7 +354,7 @@ fn x87_1(race: &Race, half: crate::memory::session::ConstFloat) {
     let t3 = half.ld();
     let t4 = t2 * t3;
     race.shared.car().mean_drive_speed.st(t4);
-    let t5 = race.shared.car().velocity[1].ld();
+    let t5 = race.shared.car().velocity.ld(1);
     let t6 = race.shared.physics_tables.get().vertical_speed.ld();
     let t7 = t5 - t6;
     race.shared.car().vertical_speed_change.st(t7);

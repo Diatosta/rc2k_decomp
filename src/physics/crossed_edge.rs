@@ -19,9 +19,9 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
         return Ok(());
     }
     let k = n as usize;
-    c.car.contact_point[0].set(c.car.probe_point_x[k].get());
-    c.car.contact_point[1].set(c.car.probe_point_y[k].get());
-    c.car.contact_point[2].set(c.car.probe_point_z[k].get());
+    c.car.contact_point.set_at(0, c.car.probe_point_x[k].get());
+    c.car.contact_point.set_at(1, c.car.probe_point_y[k].get());
+    c.car.contact_point.set_at(2, c.car.probe_point_z[k].get());
     {
         crate::physics::restore_saved_car::restore_saved_car(
             c.car,

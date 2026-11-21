@@ -5,9 +5,9 @@
 //! path and value (`drive::sim_hash`), so the records' layout does not matter. The stage's second
 //! load in a process (after the first one's free) is a second `load` line set.
 
+use crate::drive::sim_hash::bytes_hash;
 #[cfg(feature = "remote")]
 use crate::drive::sim_hash::{byte_run_hash, dword_run_hash};
-use crate::drive::sim_hash::{bytes_hash, record_hash};
 
 /// The switch, read once.
 #[cfg(feature = "remote")]
@@ -312,7 +312,12 @@ pub fn log_hashes(
     say("lists", format!("{:016x}", lists_hash(&race.course)));
     say(
         "stage_prefs",
-        format!("{:016x}", record_hash(reads.stage_prefs)),
+        format!(
+            "{:016x}",
+            reads
+                .stage_prefs
+                .read(crate::race::prefs_store::StagePrefs::hash)
+        ),
     );
     let kinds = race.course.kind_records().borrow();
     say(
@@ -526,6 +531,82 @@ pub fn log_mask_hashes(
     );
 }
 
+/// The hash of the race variables as the cell store they were: each field one run under its name
+/// (`record_hash`'s way), the mud path's bytes one byte run, and the fields no longer kept (they
+/// only ever held their starting values) as runs of those.
+#[cfg(feature = "remote")]
+fn race_vars_hash(v: &crate::race::vars_store::RaceVars) -> u64 {
+    use crate::memory::session::{PlainDword, PlainFloat};
+    let dwords = |cells: &[PlainDword]| cells.iter().map(PlainDword::get).collect::<Vec<u32>>();
+    let floats = |cells: &[PlainFloat]| cells.iter().map(PlainFloat::bits).collect::<Vec<u32>>();
+    let runs: Vec<(&str, Vec<u32>)> = vec![
+        (".scene_switch", vec![v.scene_switch.get()]),
+        (".pause_wait", vec![v.pause_wait.get()]),
+        (".kept_scale", vec![v.kept_scale.bits()]),
+        (".race_ticks", vec![v.race_ticks.get()]),
+        (".car_tyres[0]", dwords(&v.car_tyres)),
+        (".face_mark", vec![0; 1]),
+        (".face_number", vec![0; 1]),
+        (".line_face_total", vec![v.line_face_total.get()]),
+        (".checkpoint_count", vec![v.checkpoint_count.get()]),
+        (".last_checkpoint", vec![v.last_checkpoint.get()]),
+        (".line_face_kind", vec![v.line_face_kind.get()]),
+        (".replay_camera_counts[0]", dwords(&v.replay_camera_counts)),
+        (".surface_shares[0]", dwords(&v.surface_shares)),
+        (".map_anchor_count", vec![v.map_anchor_count.get()]),
+        (".stage_number", vec![v.stage_number.get()]),
+        (".direction", vec![v.direction.get()]),
+        (".race_car_kinds[0]", dwords(&v.race_car_kinds)),
+        (".car_colours[0]", dwords(&v.car_colours)),
+        (".mip_setting", vec![v.mip_setting.get()]),
+        (".run_kind", vec![v.run_kind.get()]),
+        (".split", vec![v.split.get()]),
+        (".settings_words[0]", dwords(&v.settings_words)),
+        (".rivals", vec![v.rivals.get()]),
+        (".no_replay", vec![v.no_replay.get()]),
+        (".race_level", vec![v.race_level.get()]),
+        (".race_stage", vec![v.race_stage.get()]),
+        (".start_numbers[0]", dwords(&v.start_numbers)),
+        (".mud_turn_a[0]", dwords(&v.mud_turn_a)),
+        (".mud_turn_b[0]", dwords(&v.mud_turn_b)),
+        (".mud_throws", vec![v.mud_throws.get()]),
+        (".mud_splashes", vec![v.mud_splashes.get()]),
+        (".mud_colours[0]", dwords(&v.mud_colours)),
+        (".mud_extra_sum", vec![v.mud_extra_sum.get()]),
+        (".mud_packed", vec![v.mud_packed.get()]),
+        (".mud_column", vec![v.mud_column.get()]),
+        (".mud_row", vec![v.mud_row.get()]),
+        (".mud", vec![0]),
+        (".mud_locked", vec![v.mud_locked.get()]),
+        (".mud_frames", vec![v.mud_frames.get()]),
+        (".mud_texture", vec![v.mud_texture.get()]),
+        (".mud_thrown_in[0]", floats(&v.mud_thrown_in)),
+        (".mud_splashes_in[0]", floats(&v.mud_splashes_in)),
+        (".mud_thrown_counts[0]", dwords(&v.mud_thrown_counts)),
+        (".mud_splash_counts[0]", dwords(&v.mud_splash_counts)),
+        (".mud_scale_a[0]", floats(&v.mud_scale_a)),
+        (".mud_scale_b[0]", floats(&v.mud_scale_b)),
+        (".polygon_mark", vec![0; 1]),
+        (".fade_uv[0]", crate::race::vars_store::FADE_UV.to_vec()),
+        (
+            ".scale_factor",
+            vec![crate::race::vars_store::SCALE_FACTOR.bits()],
+        ),
+        (".move_by", vec![0xc; 1]),
+        (".move_fraction", vec![0; 1]),
+        (".mapping_a[0]", vec![0; 2]),
+        (".mapping_b[0]", vec![0; 2]),
+        (".quad_colour[0]", vec![0; 2]),
+        (".quad_uv[0]", vec![0; 8]),
+        (".quad_corners[0]", vec![0; 8]),
+        (".quad_vertices[0]", vec![0; 32]),
+    ];
+    runs.iter().fold(
+        byte_run_hash(".mud_path", &v.mud_path.read()),
+        |sum, (path, run)| sum.wrapping_add(dword_run_hash(path, run)),
+    )
+}
+
 /// The hash of what the stage's start (the race init after the load) leaves in the checkpoints
 /// and the race variables, logged as `course hash <stage> started <store>: <hex>`.
 #[cfg(feature = "remote")]
@@ -542,7 +623,7 @@ pub fn log_started_hashes(race: &crate::race::owner::Race) {
         race.checkpoints()
             .read(crate::race::checkpoints_store::Checkpoints::hash),
     );
-    say("race_vars", record_hash(race.shared.vars.get()));
+    say("race_vars", race_vars_hash(race.shared.vars.get()));
     say(
         "texture_rows",
         TEXTURE_HASH.load(std::sync::atomic::Ordering::Relaxed),
@@ -552,6 +633,7 @@ pub fn log_started_hashes(race: &crate::race::owner::Race) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::drive::sim_hash::record_hash;
 
     /// The hashing scheme is frozen: a fresh numbers record and an empty table keep their
     /// hashes, so a change to how a store is hashed (not to the store) shows here.

@@ -1,56 +1,51 @@
 //! The replay writer's and the viewer's state: the padding frame, the file offset and frames in the
 //! block, the replay block and frame, the play end and the viewer's switches, then the viewer's
-//! list (`race::viewer_list_store`). `#[repr(C)]`, laid over the race block's bytes. The
-//! list's rectangles, pictures and key table are the constants below.
+//! list (`race::viewer_list_store`). A plain record of cells only the game's thread reaches
+//! (`race::owner_replay::Replay::replay_view`). The list's rectangles, pictures and key table are
+//! the constants below.
 
-use crate::memory::cells::ZeroCells;
+use std::cell::Cell;
 
 use crate::memory::place::BytePlace;
-use crate::memory::session::{PlainDword, PlainFlag};
 use crate::race::viewer_list_store::{ITEMS, ViewerItem, ViewerList};
 
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayViewBlock {
     /// The 16-byte frame that pads a block's end, zeros (`race::replay`,
     /// `race::add_replay_frame`).
-    pub pad_frame: [PlainDword; 4],
+    pub pad_frame: [u32; 4],
     /// The new replay file's length so far (`race::save_viewed_replay`, `race::replay`).
-    pub file_offset: PlainDword,
+    pub file_offset: Cell<u32>,
     /// Frames in the block being written, 0 .. 100 (`race::replay`,
     /// `drive::write_replay_frames`).
-    pub frames_in_block: PlainDword,
+    pub frames_in_block: Cell<u32>,
     /// The block shown/played (`race::viewer`, `drive::replay_clock_tick`,
     /// `drive::read_replay_frame`).
-    pub replay_block: PlainDword,
+    pub replay_block: Cell<u32>,
     /// Its frame in the block, 0 .. 99 (`race::viewer`, `drive::replay_clock_tick`).
-    pub replay_frame: PlainDword,
+    pub replay_frame: Cell<u32>,
     /// Playing stops before this block, -1 none (`race::viewer`, `drive::race_loop`,
     /// `drive::finish_run`).
-    pub play_end: PlainDword,
+    pub play_end: Cell<u32>,
     /// Play from here (`race::viewer`).
-    pub play_from_here: PlainDword,
+    pub play_from_here: Cell<u32>,
     /// A picture of the next frame asked (`menu::replay_viewer::frame`).
-    pub snapshot_asked: PlainDword,
+    pub snapshot_asked: Cell<u32>,
     /// The slot is 222 (`race::viewer`).
-    pub last_race_viewed: PlainFlag,
+    pub last_race_viewed: Cell<bool>,
     /// Modes 4 and 5 (`race::viewer`).
-    pub viewer_only_shown: PlainDword,
+    pub viewer_only_shown: Cell<u32>,
     /// Mode 5 (`race::viewer`).
-    pub viewer_keys_ignored: PlainDword,
+    pub viewer_keys_ignored: Cell<u32>,
     /// The key after a play; starts at -1 (`race::viewer`).
-    pub key_after_play: PlainDword,
+    pub key_after_play: Cell<u32>,
     /// Keys held after playing (`race::viewer`).
-    pub wait_key_release: PlainDword,
+    pub wait_key_release: Cell<u32>,
     /// Escape twice leaves (`race::viewer`).
-    pub escape_count: PlainDword,
+    pub escape_count: Cell<u32>,
     /// The viewer's list: 26 items (their screen rectangles in `RECTANGLES`, their pictures
     /// `PICTURES`).
     pub viewer_list: ViewerList,
 }
-
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
 
 impl ReplayViewBlock {
     /// The viewer's items: kind 1 (a picture).
@@ -60,9 +55,21 @@ impl ReplayViewBlock {
 
     pub const fn new() -> Self {
         Self {
-            replay_block: PlainDword::new(0xFFFFFFFF),
+            pad_frame: [0; 4],
+            file_offset: Cell::new(0),
+            frames_in_block: Cell::new(0),
+            replay_block: Cell::new(0xFFFFFFFF),
+            replay_frame: Cell::new(0),
+            play_end: Cell::new(0),
+            play_from_here: Cell::new(0),
+            snapshot_asked: Cell::new(0),
+            last_race_viewed: Cell::new(false),
+            viewer_only_shown: Cell::new(0),
+            viewer_keys_ignored: Cell::new(0),
+            key_after_play: Cell::new(0),
+            wait_key_release: Cell::new(0),
+            escape_count: Cell::new(0),
             viewer_list: ViewerList::new(Self::items()),
-            ..ZeroCells::ZERO
         }
     }
 }

@@ -34,7 +34,7 @@ pub fn set_view_window(
     screen: &crate::memory::session::Screen,
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
-    scale_factor: &crate::memory::session::PlainFloat,
+    scale_factor: &crate::memory::session::ConstFloat,
 ) {
     set_view_window_reaching(
         course,
@@ -43,7 +43,7 @@ pub fn set_view_window(
         window,
         vars,
         scale_factor,
-        course.stage_prefs.grid_reach.get(),
+        course.stage_prefs.read(|p| p.grid_reach),
     );
 }
 
@@ -55,7 +55,7 @@ pub fn set_view_window_reaching(
     screen: &crate::memory::session::Screen,
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
-    scale_factor: &crate::memory::session::PlainFloat,
+    scale_factor: &crate::memory::session::ConstFloat,
     reach: u32,
 ) {
     let depth = reach.wrapping_mul(0x20);
@@ -83,7 +83,7 @@ pub fn set_view_window_reaching(
             * bh::ld(scale_factor.get()),
     );
     // Held to 90 ..= 100, compared by the signs of the differences as the game does.
-    let mut nearer = 100u32.wrapping_sub(course.stage_prefs.nearer.get());
+    let mut nearer = 100u32.wrapping_sub(course.stage_prefs.read(|p| p.nearer));
     if (nearer.wrapping_sub(0x5A) as i32) < 0 {
         nearer = 0x5A;
     }
@@ -125,7 +125,7 @@ pub fn set_view_window_plain(
     design: (u32, u32),
     window: &ViewWindow,
     vars: &ViewVars<impl CellKind>,
-    scale_factor: &crate::memory::session::PlainFloat,
+    scale_factor: &crate::memory::session::ConstFloat,
 ) {
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
     let (size, offsets, zoom) = {
@@ -133,13 +133,13 @@ pub fn set_view_window_plain(
         (window.view_size, window.view_offset, window.view_zoom)
     };
     let i = WindowInputs {
-        reach: course.stage_prefs.grid_reach.get(),
+        reach: course.stage_prefs.read(|p| p.grid_reach),
         size,
         offsets,
         in_race: course.number_vars.in_race.is_set(),
         screen_width: rc2k_core::scene::view_window::design_width(design.0, design.1),
         scale: (vars.view_scale.get(), zoom, scale_factor.get()),
-        nearer: course.stage_prefs.nearer.get(),
+        nearer: course.stage_prefs.read(|p| p.nearer),
         nearer_factor: course.numbers.hundredth_a.get(),
         fade: [draw.fade_a, draw.fade_b],
         turn: course.numbers.k65536.get(),

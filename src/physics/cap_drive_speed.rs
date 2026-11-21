@@ -20,19 +20,19 @@ fn below(a: f32, b: f32) -> bool {
 /// drive speed held to that.
 pub fn cap_drive_speed(car: &Car, tables: &PhysicsTables) {
     let allowance = &tables.drive_speed_figure;
-    let speed = &car.local_velocity[2];
+    let speed = car.local_velocity.at(2);
     let drive_speed = &car.drive_speed_a;
     let zero = f32::from_bits(ZERO);
     allowance.set(over_abs_plus_minus(
         DRIVE_SPEED_CAP,
-        speed.get(),
+        speed,
         DRIVE_SPEED_CAP_A,
         DRIVE_SPEED_CAP_B,
     ));
     if below(allowance.get(), zero) {
         allowance.set(x87::loaded(zero));
     }
-    let cap = x87::add(allowance.get(), speed.get());
+    let cap = x87::add(allowance.get(), speed);
     if !below(drive_speed.get(), cap) {
         drive_speed.set(x87::loaded(cap));
     }

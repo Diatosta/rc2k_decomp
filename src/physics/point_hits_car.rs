@@ -11,7 +11,6 @@
 //! `wall_hit_timer` = 0x32.
 
 use crate::errors::Refused;
-use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::rounded_value;
 use crate::math::x87_float::X;
 use crate::math::x87_float::int;
@@ -41,7 +40,7 @@ pub(super) fn point_hits_car(
             point[k as usize],
             rd(0x30 + 4 * k)?,
             offset,
-            c.car.position[k as usize].get(),
+            c.car.position.bits_at(k as usize),
         );
         c.contact.borrow_mut().object_point_offset[k as usize] = v;
         if k == 1 {
@@ -121,13 +120,13 @@ fn x87_3(contact: &ContactWork, numbers: &Numbers, car: &Car) {
     let t0 = int(contact.contact_point[0] as i32);
     let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
-    car.contact_point[0].st(t2);
+    car.contact_point.st_at(0, t2);
     let t3 = X(0.0);
-    car.contact_point[1].st(t3);
+    car.contact_point.st_at(1, t3);
     let t4 = int(contact.contact_point[2] as i32);
     let t5 = numbers.k65536.ld();
     let t6 = t4 / t5;
-    car.contact_point[2].st(t6);
+    car.contact_point.st_at(2, t6);
 }
 
 #[cfg(test)]

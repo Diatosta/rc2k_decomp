@@ -15,8 +15,8 @@ pub(super) fn face_contacts_around(
 ) -> Result<(), Refused> {
     {
         let mut search = c.ground.search.borrow_mut();
-        search.x = c.car.position[0].get();
-        search.z = c.car.position[2].get();
+        search.x = c.car.position.bits_at(0);
+        search.z = c.car.position.bits_at(2);
     }
     rc2k_core::physics::ground_search::cells_around(
         || {

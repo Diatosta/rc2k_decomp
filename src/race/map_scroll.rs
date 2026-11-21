@@ -78,8 +78,8 @@ pub(super) fn map_position(race: &Race, car: &Car) -> Result<[u32; 2], Refused> 
         point,
         2,
     )?;
-    let x = map_x.wrapping_add(on_map(car.position[0].get().wrapping_sub(px)).0);
-    let dz = car.position[2].get().wrapping_sub(pz).wrapping_neg();
+    let x = map_x.wrapping_add(on_map(car.position.bits_at(0).wrapping_sub(px)).0);
+    let dz = car.position.bits_at(2).wrapping_sub(pz).wrapping_neg();
     let (y_off, _) = on_map(dz);
     Ok([x, map_y.wrapping_add(y_off)])
 }

@@ -3,7 +3,6 @@
 //! unordered value is left); d = (n - the car's `gear_ratio_setting`) / n; `torque_share` = d +
 //! (1 - d) s, and `drive_torque` is multiplied by it.
 
-use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::toward_one;
 use crate::math::x87_float as bh;
@@ -35,7 +34,7 @@ pub fn drive_torque_share(
     };
     count.set(n);
     speed_share.set(bh::stf(
-        car.local_velocity[2].ld().abs() / bh::int(TORQUE_SHARE_C),
+        car.local_velocity.ld(2).abs() / bh::int(TORQUE_SHARE_C),
     ));
     let one = numbers.one.get();
     let below = !matches!(

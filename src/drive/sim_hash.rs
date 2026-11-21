@@ -88,8 +88,8 @@ pub fn log_fields(blocks: &CarBlocks, parts: &crate::race::car_parts_store::CarP
 }
 
 /// The hash of one whole record by field path and value (the cars' hash for any other store):
-/// its layout and its gap fields do not count.
-#[cfg(any(test, feature = "remote"))]
+/// its layout and its gap fields do not count. The tests' reference for the hash's scheme.
+#[cfg(test)]
 pub fn record_hash<T: Cells>(record: &T) -> u64 {
     let mut hasher = GroupHasher::default();
     record.visit(&mut hasher);

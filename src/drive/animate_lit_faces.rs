@@ -108,7 +108,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                 point_number,
                 0,
             )?
-            .wrapping_sub(race.car_blocks().cars[0].position[0].get());
+            .wrapping_sub(race.car_blocks().cars[0].position.bits_at(0));
             scene.draw_work_mut().scratch = dx;
             let dz = crate::race::scene_points::point_word(
                 race.course.reads(),
@@ -116,7 +116,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                 point_number,
                 2,
             )?
-            .wrapping_sub(race.car_blocks().cars[0].position[2].get());
+            .wrapping_sub(race.car_blocks().cars[0].position.bits_at(2));
             scene.draw_work_mut().scratch = dz;
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
             let step = pace(d);

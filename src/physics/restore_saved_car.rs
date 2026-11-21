@@ -67,9 +67,8 @@ pub(super) fn restore_saved_car(
     tables
         .clear_place_count
         .set(restored(tables.clear_place_count.get()));
-    for (to, from) in car.position.iter().zip(&tables.saved_place) {
-        to.set(from.get());
-    }
+    car.position
+        .set_bits(std::array::from_fn(|k| tables.saved_place[k].get()));
     car.crash_matrix
         .set_bits(crate::memory::session::read_bits(&tables.saved_matrix));
     // Up to 0x7C dwords from the saved faces (0x40), on into the face-flip list after them, into

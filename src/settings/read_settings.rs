@@ -469,13 +469,13 @@ mod tests {
         ),
         (
             "wrreplayenable",
-            "owners.race.replay.viewer_and_kinds",
-            ".viewer_panel.untyped_tail",
+            "owners.race.replay.viewer_panel.untyped_tail",
+            "",
         ),
         (
             "wrreplayrate",
-            "owners.race.replay.viewer_and_kinds",
-            ".viewer_panel.untyped_tail",
+            "owners.race.replay.viewer_panel.untyped_tail",
+            "",
         ),
         ("alt2axcode", "owners.input.devices", ".alt_axes_code"),
         ("fizpatch", "owners.race.shared.work", ".patches[0]"),

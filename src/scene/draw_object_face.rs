@@ -74,10 +74,8 @@ pub fn draw_object_face(
 
     light.borrow_mut().face_bits = words[7] as u32 & 0x1F;
     let face_shine = words[9] as u32;
-    let reflects = shine != 0
-        && ctx.reads.vars.settings_words[1].get() != 0
-        && view_kind != 4
-        && face_shine != 0;
+    let reflects =
+        shine != 0 && ctx.reads.vars.settings_word(1) != 0 && view_kind != 4 && face_shine != 0;
     ctx.view.face.borrow_mut().reflects = reflects as u32;
     ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = count;
 

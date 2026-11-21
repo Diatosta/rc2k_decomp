@@ -136,7 +136,7 @@ fn cut(
             for (word, view) in point[4..7].iter_mut().zip(cut.made.view) {
                 *word = view.to_bits();
             }
-            let flat = course.stage_prefs.flat_depth.get() != 0;
+            let flat = course.stage_prefs.read(|p| p.flat_depth) != 0;
             let mut scratch = [cut.scratch];
             to_screen(
                 &mut point,

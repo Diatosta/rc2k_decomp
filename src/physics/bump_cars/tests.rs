@@ -32,7 +32,7 @@ fn blocks() -> Vec<Block> {
                 relative_speed(
                     race().shared.car(),
                     three(a[1], 0),
-                    view::<[crate::memory::session::Float; 3]>(a[2], 0x198),
+                    view::<crate::memory::plain_floats::PlainFloats<3>>(a[2], 0x198),
                 );
             },
         },
@@ -58,7 +58,7 @@ fn blocks() -> Vec<Block> {
                     race().shared.car(),
                     view::<PlainFloat>(a[0], 0).ld(),
                     view::<PlainFloat>(a[0], 4).ld(),
-                    view::<[crate::memory::session::Float; 3]>(a[2], 0x198),
+                    view::<crate::memory::plain_floats::PlainFloats<3>>(a[2], 0x198),
                 );
             },
         },
@@ -93,7 +93,7 @@ fn blocks() -> Vec<Block> {
                     view::<PlainFloat>(a[1], 0).ld(),
                     three(a[3], 0),
                     &crate::test_support::race_places::numbers(),
-                    view::<[crate::memory::session::Dword; 3]>(a[4], 0x134),
+                    view::<crate::memory::plain_floats::PlainFloats<3>>(a[4], 0x134),
                 );
             },
         },
@@ -118,7 +118,7 @@ fn blocks() -> Vec<Block> {
                 add_push(
                     race().shared.car(),
                     three(a[0], 0),
-                    view::<[crate::memory::session::Float; 3]>(a[2], 0x198),
+                    view::<crate::memory::plain_floats::PlainFloats<3>>(a[2], 0x198),
                 );
             },
         },

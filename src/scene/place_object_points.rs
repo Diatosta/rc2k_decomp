@@ -142,7 +142,7 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
-            let flat = ctx.reads.stage_prefs.flat_depth.get() != 0;
+            let flat = ctx.reads.stage_prefs.read(|p| p.flat_depth) != 0;
             to_screen(
                 &mut r,
                 &ctx.view.polygon.window,

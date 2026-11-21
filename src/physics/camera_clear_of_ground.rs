@@ -13,13 +13,13 @@ use rc2k_core::physics::camera_ground::{is_clear, over};
 pub(super) fn camera_clear_of_ground(c: &CameraGroundInputs<'_>) -> Result<bool, Refused> {
     let mut clear = probe_at(
         c,
-        c.car.camera_position[0].get(),
-        c.car.camera_position[2].get(),
+        c.car.camera_position.bits_at(0),
+        c.car.camera_position.bits_at(2),
         &c.car.camera_ground_faces[0],
     )?;
     if clear {
         clear = is_clear(over(
-            c.car.camera_position[1].get(),
+            c.car.camera_position.bits_at(1),
             c.search.borrow().height,
         ));
     }

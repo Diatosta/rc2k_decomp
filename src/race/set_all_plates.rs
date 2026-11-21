@@ -25,7 +25,7 @@ pub fn set_all_plates(
     check_picture_cars(cars)?;
     let mut places = scene.texture_places_mut();
     let pictures = &mut places.kind_pictures;
-    let prefs = course.stage_prefs.get();
+    let prefs = course.stage_prefs.borrow();
     for (kind, dwords) in PREF_PIECES {
         // The prefs hold three picture lists of 64 kinds each (`picture_lists_a`, `_b`, `_c`):
         // a piece is read from the list its first kind falls in.
@@ -35,7 +35,7 @@ pub fn set_all_plates(
             _ => &prefs.picture_lists_c,
         };
         for n in 0..dwords {
-            pictures[kind + n] = list[kind % 64 + n].get();
+            pictures[kind + n] = list[kind % 64 + n];
         }
     }
     for (kind, picture) in FIXED_PICTURES {

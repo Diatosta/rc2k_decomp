@@ -5,7 +5,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::car_draw_state::CarDrawState;
-use crate::race::light_records_store::LightRecords;
+use crate::race::light_records_store::LightRecordsRef;
 use crate::race::owner_course::CourseReads;
 use crate::race::view_vars_store::ViewVars;
 use crate::race::work_store::RaceWork;
@@ -106,7 +106,7 @@ pub fn car_number_textures(
         marks.mark(6).set(d.tens);
         marks.mark(7).set(d.units);
         marks.mark(9).set(d.alone);
-        let (tens, _) = stage_plate(vars.stage_number.get());
+        let (tens, _) = stage_plate(vars.stage_number());
         marks
             .mark(8)
             .set(work.number_tens_textures[tens as usize].get());
@@ -125,18 +125,20 @@ pub fn car_number_textures(
 }
 
 /// The group number at byte `offset` of model `model`'s groups.
-fn model_field(lights: &LightRecords, model: u32, offset: u32) -> Result<u32, BadInput> {
+fn model_field(lights: LightRecordsRef<'_>, model: u32, offset: u32) -> Result<u32, BadInput> {
     lights
-        .records
-        .get(model as usize)
-        .and_then(|record| record.groups.get((offset / 4) as usize))
-        .map(crate::memory::session::PlainDword::get)
+        .read(|l| {
+            l.records
+                .get(model as usize)
+                .and_then(|record| record.groups.get((offset / 4) as usize))
+                .copied()
+        })
         .ok_or(BadInput("a model's record"))
 }
 
 /// The model's bit at byte `offset` of its groups
-/// (`LightsAndGear.light_records.records[0].groups[0]` ..): 1 << it, 0 for -1.
-fn model_bit(lights: &LightRecords, model: u32, offset: u32) -> Result<u32, BadInput> {
+/// (`light_records.records[0].groups[0]` ..): 1 << it, 0 for -1.
+fn model_bit(lights: LightRecordsRef<'_>, model: u32, offset: u32) -> Result<u32, BadInput> {
     let c = model_field(lights, model, offset)?;
     Ok(if c == u32::MAX { 0 } else { 1u32 << (c & 31) })
 }
@@ -176,7 +178,11 @@ const PART_SWITCHES: [(u32, usize); 7] = [
 ];
 
 /// The course's group masks from the model's part groups (an unknown model is refused).
-fn set_group_masks(lights: &LightRecords, cars: &CarDrawState, model: u32) -> Result<(), BadInput> {
+fn set_group_masks(
+    lights: LightRecordsRef<'_>,
+    cars: &CarDrawState,
+    model: u32,
+) -> Result<(), BadInput> {
     for (to, group) in BODY_GROUPS {
         let bit = model_bit(lights, model, group as u32 * 4)?;
         cars.borrow_mut().group_masks[to] = bit;
@@ -246,15 +252,11 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     ctx.view.cars.borrow_mut().groups_which = ctx.reads.car_parts.cars[car].mode_on.get();
     let model = ctx.reads.frame_cars.car(car)?.car_kind.get();
     ctx.view.matrices.borrow_mut().known_object = model;
-    set_group_masks(
-        &ctx.reads.lights_and_gear.light_records,
-        &ctx.view.cars,
-        model,
-    )?;
+    set_group_masks(ctx.reads.light_records, &ctx.view.cars, model)?;
     let switches = ctx.reads.frame_cars.car(car)?.parts_present.get();
     let shown = shown_groups(&ctx.view.cars.borrow().group_masks, switches);
     ctx.view.cars.borrow_mut().shown_groups = shown;
-    let field = |offset: u32| model_field(&ctx.reads.lights_and_gear.light_records, model, offset);
+    let field = |offset: u32| model_field(ctx.reads.light_records, model, offset);
     ctx.view.face.borrow_mut().faded_bits = field(0x10)?;
     let masks = ctx.view.cars.borrow().group_masks;
     ctx.view.cars.borrow_mut().group_masks[4] = u32::MAX
@@ -339,11 +341,11 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     }
     ctx.view.light.borrow_mut().light_lowest = 0;
     ctx.view.light.borrow_mut().light_highest = 0xFF;
-    ctx.view.light.borrow_mut().light_level = ctx.reads.stage_prefs.light_level.get();
-    ctx.view.object.borrow_mut().light_strength = ctx.reads.stage_prefs.light_strength.get();
+    ctx.view.light.borrow_mut().light_level = ctx.reads.stage_prefs.read(|p| p.light_level);
+    ctx.view.object.borrow_mut().light_strength = ctx.reads.stage_prefs.read(|p| p.light_strength);
     ctx.view.light.borrow_mut().light_turns[0] =
-        ctx.reads.stage_prefs.sun_turn.get().wrapping_neg();
-    ctx.view.light.borrow_mut().light_turns[1] = ctx.reads.stage_prefs.sun_height.get();
+        ctx.reads.stage_prefs.read(|p| p.sun_turn).wrapping_neg();
+    ctx.view.light.borrow_mut().light_turns[1] = ctx.reads.stage_prefs.read(|p| p.sun_height);
     ctx.view.light.borrow_mut().view_kind = 1;
     ctx.view.light.borrow_mut().light_kind = 3;
     let this_car = ctx.reads.frame_cars.car(car)?;
@@ -456,14 +458,14 @@ pub(super) fn draw_car_shined(
     car: usize,
 ) -> Result<(), Refused> {
     let shine: u32 = ctx.view.course.borrow().shine;
-    let mut shine_level = 0x3_FCE0u32.wrapping_sub(ctx.reads.vars.mud_thrown_counts[0].get());
+    let mut shine_level = 0x3_FCE0u32.wrapping_sub(ctx.reads.vars.mud_thrown_count());
     if (shine_level as i32) < 0 {
         shine_level = 0;
     }
     if !below(shine_level, 0x4_0000) {
         shine_level = 0x4_0000;
     }
-    let product = shine_level as u64 * ctx.reads.stage_prefs.shine_scale.get() as u64;
+    let product = shine_level as u64 * ctx.reads.stage_prefs.read(|p| p.shine_scale) as u64;
     ctx.view.course.borrow_mut().shine = (product as u32) >> 18;
     let done = draw_car(ctx, car);
     ctx.view.course.borrow_mut().shine = shine;

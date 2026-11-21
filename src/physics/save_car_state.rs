@@ -20,8 +20,8 @@ pub(super) fn save_car_state(
 ) -> Result<(), Refused> {
     let n = save_count(car.probe_count.get())?;
     tables.clear_place_count.set(0);
-    for (to, from) in tables.saved_place.iter().zip(&car.position) {
-        to.set(from.get());
+    for (to, from) in tables.saved_place.iter().zip(car.position.bits()) {
+        to.set(from);
     }
     crate::memory::session::write_bits(&tables.saved_matrix, car.crash_matrix.bits());
     for (to, from) in probes.probe_saved_faces[..n]

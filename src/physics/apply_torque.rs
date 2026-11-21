@@ -26,9 +26,7 @@ pub fn apply_torque(
         work[k] = neg_product2_plus(cross[k], step, numbers.inertia[k], work[k]).to_bits();
     }
     work = turn(&car.crash_matrix, work);
-    for (s, w) in car.spin.iter().zip(work) {
-        s.set_bits(w);
-    }
+    car.spin.set_bits(work);
     // The turn speed is the step's work place: it ends as the car's new spin.
     contact.borrow_mut().contact_turn_speed = work;
 }

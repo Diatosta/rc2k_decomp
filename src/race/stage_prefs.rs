@@ -27,8 +27,7 @@ const LIGHT_DATA: usize = 0x90;
 pub(super) fn load_prefs(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{PREFS_SIZE, StagePrefsFile};
     let course = &race.course;
-    let held = course.stage_prefs.get();
-    let mut prefs = StagePrefsFile::from_held(&held.to_le_bytes())?;
+    let mut prefs = StagePrefsFile::from_held(&course.stage_prefs.borrow().to_le_bytes())?;
     for path in prefs_paths(course)? {
         let mut file = vec![0u8; PREFS_SIZE];
         let read = crate::files::read_whole_file::read_whole_file_len(&path, &mut file)?;
@@ -38,7 +37,10 @@ pub(super) fn load_prefs(race: &Race) -> Result<(), Refused> {
     prefs.swap_stage_texture(stage);
     prefs.tweak_stage(stage);
     prefs.clear_precipitation_range(race.shared.work.get().no_precipitation.get() != 0);
-    held.set_from_le_bytes(prefs.bytes())?;
+    course
+        .stage_prefs
+        .borrow_mut()
+        .set_from_le_bytes(prefs.bytes())?;
     Ok(())
 }
 
@@ -70,11 +72,15 @@ pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
 /// Copies the lights' data (0x90 bytes for each of the 0x22 models) into the lights' part of each
 /// model's light record.
 pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
-    let records = &race.light_records().records;
     let source = race.course.lights_table().lights;
-    for (record, data) in records.iter().zip(source.as_chunks::<LIGHT_DATA>().0) {
-        for (word, bytes) in record.lights.iter().zip(data.as_chunks::<4>().0) {
-            word.set(u32::from_le_bytes(*bytes));
+    let mut records = race.frame.light_records.borrow_mut();
+    for (record, data) in records
+        .records
+        .iter_mut()
+        .zip(source.as_chunks::<LIGHT_DATA>().0)
+    {
+        for (word, bytes) in record.lights.iter_mut().zip(data.as_chunks::<4>().0) {
+            *word = u32::from_le_bytes(*bytes);
         }
     }
     Ok(())

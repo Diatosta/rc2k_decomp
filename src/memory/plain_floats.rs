@@ -51,6 +51,11 @@ impl<const N: usize> PlainFloats<N> {
         crate::math::x87_float::ld(self.bits_at(n))
     }
 
+    /// `x` rounded to a float as the control word says, put in as element `n`.
+    pub(crate) fn st_at(&self, n: usize, x: crate::math::x87_float::X) {
+        self.set_bits_at(n, crate::math::x87_float::st(x));
+    }
+
     /// Element `n` put in, as bits.
     pub fn set_bits_at(&self, n: usize, bits: u32) {
         plain_written(&self.0);
@@ -64,14 +69,83 @@ impl<const N: usize> PlainFloats<N> {
         self.set_bits_at(n, value.to_bits());
     }
 
-    /// Element `n` as a cell of its bits (for a table of the record's words).
-    pub fn cell_at(&self, n: usize) -> &Cell<u32> {
-        &self.cells()[n]
+    /// Element `n` as a word whose writes are checked like the row's own (for a table of the
+    /// record's words).
+    pub fn cell_at(&self, n: usize) -> PlainWord<'_> {
+        PlainWord(&self.cells()[n])
     }
 
     /// The elements as cells (the runs of the records' copies).
     pub(crate) fn cells(&self) -> &[Cell<u32>] {
         self.0.as_array_of_cells()
+    }
+}
+
+/// The row as the one run of its elements (a car's overrun lists).
+impl<const N: usize> crate::memory::session::Run for PlainFloats<N> {
+    fn count(&self) -> usize {
+        N
+    }
+    fn bits(&self, i: usize) -> u32 {
+        self.bits_at(i)
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        self.set_bits_at(i, v);
+    }
+}
+
+/// One element of a row as a cell of its bits; writing it is as checked as writing the row.
+#[derive(Clone, Copy)]
+pub struct PlainWord<'a>(&'a Cell<u32>);
+
+#[cfg(test)]
+impl PlainWord<'_> {
+    /// The element's place in memory.
+    pub fn addr(&self) -> usize {
+        self.0.as_ptr().addr()
+    }
+}
+
+impl crate::memory::session::Cell32 for PlainWord<'_> {
+    fn bits(&self) -> u32 {
+        self.0.get()
+    }
+    fn set_bits(&self, bits: u32) {
+        plain_written(self.0);
+        self.0.set(bits);
+    }
+}
+
+/// A word of a record by reference, or one element of a row: what a table of words holds.
+#[derive(Clone, Copy)]
+pub enum WordRef<'a> {
+    Cell(&'a dyn crate::memory::session::Cell32),
+    Element(PlainWord<'a>),
+}
+
+#[cfg(test)]
+impl WordRef<'_> {
+    /// The word's place in memory.
+    pub fn addr(&self) -> usize {
+        match self {
+            Self::Cell(cell) => core::ptr::from_ref(*cell).addr(),
+            Self::Element(word) => word.addr(),
+        }
+    }
+}
+
+impl crate::memory::session::Cell32 for WordRef<'_> {
+    fn bits(&self) -> u32 {
+        match self {
+            Self::Cell(cell) => cell.bits(),
+            Self::Element(word) => word.bits(),
+        }
+    }
+    fn set_bits(&self, bits: u32) {
+        match self {
+            Self::Cell(cell) => cell.set_bits(bits),
+            Self::Element(word) => word.set_bits(bits),
+        }
     }
 }
 
@@ -107,15 +181,15 @@ impl<const N: usize> crate::math::cells::Cells for PlainFloats<N> {
     }
 }
 
-/// A snapshot's atomic row of floats takes the row's words (`race::frame_view`).
-impl<const N: usize> SameShape<[crate::memory::session::Float; N]> for PlainFloats<N> {
-    fn copy_cells_to(&self, to: &[crate::memory::session::Float; N]) {
+/// A snapshot's atomic row of words takes the row's words (`race::frame_view`).
+impl<C: crate::memory::session::Cell32, const N: usize> SameShape<[C; N]> for PlainFloats<N> {
+    fn copy_cells_to(&self, to: &[C; N]) {
         for (cell, bits) in to.iter().zip(self.bits()) {
             cell.set_bits(bits);
         }
     }
 
-    fn merge_cells_to(&self, start: &Self, to: &[crate::memory::session::Float; N]) {
+    fn merge_cells_to(&self, start: &Self, to: &[C; N]) {
         let (now, start) = (self.bits(), start.bits());
         for n in 0..N {
             if now[n] != start[n] {

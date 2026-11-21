@@ -96,8 +96,8 @@ pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
     )?;
     {
         let mut search = c.physics.ground_search().borrow_mut();
-        search.x = c.car.position[0].get();
-        search.z = c.car.position[2].get();
+        search.x = c.car.position.bits_at(0);
+        search.z = c.car.position.bits_at(2);
     }
     distance(c.tables, c.numbers, &c.physics.ground_search().borrow(), pt);
     let within = !matches!(

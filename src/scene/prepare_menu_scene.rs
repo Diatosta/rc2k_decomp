@@ -34,7 +34,7 @@ pub fn prepare_menu_scene(
         system.session.screen.get(),
         &scratch.polygon.window,
         &race.frame.view_and_records.get().view_vars,
-        &race.shared.vars.get().scale_factor,
+        &crate::race::vars_store::SCALE_FACTOR,
     );
     let light = &scratch.light;
     light.borrow_mut().light_lowest = 0x50;

@@ -31,7 +31,8 @@ pub fn camera_height_bias(
     x87_3(numbers, view_records, &scratch);
     let bias = scratch.get();
     view_records.view_vars.camera_height_bias.set(bias);
-    car.camera_position[1].set(car.camera_position[1].get().wrapping_add(bias));
+    car.camera_position
+        .set_bits_at(1, car.camera_position.bits_at(1).wrapping_add(bias));
     Ok(())
 }
 

@@ -215,11 +215,12 @@ fn draw_description(
         ctx.view.light.borrow_mut().light_turns[1] = byte(0x23);
         if byte(0x24) != 0 {
             ctx.view.light.borrow_mut().light_turns[0] =
-                ctx.reads.stage_prefs.sun_turn.get().wrapping_neg();
-            ctx.view.light.borrow_mut().light_turns[1] = ctx.reads.stage_prefs.sun_height.get();
-            ctx.view.light.borrow_mut().light_level = ctx.reads.stage_prefs.light_level.get();
+                ctx.reads.stage_prefs.read(|p| p.sun_turn).wrapping_neg();
+            ctx.view.light.borrow_mut().light_turns[1] =
+                ctx.reads.stage_prefs.read(|p| p.sun_height);
+            ctx.view.light.borrow_mut().light_level = ctx.reads.stage_prefs.read(|p| p.light_level);
             ctx.view.object.borrow_mut().light_strength =
-                ctx.reads.stage_prefs.light_strength_kept.get();
+                ctx.reads.stage_prefs.read(|p| p.light_strength_kept);
             ctx.view.light.borrow_mut().light_lowest = 0u32;
             ctx.view.light.borrow_mut().light_highest = 0xFFu32;
         }

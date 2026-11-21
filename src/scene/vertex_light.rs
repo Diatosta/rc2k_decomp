@@ -123,11 +123,14 @@ fn blend(
 ) {
     let amount = held(light_number(light, object), -255, 255);
     let (amount, towards) = if amount < 0 {
-        (amount.wrapping_neg(), &course.stage_prefs.dark_colour)
+        (
+            amount.wrapping_neg(),
+            course.stage_prefs.read(|p| p.dark_colour),
+        )
     } else {
-        (amount, &course.stage_prefs.lit_colour)
+        (amount, course.stage_prefs.read(|p| p.lit_colour))
     };
-    let towards = crate::memory::session::read_bits::<_, 3>(towards).map(|bits| bits as i32);
+    let towards = towards.map(|bits| bits as i32);
     let mut colour: u32 = light.borrow().light_colour;
     // The third byte first, towards the first of the three.
     for (n, to) in towards.into_iter().enumerate() {
@@ -155,7 +158,7 @@ pub fn vertex_light(
         // The lit colour added to nothing: it only makes the bytes the right ones.
         return Ok(plus(0, lit(reads, part, number, light, object)?));
     }
-    let lit_at_all = reads.switches.scene_set_up() != 0 || reads.stage_prefs.lit_b.get() != 0;
+    let lit_at_all = reads.switches.scene_set_up() != 0 || reads.stage_prefs.read(|p| p.lit_b) != 0;
     if !lit_at_all || kind == 0 {
         return Ok(0x00FF_FFFF);
     }

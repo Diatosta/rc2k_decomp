@@ -34,29 +34,25 @@ fn hold(v: &impl Cell32, limit: u32) {
 /// The exact version, for `physics::car_physics_step` and `physics::find_clear_place`.
 pub fn limit_motion(car: &Car, tables: &PhysicsTables) {
     // Infinity or not a number (the float's exponent bits are tested).
-    let bad = car
-        .velocity
-        .iter()
-        .take(3)
-        .any(|item| !item.get().is_finite());
+    let bad = car.velocity.get().iter().any(|item| !item.is_finite());
     if bad {
         crate::logfile::log_write::log_nul(&c"*** INFINITY", false, 1);
         crate::logfile::log_write::log_nul(&c"[car0.newxspd] =", false, 1);
-        for (k, cell) in car.velocity.iter().enumerate().take(3) {
-            log_float(cell.get(), 5, k == 2, 1);
+        for (k, value) in car.velocity.get().into_iter().enumerate() {
+            log_float(value, 5, k == 2, 1);
         }
 
         for k in 0..3usize {
-            car.velocity[k].set(0.0);
-            car.local_velocity[k].set(0.0);
-            car.spin[k].set(0.0);
+            car.velocity.set_at(k, 0.0);
+            car.local_velocity.set_at(k, 0.0);
+            car.spin.set_at(k, 0.0);
         }
     }
-    for item in car.spin.iter().take(3usize) {
-        hold(&item, SPIN_LIMIT.to_bits());
+    for k in 0..3 {
+        hold(&car.spin.cell_at(k), SPIN_LIMIT.to_bits());
     }
     for k in [0usize, 2, 1] {
-        hold(&car.velocity[k], VELOCITY_LIMIT.to_bits());
+        hold(&car.velocity.cell_at(k), VELOCITY_LIMIT.to_bits());
     }
     let length = rounded_value(vector_length(&car.velocity));
     let top = tables.top_speed.get();

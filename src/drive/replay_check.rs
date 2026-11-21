@@ -81,7 +81,7 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
         .enumerate()
     {
         let h = hash(kept_car.iter().copied());
-        let speed = block.local_velocity[2].get(); // the car's speed
+        let speed = block.local_velocity.at(2); // the car's speed
         let gear = block.gear.get();
         line += &format!(" car {car} {h:08x} speed {speed:.3} gear {gear};");
     }

@@ -18,7 +18,6 @@
 //! `contacts::UNSET_KIND`: stage 22 has such a face), and what its calls refuse.
 
 use crate::errors::Refused;
-use crate::math::cell_x87::CellX87;
 use crate::math::x87::compare_80;
 use crate::math::x87::int_hypot;
 use crate::math::x87::length_80;
@@ -91,11 +90,7 @@ pub fn steps(
             "physics::face_contact: face {}: object {object}, kind {kind:#x}, car {} at {:?}",
             face,
             c.work.current_car.get(),
-            c.car
-                .position
-                .iter()
-                .map(|c| c.get() as i32)
-                .collect::<Vec<_>>(),
+            c.car.position.bits().map(|c| c as i32),
         ));
         return Err(e.into());
     }
@@ -128,7 +123,7 @@ pub fn steps(
             0,
         )?
         .wrapping_add(face_dword(0x30)?)
-        .wrapping_sub(c.car.position[0].get());
+        .wrapping_sub(c.car.position.bits_at(0));
         let dz = crate::race::scene_points::point_word(
             c.course.reads(),
             &crate::race::scene_points::no_own(),
@@ -136,7 +131,7 @@ pub fn steps(
             2,
         )?
         .wrapping_add(face_dword(0x38)?)
-        .wrapping_sub(c.car.position[2].get());
+        .wrapping_sub(c.car.position.bits_at(2));
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         let face_object = c.contact.borrow().face_object;
         let (reach, _) = contacts::reach(
@@ -212,11 +207,11 @@ fn x87_1(contact: &mut ContactWork, numbers: &Numbers) {
 
 /// One straight x87 run as plain Rust over `X`.
 fn x87_2(contact: &mut ContactWork, car: &Car, numbers: &Numbers) {
-    let t0 = car.velocity[0].ld();
+    let t0 = car.velocity.ld(0);
     let t1 = t0 * t0;
-    let t2 = car.velocity[2].ld();
+    let t2 = car.velocity.ld(2);
     let t3 = t2 * t2;
-    let t4 = car.velocity[1].ld();
+    let t4 = car.velocity.ld(1);
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;

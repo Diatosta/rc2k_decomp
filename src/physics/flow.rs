@@ -145,7 +145,7 @@ pub fn negate(v: &impl FloatView) {
 
 /// The car's velocity negated part by part, as the bits of three floats.
 pub fn negated_velocity(car: &crate::physics::car_store::Car) -> [u32; 3] {
-    std::array::from_fn(|k| negated(car.velocity[k].float()).to_bits())
+    std::array::from_fn(|k| negated(car.velocity.at(k)).to_bits())
 }
 
 /// `x` negated.

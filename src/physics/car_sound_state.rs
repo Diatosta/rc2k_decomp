@@ -15,7 +15,6 @@ use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87::{ext_times, ints_diff_80};
 use crate::math::x87_float::X;
-use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
@@ -71,11 +70,20 @@ pub fn car_sound_state(
     so.borrow_mut().flag_ac =
         shared.car().front_wheels_off.get() & shared.car().rear_wheels_off.get();
     so.borrow_mut().view_flag = shared.car().camera_mode_is_2_or_3.get() ^ 1;
-    let d = |c: &PlainDword, other: &PlainDword| ints_diff_80(c.get() as i32, other.get() as i32);
+    let d = |c: u32, other: u32| ints_diff_80(c as i32, other as i32);
     let place = [
-        d(&shared.car().position[0], &l.camera_position[0]),
-        d(&shared.car().position[1], &l.camera_position[1]),
-        d(&shared.car().position[2], &l.camera_position[2]),
+        d(
+            shared.car().position.bits_at(0),
+            l.camera_position.bits_at(0),
+        ),
+        d(
+            shared.car().position.bits_at(1),
+            l.camera_position.bits_at(1),
+        ),
+        d(
+            shared.car().position.bits_at(2),
+            l.camera_position.bits_at(2),
+        ),
     ];
     let m = shared.heard_turn.get().turn(view_turn);
     let out = rotate_point_by(&m, place);

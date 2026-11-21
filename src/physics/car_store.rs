@@ -79,19 +79,19 @@ pub struct Car<K: CellKind = PlainCells> {
     /// The 4 x 4 orientation matrix (the crash matrix); the translation row is its last.
     pub crash_matrix: PlainFloats<16>,
     /// World position x, y, z (x 65536).
-    pub position: [K::Dword; 3],
+    pub position: PlainFloats<3>,
     /// One figure per split taken.
     pub split_times: [K::Dword; 16],
     /// Drive speed less forward speed.
     pub drive_slip_speed: K::Float,
     /// Angular velocity x, y, z.
-    pub spin: [K::Float; 3],
+    pub spin: PlainFloats<3>,
     /// Length of the spin.
     pub spin_length: K::Float,
     /// World-frame velocity.
-    pub velocity: [K::Float; 3],
+    pub velocity: PlainFloats<3>,
     /// Velocity in the car's frame (z forward: the car speed).
-    pub local_velocity: [K::Float; 3],
+    pub local_velocity: PlainFloats<3>,
     /// Driven wheels' speed.
     pub drive_speed_a: K::Float,
     /// Second driven speed.
@@ -141,7 +141,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Flags: bit 2 damage notices, bit 8 sound speed scale.
     pub option_bits: K::Dword,
     /// The x, y, z of the probe point that crossed an edge or hit.
-    pub contact_point: [K::Float; 3],
+    pub contact_point: PlainFloats<3>,
     /// Size of the contact.
     pub contact_depth: K::Float,
     /// 1 on any contact this step.
@@ -367,7 +367,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Eased roll of the view.
     pub camera_roll: K::Float,
     /// Camera x, y, z (whole numbers).
-    pub camera_position: [K::Dword; 3],
+    pub camera_position: PlainFloats<3>,
     /// Camera heading, whole-number units << 4.
     pub camera_heading: K::Dword,
     /// Third camera turn (reading).
@@ -375,7 +375,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Camera pitch, units << 4, negated.
     pub camera_pitch: K::Dword,
     /// Three turns (<< 16) applied to the camera's offset.
-    pub camera_offset_turns: [K::Dword; 3],
+    pub camera_offset_turns: PlainFloats<3>,
     /// Zoom of the view.
     pub camera_zoom: K::Float,
     /// The first three: the view's focus point kept, the car's position with y + 0x8000
@@ -401,7 +401,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Second notice time.
     pub notice_time_b: K::Dword,
     /// The view's place kept with the car (`race::frame_draw`).
-    pub kept_view_place: [K::Dword; 3],
+    pub kept_view_place: PlainFloats<3>,
     /// Noise sample 1 scaled.
     pub surface_noise_a: K::Dword,
     /// Same sample 1 value.
@@ -534,7 +534,7 @@ pub struct Car<K: CellKind = PlainCells> {
     pub eased_value: K::Dword,
     /// Where a position received from the network is to be glided to
     /// (x, y, z; `net::apply_message`, stepped towards by `net::follow_remote`).
-    pub glide_target: [K::Dword; 3],
+    pub glide_target: PlainFloats<3>,
     /// The steps of the glide left (set to 32 by `net::apply_message`,
     /// one less each step in `net::follow_remote`).
     pub glide_steps_left: K::Dword,

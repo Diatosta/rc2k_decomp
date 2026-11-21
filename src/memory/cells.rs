@@ -1501,44 +1501,6 @@ fn dwords_as<D: DwordCell, T: ByteView, const N: usize>(cells: &T, at: usize) ->
     unsafe { &*first.cast() }
 }
 
-/// `to.len()` bytes of a `#[repr(C)]` record of 32-bit cells with no padding, from byte `offset`
-/// of its fields taken in order: a read that reaches on from one field into the next, as the
-/// record's layout has them. A read past the record's end is refused.
-pub fn load_walked<T: Cells>(record: &T, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
-    let end = record_end::<T>(offset, to.len())?;
-    /// The bytes of every run that overlaps the wanted range, copied out.
-    struct Walk<'a> {
-        at: usize,
-        offset: usize,
-        end: usize,
-        to: &'a mut [u8],
-    }
-    impl CellVisitor for Walk<'_> {
-        fn enter(&mut self, _: &'static str) {}
-        fn index(&mut self, _: usize) {}
-        fn leave(&mut self) {}
-        fn leaf(&mut self, _: &[u8]) {}
-        fn run(&mut self, run: CellRun<'_>) {
-            let (start, upto) = (self.at, self.at + run.len());
-            self.at = upto;
-            let (from, to) = (start.max(self.offset), upto.min(self.end));
-            if from < to {
-                run.load(
-                    from - start,
-                    &mut self.to[from - self.offset..to - self.offset],
-                );
-            }
-        }
-    }
-    record.visit(&mut Walk {
-        at: 0,
-        offset,
-        end,
-        to,
-    });
-    Ok(())
-}
-
 /// The `T` at byte `offset` of `store` (any alignment; a run past the store is refused).
 #[cfg(test)]
 pub fn load_value<T: Plain>(store: &dyn Store, offset: usize) -> Result<T, BadInput> {

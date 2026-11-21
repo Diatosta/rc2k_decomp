@@ -7,6 +7,7 @@
 
 use crate::debug::ui_plot::Plot;
 use crate::math::x87::{mul_div2, sum_times_int_over_minus};
+use crate::memory::plain_floats::WordRef;
 use crate::memory::session::Cell32;
 use crate::physics::drive_torque_share::drive_torque_share;
 use crate::physics::engine_torque::engine_torque;
@@ -70,26 +71,26 @@ struct Measured {
 static MEASURED: Mutex<Option<Measured>> = Mutex::new(None);
 
 /// Every variable the measuring writes.
-fn places(shared: &RaceShared) -> [&dyn Cell32; 11] {
+fn places(shared: &RaceShared) -> [WordRef<'_>; 11] {
     [
-        &shared.car().gear,
-        &shared.car().throttle,
-        &shared.car().engine_speed,
-        &shared.car().local_velocity[2],
-        &shared.car().drive_speed_a,
-        &shared.car().drive_speed_b,
-        &shared.physics_tables.get().drive_torque,
-        &shared.physics_tables.get().drive_ratio,
-        &shared.physics_tables.get().engine_force,
-        &shared.physics_tables.get().engine_torque,
-        &shared.physics_tables.get().torque_share,
+        WordRef::Cell(&shared.car().gear),
+        WordRef::Cell(&shared.car().throttle),
+        WordRef::Cell(&shared.car().engine_speed),
+        WordRef::Element(shared.car().local_velocity.cell_at(2)),
+        WordRef::Cell(&shared.car().drive_speed_a),
+        WordRef::Cell(&shared.car().drive_speed_b),
+        WordRef::Cell(&shared.physics_tables.get().drive_torque),
+        WordRef::Cell(&shared.physics_tables.get().drive_ratio),
+        WordRef::Cell(&shared.physics_tables.get().engine_force),
+        WordRef::Cell(&shared.physics_tables.get().engine_torque),
+        WordRef::Cell(&shared.physics_tables.get().torque_share),
     ]
 }
 
 /// `f` run, the variables put back after it.
 fn kept<T>(shared: &RaceShared, scene: &Scene, f: impl FnOnce() -> T) -> T {
     let places = places(shared);
-    let saved = places.map(crate::memory::session::Cell32::bits);
+    let saved = places.map(|word| word.bits());
     let work = scene.draw_work().clone();
     let result = f();
     *scene.draw_work_mut() = work;
@@ -135,7 +136,7 @@ fn drive_at(race: &Race, scene: &Scene, speed: f32) -> Option<(f32, f32)> {
     let shared = &race.shared;
     shared.car().drive_speed_a.set(speed);
     shared.car().drive_speed_b.set(speed);
-    shared.car().local_velocity[2].set(speed);
+    shared.car().local_velocity.set_at(2, speed);
     revs_from_wheels(
         race.shared.car(),
         race.shared.physics_tables.get(),
@@ -344,7 +345,7 @@ mod tests {
         shared.physics_tables.get().gear_count.set(1);
         shared.physics_tables.get().gear_ratios[2].set(0.01_f32);
         let before = (
-            places(shared).map(crate::memory::session::Cell32::bits),
+            places(shared).map(|word| word.bits()),
             format!("{:?}", crate::test_support::own::scene().draw_work()),
         );
         let m = measure(
@@ -354,7 +355,7 @@ mod tests {
         .expect("a car");
         assert_eq!(
             (
-                places(shared).map(crate::memory::session::Cell32::bits),
+                places(shared).map(|word| word.bits()),
                 format!("{:?}", crate::test_support::own::scene().draw_work()),
             ),
             before

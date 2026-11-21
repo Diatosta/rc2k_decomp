@@ -64,20 +64,23 @@ pub fn start_car_on_line(
         &crate::physics::step_inputs::StepInputs::of(race).reset(),
         scene,
     )?;
-    race.shared.car().local_velocity[0].set(0.0);
-    race.shared.car().local_velocity[1].set(0.0);
-    race.shared.car().local_velocity[2].set(x87::loaded(&race.shared.tables().start_speed));
+    race.shared.car().local_velocity.set_at(0, 0.0);
+    race.shared.car().local_velocity.set_at(1, 0.0);
+    race.shared
+        .car()
+        .local_velocity
+        .set_at(2, x87::loaded(&race.shared.tables().start_speed));
     let m = &race.shared.car().crash_matrix;
     let out = rotate_point(
         m,
         [
-            extended(race.shared.car().local_velocity[0].get()),
-            extended(race.shared.car().local_velocity[1].get()),
-            extended(race.shared.car().local_velocity[2].get()),
+            extended(race.shared.car().local_velocity.at(0)),
+            extended(race.shared.car().local_velocity.at(1)),
+            extended(race.shared.car().local_velocity.at(2)),
         ],
     );
-    race.shared.car().velocity[0].set(rounded_value(out[0]));
-    race.shared.car().velocity[1].set(rounded_value(out[1]));
-    race.shared.car().velocity[2].set(rounded_value(out[2]));
+    race.shared.car().velocity.set_at(0, rounded_value(out[0]));
+    race.shared.car().velocity.set_at(1, rounded_value(out[1]));
+    race.shared.car().velocity.set_at(2, rounded_value(out[2]));
     Ok(())
 }

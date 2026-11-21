@@ -4,6 +4,7 @@
 //! is followed. Its inputs are not sent: every machine's computer driver works them out.
 
 use crate::errors::Refused;
+use crate::memory::session::Cell32;
 use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
 use crate::net::send_inputs::fields;

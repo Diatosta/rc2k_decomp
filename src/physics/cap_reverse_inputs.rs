@@ -19,7 +19,7 @@ pub(super) fn cap_reverse_inputs(car: &Car, work: &RefCell<WheelWork>, numbers: 
     let values = work.borrow().wheel_slips.map(f32::from_bits);
     let zero = f32::from_bits(ZERO);
     let cap = numbers.two.get();
-    let speed = car.local_velocity[2].get();
+    let speed = car.local_velocity.at(2);
     let Some(held) = cap_reverse(gear, speed, zero, values, cap) else {
         return;
     };

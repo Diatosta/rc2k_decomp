@@ -21,11 +21,12 @@ enum Prefs {
 }
 
 impl Prefs {
-    fn list(self, course: &Course) -> &[crate::memory::session::PlainDword] {
+    fn list(self, course: &Course) -> [u32; 64] {
+        let prefs = course.stage_prefs.borrow();
         match self {
-            Prefs::A => &course.stage_prefs.get().picture_lists_a,
-            Prefs::B => &course.stage_prefs.get().picture_lists_b,
-            Prefs::C => &course.stage_prefs.get().picture_lists_c,
+            Prefs::A => prefs.picture_lists_a,
+            Prefs::B => prefs.picture_lists_b,
+            Prefs::C => prefs.picture_lists_c,
         }
     }
 }
@@ -97,10 +98,7 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
                     step,
                 };
                 let prefs = list.list(&race.course);
-                (
-                    k,
-                    (0..count as usize).map(|n| prefs[from + n].get()).collect(),
-                )
+                (k, (0..count as usize).map(|n| prefs[from + n]).collect())
             },
         )
         .collect();

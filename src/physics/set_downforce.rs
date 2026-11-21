@@ -13,7 +13,7 @@ pub(super) fn set_downforce(car: &Car, tables: &PhysicsTables) {
         return;
     }
     let (load, negative) = square_times_plus_times(
-        &car.local_velocity[2],
+        car.local_velocity.bits_at(2),
         DOWNFORCE_FACTOR,
         &tables.downforce_spec,
         &tables.gravity,

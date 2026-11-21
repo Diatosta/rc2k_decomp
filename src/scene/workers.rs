@@ -112,8 +112,7 @@ pub struct Lent<'s> {
     scene_clock: u32,
     shadow_skids:
         crate::memory::session::PhaseRead<'s, crate::race::shadow_skids_store::ShadowSkids>,
-    lights_and_gear:
-        crate::memory::session::PhaseRead<'s, crate::race::groups_store::LightsAndGear>,
+    light_records: crate::memory::session::ArcRead<crate::race::light_records_store::LightRecords>,
     /// The finish state's "no place" switch as the frame began.
     no_place: u32,
     // The frame's work and the panel.
@@ -130,7 +129,7 @@ pub struct Lent<'s> {
     net_race: &'s rc2k_core::net::net_race::NetRaceSlot,
     // The course's groups.
     course_lists: crate::memory::session::PlainRead<crate::race::course_lists_store::CourseLists>,
-    stage_prefs: crate::memory::session::PhaseRead<'s, crate::race::prefs_store::StagePrefs>,
+    stage_prefs: crate::memory::session::ArcRead<crate::race::prefs_store::StagePrefs>,
     course_work: crate::memory::session::PlainRead<crate::race::course_store::CourseWork>,
     stage: &'s crate::race::stage_data_store::StageData,
     kind_records: crate::memory::session::PlainRead<crate::race::kind_records_store::KindRecords>,
@@ -138,7 +137,7 @@ pub struct Lent<'s> {
     number_vars: crate::memory::session::PhaseRead<'s, crate::race::numbers_store::NumberVars>,
     switches: crate::memory::session::PlainRead<crate::race::switches_store::FrameSwitches>,
     checkpoints: crate::memory::session::ArcRead<crate::race::checkpoints_store::Checkpoints>,
-    vars: crate::memory::session::PhaseRead<'s, crate::race::vars_store::RaceVars>,
+    vars: crate::race::vars_store::DrawnVars,
     view: crate::memory::session::PhaseRead<'s, crate::race::view_store::RaceView>,
     work: crate::memory::session::PhaseRead<'s, crate::race::work_store::RaceWork>,
     physics_tables:
@@ -178,7 +177,7 @@ impl<'s> Lent<'s> {
             ground_probe: *race.physics.ground_probe().borrow(),
             scene_clock: race.shared.run().scene_clock,
             shadow_skids: PhaseRead::lend(&race.frame.shadow_skids, scope),
-            lights_and_gear: PhaseRead::lend(&race.frame.lights_and_gear, scope),
+            light_records: crate::memory::session::ArcRead::lend(&race.frame.light_records, scope),
             no_place: race.replay.no_place(),
             // The frame's work and the panel.
             frame_work: crate::memory::session::PlainRead::lend(&race.frame.frame_work, scope),
@@ -193,7 +192,7 @@ impl<'s> Lent<'s> {
             net_race: &net.race_slot,
             // The course's groups.
             course_lists: crate::memory::session::PlainRead::lend(&race.course.lists, scope),
-            stage_prefs: PhaseRead::lend(&race.course.stage_prefs, scope),
+            stage_prefs: crate::memory::session::ArcRead::lend(&race.course.stage_prefs, scope),
             course_work: crate::memory::session::PlainRead::lend(&race.course.course, scope),
             stage: &race.course.stage,
             kind_records: crate::memory::session::PlainRead::lend(
@@ -204,7 +203,7 @@ impl<'s> Lent<'s> {
             number_vars: PhaseRead::lend(&race.course.number_vars, scope),
             switches: crate::memory::session::PlainRead::lend(&race.shared.switches, scope),
             checkpoints: crate::memory::session::ArcRead::lend(&race.shared.checkpoints, scope),
-            vars: PhaseRead::lend(&race.shared.vars, scope),
+            vars: race.shared.vars.get().drawn(),
             view: PhaseRead::lend(&race.shared.view, scope),
             work: PhaseRead::lend(&race.shared.work, scope),
             physics_tables: PhaseRead::lend(&race.shared.physics_tables, scope),
@@ -233,7 +232,7 @@ impl<'s> Lent<'s> {
             ground_probe: self.ground_probe,
             scene_clock: self.scene_clock,
             shadow_skids: &self.shadow_skids,
-            lights_and_gear: &self.lights_and_gear,
+            light_records: (&self.light_records).into(),
             no_place: self.no_place,
             // The frame's work and the panel.
             frame_work: (&self.frame_work).into(),
@@ -248,7 +247,7 @@ impl<'s> Lent<'s> {
             net_race: self.net_race,
             // The course's groups.
             course_lists: (&self.course_lists).into(),
-            stage_prefs: &self.stage_prefs,
+            stage_prefs: (&self.stage_prefs).into(),
             course_work: (&self.course_work).into(),
             stage: self.stage,
             kind_records: (&self.kind_records).into(),
@@ -256,7 +255,7 @@ impl<'s> Lent<'s> {
             number_vars: &self.number_vars,
             switches: (&self.switches).into(),
             checkpoints: (&self.checkpoints).into(),
-            vars: &self.vars,
+            vars: crate::race::vars_store::DrawnVarsRef::Copy(&self.vars),
             view: &self.view,
             work: &self.work,
             physics_tables: &self.physics_tables,
@@ -300,9 +299,8 @@ pub struct DrawReads<'a> {
     pub scene_clock: u32,
     /// The skid marks' links and points (`race::owner_frame::Frame::shadow_skids`).
     pub shadow_skids: &'a crate::race::shadow_skids_store::ShadowSkids,
-    /// The models' light records and the gear figures after them
-    /// (`race::owner_frame::Frame::lights_and_gear`).
-    pub lights_and_gear: &'a crate::race::groups_store::LightsAndGear,
+    /// The models' light records (`race::owner_frame::Frame::light_records`).
+    pub light_records: crate::race::light_records_store::LightRecordsRef<'a>,
     /// The finish state's "no place" switch (`race::owner_replay::Replay::no_place`).
     pub no_place: u32,
     // The frame's work and the panel.
@@ -332,7 +330,7 @@ pub struct DrawReads<'a> {
     pub course_lists: crate::race::course_lists_store::CourseListsRef<'a>,
     /// The stage's prefs and scene settings: colours, fog, sun and sky, the face tables
     /// (`race::owner_course::Course::stage_prefs`).
-    pub stage_prefs: &'a crate::race::prefs_store::StagePrefs,
+    pub stage_prefs: crate::race::prefs_store::StagePrefsRef<'a>,
     /// The course's data and the scene's state: the records, faces and scene points and their
     /// counts, the flat depth (`race::owner_course::Course::course`).
     pub course_work: crate::race::course_store::CourseWorkRef<'a>,
@@ -352,7 +350,7 @@ pub struct DrawReads<'a> {
     pub checkpoints: crate::race::checkpoints_store::CheckpointsRef<'a>,
     /// The race's variables (`race::owner_shared::RaceShared::vars`): the settings the drawing
     /// reads (run kind, split, the settings words), the mud texture's state, the fade figures.
-    pub vars: &'a crate::race::vars_store::RaceVars,
+    pub vars: crate::race::vars_store::DrawnVarsRef<'a>,
     /// The race's view and face work (`race::owner_shared::RaceShared::view`): the players
     /// and views, their cars, the face tables.
     pub view: &'a crate::race::view_store::RaceView,
@@ -423,7 +421,7 @@ impl<'a> DrawReads<'a> {
             ground_probe: *race.physics.ground_probe().borrow(),
             scene_clock: race.shared.run().scene_clock,
             shadow_skids: race.frame.shadow_skids.get(),
-            lights_and_gear: race.frame.lights_and_gear.get(),
+            light_records: race.light_records(),
             no_place: race.replay.no_place(),
             // The frame's work and the panel.
             frame_work: (&race.frame.frame_work).into(),
@@ -440,7 +438,7 @@ impl<'a> DrawReads<'a> {
             course_lists: crate::race::course_lists_store::CourseListsRef::Store(
                 &race.course.lists,
             ),
-            stage_prefs: race.course.stage_prefs.get(),
+            stage_prefs: crate::race::prefs_store::StagePrefsRef::Store(&race.course.stage_prefs),
             course_work: crate::race::course_store::CourseWorkRef::Store(&race.course.course),
             stage: &race.course.stage,
             kind_records: crate::race::kind_records_store::KindRecordsRef::Store(
@@ -450,7 +448,7 @@ impl<'a> DrawReads<'a> {
             number_vars: race.course.number_vars.get(),
             switches: crate::race::switches_store::FrameSwitchesRef::Store(&race.shared.switches),
             checkpoints: race.shared.checkpoints(),
-            vars: race.shared.vars.get(),
+            vars: crate::race::vars_store::DrawnVarsRef::Store(race.shared.vars.get()),
             view: race.shared.view.get(),
             work: race.shared.work.get(),
             physics_tables: race.shared.physics_tables.get(),

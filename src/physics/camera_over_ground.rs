@@ -18,8 +18,8 @@ pub(super) fn camera_over_ground(
 ) -> Result<bool, Refused> {
     if !probe_at(
         c,
-        c.car.camera_position[0].get(),
-        c.car.camera_position[2].get(),
+        c.car.camera_position.bits_at(0),
+        c.car.camera_position.bits_at(2),
         &c.car.camera_ground_faces[0],
     )? {
         return Ok(false);
@@ -31,8 +31,8 @@ pub(super) fn camera_over_ground(
             rotate_point_about_y(engine_tables, side as i32, 0, 0, c.car.camera_heading.get());
         if !probe_at(
             c,
-            x.wrapping_add(c.car.camera_position[0].get()),
-            z.wrapping_add(c.car.camera_position[2].get()),
+            x.wrapping_add(c.car.camera_position.bits_at(0)),
+            z.wrapping_add(c.car.camera_position.bits_at(2)),
             slot,
         )? {
             return Ok(false);

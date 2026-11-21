@@ -37,7 +37,7 @@ pub fn acceleration_figures(
     let kept = (
         shared.car().drive_speed_a.get(),
         shared.car().drive_speed_b.get(),
-        shared.car().local_velocity[2].get(),
+        shared.car().local_velocity.at(2),
         shared.car().gear.get(),
         shared.car().engine_speed.get(),
         shared.car().gearbox_kind.get(),
@@ -50,7 +50,7 @@ pub fn acceleration_figures(
     let (a, b, speed, gear, engine, kind) = kept;
     shared.car().drive_speed_a.set(a);
     shared.car().drive_speed_b.set(b);
-    shared.car().local_velocity[2].set(speed);
+    shared.car().local_velocity.set_at(2, speed);
     shared.car().gear.set(gear);
     shared.car().engine_speed.set(engine);
     shared.car().gearbox_kind.set(kind);

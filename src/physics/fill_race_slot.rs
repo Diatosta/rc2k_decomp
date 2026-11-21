@@ -46,7 +46,7 @@ pub fn fill_race_slot(
     for (k, e) in out.iter().enumerate() {
         let n = ext_to_int(*e) as u32;
         scene.object_work_mut().object_position[k] = n;
-        slot.place[k].set(n.wrapping_add(car.position[k].get()));
+        slot.place[k].set(n.wrapping_add(car.position.bits_at(k)));
     }
     slot.car_word.set(car.probe_point_face[4].get());
     slot.age.set(car.step_clock.get());
@@ -57,23 +57,23 @@ pub fn fill_race_slot(
     slot.motion[0].set(int_mul_add(
         scene.object_work().object_position[0] as i32,
         k,
-        &car.velocity[0],
+        car.velocity.bits_at(0),
         None,
     ));
     slot.motion[1].set(int_mul_add(
         scene.object_work().object_position[1] as i32,
         k,
-        &car.velocity[1],
+        car.velocity.bits_at(1),
         Some(numbers.two.bits()),
     ));
     slot.motion[2].set(int_mul_add(
         scene.object_work().object_position[2] as i32,
         k,
-        &car.velocity[2],
+        car.velocity.bits_at(2),
         None,
     ));
-    for k in 0..3 {
-        slot.spin[k].set(car.spin[k].get());
+    for (k, spin) in slot.spin.iter().enumerate() {
+        spin.set(car.spin.at(k));
     }
     Ok(())
 }

@@ -53,7 +53,7 @@ struct Snap {
 fn read(car: &Car) -> Snap {
     Snap {
         body: Body {
-            position: read_all(&car.position),
+            position: car.position.bits(),
             crash_matrix: car.crash_matrix.bits(),
             inverse_matrix: car.car_inverse_matrix.bits(),
             wheel_turns: read_all(&car.driven_wheel_turns),
@@ -65,14 +65,14 @@ fn read(car: &Car) -> Snap {
         },
         camera: Camera {
             mode: car.camera_view.get(),
-            position: read_all(&car.camera_position),
+            position: car.camera_position.bits(),
             angles: [
                 car.camera_heading.get(),
                 car.camera_pitch.get(),
                 car.camera_roll_turn.get(),
-                car.camera_offset_turns[0].get(),
-                car.camera_offset_turns[1].get(),
-                car.camera_offset_turns[2].get(),
+                car.camera_offset_turns.bits_at(0),
+                car.camera_offset_turns.bits_at(1),
+                car.camera_offset_turns.bits_at(2),
             ],
             zoom: car.camera_zoom.bits(),
             roll: car.camera_roll.bits(),
@@ -82,7 +82,7 @@ fn read(car: &Car) -> Snap {
 
 fn write(car: &Car, snap: &Snap) {
     let (b, c) = (&snap.body, &snap.camera);
-    write_all(&car.position, b.position);
+    car.position.set_bits(b.position);
     car.crash_matrix.set_bits(b.crash_matrix);
     car.car_inverse_matrix.set_bits(b.inverse_matrix);
     write_all(&car.driven_wheel_turns, b.wheel_turns);
@@ -91,13 +91,12 @@ fn write(car: &Car, snap: &Snap) {
     write_all(&car.wheel_ground_x, b.ground_x);
     write_all(&car.wheel_ground_height, b.ground_height);
     write_all(&car.wheel_ground_z, b.ground_z);
-    write_all(&car.camera_position, c.position);
+    car.camera_position.set_bits(c.position);
     car.camera_heading.set(c.angles[0]);
     car.camera_pitch.set(c.angles[1]);
     car.camera_roll_turn.set(c.angles[2]);
-    for (cell, angle) in car.camera_offset_turns.iter().zip(&c.angles[3..]) {
-        cell.set(*angle);
-    }
+    car.camera_offset_turns
+        .set_bits(std::array::from_fn(|k| c.angles[3 + k]));
     car.camera_zoom.set_bits(c.zoom);
     car.camera_roll.set_bits(c.roll);
 }
@@ -370,13 +369,13 @@ mod tests {
         race.frame.blend.alpha.store(0.5f32.to_bits(), Relaxed);
         {
             let _blended = Blended::new(race);
-            assert_eq!(car.position[0].get(), 1500);
+            assert_eq!(car.position.bits_at(0), 1500);
         }
-        assert_eq!(car.position[0].get(), 2000);
+        assert_eq!(car.position.bits_at(0), 2000);
         // The frame after is the tick itself.
         {
             let _blended = Blended::new(race);
-            assert_eq!(car.position[0].get(), 2000);
+            assert_eq!(car.position.bits_at(0), 2000);
         }
         race.frame.blend.reset();
     }

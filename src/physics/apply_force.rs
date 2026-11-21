@@ -24,12 +24,12 @@ pub fn apply_force(car: &Car, numbers: &Numbers, rec: &ForceRecord) {
     scale_vector(&work, dt);
     // The work car's crash matrix, whichever block it is.
     turn_by_car_matrix(car, &work);
-    for (v, w) in car.velocity.iter().zip(work) {
-        v.set(x87::add(w, v));
+    for (k, w) in work.into_iter().take(3).enumerate() {
+        car.velocity.set_at(k, x87::add(w, car.velocity.bits_at(k)));
     }
-    let p = car.velocity.each_ref().map(|v| extended(v.get()));
+    let p = car.velocity.get().map(extended);
     let out = rotate_point(&car.car_inverse_matrix, p);
-    for (l, e) in car.local_velocity.iter().zip(out) {
-        l.set(rounded_value(e));
+    for (k, e) in out.into_iter().enumerate() {
+        car.local_velocity.set_at(k, rounded_value(e));
     }
 }

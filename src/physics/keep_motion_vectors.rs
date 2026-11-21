@@ -12,7 +12,7 @@ pub(super) fn keep_motion_vectors(car: &Car, tables: &PhysicsTables) {
     }
     let kept = &tables.kept_vectors;
     for k in 0..3 {
-        kept[k].set(car.velocity[k].get());
-        kept[4 + k].set(car.spin[k].get());
+        kept[k].set(car.velocity.at(k));
+        kept[4 + k].set(car.spin.at(k));
     }
 }

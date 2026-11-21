@@ -70,7 +70,7 @@ fn tests(car: &Car, tables: &PhysicsTables, gear_figures: &GearFigures) -> Resul
         || car.all_wheels_off.get() != 0,
         || car.brake.get() != 0,
         || !below(over, gear_figures.shift_up_point.get()),
-        || !below(car.local_velocity[2].get(), AUTO_GEAR_SPEED_DOWN),
+        || !below(car.local_velocity.at(2), AUTO_GEAR_SPEED_DOWN),
         || {
             let over = over_top(car).to_bits();
             if !shifts::above_first(gear) {
@@ -87,7 +87,7 @@ fn tests(car: &Car, tables: &PhysicsTables, gear_figures: &GearFigures) -> Resul
             };
             Ok(below(over, point))
         },
-        || below(car.local_velocity[2].get(), AUTO_GEAR_SPEED_UP),
+        || below(car.local_velocity.at(2), AUTO_GEAR_SPEED_UP),
     )
 }
 

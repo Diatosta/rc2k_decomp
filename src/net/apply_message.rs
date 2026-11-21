@@ -10,6 +10,8 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
+use crate::memory::plain_floats::PlainFloats;
+use crate::memory::session::Cell32;
 use crate::memory::session::PlainDword;
 use crate::net::owner::Net;
 use crate::net::send_inputs::fields;
@@ -22,23 +24,18 @@ use rc2k_core::net::race::{self, Arrival, Kind};
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr";
 
 /// A car's place (`position`).
-pub fn place(car: &Car) -> &[PlainDword; 3] {
+pub fn place(car: &Car) -> &PlainFloats<3> {
     &car.position
 }
 
 /// Where a place received goes, to be glided to (`glide_target`).
-pub fn wanted(car: &Car) -> &[PlainDword] {
+pub fn wanted(car: &Car) -> &PlainFloats<3> {
     &car.glide_target
 }
 
 /// The glide's steps left.
 pub(super) fn glide_steps(car: &Car) -> &PlainDword {
     &car.glide_steps_left
-}
-
-/// The three dwords' values.
-pub fn three(cells: &[PlainDword]) -> [u32; 3] {
-    [cells[0].get(), cells[1].get(), cells[2].get()]
 }
 
 /// A message no car could send, told once in the log.
@@ -80,7 +77,7 @@ pub fn apply_message(race: &Race, net: &Net, player: u32, message: &[u8]) -> Res
     for (n, (&(field, _), &value)) in table.iter().zip(&values).enumerate() {
         // The place received goes where the car is to be.
         if kind == Kind::Position && n < 3 {
-            wanted(car)[n].set(value);
+            wanted(car).set_bits_at(n, value);
         } else {
             field(car).set_bits(value);
         }
@@ -88,20 +85,16 @@ pub fn apply_message(race: &Race, net: &Net, player: u32, message: &[u8]) -> Res
     if kind != Kind::Position {
         return Ok(());
     }
-    let (wanted_place, now) = (three(wanted(car)), three(place(car)));
+    let (wanted_place, now) = (wanted(car).bits(), place(car).bits());
     let steps = car.step_clock.get();
     match race::arrival(wanted_place, now, steps, race::SNAP_FROM) {
         Arrival::Jump => {
-            for (cell, v) in place(car).iter().zip(wanted_place) {
-                cell.set(v);
-            }
+            place(car).set_bits(wanted_place);
             // The glide target now holds a place, not a step: a glide under way ends.
             glide_steps(car).set(0);
         }
         Arrival::Glide(step) => {
-            for (cell, v) in wanted(car).iter().zip(step) {
-                cell.set(v);
-            }
+            wanted(car).set_bits(step);
             glide_steps(car).set(race::GLIDE);
         }
     }
@@ -116,13 +109,11 @@ mod tests {
     #[test]
     fn the_places_sit_where_the_offsets_were() {
         let car = crate::test_support::own::race().shared.car();
-        let at = |cell: &PlainDword| {
-            crate::physics::car_offsets_1999::offset_1999(car, core::ptr::from_ref(cell).addr())
-                as u32
-        };
-        assert_eq!(at(&place(car)[0]), 0x134);
-        assert_eq!(at(&wanted(car)[0]), 0xFC0);
-        assert_eq!(at(glide_steps(car)), 0xFCC);
-        assert_eq!(at(&car.step_clock), 8);
+        let at = |addr: usize| crate::physics::car_offsets_1999::offset_1999(car, addr) as u32;
+        let of = |cell: &dyn crate::memory::session::Cell32| core::ptr::from_ref(cell).addr();
+        assert_eq!(at(place(car).cell_at(0).addr()), 0x134);
+        assert_eq!(at(wanted(car).cell_at(0).addr()), 0xFC0);
+        assert_eq!(at(of(glide_steps(car))), 0xFCC);
+        assert_eq!(at(of(&car.step_clock)), 8);
     }
 }

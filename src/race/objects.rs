@@ -180,14 +180,16 @@ fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         check_object_cars,
     };
     crate::scene::clear_slot_kinds::clear_slot_kinds(scene);
-    crate::memory::session::write_bits(&course.stage_prefs.get().fixed_kinds, FIXED_KINDS);
+    course.stage_prefs.borrow_mut().fixed_kinds = FIXED_KINDS;
     for n in DEFAULT_SLOTS {
         // Slots 56 .. 62 take `fixed_kinds`, just set above: the defaults table runs on into it (a
         // slip kept as is).
-        let n_defaults = course.stage_prefs.get().slot_kind_defaults.len();
-        let default = match course.stage_prefs.get().slot_kind_defaults.get(n as usize) {
-            Some(cell) => cell.get(),
-            None => course.stage_prefs.get().fixed_kinds[n as usize - n_defaults].get(),
+        let default = {
+            let prefs = course.stage_prefs.borrow();
+            match prefs.slot_kind_defaults.get(n as usize) {
+                Some(&kind) => kind,
+                None => prefs.fixed_kinds[n as usize - prefs.slot_kind_defaults.len()],
+            }
         };
         scene.texture_levels_mut().slot_kinds[n as usize] = default;
     }

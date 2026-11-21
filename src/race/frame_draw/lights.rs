@@ -22,7 +22,7 @@ pub fn car_light_modes(
     frame_cars: &crate::race::frame_view::FrameCars,
     states: &crate::race::car_draw_state::CarDrawState,
     work: &crate::race::work_store::RaceWork,
-    vars: &crate::race::vars_store::RaceVars,
+    vars: crate::race::vars_store::DrawnVarsRef<'_>,
     race_view: &crate::race::view_store::RaceView,
     mirrored: bool,
     view: u32,
@@ -41,7 +41,7 @@ pub fn car_light_modes(
         states.borrow_mut().set_state(car_block, 0)?;
     }
     use rc2k_core::race::lights::{light_word, lights_drawn};
-    let mode: u32 = vars.run_kind.get();
+    let mode: u32 = vars.run_kind();
     for n in 0..cars {
         // The state bits are the view's own; what decides them, the physics'.
         let this_car = frame_cars.car(block(n)?)?;
@@ -64,7 +64,7 @@ pub fn car_light_modes(
             me,
             || this_car.camera_mode_is_2_or_3.get() != 0,
             || this_car.camera_view.get(),
-            vars.settings_words[3].get(),
+            vars.settings_word(3),
         );
         states.borrow_mut().set_state(car_block, word)?;
     }
@@ -211,7 +211,7 @@ pub(super) fn car_lights_on_point(
     let blocks = &reads.car_blocks;
     let (race_work, race_vars, race_view) = (reads.work, reads.vars, reads.view);
     let cars: u32 = race_view.race_cars.get();
-    let all = race_vars.settings_words[4].get() == 1;
+    let all = race_vars.settings_word(4) == 1;
     let one = net_race.is_some() || race_view.lights_follow_view.get() != 0;
     for n in 0..cars {
         let trap = Trap::new();
@@ -227,7 +227,7 @@ pub(super) fn car_lights_on_point(
             || net_race.map_or_else(view_car, |n| n.player),
             all,
             || race_view.players.get(),
-            || race_vars.run_kind.get(),
+            || race_vars.run_kind(),
             view_car,
         );
         trap.finish()?;
@@ -333,7 +333,7 @@ pub fn view_light(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let (lamps, object_light, car) = (&view.lamps, &view.light, &view.car);
     let drawn_view = view.drawn_view(race);
     check_light_colour(ctx.reads.work, ctx.reads.view, lamps)?;
-    let car_place: [u32; 3] = crate::memory::session::read_bits(&car.position);
+    let car_place: [u32; 3] = car.position.bits();
     object_light.borrow_mut().lit_place = car_place;
     light_colour_at(
         ctx.reads,

@@ -577,8 +577,8 @@ fn run(o: &Owners<'static>, line: &str) {
                     format!(
                         "{n}:{}@{},{}",
                         car.checkpoint.get(),
-                        car.position[0].get() as i32,
-                        car.position[2].get() as i32
+                        car.position.bits_at(0) as i32,
+                        car.position.bits_at(2) as i32
                     )
                 })
                 .collect::<Vec<_>>()

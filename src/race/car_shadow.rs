@@ -283,7 +283,7 @@ fn shadow_polygon(
         e.point.set(point);
         e.light.set(0x00FF_FFFFu32);
         e.amount
-            .set((reads.stage_prefs.shadow_alpha.get() >> 1) as u8);
+            .set((reads.stage_prefs.read(|p| p.shadow_alpha) >> 1) as u8);
         circle_place(e, k, n, CIRCLE[0], CIRCLE[1]);
     }
     Ok(())
@@ -517,13 +517,15 @@ fn face_is_near(
         work.face_corners[2].get(),
     ];
     let trap = Trap::new();
-    let found =
-        rc2k_core::race::shadow::face_near((car.position[0].get(), car.position[2].get()), |n| {
+    let found = rc2k_core::race::shadow::face_near(
+        (car.position.bits_at(0), car.position.bits_at(2)),
+        |n| {
             point_xz(ctx.reads.course(), &ctx.part.points, corners[n]).unwrap_or_else(|e| {
                 trap.keep(e);
                 (0, 0)
             })
-        });
+        },
+    );
     trap.finish()?;
     Ok(found.near)
 }
@@ -760,7 +762,7 @@ fn shadow_faces(
         )?) else {
             continue;
         };
-        if cell_near_car((car.position[0].get(), car.position[2].get()), (x, z)) {
+        if cell_near_car((car.position.bits_at(0), car.position.bits_at(2)), (x, z)) {
             shadow_on_record(ctx, work, car, n)?;
         }
     }
@@ -823,8 +825,8 @@ pub(super) fn shadow_points(
         mark: reads.ground_probe.settle_mark,
     };
     let mut q = GroundSearch {
-        x: car.position[0].get(),
-        z: car.position[2].get(),
+        x: car.position.bits_at(0),
+        z: car.position.bits_at(2),
         last: car.probe_point_face[4].get(),
         ..GroundSearch::default()
     };
@@ -834,8 +836,7 @@ pub(super) fn shadow_points(
     let sun = sun.max(0x10);
     let turn = reads
         .stage_prefs
-        .sun_turn
-        .get()
+        .read(|p| p.sun_turn)
         .wrapping_neg()
         .wrapping_sub(0x40);
     sun_slant(work, sun, turn);
@@ -864,8 +865,8 @@ pub(super) fn shadow_points(
             work.farthest_length.set(length);
             work.farthest.set(k as u32);
         }
-        at.x.set((mul_to_int(x, unit) as u32).wrapping_add(car.position[0].get()));
-        at.z.set((mul_to_int(z, unit) as u32).wrapping_add(car.position[2].get()));
+        at.x.set((mul_to_int(x, unit) as u32).wrapping_add(car.position.bits_at(0)));
+        at.z.set((mul_to_int(z, unit) as u32).wrapping_add(car.position.bits_at(2)));
         at.y.set(work.ground.get());
     }
     Ok(())
@@ -954,8 +955,8 @@ pub(super) fn cast_car_shadows(
         work.point_count.set(car.probe_count.get());
         let body_matrix =
             &ctx.reads.car_parts.cars[ctx.reads.work.block_number(n as usize)?].body_matrix;
-        if first_pass(ctx.reads.vars.settings_words[2].get()) {
-            let sun: u32 = ctx.reads.stage_prefs.sun_height.get();
+        if first_pass(ctx.reads.vars.settings_word(2)) {
+            let sun: u32 = ctx.reads.stage_prefs.read(|p| p.sun_height);
             cast_car_shadow(ctx, &work, car, body_matrix, sun)?;
         }
         cast_car_shadow(ctx, &work, car, body_matrix, SUN_PASS)?;

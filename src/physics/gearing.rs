@@ -10,6 +10,7 @@ use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::plain_floats::PlainFloats;
 use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
@@ -24,7 +25,7 @@ pub(super) struct GearPlaces<'a> {
     pub drive_speed_b: &'a PlainFloat,
     pub drive_kind: &'a PlainDword,
     pub ratios: &'a [PlainFloat; 9],
-    pub speed: &'a PlainFloat,
+    pub local_velocity: &'a PlainFloats<3>,
 }
 
 impl<'a> GearPlaces<'a> {
@@ -36,7 +37,7 @@ impl<'a> GearPlaces<'a> {
             drive_speed_b: &car.drive_speed_b,
             drive_kind: &car.drive_kind,
             ratios: &tables.gear_ratios,
-            speed: &car.local_velocity[2],
+            local_velocity: &car.local_velocity,
         }
     }
 }
@@ -84,6 +85,6 @@ pub(super) fn revs_from_speed_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    p.engine_speed.set(x87::div(p.speed.get(), ratio));
+    p.engine_speed.set(x87::div(p.local_velocity.at(2), ratio));
     Ok(())
 }

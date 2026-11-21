@@ -23,14 +23,10 @@ pub fn ease_view_angles(
     }
     share_done(shared, view_record);
     let scratch = crate::memory::session::PlainDword::new(0);
-    for (to, rate) in shared
-        .car()
-        .camera_offset_turns
-        .iter()
-        .zip(&view_record.turn_rates)
-    {
+    for (k, rate) in view_record.turn_rates.iter().enumerate().take(3) {
         x87_1(numbers, shared.tables(), rate.get(), &scratch);
-        to.set(to.get().wrapping_add(scratch.get() << 16));
+        let turns = &shared.car().camera_offset_turns;
+        turns.set_bits_at(k, turns.bits_at(k).wrapping_add(scratch.get() << 16));
     }
     Ok(())
 }

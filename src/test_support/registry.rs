@@ -806,12 +806,52 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             &crate::race::viewer_state_store::RECTANGLES,
         ),
         listed!(
-            "owners.race.replay.viewer_and_kinds",
-            &o.race.replay.viewer_and_kinds,
+            "owners.race.replay.marks_settings",
+            on_game(o.race.replay.viewer_and_kinds.marks_settings.get()),
         ),
         listed!(
-            "owners.race.frame.lights_and_gear",
-            on_game(o.race.frame.lights_and_gear.get()),
+            "owners.race.replay.viewer_panel.untyped_tail",
+            on_game(
+                &o.race
+                    .replay
+                    .viewer_and_kinds
+                    .viewer_panel
+                    .get()
+                    .untyped_tail
+            ),
+        ),
+        listed!(
+            "owners.race.replay.viewer_panel.texel_scale",
+            on_game(
+                &o.race
+                    .replay
+                    .viewer_and_kinds
+                    .viewer_panel
+                    .get()
+                    .texel_scale
+            ),
+        ),
+        listed!(
+            "owners.race.replay.viewer_panel.reciprocal_width_800",
+            on_game(
+                &o.race
+                    .replay
+                    .viewer_and_kinds
+                    .viewer_panel
+                    .get()
+                    .reciprocal_width_800
+            ),
+        ),
+        listed!(
+            "owners.race.replay.viewer_panel.reciprocal_height_600",
+            on_game(
+                &o.race
+                    .replay
+                    .viewer_and_kinds
+                    .viewer_panel
+                    .get()
+                    .reciprocal_height_600
+            ),
         ),
         listed!(
             "owners.race.shared.car_blocks",
@@ -834,10 +874,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.shared.replay_file()),
         ),
         listed!(
-            "owners.race.replay.replay_view",
-            on_game(o.race.replay.replay_view()),
-        ),
-        listed!(
             "owners.race.course.number_vars",
             on_game(o.race.course.number_vars.get()),
         ),
@@ -847,14 +883,13 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.frame.view_and_records.get()),
         ),
         listed!(
-            "owners.race.course.stage_prefs",
-            on_game(o.race.course.stage_prefs.get()),
-        ),
-        listed!(
             "owners.race.shared.physics_tables",
             on_game(o.race.shared.physics_tables.get()),
         ),
-        listed!("owners.race.shared.vars", on_game(o.race.shared.vars.get()),),
+        listed!(
+            "owners.race.shared.vars.mud_scale_a",
+            on_game(&o.race.shared.vars.get().mud_scale_a),
+        ),
         listed!("owners.race.shared.view", on_game(o.race.shared.view.get()),),
         listed!("owners.race.shared.car", on_game(o.race.shared.car()),),
         listed!("owners.race.shared.work", on_game(o.race.shared.work.get()),),

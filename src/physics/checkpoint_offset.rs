@@ -35,16 +35,18 @@ pub fn checkpoint_offset(
     let angle = crate::race::checkpoints_store::angle_run_on(checkpoints, c as usize);
     let face = crate::race::checkpoints_store::face_run_on(checkpoints, c as usize);
     let point = crate::race::course_places::face_field::<u32>(course.reads(), face, 4)?;
-    let x = car.position[0]
-        .get()
+    let x = car
+        .position
+        .bits_at(0)
         .wrapping_sub(crate::race::scene_points::point_word(
             course.reads(),
             &crate::race::scene_points::no_own(),
             point,
             0,
         )?);
-    let z = car.position[2]
-        .get()
+    let z = car
+        .position
+        .bits_at(2)
         .wrapping_sub(crate::race::scene_points::point_word(
             course.reads(),
             &crate::race::scene_points::no_own(),

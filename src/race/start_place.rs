@@ -76,10 +76,10 @@ pub fn place_car_on_line(
             place.place_z = z;
             place.place_heading = heading;
         }
-        shared.car().position[0].set(x);
-        shared.car().position[2].set(z);
+        shared.car().position.set_bits_at(0, x);
+        shared.car().position.set_bits_at(2, z);
         shared.car().car_heading.set(heading);
-        shared.car().position[1].set(y);
+        shared.car().position.set_bits_at(1, y);
         Ok(())
     }
 }
@@ -296,8 +296,8 @@ pub fn nearest_checkpoint(
     {
         {
             let mut search = physics.ground_search().borrow_mut();
-            search.x = shared.car().position[0].get();
-            search.z = shared.car().position[2].get();
+            search.x = shared.car().position.bits_at(0);
+            search.z = shared.car().position.bits_at(2);
         }
         if count == 0 {
             return Ok(0);

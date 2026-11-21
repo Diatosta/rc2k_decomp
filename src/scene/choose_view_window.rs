@@ -41,6 +41,6 @@ pub fn choose_view_window(
         system.session.screen.get(),
         window,
         &race.frame.view_and_records.get().view_vars,
-        &race.shared.vars.get().scale_factor,
+        &crate::race::vars_store::SCALE_FACTOR,
     );
 }

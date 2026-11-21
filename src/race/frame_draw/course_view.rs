@@ -222,7 +222,7 @@ pub fn course_grid(
     vars: &crate::race::view_vars_store::ViewVarsCopy,
 ) -> Result<(), Refused> {
     use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
-    let half = hold_to_limit(work, course.stage_prefs.grid_reach.get());
+    let half = hold_to_limit(work, course.stage_prefs.read(|p| p.grid_reach));
     let span = half.wrapping_add(half);
     let (gx, gz) = grid_corner(vars.view_x.get(), vars.view_z.get(), half);
     let mut grid = view.borrow_mut();
@@ -434,7 +434,7 @@ pub fn prepare_course_view(
     if reads.switches.scene_set_up() == 0 {
         return Ok(());
     }
-    let limit = if reads.vars.checkpoint_count.get() >= 2 {
+    let limit = if reads.vars.checkpoint_count() >= 2 {
         checkpoint_colours(reads.checkpoints, reads.course(), &view.car)?
     } else {
         0x10

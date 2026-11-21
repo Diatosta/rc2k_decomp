@@ -106,8 +106,7 @@ pub(super) fn build_texture_infos(race: &Race) -> Result<(), Refused> {
     if !crate::race::course_places::info_held(&course.stage.course) {
         return Ok(());
     }
-    let kinds: [u32; TEXTURES as usize] =
-        std::array::from_fn(|n| course.stage_prefs.get().texture_kinds[n].get());
+    let kinds: [u32; TEXTURES as usize] = course.stage_prefs.borrow().texture_kinds;
     let trap = Trap::new();
     let infos = texture_infos(&kinds, |kind| {
         if kind as usize >= INFO_SIZE / KIND_RECORD {

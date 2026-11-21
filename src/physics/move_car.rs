@@ -15,8 +15,9 @@ pub(super) fn move_car(car: &Car, numbers: &Numbers) -> u32 {
     let mut last = 0;
     // x, then z, then y.
     for k in [0, 2, 1] {
-        last = mul2_to_int(car.velocity[k].get(), k65536, dt) as u32;
-        car.position[k].set(car.position[k].get().wrapping_add(last));
+        last = mul2_to_int(car.velocity.at(k), k65536, dt) as u32;
+        car.position
+            .set_bits_at(k, car.position.bits_at(k).wrapping_add(last));
     }
     last
 }

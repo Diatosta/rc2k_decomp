@@ -5,43 +5,33 @@
 //! `viewer_state_store::PICTURES[n]`. A key table in the same store says which item each arrow
 //! key moves the highlight to.
 
-use crate::memory::session::PlainByte;
+use std::cell::Cell;
 
 /// How many items the list holds.
 pub const ITEMS: u32 = 26;
 
 /// One button of the list.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewerItem {
     /// The kind (low nibble) and the marks (high bits).
-    pub first: PlainByte,
+    pub first: Cell<u8>,
 }
 
 impl ViewerItem {
     pub const fn new(first: u8) -> Self {
         Self {
-            first: PlainByte::new(first),
+            first: Cell::new(first),
         }
     }
 }
 
 /// The viewer's list.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewerList {
     pub items: [ViewerItem; ITEMS as usize],
-    /// Keeps the list's size a multiple of four: a record of cells in a `#[repr(C)]` record has
-    /// no padding.
-    spare: [PlainByte; 2],
 }
 
 impl ViewerList {
     pub const fn new(items: [ViewerItem; ITEMS as usize]) -> Self {
-        Self {
-            items,
-            spare: [const { PlainByte::new(0) }; 2],
-        }
+        Self { items }
     }
 
     /// Item `n`. The viewer's counts stay within the list; an item past it is refused.

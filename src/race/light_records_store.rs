@@ -1,30 +1,26 @@
 //! The models' light records: `light_records`, 34 records of 0x134 bytes, one per model (car) kind:
 //! its axle figures, the groups' numbers and the lights' data (`race::copy_lights_data` lays the
-//! last in from `ldata`). Plain cells: part of a drawing store
-//! (`race::groups_store::LightsAndGear`), written on the game's thread at a stage's load and read
-//! by the drawing parts.
+//! last in from `ldata`). A plain record (`session::DrawArc`, `Frame::light_records`) written on
+//! the game's thread at a stage's load and read there and by the drawing parts, which share the
+//! record as it stood when their scope opened (`LightRecordsRef`).
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::first_cells::plain_dwords;
-use crate::memory::session::PlainDword;
-#[cfg(test)]
-use crate::test_support::own::race;
+use crate::memory::session::{ArcRead, DrawArc};
 
 /// One model's record.
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(Clone)]
 pub struct LightRecord {
     /// Eleven dwords (the camera's and the car's figures, read by `physics::update_camera`,
     /// `race::car_draw` and `drive::share_car_state`).
-    pub head: [PlainDword; 11],
+    pub head: [u32; 11],
     /// The five axle values (`race::car_parts`) followed by the six listener figures
     /// (`drive::set_listener`).
-    pub axles: [PlainDword; 11],
+    pub axles: [u32; 11],
     /// The group numbers of the model's parts (`scene::load_object`,
     /// `scene::list_object_face`, `effects::init_mark_step`, `race::car_draw`).
-    pub groups: [PlainDword; 19],
+    pub groups: [u32; 19],
     /// 0x90 bytes of the lights' data (`race::copy_lights_data`, `race::frame_draw`).
-    pub lights: [PlainDword; 36],
+    pub lights: [u32; 36],
 }
 
 const _: () = assert!(core::mem::size_of::<LightRecord>() == 0x134);
@@ -483,8 +479,7 @@ const FIRST_RECORDS: [([u32; 11], [u32; 11], [u32; 19]); 34] = [
 ];
 
 /// The models' records.
-#[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(Clone)]
 pub struct LightRecords {
     pub records: [LightRecord; 34],
 }
@@ -492,19 +487,60 @@ pub struct LightRecords {
 impl LightRecords {
     /// The 34 models' records as the game starts.
     pub const fn new() -> Self {
-        let mut records: [LightRecord; 34] = ZeroCells::ZERO;
+        let mut records = [const {
+            LightRecord {
+                head: [0; 11],
+                axles: [0; 11],
+                groups: [0; 19],
+                lights: [0; 36],
+            }
+        }; 34];
         let mut k = 0;
         while k < 34 {
             let (head, axles, groups) = &FIRST_RECORDS[k];
             records[k] = LightRecord {
-                head: plain_dwords(*head),
-                axles: plain_dwords(*axles),
-                groups: plain_dwords(*groups),
-                ..ZeroCells::ZERO
+                head: *head,
+                axles: *axles,
+                groups: *groups,
+                lights: [0; 36],
             };
             k += 1;
         }
         LightRecords { records }
+    }
+}
+
+/// The records as one reader finds them: the game's thread's own (read through the store when
+/// used), or a drawing part's share of them.
+#[derive(Clone, Copy)]
+pub enum LightRecordsRef<'a> {
+    Store(&'a DrawArc<LightRecords>),
+    Copy(&'a LightRecords),
+}
+
+impl LightRecordsRef<'_> {
+    /// `f` on the records as they stand (a short read: nothing in `f` may write the store).
+    pub fn read<R>(self, f: impl FnOnce(&LightRecords) -> R) -> R {
+        match self {
+            Self::Store(store) => f(&store.borrow()),
+            Self::Copy(records) => f(records),
+        }
+    }
+
+    /// `LightRecords::group_at` on the records as they stand.
+    pub fn group_at(
+        self,
+        gear: &crate::physics::gear_store::GearFigures,
+        index: u32,
+        offset: u32,
+    ) -> Result<u32, crate::errors::BadInput> {
+        self.read(|records| records.group_at(gear, index, offset))
+    }
+}
+
+impl<'a> From<&'a ArcRead<LightRecords>> for LightRecordsRef<'a> {
+    fn from(share: &'a ArcRead<LightRecords>) -> Self {
+        Self::Copy(share)
     }
 }
 
@@ -525,7 +561,7 @@ impl LightRecords {
             None => self.records[index as usize]
                 .groups
                 .get(group)
-                .map(crate::memory::session::PlainDword::get)
+                .copied()
                 .ok_or(crate::errors::BadInput(PAST)),
             Some(0) => {
                 // The offset counts from the start of the record's groups; the dword that
@@ -544,21 +580,6 @@ impl LightRecords {
     }
 }
 
-/// The records as a field of `Frame::lights_and_gear` (tests).
-#[cfg(test)]
-pub struct InGroup;
-
-#[cfg(test)]
-impl core::ops::Deref for InGroup {
-    type Target = LightRecords;
-    fn deref(&self) -> &LightRecords {
-        &race().frame.lights_and_gear.get().light_records
-    }
-}
-
-#[cfg(test)]
-pub static LIGHT_RECORDS: InGroup = InGroup;
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -567,12 +588,13 @@ mod tests {
     fn a_record_past_the_last_reads_on_into_the_gear_figures_and_no_further() {
         // The longest read: a group number of the kind past the 34 (`scene::load_object`).
         let gear = crate::test_support::own::race().physics.gear();
-        assert!(LIGHT_RECORDS.group_at(gear, 34, 0x3C).is_ok());
+        let records = LightRecords::new();
+        assert!(records.group_at(gear, 34, 0x3C).is_ok());
         assert_eq!(
-            LIGHT_RECORDS.group_at(gear, 34, 0).ok(),
+            records.group_at(gear, 34, 0).ok(),
             Some(gear.test_speeds[7].get().to_bits())
         );
-        assert!(LIGHT_RECORDS.group_at(gear, 35, 0).is_err());
-        assert!(LIGHT_RECORDS.group_at(gear, 1, 0x1000).is_err());
+        assert!(records.group_at(gear, 35, 0).is_err());
+        assert!(records.group_at(gear, 1, 0x1000).is_err());
     }
 }

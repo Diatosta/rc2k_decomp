@@ -70,11 +70,9 @@ fn picture_places() -> impl Iterator<Item = u32> {
 
 fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
     {
-        crate::memory::session::write_bits(&course.stage_prefs.get().lit_colour, [0xFFu32; 3]);
-        crate::memory::session::write_bits(
-            &course.stage_prefs.get().dark_colour,
-            [0u32, 0, dark_third],
-        );
+        let mut prefs = course.stage_prefs.borrow_mut();
+        prefs.lit_colour = [0xFF; 3];
+        prefs.dark_colour = [0, 0, dark_third];
     }
 }
 
@@ -104,16 +102,17 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     clear_slot_kinds(scene);
     colours(course, 0);
     // The scene's settings stored before the fog is cleared, after the two colours.
-    course.stage_prefs.get().scene_size_a.set(0x100u32);
-    course.stage_prefs.get().scene_size_b.set(0x100u32);
-    course.stage_prefs.get().fog_low.set(0u32);
-    course.stage_prefs.get().fog_high.set(0u32);
-    course.stage_prefs.get().fog_colour[0].set(0u32);
-    course.stage_prefs.get().fog_colour[1].set(0u32);
-    course.stage_prefs.get().fog_colour[2].set(0u32);
-    course.stage_prefs.get().fog_near.set(0u32);
-    course.stage_prefs.get().fog_start.set(0u32);
-    course.stage_prefs.get().fog_end.set(0u32);
+    {
+        let mut prefs = course.stage_prefs.borrow_mut();
+        prefs.scene_size_a = 0x100;
+        prefs.scene_size_b = 0x100;
+        prefs.fog_low = 0;
+        prefs.fog_high = 0;
+        prefs.fog_colour = [0; 3];
+        prefs.fog_near = 0;
+        prefs.fog_start = 0;
+        prefs.fog_end = 0;
+    }
     o.scene.scratch.front_end().fog.borrow_mut().clear();
     shared.switches.borrow_mut().scene_set_up = 1u32;
     fill_light_tables(scene, race)?;

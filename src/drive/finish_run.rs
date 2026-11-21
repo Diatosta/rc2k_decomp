@@ -18,10 +18,13 @@ use crate::race::owner::Race;
 
 /// The car's lift: `CarBlocks.cars[0].position[1]` += `car_lift` x `k65536`.
 fn lift_car(race: &Race, k65536: crate::memory::session::ConstFloat) {
-    race.car_blocks().cars[0].position[1].set(to_int(
-        ld(race.replay.finish().car_lift) * ld(k65536.get())
-            + int(race.car_blocks().cars[0].position[1].get() as i32),
-    ) as u32);
+    race.car_blocks().cars[0].position.set_bits_at(
+        1,
+        to_int(
+            ld(race.replay.finish().car_lift) * ld(k65536.get())
+                + int(race.car_blocks().cars[0].position.bits_at(1) as i32),
+        ) as u32,
+    );
 }
 
 pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {

@@ -698,7 +698,7 @@ mod vector_tests {
         ("owners.menus.play.slots.pointers", "[0]", 0, 0x10),
         ("owners.menus.play.arcade", ".scene_let_go", 0, 0x4),
         ("owners.menus.play.champ_view", ".summary", 0, 0x4),
-        ("owners.race.replay.viewer_and_kinds", ".marks_settings.after_loading_copy", 0, 0x4),
+        ("owners.race.replay.marks_settings", ".after_loading_copy", 0, 0x4),
         ("owners.race.shared.state", ".settings.rivals", 0, 0x4),
         ("owners.race.shared.state", ".settings.stage", 0, 0x4),
         ("owners.race.shared.state", ".settings.run_kind", 0, 0x4),
@@ -933,7 +933,7 @@ mod vector_tests {
     /// The stores the test writes.
     const STORES: [&str; 4] = [
         "owners.menus.play.slots.pointers",
-        "owners.race.replay.viewer_and_kinds",
+        "owners.race.replay.marks_settings",
         "owners.race.shared.state",
         "owners.system.records.stage_tables",
     ];

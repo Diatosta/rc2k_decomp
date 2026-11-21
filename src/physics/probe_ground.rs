@@ -127,12 +127,12 @@ fn probe_points(
         work.probe_turned_x[i] = ox;
         work.probe_turned_y[i] = oy;
         work.probe_turned_z[i] = oz;
-        for (v, place, list) in [
-            (ox, &car.position[0], &mut work.probe_x[i]),
-            (oy, &car.position[1], &mut work.probe_y[i]),
-            (oz, &car.position[2], &mut work.probe_z[i]),
+        for (v, axis, list) in [
+            (ox, 0, &mut work.probe_x[i]),
+            (oy, 1, &mut work.probe_y[i]),
+            (oz, 2, &mut work.probe_z[i]),
         ] {
-            let w = (x87::mul_to_int(v, k65536) as u32).wrapping_add(place.get());
+            let w = (x87::mul_to_int(v, k65536) as u32).wrapping_add(car.position.bits_at(axis));
             *list = w;
         }
         q.x = work.probe_x[i];

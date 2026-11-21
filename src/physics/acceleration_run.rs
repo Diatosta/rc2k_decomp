@@ -33,7 +33,10 @@ fn step(
     figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    shared.car().local_velocity[2].set(crate::math::x87::loaded(&shared.car().drive_speed_a));
+    shared
+        .car()
+        .local_velocity
+        .set_at(2, crate::math::x87::loaded(&shared.car().drive_speed_a));
     crate::physics::count_down_timers::count_down_timers(shared.car(), shared.vars.get());
     crate::physics::gearbox_step::gearbox_step(&course.numbers, shared, figures)?;
     crate::physics::engine_torque::engine_torque(course, shared, scene);

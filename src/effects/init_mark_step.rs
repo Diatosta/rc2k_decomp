@@ -12,23 +12,25 @@
 use crate::effects::owner::Effects;
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::race::light_records_store::LightRecords;
+use crate::race::light_records_store::LightRecordsRef;
 use crate::race::owner::Race;
 /// Group `group` of the kind's row: the rows start at the sixth group of a record, and the kind
 /// is held to the 23 records the rows are laid in, so the groups asked (up to the tenth) fall
 /// inside that record's groups.
-fn kind_row_word(records: &LightRecords, kind: i32, group: usize) -> Result<u32, BadInput> {
+fn kind_row_word(records: LightRecordsRef<'_>, kind: i32, group: usize) -> Result<u32, BadInput> {
     use rc2k_core::effects::race;
     const SIXTH_GROUP: usize = 5;
-    let record = records
-        .records
-        .get(race::kind_row(kind) / race::ROW_LEN)
-        .ok_or(BadInput("a kind's row past the light records"))?;
-    record
-        .groups
-        .get(SIXTH_GROUP + group)
-        .map(crate::memory::session::PlainDword::get)
-        .ok_or(BadInput("a kind's row field past the groups"))
+    records.read(|records| {
+        let record = records
+            .records
+            .get(race::kind_row(kind) / race::ROW_LEN)
+            .ok_or(BadInput("a kind's row past the light records"))?;
+        record
+            .groups
+            .get(SIXTH_GROUP + group)
+            .copied()
+            .ok_or(BadInput("a kind's row field past the groups"))
+    })
 }
 
 // The logic is in `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
@@ -94,18 +96,31 @@ pub fn init_mark_step(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::race::light_records_store::LightRecords;
     use rc2k_core::effects::race::{self, SLOT_KIND_GROUPS};
 
     /// Each field of each kind's row is the dword the row's byte offset names.
     #[test]
     fn row_words_as_the_old_read() {
-        let records = Box::new(LightRecords::new());
-        for (k, record) in records.records.iter().enumerate() {
-            for (g, cell) in record.groups.iter().enumerate() {
-                cell.set(0x1000 * k as u32 + g as u32);
+        let mut records = Box::new(LightRecords::new());
+        for (k, record) in records.records.iter_mut().enumerate() {
+            for (g, word) in record.groups.iter_mut().enumerate() {
+                *word = 0x1000 * k as u32 + g as u32;
             }
         }
-        let laid = crate::memory::cells::flatten(&records.records);
+        // The records' words in their layout: head, axles, groups, lights.
+        let laid: Vec<u8> = records
+            .records
+            .iter()
+            .flat_map(|r| {
+                r.head
+                    .iter()
+                    .chain(&r.axles)
+                    .chain(&r.groups)
+                    .chain(&r.lights)
+            })
+            .flat_map(|word| word.to_le_bytes())
+            .collect();
         for kind in -3..40 {
             let row = (0x6C + race::kind_row(kind)) as u32 as usize;
             for group in SLOT_KIND_GROUPS {
@@ -115,7 +130,11 @@ mod tests {
                     .and_then(|rest| rest.first_chunk::<4>())
                     .map(|bytes| u32::from_le_bytes(*bytes))
                     .ok_or(crate::errors::BadInput("past the end of a record"));
-                assert_eq!(kind_row_word(&records, kind, group), old, "{kind} {offset}");
+                assert_eq!(
+                    kind_row_word(LightRecordsRef::Copy(&records), kind, group),
+                    old,
+                    "{kind} {offset}"
+                );
             }
         }
     }

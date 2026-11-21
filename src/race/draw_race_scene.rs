@@ -515,14 +515,13 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     ] {
         slot.cars.borrow_mut().cars_drawn = 0;
     }
-    scene.light_work_mut().marks_mask =
-        (race.course.stage_prefs.get().refresh_flags_a.get() & 2) >> 1;
-    scene.light_work_mut().lamps_mask = race.course.stage_prefs.get().refresh_flags_b.get() & 1;
+    scene.light_work_mut().marks_mask = (race.course.stage_prefs.borrow().refresh_flags_a & 2) >> 1;
+    scene.light_work_mut().lamps_mask = race.course.stage_prefs.borrow().refresh_flags_b & 1;
     let value = race.frame.panel.borrow().hud_flags[0] & 0x40;
     race.frame.panel.borrow_mut().flat = value;
     race.frame.frame_work.borrow_mut().mirror_wanted = false;
-    if race.course.stage_prefs.get().precipitation_range[0].get()
-        | race.course.stage_prefs.get().precipitation_range[1].get()
+    if race.course.stage_prefs.borrow().precipitation_range[0]
+        | race.course.stage_prefs.borrow().precipitation_range[1]
         != 0
     {
         let wanted = race.frame.cars.car(blocks[0])?.camera_mode_is_2_or_3.get() != 0;
@@ -639,7 +638,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
                 },
                 own,
                 &reads.view_and_records.view_vars,
-                &reads.vars.scale_factor,
+                &crate::race::vars_store::SCALE_FACTOR,
             );
         };
         if crate::scene::workers::players_beside() {

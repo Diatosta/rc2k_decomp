@@ -33,13 +33,13 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
         self.3.map_or(0, |net_race| net_race.player)
     }
     fn all_cars(&self) -> bool {
-        self.4.vars.settings_words[4].get() == 1
+        self.4.vars.settings_word(4) == 1
     }
     fn near(&self) -> u32 {
         self.4.view.players.get()
     }
     fn view(&self) -> u32 {
-        self.4.vars.run_kind.get()
+        self.4.vars.run_kind()
     }
     fn drawn(&self) -> u32 {
         self.1

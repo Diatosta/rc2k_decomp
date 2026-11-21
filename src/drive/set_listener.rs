@@ -26,7 +26,10 @@ fn figures(race: &Race, net_race: Option<NetRace>, viewed: u32) -> Result<[i32; 
     let mut out = [0i32; 6];
     for (k, o) in out.iter_mut().enumerate() {
         // The car file's light record's `axles[5 + k]`.
-        *o = listener::light_figure(race.light_records().records[n as usize].axles[5 + k].get())?;
+        *o = listener::light_figure(
+            race.light_records()
+                .read(|l| l.records[n as usize].axles[5 + k]),
+        )?;
     }
     Ok(out)
 }
@@ -87,7 +90,7 @@ pub fn set_listener(
     let s = race
         .shared
         .race_car_or(view.drawn_view as usize, "a car's block")?;
-    let place: [u32; 3] = crate::memory::session::read_all(&s.position);
+    let place: [u32; 3] = s.position.bits();
     let strength: u32 = race
         .car_blocks()
         .parts_of(race.car_parts(), s)

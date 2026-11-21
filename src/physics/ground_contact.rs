@@ -32,9 +32,9 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     }
     let n = point_number(c.contact)?;
     c.contact.borrow_mut().ground_contact_started = 1;
-    c.car.contact_point[0].set(c.car.probe_point_x[n].get());
-    c.car.contact_point[1].set(c.car.probe_point_y[n].get());
-    c.car.contact_point[2].set(c.car.probe_point_z[n].get());
+    c.car.contact_point.set_at(0, c.car.probe_point_x[n].get());
+    c.car.contact_point.set_at(1, c.car.probe_point_y[n].get());
+    c.car.contact_point.set_at(2, c.car.probe_point_z[n].get());
     take_contact(c.contact, &c.ground.probes.borrow(), c.course, c.car, n)?;
     c.contact.borrow_mut().contact_slide_limit = 0;
     contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[2]);

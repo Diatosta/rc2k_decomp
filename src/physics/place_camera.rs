@@ -69,14 +69,14 @@ fn place_with(
     );
     for (y_turn, z_turn, x_turn) in [
         (
-            &shared.car().camera_offset_turns[2],
-            &shared.car().camera_offset_turns[0],
-            &shared.car().camera_offset_turns[1],
+            shared.car().camera_offset_turns.bits_at(2),
+            shared.car().camera_offset_turns.bits_at(0),
+            shared.car().camera_offset_turns.bits_at(1),
         ),
         (
-            &shared.car().camera_roll_turn,
-            &shared.car().camera_pitch,
-            &shared.car().camera_heading,
+            shared.car().camera_roll_turn.get(),
+            shared.car().camera_pitch.get(),
+            shared.car().camera_heading.get(),
         ),
     ] {
         let i = |v: u32| v as i32;
@@ -86,7 +86,7 @@ fn place_with(
                 i(y),
                 i(z),
                 i(x),
-                y_turn.get(),
+                y_turn,
             )
         };
         y = new_y;
@@ -97,7 +97,7 @@ fn place_with(
                 i(z),
                 i(x),
                 i(y),
-                z_turn.get(),
+                z_turn,
             )
         };
         z = new_z;
@@ -108,27 +108,27 @@ fn place_with(
                 i(x),
                 i(y),
                 i(z),
-                x_turn.get(),
+                x_turn,
             )
         };
         x = new_x;
         z = new_z;
     }
-    shared.car().camera_position[0].set(x);
-    shared.car().camera_position[1].set(y);
-    shared.car().camera_position[2].set(z);
+    shared.car().camera_position.set_bits_at(0, x);
+    shared.car().camera_position.set_bits_at(1, y);
+    shared.car().camera_position.set_bits_at(2, z);
     // The second offset, turned with the car.
     let whole = second();
     let car = frame_work.borrow().camera_car;
     let place = [
-        shared.car().camera_position[0].get(),
-        shared.car().camera_position[1].get(),
-        shared.car().camera_position[2].get(),
+        shared.car().camera_position.bits_at(0),
+        shared.car().camera_position.bits_at(1),
+        shared.car().camera_position.bits_at(2),
     ];
     let (_, place) = add_offset(place, whole, car);
-    shared.car().camera_position[0].set(place[0]);
-    shared.car().camera_position[1].set(place[1]);
-    shared.car().camera_position[2].set(place[2]);
+    shared.car().camera_position.set_bits_at(0, place[0]);
+    shared.car().camera_position.set_bits_at(1, place[1]);
+    shared.car().camera_position.set_bits_at(2, place[2]);
 }
 
 /// The exact version, for `physics::camera_avoid_ground`.

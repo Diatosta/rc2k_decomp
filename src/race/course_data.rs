@@ -162,7 +162,7 @@ pub(super) fn locate_current_course(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    course.stage_prefs.get().cdat_number.set(0u32);
+    course.stage_prefs.borrow_mut().cdat_number = 0u32;
     crate::logfile::load_times::mark("load_level");
     load_level(race)?;
     crate::logfile::load_times::mark("group_records_by_kind");

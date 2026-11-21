@@ -2788,7 +2788,7 @@ pub static GROUPS: &[Group] = &[
                 "Grid reach",
                 "levddist",
                 Shown::Whole,
-                store_cell!(|o| o.race.course.stage_prefs.get(), grid_reach),
+                store_cell!(|o| o.race.course.stage_prefs.borrow(), grid_reach),
                 false,
                 (0, 0),
             ),

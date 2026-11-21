@@ -38,7 +38,7 @@ fn run(car: &Car, numbers: &Numbers) {
 /// `two_and_a_quarter`, the squares added in the order z, then x and y.
 fn run_at(car: &Car, numbers: &Numbers) {
     car.engine_speed_scaled
-        .st(car.local_velocity[2].ld() * numbers.two_and_a_quarter.ld());
+        .st(car.local_velocity.ld(2) * numbers.two_and_a_quarter.ld());
     let speed = car.engine_speed_scaled.ld();
     let flags = car.option_bits.get();
     let scaled = if flags & 0x100 != 0 {
@@ -47,11 +47,7 @@ fn run_at(car: &Car, numbers: &Numbers) {
         speed
     };
     car.engine_sound_speed_int.set(to_int(scaled) as u32);
-    let (z, x, y) = (
-        car.velocity[2].ld(),
-        car.velocity[0].ld(),
-        car.velocity[1].ld(),
-    );
+    let (z, x, y) = (car.velocity.ld(2), car.velocity.ld(0), car.velocity.ld(1));
     let sum = z * z + (x * x + y * y);
     car.sound_speed
         .set(stf(sum.sqrt() * numbers.two_and_a_quarter.ld()));

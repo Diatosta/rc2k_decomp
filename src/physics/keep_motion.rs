@@ -5,7 +5,7 @@ use crate::physics::tables_store::PhysicsTables;
 
 /// Bit copies of floats into words.
 pub(super) fn keep_motion(car: &Car, tables: &PhysicsTables) {
-    for (kept, v) in tables.kept_motion.iter().zip(&car.local_velocity) {
-        kept.set(v.get());
+    for (kept, v) in tables.kept_motion.iter().zip(car.local_velocity.get()) {
+        kept.set(v);
     }
 }

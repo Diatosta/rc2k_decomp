@@ -7,7 +7,7 @@ use crate::race::blocks_store::CarBlocks;
 use crate::race::checkpoints_store::CheckpointsRef;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::kind_store::KindTables;
-use crate::race::light_records_store::LightRecords;
+use crate::race::light_records_store::LightRecordsRef;
 use crate::race::owner::Race;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::viewer_buffers_store::ViewerBuffers;
@@ -93,8 +93,8 @@ impl Race {
     }
 
     /// The light records.
-    pub fn light_records(&self) -> &LightRecords {
-        &self.frame.lights_and_gear.get().light_records
+    pub fn light_records(&self) -> LightRecordsRef<'_> {
+        LightRecordsRef::Store(&self.frame.light_records)
     }
 
     /// The engine tables.

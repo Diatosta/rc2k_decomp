@@ -15,11 +15,11 @@ pub(super) fn hold_spin_on_ground(car: &Car, tables: &PhysicsTables) {
     }
     let (mut limit, mut x, mut z) = (
         tables.ground_spin_limit.get(),
-        car.spin[0].get(),
-        car.spin[2].get(),
+        car.spin.at(0),
+        car.spin.at(2),
     );
     hold_spin(&mut limit, &mut x, &mut z);
     tables.ground_spin_limit.set(limit);
-    car.spin[0].set(x);
-    car.spin[2].set(z);
+    car.spin.set_at(0, x);
+    car.spin.set_at(2, z);
 }

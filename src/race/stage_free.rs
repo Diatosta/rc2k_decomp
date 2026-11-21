@@ -69,8 +69,7 @@ pub(super) const OBJECT_POINTS: Freeing = Freeing {
 pub(super) const MUD: Freeing = Freeing {
     list: |race| &race.course.memory().mud_list,
     counted: true,
-    // mud
-    cleared: &[|race| race.shared.vars.get().mud.set(0)],
+    cleared: &[],
     given_back: |race, _| race.course.stage.mud.give_back(),
 };
 

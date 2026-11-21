@@ -71,8 +71,8 @@ fn face_checkpoint(
         )
         .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e))
     };
-    let first = shared.car().position[0].get().wrapping_sub(coordinate(0));
-    let second = shared.car().position[2].get().wrapping_sub(coordinate(2));
+    let first = shared.car().position.bits_at(0).wrapping_sub(coordinate(0));
+    let second = shared.car().position.bits_at(2).wrapping_sub(coordinate(2));
     let angle = crate::scene::angle_between::angle_of(course, first, second);
     shared.car().camera_heading.set(angle << 16);
     true

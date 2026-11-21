@@ -227,7 +227,7 @@ fn steps(
             work.borrow_mut().axle_slips[axle] = slip;
         }
         // The car-frame side speed eased by the side grip.
-        scratch.set_float(car.local_velocity[0].get());
+        scratch.set_float(car.local_velocity.at(0));
         ease_zero(&scratch, physics_tables.drive_limits[2].get());
         side_slip_forces(car, physics_tables, work, &course.numbers, &scratch);
         store_loaded(&physics_tables.slip_limit, &physics_tables.drive_limits[0]);
@@ -325,7 +325,7 @@ fn abs_status(v: [u32; 2]) -> u16 {
 /// One straight x87 run as plain Rust over `X`.
 fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &PlainFloat, r: &PlainFloat) {
     let t0 = d.ld();
-    let t1 = car.local_velocity[2].ld();
+    let t1 = car.local_velocity.ld(2);
     let t2 = t0 - t1;
     let t3 = tables.spec_wheel.ld();
     let t4 = t2 / t3;
@@ -365,7 +365,7 @@ fn apply_slip_to_drive(
 /// One straight x87 run as plain Rust over `X`.
 fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &PlainFloat, r: &PlainFloat) {
     let t0 = d.ld();
-    let t1 = car.local_velocity[2].ld();
+    let t1 = car.local_velocity.ld(2);
     let t2 = t0 - t1;
     let t3 = tables.spec_wheel.ld();
     let t4 = t2 / t3;
@@ -449,7 +449,7 @@ fn throttle_drive_limit(
     let t0 = int(scratch.get() as i32);
     let t1 = numbers.k256.ld();
     let t2 = t0 / t1;
-    let t3 = car.local_velocity[0].ld();
+    let t3 = car.local_velocity.ld(0);
     let t4 = tables.wheel_load.ld();
     let t5 = t3 * t4;
     let t6 = t5.abs();
@@ -580,12 +580,12 @@ fn handbrake_stop_status(a: impl x87::Flt, b: impl x87::Flt, limit: impl x87::Fl
 /// One straight x87 run as plain Rust over `X`.
 fn slip_gaps(car: &Car, work: &RefCell<WheelWork>) {
     let t0 = car.drive_speed_b.ld();
-    let t1 = car.local_velocity[2].ld();
+    let t1 = car.local_velocity.ld(2);
     let t2 = t0 - t1;
     let t3 = t2.abs();
     let rear = st(t3);
     let t4 = car.drive_speed_a.ld();
-    let t5 = car.local_velocity[2].ld();
+    let t5 = car.local_velocity.ld(2);
     let t6 = t4 - t5;
     let t7 = t6.abs();
     let front = st(t7);
@@ -618,7 +618,7 @@ fn side_slip_forces(
     scratch: &crate::memory::session::PlainDword,
 ) {
     let t0 = scratch.ld();
-    let t1 = car.local_velocity[0].ld();
+    let t1 = car.local_velocity.ld(0);
     let t2 = t0 - t1;
     work.borrow_mut().drive_slip[0] = st(t2);
     let t3 = numbers.step_time.ld();
@@ -666,9 +666,9 @@ fn speed_over_ground(
     tables: &PhysicsTables,
     scratch: &crate::memory::session::PlainDword,
 ) -> u16 {
-    let t0 = car.local_velocity[0].ld();
+    let t0 = car.local_velocity.ld(0);
     let t1 = t0 * t0;
-    let t2 = car.local_velocity[2].ld();
+    let t2 = car.local_velocity.ld(2);
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
@@ -686,14 +686,14 @@ fn rolling_drag_forces(
     let t0 = tables.wheel_drag[0].ld();
     let t1 = scratch.ld();
     let t2 = t0 / t1;
-    let t3 = car.local_velocity[0].ld();
+    let t3 = car.local_velocity.ld(0);
     let t4 = t2 * t3;
     let t5 = -t4;
     tables.forces[10].force[0].st(t5);
     let t6 = tables.wheel_drag[0].ld();
     let t7 = scratch.ld();
     let t8 = t6 / t7;
-    let t9 = car.local_velocity[2].ld();
+    let t9 = car.local_velocity.ld(2);
     let t10 = t8 * t9;
     let t11 = -t10;
     tables.forces[10].force[2].st(t11);
@@ -730,7 +730,7 @@ fn share_wheel_forces(tables: &PhysicsTables, numbers: &Numbers) {
 /// One straight x87 run as plain Rust over `X`.
 fn slip_figure_a(car: &Car, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = car.drive_speed_a.ld();
-    let t1 = car.local_velocity[2].ld();
+    let t1 = car.local_velocity.ld(2);
     let t2 = t0 - t1;
     car.drive_slip_speed.st(t2);
     let t3 = t2.abs();
@@ -743,7 +743,7 @@ fn slip_figure_a(car: &Car, numbers: &Numbers, scene: &crate::scene::owner::Scen
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[work_float_b] = |[local_velocity]| - [wheel_speed_margin]`
 fn slip_figure_b(car: &Car, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
-    let t0 = car.local_velocity[0].ld();
+    let t0 = car.local_velocity.ld(0);
     let t1 = t0.abs();
     let t2 = numbers.wheel_speed_margin.ld();
     let t3 = t1 - t2;
@@ -759,11 +759,11 @@ fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
     car.slip_speed.st(t5);
-    let t6 = car.local_velocity[0].ld();
+    let t6 = car.local_velocity.ld(0);
     let t7 = t6.abs();
     scene.draw_work_mut().work_float_b = stf(t7);
     let t8 = car.drive_speed_a.ld();
-    let t9 = car.local_velocity[2].ld();
+    let t9 = car.local_velocity.ld(2);
     let t10 = t8 - t9;
     let t11 = t10.abs();
     scene.draw_work_mut().work_float_a = stf(t11);
@@ -775,7 +775,7 @@ fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
     let t17 = t16.sqrt();
     car.skid_grip[0].st(t17);
     let t18 = car.drive_speed_b.ld();
-    let t19 = car.local_velocity[2].ld();
+    let t19 = car.local_velocity.ld(2);
     let t20 = t18 - t19;
     let t21 = t20.abs();
     scene.draw_work_mut().work_float_a = stf(t21);

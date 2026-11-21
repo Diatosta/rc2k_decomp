@@ -29,8 +29,8 @@ pub fn car_lighting(
 ) -> Result<(), Refused> {
     {
         let mut search = c.search.borrow_mut();
-        search.x = c.car.position[0].get();
-        search.z = c.car.position[2].get();
+        search.x = c.car.position.bits_at(0);
+        search.z = c.car.position.bits_at(2);
         search.last = c.car.probe_point_face[4].get();
     }
     let light_kept = c.car.light_level.get();

@@ -14,6 +14,7 @@
 use crate::errors::Refused;
 use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::X;
+use crate::memory::plain_floats::PlainFloats;
 use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::step_families::ContactInputs;
@@ -22,7 +23,6 @@ use crate::race::numbers_store::Numbers;
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87::loaded;
 use crate::math::x87_float::int;
-use crate::memory::session::{DwordLike, FloatLike};
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::scene::rotate_point::rotate_point;
@@ -31,10 +31,10 @@ use crate::scene::rotate_point::rotate_point;
 fn turn_speed(block: &Car) {
     let turned = rotate_point(
         &block.car_inverse_matrix,
-        [0, 1, 2].map(|k| extended(block.velocity[k].get())),
+        [0, 1, 2].map(|k| extended(block.velocity.at(k))),
     );
-    for (cell, e) in block.local_velocity.iter().zip(turned) {
-        cell.set(rounded_value(e));
+    for (k, e) in turned.into_iter().enumerate() {
+        block.local_velocity.set_at(k, rounded_value(e));
     }
 }
 
@@ -107,35 +107,35 @@ pub fn bump_cars(
 // ---- the x87 arithmetic ----
 
 /// the work car's speed less `d` (the other car's), on each axis, into the relative speed.
-fn relative_speed(car: &Car, relative: &[PlainFloat; 3], d: &[impl FloatLike; 3]) {
-    for (k, other) in d.iter().enumerate() {
-        let t0 = car.velocity[k].ld();
-        let t1 = other.ld();
+fn relative_speed(car: &Car, relative: &[PlainFloat; 3], d: &PlainFloats<3>) {
+    for (k, relative_k) in relative.iter().enumerate() {
+        let t0 = car.velocity.ld(k);
+        let t1 = d.ld(k);
         let t2 = t0 - t1;
-        relative[k].st(t2);
+        relative_k.st(t2);
     }
 }
 
 /// the two cars' speeds shared out on each axis, with a the work car's speed and b the other's
 /// (`s`): `a' = a x share_a + b x share_b`, `b' = a x share_b + b x share_a`.
-fn share_out_speeds(car: &Car, share_a: X, share_b: X, s: &[impl FloatLike; 3]) {
-    for (k, other) in s.iter().enumerate() {
-        let t0 = car.velocity[k].ld();
+fn share_out_speeds(car: &Car, share_a: X, share_b: X, s: &PlainFloats<3>) {
+    for k in 0..3 {
+        let t0 = car.velocity.ld(k);
         let t1 = share_b;
         let t2 = t0 * t1;
-        let t3 = other.ld();
+        let t3 = s.ld(k);
         let t4 = share_a;
         let t5 = t3 * t4;
         let t6 = t2 + t5;
-        let t7 = car.velocity[k].ld();
+        let t7 = car.velocity.ld(k);
         let t8 = share_a;
         let t9 = t7 * t8;
-        let t10 = other.ld();
+        let t10 = s.ld(k);
         let t11 = share_b;
         let t12 = t10 * t11;
         let t13 = t9 + t12;
-        car.velocity[k].st(t13);
-        other.st(t6);
+        car.velocity.st_at(k, t13);
+        s.st_at(k, t6);
     }
 }
 
@@ -146,33 +146,33 @@ fn push_apart(
     push_scale: X,
     push: &[PlainFloat; 3],
     numbers: &Numbers,
-    d: &[impl DwordLike; 3],
+    d: &PlainFloats<3>,
 ) {
-    for (k, other) in d.iter().enumerate() {
-        let t0 = int(car.position[k].get() as i32);
-        let t1 = int(other.get() as i32);
+    for (k, push_k) in push.iter().enumerate() {
+        let t0 = int(car.position.bits_at(k) as i32);
+        let t1 = int(d.bits_at(k) as i32);
         let t2 = t0 - t1;
         let t3 = numbers.k65536.ld();
         let t4 = t2 / t3;
         let t5 = push_scale;
         let t6 = t4 * t5;
-        push[k].st(t6);
+        push_k.st(t6);
     }
 }
 
 /// the push added to the work car's speed on each axis, then taken from `d`'s.
-fn add_push(car: &Car, push: &[PlainFloat; 3], d: &[impl FloatLike; 3]) {
-    for k in 0..3 {
-        let t0 = car.velocity[k].ld();
-        let t1 = push[k].ld();
+fn add_push(car: &Car, push: &[PlainFloat; 3], d: &PlainFloats<3>) {
+    for (k, push_k) in push.iter().enumerate() {
+        let t0 = car.velocity.ld(k);
+        let t1 = push_k.ld();
         let t2 = t0 + t1;
-        car.velocity[k].st(t2);
+        car.velocity.st_at(k, t2);
     }
-    for (k, other) in d.iter().enumerate() {
-        let t9 = other.ld();
-        let t10 = push[k].ld();
+    for (k, push_k) in push.iter().enumerate() {
+        let t9 = d.ld(k);
+        let t10 = push_k.ld();
         let t11 = t9 - t10;
-        other.st(t11);
+        d.st_at(k, t11);
     }
 }
 

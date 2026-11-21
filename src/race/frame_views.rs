@@ -31,7 +31,7 @@ pub fn full_view_window(
         session.screen.get(),
         window,
         &race.frame.view_and_records.get().view_vars,
-        &race.shared.vars.get().scale_factor,
+        &crate::race::vars_store::SCALE_FACTOR,
     );
     // `draw_mode` is not written: it stays 0 (modes 1 and 2 are only read), and the drawing parts
     // leave the light state alone.
@@ -56,7 +56,7 @@ pub fn mirror_view_window(
     let drawn_view = view.drawn_view(race);
     // Logic in `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{MirrorRect, mirror_entry, mirror_window};
-    let n = mirror_entry(reads.vars.split.get(), drawn_view, reads.panel.flat() == 0);
+    let n = mirror_entry(reads.vars.split(), drawn_view, reads.panel.flat() == 0);
     // mirror_places: 12 entries of two dwords. The entry is the split (0 for one player, 1 or 2 for
     // two: `race_shell::set_start_states` holds it there and the split key turns 1 and 2 round)
     // plus 3 for the second view (0 or 1) plus 6 for the second set: at most 11.
@@ -81,7 +81,7 @@ pub fn mirror_view_window(
         (at(0), at(1)),
         (inset_width, inset_height),
         // Two players side by side keep each mirror to their own half.
-        if reads.vars.split.get() == 1 {
+        if reads.vars.split() == 1 {
             rc2k_core::hud::anchor::Rule::Halves
         } else {
             rc2k_core::hud::anchor::Rule::Thirds
@@ -109,7 +109,7 @@ pub fn mirror_view_window(
         reads.screen,
         &poly.window,
         vars,
-        &reads.vars.scale_factor,
+        &crate::race::vars_store::SCALE_FACTOR,
         MIRROR_REACH,
     );
     crate::race::frame_draw::set_up_fog(
@@ -432,9 +432,12 @@ pub(super) fn draw_screen_tint(
         window_corners(ctx.view);
         // The two glare bytes (`glare_bytes`, StagePrefs.glare_bytes[1]): the low bytes of two
         // dwords.
-        let byte = |k: usize| ctx.reads.stage_prefs.glare_bytes[k].get() as u8;
-        ctx.view.quad.borrow_mut().colour[0] =
-            glare_colour(ctx.reads.stage_prefs.lamp_table_c.get(), byte(0), byte(1));
+        let byte = |k: usize| ctx.reads.stage_prefs.read(|p| p.glare_bytes[k]) as u8;
+        ctx.view.quad.borrow_mut().colour[0] = glare_colour(
+            ctx.reads.stage_prefs.read(|p| p.lamp_table_c),
+            byte(0),
+            byte(1),
+        );
         done = crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
     race.frame.frame_work.borrow_mut().sun_on_screen = sun;
@@ -564,12 +567,12 @@ pub fn run_view_marks(
     )?;
     let (other, own) = marks_shown(
         view,
-        ctx.reads.vars.scene_switch.get(),
+        ctx.reads.vars.scene_switch(),
         race.physics.split_tables().still,
     );
     race.effects_settings().other_marks_shown.set(other);
     race.effects_settings().own_marks_shown.set(own);
-    let layout_at = layout_index(view, ctx.reads.vars.split.get());
+    let layout_at = layout_index(view, ctx.reads.vars.split());
     // The marks' layout number: the two-player layouts' table has none for a larger split's views.
     let layout = crate::race::frame_store::VIEW_LAYOUTS
         .get(layout_at as usize)
@@ -587,7 +590,7 @@ pub fn run_view_marks(
         crate::drive::set_listener::ListenerView::of(ctx.view, race),
         ctx.reads.net_race,
     )?;
-    let first = first_word(ctx.reads.vars.run_kind.get());
+    let first = first_word(ctx.reads.vars.run_kind());
     for b in 0..CAR_RECORDS {
         race.car_record(b as usize)?.streaks_on.set(first);
     }

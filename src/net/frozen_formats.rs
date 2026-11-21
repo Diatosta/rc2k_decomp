@@ -2,8 +2,9 @@
 //! own (a boxed `Net`) or restored after: each case builds from fixed inputs, checks the exact
 //! bytes, and reads them back.
 
+use crate::memory::plain_floats::WordRef;
 use crate::memory::session::Cell32;
-use crate::net::apply_message::{apply_message, glide_steps, place, three, wanted};
+use crate::net::apply_message::{apply_message, glide_steps, place, wanted};
 use crate::net::owner::Net;
 use crate::net::send_inputs::{Message, fields, send_fields};
 use crate::net::send_message::send_message;
@@ -52,9 +53,9 @@ fn a_message_is_sent_as_its_sequence_byte_and_its_bytes() {
 }
 
 /// Every cell a message kind reads or writes, with its bits.
-fn snapshot() -> Vec<(&'static dyn Cell32, u32)> {
+fn snapshot() -> Vec<(WordRef<'static>, u32)> {
     let car = crate::test_support::own::race().shared.car();
-    let mut all: Vec<(&'static dyn Cell32, u32)> = Vec::new();
+    let mut all: Vec<(WordRef<'static>, u32)> = Vec::new();
     for kind in rc2k_core::net::race::SENT {
         for (field, _) in fields(kind) {
             let cell = field(car);
@@ -64,7 +65,7 @@ fn snapshot() -> Vec<(&'static dyn Cell32, u32)> {
     all
 }
 
-fn restore(all: &[(&'static dyn Cell32, u32)]) {
+fn restore(all: &[(WordRef<'static>, u32)]) {
     for (cell, bits) in all {
         cell.set_bits(*bits);
     }
@@ -140,12 +141,24 @@ fn a_received_message_is_put_into_the_senders_car() {
     };
     let mut saved = snapshot();
     let own = car;
-    let extra: Vec<(&dyn Cell32, u32)> = vec![
-        (&own.glide_target[0], own.glide_target[0].bits()),
-        (&own.glide_target[1], own.glide_target[1].bits()),
-        (&own.glide_target[2], own.glide_target[2].bits()),
-        (&own.glide_steps_left, own.glide_steps_left.bits()),
-        (&own.step_clock, own.step_clock.bits()),
+    let extra: Vec<(WordRef<'_>, u32)> = vec![
+        (
+            WordRef::Element(own.glide_target.cell_at(0)),
+            own.glide_target.bits_at(0),
+        ),
+        (
+            WordRef::Element(own.glide_target.cell_at(1)),
+            own.glide_target.bits_at(1),
+        ),
+        (
+            WordRef::Element(own.glide_target.cell_at(2)),
+            own.glide_target.bits_at(2),
+        ),
+        (
+            WordRef::Cell(&own.glide_steps_left),
+            own.glide_steps_left.bits(),
+        ),
+        (WordRef::Cell(&own.step_clock), own.step_clock.bits()),
     ];
     // The cells of car 2 (the snapshot above holds the work car's).
     for kind in rc2k_core::net::race::SENT {
@@ -169,13 +182,7 @@ fn a_received_message_is_put_into_the_senders_car() {
     // A place 3 metres off (units of 1/65536 metre), the steps past 1000: glided to.
     let metre = 65536u32;
     own.step_clock.set(5000);
-    for (cell, v) in [1000 * metre, 0, 1000 * metre]
-        .iter()
-        .enumerate()
-        .map(|(n, v)| (&own.position[n], *v))
-    {
-        cell.set(v);
-    }
+    own.position.set_bits([1000 * metre, 0, 1000 * metre]);
     let position = |at: [u32; 3]| -> Vec<u8> {
         let values: Vec<u32> = (0..40)
             .map(|n| match n {
@@ -190,11 +197,11 @@ fn a_received_message_is_put_into_the_senders_car() {
     let near = [1000 * metre + 3 * metre, 0, 1000 * metre];
     assert!(apply_message(r, net, 2, &position(near)).is_ok());
     assert_eq!(glide_steps(own).get(), 0x20);
-    assert_eq!(three(wanted(own)), [(3 * metre) >> 5, 0, 0]);
+    assert_eq!(wanted(own).bits(), [(3 * metre) >> 5, 0, 0]);
     // A place 11 metres off: jumped to, the glide ended.
     let far = [1000 * metre + 11 * metre, 0, 1000 * metre];
     assert!(apply_message(r, net, 2, &position(far)).is_ok());
-    assert_eq!(three(place(own)), far);
+    assert_eq!(place(own).bits(), far);
     assert_eq!(glide_steps(own).get(), 0);
     // Gear 9 is no gear: nothing is applied.
     let mut bad = position(near);

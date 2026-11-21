@@ -38,7 +38,7 @@ fn draw_slot_object(
     check_slot_object(ctx.reads.work, slot)?;
     let object = slot.part.get();
     ctx.view.cars.borrow_mut().object_number = object;
-    let mode: u32 = ctx.reads.vars.run_kind.get();
+    let mode: u32 = ctx.reads.vars.run_kind();
     if ctx.reads.view.players.get() != 1 && mode != 0 && mode != 2 {
         let n = object.wrapping_sub(0x50);
         if ctx.reads.frame_work.listed_car_sounds()[((n / 0x14) & 7) as usize]
@@ -50,11 +50,11 @@ fn draw_slot_object(
     ctx.view.light.borrow_mut().other_light = 0;
     ctx.view.light.borrow_mut().light_lowest = 0;
     ctx.view.light.borrow_mut().light_highest = 0xFF;
-    ctx.view.light.borrow_mut().light_level = ctx.reads.stage_prefs.light_level.get();
-    ctx.view.object.borrow_mut().light_strength = ctx.reads.stage_prefs.light_strength.get();
+    ctx.view.light.borrow_mut().light_level = ctx.reads.stage_prefs.read(|p| p.light_level);
+    ctx.view.object.borrow_mut().light_strength = ctx.reads.stage_prefs.read(|p| p.light_strength);
     ctx.view.light.borrow_mut().light_turns[0] =
-        ctx.reads.stage_prefs.sun_turn.get().wrapping_neg();
-    ctx.view.light.borrow_mut().light_turns[1] = ctx.reads.stage_prefs.sun_height.get();
+        ctx.reads.stage_prefs.read(|p| p.sun_turn).wrapping_neg();
+    ctx.view.light.borrow_mut().light_turns[1] = ctx.reads.stage_prefs.read(|p| p.sun_height);
     ctx.view.light.borrow_mut().view_kind = 1;
     ctx.view.light.borrow_mut().light_kind = 2;
     ctx.view.matrices.borrow_mut().object_turn_matrix = matrix::matrix_of(&slot.matrix);
@@ -334,18 +334,15 @@ pub(super) fn light_pair(
     if right != u32::MAX {
         ctx.view.cars.borrow_mut().light_right = byte(right)?;
     }
-    let lights = &ctx
+    let lights = ctx
         .reads
-        .lights_and_gear
         .light_records
-        .records
-        .get(record)
-        .ok_or(BadInput("a light record past the 34 models'"))?
-        .lights;
+        .read(|l| l.records.get(record).map(|r| r.lights))
+        .ok_or(BadInput("a light record past the 34 models'"))?;
     // `at` counts from the record's start; the lights lie from byte 0xA4 and every pair is inside.
     let first = (at as usize).wrapping_sub(0xA4) / 4;
     let [x, y, z]: [u32; 3] = match lights.get(first..first.wrapping_add(3)) {
-        Some([x, y, z]) => [x.get(), y.get(), z.get()],
+        Some(&[x, y, z]) => [x, y, z],
         _ => return Err(BadInput("a light pair outside the record's lights")),
     };
     if x | y | z == 0 {

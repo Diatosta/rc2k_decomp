@@ -261,8 +261,8 @@ fn kept_places(race: &Race, ui: &Ui) {
         if let Some(n) = (0..ERROR_ENTRIES).find(|&n| kept(race, n, 0x1C) == 0) {
             let car = first_car(race);
             set_kept(race, n, 0, car.camera_view.get());
-            for (k, place) in car.position.iter().enumerate() {
-                set_kept(race, n, 4 + 4 * k, place.get());
+            for (k, place) in car.position.bits().into_iter().enumerate() {
+                set_kept(race, n, 4 + 4 * k, place);
             }
             set_kept(race, n, 0x10, car.car_heading.get());
             set_kept(race, n, 0x1C, 1);
@@ -285,8 +285,8 @@ fn kept_places(race: &Race, ui: &Ui) {
         if ui.button("Go") {
             // The car put there.
             let car = first_car(race);
-            for (k, place) in car.position.iter().enumerate() {
-                place.set(kept(race, n, 4 + 4 * k));
+            for k in 0..3 {
+                car.position.set_bits_at(k, kept(race, n, 4 + 4 * k));
             }
             car.car_heading.set(kept(race, n, 0x10));
             car.camera_view.set(kept(race, n, 0));
@@ -409,8 +409,8 @@ fn course_map(race: &Race, ui: &Ui) {
         .thickness(1.5)
         .build();
     let car = to(
-        f64::from(first_car(race).position[0].get() as i32),
-        f64::from(first_car(race).position[2].get() as i32),
+        f64::from(first_car(race).position.bits_at(0) as i32),
+        f64::from(first_car(race).position.bits_at(2) as i32),
     );
     list.add_circle(car, 4.0, [1.0, 0.2, 0.2, 1.0])
         .filled(true)

@@ -3,14 +3,15 @@
 //! switches kept, the frame-picture recording state (three unaligned dwords), the NET and display
 //! text strings (left as unknown bytes), the view marks' state and the listener place and turn.
 
-use crate::memory::cells::ZeroCells;
 use crate::memory::first_cells::{plain_dwords, plain_dwords_of_text};
 use crate::memory::session::{PlainDword, PlainFloat};
 #[cfg(test)]
 use crate::test_support::own::race;
 
+/// The panel's plain cells, only the game's thread reaches them. `#[repr(C)]` in the panel's
+/// order: reads that run on from one field into the next (`camera_name`, `rectangle_at`) count
+/// dwords across the fields as the block lays them out.
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewerPanelBlock {
     /// 16-bit text ids of the camera names, read and written by `menu::replay_viewer::panel`
     /// and the camera actions; reached through `camera_name`, not by this field.
@@ -157,7 +158,14 @@ impl ViewerPanelBlock {
             picture_folder: PlainDword::new(0x6C7072),
             picture_name: plain_dwords_of_text::<3>(b"rpl\\000000.p"),
             untyped_tail: plain_dwords_of_text::<167>(TAIL_TEXT),
-            ..ZeroCells::ZERO
+            item_place: [const { PlainDword::new(0) }; 4],
+            screen_rect: [const { PlainDword::new(0) }; 4],
+            texture_rect: [const { PlainDword::new(0) }; 4],
+            patches_in_force: PlainDword::new(0),
+            kept_patch_switches: [const { PlainDword::new(0) }; 13],
+            replay_recording: PlainDword::new(0),
+            picture_clock_unused: PlainDword::new(0),
+            pictures_started_unused: PlainDword::new(0),
         }
     }
 }
@@ -283,7 +291,7 @@ impl ViewerPanelBlock {
     pub fn camera_name(&self, camera: usize) -> u16 {
         // The names are the block's first bytes.
         let mut name = [0; 2];
-        crate::memory::cells::load_walked(self, 2 * camera, &mut name)
+        self.load_walked(2 * camera, &mut name)
             .unwrap_or_else(|e| crate::memory::host_hooks::end("a camera's name", e));
         u16::from_le_bytes(name)
     }
@@ -334,10 +342,88 @@ impl ViewerPanelBlock {
     /// The rectangle (four dwords) at byte `offset` of the panel.
     pub fn rectangle_at(&self, offset: usize) -> Result<[u32; 4], crate::errors::BadInput> {
         let mut bytes = [0; 16];
-        crate::memory::cells::load_walked(self, offset, &mut bytes)?;
+        self.load_walked(offset, &mut bytes)?;
         Ok(std::array::from_fn(|k| {
             u32::from_le_bytes(bytes.as_chunks::<4>().0[k])
         }))
+    }
+
+    /// Dword `n` of the block, counted over the fields in order (the floats as their bits);
+    /// `None` past the block's last one.
+    fn word(&self, n: usize) -> Option<u32> {
+        let mut n = n;
+        macro_rules! fields {
+            ($($field:expr),* $(,)?) => {$(
+                let field = &$field;
+                if n < field.len() {
+                    return Some(field[n].get());
+                }
+                n -= field.len();
+            )*};
+        }
+        fields!(
+            self.camera_name_ids,
+            self.bar_frame_rect,
+            self.button_rect_a,
+            self.button_rect_b,
+            self.button_rect_c,
+            self.button_rect_d,
+            self.bar_rect,
+            self.mark_rect,
+            self.place_rect,
+            self.item_place,
+            self.screen_rect,
+            self.texture_rect,
+            self.viewer_item_rects_a,
+            self.mark_picture_rect,
+            self.viewer_item_rect_b,
+            self.place_picture_rect,
+            self.viewer_item_rects_c,
+            self.button_picture_rect,
+            self.button_body_rect,
+            self.frame_picture_rect,
+        );
+        let floats = [
+            &self.one,
+            &self.texel_scale,
+            &self.reciprocal_width_800,
+            &self.reciprocal_height_600,
+        ];
+        if n < floats.len() {
+            return Some(floats[n].bits());
+        }
+        n -= floats.len();
+        fields!(
+            self.switch_pictures_a,
+            self.switch_pictures_b,
+            self.switch_pictures_c,
+            std::slice::from_ref(&self.patches_in_force),
+            self.kept_patch_switches,
+            std::slice::from_ref(&self.replay_recording),
+            std::slice::from_ref(&self.picture_clock_unused),
+            std::slice::from_ref(&self.pictures_started_unused),
+            std::slice::from_ref(&self.picture_folder),
+            self.picture_name,
+            self.untyped_tail,
+        );
+        let _ = n;
+        None
+    }
+
+    /// `to.len()` bytes from byte `offset` of the block, reaching on from one field into the
+    /// next. A read past the block's end is refused.
+    fn load_walked(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {
+        let end = offset
+            .checked_add(to.len())
+            .filter(|&end| end <= size_of::<Self>())
+            .ok_or(crate::errors::BadInput("past the end of a record"))?;
+        for (k, byte) in to.iter_mut().enumerate() {
+            let at = offset + k;
+            debug_assert!(at < end);
+            let word = self.word(at / 4).expect("inside the block");
+            *byte = word.to_le_bytes()[at % 4];
+        }
+        Ok(())
     }
 
     /// The dword at byte `at` of the tail: unaligned, so made of the two cells it spans.
@@ -415,6 +501,54 @@ mod tests {
         for (c, k) in v.untyped_tail.iter().zip(kept) {
             c.set(k);
         }
+    }
+
+    /// The dword walk counts the fields as the block lays them out, floats as their bits, and
+    /// ends with the block.
+    #[test]
+    fn the_walk_over_the_fields_matches_the_layout() {
+        use std::mem::offset_of;
+        let v = &*VIEWER_PANEL;
+        assert!(v.word(size_of::<ViewerPanelBlock>() / 4 - 1).is_some());
+        assert_eq!(v.word(size_of::<ViewerPanelBlock>() / 4), None);
+        let at = |offset: usize| v.word(offset / 4).unwrap();
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, camera_name_ids)),
+            v.camera_name_ids[0].get()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, bar_rect) + 8),
+            v.bar_rect[2].get()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, frame_picture_rect) + 16),
+            v.frame_picture_rect[4].get()
+        );
+        assert_eq!(at(offset_of!(ViewerPanelBlock, one)), v.one.bits());
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, reciprocal_height_600)),
+            v.reciprocal_height_600.bits()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, switch_pictures_c) + 8),
+            v.switch_pictures_c[2].get()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, kept_patch_switches) + 48),
+            v.kept_patch_switches[12].get()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, picture_name) + 8),
+            v.picture_name[2].get()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, untyped_tail) + 4 * 166),
+            v.untyped_tail[166].get()
+        );
+        assert_eq!(v.camera_name(0), v.camera_name_ids[0].get() as u16);
+        assert_eq!(v.camera_name(1), (v.camera_name_ids[0].get() >> 16) as u16);
+        assert!(v.rectangle_at(size_of::<ViewerPanelBlock>() - 15).is_err());
+        assert!(v.rectangle_at(size_of::<ViewerPanelBlock>() - 16).is_ok());
     }
 
     #[test]

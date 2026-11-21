@@ -10,6 +10,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float as bh;
+use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::mud::car_file_number;
@@ -25,7 +26,7 @@ type RecordWord = fn(&CarEffects) -> &PlainDword;
 /// A float field of a car block.
 type BlockFloat = fn(&Car) -> &PlainFloat;
 /// A field of a light record.
-type LightField = fn(&LightRecord) -> &PlainDword;
+type LightField = fn(&LightRecord) -> &u32;
 
 /// A field of a car block moved into the same kind of field of the effects' record: a whole
 /// number (a surface kind, flags) or a float.
@@ -33,6 +34,11 @@ type LightField = fn(&LightRecord) -> &PlainDword;
 enum Move {
     Word(RecordWord, fn(&Car) -> &PlainDword),
     Float(fn(&CarEffects) -> &PlainFloat, BlockFloat),
+    /// A float of a vector the block keeps whole.
+    Part(
+        fn(&CarEffects) -> &PlainFloat,
+        fn(&Car) -> crate::memory::plain_floats::PlainWord<'_>,
+    ),
 }
 
 impl Move {
@@ -41,6 +47,7 @@ impl Move {
         match self {
             Move::Word(r, b) => r(o).set(b(car).get()),
             Move::Float(r, b) => r(o).set(b(car).get()),
+            Move::Part(r, b) => r(o).set(f32::from_bits(b(car).bits())),
         }
     }
 }
@@ -112,8 +119,8 @@ const MOVES_B: [Move; 9] = [
     Move::Float(rec!(4, chance), blk!(wheel_surface_blend[4])),
     Move::Word(rec!(4, kind), blk!(wheel_surface_a[4])),
     Move::Word(rec!(4, under_kind), blk!(wheel_surface_b[4])),
-    Move::Float(rec!(4, local_velocity_x), blk!(velocity[0])),
-    Move::Float(rec!(4, local_velocity_z), blk!(velocity[2])),
+    Move::Part(rec!(4, local_velocity_x), |c| c.velocity.cell_at(0)),
+    Move::Part(rec!(4, local_velocity_z), |c| c.velocity.cell_at(2)),
 ];
 
 /// The block's eight slot figures: the seven parts' damage figures and the first of the saved
@@ -163,9 +170,9 @@ fn share_car_state_at(
         }
     }
     o.tag.set(car.light_colour.get());
-    let light = &race.light_records().records[n as usize];
+    let light = race.light_records().read(|l| l.records[n as usize].clone());
     for (r, l) in LIGHT_MOVES {
-        r(o).set(l(light).get());
+        r(o).set(*l(&light));
     }
     o.set_block(race.shared.car_blocks().handle_of(car));
     o.engine_speed.set(x87::loaded(&car.engine_speed));
@@ -176,8 +183,8 @@ fn share_car_state_at(
     for (records, first) in QUADS {
         let (a, bb, c) = (
             first(car).get(),
-            car.local_velocity[0].get(),
-            car.local_velocity[2].get(),
+            car.local_velocity.at(0),
+            car.local_velocity.at(2),
         );
         for wheel in records {
             let w = &o.records[wheel];
@@ -263,7 +270,7 @@ mod tests {
         bytes_1999, car_with_1999_bytes, load_1999, offset_1999,
     };
     use crate::race::effects_settings_store::EFFECTS_SETTINGS;
-    use crate::race::light_records_store::LIGHT_RECORDS;
+    use crate::race::light_records_store::LightRecords;
 
     fn rec_off(o: &CarEffects, f: RecordWord) -> usize {
         core::ptr::from_ref(f(o)).addr() - core::ptr::from_ref(o).addr()
@@ -283,6 +290,7 @@ mod tests {
                 core::ptr::from_ref(r(o)).addr(),
                 core::ptr::from_ref(b(c)).addr(),
             ),
+            Move::Part(r, b) => (core::ptr::from_ref(r(o)).addr(), b(c).addr()),
         };
         (r - core::ptr::from_ref(o).addr(), offset_1999(c, b))
     }
@@ -322,7 +330,8 @@ mod tests {
     fn the_tables_sit_where_the_original_moved_them() {
         let o = &EFFECTS_SETTINGS.cars[0];
         let car = &crate::test_support::own::race().car_blocks().cars[0];
-        let light = &LIGHT_RECORDS.records[0];
+        let records = LightRecords::new();
+        let light = &records.records[0];
         let lbase = core::ptr::from_ref(light).addr();
         let lights = [(0x14, 0x34), (0x18, 0x38), (0xC, 0x2C), (0x10, 0x30)];
         for ((r, l), (ro, lo)) in LIGHT_MOVES.into_iter().zip(lights) {

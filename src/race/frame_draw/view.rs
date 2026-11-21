@@ -16,36 +16,15 @@ use crate::scene::view_matrices::ViewMatrices;
 /// `race().course.stage_prefs.nearer`.
 pub fn draw_distance_settings(course: &Course) {
     use rc2k_core::race::view::{draw_distance_level, grid_reach};
-    let level = draw_distance_level(course.stage_prefs.get().draw_distance_level.get());
+    let level = draw_distance_level(course.stage_prefs.borrow().draw_distance_level);
     let level = level as usize;
-    course.stage_prefs.get().grid_reach.set(grid_reach(
-        course.stage_prefs.get().reach_by_level[level].get(),
-    ));
-    course
-        .stage_prefs
-        .get()
-        .fog_end
-        .set(course.stage_prefs.get().fog_end_by_level[level].get());
-    course
-        .stage_prefs
-        .get()
-        .fog_start
-        .set(course.stage_prefs.get().fog_start_by_level[level].get());
-    course
-        .stage_prefs
-        .get()
-        .fog_low
-        .set(course.stage_prefs.get().fog_low_by_level[level].get());
-    course
-        .stage_prefs
-        .get()
-        .fog_high
-        .set(course.stage_prefs.get().fog_high_by_level[level].get());
-    course
-        .stage_prefs
-        .get()
-        .nearer
-        .set(course.stage_prefs.get().nearer_by_level[level].get());
+    let mut prefs = course.stage_prefs.borrow_mut();
+    prefs.grid_reach = grid_reach(prefs.reach_by_level[level]);
+    prefs.fog_end = prefs.fog_end_by_level[level];
+    prefs.fog_start = prefs.fog_start_by_level[level];
+    prefs.fog_low = prefs.fog_low_by_level[level];
+    prefs.fog_high = prefs.fog_high_by_level[level];
+    prefs.nearer = prefs.nearer_by_level[level];
 }
 
 /// Samples the 64 x 64 byte map `map` bytes into `noise_bytes` at `car`'s camera place
@@ -57,8 +36,10 @@ pub fn sample_noise(
     car: &crate::physics::car_store::Car<impl crate::memory::session::CellKind>,
     map: usize,
 ) -> Result<u32, BadInput> {
-    use crate::memory::session::DwordLike;
-    let (px, pz) = (car.camera_position[0].get(), car.camera_position[2].get());
+    let (px, pz) = (
+        car.camera_position.bits_at(0),
+        car.camera_position.bits_at(2),
+    );
     let refused = std::cell::Cell::new(None);
     let noise = &tables.noise_bytes;
     let s = rc2k_core::race::view::sample_noise(
@@ -90,7 +71,7 @@ pub fn sample_noise(
 /// reads them. Refused (before anything): a table length of 0 or past 0x1000.
 pub fn fog_table(
     tables: &crate::math::engine_tables::EngineTables,
-    prefs: &crate::race::prefs_store::StagePrefs,
+    prefs: crate::race::prefs_store::StagePrefsRef<'_>,
     fog: &crate::scene::fog::Fog,
     car: &crate::physics::car_store::ViewCar,
     sun: &crate::scene::polygon_work_store::ViewSun,
@@ -105,19 +86,17 @@ pub fn fog_table(
         let sun = sun.borrow();
         (sun.size, sun.view_out)
     };
-    let set = rc2k_core::race::view::fog_table(
-        noise,
-        &rc2k_core::race::view::FogSettings {
-            low: prefs.fog_low.get(),
-            high: prefs.fog_high.get(),
-            scale: [sun_size, sun_view_out],
-            near: prefs.fog_near.get(),
-            far: prefs.fog_far.get(),
-            start: prefs.fog_start.get(),
-            end: prefs.fog_end.get(),
-            length,
-        },
-    );
+    let settings = prefs.read(|p| rc2k_core::race::view::FogSettings {
+        low: p.fog_low,
+        high: p.fog_high,
+        scale: [sun_size, sun_view_out],
+        near: p.fog_near,
+        far: p.fog_far,
+        start: p.fog_start,
+        end: p.fog_end,
+        length,
+    });
+    let set = rc2k_core::race::view::fog_table(noise, &settings);
     let mut fog = fog.borrow_mut();
     fog.far = set.far;
     fog.length = length;
@@ -134,7 +113,7 @@ pub fn fog_table(
 /// what `fog_table` would refuse.
 pub fn set_up_fog(
     tables: &crate::math::engine_tables::EngineTables,
-    prefs: &crate::race::prefs_store::StagePrefs,
+    prefs: crate::race::prefs_store::StagePrefsRef<'_>,
     fog: &crate::scene::fog::Fog,
     poly: &crate::scene::polygon_work_store::PolygonWork,
     car: &crate::physics::car_store::ViewCar,
@@ -144,11 +123,8 @@ pub fn set_up_fog(
     if length == 0 || length > 0x1000 {
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
-    let colour = rc2k_core::race::view::fog_colour(
-        prefs.fog_colour[0].get(),
-        prefs.fog_colour[1].get(),
-        prefs.fog_colour[2].get(),
-    );
+    let [red, green, blue] = prefs.read(|p| p.fog_colour);
+    let colour = rc2k_core::race::view::fog_colour(red, green, blue);
     fog.borrow_mut().colour = colour;
     fog_table(tables, prefs, fog, car, &poly.sun, &poly.window)?;
     crate::scene::set_fog_colour::set_fog_colour(
@@ -194,9 +170,14 @@ pub fn place_view(
             view.state.borrow_mut().view_angles[a] = 0;
         }
     };
-    if course.stage_prefs.flat_depth.get() != 0 {
-        let at = &view.car.camera_position[1];
-        at.set(at.get().wrapping_add(course.course.get().flat_depth));
+    if course.stage_prefs.read(|p| p.flat_depth) != 0 {
+        let place = &view.car.camera_position;
+        place.set_bits_at(
+            1,
+            place
+                .bits_at(1)
+                .wrapping_add(course.course.get().flat_depth),
+        );
         view.vars.view_angles[0].set(course.course.get().place_heading);
         view.vars.view_angles[1].set(0x4000_0000u32);
         view.state.borrow_mut().view_angles[0] = course.course.get().place_heading;
@@ -249,7 +230,7 @@ pub fn place_view(
 /// `view_turn_matrix`.
 pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     use crate::scene::matrix;
-    let angle = (ctx.reads.stage_prefs.sky_turn.get() << 8).wrapping_neg();
+    let angle = (ctx.reads.stage_prefs.read(|p| p.sky_turn) << 8).wrapping_neg();
     let mut kept = ctx.view.matrices.borrow_mut();
     let m = &mut *kept;
     matrix::set_turn_y(
@@ -258,7 +239,7 @@ pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Ba
         &mut m.turn_y_work,
         angle,
     );
-    let height = ctx.reads.stage_prefs.sky_height.get() << 8;
+    let height = ctx.reads.stage_prefs.read(|p| p.sky_height) << 8;
     ctx.view.object.borrow_mut().place[0] = 0u32;
     ctx.view.object.borrow_mut().place[2] = 0u32;
     ctx.view.object.borrow_mut().place[1] = height;
@@ -403,7 +384,7 @@ fn rolled_angle(
     car: &crate::physics::car_store::ViewCar,
 ) -> u32 {
     use crate::math::x87::{below_or_unordered, eased_roll};
-    let mut v = crate::math::x87::div(&car.local_velocity[2], numbers.ten);
+    let mut v = crate::math::x87::div(car.local_velocity.bits_at(2), numbers.ten);
     if below_or_unordered(v, numbers.zero) {
         v = numbers.zero.get();
     }
@@ -470,17 +451,17 @@ pub fn camera_view(
     let place: [u32; 3] = if view.polygon.scalars.borrow().view_mirrored == 0 {
         view.vars.view_scale.set(view.car.camera_zoom.get());
         for (from, to) in [
-            (&view.car.camera_heading, 0usize),
-            (&view.car.camera_pitch, 1),
-            (&view.car.camera_roll_turn, 2),
-            (&view.car.camera_offset_turns[1], 3),
-            (&view.car.camera_offset_turns[0], 4),
-            (&view.car.camera_offset_turns[2], 5),
+            (view.car.camera_heading.get(), 0usize),
+            (view.car.camera_pitch.get(), 1),
+            (view.car.camera_roll_turn.get(), 2),
+            (view.car.camera_offset_turns.bits_at(1), 3),
+            (view.car.camera_offset_turns.bits_at(0), 4),
+            (view.car.camera_offset_turns.bits_at(2), 5),
         ] {
-            view.vars.view_angles[to].set(from.get());
-            view.state.borrow_mut().view_angles[to] = from.get();
+            view.vars.view_angles[to].set(from);
+            view.state.borrow_mut().view_angles[to] = from;
         }
-        crate::memory::session::read_bits(&view.car.camera_position)
+        view.car.camera_position.bits()
     } else {
         let mut kept = m.borrow_mut();
         kept.turned_matrix = crate::scene::matrix::product(
@@ -492,14 +473,14 @@ pub fn camera_view(
             crate::scene::view_matrix::inverted_turn(reads.course(), &kept.turned_matrix);
         drop(kept);
         let kept = &view.car.kept_focus_point;
-        kept[0].set(view.car.position[0].get());
-        kept[1].set(view.car.position[1].get().wrapping_add(0x8000));
-        kept[2].set(view.car.position[2].get());
+        kept[0].set(view.car.position.bits_at(0));
+        kept[1].set(view.car.position.bits_at(1).wrapping_add(0x8000));
+        kept[2].set(view.car.position.bits_at(2));
         view.vars.view_scale.set(view.vars.view_scale_kept.get());
         [kept[0].get(), kept[1].get(), kept[2].get()]
     };
     for (k, &p) in place.iter().enumerate() {
-        view.car.kept_view_place[k].set(p);
+        view.car.kept_view_place.set_bits_at(k, p);
         view.vars.view_place[k].set(p);
     }
     view.vars.view_x.set(place[0]);
@@ -518,7 +499,7 @@ pub fn camera_view(
             (size[0], size[1]),
             &view.polygon.window,
             &view.vars,
-            &reads.vars.scale_factor,
+            &crate::race::vars_store::SCALE_FACTOR,
         );
     } else {
         crate::scene::set_view_window::set_view_window(
@@ -527,7 +508,7 @@ pub fn camera_view(
             reads.screen,
             &view.polygon.window,
             &view.vars,
-            &reads.vars.scale_factor,
+            &crate::race::vars_store::SCALE_FACTOR,
         );
     }
     view_matrices(reads.course(), m, view)?;
@@ -600,9 +581,7 @@ fn place_sun(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused
     if ctx
         .reads
         .stage_prefs
-        .fog_near
-        .get()
-        .wrapping_add(ctx.reads.stage_prefs.fog_far.get())
+        .read(|p| p.fog_near.wrapping_add(p.fog_far))
         == 0
     {
         return Ok(());
@@ -610,15 +589,13 @@ fn place_sun(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused
     let angle = ctx
         .reads
         .stage_prefs
-        .sun_turn
-        .get()
-        .wrapping_add(ctx.reads.stage_prefs.sky_turn.get())
+        .read(|p| p.sun_turn.wrapping_add(p.sky_turn))
         & 0xFF;
     let dir = sun_direction(
         angle as i32,
         ctx.reads.numbers.sixty_four,
         crate::race::frame_store::SUN_DEPTH,
-        ctx.reads.stage_prefs.sun_height.get() as i32,
+        ctx.reads.stage_prefs.read(|p| p.sun_height) as i32,
         ctx.reads.numbers.k98304,
     );
     // The direction and the turned point are locals: nothing reads `FrameWork.sun_floats` or
@@ -632,7 +609,7 @@ fn place_sun(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused
     if crate::math::x87::below_or_unordered(z, ctx.reads.numbers.k4096_a) {
         return Ok(());
     }
-    let flat = ctx.reads.stage_prefs.flat_depth.get() != 0;
+    let flat = ctx.reads.stage_prefs.read(|p| p.flat_depth) != 0;
     let window = &ctx.view.polygon.window;
     let ([fx, fy], [ix, iy]) = sun_on_screen(
         [

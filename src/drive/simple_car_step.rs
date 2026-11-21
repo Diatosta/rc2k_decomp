@@ -41,10 +41,9 @@ pub fn simple_car_step(
             race.car_blocks().cars[0].car_heading.get(),
         )
     };
-    race.car_blocks().cars[0].position[0]
-        .set(race.car_blocks().cars[0].position[0].get().wrapping_add(x));
-    race.car_blocks().cars[0].position[2]
-        .set(race.car_blocks().cars[0].position[2].get().wrapping_add(z));
+    let position = &race.car_blocks().cars[0].position;
+    position.set_bits_at(0, position.bits_at(0).wrapping_add(x));
+    position.set_bits_at(2, position.bits_at(2).wrapping_add(z));
     race.car_blocks().cars[0].car_heading.set(
         race.car_blocks().cars[0]
             .car_heading
@@ -78,7 +77,7 @@ pub fn simple_car_step(
             .height
             .wrapping_add(GROUND_DROP);
         race.course.course.borrow_mut().place_y = y;
-        race.car_blocks().cars[0].position[1].set(y);
+        race.car_blocks().cars[0].position.set_bits_at(1, y);
     }
     race.car_blocks().cars[0].car_pitch.set(0);
     race.car_blocks().cars[0].car_roll.set(0);

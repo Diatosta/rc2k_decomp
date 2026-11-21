@@ -3,14 +3,15 @@
 //! map.
 
 use crate::memory::MemoryList;
-use crate::memory::session::{DrawPlain, DrawShared, GameThread};
+use crate::memory::session::{DrawArc, DrawPlain, DrawShared, GameThread};
 use crate::race::clock_ticks_store::ClockTicks;
 use crate::race::error_list_store::ErrorList;
 use crate::race::frame_counter_store::FrameCounter;
 use crate::race::frame_store::FrameWork;
 use crate::race::frame_text::Credits;
 use crate::race::game_map_store::MapVars;
-use crate::race::groups_store::{LightsAndGear, ViewAndRecords};
+use crate::race::groups_store::ViewAndRecords;
+use crate::race::light_records_store::LightRecords;
 use crate::race::matrices_store::{SceneMatrices, ViewKept};
 use crate::race::overlay_store::OverlayBlock;
 use crate::race::panel_store::Panel;
@@ -61,8 +62,10 @@ pub struct Frame {
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it. Each
     /// view draws on its own view variables (`ViewScratch::vars`).
     pub view_and_records: DrawShared<ViewAndRecords>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
-    pub lights_and_gear: DrawShared<LightsAndGear>,
+    /// The models' light records, shared with the drawing parts (`scene::workers::DrawReads`):
+    /// no part writes them. `scene::load_object` reads a kind's record past the 34 (an unbounded
+    /// kind) on into the gear figures (`LightRecords::group_at`).
+    pub light_records: DrawArc<LightRecords>,
     /// The cars as the frame's drawing sees them (`race::frame_view`); behind atomics, read by
     /// the drawing parts.
     pub cars: crate::race::frame_view::FrameCars,
@@ -98,7 +101,7 @@ impl Frame {
             panel: DrawPlain::new(Panel::new()),
             overlay: GameThread::new(OverlayBlock::new()),
             view_and_records: DrawShared::new(ViewAndRecords::new()),
-            lights_and_gear: DrawShared::new(LightsAndGear::new()),
+            light_records: DrawArc::new(LightRecords::new),
             cars: crate::race::frame_view::FrameCars::new(),
             main: GameThread::new(FrameMain {
                 scratch: RefCell::new(FrameScratch::new()),

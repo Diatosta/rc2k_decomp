@@ -296,7 +296,7 @@ fn paste(race: &Race, system: &System) -> Result<(), Refused> {
 fn another_replay(race: &'static Race, o: Owners<'static>) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
-    if replay.replay_view().last_race_viewed.is_set() {
+    if replay.replay_view().last_race_viewed.get() {
         return Ok(());
     }
     crate::race::viewer_tidy_stage::viewer_tidy_stage(race, o)?;

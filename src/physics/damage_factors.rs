@@ -58,7 +58,7 @@ pub fn steps(car: &Car, damage: &mut DamageModel) {
         damage.wheels_down = 1.0;
     }
     damage.brake_share = 0.0;
-    if !abs_below_or_unordered(&car.local_velocity[2], damage.grade_high)
+    if !abs_below_or_unordered(car.local_velocity.bits_at(2), damage.grade_high)
         && (car.brake.get().wrapping_sub(0x10) as i32) >= 0
     {
         brake_share_step(car, damage);
@@ -106,10 +106,10 @@ fn side_hit(car: &Car, damage: &DamageModel) -> u32 {
         return 0;
     }
     let mut hit = 1;
-    if !below_or_unordered(&car.contact_point[0], damage.gauge_low) {
+    if !below_or_unordered(car.contact_point.bits_at(0), damage.gauge_low) {
         hit += 1;
     }
-    if below_or_unordered(&car.contact_point[2], damage.gauge_low) {
+    if below_or_unordered(car.contact_point.bits_at(2), damage.gauge_low) {
         hit += 2;
     }
     hit
@@ -173,7 +173,7 @@ fn means_and_engine_speed(car: &Car, m: &mut DamageModel) {
 fn engine_speed_share_step(car: &Car, m: &mut DamageModel) {
     m.engine_speed_share =
         (figure(m.scratch) / value(&car.engine_speed_limit) * figure(m.gauge_top)) as f32;
-    m.scratch = value(&car.local_velocity[2]).abs() as f32;
+    m.scratch = f64::from(car.local_velocity.at(2)).abs() as f32;
 }
 
 /// The forward speed (in `scratch`) over the speed range as a share of the gauge, the surface
@@ -181,14 +181,14 @@ fn engine_speed_share_step(car: &Car, m: &mut DamageModel) {
 fn speed_share_step(car: &Car, m: &mut DamageModel) {
     m.speed_share = (figure(m.scratch) / figure(m.speed_range) * figure(m.gauge_top)) as f32;
     m.point_surface_copy = value(&car.point_wear_factor[4]) as f32;
-    m.scratch = (value(&car.local_velocity[2]) - value(&car.drive_speed_a)).abs() as f32;
+    m.scratch = (f64::from(car.local_velocity.at(2)) - value(&car.drive_speed_a)).abs() as f32;
 }
 
 /// The first drive's slip share, then the gap between the forward speed and the second
 /// drive speed.
 fn drive_a_slip_step(car: &Car, m: &mut DamageModel) {
     m.drive_a_slip_share = (figure(m.scratch) / figure(m.speed_range)) as f32;
-    m.scratch = (value(&car.local_velocity[2]) - value(&car.drive_speed_b)).abs() as f32;
+    m.scratch = (f64::from(car.local_velocity.at(2)) - value(&car.drive_speed_b)).abs() as f32;
 }
 
 /// A drive's share (returned), then the next gap (into `scratch`): the drive speed's distance
@@ -200,7 +200,7 @@ fn drive_extrapolation_step(
     carried: &PlainFloat,
 ) -> f32 {
     let share = (figure(m.scratch) / figure(m.speed_range)) as f32;
-    m.scratch = ((value(drive_speed) - value(&car.local_velocity[2])) * figure(m.figures[31])
+    m.scratch = ((value(drive_speed) - f64::from(car.local_velocity.at(2))) * figure(m.figures[31])
         + value(carried))
     .abs() as f32;
     share
@@ -232,7 +232,7 @@ fn engine_over_limit(car: &Car, m: &DamageModel) -> bool {
 fn hit_size_and_dive(car: &Car, m: &mut DamageModel) {
     let depth = value(&car.contact_depth);
     m.hit_size = (depth * depth / figure(m.hit_divisor) / figure(m.speed_range)) as f32;
-    m.scratch = (-value(&car.local_velocity[1]) - figure(m.gauge_rates[21])) as f32;
+    m.scratch = (-f64::from(car.local_velocity.at(1)) - figure(m.gauge_rates[21])) as f32;
 }
 
 /// The dive squared times its rate.

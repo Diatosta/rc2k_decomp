@@ -57,10 +57,10 @@ pub fn reload_system_textures(
         let picture = kind_picture(scene.texture_places().kind_pictures[kind as usize]);
         scene.texture_places_mut().wanted_pictures[texture as usize] = picture;
     }
-    let size = [
-        course.stage_prefs.get().scene_size_a.get(),
-        course.stage_prefs.get().scene_size_b.get(),
-    ];
+    let size = {
+        let prefs = course.stage_prefs.borrow();
+        [prefs.scene_size_a, prefs.scene_size_b]
+    };
     for texture in 0..textures {
         gfx_grading.reading.set(1u32);
         let wanted = scene.texture_places().wanted_pictures[texture as usize];

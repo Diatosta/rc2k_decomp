@@ -58,12 +58,10 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     let found = clear_place::tries(clear_place::first_try(car.step_clock.get()), |n| {
         tables.clear_place_count.set(0);
         let m = clear_place::try_move(n);
-        for (table, place) in [
-            (&CLEAR_PLACE_STEPS_A, &car.position[0]),
-            (&CLEAR_PLACE_STEPS_B, &car.position[2]),
-        ] {
+        for (table, axis) in [(&CLEAR_PLACE_STEPS_A, 0), (&CLEAR_PLACE_STEPS_B, 2)] {
             let (part, _) = clear_place::move_part(m.step, table[m.entry as usize]);
-            place.set(place.get().wrapping_add(part));
+            car.position
+                .set_bits_at(axis, car.position.bits_at(axis).wrapping_add(part));
         }
         try_place(c, scene)?;
         Ok::<_, Refused>(tables.clear_place_count.get() == 0)
@@ -80,8 +78,8 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
         )
     }?;
     let depth = contact.borrow().lowest_depth;
-    if let Some(height) = clear_place::lifted(car.position[1].get(), depth) {
-        car.position[1].set(height);
+    if let Some(height) = clear_place::lifted(car.position.bits_at(1), depth) {
+        car.position.set_bits_at(1, height);
     }
     crate::logfile::log_write::log_nul(&PORKY, false, 1);
     crate::logfile::log_int::log_int(n as i32, false, 1);

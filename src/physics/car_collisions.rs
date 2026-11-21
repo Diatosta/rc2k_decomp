@@ -57,9 +57,10 @@ pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
                 continue;
             }
             let place = [0usize, 1, 2].map(|k| {
-                car_now.position[k]
-                    .get()
-                    .wrapping_sub(block.position[k].get())
+                car_now
+                    .position
+                    .bits_at(k)
+                    .wrapping_sub(block.position.bits_at(k))
             });
             let at_place = placed(PLACED_BASE, place);
             let turned = {

@@ -24,14 +24,14 @@ pub(super) fn camera_low_switch(c: &CameraGroundInputs<'_>) -> Result<(), Refuse
     }
     if !probe_at(
         c,
-        c.car.camera_position[0].get(),
-        c.car.camera_position[2].get(),
+        c.car.camera_position.bits_at(0),
+        c.car.camera_position.bits_at(2),
         &c.car.camera_ground_faces[0],
     )? {
         return Ok(());
     }
     if !is_low(over(
-        c.car.camera_position[1].get(),
+        c.car.camera_position.bits_at(1),
         c.search.borrow().height,
     )) {
         return Ok(());

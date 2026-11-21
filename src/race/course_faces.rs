@@ -15,13 +15,11 @@ use crate::scene::polygon_store::PolygonEntry;
 use rc2k_core::race::faces::Face;
 
 /// The byte `n` of a byte table held as dwords; past it refused.
-fn table_byte(
-    cells: &[crate::memory::session::PlainDword],
-    n: u32,
-    what: &'static str,
-) -> Result<u32, BadInput> {
-    byte_of(cells, n as usize)
-        .map(u32::from)
+fn table_byte(words: &[u32], n: u32, what: &'static str) -> Result<u32, BadInput> {
+    let n = n as usize;
+    words
+        .get(n / 4)
+        .map(|word| u32::from(word.to_le_bytes()[n % 4]))
         .ok_or(BadInput(what))
 }
 
@@ -169,11 +167,10 @@ pub(super) fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadIn
     let clock: u32 = ctx.reads.frame_cars.car(0)?.step_clock.get();
     let (k1, k2) = (ctx.reads.numbers.ten.get(), ctx.reads.numbers.quarter.get());
     let texture = |object: u32| -> Result<u32, BadInput> {
-        let speed = table_byte(
-            &ctx.reads.stage_prefs.face_speeds,
-            object,
-            "the face speeds",
-        )?;
+        let speed = ctx
+            .reads
+            .stage_prefs
+            .read(|p| table_byte(&p.face_speeds, object, "the face speeds"))?;
         if speed == 0 {
             return Ok(object);
         }
@@ -184,7 +181,9 @@ pub(super) fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadIn
             k2,
         );
         let (_, place) = rc2k_core::race::faces::frame_place(object, n);
-        table_byte(&ctx.reads.stage_prefs.face_places, place, "the face places")
+        ctx.reads
+            .stage_prefs
+            .read(|p| table_byte(&p.face_places, place, "the face places"))
     };
     // The frame's rounding is the x87's (`rc2k_core::race::faces::{frame_place,
     // material_bits}`).
@@ -1102,7 +1101,10 @@ pub(super) fn draw_tinted_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refus
     let colour: u32 = ctx.view.polygon.scalars.borrow().polygon_colour;
     let object = crate::race::course_places::face_field::<u8>(ctx.reads.course(), face, 1)? as u32;
     // `object` is a byte: inside the 256 tints.
-    let tint = ctx.reads.stage_prefs.object_tints[object as usize].get();
+    let tint = ctx
+        .reads
+        .stage_prefs
+        .read(|p| p.object_tints[object as usize]);
     if tints(tint) {
         ctx.view.polygon.scalars.borrow_mut().polygon_colour = tinted(tint, colour);
     }
@@ -1201,13 +1203,14 @@ mod vector_tests {
     fn halfway_vertex_is_the_originals() {
         let course = &race().course;
         let kept_course = *course.course.borrow();
-        let kept = Snapshot::of(&["owners.scene.draw_work", "owners.race.course.stage_prefs"]);
+        let kept = Snapshot::of(&["owners.scene.draw_work"]);
+        let kept_flat = course.stage_prefs.borrow().flat_depth;
         let mut vectors = Vectors::open("race.course_faces.halfway_vertex", Kind::Exact, 8);
         let mut r = Rng(13);
         let win = crate::scene::view_window::first_window();
         at_each_control_word(|| {
             for n in 0..20000 {
-                course.stage_prefs.get().flat_depth.set((n % 2) as u32);
+                course.stage_prefs.borrow_mut().flat_depth = (n % 2) as u32;
                 course.course.borrow_mut().flat_depth = r.int() as u32;
                 // The recorded run read the scene's window; this code reads the window it is given.
                 {
@@ -1250,6 +1253,7 @@ mod vector_tests {
             }
         });
         kept.restore();
+        course.stage_prefs.borrow_mut().flat_depth = kept_flat;
         *course.course.borrow_mut() = kept_course;
         vectors.finish();
     }

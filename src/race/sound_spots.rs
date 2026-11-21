@@ -22,7 +22,7 @@ fn record_field(course: &Course, record: u32, offset: u32) -> Result<u32, BadInp
 /// The 25 cells' numbers (five across, then on by 0x1C after the fifth: rows
 /// 0x20 apart, from reach - 2 on the diagonal).
 fn cells(course: &Course) -> Vec<u32> {
-    rc2k_core::race::view::cells_from(course.stage_prefs.get().grid_reach.get().wrapping_sub(2), 5)
+    rc2k_core::race::view::cells_from(course.stage_prefs.borrow().grid_reach.wrapping_sub(2), 5)
 }
 
 /// Refuses, before anything, a cell past the grid or a course without records, faces or points.

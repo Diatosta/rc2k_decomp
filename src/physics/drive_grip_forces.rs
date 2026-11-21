@@ -71,7 +71,7 @@ pub fn drive_grip_forces(
     }
     // The force is taken a second time over.
     steer_sine_force(car, tables, engine_tables, steer_index(car) as usize);
-    if !c3(&car.local_velocity[2], ZERO) {
+    if !c3(car.local_velocity.bits_at(2), ZERO) {
         // The slip limit, by the drive kind's factor.
         let factor = if kind == 1 {
             GRIP_FACTOR[1]
@@ -86,7 +86,9 @@ pub fn drive_grip_forces(
         hold_high(&car.grip_forces[0], &tables.grip_limit);
         negate(&car.grip_forces[0]);
         let slow = |v: &PlainFloat| abs_below_or_unordered(v, GRIP_SLOW_SPEED);
-        if !slow(&car.local_velocity[2]) && slow(&car.drive_speed_a) {
+        if !abs_below_or_unordered(car.local_velocity.bits_at(2), GRIP_SLOW_SPEED)
+            && slow(&car.drive_speed_a)
+        {
             car.grip_forces[0].set(0.0);
         }
         if car.input_keys.get() & 0x1000 != 0 {
@@ -176,7 +178,7 @@ pub fn drive_grip_forces(
     if car.all_wheels_off.get() != 0 {
         return;
     }
-    car.eased_yaw_spin.set(x87::loaded(&car.spin[1]));
+    car.eased_yaw_spin.set(x87::loaded(car.spin.bits_at(1)));
     let old = car.eased_yaw_spin.bits();
     grip_change.set(x87::sub(old, &car.grip_force_sum));
     ease_zero(grip_change, GRIP_EASE_STEP);
@@ -188,7 +190,7 @@ pub fn drive_grip_forces(
 /// One straight x87 run as plain Rust over `X`.
 fn steer_sine_force(car: &Car, tables: &PhysicsTables, engine_tables: &EngineTables, e: usize) {
     let t0 = engine_tables.sines[e].ld();
-    let t1 = car.local_velocity[2].ld();
+    let t1 = car.local_velocity.ld(2);
     let t2 = t0 * t1;
     let t3 = tables.spec_grip.ld();
     let t4 = t2 / t3;
@@ -222,7 +224,7 @@ fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: f32) {
     let t4 = t2 * t3;
     let t5 = tables.grip_scale.ld();
     let t6 = t4 * t5;
-    let t7 = car.local_velocity[2].ld();
+    let t7 = car.local_velocity.ld(2);
     let t8 = t6 / t7;
     let t9 = t8.abs();
     tables.grip_limit.st(t9);
@@ -250,9 +252,9 @@ fn scale_steering(car: &Car, scratch: &crate::memory::session::PlainDword) {
 
 /// One straight x87 run as plain Rust over `X`.
 fn ground_speed_into_scratch(car: &Car, scratch: &crate::memory::session::PlainDword) {
-    let t0 = car.local_velocity[0].ld();
+    let t0 = car.local_velocity.ld(0);
     let t1 = t0 * t0;
-    let t2 = car.local_velocity[2].ld();
+    let t2 = car.local_velocity.ld(2);
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
@@ -336,7 +338,7 @@ fn engine_braking_force(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
 
 /// One straight x87 run as plain Rust over `X`.
 fn abs_speed_into_work(car: &Car, scene: &crate::scene::owner::Scene) {
-    let t0 = car.local_velocity[2].ld();
+    let t0 = car.local_velocity.ld(2);
     let t1 = t0.abs();
     scene.draw_work_mut().work_float_a = stf(t1);
 }

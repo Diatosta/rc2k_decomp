@@ -12,15 +12,13 @@ use crate::scene::matrix::{
 };
 
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
-/// (`LightsAndGear.light_records.records[0].axles[0]` .. of its 0x134-byte record) and the lift.
+/// (`light_records.records[0].axles[0]` .. of its 0x134-byte record) and the lift.
 fn axles(race: &Race, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
-    let axles = &race
+    let axles = race
         .light_records()
-        .records
-        .get(model as usize)
-        .ok_or(BadInput("a car model past the 34 records"))?
-        .axles;
-    let record: [u32; 5] = std::array::from_fn(|k| axles[k].get());
+        .read(|l| l.records.get(model as usize).map(|record| record.axles))
+        .ok_or(BadInput("a car model past the 34 records"))?;
+    let record: [u32; 5] = std::array::from_fn(|k| axles[k]);
     Ok(rc2k_core::race::car_parts::axles(record, GROUND_DROP))
 }
 

@@ -109,7 +109,10 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
             lowest = h;
         }
     }
-    shared.car().position[1].set(shared.car().position[1].get().wrapping_sub(lowest));
+    shared
+        .car()
+        .position
+        .set_bits_at(1, shared.car().position.bits_at(1).wrapping_sub(lowest));
     // `probe_height` .. 20: the four wheels' heights (made by `physics::probe_ground`).
     let mut probes = physics.probes().borrow_mut();
     for (k, h) in w.iter().enumerate() {
@@ -136,15 +139,11 @@ pub fn reset_car_motion(
     let physics = c.physics;
     settle_car(c, scene)?;
     crate::race::start_place::invert_car_matrix(c.course, c.car, scene);
-    for v in &shared.car().velocity {
-        v.set(0.0);
-    }
-    shared.car().local_velocity[0].set(1.0);
-    shared.car().local_velocity[1].set(0.0);
-    shared.car().local_velocity[2].set(0.0);
-    for v in &shared.car().spin {
-        v.set(0.0);
-    }
+    shared.car().velocity.set([0.0; 3]);
+    shared.car().local_velocity.set_at(0, 1.0);
+    shared.car().local_velocity.set_at(1, 0.0);
+    shared.car().local_velocity.set_at(2, 0.0);
+    shared.car().spin.set([0.0; 3]);
     let heading = shared.car().car_heading.get();
     physics.camera_mut().start_heading = heading;
     shared.car().camera_heading.set(heading);
@@ -182,8 +181,9 @@ fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
         z as i32,
         course.course.borrow().place_heading,
     );
-    add(&shared.car().position[0], x);
-    add(&shared.car().position[2], z);
+    let position = &shared.car().position;
+    position.set_bits_at(0, position.bits_at(0).wrapping_add(x));
+    position.set_bits_at(2, position.bits_at(2).wrapping_add(z));
 }
 
 /// Sets the work car's start: `notice_count`, `camera_switch_active` 0, `map_corner` 0x80000000,

@@ -48,7 +48,7 @@ pub fn draw_mirror_view(
     // the level's grid reach times 0x20) is worked out here, not read from the main view's window
     // while its own part may be writing it.
     view.course.borrow_mut().view_value_kept =
-        reads.stage_prefs.grid_reach.get().wrapping_mul(0x20);
+        reads.stage_prefs.read(|p| p.grid_reach).wrapping_mul(0x20);
     let saved = view.vars.view_scale.get();
     view.vars.view_scale.set(reads.numbers.k256.get());
     let drawn = (|| {

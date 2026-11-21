@@ -2,7 +2,7 @@
 //! data and lists, level grid and paths, kind and light records, flares, marks settings, stage
 //! preferences, numbers, league.
 
-use crate::memory::session::{DrawPlain, DrawShared, GameThread};
+use crate::memory::session::{DrawArc, DrawPlain, DrawShared, GameThread};
 use crate::race::course_lists_store::{CourseLists, CourseListsRef, CourseMemory, TurnWork};
 use crate::race::course_store::{CourseWork, CourseWorkRef};
 use crate::race::kind_records_store::{KindRecords, KindRecordsRef};
@@ -10,7 +10,7 @@ use crate::race::league_store::League;
 use crate::race::level_paths_store::LevelPaths;
 use crate::race::lights_store::{LightsData, LightsTable};
 use crate::race::numbers_store::{NumberVars, Numbers};
-use crate::race::prefs_store::StagePrefs;
+use crate::race::prefs_store::{StagePrefs, StagePrefsRef};
 use crate::race::stage_data_store::StageData;
 use std::cell::{Ref, RefCell, RefMut};
 
@@ -20,10 +20,10 @@ pub struct Course {
     pub course: DrawPlain<CourseWork>,
     /// A copy is lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
     pub lists: DrawPlain<CourseLists>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it (the fog
+    /// Shared with the drawing parts (`scene::workers::DrawReads`): no part writes it (the fog
     /// settings the draw distance picks are set once a frame before the views,
     /// `race::draw_distance_settings`).
-    pub stage_prefs: DrawShared<StagePrefs>,
+    pub stage_prefs: DrawArc<StagePrefs>,
     /// The game's float constants (a plain value, read by reference everywhere).
     pub numbers: Numbers,
     /// The replay's mode, `in_race` and the grip change: one copy, lent to the drawing parts
@@ -45,7 +45,7 @@ pub struct Course {
 pub struct CourseReads<'a> {
     pub course: CourseWorkRef<'a>,
     pub lists: CourseListsRef<'a>,
-    pub stage_prefs: &'a StagePrefs,
+    pub stage_prefs: StagePrefsRef<'a>,
     pub numbers: &'a Numbers,
     pub number_vars: &'a NumberVars,
     pub kind_records: KindRecordsRef<'a>,
@@ -67,7 +67,7 @@ impl Course {
         Course {
             course: DrawPlain::new(CourseWork::new()),
             lists: DrawPlain::new(CourseLists::new()),
-            stage_prefs: DrawShared::new(StagePrefs::new()),
+            stage_prefs: DrawArc::new(StagePrefs::new),
             numbers: Numbers::new(),
             number_vars: DrawShared::new(NumberVars::new()),
             kind_records: DrawPlain::new(KindRecords::new()),
@@ -88,7 +88,7 @@ impl Course {
         CourseReads {
             course: CourseWorkRef::Store(&self.course),
             lists: CourseListsRef::Store(&self.lists),
-            stage_prefs: self.stage_prefs.get(),
+            stage_prefs: StagePrefsRef::Store(&self.stage_prefs),
             numbers: &self.numbers,
             number_vars: self.number_vars.get(),
             kind_records: KindRecordsRef::Store(&self.kind_records),

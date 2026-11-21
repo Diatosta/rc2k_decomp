@@ -52,7 +52,7 @@ pub fn accumulate_mud(car: &Car, vars: &RaceVars, kinds: &KindTables) {
         &v.mud_scale_b[0],
         &v.mud_thrown_in,
     );
-    let slip = || x87::sub(&car.drive_speed_a, &car.local_velocity[2]).to_bits();
+    let slip = || x87::sub(&car.drive_speed_a, car.local_velocity.bits_at(2)).to_bits();
     add_mud(
         (!still).then(slip),
         &v.mud_scale_a[1],

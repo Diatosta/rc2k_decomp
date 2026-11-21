@@ -14,9 +14,9 @@ use std::sync::OnceLock;
 /// `(offset, store, field path)`, sorted by offset.
 #[rustfmt::skip]
 const FIELDS: &[(usize, &str, &str)] = &[
-    (0x1C2C64, "owners.race.replay.viewer_and_kinds", ".viewer_panel.texel_scale"),
-    (0x1C2C68, "owners.race.replay.viewer_and_kinds", ".viewer_panel.reciprocal_width_800"),
-    (0x1C2C6C, "owners.race.replay.viewer_and_kinds", ".viewer_panel.reciprocal_height_600"),
+    (0x1C2C64, "owners.race.replay.viewer_panel.texel_scale", ""),
+    (0x1C2C68, "owners.race.replay.viewer_panel.reciprocal_width_800", ""),
+    (0x1C2C6C, "owners.race.replay.viewer_panel.reciprocal_height_600", ""),
     (0x1C5CFC, "owners.race.course.numbers", ".hundredth_a"),
     (0x1C5D00, "owners.race.course.numbers", ".two_and_a_quarter"),
     (0x1C5D14, "owners.race.course.numbers", ".hundred"),
@@ -229,8 +229,8 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x223AE4, "owners.race.shared.buffers.reads", ".engine_tables.sines[0]"),
     (0x223AE8, "owners.race.shared.buffers.reads", ".engine_tables.sines[1]"),
     (0x223AF4, "owners.race.shared.buffers.reads", ".engine_tables.sines[4]"),
-    (0x223DA8, "owners.race.shared.vars", ".mud_scale_a[0]"),
-    (0x223DAC, "owners.race.shared.vars", ".mud_scale_a[1]"),
+    (0x223DA8, "owners.race.shared.vars.mud_scale_a", "[0]"),
+    (0x223DAC, "owners.race.shared.vars.mud_scale_a", "[1]"),
     (0x22400C, "owners.scene.draw_work", ".scratch"),
     (0x22401C, "owners.scene.draw_work", ".work_float_a"),
     (0x224020, "owners.scene.draw_work", ".work_float_b"),

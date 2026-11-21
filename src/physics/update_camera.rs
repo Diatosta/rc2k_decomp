@@ -64,7 +64,8 @@ fn fixed_camera(c: &CameraInputs<'_>, second: bool) -> Result<(), crate::errors:
     let point = crate::race::course_places::face_field::<u32>(c.course.reads(), face, 4)
         .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
     for k in 0..3 {
-        c.car.camera_position[k as usize].set(
+        c.car.camera_position.set_bits_at(
+            k as usize,
             crate::race::scene_points::point_word(
                 c.course.reads(),
                 &crate::race::scene_points::no_own(),
@@ -76,9 +77,10 @@ fn fixed_camera(c: &CameraInputs<'_>, second: bool) -> Result<(), crate::errors:
     }
     crate::physics::camera_height_bias::camera_height_bias(c.numbers, c.view_records, c.car)?;
     let d = |k: usize| {
-        c.car.position[k]
-            .get()
-            .wrapping_sub(c.car.camera_position[k].get())
+        c.car
+            .position
+            .bits_at(k)
+            .wrapping_sub(c.car.camera_position.bits_at(k))
     };
     let (dx, dy, dz) = (d(0), d(1), d(2));
     let v = [dx, dz, dy];
@@ -98,9 +100,7 @@ fn fixed_camera(c: &CameraInputs<'_>, second: bool) -> Result<(), crate::errors:
         hold_low(&c.car.camera_zoom, &c.numbers.k384);
     }
     c.car.camera_roll_turn.set(0);
-    for turn in &c.car.camera_offset_turns {
-        turn.set(0);
-    }
+    c.car.camera_offset_turns.set_bits([0; 3]);
     Ok(())
 }
 
@@ -110,21 +110,17 @@ fn fixed_camera(c: &CameraInputs<'_>, second: bool) -> Result<(), crate::errors:
 pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::physics::camera_low_switch::camera_low_switch(&c.ground)?;
     for k in 0..3 {
-        c.frame_work.borrow_mut().camera_car[k] = c.car.position[k].get();
+        c.frame_work.borrow_mut().camera_car[k] = c.car.position.bits_at(k);
     }
     let car = c.car.car_kind.get();
     // The car kind's light record (a kind one past the 34 would read on into the gear figures:
     // refused).
     let head = c
         .light_records
-        .records
-        .get(car as usize)
+        .read(|records| records.records.get(car as usize).map(|record| record.head))
         .ok_or(crate::errors::BadInput(
             "a car kind past the 34 light records",
-        ))?
-        .head
-        .each_ref()
-        .map(crate::memory::session::PlainDword::get);
+        ))?;
     x87_4(c.tables, c.numbers, c.view_records, &head);
     ViewVars::record(c.view_records, 3).angles[0].set(head[3]);
     ViewVars::record(c.view_records, 3).angles[0].set(head[7]);
@@ -139,9 +135,9 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         return Ok(());
     }
     // The camera at the car, the views blended.
-    let position = [0, 1, 2].map(|k| c.car.position[k].get());
+    let position = [0, 1, 2].map(|k| c.car.position.bits_at(k));
     for (k, v) in position.into_iter().enumerate() {
-        c.car.camera_position[k].set(v);
+        c.car.camera_position.set_bits_at(k, v);
     }
     {
         let mut place = c.course.course.borrow_mut();
@@ -199,10 +195,10 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         work.view_turn_y = blended(work.view_b_turn[1], work.view_a_turn[1]);
         work.view_turn_z = blended(work.view_b_turn[2], work.view_a_turn[2]);
         for k in 0..3 {
-            offset_turns[k].set(blended(work.view_b_point[k], work.view_a_point[k]));
+            offset_turns.set_bits_at(k, blended(work.view_b_point[k], work.view_a_point[k]));
         }
-        for turn in offset_turns {
-            turn.set(turn.get() << 16);
+        for k in 0..3 {
+            offset_turns.set_bits_at(k, offset_turns.bits_at(k) << 16);
         }
         work.view_share_pitch = work.view_a_shares[0];
         work.view_share_heading = work.view_a_shares[1];

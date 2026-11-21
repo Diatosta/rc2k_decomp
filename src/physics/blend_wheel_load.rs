@@ -20,7 +20,7 @@ pub(super) fn blend_wheel_load(car: &Car, numbers: &Numbers) {
     let one = numbers.one.get();
     let mut slot = 0;
     for (k, add) in [(0, 4), (1, 2), (2, 1)] {
-        if less(car.contact_point[k].get(), zero) {
+        if less(car.contact_point.at(k), zero) {
             slot += add;
         }
     }

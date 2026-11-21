@@ -9,6 +9,24 @@ pub trait Raw {
     fn raw(&self) -> u32;
 }
 
+/// A row of cells as the pages read its element `i`.
+pub trait RawAt {
+    /// Element `i`'s 32 bits.
+    fn raw_at(&self, i: usize) -> u32;
+}
+
+impl<T: Raw, const N: usize> RawAt for [T; N] {
+    fn raw_at(&self, i: usize) -> u32 {
+        self[i].raw()
+    }
+}
+
+impl<const N: usize> RawAt for crate::memory::plain_floats::PlainFloats<N> {
+    fn raw_at(&self, i: usize) -> u32 {
+        self.bits_at(i)
+    }
+}
+
 impl Raw for Dword {
     fn raw(&self) -> u32 {
         self.get()
@@ -36,6 +54,12 @@ impl Raw for crate::memory::session::PlainInt {
 impl Raw for PlainFloat {
     fn raw(&self) -> u32 {
         self.bits()
+    }
+}
+
+impl Raw for std::cell::Cell<u32> {
+    fn raw(&self) -> u32 {
+        self.get()
     }
 }
 
@@ -74,7 +98,7 @@ macro_rules! car_cell {
     }};
     ($block:literal, $field:ident[$i:literal]) => {{
         fn cell<'a>(o: &$crate::owners::Owners<'a>) -> u32 {
-            $crate::debug::row_cells::Raw::raw(&o.race.car_blocks().cars[$block].$field[$i])
+            $crate::debug::row_cells::RawAt::raw_at(&o.race.car_blocks().cars[$block].$field, $i)
         }
         cell
     }};

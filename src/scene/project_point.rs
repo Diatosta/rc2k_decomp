@@ -185,7 +185,7 @@ pub(crate) fn make_scene_record(
     r[3] = 0;
     r[7] = 0;
     if f32::from_bits(r[6]) >= NEAR {
-        let flat = reads.stage_prefs.flat_depth.get() != 0;
+        let flat = reads.stage_prefs.read(|p| p.flat_depth) != 0;
         // The depth it stores is a work value nothing reads.
         to_screen(
             &mut r,

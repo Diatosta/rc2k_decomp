@@ -70,9 +70,11 @@ impl FaceWorld for GameFace<'_> {
         self.1.keep(
             self.0
                 .light_records()
-                .records
-                .get(place)
-                .map(|record| [record.groups[6].get(), record.groups[7].get()])
+                .read(|l| {
+                    l.records
+                        .get(place)
+                        .map(|record| [record.groups[6], record.groups[7]])
+                })
                 .ok_or(crate::errors::BadInput("a kind's record")),
         )
     }
