@@ -106,9 +106,8 @@ pub fn lamps_wanted(
         let this_car = frame_cars.car(work.block_number(n as usize)?)?;
         any_lit |= car_lit(this_car.driver_kind.get(), || this_car.lights_on.get());
     }
-    lamps
-        .lamps_wanted
-        .set(lamps_wanted(lamps.lamp_count.get(), any_lit));
+    let count = lamps.borrow().lamp_count;
+    lamps.borrow_mut().lamps_wanted = lamps_wanted(count, any_lit);
     Ok(())
 }
 
@@ -228,8 +227,9 @@ pub fn object_bytes(
             None
         };
         let bytes = rc2k_core::race::frame::object_bytes(flags, record_kind, face_kind);
-        for (own, b) in mine.tables().into_iter().zip(bytes) {
-            own.set(n, b);
+        let mut mine = mine.borrow_mut();
+        for (own, b) in mine.face_tables.iter_mut().zip(bytes) {
+            own[n] = b;
         }
     }
     Ok(())
@@ -827,10 +827,10 @@ pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
 /// to 0, then runs `object_bytes`.
 pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadInput> {
     let crate::race::view_scratch::DrawCtx { view, reads, .. } = *ctx;
-    view.lamps.lamp_count.set(0);
+    view.lamps.borrow_mut().lamp_count = 0;
     view.lists.depth_entry_count.set(0);
     view.lists.sort_entry_count.set(0);
-    view.lamps.flare_count.set(0);
+    view.lamps.borrow_mut().flare_count = 0;
     object_bytes(reads, &view.course)
 }
 

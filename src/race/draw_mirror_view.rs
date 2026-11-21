@@ -47,14 +47,13 @@ pub fn draw_mirror_view(
     // The main view's depth (`view_depth[1]` as its `scene::set_view_window` leaves it:
     // the level's grid reach times 0x20) is worked out here, not read from the main view's window
     // while its own part may be writing it.
-    view.course
-        .view_value_kept
-        .set(reads.stage_prefs.grid_reach.get().wrapping_mul(0x20));
+    view.course.borrow_mut().view_value_kept =
+        reads.stage_prefs.grid_reach.get().wrapping_mul(0x20);
     let saved = view.vars.view_scale.get();
     view.vars.view_scale.set(reads.numbers.k256.get());
     let drawn = (|| {
         crate::race::frame_views::mirror_view_window(race, view, part, reads)?;
-        view.polygon.window.borrow_mut().view_depth[1] = view.course.view_value_kept.get();
+        view.polygon.window.borrow_mut().view_depth[1] = view.course.borrow().view_value_kept;
         crate::race::frame_flush::draw_view_backdrop(reads, view, part);
         // A mirror starts from no filter switches (`race::view_scratch::filter_input`: only the
         // first view's slot reads the front end's).

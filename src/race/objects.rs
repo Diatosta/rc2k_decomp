@@ -4,7 +4,6 @@
 //! compared unsigned), turned to floats (/ 65536) into the car's block, two points put in at 4.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::Dword;
 use crate::race::owner::Race;
 
 const LIFT: u32 = 0x5_0000;
@@ -12,10 +11,10 @@ const MOST_SORTED: u32 = 0x3D;
 const MOST_CONVERTED: u32 = 0x40;
 
 /// A car's entry of one of the two kind tables (the car held to 0 .. 0x21).
-pub fn car_table(table: &[Dword; 34], car: u32) -> u32 {
+pub fn car_table(table: &[u32; 34], car: u32) -> u32 {
     // Logic in `rc2k_core::race::cars::table_entry`.
     let n = rc2k_core::race::cars::table_entry(car);
-    table[n].get()
+    table[n]
 }
 
 /// One of the four sorts: the key's offset in the point, and whether the order is downwards.

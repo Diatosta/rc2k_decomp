@@ -40,7 +40,7 @@ fn add_mud(speed: Option<u32>, f1: &PlainFloat, f2: &PlainFloat, to: &[PlainFloa
 /// The exact version, for `physics::car_physics_step`.
 pub fn accumulate_mud(car: &Car, vars: &RaceVars, kinds: &KindTables) {
     let kind = car.car_kind.get();
-    if kind >= 0x22 || kinds.kind_gets_mud[kind as usize].get() == 0 {
+    if kind >= 0x22 || kinds.kind_gets_mud[kind as usize] == 0 {
         return;
     }
     let still = car.all_wheels_off.get() != 0;

@@ -132,7 +132,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     x87_4(c.tables, c.numbers, c.view_records, &head);
     ViewVars::record(c.view_records, 3).angles[0].set(head[3]);
     ViewVars::record(c.view_records, 3).angles[0].set(head[7]);
-    if !camera_view::keeps_light_figure(car, || c.kind_tables.kind_has_views[car as usize].get()) {
+    if !camera_view::keeps_light_figure(car, || c.kind_tables.kind_has_views[car as usize]) {
         ViewVars::record(c.view_records, 1).focus[2]
             .set(crate::math::x87::loaded(head[10]).to_bits());
     }

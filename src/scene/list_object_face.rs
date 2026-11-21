@@ -63,7 +63,7 @@ impl FaceWorld for GameFace<'_> {
         self.7.object_tables.object_kind(object)
     }
     fn known_kind(&self, place: usize) -> u32 {
-        self.0.kind_tables().known_object_kinds[place].get()
+        self.0.kind_tables().known_object_kinds[place]
     }
     fn kind_groups(&self, place: usize) -> [u32; 2] {
         // Groups 6 and 7 of the kind's light record.

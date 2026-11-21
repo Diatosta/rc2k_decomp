@@ -262,7 +262,7 @@ pub(super) fn byte_at(
     if n >= 0x100 {
         return Err(BadInput("an object number past the face tables"));
     }
-    Ok(mine.tables()[which].get(n as usize) as u32)
+    Ok(mine.borrow().face_tables[which][n as usize] as u32)
 }
 
 /// A course record's faces (its first and last face; -1 none), or None.

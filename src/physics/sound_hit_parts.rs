@@ -22,7 +22,7 @@ pub fn sound_hit_parts(
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     if !has_hit_sounds(shared.car().car_kind.get(), |kind| {
-        kind_tables.kind_hit_sounds[kind as usize].get()
+        kind_tables.kind_hit_sounds[kind as usize]
     }) {
         return Ok(());
     }

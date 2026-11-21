@@ -445,9 +445,9 @@ fn nearness(
         if !below_or_unordered(near, numbers.one.get()) {
             cars.car_nearness.set(numbers.one.get());
         }
-        let shine = (ONE - cars.car_nearness.ld()) * int(mine.shine.get() as i32);
+        let shine = (ONE - cars.car_nearness.ld()) * int(mine.borrow().shine as i32);
         let whole = to_int(shine);
-        mine.shine.set(whole as u32);
+        mine.borrow_mut().shine = whole as u32;
     }
 }
 
@@ -466,7 +466,7 @@ pub(super) fn draw_car_shined(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     car: usize,
 ) -> Result<(), Refused> {
-    let shine: u32 = ctx.view.course.shine.get();
+    let shine: u32 = ctx.view.course.borrow().shine;
     let mut shine_level = 0x3_FCE0u32.wrapping_sub(ctx.reads.vars.mud_thrown_counts[0].get());
     if (shine_level as i32) < 0 {
         shine_level = 0;
@@ -475,9 +475,9 @@ pub(super) fn draw_car_shined(
         shine_level = 0x4_0000;
     }
     let product = shine_level as u64 * ctx.reads.stage_prefs.shine_scale.get() as u64;
-    ctx.view.course.shine.set((product as u32) >> 18);
+    ctx.view.course.borrow_mut().shine = (product as u32) >> 18;
     let done = draw_car(ctx, car);
-    ctx.view.course.shine.set(shine);
+    ctx.view.course.borrow_mut().shine = shine;
     done
 }
 
@@ -598,8 +598,10 @@ mod vector_tests {
         let race = race();
         let cars = CarDrawState::new();
         cars.car_depth.set(race.frame.frame_work.borrow().car_depth);
-        let mine = crate::race::view_course::ViewCourse::new();
-        mine.shine.set(SHINE.get());
+        let mine = crate::race::view_course::ViewCourse::new(
+            crate::race::view_course::CourseValues::new(),
+        );
+        mine.borrow_mut().shine = SHINE.get();
         let [zero, one] = ZERO_AND_ONE.get();
         let numbers = crate::race::numbers_store::Numbers {
             zero: crate::memory::session::ConstFloat::from_bits(zero),
@@ -607,7 +609,7 @@ mod vector_tests {
             ..race.course.numbers
         };
         nearness(&numbers, &cars, &mine);
-        SHINE.set(mine.shine.get());
+        SHINE.set(mine.borrow().shine);
         race.shared
             .work
             .get()

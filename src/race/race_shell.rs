@@ -123,7 +123,7 @@ fn start_value(physics: &Physics, kind: u32) -> u32 {
 
 /// Whether a kind is one with its flag (`kind_has_views`) set (below 0x22).
 fn flagged(race: &Race, kind: u32) -> bool {
-    kind < 0x22 && race.kind_tables().kind_has_views[kind as usize].get() != 0
+    kind < 0x22 && race.kind_tables().kind_has_views[kind as usize] != 0
 }
 
 /// A block's camera view (`camera_view`) of 2 or 3 made 4.

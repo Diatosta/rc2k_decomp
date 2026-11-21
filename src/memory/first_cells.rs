@@ -1,7 +1,7 @@
 //! Builders for the first values of the race block's stores: arrays of cells from plain
 //! numbers or a text, as constants.
 
-use crate::memory::session::{Dword, PlainDword};
+use crate::memory::session::PlainDword;
 
 macro_rules! cells_of {
     ($name:ident, $cell:ident, $item:ty) => {
@@ -40,6 +40,5 @@ macro_rules! cells_of_text {
     };
 }
 
-cells_of!(dwords, Dword, u32);
 cells_of!(plain_dwords, PlainDword, u32);
 cells_of_text!(plain_dwords_of_text, PlainDword);

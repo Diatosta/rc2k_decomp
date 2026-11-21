@@ -221,7 +221,7 @@ impl<'a> StepInputs<'a> {
             lights_data: self.course.lights_data(),
             step_first: self.step_first,
             checkpoints: &self.shared.buffers.reads.get().checkpoints,
-            kind_tables: &self.replay.viewer_and_kinds.kind_tables,
+            kind_tables: &crate::race::kind_store::KIND_TABLES,
             light_records: &self.frame.lights_and_gear.get().light_records,
             ground: self.camera_ground(),
         }

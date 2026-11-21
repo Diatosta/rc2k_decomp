@@ -54,14 +54,16 @@ pub fn take() {
 /// its view matrix, as `race::add_flare` turned it (a pure reckoning: nothing is written).
 pub(super) fn note_first_view(scene: &crate::scene::owner::Scene) {
     let view = scene.scratch.main_view(0);
-    if view.lamps.flare_count.get() == 0 {
+    let lamps = view.lamps.borrow();
+    if lamps.flare_count == 0 {
         return;
     }
     let place = [
-        view.lamps.flare_place_x[0].get(),
-        view.lamps.flares.place_y[0].get(),
-        view.lamps.flares.place_z[0].get(),
+        lamps.flare_place_x[0],
+        lamps.flare_place_y[0],
+        lamps.flare_place_z[0],
     ];
+    drop(lamps);
     let turned = crate::math::x87::rotate_rounding_z(
         place.map(|v| v as i32),
         &view.matrices.borrow().view_matrix.map(f32::to_bits),

@@ -170,9 +170,9 @@ impl ViewScratch {
             matrices: PlainSlot::new(crate::scene::view_matrices::MatrixValues::new()),
             polygon: crate::scene::polygon_work_store::PolygonWork::new(),
             grid: PlainSlot::new(crate::race::view_grid::ViewGrid::new()),
-            course: crate::race::view_course::ViewCourse::new(),
+            course: PlainSlot::new(crate::race::view_course::CourseValues::new()),
             quad: PlainSlot::new(crate::race::quad_work::QuadWork::new()),
-            lamps: crate::race::lamp_work::LampWork::new(),
+            lamps: PlainSlot::new(crate::race::lamp_work::LampValues::new()),
             state: PlainSlot::new(crate::race::view_state::ViewState::new()),
             car: crate::physics::car_store::ViewCar::new(),
             hand_off: crate::race::scene_hand_off::SceneHandOff::new(),
@@ -236,7 +236,7 @@ impl ViewScratch {
         // The course grid is kept: it is made again only when the view's corner moves, and a
         // stage's start marks every corner unknown (`view_grid::reset_corners`).
         self.course
-            .copy_from(&crate::race::view_course::ViewCourse::new());
+            .reset(crate::race::view_course::CourseValues::new());
         self.quad.reset(crate::race::quad_work::QuadWork::new());
         self.state.reset(crate::race::view_state::ViewState::new());
     }

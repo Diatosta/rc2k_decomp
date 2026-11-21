@@ -70,7 +70,7 @@ pub fn draw_object_face(
     let entries = &ctx.part.polygon.entries;
     let vertices = (0..count as usize).map(|n| (&entries[n], 0x10 + n * 0x10));
     let view_kind: u32 = light.borrow().view_kind;
-    let shine: u32 = ctx.view.course.shine.get();
+    let shine: u32 = ctx.view.course.borrow().shine;
 
     light.borrow_mut().face_bits = words[7] as u32 & 0x1F;
     let face_shine = words[9] as u32;

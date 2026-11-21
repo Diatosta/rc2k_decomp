@@ -2,9 +2,7 @@
 //! its pieces and the bytes between them in a fixed layout, as one static with its first values.
 //! Each piece's store is a field here.
 //!
-//! - `ViewerAndKinds`: the viewer's panel, the bytes after it, the kinds' tables. The effects read
-//!   the marks' settings as one record from `ViewerAndKinds.marks_settings.settings_text` (in the
-//!   panel) to its end (in the kinds' tables: `effects::init_marks`).
+//! - `ViewerAndKinds`: the viewer's panel and the marks' settings.
 //! - `LightsAndGear`: the light records. `scene::load_object` reads a kind's record past the 34
 //!   (an unbounded kind) on into the gear figures (`LightRecords::group_at`).
 //! - `ViewAndRecords`: the view variables and the 52 view records of 0x5C after them
@@ -14,20 +12,17 @@
 
 use crate::memory::session::{GameThread, PlainCells};
 use crate::race::effects_settings_store::EffectsSettings;
-use crate::race::kind_store::KindTables;
 use crate::race::light_records_store::LightRecords;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
 
-/// The viewer's panel, the bytes after it and the kinds' tables.
+/// The viewer's panel and the marks' settings.
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerAndKinds {
     /// `race::viewer_screen_store`.
     pub viewer_panel: GameThread<ViewerPanelBlock>,
     /// `race::effects_settings_store`.
     pub marks_settings: GameThread<EffectsSettings>,
-    /// `race::kind_store`.
-    pub kind_tables: KindTables,
 }
 
 /// The light records. A drawing store (`session::DrawShared`) on plain cells.
@@ -49,13 +44,12 @@ pub struct ViewAndRecords {
 // SAFETY (the groups): every field is a cell over a plain integer (`session`'s cells and
 // records of them): any bit pattern is a valid value.
 
-/// The viewer's panel, the marks' settings and the kinds' tables as the game starts.
+/// The viewer's panel and the marks' settings as the game starts.
 impl ViewerAndKinds {
     pub const fn new() -> Self {
         ViewerAndKinds {
             viewer_panel: GameThread::new(ViewerPanelBlock::new()),
             marks_settings: GameThread::new(EffectsSettings::new()),
-            kind_tables: KindTables::new(),
         }
     }
 }

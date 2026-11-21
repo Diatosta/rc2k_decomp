@@ -4,6 +4,7 @@
 use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::physics::figures::GROUND_DROP;
+use crate::race::lamp_work::Flare;
 use crate::race::view_scratch::DrawCtx;
 use crate::scene::draw_described_object::{DescribedMatrix, Description};
 
@@ -255,27 +256,18 @@ const FLARES_MAX: u32 = 0x100;
 /// the key), a depth entry with the flare's number + 0x1000000; none past `FLARES_MAX`.
 pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     let DrawCtx { view, .. } = *ctx;
-    let n: u32 = view.lamps.flare_count.get();
+    let n: u32 = view.lamps.borrow().flare_count;
     if n == FLARES_MAX {
         return Ok(());
     }
     let place = ctx.view.object.borrow().place;
-    for (table, v) in [
-        (
-            &view.lamps.flares.object_number,
-            ctx.view.cars.object_number.get(),
-        ),
-        (&view.lamps.flare_place_x, place[0]),
-        (&view.lamps.flares.place_y, place[1]),
-        (&view.lamps.flares.place_z, place[2]),
-        (&view.lamps.flares.size, ctx.view.object.borrow().size),
-        (
-            &view.lamps.flares.other_light,
-            ctx.view.light.borrow().other_light,
-        ),
-    ] {
-        table[n as usize].set(v);
-    }
+    let flare = Flare {
+        place,
+        size: ctx.view.object.borrow().size,
+        other_light: ctx.view.light.borrow().other_light,
+        object_number: ctx.view.cars.object_number.get(),
+    };
+    view.lamps.borrow_mut().set_flare(n as usize, flare);
     let out = crate::math::x87::rotate_rounding_z(
         place.map(|v| v as i32),
         &view.matrices.borrow().view_matrix.map(f32::to_bits),
@@ -289,7 +281,7 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
     at[0].set(key);
     at[1].set(n.wrapping_add(0x100_0000));
     view.lists.depth_entry_count.set(entry + 1);
-    view.lamps.flare_count.set(n + 1);
+    view.lamps.borrow_mut().flare_count = n + 1;
     Ok(())
 }
 
@@ -392,7 +384,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
         return Ok(());
     }
     let kind = ctx.reads.frame_cars.car(car)?.car_kind.get();
-    let valid = kind < 0x22 && race.kind_tables().kind_shows_parts[kind as usize].get() != 0;
+    let valid = kind < 0x22 && race.kind_tables().kind_shows_parts[kind as usize] != 0;
     if valid {
         if !crate::math::x87::below_or_unordered(
             ctx.reads.frame_cars.car(car)?.electrics_damage.get(),
@@ -407,7 +399,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
         // A second test of the same kind follows; it can never fail here.
     }
     // The kind held to 0 ..= 0x21 (by sign), through the kind tables' `kind_light_records`.
-    let index = race.kind_tables().kind_light_records[(kind as i32).clamp(0, 0x21) as usize].get();
+    let index = race.kind_tables().kind_light_records[(kind as i32).clamp(0, 0x21) as usize];
     // The table is the image's and nothing writes it: its entries are 0 .. 33, the 34 records'.
     let record = index as usize;
     ctx.view.light.borrow_mut().view_kind = 1u32;
@@ -691,30 +683,13 @@ pub fn draw_flare(
     flare: u32,
     entry: Description<'_>,
 ) -> Result<(), Refused> {
-    /// Flare `flare`'s value in `table`.
-    fn flare_value(
-        table: &[impl crate::memory::session::DwordLike],
-        flare: u32,
-    ) -> Result<u32, BadInput> {
-        Ok(table
-            .get(flare as usize)
-            .ok_or(BadInput("a flare past the tables"))?
-            .get())
-    }
-    let (view, flares) = (ctx.view, &ctx.view.lamps.flares);
-    let x = flare_value(&view.lamps.flare_place_x, flare)?;
-    view.object.borrow_mut().place[0] = x;
-    let y = flare_value(&flares.place_y, flare)?;
-    view.object.borrow_mut().place[1] = y;
-    let z = flare_value(&flares.place_z, flare)?;
-    view.object.borrow_mut().place[2] = z;
-    let size = flare_value(&flares.size, flare)?;
-    view.object.borrow_mut().size = size;
-    let other_light = flare_value(&flares.other_light, flare)?;
-    view.light.borrow_mut().other_light = other_light;
-    view.cars
-        .object_number
-        .set(flare_value(&flares.object_number, flare)?);
+    let view = ctx.view;
+    let held = view.lamps.borrow().flare(flare);
+    let held = held.ok_or(BadInput("a flare past the tables"))?;
+    view.object.borrow_mut().place = held.place;
+    view.object.borrow_mut().size = held.size;
+    view.light.borrow_mut().other_light = held.other_light;
+    view.cars.object_number.set(held.object_number);
     ctx.view.light.borrow_mut().view_kind = 2u32;
     place_object_matrix(ctx)?;
     ctx.view.light.borrow_mut().light_kind = 0u32;
@@ -730,13 +705,13 @@ fn draw_lamp_flare(ctx: &crate::race::view_scratch::DrawCtx<'_>, lamp: u32) -> R
     let [x, y, z] = crate::race::scene_points::point_number(
         ctx.reads.course(),
         &ctx.part.points,
-        lamp_record[0].get(),
+        lamp_record[0],
     )?;
     ctx.view.object.borrow_mut().place[0] = x;
     ctx.view.object.borrow_mut().place[1] = y;
     ctx.view.object.borrow_mut().place[2] = z;
-    ctx.view.object.borrow_mut().size = lamp_record[1].get() << 3;
-    ctx.view.light.borrow_mut().other_light = lamp_record[2].get();
+    ctx.view.object.borrow_mut().size = lamp_record[1] << 3;
+    ctx.view.light.borrow_mut().other_light = lamp_record[2];
     ctx.view
         .cars
         .object_number

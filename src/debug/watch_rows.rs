@@ -2871,7 +2871,10 @@ pub static GROUPS: &[Group] = &[
                 "Light 1: x",
                 "lightxs1",
                 Shown::Whole,
-                indexed_cell!(|o| o.scene.scratch.main_view(0).lamps, flare_place_x[0]),
+                indexed_cell!(
+                    |o| o.scene.scratch.main_view(0).lamps.borrow(),
+                    flare_place_x[0]
+                ),
                 false,
                 (0, 0),
             ),
@@ -2879,7 +2882,10 @@ pub static GROUPS: &[Group] = &[
                 "Light 1: y",
                 "lightys1",
                 Shown::Whole,
-                indexed_cell!(|o| o.scene.scratch.main_view(0).lamps.flares, place_y[0]),
+                indexed_cell!(
+                    |o| o.scene.scratch.main_view(0).lamps.borrow(),
+                    flare_place_y[0]
+                ),
                 false,
                 (0, 0),
             ),
@@ -2887,7 +2893,10 @@ pub static GROUPS: &[Group] = &[
                 "Light 1: z",
                 "lightzs1",
                 Shown::Whole,
-                indexed_cell!(|o| o.scene.scratch.main_view(0).lamps.flares, place_z[0]),
+                indexed_cell!(
+                    |o| o.scene.scratch.main_view(0).lamps.borrow(),
+                    flare_place_z[0]
+                ),
                 false,
                 (0, 0),
             ),
@@ -2895,7 +2904,10 @@ pub static GROUPS: &[Group] = &[
                 "Light 1: s",
                 "lightss1",
                 Shown::Whole,
-                indexed_cell!(|o| o.scene.scratch.main_view(0).lamps.flares, size[0]),
+                indexed_cell!(
+                    |o| o.scene.scratch.main_view(0).lamps.borrow(),
+                    flare_size[0]
+                ),
                 false,
                 (0, 0),
             ),
@@ -2904,8 +2916,8 @@ pub static GROUPS: &[Group] = &[
                 "lightcs1",
                 Shown::Whole,
                 indexed_cell!(
-                    |o| o.scene.scratch.main_view(0).lamps.flares,
-                    other_light[0]
+                    |o| o.scene.scratch.main_view(0).lamps.borrow(),
+                    flare_other_light[0]
                 ),
                 false,
                 (0, 0),
@@ -2915,8 +2927,8 @@ pub static GROUPS: &[Group] = &[
                 "lightds1",
                 Shown::Whole,
                 indexed_cell!(
-                    |o| o.scene.scratch.main_view(0).lamps.flares,
-                    object_number[0]
+                    |o| o.scene.scratch.main_view(0).lamps.borrow(),
+                    flare_object_number[0]
                 ),
                 false,
                 (0, 0),

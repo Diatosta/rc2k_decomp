@@ -63,7 +63,7 @@ const NO_FACE_ROOM: FatalError = FatalError {
 fn find_object_kind(race: &crate::race::owner::Race, kind: u32) -> u32 {
     (0..KNOWN_KINDS)
         .find(|&n| {
-            let known: u32 = race.kind_tables().known_object_kinds[n as usize].get();
+            let known: u32 = race.kind_tables().known_object_kinds[n as usize];
             kind == known || kind == known.wrapping_add(1)
         })
         .unwrap_or(KNOWN_KINDS)

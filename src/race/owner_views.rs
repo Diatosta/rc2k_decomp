@@ -78,8 +78,8 @@ impl Race {
     }
 
     /// The surface kinds' tables.
-    pub fn kind_tables(&self) -> &KindTables {
-        &self.replay.viewer_and_kinds.kind_tables
+    pub fn kind_tables(&self) -> &'static KindTables {
+        &crate::race::kind_store::KIND_TABLES
     }
 
     /// The checkpoints.

@@ -17,7 +17,7 @@ const MUD_LEN: u32 = 0x1_0000;
 pub fn car_file_number(kinds: &KindTables, car: u32) -> u32 {
     // Logic in `rc2k_core::race::cars::table_entry`.
     let n = rc2k_core::race::cars::table_entry(car);
-    kinds.car_file_numbers[n].get()
+    kinds.car_file_numbers[n]
 }
 
 /// The pixel at (x, y) of `surface`, taken apart by `gfx::pixel_to_components`. The conversion

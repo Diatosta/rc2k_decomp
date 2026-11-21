@@ -69,16 +69,17 @@ pub fn car_light_modes(
     Ok(())
 }
 
-/// A view's own lamp `n` of the 16 (0x10 bytes: the point, the strength, the colour;
+/// A view's own lamp `n` of the 16 (the point, the strength, the colour, and a word never used;
 /// `lamps`). One past the 16 is refused.
 pub(super) fn own_lamp(
     lamps: &crate::race::lamp_work::LampWork,
     n: u32,
-) -> Result<&[crate::memory::session::PlainDword], BadInput> {
-    let n = n as usize;
+) -> Result<[u32; 4], BadInput> {
     lamps
+        .borrow()
         .lamps
-        .get(4 * n..4 * n + 4)
+        .get(n as usize)
+        .copied()
         .ok_or(BadInput("a lamp past the sixteen"))
 }
 
@@ -88,7 +89,7 @@ pub(super) fn own_lamp(
 /// `lamp_count` + 0x3000000. The caller checks the room.
 pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     let DrawCtx { view, .. } = *ctx;
-    let point = own_lamp(&view.lamps, lamp)?[0].get();
+    let point = own_lamp(&view.lamps, lamp)?[0];
     let place =
         crate::race::scene_points::point_number(ctx.reads.course(), &ctx.part.points, point)?;
     view.object.borrow_mut().place = place;
@@ -98,7 +99,7 @@ pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
     view.object.borrow_mut().place[1] = out[1];
     let key = out[2].wrapping_add(0x200_0000) >> 10;
     view.face.depth_key.set(key);
-    let second = view.lamps.lamp_count.get().wrapping_add(0x300_0000);
+    let second = view.lamps.borrow().lamp_count.wrapping_add(0x300_0000);
     let n: u32 = view.lists.depth_entry_count.get();
     let at = view.lists.depth_entry(n)?;
     at[0].set(key);
@@ -120,23 +121,25 @@ pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
     if count != 0 && ctx.view.lists.depth_entry_count.get() > SORT_MAX - 16 {
         return Err(BadInput("the depth list has no room for the lamps").into());
     }
-    ctx.view.lamps.lamp_count.set(0u32);
+    ctx.view.lamps.borrow_mut().lamp_count = 0;
     for k in 0..count {
         let face = lit.face(k as usize);
         let object = face_field::<u8>(ctx.reads.course(), face, 1)? as u32;
         if object != rc2k_core::race::faces::LAMP_OBJECT {
             continue;
         }
-        let lamp: u32 = ctx.view.lamps.lamp_count.get();
+        let lamp: u32 = ctx.view.lamps.borrow().lamp_count;
         if !rc2k_core::race::faces::takes_lamp(object, lamp) {
             continue;
         }
-        let at = own_lamp(&ctx.view.lamps, lamp)?;
-        at[0].set(face_field(ctx.reads.course(), face, 4)?);
-        at[1].set(crate::race::course_places::face_number(ctx.reads.course(), face)?.mark() as u32);
-        at[2].set(rc2k_core::race::faces::LAMP_COLOUR);
+        own_lamp(&ctx.view.lamps, lamp)?;
+        let point = face_field(ctx.reads.course(), face, 4)?;
+        ctx.view.lamps.borrow_mut().lamps[lamp as usize][0] = point;
+        let mark = crate::race::course_places::face_number(ctx.reads.course(), face)?.mark() as u32;
+        ctx.view.lamps.borrow_mut().lamps[lamp as usize][1] = mark;
+        ctx.view.lamps.borrow_mut().lamps[lamp as usize][2] = rc2k_core::race::faces::LAMP_COLOUR;
         add_lamp_entry(ctx, lamp)?;
-        ctx.view.lamps.lamp_count.set(lamp + 1);
+        ctx.view.lamps.borrow_mut().lamp_count = lamp + 1;
     }
     Ok(())
 }
@@ -252,20 +255,20 @@ pub(super) fn lamp_lights_on_point(
     object_light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
     {
-        let count: u32 = lamps.lamp_count.get();
+        let count: u32 = lamps.borrow().lamp_count;
         if count == 0 {
             return Ok(());
         }
         let place = object_light.borrow().lit_place;
         for n in 0..count {
             let lamp = own_lamp(lamps, n)?;
-            let strength = lamp[1].get();
+            let strength = lamp[1];
             if strength == 0 {
                 continue;
             }
-            let tint = lamp[2].get();
+            let tint = lamp[2];
             object_light.borrow_mut().lamp_tint = tint;
-            let point = lamp[0].get();
+            let point = lamp[0];
             let at = crate::race::scene_points::point_number(course, points, point)?;
             let d: [u32; 3] = std::array::from_fn(|k| at[k].wrapping_sub(place[k]));
             let [distance, _, _] = crate::scene::approximate_distance::approximate_distance(d);
@@ -290,7 +293,7 @@ pub fn check_light_colour(
     Ok(rc2k_core::race::lights::check_light_colour(
         race_view.race_cars.get(),
         |n| u32::from(work.has_car_block(n as usize)),
-        || lamps.lamp_count.get(),
+        || lamps.borrow().lamp_count,
     )?)
 }
 

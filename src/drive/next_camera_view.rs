@@ -23,7 +23,7 @@ pub(super) fn next_view_at(
     let view = next_view(
         car.camera_view.get(),
         || car.car_kind.get(),
-        |car| kinds.kind_has_views[car as usize].get() != 0, /* by car (0x22) */
+        |car| kinds.kind_has_views[car as usize] != 0, /* by car (0x22) */
         || players.get(),
     );
     car.camera_blend_view.set(view);

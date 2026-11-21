@@ -24,12 +24,12 @@ pub fn draw_menu_object(
     mine: &crate::race::view_course::ViewCourse,
 ) -> Result<(), Refused> {
     {
-        mine.shine.set(0x200u32);
+        mine.borrow_mut().shine = 0x200;
         step(Step::Matrix)?;
         light.borrow_mut().view_kind = 5u32;
         light.borrow_mut().light_kind = 4u32;
         step(Step::Draw)?;
-        mine.shine.set(0x100u32);
+        mine.borrow_mut().shine = 0x100;
         Ok(())
     }
 }

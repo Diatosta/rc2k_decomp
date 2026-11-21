@@ -55,7 +55,7 @@ pub fn draw_view_scene(
     // The shine is the stage's, as the frame's first view has it; each later view used to get the
     // previous one's last car's (fixed: "Each view lit by what the view before it left" in
     // `wiki/Fixed-bugs.md`).
-    view.course.shine.set(reads.stage_prefs.shine_from.get());
+    view.course.borrow_mut().shine = reads.stage_prefs.shine_from.get();
     let input = filter;
     view.light.borrow_mut().car_light = view.car.light_colour.get();
     view.polygon.scalars.borrow_mut().smooth = input[0];

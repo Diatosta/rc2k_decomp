@@ -249,7 +249,7 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
 /// missing fourth), when lamps are wanted (`lamps_wanted`) and the face is not a plain mode-4 one;
 /// all 0 otherwise. Refused (before anything): what `light_colour_at` refuses.
 fn face_lights(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
-    let wanted: u32 = ctx.view.lamps.lamps_wanted.get();
+    let wanted: u32 = ctx.view.lamps.borrow().lamps_wanted;
     let lit = wanted != 0
         && rc2k_core::race::faces::corners_lit(
             wanted,
@@ -704,7 +704,7 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     };
     let mode = face_mode(second, picked);
     trap.finish()?;
-    let wanted: u32 = ctx.view.lamps.lamps_wanted.get();
+    let wanted: u32 = ctx.view.lamps.borrow().lamps_wanted;
     if wanted != 0
         && rc2k_core::race::faces::corners_lit(wanted, ctx.view.face.texture_a.get(), mode)
     {

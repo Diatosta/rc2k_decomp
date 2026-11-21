@@ -17,7 +17,7 @@ const MOST: u32 = 0x100;
 pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{self, Lamp};
 
-    let lamps: u32 = ctx.view.lamps.lamp_count.get();
+    let lamps: u32 = ctx.view.lamps.borrow().lamp_count;
     if lamps == 0 {
         return Ok(());
     }
@@ -29,13 +29,10 @@ pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     let list = (0..lamps as usize).map(|n| {
         // The list holds 16 lamps, the refusal allows `MOST`; the only write of the count
         // is a 0 (`race::frame_draw::panel`), so more than 16 is never met.
+        let lamp = ctx.view.lamps.borrow().lamps.get(n).copied();
         let [point, strength, colour] = [0, 1, 2].map(|k| {
             reading.keep(
-                ctx.view
-                    .lamps
-                    .lamps
-                    .get(4 * n + k)
-                    .map(crate::memory::session::PlainDword::get)
+                lamp.map(|lamp| lamp[k])
                     .ok_or(BadInput("more lamps than the 16 of the level")),
             )
         });
