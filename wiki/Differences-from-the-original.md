@@ -31,7 +31,7 @@ the switches of the command line are on [Running and options](Running-and-option
   [Replays](#replays).
 - **The render dialog, its progress panel and the notices scale with the screen** (laid out for 600
   lines and enlarged on a taller one, so they are not tiny on a 1440-line or a phone's screen); video
-  rendering is a desktop feature for now: phones, the web build and the Vita show no render button.
+  rendering is a desktop feature for now: phones and the web build show no render button.
 - **The replay viewer names the highlighted button**: when the highlight moves, its name shows above the
   buttons for a second: [Replays](#replays).
 - **A replay format of its own** that records every car of a race, up to eight, the computer's and the other
@@ -380,8 +380,9 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 
 ## Platforms
 
-- Windows (32 and 64 bits), Linux, macOS and the Anbernic RG34XXSP handheld; see
-  [Platforms](Platforms). The program carries the project's icon on every system.
+- Windows (32 and 64 bits), Linux, macOS, the Steam Deck, the Anbernic RG34XXSP handheld,
+  Android phones and tablets, and the iPhone and iPad; see [Platforms](Platforms), and
+  [Installing the game](Installing-the-game) for each one's steps. The program carries the project's icon on every system.
 - On macOS the installer makes a self-contained "Rally Championship.app" in Applications.
 - Builds: `./build.sh <target>`, and `build.cmd` on Windows itself ([Building from
   source](Building-from-source)).

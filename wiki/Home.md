@@ -3,7 +3,8 @@
 A reimplementation in Rust of *Rally Championship 2000* (developed by Magnetic Fields; the
 program `RAL.EXE`). It is a complete program of its own, `rc2k`: none of the original's code
 runs. It reads the game's data files from the player's own copy of the game, and runs on
-Windows, Linux, macOS and a handheld.
+Windows, Linux, macOS, the Steam Deck, a handheld (the Anbernic RG34XXSP), Android, iPhone and
+iPad, and experimentally in a browser.
 
 Players: [what is different from the 1999 game](Differences-from-the-original) is the list of
 everything new, with the highlights at its top.
@@ -15,15 +16,16 @@ read and write the game's files.
 
 [Getting started](Getting-started) is the index. Its pages:
 
-- [Installing the game](Installing-the-game): what you need and how the installer works.
+- [Installing the game](Installing-the-game): what you need and the steps on every platform:
+  the installer on Windows, Linux and macOS, the Steam Deck, the handheld, phones, the web build.
 - [Running and options](Running-and-options): command-line switches (including starting
   straight into a race), options, environment variables, logs.
 - [Controllers](Controllers): keyboard, pads, wheels, force feedback.
 - [Network play](Network-play): a game between machines.
 - [The debug window](The-debug-window): the developers' pages as a window over the game.
 - [Platforms](Platforms): what runs where.
-- [Android](Android): the phone and tablet build: the touch controls, building the app, putting the game's files in.
-- [iOS](iOS): the iPhone and iPad build: built and installed from Linux, the game's files through the Files app.
+- [Android](Android): the phone and tablet build: installing the app, putting the game's files in, the touch controls, building it.
+- [iOS](iOS): the iPhone and iPad build: installing it with AltStore (or from Linux), the game's files through the Files app.
 
 ## Building and running from source
 

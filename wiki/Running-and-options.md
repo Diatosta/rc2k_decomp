@@ -209,7 +209,7 @@ name.
 ### Rendering a replay to a video
 
 Video rendering is a desktop feature for now: the replay viewer offers it (and `--render-replay`
-works) on Windows, Linux and macOS only, not on phones, the web build or the Vita.
+works) on Windows, Linux and macOS only, not on phones or the web build.
 The render dialog, its progress panel and the notices are laid out for a 600-line screen and
 enlarged on a taller one, so they take the same share of a 1080-line, 1440-line or phone screen.
 

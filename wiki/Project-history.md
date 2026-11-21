@@ -26,7 +26,8 @@ sessions ran with no call into original code.
 ## 2. A program of its own
 
 In parallel, the parts of the original that talk to Windows and DirectX were given stand-ins
-built on SDL3, a software rasteriser and FFmpeg, rather than ported one to one. With those, the
+built on SDL3, a software rasteriser and FFmpeg (for the films; since replaced by decoders of
+the project's own in Rust), rather than ported one to one. With those, the
 Rust code could run as a program of its own, without the original's code, reading the original
 program's data from a copy. The installer was brought over the same way, with a file in place
 of the registry.

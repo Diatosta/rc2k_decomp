@@ -22,7 +22,7 @@ All commands are run from the repository's top folder. The repository and the cr
 | Android | `tools/android/build.sh [x86_64] [arm64]` | Linux, with the Android SDK and NDK (`tools/android/README.md`) | `dist/android/rc2k-<abi>.apk` |
 | Steam Deck (and older Linux systems) | `./build.sh deck` | Linux, with Docker | `dist/deck/`: `rc2k`, `rally.sh`, `libsteam_api.so` with `RC2K_STEAM=1` |
 | Anbernic RG34XXSP | `./build.sh handheld` | Linux, with Docker | `dist/handheld/`: `rc2k`, `Rally.sh` |
-| Web (experimental) | `./build.sh web` | Linux, with Emscripten | `dist/web/`: `rc2k.js`, `rc2k.wasm`, `index.html`, `unzip.js`, `coi-serviceworker.js`, `serve.py` |
+| Web (experimental) | `./build.sh web` | Linux, with Emscripten | `dist/web/`: `rc2k.js`, `rc2k.wasm`, `index.html`, `unzip.js`, `coi-serviceworker.js`, `serve.py`, and the saves page (`saves.html`, `saves.js`, `codes_worker.js`, `rc2k_web_codes.wasm`) |
 
 `./build.sh` with no target lists them. The switches:
 
@@ -35,8 +35,10 @@ All commands are run from the repository's top folder. The repository and the cr
 | `--pgo` | `handheld` only: build with a recorded profile ([below](#a-profile-guided-handheld-build)). |
 
 The layout is the same for every target: `dist/<target>/` holds the program and everything it
-needs beside it. Copy the folder's contents into the game's folder (the one that holds `files`
-and `var`) and the game runs from there. Each build empties its `dist/<target>/` first. Git
+needs beside it. For the desktop targets, copy the folder's contents into the game's folder (the
+one that holds `files` and `var`) and the game runs from there; how the handheld's, the phones'
+and the web build's results get to where they run is on
+[Installing the game](Installing-the-game). Each build empties its `dist/<target>/` first. Git
 ignores `dist/`.
 
 Releases are linked whole (fat LTO, one codegen unit). The Linux and Steam Deck programs are
@@ -196,10 +198,10 @@ into `dist/mac/`. `tools/mac/README.md` describes cross-compiling on Linux by ha
 `.xip`, which needs an Apple ID to download), and makes an unsigned `.ipa`; `tools/ios/install.sh`
 signs it with a free Apple ID (xtool) and installs it on a phone plugged in by USB, for seven
 days at a time. The game's folder is copied into the app's Documents folder with the Files
-app. `tools/ios/README.md` lists every step. The iOS port is begun: it is checked to compile,
-runs on a phone, with the touch screen as menus' taps and a race's on-screen gamepad (see
-[Controllers](Controllers); a game controller works too), and plays a copied game folder where it is
-(no installer page). The window is drawn in
+app. `tools/ios/README.md` lists every step, and [iOS](iOS) says what the app does and how a
+player installs it. The app runs on a phone, with the touch screen as menus' taps and a race's
+on-screen gamepad (see [Controllers](Controllers); a game controller works too), and plays a
+copied game folder where it is (no installer page). The window is drawn in
 the screen's own pixels; the race starts at that size (cut to at most 1920 wide), the graphics page
 lists it with its fractions, and the race frame covers the whole screen, edge to edge, with the HUD and the mirror kept inside
 the part clear of the notch and the home indicator; a menu's 4:3 page is as tall as the screen and

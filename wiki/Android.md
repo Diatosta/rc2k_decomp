@@ -15,15 +15,51 @@ systems; the GPU one runs on Vulkan, with the software rasteriser as the fallbac
 covers the whole screen (no system bars) in landscape, and the game's picture keeps its shape in
 it. The package has no pictures of the game: its icon is our own placeholder.
 
-## The game's files
+## Installing
 
-The app does not install the game. The game's folder (`files`, and `var` and `savedata` if you
-have them) goes into the app's own storage, `files/game`. For testing, from a computer with
-`adb`, with a build made debuggable (`tools/android/build.sh --debuggable`; the default build is not, so that no other app with `adb` rights can read its storage):
+Android 8.0 or later, 64 bits. Two things go onto the device: the app, and the game's files.
+
+### The app
+
+1. Get `rc2k-android.zip` from the releases page and unzip it. `rc2k-arm64.apk` is the one for
+   phones and tablets; `rc2k-x86_64.apk` is for the emulator and x86 devices.
+2. Copy the `.apk` to the device and open it there (or, from a computer with `adb`,
+   `adb install -r rc2k-arm64.apk`). Android asks once to allow installing apps from that
+   source.
+
+The released packages are all signed with the project's one release key, so a newer one
+installs over an older one and keeps the game's files and saves. A package you built yourself
+is signed with another key: the released app has to be uninstalled before it goes on (and the
+other way round), and uninstalling deletes the game's files and saves in the app's storage.
+
+### The game's files
+
+The app does not install the game and has no installer: it plays a game folder kept in its own
+private storage (`files/game`), which file managers cannot reach on current Android. There are
+two ways in.
+
+**On the device, from a zip.** Make a zip of the game's folder (`files`, and `var` and
+`savedata` if you have them; the folder may be one level inside the zip) and copy it to the
+device. Started with no game data, the app shows a page with two buttons; tap "Pick a zip
+file" and choose the zip in Android's file picker. The app copies it into its storage, unpacks
+it there and goes on into the game. (Folders cannot be picked on Android, and the page says
+so.) A zip larger than 4 GB, or an encrypted one, is not read. **This page's file picker is in
+the program but has not been checked on a device yet**; if it fails, the second way is the
+one to fall back on.
+
+**From a computer, with `adb`.** This is the way the project's tests use. It needs a package
+made debuggable, which the released one is not (so that no other app with `adb` rights can read
+its storage): build one with `tools/android/build.sh arm64 --debuggable` ([Building](#building)),
+install it, and with the device on `adb`:
 
 ```
 tools/android/push_game.sh <the game's folder>
 ```
+
+It copies the folder's `files`, `var` and `savedata` into the app's storage.
+
+Either an installed game's folder or the CD's files work: with no installer on a phone, the
+files are played where they are.
 
 Words the program should start with (`--stage langton --gearbox automatic`, for a test) are read
 from `files/rc2k_args.txt` in the app's storage.
@@ -33,8 +69,6 @@ installer's record (`var\ral.zog`; without it the 1999 game took itself to be ru
 and switched the sound off). Films are shown with black bars beside them, not the menus' blurred
 background.
 
-A first-run page with a file picker for the game's zip is to come; the page the other systems show
-(pick a folder or a zip) is there but its file dialog is not tried on Android.
 
 ## Touch controls
 
@@ -137,6 +171,6 @@ does not fill.
 ## Not done yet
 
 - a run on Android 9 and older (the screenshots' album takes another way there);
-- a first-run picker for the game's zip, and a play-store style signed package;
+- the first-run page's zip picker checked on a device, and a package in an app store;
 - the options pages that make no sense on a phone (window mode, the keyboard's keys);
 - the DualSense/Xbox pad's extras, Steam, and the debug window are left out of this build.

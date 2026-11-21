@@ -2,9 +2,60 @@
 
 *Category: [Getting started](Getting-started)*
 
-A build for the iPhone and iPad. It runs on an iPhone: the menus and races by touch or a game
-controller (MFi, Xbox or PlayStation pads, through SDL), vibration, screenshots into a "Rally
-Championship" album, replays. It is built, signed and installed from Linux: no Mac is needed.
+A build for the iPhone and iPad (iOS 13 or later). It runs on an iPhone: the menus and races by
+touch or a game controller (MFi, Xbox or PlayStation pads, through SDL), vibration, screenshots
+into a "Rally Championship" album, replays. The project's tests were on an iPhone.
+
+The app is not in the App Store and the released `.ipa` is not signed: the player signs it with
+their own Apple ID while installing it. [Installing](#installing) says how.
+
+## Installing
+
+Two things go onto the phone: the app, and the game's files.
+
+### The app, with AltStore
+
+[AltStore](https://altstore.io) is a sideloading tool: it signs an `.ipa` with your Apple ID and
+installs it. The original AltStore is meant here (it works everywhere), not AltStore PAL, the
+European Union's marketplace, which takes only apps notarised by Apple.
+
+You need:
+
+- an iPhone or iPad with iOS 13 or later (AltStore itself may ask for a newer iOS: see its
+  site);
+- an Apple ID; a free one is enough;
+- a Windows PC or a Mac to run AltServer on, and a USB cable for the first time;
+- `Rally Championship.ipa`: it is inside `rc2k-ios.zip` on the releases page (stable releases
+  only), or made by `./build.sh ios`.
+
+Steps:
+
+1. Install AltServer on the computer and, through it, AltStore on the phone, following
+   AltStore's own guide ([faq.altstore.io](https://faq.altstore.io)). On Windows it needs
+   Apple's iTunes and iCloud installed. The phone then has an AltStore app; trust your Apple ID
+   under Settings, General, VPN & Device Management.
+2. On iOS 16 and later switch on Developer Mode: Settings, Privacy & Security, Developer Mode.
+   The phone restarts and asks to confirm. (The switch appears once a sideloaded app is on the
+   phone.)
+3. Get `Rally Championship.ipa` onto the phone: unzip `rc2k-ios.zip` and send the `.ipa` over
+   (AirDrop, iCloud Drive, a download in Safari), so that the Files app has it.
+4. Open AltStore, go to "My Apps", tap + and choose the `.ipa`. AltStore asks for the Apple ID
+   the first time, signs the app and installs it as "Rally Championship".
+5. Put the game's files in ([below](#the-games-files)) and start the app.
+
+What a free Apple ID means:
+
+- The signing lasts 7 days. After that the app no longer opens until it is signed again:
+  AltStore refreshes it when the phone can reach AltServer on the same network, or by hand
+  ("Refresh All" on "My Apps"). The app's Documents folder, with the game and the saves, stays.
+- At most three sideloaded apps on a device at a time, AltStore itself being one.
+- A paid developer account's signing lasts a year.
+
+The project's own test installs were made from Linux with xtool
+([below](#building-and-installing-from-linux)), which signs the same way. The AltStore steps
+above follow AltStore's documentation; if a step differs on your version, its guide is the
+one to trust. SideStore, a variant of AltStore that refreshes without a computer, takes the
+same `.ipa`; it has not been tried here either.
 
 ## What it is
 
@@ -17,10 +68,21 @@ at its sides. Left out of this build: the debug window, Steam, the installer's s
 
 ## The game's files
 
-The app does not install the game. Its Documents folder is shown in the Files app (and to a
-computer's file sharing): copy the game's folder there, or a zip of it, which the app unpacks
-at its first start. `var` and `savedata` are written there too, so saved games stay when the app
-is installed again. With nothing there the app says so and ends.
+The app does not install the game: there is no installer on a phone, and the game is played
+from the folder it is copied into. An installed game's folder (the one with `files` and `var`,
+from a PC) is the case that has been tried.
+
+1. Start the app once. Finding no game, it says so, leaves a note named
+   `Put the game here.txt` in its Documents folder and ends. (The Files app lists an app's
+   folder only once it holds something.)
+2. Open the Files app: Browse, On My iPhone, Rally Championship.
+3. Copy the game's folder there, or a zip of it (from iCloud Drive, AirDrop, a USB stick, or a
+   computer's file sharing: Finder or iTunes show the same folder). The game's folder may be one
+   level inside the zip. A zip larger than 4 GB, or an encrypted one, is not read.
+4. Start the app again. A zip is unpacked first, which takes a moment.
+
+`var` and `savedata` are written there too, so saved games stay when the app is installed
+again or refreshed. Deleting the app from the home screen deletes them.
 
 ## Screen size
 
@@ -40,19 +102,16 @@ of the game announces the games it hosts and listens for the others'. The first 
 whether the game may find devices on the local network: it must be allowed. A host's address can
 still be typed (Settings, Wi-Fi, the network's (i), IP Address) where Bonjour does not reach.
 
-## Building and installing
+## Building and installing from Linux
 
-`./build.sh ios` makes `dist/ios/Rally Championship.ipa` (unsigned); `tools/ios/install.sh` signs
+No Mac is needed to build, sign or install. `./build.sh ios` makes `dist/ios/Rally Championship.ipa` (unsigned); `tools/ios/install.sh` signs
 it with an Apple ID and installs it over USB through [xtool](https://github.com/xtool-org/xtool).
 The steps (Apple's SDK from an Xcode download, the packages, pairing the phone) are in
 `tools/ios/README.md`.
 
 The automatic builds make the same unsigned `.ipa` on a Mac runner, with Xcode's iOS SDK
-(`rc2k-ios.zip` in a release, for the main branch). A player signs it when installing it, with a
-sideloading tool and their own Apple ID.
-
-A free Apple ID's signing lasts 7 days: after that the app no longer opens until it is installed
-again (its Documents folder stays). A paid developer account's lasts a year.
+(`rc2k-ios.zip` in a release, for the main branch). The 7 days of a free Apple ID's signing
+apply here as well: run `tools/ios/install.sh` again to renew it.
 
 ## The log
 
