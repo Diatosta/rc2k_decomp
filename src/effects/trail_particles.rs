@@ -81,7 +81,7 @@ pub(super) fn trail_particles(
                 .wrapping_add(0x47);
             effects.setup.work.borrow_mut().seed = s;
             let k1 = effects.frame.draw_work.borrow().uv_k;
-            let k2 = effects.kinds.particle_tuning.trail_random_k.get();
+            let k2 = effects.kinds.particle_tuning.trail_random_k;
             ring.pool.burst_radius.set(bh::stf(
                 bh::int((s & 0xFFFF) as i32) * bh::ld(k1) * bh::ld(k2),
             ));
@@ -100,16 +100,16 @@ pub(super) fn trail_particles(
                 let motion = bh::st(
                     (bh::ld(read_particle(particles, p)?.last_place(axis))
                         - bh::ld(read_particle(particles, p)?.place(axis)))
-                        * bh::ld(tuning.trail_axes[2 * axis].get())
+                        * bh::ld(tuning.trail_axes[2 * axis])
                         + bh::ld(read_particle(particles, p)?.motion(axis))
-                            * bh::ld(tuning.trail_axes[2 * axis + 1].get()),
+                            * bh::ld(tuning.trail_axes[2 * axis + 1]),
                 );
                 update_particle(particles, e, |q| q.set_motion(axis, motion))?;
             }
             let own = read_particle(particles, e)?;
             let (moved, _) = jitter_point(
                 [
-                    extended(effects.kinds.particle_tuning.trail_spread.get()),
+                    extended(effects.kinds.particle_tuning.trail_spread),
                     extended(own.motion_z),
                     extended(own.motion_y),
                     extended(own.motion_x),
@@ -121,15 +121,10 @@ pub(super) fn trail_particles(
                 q.motion_y = rounded(moved[1]);
                 q.motion_x = rounded(moved[2]);
             })?;
-            let [a, b] = effects
-                .kinds
-                .particle_tuning
-                .trail_size_k
-                .each_ref()
-                .map(crate::memory::session::PlainFloat::get);
+            let [a, b] = effects.kinds.particle_tuning.trail_size_k;
             let size = x87::times_plus_to_int(a, read_particle(particles, p)?.motion_y, b) as u32;
             let colour_step =
-                x87::over_int(&effects.kinds.particle_tuning.trail_life_k, LIFE as i32).to_bits();
+                x87::over_int(effects.kinds.particle_tuning.trail_life_k, LIFE as i32).to_bits();
             let ground = x87::loaded(&frame.matrices.get().view_place[13]).to_bits();
             update_particle(particles, e, |q| {
                 q.size = size;

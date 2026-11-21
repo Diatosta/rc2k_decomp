@@ -16,12 +16,12 @@ pub fn quad(
     see: u32,
 ) -> Result<(), Refused> {
     let scratch = o.scene.scratch.front_end();
-    scratch.quad.corners[0].set(x);
-    scratch.quad.corners[4].set(y);
-    scratch.quad.corners[1].set(x.wrapping_add(w));
-    scratch.quad.corners[5].set(y.wrapping_add(h));
-    scratch.quad.colour[0].set(colour);
-    scratch.quad.colour[1].set(see);
+    scratch.quad.borrow_mut().corners[0] = x;
+    scratch.quad.borrow_mut().corners[4] = y;
+    scratch.quad.borrow_mut().corners[1] = x.wrapping_add(w);
+    scratch.quad.borrow_mut().corners[5] = y.wrapping_add(h);
+    scratch.quad.borrow_mut().colour[0] = colour;
+    scratch.quad.borrow_mut().colour[1] = see;
     crate::scene::draw_tinted_quad::draw_tinted_quad(&crate::race::view_scratch::DrawCtx::new(
         o.race,
         o.scene,

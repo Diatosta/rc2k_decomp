@@ -42,17 +42,22 @@ pub(super) fn load_edges(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     if !masks.edge_settings.done.is_set() {
-        let boxes = &masks.kind_boxes.boxes;
+        let mut kind_boxes = masks.kind_boxes.borrow_mut();
         let scale: [u32; 3] = read_bits(&masks.edge_settings.scale);
         for k in 0..KINDS {
             let at = (0x30 * k) as usize;
-            let record = core::array::from_fn(|i| boxes.get_u32(at + 4 * i));
+            let record = core::array::from_fn(|i| {
+                let word: [u8; 4] = kind_boxes.boxes[at + 4 * i..at + 4 * i + 4]
+                    .try_into()
+                    .expect("four bytes");
+                u32::from_le_bytes(word)
+            });
             let scaled = x87::scale_record_bits(record, scale[0], scale[1]);
             for (i, v) in scaled.into_iter().enumerate() {
-                boxes.set_u32(at + 4 * i, v);
+                kind_boxes.boxes[at + 4 * i..at + 4 * i + 4].copy_from_slice(&v.to_le_bytes());
             }
-            let f = &masks.kind_boxes.kind_floats[k as usize];
-            f.set(x87::sub(scale[2], f));
+            let f = &mut kind_boxes.kind_floats[k as usize];
+            *f = x87::sub(scale[2], *f);
         }
         masks.edge_settings.done.set(true);
     }
@@ -91,10 +96,12 @@ pub(super) fn load_edges(
         0,
         4 * EDGE_LEN as usize,
     )?;
+    let mut edge_mask = masks.edge_mask.borrow_mut();
     for (k, p) in pixels.as_chunks::<4>().0.iter().enumerate() {
-        masks.edge_mask.mask.set(k, !(p[0] | p[1] | p[2] | p[3]));
+        edge_mask.mask[k] = !(p[0] | p[1] | p[2] | p[3]);
     }
-    let float = masks.kind_boxes.kind_floats[kind as usize].get();
+    drop(edge_mask);
+    let float = masks.kind_boxes.borrow().kind_floats[kind as usize];
     drops.tilt.borrow_mut().tilt = x87::mul(float, masks.edge_settings.tilt_scale.get());
     crate::logfile::load_times::mark("edges: make_masks");
     crate::effects::masks::make_masks(&race.course, race.faces(), masks, drops, scene, effects)?;

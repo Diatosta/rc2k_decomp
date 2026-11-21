@@ -52,9 +52,9 @@ fn shifted_places_x87_matches() {
                 // which the recorded run keeps alive and nothing else reaches meanwhile;
                 // unaligned, any bits a `u32`.
                 |off: usize| unsafe { (b[0] + off).at(0, 4).cast::<u32>().read_unaligned() };
-            let item = WindscreenFlakeItem::new();
-            item.texture_u.set_bits(word(0xC));
-            item.texture_v.set_bits(word(0x10));
+            let mut item = WindscreenFlakeItem::new();
+            item.texture_u = f32::from_bits(word(0xC));
+            item.texture_v = f32::from_bits(word(0x10));
             staged(
                 b[1],
                 &[0x18, 0x1C, 0x38, 0x3C, 0x58, 0x5C, 0x78, 0x7C],

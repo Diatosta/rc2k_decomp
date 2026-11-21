@@ -1,7 +1,7 @@
 //! The ring's work and the surface pictures' names.
 
 use crate::memory::owned::Owned;
-use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::memory::session::PlainBytes;
 
 /// The ring's work: its list, cursor and count, the emitters' and the draws' integers.
 pub struct RingWork {
@@ -266,26 +266,25 @@ impl Entry {
 }
 
 /// The particle ring's pool and the burst code's scratch.
-#[derive(rc2k_derive::Cells)]
 pub struct RingPool {
     /// A `memory::List` (head, total, cursor, remaining).
     pub list: crate::memory::ListCells,
     /// The first entry of the ring in use.
-    pub free: PlainDword,
+    pub free: core::cell::Cell<u32>,
     /// The block taken for the ring.
-    pub ring: PlainDword,
+    pub ring: core::cell::Cell<u32>,
     /// A developer's toggle (the debug page's "fworks run"). Nothing reads or writes it.
-    pub fireworks_run: PlainDword,
+    pub fireworks_run: core::cell::Cell<u32>,
     /// A burst particle's kind plus 8 bits.
-    pub nine: PlainDword,
+    pub nine: core::cell::Cell<u32>,
     /// A burst particle's kind times 0x400.
-    pub kind: PlainDword,
+    pub kind: core::cell::Cell<u32>,
     /// The burst's radius.
-    pub burst_radius: PlainFloat,
+    pub burst_radius: core::cell::Cell<f32>,
     /// The colour index of the particle being drawn.
-    pub index: PlainDword,
+    pub index: core::cell::Cell<u32>,
     /// The entries taken.
-    pub used: PlainDword,
+    pub used: core::cell::Cell<u32>,
 }
 
 /// RingPool's first values.
@@ -293,14 +292,14 @@ impl RingPool {
     pub const fn new() -> Self {
         RingPool {
             list: crate::memory::ListCells::empty(),
-            free: PlainDword::new(0x0),
-            ring: PlainDword::new(0x0),
-            fireworks_run: PlainDword::new(0x0),
-            nine: PlainDword::new(0x0),
-            kind: PlainDword::new(0x0),
-            burst_radius: PlainFloat::new(0.0),
-            index: PlainDword::new(0x0),
-            used: PlainDword::new(0x0),
+            free: core::cell::Cell::new(0x0),
+            ring: core::cell::Cell::new(0x0),
+            fireworks_run: core::cell::Cell::new(0x0),
+            nine: core::cell::Cell::new(0x0),
+            kind: core::cell::Cell::new(0x0),
+            burst_radius: core::cell::Cell::new(0.0),
+            index: core::cell::Cell::new(0x0),
+            used: core::cell::Cell::new(0x0),
         }
     }
 }

@@ -34,8 +34,8 @@ mod squares {
 
     /// The items cleared.
     fn clear_items(fl: &WindscreenFlakes) {
-        for item in &fl.items.items {
-            item.live.set(0);
+        for item in &mut fl.items.borrow_mut().items {
+            item.live = 0;
         }
     }
 

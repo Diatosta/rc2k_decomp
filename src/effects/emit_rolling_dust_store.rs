@@ -1,22 +1,4 @@
-//! The rolling dust's choice and set.
-
-use crate::memory::session::PlainDword;
-
-/// The wheel kind 1's choice.
-#[derive(rc2k_derive::Cells)]
-pub struct RollingChoice {
-    /// `emit_rolling_particles_rated` when not 0 (`ring_frame` sets it from the rain's drops)
-    pub choice: PlainDword,
-}
-
-impl RollingChoice {
-    /// The values the game starts with.
-    pub const fn new() -> Self {
-        RollingChoice {
-            choice: PlainDword::new(0x0),
-        }
-    }
-}
+//! The rolling dust's set.
 
 /// Kind 1's emitter variables (`emit_particle_1`).
 pub struct RollingSet {

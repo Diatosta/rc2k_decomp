@@ -19,14 +19,11 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         rec.u.set(0);
         rec.v.set(0);
     }
-    let float = |cell: &crate::memory::session::PlainDword| x87::from_int(cell.get() as i32);
-    let [left, right, top, bottom] = [
-        &ctx.view.quad.corners[0],
-        &ctx.view.quad.corners[1],
-        &ctx.view.quad.corners[4],
-        &ctx.view.quad.corners[5],
-    ]
-    .map(float);
+    let float = |value: u32| x87::from_int(value as i32);
+    let [left, right, top, bottom] = {
+        let corners = ctx.view.quad.borrow().corners;
+        [corners[0], corners[1], corners[4], corners[5]].map(float)
+    };
     let v = |n: usize, o: usize, x: f32| {
         ctx.view.polygon.quad_vertices[8 * n + o / 4].set(x.to_bits());
     };
@@ -43,11 +40,11 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     for n in 0..4 {
         v(n, 0x18, depth);
     }
-    let see = ctx.view.quad.colour[1].get() as u8;
+    let see = ctx.view.quad.borrow().colour[1] as u8;
     ctx.view
         .polygon
         .polygon_colour
-        .set(ctx.view.quad.colour[0].get());
+        .set(ctx.view.quad.borrow().colour[0]);
     for item in ctx.part.polygon.entries.iter().take(4) {
         let rec = &item;
         rec.point.set(0xFFFF_FFFF);

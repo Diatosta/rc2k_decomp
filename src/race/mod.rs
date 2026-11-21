@@ -92,6 +92,7 @@ mod owner_views;
 mod pace_notes;
 pub(crate) mod panel_store;
 mod part_notices;
+mod plain_slot;
 pub(crate) mod prefs_store;
 mod put_mud_texel;
 mod quad_work;

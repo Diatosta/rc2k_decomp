@@ -28,21 +28,18 @@ pub fn draw_flat_quad(
     screen: &crate::memory::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    for n in 0..4 {
-        let rec = &part.polygon.entries[n];
+    let uv = view.quad.borrow().uv;
+    for (n, rec) in part.polygon.entries.iter().enumerate().take(4) {
         rec.record
             .set(crate::scene::point_records::of_quad(n as u32));
-        rec.u.set(view.quad.uv[n].get());
-        rec.v.set(view.quad.uv[4 + n].get());
+        rec.u.set(uv[n]);
+        rec.v.set(uv[4 + n]);
     }
-    let float = |cell: &crate::memory::session::PlainDword| x87::from_int(cell.get() as i32);
-    let [left, right, top, bottom] = [
-        &view.quad.corners[0],
-        &view.quad.corners[1],
-        &view.quad.corners[4],
-        &view.quad.corners[5],
-    ]
-    .map(float);
+    let float = |value: u32| x87::from_int(value as i32);
+    let [left, right, top, bottom] = {
+        let corners = view.quad.borrow().corners;
+        [corners[0], corners[1], corners[4], corners[5]].map(float)
+    };
     let v = |n: usize, o: usize, x: f32| {
         poly.quad_vertices[8 * n + o / 4].set(x.to_bits());
     };
@@ -63,7 +60,7 @@ pub fn draw_flat_quad(
         item.point.set(0xFFFF_FFFF);
     }
     poly.polygon_colour
-        .set(view.quad.colour[0].get() & 0xFF_FFFF);
+        .set(view.quad.borrow().colour[0] & 0xFF_FFFF);
     for item in part.polygon.entries.iter().take(4) {
         item.light.set(0);
     }

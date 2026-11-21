@@ -150,7 +150,7 @@ pub struct Weather {
     pub rain_rules: RainRules,
     pub snow: std::cell::RefCell<crate::effects::snow_store::SnowState>,
     pub snow_light: std::cell::RefCell<crate::effects::snow_store::SnowLight>,
-    pub snow_curve: crate::effects::snow_store::SnowCurve,
+    pub snow_curve: std::cell::RefCell<crate::effects::snow_store::SnowCurve>,
     pub snow_tables: std::cell::RefCell<crate::effects::snow_store::SnowTables>,
     pub snow_vars: std::cell::RefCell<crate::effects::snow_store::SnowCurveVars>,
 }
@@ -162,7 +162,7 @@ impl Weather {
             rain_rules: RainRules::new(),
             snow: std::cell::RefCell::new(crate::effects::snow_store::SnowState::new()),
             snow_light: std::cell::RefCell::new(crate::effects::snow_store::SnowLight::new()),
-            snow_curve: crate::effects::snow_store::SnowCurve::new(),
+            snow_curve: std::cell::RefCell::new(crate::effects::snow_store::SnowCurve::new()),
             snow_tables: std::cell::RefCell::new(crate::effects::snow_store::SnowTables::new()),
             snow_vars: std::cell::RefCell::new(crate::effects::snow_store::SnowCurveVars::new()),
         }

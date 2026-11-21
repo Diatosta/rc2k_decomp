@@ -137,8 +137,8 @@ pub struct Masks {
     pub list: MaskList,
     pub surface: core::cell::RefCell<crate::effects::surface_store::SurfaceTables>,
     pub edge_settings: EdgeSettings,
-    pub edge_mask: EdgeMask,
-    pub kind_boxes: KindBoxes,
+    pub edge_mask: core::cell::RefCell<EdgeMask>,
+    pub kind_boxes: core::cell::RefCell<KindBoxes>,
     pub vars: core::cell::RefCell<crate::effects::mask_vars_store::MaskVars>,
 }
 
@@ -154,8 +154,8 @@ impl Masks {
             list: MaskList::new(),
             surface: core::cell::RefCell::new(crate::effects::surface_store::SurfaceTables::new()),
             edge_settings: EdgeSettings::new(),
-            edge_mask: EdgeMask::new(),
-            kind_boxes: KindBoxes::new(),
+            edge_mask: core::cell::RefCell::new(EdgeMask::new()),
+            kind_boxes: core::cell::RefCell::new(KindBoxes::new()),
             vars: core::cell::RefCell::new(crate::effects::mask_vars_store::MaskVars::new()),
         }
     }
@@ -242,33 +242,29 @@ pub(super) static KIND_PICTURES: KindPictures = KindPictures {
 };
 
 /// The edge picture packed to a byte a pixel.
-#[derive(rc2k_derive::Cells)]
 pub struct EdgeMask {
     /// 256 x 128 cells, a byte set where an item dies.
-    pub mask: PlainBytes<32768>,
+    pub mask: [u8; 32768],
 }
 
 impl EdgeMask {
     pub const fn new() -> Self {
-        EdgeMask {
-            mask: PlainBytes::new([0; 32768]),
-        }
+        EdgeMask { mask: [0; 32768] }
     }
 }
 
 /// The kinds' boxes and floats (`effects::edges`, `effects::corners`).
-#[derive(rc2k_derive::Cells)]
 pub struct KindBoxes {
     /// 0x22 records of 0x30 bytes, scaled once at `effects::load_edges`.
-    pub boxes: PlainBytes<1632>,
+    pub boxes: [u8; 1632],
     /// 0x22 floats, one a kind (less from 90 once).
-    pub kind_floats: [PlainFloat; 34],
+    pub kind_floats: [f32; 34],
 }
 
 impl KindBoxes {
     pub const fn new() -> Self {
         KindBoxes {
-            boxes: PlainBytes::new(crate::memory::session::with_runs::<1632>(&[
+            boxes: crate::memory::session::with_runs::<1632>(&[
                 (
                     0x0,
                     &[
@@ -411,42 +407,11 @@ impl KindBoxes {
                     ],
                 ),
                 (0x659, &[0x60, 0x62, 0x44, 0x66, 0xC6, 0x38, 0xC4]),
-            ])),
+            ]),
             kind_floats: [
-                PlainFloat::new(33.8),
-                PlainFloat::new(28.5),
-                PlainFloat::new(33.4),
-                PlainFloat::new(33.9),
-                PlainFloat::new(32.5),
-                PlainFloat::new(35.8),
-                PlainFloat::new(34.9),
-                PlainFloat::new(36.7),
-                PlainFloat::new(35.2),
-                PlainFloat::new(31.9),
-                PlainFloat::new(37.6),
-                PlainFloat::new(35.8),
-                PlainFloat::new(34.4),
-                PlainFloat::new(44.3),
-                PlainFloat::new(30.5),
-                PlainFloat::new(37.5),
-                PlainFloat::new(34.2),
-                PlainFloat::new(32.0),
-                PlainFloat::new(45.0),
-                PlainFloat::new(35.3),
-                PlainFloat::new(34.2),
-                PlainFloat::new(29.4),
-                PlainFloat::new(36.7),
-                PlainFloat::new(36.7),
-                PlainFloat::new(36.7),
-                PlainFloat::new(36.7),
-                PlainFloat::new(36.7),
-                PlainFloat::new(36.7),
-                PlainFloat::new(36.7),
-                PlainFloat::new(36.7),
-                PlainFloat::new(36.7),
-                PlainFloat::new(36.7),
-                PlainFloat::new(36.7),
-                PlainFloat::new(36.7),
+                33.8, 28.5, 33.4, 33.9, 32.5, 35.8, 34.9, 36.7, 35.2, 31.9, 37.6, 35.8, 34.4, 44.3,
+                30.5, 37.5, 34.2, 32.0, 45.0, 35.3, 34.2, 29.4, 36.7, 36.7, 36.7, 36.7, 36.7, 36.7,
+                36.7, 36.7, 36.7, 36.7, 36.7, 36.7,
             ],
         }
     }

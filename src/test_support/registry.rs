@@ -638,48 +638,12 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.race.shared.state", &o.race.shared.state,),
         listed!(
-            "owners.effects.setup.frame",
-            on_game(&o.race.effects.get().setup.frame),
-        ),
-        listed!(
-            "owners.effects.masks.edge_mask",
-            on_game(&o.race.effects.get().masks.edge_mask),
-        ),
-        listed!(
-            "owners.effects.masks.kind_boxes",
-            on_game(&o.race.effects.get().masks.kind_boxes),
-        ),
-        listed!(
-            "owners.effects.windscreen_flakes.items",
-            on_game(&o.race.effects.get().windscreen_flakes.items),
-        ),
-        listed!(
             "owners.effects.masks.edge_settings",
             on_game(&o.race.effects.get().masks.edge_settings),
         ),
         listed!(
-            "owners.effects.weather.snow_curve",
-            on_game(&o.race.effects.get().weather.snow_curve),
-        ),
-        listed!(
-            "owners.effects.blocks.places",
-            on_game(&o.race.effects.get().blocks.places),
-        ),
-        listed!(
             "owners.effects.blocks.corners",
             on_game(&o.race.effects.get().blocks.corners),
-        ),
-        listed!(
-            "owners.effects.blocks.links",
-            on_game(&o.race.effects.get().blocks.links),
-        ),
-        listed!(
-            "owners.effects.kinds.overlay_extras",
-            on_game(&o.race.effects.get().kinds.overlay_extras),
-        ),
-        listed!(
-            "owners.effects.kinds.shadow_extra",
-            on_game(&o.race.effects.get().kinds.shadow_extra),
         ),
         listed!(
             "owners.effects.masks.ground_names",
@@ -691,20 +655,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.race.effects.get().ring.names),
         ),
         listed!(
-            "owners.effects.particles.kind1_choice",
-            on_game(&o.race.effects.get().particles.kind1_choice),
-        ),
-        listed!(
             "owners.effects.masks.list",
             on_game(&o.race.effects.get().masks.list),
-        ),
-        listed!(
-            "owners.effects.ring.pool",
-            on_game(&o.race.effects.get().ring.pool),
-        ),
-        listed!(
-            "owners.effects.kinds.particle_tuning",
-            on_game(&o.race.effects.get().kinds.particle_tuning),
         ),
     ]
 }

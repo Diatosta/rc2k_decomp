@@ -74,9 +74,10 @@ fn place(weather: &Weather, k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
         let ix = f.wrapping_add(t.remainders[0][k as usize]);
         let iz = f.wrapping_add(t.remainders[1][k as usize]);
         let shift: [u32; 3] = weather.snow.borrow().view;
+        let curve_table = weather.snow_curve.borrow();
         let curve = |i: u32| {
             if i < CURVE {
-                weather.snow_curve.curve[i as usize].get()
+                curve_table.curve[i as usize]
             } else {
                 0
             }

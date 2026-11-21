@@ -10,7 +10,6 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::{ext_to_int, int_80};
 use crate::math::x87_float as bh;
-use crate::memory::session::DwordLike;
 use crate::memory::session::PlainFloat;
 use crate::physics::figures::GROUND_DROP;
 use crate::race::mud::car_file_number;
@@ -42,7 +41,7 @@ pub struct ListenerView<'a> {
     pub drawn_view: u32,
     pub view_matrix: &'a [PlainFloat; 16],
     pub view_turn_matrix: &'a [PlainFloat; 16],
-    pub view_place: [&'a dyn DwordLike; 3],
+    pub view_place: [u32; 3],
     /// The view's sun (its place and the view's value).
     pub sun: &'a crate::scene::polygon_work_store::ViewSun,
 }
@@ -54,11 +53,7 @@ impl<'a> ListenerView<'a> {
             drawn_view: view.drawn_view(race),
             view_matrix: &view.matrices.view_matrix,
             view_turn_matrix: &view.matrices.view_turn_matrix,
-            view_place: view
-                .state
-                .view_place
-                .each_ref()
-                .map(|c| c as &dyn DwordLike),
+            view_place: view.state.borrow().view_place,
             sun: &view.polygon.sun,
         }
     }
@@ -72,13 +67,9 @@ impl<'a> ListenerView<'a> {
             drawn_view: race.shared.view.get().drawn_view.get(),
             view_matrix: &frame.matrices.get().view_matrix,
             view_turn_matrix: &frame.matrices.get().view_turn_matrix,
-            view_place: frame
-                .view_and_records
-                .get()
-                .view_vars
-                .view_place
-                .each_ref()
-                .map(|c| c as &dyn DwordLike),
+            view_place: crate::memory::session::read_bits(
+                &frame.view_and_records.get().view_vars.view_place,
+            ),
             sun: &scene.scratch.main_view(0).polygon.sun,
         }
     }
@@ -109,9 +100,9 @@ pub fn set_listener(
         .effects_settings()
         .listener_place
         .iter()
-        .zip(&view.view_place)
+        .zip(view.view_place)
     {
-        cell.set(place.get().wrapping_neg());
+        cell.set(place.wrapping_neg());
     }
     for (k, figure) in listener::TURN_FIGURES.into_iter().enumerate() {
         race.effects_settings().listener_turn[k].set(view.view_turn_matrix[figure].get());

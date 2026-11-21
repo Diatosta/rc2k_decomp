@@ -36,31 +36,28 @@ pub(super) fn spawn_windscreen_flake(
     z: u32,
     kind: u32,
 ) -> Result<u32, Refused> {
+    let mut items = fl.items.borrow_mut();
     let walk = walk_to_free(
         fl.tables.borrow().cursor,
         ITEMS,
         ITEM_LEN,
-        |at| fl.items.items[(at / ITEM_LEN) as usize].live.get() == 0,
+        |at| items.items[(at / ITEM_LEN) as usize].live == 0,
         "a windscreen flake cursor off the items",
     )?;
     fl.tables.borrow_mut().cursor = walk.cursor;
     let Some(at) = walk.free else {
         return Ok(kind);
     };
-    let e = &fl.items.items[(at / ITEM_LEN) as usize];
-    e.live.set(1);
-    e.place[0].set(x87::from_int(x as i32));
-    e.place[1].set(x87::from_int(z as i32));
+    let tile_offset_k = fl.state.borrow().tile_offset_k;
+    let e = &mut items.items[(at / ITEM_LEN) as usize];
+    e.live = 1;
+    e.place[0] = x87::from_int(x as i32);
+    e.place[1] = x87::from_int(z as i32);
     let k = kind & 7;
-    e.texture_u.set(x87::int_times_plus(
-        k as i32,
-        fl.state.borrow().tile_offset_k[0],
-        fl.state.borrow().tile_offset_k[1],
-    ));
-    e.texture_v
-        .set(x87::loaded(fl.state.borrow().tile_offset_k[2]));
-    e.born.set(shared.run().scene_clock);
-    e.age.set(0);
+    e.texture_u = x87::int_times_plus(k as i32, tile_offset_k[0], tile_offset_k[1]);
+    e.texture_v = x87::loaded(tile_offset_k[2]);
+    e.born = shared.run().scene_clock;
+    e.age = 0;
     Ok(k)
 }
 
@@ -86,11 +83,12 @@ pub fn expire_windscreen_flakes(masks: &Masks, drops: &WindscreenDrops, fl: &Win
     use rc2k_core::effects::expiry;
 
     let ease_step = masks.vars.borrow().shapes[0].ease_step as u8;
-    for item in &fl.items.items {
-        if item.live.get() != 1 {
+    let mut items = fl.items.borrow_mut();
+    for item in &mut items.items {
+        if item.live != 1 {
             continue;
         }
-        let c = expiry::cell(item.place[0].get(), item.place[1].get());
+        let c = expiry::cell(item.place[0], item.place[1]);
         drops.state.borrow_mut().cell[1] = c.z as u32;
         drops.state.borrow_mut().cell[0] = c.x as u32;
         if expiry::square_ends(
@@ -98,7 +96,7 @@ pub fn expire_windscreen_flakes(masks: &Masks, drops: &WindscreenDrops, fl: &Win
             || masks.vars.borrow().run_count as i32,
             |n| masks.vars.borrow().masks[n][c.at as usize],
         ) {
-            item.live.set(0);
+            item.live = 0;
         }
     }
 }

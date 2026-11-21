@@ -175,17 +175,18 @@ pub fn place_view(
 ) -> Result<(), BadInput> {
     use crate::math::x87::from_int;
     let place = &view.vars.view_place;
-    let own = &view.state;
     place[0].set(course.course.place_x.get());
     place[1].set(course.course.place_y.get());
     place[2].set(course.course.place_z.get());
-    own.view_place[0].set(course.course.place_x.get());
-    own.view_place[1].set(course.course.place_y.get());
-    own.view_place[2].set(course.course.place_z.get());
+    view.state.borrow_mut().view_place = [
+        course.course.place_x.get(),
+        course.course.place_y.get(),
+        course.course.place_z.get(),
+    ];
     let zero = || {
         for a in [2, 4, 3, 5] {
             view.vars.view_angles[a].set(0);
-            own.view_angles[a].set(0);
+            view.state.borrow_mut().view_angles[a] = 0;
         }
     };
     if course.stage_prefs.flat_depth.get() != 0 {
@@ -193,8 +194,8 @@ pub fn place_view(
         at.set(at.get().wrapping_add(course.course.flat_depth.get()));
         view.vars.view_angles[0].set(course.course.place_heading.get());
         view.vars.view_angles[1].set(0x4000_0000u32);
-        own.view_angles[0].set(course.course.place_heading.get());
-        own.view_angles[1].set(0x4000_0000u32);
+        view.state.borrow_mut().view_angles[0] = course.course.place_heading.get();
+        view.state.borrow_mut().view_angles[1] = 0x4000_0000u32;
         zero();
         return Ok(());
     }
@@ -214,13 +215,19 @@ pub fn place_view(
     place[0].set(place[0].get().wrapping_add(x2));
     place[1].set(place[1].get().wrapping_add(z1));
     place[2].set(place[2].get().wrapping_add(z2));
-    own.view_place[0].set(own.view_place[0].get().wrapping_add(x2));
-    own.view_place[1].set(own.view_place[1].get().wrapping_add(z1));
-    own.view_place[2].set(own.view_place[2].get().wrapping_add(z2));
+    {
+        let mut own = view.state.borrow_mut();
+        own.view_place[0] = own.view_place[0].wrapping_add(x2);
+        own.view_place[1] = own.view_place[1].wrapping_add(z1);
+        own.view_place[2] = own.view_place[2].wrapping_add(z2);
+    }
     view.vars.view_angles[0].set(second);
     view.vars.view_angles[1].set(first);
-    own.view_angles[0].set(second);
-    own.view_angles[1].set(first);
+    {
+        let mut own = view.state.borrow_mut();
+        own.view_angles[0] = second;
+        own.view_angles[1] = first;
+    }
     zero();
     view.vars.view_x.set(place[0].get());
     view.vars.view_place_f[0].set(from_int(place[0].get() as i32));
@@ -266,10 +273,10 @@ pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Ba
 fn view_place_tail(
     course: crate::race::owner_course::CourseReads<'_>,
     m: &ViewMatrices,
-    state: &ViewState,
+    state: ViewState,
 ) -> Result<(), BadInput> {
     use crate::scene::{matrix, view_matrix};
-    let p = crate::memory::session::read_bits(&state.view_place).map(u32::wrapping_neg);
+    let p = state.view_place.map(u32::wrapping_neg);
     matrix::set_place(&m.placed_matrix, p);
     crate::math::cells::copy_cells(&m.placed_matrix, &m.view_place_matrix, 16);
     matrix::multiply_matrices(&m.placed_matrix, &m.view_turn_matrix, &m.view_matrix);
@@ -299,7 +306,7 @@ pub fn view_matrices(
         matrices,
         course,
         m,
-        &view.state,
+        *view.state.borrow(),
         &view.car,
         view.polygon.view_mirrored.get() != 0,
     )
@@ -323,7 +330,7 @@ fn view_own_matrices(
     matrices: &crate::race::matrices_store::SceneMatrices,
     course: crate::race::owner_course::CourseReads<'_>,
     m: &ViewMatrices,
-    state: &ViewState,
+    state: ViewState,
     car: &crate::physics::car_store::ViewCar,
     mirrored: bool,
 ) -> Result<(), BadInput> {
@@ -350,19 +357,19 @@ fn view_own_matrices(
                 course,
                 m,
                 Axis::Y,
-                state.view_angles[angles[0]].get().wrapping_neg(),
+                state.view_angles[angles[0]].wrapping_neg(),
             );
             set_fine_turn(
                 course,
                 m,
                 Axis::X,
-                state.view_angles[angles[1]].get().wrapping_neg(),
+                state.view_angles[angles[1]].wrapping_neg(),
             );
             set_fine_turn(
                 course,
                 m,
                 Axis::Z,
-                state.view_angles[angles[2]].get().wrapping_neg(),
+                state.view_angles[angles[2]].wrapping_neg(),
             );
             multiply_matrices(view_turn, turn_y, turned);
             multiply_matrices(turned, turn_x, lit);
@@ -425,14 +432,16 @@ pub fn camera_view(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
     use crate::math::x87::from_int;
-    let own = &view.state;
     // The place and angles as they are (the camera's, or what the view before left: the mirror's
     // way sets neither, and its objects turn by the main view's angles).
     let vars = &view.vars;
-    crate::math::cells::copy_cells(&vars.view_place, &own.view_place, 3);
-    crate::math::cells::copy_cells(&vars.view_angles, &own.view_angles, 6);
-    own.view_car_flag_a.set(view.car.camera_switch_share.get());
-    own.view_car_stage.set(view.car.camera_view.get());
+    {
+        let mut own = view.state.borrow_mut();
+        own.view_place = crate::memory::session::read_bits(&vars.view_place);
+        own.view_angles = crate::memory::session::read_bits(&vars.view_angles);
+        own.view_car_flag_a_bits = view.car.camera_switch_share.get().to_bits();
+        own.view_car_stage = view.car.camera_view.get();
+    }
     view.vars
         .view_car_flag_b
         .set(view.car.camera_mode_is_2_or_3.get());
@@ -456,7 +465,7 @@ pub fn camera_view(
             (&view.car.camera_offset_turns[2], 5),
         ] {
             view.vars.view_angles[to].set(from.get());
-            own.view_angles[to].set(from.get());
+            view.state.borrow_mut().view_angles[to] = from.get();
         }
         crate::memory::session::read_bits(&view.car.camera_position)
     } else {
@@ -479,9 +488,7 @@ pub fn camera_view(
     }
     view.vars.view_x.set(place[0]);
     view.vars.view_z.set(place[2]);
-    for (k, &p) in place.iter().enumerate() {
-        own.view_place[k].set(p);
-    }
+    view.state.borrow_mut().view_place = place;
     view.vars.view_place_f[0].set(from_int(place[0] as i32));
     view.vars.view_place_f[1].set(from_int(place[1] as i32));
     view.vars.view_place_f[2].set(from_int(place[2] as i32));

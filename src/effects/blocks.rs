@@ -16,7 +16,7 @@ pub const CORNERS: u32 = 0x100;
 const SETTINGS_BLOCKS: u32 = 8;
 
 /// `effects::allocate_places`, step 6: 0x7024 bytes on `PlacesBlock.list[0]` into
-/// the places' block, its first three floats `PlacesBlock.start[0]` ... Nothing reads the
+/// the places' block. Nothing reads the
 /// block, so it is only counted on its list (the memory figures) and not kept.
 pub(super) fn allocate_places(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     crate::memory::owned::count_on(&effects.blocks.places.list, PLACES_LEN)

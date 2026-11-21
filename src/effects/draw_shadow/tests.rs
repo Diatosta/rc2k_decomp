@@ -20,18 +20,19 @@ fn with_shadow<R>(
 ) -> R {
     with_laid_at::<std::cell::RefCell<QuadWork>, R>(mk, l.0, |quad| {
         with_consts(mk, l.1, |consts| {
-            with_copy::<PlainFloat, R>(mk, l.2, |up| {
-                f(&Shadow {
-                    quad,
-                    consts,
-                    up,
-                    field: if l.3 == 0x26A0 {
-                        |marks| &marks.engine_speed_copy
-                    } else {
-                        |marks| &marks.engine_speed_scaled_copy
-                    },
-                })
-            })
+            let up = core::cell::Cell::new(floats_at::<1>(mk, l.2)[0]);
+            let out = f(&Shadow {
+                quad,
+                consts,
+                up: &up,
+                field: if l.3 == 0x26A0 {
+                    |marks| &marks.engine_speed_copy
+                } else {
+                    |marks| &marks.engine_speed_scaled_copy
+                },
+            });
+            mk.put(l.2.wrapping_sub(START), &up.get().to_le_bytes());
+            out
         })
     })
 }

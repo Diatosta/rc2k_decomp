@@ -59,33 +59,33 @@ pub(super) fn draw_view_backdrop(
     part: &crate::scene::scratch_store::PartScratch,
 ) {
     let buffer = &part.vertices;
-    view.quad.uv[0].set(0xF8_0000);
-    view.quad.uv[4].set(0x8_0000);
+    view.quad.borrow_mut().uv[0] = 0xF8_0000;
+    view.quad.borrow_mut().uv[4] = 0x8_0000;
     let left = view.polygon.window.view_offset[0].get();
-    view.quad.corners[0].set(left);
-    view.quad.corners[1].set(left.wrapping_add(view.polygon.window.view_size[0].get()));
+    view.quad.borrow_mut().corners[0] = left;
+    view.quad.borrow_mut().corners[1] = left.wrapping_add(view.polygon.window.view_size[0].get());
     let top = view.polygon.window.view_offset[1].get();
-    view.quad.corners[4].set(top);
-    view.quad.corners[5].set(top.wrapping_add(view.polygon.window.view_size[1].get()));
+    view.quad.borrow_mut().corners[4] = top;
+    view.quad.borrow_mut().corners[5] = top.wrapping_add(view.polygon.window.view_size[1].get());
     let v = &buffer.vertices;
-    let x0 = int_and_one(reads.course(), view.quad.corners[0].get(), false);
+    let x0 = int_and_one(reads.course(), view.quad.borrow().corners[0], false);
     v[0].x.set(x0);
     v[3].x.set(x0);
-    let x1 = int_and_one(reads.course(), view.quad.corners[1].get(), true);
+    let x1 = int_and_one(reads.course(), view.quad.borrow().corners[1], true);
     v[1].x.set(x1);
     v[2].x.set(x1);
-    let y0 = int_and_one(reads.course(), view.quad.corners[4].get(), false);
+    let y0 = int_and_one(reads.course(), view.quad.borrow().corners[4], false);
     v[0].y.set(y0);
     v[1].y.set(y0);
-    let y1 = int_and_one(reads.course(), view.quad.corners[5].get(), true);
+    let y1 = int_and_one(reads.course(), view.quad.borrow().corners[5], true);
     v[2].y.set(y1);
     v[3].y.set(y1);
     let (a, b) = (reads.numbers.k256.get(), reads.numbers.k65536.get());
     for vertex in &v[..4] {
-        vertex.u.set(int_over_two(view.quad.uv[0].get(), a, b));
+        vertex.u.set(int_over_two(view.quad.borrow().uv[0], a, b));
     }
     for vertex in &v[..4] {
-        vertex.v.set(int_over_two(view.quad.uv[4].get(), a, b));
+        vertex.v.set(int_over_two(view.quad.borrow().uv[4], a, b));
     }
     for vertex in &v[..4] {
         vertex.colour.set(0xFF00_0000);

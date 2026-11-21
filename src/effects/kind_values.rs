@@ -7,7 +7,6 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::memory::session::PlainFloat;
 
 pub const KINDS: u32 = 0x22;
 
@@ -26,9 +25,9 @@ pub struct KindSet<'a> {
     /// The quad the values are put in.
     pub quad: &'a core::cell::RefCell<QuadWork>,
     /// Where the kind's `extra` goes (the lift along the up).
-    pub extra: &'a PlainFloat,
+    pub extra: &'a core::cell::Cell<f32>,
     /// `divisor` copied here too (the first set only).
-    pub divisor_copy: Option<&'a PlainFloat>,
+    pub divisor_copy: Option<&'a core::cell::Cell<f32>>,
 }
 
 pub fn first(effects: &Effects) -> KindSet<'_> {

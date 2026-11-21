@@ -8,7 +8,7 @@ use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::sound_spots_store::SoundSpot;
-use crate::race::view_grid::ViewGrid;
+use crate::race::view_grid::GridSlot;
 use crate::scene::view_matrices::ViewMatrices;
 
 /// The grid and what lies past it that a cell number may reach (as `race::course_grid`).
@@ -26,7 +26,7 @@ fn cells(course: &Course) -> Vec<u32> {
 }
 
 /// Refuses, before anything, a cell past the grid or a course without records, faces or points.
-fn check(course: &Course, grid: &ViewGrid) -> Result<(), Refused> {
+fn check(course: &Course, grid: &GridSlot) -> Result<(), Refused> {
     for c in cells(course) {
         if c >= GRID_DWORDS {
             return Err(BadInput("a sound spot cell past the course grid").into());
@@ -35,7 +35,7 @@ fn check(course: &Course, grid: &ViewGrid) -> Result<(), Refused> {
         // cell is (reach - 2) x 0x21 + 0x84, past the grid only for a reach of 30 or more; the
         // reach is the stage's value for the draw distance's level (4 .. 12 in the shipped
         // stages), so it stays inside the grid.
-        let record: u32 = grid.cell(c)?.get();
+        let record: u32 = grid.borrow().cell(c)?;
         if record >= 0x0FFF_FFFF {
             continue;
         }
@@ -107,12 +107,12 @@ fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Result
 fn cell_sound_spots(
     race: &Race,
     view: &ViewMatrices,
-    grid: &ViewGrid,
+    grid: &GridSlot,
     cell: u32,
 ) -> Result<(), BadInput> {
     {
         // The cells `check` passed lie inside the grid.
-        let record: u32 = grid.cell(cell)?.get();
+        let record: u32 = grid.borrow().cell(cell)?;
         if record >= rc2k_core::race::view::NO_RECORD {
             return Ok(());
         }

@@ -2,8 +2,6 @@
 //! circles and frame (`WindscreenFlakeTables`), the 0x800 items (`WindscreenFlakeItems`), and the
 //! once-only mark, constants and randoms (`WindscreenFlakeState`).
 
-use crate::memory::session::{PlainDword, PlainFloat};
-
 /// The windscreen flakes' frame count and rates.
 pub struct WindscreenFlakeTiming {
     /// The frames the windscreen flakes have run (`effects::windscreen_flakes_spawn` adds one each
@@ -95,49 +93,42 @@ impl WindscreenFlakeTables {
     }
 }
 
-/// One windscreen flake item (0x3C bytes; `effects::spawn_windscreen_flake`,
-/// `expire_windscreen_flakes`, `run_windscreen_flakes`).
-#[derive(rc2k_derive::Cells)]
+/// One windscreen flake item (`effects::spawn_windscreen_flake`, `expire_windscreen_flakes`,
+/// `run_windscreen_flakes`).
+#[derive(Clone, Copy)]
 pub struct WindscreenFlakeItem {
     /// 1 while the flake lives, 0 for a free item.
-    pub live: PlainDword,
+    pub live: u32,
     /// The scene clock when it was made.
-    pub born: PlainDword,
+    pub born: u32,
     /// Its age in frame ticks.
-    pub age: PlainDword,
+    pub age: u32,
     /// The flake's texture u offset: its kind (0 .. 7) / 16 + 1/512, the tile across the
     /// sheet (set at spawn, added to the four vertices' u by `run_windscreen_flakes`).
-    pub texture_u: PlainFloat,
+    pub texture_u: f32,
     /// The flake's texture v offset: 0 (from the third constant of `tile_offset_k`), added
     /// to the four vertices' v.
-    pub texture_v: PlainFloat,
-    /// Three dwords, always 0 (nothing read them, so they are no longer written).
-    pub spare_14: [PlainDword; 3],
+    pub texture_v: f32,
     /// Its place (x, z) as floats.
-    pub place: [PlainFloat; 2],
-    /// Five dwords, always 0 (nothing read them, so they are no longer written).
-    pub spare_28: [PlainDword; 5],
+    pub place: [f32; 2],
 }
 
 impl WindscreenFlakeItem {
     pub const fn new() -> Self {
         WindscreenFlakeItem {
-            live: PlainDword::new(0),
-            born: PlainDword::new(0),
-            age: PlainDword::new(0),
-            texture_u: PlainFloat::new(0.0),
-            texture_v: PlainFloat::new(0.0),
-            spare_14: [const { PlainDword::new(0) }; 3],
-            place: [const { PlainFloat::new(0.0) }; 2],
-            spare_28: [const { PlainDword::new(0) }; 5],
+            live: 0,
+            born: 0,
+            age: 0,
+            texture_u: 0.0,
+            texture_v: 0.0,
+            place: [0.0; 2],
         }
     }
 }
 
 /// The windscreen flakes' 0x800 items.
-#[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeItems {
-    /// The items, 0x3C bytes each.
+    /// The items.
     pub items: [WindscreenFlakeItem; 0x800],
 }
 
@@ -242,7 +233,7 @@ impl WindscreenFlakeState {
 pub struct WindscreenFlakes {
     pub timing: std::cell::RefCell<WindscreenFlakeTiming>,
     pub tables: std::cell::RefCell<WindscreenFlakeTables>,
-    pub items: WindscreenFlakeItems,
+    pub items: std::cell::RefCell<WindscreenFlakeItems>,
     pub state: std::cell::RefCell<WindscreenFlakeState>,
 }
 
@@ -251,7 +242,7 @@ impl WindscreenFlakes {
         WindscreenFlakes {
             timing: std::cell::RefCell::new(WindscreenFlakeTiming::new()),
             tables: std::cell::RefCell::new(WindscreenFlakeTables::new()),
-            items: WindscreenFlakeItems::new(),
+            items: std::cell::RefCell::new(WindscreenFlakeItems::new()),
             state: std::cell::RefCell::new(WindscreenFlakeState::new()),
         }
     }

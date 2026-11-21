@@ -10,7 +10,7 @@
 //!   `extra` out and, for set 1, the `divisor` copy) and `KindConsts` (the constants and the
 //!   light), once for each set. Set 1 is `kind_values::first`, set 2 `kind_values::second`.
 
-use crate::memory::session::PlainFloat;
+use core::cell::Cell;
 
 /// A quad's work area (0xF8 bytes, three copies: `overlay_quad`, `shadow_quad`, `plane_quad`). The
 /// offsets are from its start.
@@ -424,36 +424,34 @@ pub(super) static TABLES_2: KindTables = KindTables {
 };
 
 /// Set 1's two outs after its quad.
-#[derive(rc2k_derive::Cells)]
 pub struct KindExtras1 {
     /// The kind's `extra` times `extra_k`, the lift along the up
-    pub extra: PlainFloat,
+    pub extra: Cell<f32>,
     /// `divisor` copied (the first set only)
-    pub divisor_copy: PlainFloat,
+    pub divisor_copy: Cell<f32>,
 }
 
 impl KindExtras1 {
     /// Set 1's outs.
     pub const fn new() -> Self {
         Self {
-            extra: PlainFloat::new(0.0),
-            divisor_copy: PlainFloat::new(0.0),
+            extra: Cell::new(0.0),
+            divisor_copy: Cell::new(0.0),
         }
     }
 }
 
 /// Set 2's out after its quad.
-#[derive(rc2k_derive::Cells)]
 pub struct KindExtra2 {
     /// The kind's `extra` times `extra_k`, the lift along the up
-    pub extra: PlainFloat,
+    pub extra: Cell<f32>,
 }
 
 impl KindExtra2 {
     /// Set 2's out.
     pub const fn new() -> Self {
         Self {
-            extra: PlainFloat::new(0.0),
+            extra: Cell::new(0.0),
         }
     }
 }

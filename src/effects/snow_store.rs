@@ -2,7 +2,6 @@
 //! (the curve and its copy), `SnowState` (the flakes' variables, with the 16-byte constants),
 //! `SnowCurveVars` (the walk's variables and the curve records) and `SnowLight` (the light, the
 //! fade colours and the constants).
-use crate::memory::session::PlainDword;
 
 /// The snow's random tables (0x800 flakes).
 pub struct SnowTables {
@@ -25,20 +24,19 @@ impl SnowTables {
 }
 
 /// The snow's curve.
-#[derive(rc2k_derive::Cells)]
 pub struct SnowCurve {
     /// 0x1000 whole numbers, a smoothed random walk the flakes' x and z are moved by
     /// (`effects::make_noise_curve`).
-    pub curve: [PlainDword; 4096],
+    pub curve: [u32; 4096],
     /// The curve copied while it is smoothed, then the curve less a ramp.
-    pub copy: [PlainDword; 4096],
+    pub copy: [u32; 4096],
 }
 
 impl SnowCurve {
     pub const fn new() -> Self {
         SnowCurve {
-            curve: [const { PlainDword::new(0x0) }; 4096],
-            copy: [const { PlainDword::new(0x0) }; 4096],
+            curve: [0; 4096],
+            copy: [0; 4096],
         }
     }
 }

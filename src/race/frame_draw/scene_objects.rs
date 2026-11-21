@@ -153,10 +153,10 @@ pub fn draw_screen_quad(
         e.v.set(0u32);
     }
     let corners = rc2k_core::race::loading::quad_corners(
-        view.quad.corners[0].get() as i32,
-        view.quad.corners[1].get() as i32,
-        view.quad.corners[4].get() as i32,
-        view.quad.corners[5].get() as i32,
+        view.quad.borrow().corners[0] as i32,
+        view.quad.borrow().corners[1] as i32,
+        view.quad.borrow().corners[4] as i32,
+        view.quad.borrow().corners[5] as i32,
     );
     for (k, (x, y)) in corners.into_iter().enumerate() {
         let v = &poly.quad_vertices[8 * k..8 * k + 8];
@@ -168,7 +168,7 @@ pub fn draw_screen_quad(
         e.point.set(u32::MAX);
         e.light.set(0u32);
     }
-    poly.polygon_colour.set(view.quad.colour[0].get());
+    poly.polygon_colour.set(view.quad.borrow().colour[0]);
     poly.polygon_vertex_count.set(4u32);
     poly.polygon_next_record
         .set(crate::scene::polygon::pool_start());
@@ -202,11 +202,11 @@ pub fn draw_view_tint(
     screen: &crate::memory::session::Screen,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    view.quad.corners[0].set(0u32);
-    view.quad.corners[1].set(view.polygon.window.view_size[0].get());
-    view.quad.corners[4].set(0u32);
-    view.quad.corners[5].set(view.polygon.window.view_size[1].get());
-    view.quad.colour[0].set(0x20_4080u32);
+    view.quad.borrow_mut().corners[0] = 0u32;
+    view.quad.borrow_mut().corners[1] = view.polygon.window.view_size[0].get();
+    view.quad.borrow_mut().corners[4] = 0u32;
+    view.quad.borrow_mut().corners[5] = view.polygon.window.view_size[1].get();
+    view.quad.borrow_mut().colour[0] = 0x20_4080u32;
     poly.polygon_textures[0].set(u32::MAX);
     poly.polygon_sides[0].set(1u32);
     poly.polygon_sides[1].set(0u32);
@@ -590,14 +590,14 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
                 ctx.reads.course(),
                 &ctx.view.matrices,
                 Axis::Y,
-                ctx.view.state.view_angles[3].get(),
+                ctx.view.state.borrow().view_angles[3],
             );
             multiply_matrices(object, turn_y, turned);
             set_fine_turn(
                 ctx.reads.course(),
                 &ctx.view.matrices,
                 Axis::Y,
-                ctx.view.state.view_angles[0].get(),
+                ctx.view.state.borrow().view_angles[0],
             );
             multiply_matrices(turned, turn_y, object);
         }

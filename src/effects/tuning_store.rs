@@ -1,55 +1,54 @@
 //! The effects' frame timing, constants and kind floats: `MarksFrame`, `MarksFloats` and
 //! `MarksKindFloats`.
 
-use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
+use core::cell::Cell;
 
 /// The marks' frame timing and counters (`effects::frame_marks`, `effects::run_frame`,
 /// `effects::draw_frame`).
-#[derive(rc2k_derive::Cells)]
 pub struct MarksFrame {
     /// The time stamp counter's low half at the last frame step.
-    pub last_count: PlainDword,
+    pub last_count: Cell<u32>,
     /// The cycles between the last two frame steps.
-    pub frame_cycles: PlainInt,
+    pub frame_cycles: Cell<i32>,
     /// The share of the frame an empty timed stretch took (`effects::draw_frame`).
-    pub empty_share: PlainFloat,
+    pub empty_share: Cell<f32>,
     /// The share the ring's frame took (`effects::run_frame`).
-    pub ring_share: PlainFloat,
+    pub ring_share: Cell<f32>,
     /// The share the whole of the marks' frame took (`effects::run_frame`).
-    pub whole_share: PlainFloat,
+    pub whole_share: Cell<f32>,
     /// The share `effects::begin_quads` took (`effects::draw_frame`).
-    pub quads_share: PlainFloat,
+    pub quads_share: Cell<f32>,
     /// The share the frame step took (`effects::frame_marks`).
-    pub step_share: PlainFloat,
+    pub step_share: Cell<f32>,
     /// The frame clock the debug page shows as "clock5" (a share like its neighbours; nothing
     /// reads or writes it).
-    pub clock5: PlainFloat,
+    pub clock5: Cell<f32>,
     /// The frame clock the debug page shows as "clock6" (as `clock5`).
-    pub clock6: PlainFloat,
+    pub clock6: Cell<f32>,
     /// The share the draw took (`effects::run_frame`).
-    pub draw_share: PlainFloat,
+    pub draw_share: Cell<f32>,
     /// A particle's side / size in hand while it is emitted (`effects::emit_rolling_dust`,
     /// `effects::emit_wheel_grit_bursts`; a scratch).
-    pub emit_side: PlainDword,
+    pub emit_side: Cell<u32>,
     /// The frame steps counted (cleared at `effects::init_marks`).
-    pub steps: PlainDword,
+    pub steps: Cell<u32>,
 }
 
 impl MarksFrame {
     pub const fn new() -> Self {
         Self {
-            last_count: PlainDword::new(0x0),
-            frame_cycles: PlainInt::new(0x0),
-            empty_share: PlainFloat::new(0.0),
-            ring_share: PlainFloat::new(0.0),
-            whole_share: PlainFloat::new(0.0),
-            quads_share: PlainFloat::new(0.0),
-            step_share: PlainFloat::new(0.0),
-            clock5: PlainFloat::new(0.0),
-            clock6: PlainFloat::new(0.0),
-            draw_share: PlainFloat::new(0.0),
-            emit_side: PlainDword::new(0x0),
-            steps: PlainDword::new(0x0),
+            last_count: Cell::new(0x0),
+            frame_cycles: Cell::new(0x0),
+            empty_share: Cell::new(0.0),
+            ring_share: Cell::new(0.0),
+            whole_share: Cell::new(0.0),
+            quads_share: Cell::new(0.0),
+            step_share: Cell::new(0.0),
+            clock5: Cell::new(0.0),
+            clock6: Cell::new(0.0),
+            draw_share: Cell::new(0.0),
+            emit_side: Cell::new(0x0),
+            steps: Cell::new(0x0),
         }
     }
 }

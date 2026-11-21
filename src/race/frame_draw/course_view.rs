@@ -215,35 +215,35 @@ fn add_depth_entry(ctx: &DrawCtx, face: u32) -> Result<(), Refused> {
 pub fn course_grid(
     course: CourseReads<'_>,
     work: &crate::race::work_store::RaceWork,
-    view: &crate::race::view_grid::ViewGrid,
+    view: &crate::race::view_grid::GridSlot,
     vars: &crate::race::view_vars_store::ViewVarsCopy,
 ) -> Result<(), Refused> {
     use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
     let half = hold_to_limit(work, course.stage_prefs.grid_reach.get());
     let span = half.wrapping_add(half);
     let (gx, gz) = grid_corner(vars.view_x.get(), vars.view_z.get(), half);
-    let unchanged = gx == view.x.get() && gz == view.z.get();
+    let mut grid = view.borrow_mut();
+    let unchanged = gx == grid.x && gz == grid.z;
     let count: u32 = course.course.course_record_count.get();
     if !unchanged && count == 0 {
         return Err(BadInput("no course records (the loop would not end)?").into());
     }
-    view.half.set(half);
-    view.span.set(span);
+    grid.half = half;
+    grid.span = span;
     if unchanged {
         return Ok(());
     }
-    view.x.set(gx);
-    view.z.set(gz);
-    let grid = &view.cells;
+    grid.x = gx;
+    grid.z = gz;
     for k in 0..GRID_SIDE * GRID_SIDE {
-        grid[k as usize].set(GRID_EMPTY);
+        grid.cells[k as usize] = GRID_EMPTY;
     }
     for n in 0..count {
         let Some((cx, cz)) = record_cell(record_field(course, n, 0)?) else {
             continue;
         };
         if let Some(cell) = grid_cell(cx, cz, (gx, gz), span) {
-            view.cell(cell)?.set(n);
+            *grid.cell_mut(cell)? = n;
         }
     }
     Ok(())
@@ -377,18 +377,18 @@ fn mark_far_cells_with<R: crate::math::x87_float::Rounds>(
     r: R,
     numbers: &crate::race::numbers_store::Numbers,
     scratch: &crate::race::view_scratch::ViewScratch,
-    view: &crate::race::view_grid::ViewGrid,
+    view: &crate::race::view_grid::GridSlot,
     limit: u32,
     widening: f32,
 ) {
     use crate::math::x87::{
         below_or_unordered, float_hypot_with, from_int_with, scaled_abs_less_below_with,
     };
-    let grid = &view.cells;
-    for k in 0..0x400 {
-        grid[k as usize].set(grid[k as usize].get() & 0x0FFF_FFFF);
+    let mut grid = view.borrow_mut();
+    for cell in &mut grid.cells {
+        *cell &= 0x0FFF_FFFF;
     }
-    let half: u32 = view.half.get();
+    let half: u32 = grid.half;
     // Nothing in the loop writes the matrix: its floats read once.
     let matrix = scratch
         .matrices
@@ -418,7 +418,7 @@ fn mark_far_cells_with<R: crate::math::x87_float::Rounds>(
             || !scaled_abs_less_below_with(r, x, point_five, two, z)
             || !below_or_unordered(length, limit);
         if mark {
-            grid[cell as usize].set(grid[cell as usize].get() | 0x8000_0000);
+            grid.cells[cell as usize] |= 0x8000_0000;
         }
     }
 }
@@ -457,11 +457,11 @@ pub(super) fn check_course_grid(course: CourseReads<'_>) -> Result<(), Refused> 
 /// The records `gather_visible_faces` gathers.
 pub fn visible_records(
     course: CourseReads<'_>,
-    view: &crate::race::view_grid::ViewGrid,
+    view: &crate::race::view_grid::GridSlot,
 ) -> Result<Vec<u32>, BadInput> {
-    let grid = &view.cells;
+    let grid = view.borrow();
     let list = rc2k_core::race::view::visible_records(
-        grid.iter().map(crate::memory::session::PlainDword::get),
+        grid.cells.iter().copied(),
         course.course.course_record_count.get(),
     )
     .into_iter()

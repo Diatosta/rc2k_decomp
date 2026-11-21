@@ -23,6 +23,7 @@
 
 use crate::errors::BadInput;
 use crate::memory::session::PlainDword;
+use crate::race::plain_slot::PlainSlot;
 
 /// The most entries in either list.
 pub const ENTRIES: usize = 0x1000;
@@ -134,15 +135,15 @@ pub struct ViewScratch {
     /// The polygon pipeline's working values (`scene::polygon_work_store`).
     pub polygon: crate::scene::polygon_work_store::PolygonWork,
     /// The view's course grid (`race::view_grid`).
-    pub grid: crate::race::view_grid::ViewGrid,
+    pub grid: crate::race::view_grid::GridSlot,
     /// The course working values (`race::view_course`).
     pub course: crate::race::view_course::ViewCourse,
     /// The screen quad's texture coordinates and corners (`race::quad_work`).
-    pub quad: crate::race::quad_work::QuadWork,
+    pub quad: crate::race::quad_work::QuadSlot,
     /// The lamps and flares (`race::lamp_work`).
     pub lamps: crate::race::lamp_work::LampWork,
     /// The camera values and the drawn car (`race::view_state`).
-    pub state: crate::race::view_state::ViewState,
+    pub state: PlainSlot<crate::race::view_state::ViewState>,
     /// The view's car: a copy of its block that the view's camera, matrices, course and lights read
     /// (`race::frame::load_view_car`); the physics' work car and `current_car` are not touched.
     pub car: crate::physics::car_store::ViewCar,
@@ -168,11 +169,11 @@ impl ViewScratch {
             cars: crate::race::car_draw_state::CarDrawState::new(),
             matrices: crate::scene::view_matrices::ViewMatrices::new(),
             polygon: crate::scene::polygon_work_store::PolygonWork::new(),
-            grid: crate::race::view_grid::ViewGrid::new(),
+            grid: PlainSlot::new(crate::race::view_grid::ViewGrid::new()),
             course: crate::race::view_course::ViewCourse::new(),
-            quad: crate::race::quad_work::QuadWork::new(),
+            quad: PlainSlot::new(crate::race::quad_work::QuadWork::new()),
             lamps: crate::race::lamp_work::LampWork::new(),
-            state: crate::race::view_state::ViewState::new(),
+            state: PlainSlot::new(crate::race::view_state::ViewState::new()),
             car: crate::physics::car_store::ViewCar::new(),
             hand_off: crate::race::scene_hand_off::SceneHandOff::new(),
             vars: crate::race::view_vars_store::ViewVarsCopy::new(),
@@ -232,10 +233,8 @@ impl ViewScratch {
         // stage's start marks every corner unknown (`view_grid::reset_corners`).
         self.course
             .copy_from(&crate::race::view_course::ViewCourse::new());
-        self.quad
-            .copy_from(&crate::race::quad_work::QuadWork::new());
-        self.state
-            .copy_from(&crate::race::view_state::ViewState::new());
+        self.quad.reset(crate::race::quad_work::QuadWork::new());
+        self.state.reset(crate::race::view_state::ViewState::new());
     }
 
     /// The slot's number.
@@ -389,14 +388,20 @@ mod tests {
     #[test]
     fn the_course_grid_is_kept_between_frames_and_starts_unmade() {
         let view = ViewScratch::new(0);
-        assert_eq!(view.grid.x.get(), crate::race::view_grid::UNKNOWN_CORNER);
-        assert_eq!(view.grid.z.get(), crate::race::view_grid::UNKNOWN_CORNER);
-        view.grid.x.set(0);
-        view.grid.z.set(0);
-        view.grid.cells[3].set(42);
+        let unknown = crate::race::view_grid::UNKNOWN_CORNER;
+        assert_eq!(
+            (view.grid.borrow().x, view.grid.borrow().z),
+            (unknown, unknown)
+        );
+        {
+            let mut grid = view.grid.borrow_mut();
+            grid.x = 0;
+            grid.z = 0;
+            grid.cells[3] = 42;
+        }
         view.begin();
-        assert_eq!((view.grid.x.get(), view.grid.z.get()), (0, 0));
-        assert_eq!(view.grid.cells[3].get(), 42);
+        assert_eq!((view.grid.borrow().x, view.grid.borrow().z), (0, 0));
+        assert_eq!(view.grid.borrow().cells[3], 42);
     }
 
     /// A copy answers with its source's slot; merging it back puts what it changed since it

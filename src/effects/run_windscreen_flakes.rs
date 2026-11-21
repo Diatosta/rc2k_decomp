@@ -65,39 +65,38 @@ fn run(
         if setup.kind_floats.borrow().running != 0 {
             windscreen_flakes_spawn(shared, drops, fl, effects)?;
         }
-        for item in &fl.items.items {
-            if item.live.get() != 1 {
+        for n in 0..fl.items.borrow().items.len() {
+            let mut item = fl.items.borrow().items[n];
+            if item.live != 1 {
                 continue;
             }
             if setup.kind_floats.borrow().running != 0 {
-                let age = item
-                    .age
-                    .get()
-                    .wrapping_add(setup.clock.borrow().frame_ticks);
-                item.age.set(age);
+                let frame_ticks = setup.clock.borrow().frame_ticks;
+                let age = item.age.wrapping_add(frame_ticks);
+                fl.items.borrow_mut().items[n].age = age;
+                item.age = age;
                 if age as i32 >= LIFE {
-                    item.live.set(0);
+                    fl.items.borrow_mut().items[n].live = 0;
                     continue;
                 }
             }
-            let x = x87::to_int(&item.place[0]) as u32;
-            let z = x87::to_int(&item.place[1]) as u32;
+            let x = x87::to_int(item.place[0]) as u32;
+            let z = x87::to_int(item.place[1]) as u32;
             let column = (x >> 3) & 0xFF;
             let cell = (((z >> 3) & 0x7F) << 8) + column;
-            if masks.edge_mask.mask.get(cell as usize) != 0 {
-                item.live.set(0);
+            if masks.edge_mask.borrow().mask[cell as usize] != 0 {
+                fl.items.borrow_mut().items[n].live = 0;
                 continue;
             }
             let alpha =
-                x87::int_over_int_to_int(item.age.get() as i32, fl.state.borrow().fade as i32)
-                    as u32;
+                x87::int_over_int_to_int(item.age as i32, fl.state.borrow().fade as i32) as u32;
             let colour = ((!alpha) << 24) | (view_light & 0xFF_FFFF);
             let values = [
-                less(fl.state.borrow().far, item.place[1].get()),
-                extended(item.place[0].get()),
+                less(fl.state.borrow().far, item.place[1]),
+                extended(item.place[0]),
             ];
             crate::effects::draw_windscreen_flake::draw_windscreen_flake(
-                buffer, fl, item, colour, values, scene, effects,
+                buffer, fl, &item, colour, values, scene, effects,
             );
         }
         crate::scene::depth_buffer_on::depth_buffer(scene.scratch.game_scratch(), true);

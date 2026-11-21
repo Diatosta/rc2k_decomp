@@ -9,10 +9,10 @@
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::memory::session::PlainFloat;
 use crate::race::owner::Race;
+use core::cell::Cell;
 /// Where the share goes (its factor is `FRAME_K.times`): the draw, the ring, the whole.
-fn shares(effects: &Effects) -> [&PlainFloat; 3] {
+fn shares(effects: &Effects) -> [&Cell<f32>; 3] {
     [
         &effects.setup.frame.draw_share,
         &effects.setup.frame.ring_share,

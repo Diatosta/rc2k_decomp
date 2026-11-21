@@ -224,7 +224,7 @@ fn shown_groups(masks: &[crate::memory::session::PlainDword; 18], switches: u32)
 /// car's objects, and in a race (`in_race`) car `drawn_car` (below eight) without its block.
 pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Result<(), Refused> {
     let race = ctx.race;
-    let n: u32 = ctx.view.state.drawn_car.get();
+    let n: u32 = ctx.view.state.borrow().drawn_car;
     if ctx.reads.numbers.in_race.is_set() && n < 8 && !ctx.reads.work.has_car_block(n as usize) {
         return Err(BadInput("the drawn car without its block").into());
     }
@@ -289,7 +289,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
         ctx.view.cars.group_mask.set(with_bit(field(0x44)?, bit));
     }
     ctx.view.cars.car_nearness.set(ctx.reads.numbers.zero.get());
-    let mut stage = ctx.view.state.view_car_stage.get();
+    let mut stage = ctx.view.state.borrow().view_car_stage;
     if (stage as i32) < 0 {
         stage = 0;
     }
@@ -336,9 +336,8 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     ctx.view.face.fade_alpha.set(fade_alpha);
     // The car's block does not keep the group mask: nothing reads it.
     let view_car = ctx.reads.view.drawn_view_car(ctx.view.drawn_view(race))?;
-    if view_car == ctx.view.state.drawn_car.get()
-        && ctx.view.state.view_car_flag_a.get().to_bits() != 0
-    {
+    let state = *ctx.view.state.borrow();
+    if view_car == state.drawn_car && state.view_car_flag_a_bits != 0 {
         ctx.view.cars.group_mask.set(u32::MAX);
     }
     ctx.view.light.light_lowest.set(0);
@@ -378,8 +377,8 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     ctx.view.cars.object_number.set(
         ctx.view
             .state
+            .borrow()
             .drawn_car
-            .get()
             .wrapping_mul(0x14)
             .wrapping_add(0x50),
     );
@@ -488,7 +487,7 @@ pub fn draw_car_entry(
     }
     let car = ctx.reads.work.block_number(n as usize)?;
     ctx.view.vars.drawn_car.set(n);
-    ctx.view.state.drawn_car.set(n);
+    ctx.view.state.borrow_mut().drawn_car = n;
     ctx.view
         .light
         .car_light

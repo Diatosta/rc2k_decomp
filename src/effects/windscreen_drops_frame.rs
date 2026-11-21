@@ -111,7 +111,7 @@ pub fn windscreen_drops_frame(
             }
             let shape = get(drops, e + ITEM_KIND);
             let cell = ((((z as u32) >> 3) & 0x7F) << 8) + (((x as u32) >> 3) & 0xFF);
-            if masks.edge_mask.mask.get(cell as usize) != 0 {
+            if masks.edge_mask.borrow().mask[cell as usize] != 0 {
                 put(drops, e, 0);
                 continue;
             }

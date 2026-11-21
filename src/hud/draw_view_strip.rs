@@ -15,13 +15,14 @@ use crate::system::owner::System;
 use rc2k_core::hud::anchor::{BoxRatio, Rule};
 use rc2k_core::hud::strips;
 
-/// The quad's input at byte offset `o` from `quad_colour`: its colour and see-through,
+/// Sets the quad's input at byte offset `o` from the colour: its colour and see-through,
 /// texture coordinates, then corners (three consecutive fields).
-fn quad_input(scratch: &ViewScratch, o: usize) -> &crate::memory::session::PlainDword {
+fn set_quad_input(scratch: &ViewScratch, o: usize, value: u32) {
+    let mut quad = scratch.quad.borrow_mut();
     match o {
-        0..0x8 => &scratch.quad.colour[o / 4],
-        0x8..0x28 => &scratch.quad.uv[(o - 8) / 4],
-        _ => &scratch.quad.corners[(o - 0x28) / 4],
+        0..0x8 => quad.colour[o / 4] = value,
+        0x8..0x28 => quad.uv[(o - 8) / 4] = value,
+        _ => quad.corners[(o - 0x28) / 4] = value,
     }
 }
 
@@ -83,13 +84,13 @@ fn quad(
     let course = &race.course;
     let sizes: [u32; 4] = std::array::from_fn(|n| strips_store.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
-        quad_input(scratch, o).set(v);
+        set_quad_input(scratch, o, v);
     }
     if let Some(t) = texture {
         polygon.polygon_textures[0].set(t);
     }
     scene.drawing.scene.get().polygon_alpha.set(0xFF);
-    quad_input(scratch, 0).set(0xFFFF_FFFF);
+    set_quad_input(scratch, 0, 0xFFFF_FFFF);
     polygon.polygon_sides[0].set(1);
     polygon.polygon_sides[1].set(0);
     crate::scene::draw_flat_quad::draw_flat_quad(

@@ -154,23 +154,20 @@ pub(super) fn make_noise_curve(
             x87::weighted3_to_int(a, b, c, weights[0], weights[1], weights[2])
         });
     }
-    for (cell, v) in weather.snow_curve.curve.iter().zip(&curve) {
-        cell.set(*v as u32);
+    let mut table = weather.snow_curve.borrow_mut();
+    for (cell, v) in table.curve.iter_mut().zip(&curve) {
+        *cell = *v as u32;
     }
-    for (cell, v) in weather.snow_curve.copy.iter().zip(&copy) {
-        cell.set(*v as u32);
+    for (cell, v) in table.copy.iter_mut().zip(&copy) {
+        *cell = *v as u32;
     }
-    let mut copy: Vec<i32> = weather
-        .snow_curve
-        .copy
-        .iter()
-        .map(|c| c.get() as i32)
-        .collect();
+    let mut copy: Vec<i32> = table.copy.iter().map(|&c| c as i32).collect();
     let (last, first) = (copy[0xFFF], copy[0]);
     x87::ramp_down(&mut copy[..0xFFE], last, first, light.ramp_by);
-    for (cell, &v) in weather.snow_curve.copy.iter().zip(&copy) {
-        cell.set(v as u32);
+    for (cell, &v) in table.copy.iter_mut().zip(&copy) {
+        *cell = v as u32;
     }
+    drop(table);
     let (spread_scale, spread_base): (f32, f32) = (light.spread_scale, light.spread_base);
     let t = core::random_tables(w.seed, divisors);
     {

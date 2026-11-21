@@ -19,7 +19,6 @@ use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork};
 use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::{Axis, extended, rounded_value, turn_matrix3_plain, turnable};
 use crate::math::x87;
 use crate::memory::session::PlainFloat;
@@ -33,7 +32,7 @@ pub struct Shadow<'a> {
     pub quad: &'a core::cell::RefCell<QuadWork>,
     pub consts: &'a KindConsts,
     /// The quad is lifted along it.
-    pub up: &'a PlainFloat,
+    pub up: &'a core::cell::Cell<f32>,
     /// The settings' field the angle comes from.
     pub field: fn(&EffectsSettings) -> &PlainFloat,
 }
@@ -286,6 +285,7 @@ fn second_turned_x87(s: &Shadow, m: &[f32; 9], t: &mut [f32; 2]) {
 /// `corners`'s arithmetic as plain Rust on the x87 model, in the same order, on either shadow's
 /// variables.
 fn corners_x87(s: &Shadow) {
+    let up = bh::ld(s.up.get());
     let mut q = s.quad.borrow_mut();
     let t0 = bh::ld(q.frame[0][0]);
     let t1 = t0 * bh::ld(q.ratio);
@@ -348,51 +348,51 @@ fn corners_x87(s: &Shadow) {
     let t41 = t40 + bh::ld(q.frame[1][2]);
     q.corners[3][2] = bh::stf(t41);
     let t42 = bh::ld(q.matrix[1]);
-    let t43 = t42 * s.up.ld();
+    let t43 = t42 * up;
     let t44 = t43 + bh::ld(q.corners[0][0]);
     q.corners[0][0] = bh::stf(t44);
     let t45 = bh::ld(q.matrix[4]);
-    let t46 = t45 * s.up.ld();
+    let t46 = t45 * up;
     let t47 = t46 + bh::ld(q.corners[0][1]);
     q.corners[0][1] = bh::stf(t47);
     let t48 = bh::ld(q.matrix[7]);
-    let t49 = t48 * s.up.ld();
+    let t49 = t48 * up;
     let t50 = t49 + bh::ld(q.corners[0][2]);
     q.corners[0][2] = bh::stf(t50);
     let t51 = bh::ld(q.matrix[1]);
-    let t52 = t51 * s.up.ld();
+    let t52 = t51 * up;
     let t53 = t52 + bh::ld(q.corners[1][0]);
     q.corners[1][0] = bh::stf(t53);
     let t54 = bh::ld(q.matrix[4]);
-    let t55 = t54 * s.up.ld();
+    let t55 = t54 * up;
     let t56 = t55 + bh::ld(q.corners[1][1]);
     q.corners[1][1] = bh::stf(t56);
     let t57 = bh::ld(q.matrix[7]);
-    let t58 = t57 * s.up.ld();
+    let t58 = t57 * up;
     let t59 = t58 + bh::ld(q.corners[1][2]);
     q.corners[1][2] = bh::stf(t59);
     let t60 = bh::ld(q.matrix[1]);
-    let t61 = t60 * s.up.ld();
+    let t61 = t60 * up;
     let t62 = t61 + bh::ld(q.corners[2][0]);
     q.corners[2][0] = bh::stf(t62);
     let t63 = bh::ld(q.matrix[4]);
-    let t64 = t63 * s.up.ld();
+    let t64 = t63 * up;
     let t65 = t64 + bh::ld(q.corners[2][1]);
     q.corners[2][1] = bh::stf(t65);
     let t66 = bh::ld(q.matrix[7]);
-    let t67 = t66 * s.up.ld();
+    let t67 = t66 * up;
     let t68 = t67 + bh::ld(q.corners[2][2]);
     q.corners[2][2] = bh::stf(t68);
     let t69 = bh::ld(q.matrix[1]);
-    let t70 = t69 * s.up.ld();
+    let t70 = t69 * up;
     let t71 = t70 + bh::ld(q.corners[3][0]);
     q.corners[3][0] = bh::stf(t71);
     let t72 = bh::ld(q.matrix[4]);
-    let t73 = t72 * s.up.ld();
+    let t73 = t72 * up;
     let t74 = t73 + bh::ld(q.corners[3][1]);
     q.corners[3][1] = bh::stf(t74);
     let t75 = bh::ld(q.matrix[7]);
-    let t76 = t75 * s.up.ld();
+    let t76 = t75 * up;
     let t77 = t76 + bh::ld(q.corners[3][2]);
     q.corners[3][2] = bh::stf(t77);
     let t78 = bh::ld(q.corners[2][0]);

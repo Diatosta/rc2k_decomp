@@ -79,12 +79,7 @@ pub(super) fn burst_particles(
         let s = next_seed(effects);
         let r = s & 0xFFFF;
         let m = effects.frame.draw_work.borrow().uv_k;
-        let [c, k] = effects
-            .kinds
-            .particle_tuning
-            .burst_scale
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get);
+        let [c, k] = effects.kinds.particle_tuning.burst_scale;
         let radius = bh::stf((bh::int(r as i32) * bh::ld(m) + bh::ld(c)) * bh::ld(k));
         ring.pool.burst_radius.set(radius);
         ring.pool.kind.set((s & 7) * 0x400);
@@ -118,7 +113,7 @@ pub(super) fn burst_particles(
             let motion_y =
                 x87::zero_times_plus_times(cosine(a), sine(b), cosine(b), radius, true).to_bits();
             let colour_step =
-                x87::over_int(&effects.kinds.particle_tuning.burst_life, LIFE as i32).to_bits();
+                x87::over_int(effects.kinds.particle_tuning.burst_life, LIFE as i32).to_bits();
             update_particle(particles, e, |p| {
                 p.motion_z = motion_z;
                 p.motion_x = motion_x;

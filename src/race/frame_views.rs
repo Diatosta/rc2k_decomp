@@ -419,10 +419,10 @@ pub(super) fn forget_view_textures(
 
 /// The quad's corners, from (0, 0) to the view window's size.
 fn window_corners(view: &crate::race::view_scratch::ViewScratch) {
-    view.quad.corners[0].set(0);
-    view.quad.corners[4].set(0);
-    view.quad.corners[1].set(view.polygon.window.view_size[0].get());
-    view.quad.corners[5].set(view.polygon.window.view_size[1].get());
+    view.quad.borrow_mut().corners[0] = 0;
+    view.quad.borrow_mut().corners[4] = 0;
+    view.quad.borrow_mut().corners[1] = view.polygon.window.view_size[0].get();
+    view.quad.borrow_mut().corners[5] = view.polygon.window.view_size[1].get();
 }
 
 /// Draws a tinted quad over the view window: `in_credits` 0x283080 half through; else the sun's
@@ -438,25 +438,22 @@ pub(super) fn draw_screen_tint(
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
     if ctx.reads.work.in_credits.is_set() {
-        ctx.view.quad.colour[1].set(NIGHT_ALPHA);
+        ctx.view.quad.borrow_mut().colour[1] = NIGHT_ALPHA;
         window_corners(ctx.view);
-        ctx.view.quad.colour[0].set(NIGHT_COLOUR);
+        ctx.view.quad.borrow_mut().colour[0] = NIGHT_COLOUR;
         return crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
     let sun = ctx.view.polygon.sun.on_screen.get();
     let a = glare_alpha(fog.far.get());
-    ctx.view.quad.colour[1].set(a);
+    ctx.view.quad.borrow_mut().colour[1] = a;
     let mut done = Ok(());
     if a != 0 {
         window_corners(ctx.view);
         // The two glare bytes (`glare_bytes`, StagePrefs.glare_bytes[1]): the low bytes of two
         // dwords.
         let byte = |k: usize| ctx.reads.stage_prefs.glare_bytes[k].get() as u8;
-        ctx.view.quad.colour[0].set(glare_colour(
-            ctx.reads.stage_prefs.lamp_table_c.get(),
-            byte(0),
-            byte(1),
-        ));
+        ctx.view.quad.borrow_mut().colour[0] =
+            glare_colour(ctx.reads.stage_prefs.lamp_table_c.get(), byte(0), byte(1));
         done = crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
     race.frame.frame_work.get().sun_on_screen.set(sun);
@@ -507,7 +504,7 @@ pub fn draw_own_car(
     }
     let car = ctx.reads.work.block_number(car_number(number) as usize)?;
     ctx.view.vars.drawn_car.set(number);
-    ctx.view.state.drawn_car.set(number);
+    ctx.view.state.borrow_mut().drawn_car = number;
     // The state bits are the view's own; the rest, the car as seen.
     if !seen_inside(ctx.view.cars.state_of(car)?.get()) {
         return Ok(());

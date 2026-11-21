@@ -32,7 +32,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::extended;
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::memory::session::PlainFloat;
 use crate::race::owner_frame::Frame;
 use crate::sound::owner::Sound;
 const TRAIL_COLOURS: i32 = 298;
@@ -87,8 +86,8 @@ fn move_place(p: &mut Particle, t: i32, with_up: bool) {
 }
 
 /// The colour gain: the tuning cell holds a whole number, so its bits are read as one.
-fn gain_colour(p: &mut Particle, k: &PlainFloat, t: i32) {
-    p.colour = x87::int_times_int_plus_int(k.bits() as i32, t, p.colour as i32) as u32;
+fn gain_colour(p: &mut Particle, k: f32, t: i32) {
+    p.colour = x87::int_times_int_plus_int(k.to_bits() as i32, t, p.colour as i32) as u32;
 }
 
 fn keep_last(p: &mut Particle) {
@@ -108,9 +107,9 @@ fn advance(p: &mut Particle, effects: &Effects, ring: &Ring) -> Result<Outcome, 
     Ok(match ParticleKind::try_from(p.kind)? {
         ParticleKind::Dust => {
             move_place(p, t, false);
-            p.motion_y = x87::plus_times_int(p.motion_y, &tuning.dust[0], t).to_bits();
-            gain_colour(p, &tuning.dust[1], t);
-            let s = x87::compare_status(&tuning.dust[2], p.motion_y);
+            p.motion_y = x87::plus_times_int(p.motion_y, tuning.dust[0], t).to_bits();
+            gain_colour(p, tuning.dust[1], t);
+            let s = x87::compare_status(tuning.dust[2], p.motion_y);
             effects.setup.work.borrow_mut().fpu_status = s as u32;
             if s != 0x100 {
                 Outcome::Burst
@@ -123,8 +122,8 @@ fn advance(p: &mut Particle, effects: &Effects, ring: &Ring) -> Result<Outcome, 
         }
         ParticleKind::Trail => {
             move_place(p, t, false);
-            p.motion_y = x87::plus_times_int(p.motion_y, &tuning.trail[0], t).to_bits();
-            gain_colour(p, &tuning.trail[1], t);
+            p.motion_y = x87::plus_times_int(p.motion_y, tuning.trail[0], t).to_bits();
+            gain_colour(p, tuning.trail[1], t);
             let index = colour_index(p, p.life)?;
             ring.pool.index.set(index as u32);
             let alpha = p.colour & 0xFF00_0000;
@@ -139,16 +138,16 @@ fn advance(p: &mut Particle, effects: &Effects, ring: &Ring) -> Result<Outcome, 
         }
         kind @ (ParticleKind::Burst8 | ParticleKind::Burst9) => {
             let k = if kind == ParticleKind::Burst9 {
-                &tuning.burst9
+                tuning.burst9
             } else {
-                &tuning.burst8
+                tuning.burst8
             };
             move_place(p, t, true);
-            p.lift = x87::plus_times_int(p.lift, &k[0], t).to_bits();
-            p.motion_x = x87::less_own_times(p.motion_x, &k[1]).to_bits();
-            p.motion_y = x87::less_own_times(p.motion_y, &k[2]).to_bits();
-            p.motion_z = x87::less_own_times(p.motion_z, &k[3]).to_bits();
-            gain_colour(p, &k[4], t);
+            p.lift = x87::plus_times_int(p.lift, k[0], t).to_bits();
+            p.motion_x = x87::less_own_times(p.motion_x, k[1]).to_bits();
+            p.motion_y = x87::less_own_times(p.motion_y, k[2]).to_bits();
+            p.motion_z = x87::less_own_times(p.motion_z, k[3]).to_bits();
+            gain_colour(p, k[4], t);
             let index = colour_index(p, p.life)?;
             ring.pool.index.set(index as u32);
             let tint = effects
@@ -330,21 +329,20 @@ pub fn run_particles(
         let r = seed();
         let view = |o: usize| frame.matrices.get().view_place[o / 4].get();
         let uv_k: f32 = effects.frame.draw_work.borrow().uv_k;
-        let wave = |k: &[crate::memory::session::PlainFloat; 3], add: f32, cosine: bool| {
-            x87::int_times3_wave_plus(r as i32, [uv_k, k[0].get(), k[1].get()], &k[2], add, cosine)
+        let wave = |k: &[f32; 3], add: f32, cosine: bool| {
+            x87::int_times3_wave_plus(r as i32, [uv_k, k[0], k[1]], k[2], add, cosine)
         };
         let x = wave(&effects.kinds.particle_tuning.puff_x, view(0x30), false);
         let y = x87::loaded(view(0x34));
         let z = wave(&effects.kinds.particle_tuning.puff_z, view(0x38), true);
         let lift = seed();
         let up = f32::from_bits(bh::st(
-            (bh::int(lift as i32) * bh::ld(uv_k)
-                + bh::ld(effects.kinds.particle_tuning.puff_y[0].get()))
-                * bh::ld(effects.kinds.particle_tuning.puff_y[1].get())
-                + bh::ld(effects.kinds.particle_tuning.puff_y[2].get()),
+            (bh::int(lift as i32) * bh::ld(uv_k) + bh::ld(effects.kinds.particle_tuning.puff_y[0]))
+                * bh::ld(effects.kinds.particle_tuning.puff_y[1])
+                + bh::ld(effects.kinds.particle_tuning.puff_y[2]),
         ));
-        let mx = x87::sub_mul(view(0x30), x, &effects.kinds.particle_tuning.puff_m[0]);
-        let mz = x87::sub_mul(view(0x38), z, &effects.kinds.particle_tuning.puff_m[1]);
+        let mx = x87::sub_mul(view(0x30), x, effects.kinds.particle_tuning.puff_m[0]);
+        let mz = x87::sub_mul(view(0x38), z, effects.kinds.particle_tuning.puff_m[1]);
         for (n, v) in [x, y, z, mx, up, mz].into_iter().enumerate() {
             particles.puff_work.borrow_mut().puff[n] = v;
         }

@@ -166,8 +166,11 @@ pub(super) fn make_corners(
             }
         }
         let bx_at = (kind * 0x30) as usize;
+        let kind_boxes = masks.kind_boxes.borrow();
         let bx = |o: usize| -> Result<_, Refused> {
-            Ok(masks.kind_boxes.boxes.get_u32(bx_at + o) as i32)
+            let at = bx_at + o;
+            let word: [u8; 4] = kind_boxes.boxes[at..at + 4].try_into().expect("four bytes");
+            Ok(u32::from_le_bytes(word) as i32)
         };
         let divisors: [i32; 2] = effects
             .setup

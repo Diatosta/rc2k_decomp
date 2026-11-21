@@ -218,7 +218,7 @@ pub fn emit_rolling_dust(
     object: &CarEffects,
     effects: &Effects,
 ) -> Result<(), Refused> {
-    if particles.kind1_choice.choice.get() != 0 {
+    if particles.kind1_choice.get() != 0 {
         emit_rolling_particles_rated(particles, ring, wheel, object, effects)
     } else {
         emit_particle_1(particles, ring, wheel, object, effects)

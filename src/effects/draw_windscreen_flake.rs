@@ -78,28 +78,28 @@ fn shifted_places_x87(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     item: &WindscreenFlakeItem,
 ) {
-    let t0 = ld_cell(&item.texture_u);
+    let t0 = bh::ld(item.texture_u);
     let t1 = t0 + ld_cell(&buffer.vertices[0].u);
     st_cell(&buffer.vertices[0].u, t1);
-    let t2 = ld_cell(&item.texture_u);
+    let t2 = bh::ld(item.texture_u);
     let t3 = t2 + ld_cell(&buffer.vertices[1].u);
     st_cell(&buffer.vertices[1].u, t3);
-    let t4 = ld_cell(&item.texture_u);
+    let t4 = bh::ld(item.texture_u);
     let t5 = t4 + ld_cell(&buffer.vertices[2].u);
     st_cell(&buffer.vertices[2].u, t5);
-    let t6 = ld_cell(&item.texture_u);
+    let t6 = bh::ld(item.texture_u);
     let t7 = t6 + ld_cell(&buffer.vertices[3].u);
     st_cell(&buffer.vertices[3].u, t7);
-    let t8 = ld_cell(&item.texture_v);
+    let t8 = bh::ld(item.texture_v);
     let t9 = t8 + ld_cell(&buffer.vertices[0].v);
     st_cell(&buffer.vertices[0].v, t9);
-    let t10 = ld_cell(&item.texture_v);
+    let t10 = bh::ld(item.texture_v);
     let t11 = t10 + ld_cell(&buffer.vertices[1].v);
     st_cell(&buffer.vertices[1].v, t11);
-    let t12 = ld_cell(&item.texture_v);
+    let t12 = bh::ld(item.texture_v);
     let t13 = t12 + ld_cell(&buffer.vertices[2].v);
     st_cell(&buffer.vertices[2].v, t13);
-    let t14 = ld_cell(&item.texture_v);
+    let t14 = bh::ld(item.texture_v);
     let t15 = t14 + ld_cell(&buffer.vertices[3].v);
     st_cell(&buffer.vertices[3].v, t15);
 }

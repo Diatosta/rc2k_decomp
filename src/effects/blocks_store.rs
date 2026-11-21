@@ -1,7 +1,7 @@
 //! The marks' blocks: the ring's particles, the places, links, slopes and corners.
 
 use crate::errors::BadInput;
-use crate::memory::session::{PlainDword, PlainFloat, PlainWord};
+use crate::memory::session::PlainWord;
 
 const RING_ENTRY: u32 = rc2k_core::effects::rings::RING_ENTRY;
 
@@ -91,45 +91,32 @@ impl Particle {
     }
 }
 
-/// The places' list, block and first floats.
-#[derive(rc2k_derive::Cells)]
+/// The list the places' block is counted on (`effects::allocate_places`; the block itself is
+/// not kept).
 pub struct PlacesBlock {
     /// The list the places' block is taken on (16 bytes).
     pub list: crate::memory::ListCells,
-    /// The places' block (0x7024 bytes; 0: only counted, `allocate_places`).
-    pub places: PlainDword,
-    /// The places' block's first three floats (`effects::allocate_places`).
-    pub start: [PlainFloat; 3],
 }
 
 impl PlacesBlock {
     pub const fn new() -> Self {
         Self {
             list: crate::memory::ListCells::empty(),
-            places: PlainDword::new(0x0),
-            start: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(-262144.0),
-                PlainFloat::new(1279952.0),
-            ],
         }
     }
 }
 
-/// The links' list and block.
-#[derive(rc2k_derive::Cells)]
+/// The list the links' block is counted on (`effects::allocate_links`; the block itself is not
+/// kept).
 pub struct MarkLinks {
     /// The list the links' block is taken on (16 bytes).
     pub list: crate::memory::ListCells,
-    /// The links' block (0x71020 bytes; 0: only counted, `allocate_links`).
-    pub links: PlainDword,
 }
 
 impl MarkLinks {
     pub const fn new() -> Self {
         Self {
             list: crate::memory::ListCells::empty(),
-            links: PlainDword::new(0x0),
         }
     }
 }

@@ -14,13 +14,13 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
-use crate::memory::session::PlainFloat;
 use crate::race::owner::Race;
 use crate::scene::rotate_point::rotate_point;
+use core::cell::Cell;
 const CORNERS_FROM: u32 = 0x1C_2000;
 const CORNERS_LEN: u32 = 0x8000;
 /// The two (time kept, where it goes) pairs.
-fn times(effects: &Effects) -> [(f32, &PlainFloat); 2] {
+fn times(effects: &Effects) -> [(f32, &Cell<f32>); 2] {
     let kept = effects.frame.draw_frame.borrow().times;
     [
         (kept[0], &effects.setup.frame.quads_share),
