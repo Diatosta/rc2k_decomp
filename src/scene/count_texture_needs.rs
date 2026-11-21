@@ -41,12 +41,7 @@ pub fn count_texture_needs(scene: &crate::scene::owner::Scene) -> Result<(), Bad
         places.system_kilobytes = totals[1];
         places.system_textures = totals[3];
     }
-    scene
-        .textures
-        .place_slots
-        .get()
-        .video_textures
-        .set(totals[2]);
+    scene.textures.place_slots.borrow_mut().video_textures = totals[2];
     log(Ok(c"VID"), false);
     log(Err(totals[0]), false);
     log(Ok(c"k in"), false);

@@ -94,7 +94,7 @@ pub(super) fn set_up_surface(
     }
     lock(gfx, scene.textures.first_textures()[211], false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        scene.textures.kinds.get().kind_first_slots[211].get(),
+        scene.textures.kinds.borrow().kind_first_slots[211],
         scene,
     )?;
     crate::memory::free_list::free_list(&masks.list.list)?;

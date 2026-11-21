@@ -31,11 +31,8 @@ pub fn windscreen_drops_setup(
         axes_x87(drops);
         crate::scene::depth_buffer_on::depth_buffer(part, true);
         // The drops' texture: entry 1999 of the places' slots.
-        crate::scene::set_texture::set_texture(
-            part,
-            scene,
-            scene.textures.place_slots.get().place_slot[1999].get(),
-        );
+        let drops_texture = scene.textures.place_slots.borrow().place_slot[1999];
+        crate::scene::set_texture::set_texture(part, scene, drops_texture);
         for (value, state) in STATES {
             set_render_state(part, value, state);
         }

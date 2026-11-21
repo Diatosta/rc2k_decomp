@@ -424,7 +424,7 @@ fn check_light_texture_slots(race: &Race, scene: &Scene) -> Result<(), Refused> 
         .enumerate()
     {
         if extra.get() != u32::MAX
-            && scene.textures.kinds.get().kind_first_slots[220 + k].get() >= SLOTS
+            && scene.textures.kinds.borrow().kind_first_slots[220 + k] >= SLOTS
         {
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
@@ -488,7 +488,7 @@ fn assign_light_textures(race: &Race, scene: &Scene) -> Result<(), Refused> {
     {
         let texture = extra.get();
         if texture != u32::MAX {
-            let slot = scene.textures.kinds.get().kind_first_slots[220 + k].get();
+            let slot = scene.textures.kinds.borrow().kind_first_slots[220 + k];
             *scene
                 .texture_places_mut()
                 .slot_wanted
@@ -566,7 +566,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             .mirror_wanted
             .set(race.frame.cars.car(blocks[0])?.camera_mode_is_2_or_3.get() != 0);
     }
-    scene.objects.tables.get().d3d_drawing_on.set(1);
+    scene.objects.tables.borrow_mut().d3d_drawing_on = 1;
     // The frame's one sound turn (`sound::race_turn`, when 20 ms of the scene clock have passed
     // since the last): the clock moves only here (`restart_clock` above and in `show_frame` after
     // the present), so it is due at most once a frame. It hears the previous frame's sound spots.

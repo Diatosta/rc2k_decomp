@@ -60,7 +60,7 @@ pub fn draw_mark_slots(
     crate::scene::set_texture::set_texture(
         scene.scratch.game_scratch(),
         scene,
-        scene.textures.kinds.get().kind_first_slots[202].get(),
+        scene.textures.kinds.borrow().kind_first_slots[202],
     );
     let count = effects.blocks.slots.borrow().slots.len();
     for index in (0..count).rev() {

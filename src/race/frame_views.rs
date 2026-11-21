@@ -335,7 +335,7 @@ pub(super) fn forget_view_textures(
     let trap = Trap::new();
     let field = |b: usize, word: fn(&Car) -> u32| word(&race.car_blocks().cars[b]);
     // (the switch, the slot's variable) of each.
-    let slot_of = |n: usize| &textures.kinds.get().kind_first_slots[n];
+    let slot_of = |n: usize| textures.kinds.borrow().kind_first_slots[n];
     let source = |f: Forget| match f {
         Forget::Changing(v) => (
             field(blocks[v], |car| car.map_redrawn.get()),
@@ -362,7 +362,7 @@ pub(super) fn forget_view_textures(
         .iter()
         .map(|&(f, _)| source(f))
         .filter(|&(switch, _)| forgets(switch))
-        .map(|(_, slot)| slot.get())
+        .map(|(_, slot)| slot)
         .collect();
     if mirror {
         slots.push(textures.first_textures()[200]);
@@ -375,7 +375,7 @@ pub(super) fn forget_view_textures(
         if !forgets(switch) {
             continue;
         }
-        forget_slot_texture(slot.get(), scene)?;
+        forget_slot_texture(slot, scene)?;
         frame.panel_and_overlay.get().panel.texture_changes.set(
             frame
                 .panel_and_overlay
@@ -469,7 +469,7 @@ fn clear_view_depth(
     poly: &crate::scene::polygon_work_store::PolygonWork,
 ) {
     let session = &system.session;
-    if scene.objects.tables.get().d3d_drawing_on.get() == 0 {
+    if scene.objects.tables.borrow().d3d_drawing_on == 0 {
         return;
     }
     poly.cleared_rectangle[0].set(0);
@@ -526,7 +526,7 @@ pub fn draw_own_car(
     crate::scene::set_texture::set_texture_with(
         ctx.part,
         ctx.reads.object_tables,
-        ctx.reads.kind_textures.kind_first_slots[202].get(),
+        ctx.reads.kind_textures.first_slot(202),
     );
     crate::scene::set_render_state::set_render_state(ctx.part, 2, 0x14);
     ctx.scene

@@ -238,17 +238,15 @@ pub fn object_bytes(
     let kind = |n: u32| -> Result<u32, BadInput> {
         reads
             .place_slots
-            .place_slot
-            .get(n as usize)
-            .map(crate::memory::session::PlainDword::get)
+            .place_slot(n as usize)
             .ok_or(BadInput("an object kind past the kinds' table"))
     };
     for n in 0..0x100usize {
         let record = &reads.buffers.polygon_tables.texture_infos[n].words[8..];
         let flags = record[3].get().to_le_bytes()[2];
         let record_kind = kind(record[0].get())?;
-        let face_kind = if reads.object_slots.face_counts[n].get() != 0 {
-            let first = reads.object_slots.first_face[n].get() as usize;
+        let face_kind = if reads.object_slots.face_count(n) != 0 {
+            let first = reads.object_slots.first_face(n) as usize;
             let face = reads
                 .buffers
                 .faces

@@ -15,7 +15,7 @@ const RULE_2: &std::ffi::CStr = c"===========================";
 type Total = (&'static std::ffi::CStr, fn(&Scene) -> u32);
 const TOTALS: [Total; 4] = [
     (c"total points", |scene| {
-        scene.objects.tables.get().point_count.get()
+        scene.objects.tables.borrow().point_count
     }),
     (c"total pointmem", |scene| {
         scene.object_work().point_memory_total

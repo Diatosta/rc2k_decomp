@@ -52,7 +52,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
         self.1.borrow().only_object
     }
     fn faces(&self, object: u32) -> u32 {
-        self.2.object_slots.face_counts[object as usize].get()
+        self.2.object_slots.face_count(object as usize)
     }
 }
 

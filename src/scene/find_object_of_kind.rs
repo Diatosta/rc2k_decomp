@@ -5,7 +5,7 @@
 pub fn find_object_of_kind(kind: u32, scene: &crate::scene::owner::Scene) -> u32 {
     // Logic: `rc2k_core::scene::kinds::first_of_kind`.
     rc2k_core::scene::kinds::first_of_kind(
-        |n| scene.objects.tables.get().object_kind(n as u32),
+        |n| scene.objects.tables.borrow().object_kind(n as u32),
         kind,
     )
 }

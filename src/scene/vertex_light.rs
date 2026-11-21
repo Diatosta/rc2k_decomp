@@ -110,10 +110,7 @@ fn lit(
     let place = set_normal(reads.course_lists, part, number, light)
         .and_then(|()| table_place(light, object));
     let place = place?;
-    let colour = plus(
-        reads.light_tables.light_table[place].get(),
-        light.borrow().light_colour,
-    );
+    let colour = plus(reads.light_tables.light(place), light.borrow().light_colour);
     light.borrow_mut().light_colour = colour;
     Ok(colour)
 }
@@ -173,10 +170,7 @@ pub fn vertex_light(
             if level >= TABLE_LEN {
                 return Err(BadInput("a place outside the light table"));
             }
-            Ok(plus(
-                reads.light_tables.light_table[level as usize].get(),
-                added,
-            ))
+            Ok(plus(reads.light_tables.light(level as usize), added))
         }
         3 => {
             set_normal(reads.course_lists, part, number, light)?;

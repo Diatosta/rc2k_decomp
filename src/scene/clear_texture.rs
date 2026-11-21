@@ -7,7 +7,7 @@ pub fn clear_texture(
     part: &crate::scene::scratch_store::PartScratch,
     scene: &crate::scene::owner::Scene,
 ) -> bool {
-    if scene.objects.tables.get().d3d_drawing_on.get() == 0 {
+    if scene.objects.tables.borrow().d3d_drawing_on == 0 {
         return false;
     }
     crate::d3d::set_texture::set_texture(part, NO_TEXTURE);

@@ -5,12 +5,13 @@
 //! (`TexturePlaces.wanted_pictures`), and that place, if under 0xFA0, gets the slot's number. Of
 //! two slots with one place the lower stays.
 
-use crate::scene::textures::with_cells;
-
 pub fn map_texture_places(scene: &crate::scene::owner::Scene) {
     // Logic: `rc2k_core::scene::textures::map_places`.
     let places = scene.texture_places();
-    with_cells([&scene.textures.place_slots.get().place_slot], |[slots]| {
-        rc2k_core::scene::textures::map_places(&places.slot_wanted, &places.wanted_pictures, slots)
-    });
+    let mut slots = scene.textures.place_slots.borrow_mut();
+    rc2k_core::scene::textures::map_places(
+        &places.slot_wanted,
+        &places.wanted_pictures,
+        &mut slots.place_slot,
+    );
 }

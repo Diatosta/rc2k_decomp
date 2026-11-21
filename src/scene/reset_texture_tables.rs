@@ -13,8 +13,11 @@ pub fn reset_texture_tables(scene: &crate::scene::owner::Scene) {
         levels.video_levels.fill(u32::MAX);
         levels.system_levels.fill(u32::MAX);
     }
-    for cell in &scene.textures.kinds.get().kind_first_slots {
-        cell.set(u32::MAX);
-    }
+    scene
+        .textures
+        .kinds
+        .borrow_mut()
+        .kind_first_slots
+        .fill(u32::MAX);
     scene.textures.first_textures_mut().fill(u32::MAX);
 }

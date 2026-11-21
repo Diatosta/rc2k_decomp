@@ -514,14 +514,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game_from(o.race.frame.panel_and_overlay.get(), ".panel.split_6",),
         ),
         listed!(
-            "owners.scene.objects.slots",
-            on_game(o.scene.objects.slots.get()),
-        ),
-        listed!(
-            "owners.scene.light_tables",
-            on_game(o.scene.light_tables.get()),
-        ),
-        listed!(
             "owners.race.frame.shadow_skids",
             on_game(o.race.frame.shadow_skids.get()),
         ),
@@ -540,14 +532,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.race.course.lists",
             on_game(o.race.course.lists.get()),
-        ),
-        listed!(
-            "owners.scene.objects.tables",
-            on_game(o.scene.objects.tables.get()),
-        ),
-        listed!(
-            "owners.scene.textures.place_slots",
-            on_game(o.scene.textures.place_slots.get()),
         ),
         listed!(
             "owners.race.frame.matrices",
@@ -582,10 +566,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.race.shared.car", on_game(o.race.shared.car()),),
         listed!("owners.race.shared.work", on_game(o.race.shared.work.get()),),
-        listed!(
-            "owners.scene.textures.kinds",
-            on_game(o.scene.textures.kinds.get()),
-        ),
         listed!(
             "owners.race.shared.switches",
             on_game(o.race.shared.switches.get()),

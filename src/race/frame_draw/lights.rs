@@ -151,7 +151,7 @@ pub(super) fn car_light_on_point(
     course: CourseReads<'_>,
     car: &crate::race::frame_view::CarView,
     marks_count: u32,
-    light_tables: &crate::scene::light_tables_store::LightTables,
+    light_tables: crate::scene::light_tables_store::LightTablesRef<'_>,
     object_light: &crate::scene::object_light::ObjectLight,
 ) -> Result<(), BadInput> {
     use crate::math::x87::{int_square_sum_scaled_to_int, rotate_rounding};
@@ -180,7 +180,7 @@ pub(super) fn car_light_on_point(
     // A second spread worked out here would only be stored in `scratch`; nothing reads it, so it is
     // not kept.
     let index = headlight_index(s1, t[1], marks_count);
-    let colour = light_tables.car_light_table[index as usize].get();
+    let colour = light_tables.car_light(index as usize);
     {
         let value = add_colours(colour, object_light.borrow().light_colour);
         object_light.borrow_mut().light_colour = value;

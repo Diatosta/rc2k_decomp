@@ -25,12 +25,12 @@ fn points_of(
     if slot >= SLOTS {
         return Err(BadInput("an object's slot past the tables"));
     }
-    let count = objects.slots.get().point_counts[slot as usize].get();
+    let count = objects.slots.borrow().point_counts[slot as usize];
     let memory: u32 = course.lists.get().object_points.get();
     if count > MOST || (count != 0 && memory == 0) {
         return Err(BadInput("points without their memory, or too many"));
     }
-    let first = objects.slots.get().first_point[slot as usize].get();
+    let first = objects.slots.borrow().first_point[slot as usize];
     Ok((memory.wrapping_add(first.wrapping_mul(12)) as usize, count))
 }
 

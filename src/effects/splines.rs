@@ -248,8 +248,8 @@ fn gather_spline_points(
         if object >= 0x100 {
             return Err(BadInput("an object past 0xFF").into());
         }
-        let first: u32 = scene.objects.slots.get().first_face[object].get();
-        let faces: u32 = scene.objects.slots.get().face_counts[object].get();
+        let first: u32 = scene.objects.slots.borrow().first_face[object];
+        let faces: u32 = scene.objects.slots.borrow().face_counts[object];
         if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
             return Err(BadInput("an object's faces past g_faces").into());
         }
@@ -534,8 +534,8 @@ fn spline_checks(
     if object >= 0x100 {
         return Err(BadInput("an object past 0xFF").into());
     }
-    let first: u32 = scene.objects.slots.get().first_face[object as usize].get();
-    let faces: u32 = scene.objects.slots.get().face_counts[object as usize].get();
+    let first: u32 = scene.objects.slots.borrow().first_face[object as usize];
+    let faces: u32 = scene.objects.slots.borrow().face_counts[object as usize];
     if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
         return Err(BadInput("an object's faces past g_faces").into());
     }

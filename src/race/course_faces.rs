@@ -942,18 +942,18 @@ fn face_colours(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
     let light_tables = ctx.reads.light_tables;
     use rc2k_core::race::lights::{EXTRA_LIGHTS, corner_colour};
     let lit = face.switches() & EXTRA_LIGHTS != 0;
-    for k in 0..4 {
-        let c = light_tables.light_table[face.corner_light(k) as usize].get();
-        ctx.view.face.corner_colours[k].set(c);
+    for (k, corner) in ctx.view.face.corner_colours.iter().enumerate().take(4) {
+        let c = light_tables.light(face.corner_light(k) as usize);
+        corner.set(c);
         if lit {
             let extra = || {
                 let (a, b) = face.lamps(k);
-                let a = light_tables.lamp_table_a[a as usize].get();
-                let b = light_tables.lamp_table_b[b as usize].get();
+                let a = light_tables.lamp_a(a as usize);
+                let b = light_tables.lamp_b(b as usize);
                 (a, b)
             };
             let c = corner_colour(c, lit, extra);
-            ctx.view.face.corner_colours[k].set(c);
+            corner.set(c);
         }
     }
     for (k, cell) in ctx.view.face.corner_alphas.iter().enumerate().take(4) {
@@ -1000,7 +1000,7 @@ fn draw_back_face(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
     turn_over(ctx)?;
     for k in 0..4 {
         ctx.view.face.corner_colours[k]
-            .set(ctx.reads.light_tables.light_table[face.back_light(k) as usize].get());
+            .set(ctx.reads.light_tables.light(face.back_light(k) as usize));
     }
     for (k, cell) in ctx.view.face.corner_alphas.iter().enumerate().take(4) {
         cell.set(face.back_fog(k) as u32);

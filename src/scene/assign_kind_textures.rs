@@ -7,17 +7,15 @@
 //! the lower one's stays. Refuses a first slot past the table.
 
 use crate::errors::BadInput;
-use crate::scene::textures::with_cells;
 
 pub fn assign_kind_textures(scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     let scene_textures = &scene.textures;
     // Logic: `rc2k_core::scene::textures::assign_kind_textures`.
-    with_cells([&scene_textures.kinds.get().kind_first_slots], |[slots]| {
-        rc2k_core::scene::textures::assign_kind_textures(
-            slots,
-            &*scene_textures.first_textures(),
-            &mut scene.texture_places_mut().slot_wanted,
-        )
-    })?;
+    let first_slots = scene_textures.kinds.borrow().kind_first_slots;
+    rc2k_core::scene::textures::assign_kind_textures(
+        &first_slots,
+        &*scene_textures.first_textures(),
+        &mut scene.texture_places_mut().slot_wanted,
+    )?;
     Ok(())
 }

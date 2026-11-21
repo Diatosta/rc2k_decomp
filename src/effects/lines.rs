@@ -140,14 +140,14 @@ impl core::Blocks for GameBlocks<'_> {
         self.2
             .objects
             .slots
-            .get()
+            .borrow()
             .slot_value(SlotTable::FaceCounts, object as usize)
     }
     fn first_face(&self, object: u32) -> u32 {
         self.2
             .objects
             .slots
-            .get()
+            .borrow()
             .slot_value(SlotTable::FirstFace, object as usize)
     }
 }
@@ -339,8 +339,8 @@ fn copy_block_points(
         let object = block.object.get();
         core::check_object(object)?;
         let to = block_points(paths, block.point_block.get())?;
-        let count = scene.objects.slots.get().point_counts[object as usize].get() as i32;
-        let first: u32 = scene.objects.slots.get().first_point[object as usize].get();
+        let count = scene.objects.slots.borrow().point_counts[object as usize] as i32;
+        let first: u32 = scene.objects.slots.borrow().first_point[object as usize];
         let mut from = first
             .wrapping_mul(12)
             .wrapping_add(course.lists.get().object_points.get());
@@ -381,7 +381,7 @@ pub(super) fn set_up_blocks(
         let points: u32 = scene
             .objects
             .slots
-            .get()
+            .borrow()
             .slot_value(SlotTable::PointCounts, block.object.get() as usize);
         let bytes = points
             .checked_mul(12)

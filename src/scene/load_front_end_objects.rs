@@ -31,13 +31,8 @@ pub fn load_front_end_objects(
         load_object(scene, race)?;
     }
     let cursor: u32 = scene.object_work().face_cursor;
-    scene.object_work_mut().point_memory_total = scene
-        .objects
-        .tables
-        .get()
-        .point_count
-        .get()
-        .wrapping_mul(12);
+    scene.object_work_mut().point_memory_total =
+        scene.objects.tables.borrow().point_count.wrapping_mul(12);
     scene.object_work_mut().face_memory_total = cursor;
     Ok(())
 }

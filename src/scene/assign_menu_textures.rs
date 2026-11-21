@@ -19,7 +19,7 @@ pub fn assign_menu_textures(
     // Logic: `rc2k_core::scene::textures::menu_textures`.
     let wanted = rc2k_core::scene::textures::menu_textures(
         carousel.read().textures,
-        textures.kinds.get().kind_first_slots[KIND].get(),
+        textures.kinds.borrow().kind_first_slots[KIND],
         textures.first_textures()[KIND],
     )?;
     let mut places = scene.texture_places_mut();

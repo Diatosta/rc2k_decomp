@@ -272,11 +272,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.shared.view.get(),
         *race.shared.work.get(),
         *scene.drawing.scene.get(),
-        *scene.textures.kinds.get(),
-        *crate::test_support::own::scene().light_tables.get(),
-        *scene.objects.slots.get(),
-        *scene.objects.tables.get(),
-        *scene.textures.place_slots.get(),
     }
 }
 

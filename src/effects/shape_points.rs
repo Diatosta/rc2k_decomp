@@ -219,8 +219,8 @@ fn shape_set_checks(
     if object >= 0x100 {
         return Err(BadInput("an object past 0xFF").into());
     }
-    let first: u32 = scene.objects.slots.get().first_face[object as usize].get();
-    let faces: u32 = scene.objects.slots.get().face_counts[object as usize].get();
+    let first: u32 = scene.objects.slots.borrow().first_face[object as usize];
+    let faces: u32 = scene.objects.slots.borrow().face_counts[object as usize];
     if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
         return Err(BadInput("an object's faces past g_faces").into());
     }
@@ -281,8 +281,8 @@ fn make_shape_set(
         work.work.count = [0; 2];
     }
     let object = object as usize;
-    let first: u32 = scene.objects.slots.get().first_face[object].get();
-    let faces: u32 = scene.objects.slots.get().face_counts[object].get();
+    let first: u32 = scene.objects.slots.borrow().first_face[object];
+    let faces: u32 = scene.objects.slots.borrow().face_counts[object];
     let kinds: [u32; 2] = drops.tuning.borrow().face_kinds;
     for f in first..first + faces {
         let face: u32 = crate::scene::objects::face_cell(faces_table, f as usize).get();

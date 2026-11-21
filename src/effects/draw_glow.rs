@@ -30,7 +30,7 @@ pub(super) fn draw_glow(
         crate::scene::set_texture::set_texture(
             part,
             scene,
-            scene.textures.kinds.get().kind_first_slots[211].get(),
+            scene.textures.kinds.borrow().kind_first_slots[211],
         );
         let place = [
             x87::add_80(glow.place[2], glow.offset[0]),

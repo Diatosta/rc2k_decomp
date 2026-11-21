@@ -52,7 +52,7 @@ fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i
                 12 * scene
                     .objects
                     .slots
-                    .get()
+                    .borrow()
                     .slot_value(SlotTable::FirstPoint, id as usize),
             )
         };
@@ -63,7 +63,7 @@ fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i
             scene
                 .objects
                 .slots
-                .get()
+                .borrow()
                 .slot_value(SlotTable::PointCounts, a as usize) as i32,
         )
     })

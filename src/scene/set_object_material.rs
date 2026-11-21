@@ -109,8 +109,8 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     ctx.view.cars.other_way_kind.set(way);
     if let (4, Some(state)) = (way, state) {
         let points: [u32; 2] = [
-            ctx.reads.object_slots.first_point[object as usize].get(),
-            ctx.reads.object_slots.first_point[object as usize + 1].get(),
+            ctx.reads.object_slots.first_point(object as usize),
+            ctx.reads.object_slots.first_point(object as usize + 1),
         ];
         ctx.view.object.borrow_mut().move_by = points[1].wrapping_sub(points[0]).wrapping_mul(12);
         step_shape(
@@ -121,9 +121,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             &ctx.view.object,
         )?;
     }
-    ctx.view.object.borrow_mut().first_face =
-        ctx.reads.object_slots.first_face[object as usize].get();
-    ctx.view.object.borrow_mut().face_count =
-        ctx.reads.object_slots.face_counts[object as usize].get();
+    ctx.view.object.borrow_mut().first_face = ctx.reads.object_slots.first_face(object as usize);
+    ctx.view.object.borrow_mut().face_count = ctx.reads.object_slots.face_count(object as usize);
     Ok(())
 }

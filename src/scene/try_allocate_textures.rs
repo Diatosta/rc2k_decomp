@@ -68,13 +68,11 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     }
     fn forget_kinds(&mut self) {
         let textures = &self.scene.textures;
-        for cell in &textures.kinds.get().kind_first_slots[..TEXTURES] {
-            cell.set(u32::MAX);
-        }
+        textures.kinds.borrow_mut().kind_first_slots[..TEXTURES].fill(u32::MAX);
         textures.first_textures_mut()[..TEXTURES].fill(u32::MAX);
     }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
-        self.scene.textures.kinds.get().kind_first_slots[texture as usize].set(slot);
+        self.scene.textures.kinds.borrow_mut().kind_first_slots[texture as usize] = slot;
     }
     fn set_first_texture(&mut self, texture: u32, first: u32) -> Result<(), Invalid> {
         let textures = &self.scene.textures;

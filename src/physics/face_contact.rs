@@ -85,7 +85,7 @@ pub fn steps(
         FaceObject::Object(object) => object,
     };
     c.contact.borrow_mut().face_object = object;
-    let kind = scene.objects.tables.get().object_kind(object);
+    let kind = scene.objects.tables.borrow().object_kind(object);
     if let Err(e) = contacts::check_material(kind) {
         crate::program_log::log(&format!(
             "physics::face_contact: face {}: object {object}, kind {kind:#x}, car {} at {:?}",

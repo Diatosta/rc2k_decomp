@@ -41,7 +41,7 @@ pub fn update(
         }
         wanted[n] = crate::menu::cars_store::description(cars, record)?.car;
     }
-    let first_slot: u32 = scene_textures.kinds.get().kind_first_slots[KIND].get();
+    let first_slot: u32 = scene_textures.kinds.borrow().kind_first_slots[KIND];
     if first_slot.checked_add(32).is_none_or(|end| end > SLOTS) {
         return Err(BadInput("the pictures' slots lie past the table"));
     }

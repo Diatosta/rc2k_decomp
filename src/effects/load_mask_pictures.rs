@@ -200,7 +200,7 @@ pub(super) fn load_mask_pictures(
     )?;
     lock(gfx, scene.textures.first_textures()[202], false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        scene.textures.kinds.get().kind_first_slots[202].get(),
+        scene.textures.kinds.borrow().kind_first_slots[202],
         scene,
     )?;
     crate::memory::free_list::free_list(&masks.picture_copy)?;

@@ -29,7 +29,7 @@ pub fn viewer_palettes(
         ),
         (
             &shared.replay_file().viewer_list_texture,
-            textures.kinds.get().kind_first_slots[212].get(),
+            textures.kinds.borrow().kind_first_slots[212],
         ),
         (
             &shared.replay_file().viewer_panel_texture,
@@ -37,7 +37,7 @@ pub fn viewer_palettes(
         ),
         (
             &shared.replay_file().viewer_device_texture,
-            textures.kinds.get().kind_first_slots[201].get(),
+            textures.kinds.borrow().kind_first_slots[201],
         ),
     ] {
         to.set(from);

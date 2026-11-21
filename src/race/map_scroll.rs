@@ -127,7 +127,7 @@ fn further_map_tiles(
         gfx,
     )?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        scene.textures.kinds.get().kind_first_slots[kind].get(),
+        scene.textures.kinds.borrow().kind_first_slots[kind],
         scene,
     )
 }

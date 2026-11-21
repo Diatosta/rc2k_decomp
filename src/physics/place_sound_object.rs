@@ -30,7 +30,7 @@ pub fn place_sound_object(
     let trap = crate::physics::cells::Trap::new();
     let sound = object_sound(
         face_object,
-        |thing| scene.objects.tables.get().object_kind(thing),
+        |thing| scene.objects.tables.borrow().object_kind(thing),
         |kind| {
             // The material's kind byte (the low byte of its tenth word).
             trap.keep(crate::scene::polygon::material_run_byte(

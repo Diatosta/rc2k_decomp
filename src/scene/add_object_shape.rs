@@ -30,7 +30,7 @@ fn room(
 ) -> Result<Room, BadInput> {
     let room = Room {
         points: course.lists.get().object_points.get(),
-        point_count: scene.objects.tables.get().point_count.get(),
+        point_count: scene.objects.tables.borrow().point_count,
         face_memory: course.lists.get().face_memory.get(),
         face_cursor: scene.object_work().face_cursor,
         face_count: scene.texture_levels().face_count,
@@ -87,8 +87,8 @@ pub fn add_object_shape(
     // The points.
     let (first_point, first_face) = (room.point_count, room.face_count);
     scene.object_work_mut().shape_firsts[..2].copy_from_slice(&[first_point, first_face]);
-    scene.objects.slots.get().first_point[slot].set(first_point);
-    scene.objects.slots.get().first_face[slot].set(first_face);
+    scene.objects.slots.borrow_mut().first_point[slot] = first_point;
+    scene.objects.slots.borrow_mut().first_face[slot] = first_face;
     let mut count = first_point;
     let mut to = room.points.wrapping_add(count.wrapping_mul(12));
     for point in &shape.points {
@@ -100,7 +100,7 @@ pub fn add_object_shape(
         scene.draw_work_mut().scratch = reach;
     }
     scene.loaded_slots_mut().radii[slot] = shape.radius;
-    scene.objects.slots.get().point_counts[slot].set(count - first_point);
+    scene.objects.slots.borrow_mut().point_counts[slot] = count - first_point;
     let first_normal = count;
     scene.object_work_mut().shape_firsts[2] = first_normal;
 
@@ -129,8 +129,8 @@ pub fn add_object_shape(
         count += 1;
         to = to.wrapping_add(12);
     }
-    scene.objects.tables.get().point_count.set(count);
-    scene.objects.slots.get().normal_counts[slot].set(count - first_normal);
-    scene.objects.slots.get().face_counts[slot].set(face_number - first_face);
+    scene.objects.tables.borrow_mut().point_count = count;
+    scene.objects.slots.borrow_mut().normal_counts[slot] = count - first_normal;
+    scene.objects.slots.borrow_mut().face_counts[slot] = face_number - first_face;
     Ok(())
 }

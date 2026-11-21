@@ -35,21 +35,17 @@ fn table(table: &crate::memory::shared_table::SharedTable) -> String {
 #[cfg(feature = "remote")]
 fn texture_places_hash(scene: &crate::scene::owner::Scene) -> u64 {
     let places = scene.texture_places();
-    let slots = scene.textures.place_slots.get();
-    let place_slot: Vec<u32> = slots
-        .place_slot
-        .iter()
-        .map(crate::memory::session::PlainDword::get)
-        .collect();
+    let slots = scene.textures.place_slots.borrow();
+    let place_slot: &[u32] = &slots.place_slot;
     let totals = [
         places.video_kilobytes,
         places.system_kilobytes,
-        slots.video_textures.get(),
+        slots.video_textures,
         places.system_textures,
     ];
     let runs: [(&str, &[u32]); 18] = [
         (".texture_of[0]", &places.texture_of),
-        (".place_slot[0]", &place_slot),
+        (".place_slot[0]", place_slot),
         (".kind_pictures[0]", &places.kind_pictures),
         (".wanted_pictures[0]", &places.wanted_pictures),
         (".loaded_pictures[0]", &places.loaded_pictures),
@@ -75,6 +71,34 @@ fn texture_places_hash(scene: &crate::scene::owner::Scene) -> u64 {
     })
 }
 
+/// The hash of the slot shapes as the cell store they were: each table one run of dwords under
+/// its field's name.
+#[cfg(feature = "remote")]
+fn slot_shapes_hash(scene: &crate::scene::owner::Scene) -> u64 {
+    let shapes = scene.objects.slots.borrow();
+    [
+        (".first_point[0]", &shapes.first_point),
+        (".point_counts[0]", &shapes.point_counts),
+        (".normal_counts[0]", &shapes.normal_counts),
+        (".first_face[0]", &shapes.first_face),
+        (".face_counts[0]", &shapes.face_counts),
+    ]
+    .iter()
+    .fold(0u64, |sum, (path, run)| {
+        sum.wrapping_add(dword_run_hash(path, *run))
+    })
+}
+
+/// The hash of the object kinds as the cell store they were: the kinds one run, the two lone
+/// fields.
+#[cfg(feature = "remote")]
+fn object_kinds_hash(scene: &crate::scene::owner::Scene) -> u64 {
+    let tables = scene.objects.tables.borrow();
+    dword_run_hash(".object_kinds[0]", &tables.object_kinds)
+        .wrapping_add(dword_run_hash(".point_count", &[tables.point_count]))
+        .wrapping_add(dword_run_hash(".d3d_drawing_on", &[tables.d3d_drawing_on]))
+}
+
 /// The hash of the object slots' tables: the lent store's runs and the plain fields' as the one cell
 /// store they were (the two unused tables of zeros included).
 #[cfg(feature = "remote")]
@@ -98,10 +122,10 @@ fn object_slots_hash(scene: &crate::scene::owner::Scene) -> u64 {
     for (n, table) in slots.part_extents.iter().enumerate() {
         runs.push((format!(".part_extents[{n}][0]"), table));
     }
-    runs.iter().fold(
-        record_hash(scene.objects.slots.get()),
-        |sum, (path, run)| sum.wrapping_add(dword_run_hash(path, run)),
-    )
+    runs.iter()
+        .fold(slot_shapes_hash(scene), |sum, (path, run)| {
+            sum.wrapping_add(dword_run_hash(path, run))
+        })
 }
 
 /// The hash of the object tables: the lent store's runs and the plain fields' as the one cell store they
@@ -123,17 +147,21 @@ fn object_tables_hash(scene: &crate::scene::owner::Scene) -> u64 {
         (".video_levels[0]", &levels.video_levels),
         (".slot_kinds[0]", &levels.slot_kinds),
     ];
-    runs.iter().fold(
-        record_hash(scene.objects.tables.get()),
-        |sum, (path, run)| sum.wrapping_add(dword_run_hash(path, run)),
-    )
+    runs.iter()
+        .fold(object_kinds_hash(scene), |sum, (path, run)| {
+            sum.wrapping_add(dword_run_hash(path, run))
+        })
 }
 
 /// The hash of the kinds' texture tables: the lent store's slots and the first textures, as the one
 /// cell store they were.
 #[cfg(feature = "remote")]
 fn texture_kinds_hash(scene: &crate::scene::owner::Scene) -> u64 {
-    record_hash(scene.textures.kinds.get()).wrapping_add(dword_run_hash(
+    dword_run_hash(
+        ".kind_first_slots[0]",
+        &scene.textures.kinds.borrow().kind_first_slots,
+    )
+    .wrapping_add(dword_run_hash(
         ".kind_first_textures[0]",
         &*scene.textures.first_textures(),
     ))

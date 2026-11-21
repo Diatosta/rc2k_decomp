@@ -147,7 +147,7 @@ pub fn record_offset(
     use rc2k_core::scene::projection::TooHigh;
     rc2k_core::scene::projection::record_offset(
         point,
-        reads.object_tables.point_count.get(),
+        reads.object_tables.point_count(),
         reads.course_work.get().scene_point_count,
     )
     .map_err(|e| match e {

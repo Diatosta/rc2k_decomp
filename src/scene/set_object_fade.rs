@@ -94,8 +94,7 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
     ctx.view.object.borrow_mut().fade = [fade, fade];
     ctx.view.object.borrow_mut().fading = 1u32;
     if other_kind != 0 {
-        let kinds: [u32; 0x100] =
-            crate::memory::session::read_bits(&ctx.reads.object_tables.object_kinds);
+        let kinds: [u32; 0x100] = ctx.reads.object_tables.object_kinds();
         if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
             ctx.view.cars.object_number.set(other as u32);
         }

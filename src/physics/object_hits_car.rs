@@ -35,7 +35,7 @@ pub fn object_hits_car(
             scene,
         )
     }?;
-    let count = objects.slots.get().point_counts[number as usize].get();
+    let count = objects.slots.borrow().point_counts[number as usize];
     // The points' table is read only when there are some.
     let points = if count == 0 {
         0
@@ -44,7 +44,7 @@ pub fn object_hits_car(
     };
     let refused = std::cell::Cell::new(None::<Refused>);
     let walk = contacts::walk_points(
-        objects.slots.get().first_point[number as usize].get(),
+        objects.slots.borrow().first_point[number as usize],
         count,
         points,
         0,

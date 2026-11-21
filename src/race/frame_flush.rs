@@ -20,7 +20,7 @@ pub fn flush_batch(
         set_texture(
             part,
             scene,
-            scene.textures.kinds.get().kind_first_slots[135].get(),
+            scene.textures.kinds.borrow().kind_first_slots[135],
         );
     }
     let blend = if textured { 6 } else { 2 };
@@ -103,7 +103,7 @@ pub(super) fn draw_view_backdrop(
     crate::scene::set_texture::set_texture_with(
         part,
         reads.object_tables,
-        reads.kind_textures.kind_first_slots[192].get(),
+        reads.kind_textures.first_slot(192),
     );
     crate::d3d::draw_fan_unclipped::draw_fan_unclipped(part, &view.polygon, buffer);
     crate::scene::depth_buffer_on::depth_buffer(part, true);

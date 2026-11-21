@@ -2,7 +2,7 @@
 //! it in place of global stores. The file numbers of the object loaders, the draw switches, the
 //! light tables and the car icon upload join it first; the other stores follow one by one.
 
-use crate::memory::session::{DrawShared, GameThread};
+use crate::memory::session::{DrawPlain, DrawShared, GameThread};
 use crate::scene::draw_store::{DrawWork, SceneDraw};
 use crate::scene::draw_switches_store::DrawSwitches;
 use crate::scene::file_numbers_store::{ObjectFileNumbers, PathText};
@@ -20,7 +20,7 @@ use std::cell::{Ref, RefCell, RefMut};
 pub struct Scene {
     /// Written between frames, read by the drawing parts through their reads
     /// (`scene::workers::DrawReads`).
-    pub light_tables: DrawShared<LightTables>,
+    pub light_tables: DrawPlain<LightTables>,
     pub drawing: Drawing,
     /// The scratch every drawing part and view works on (`scene::scratch_store::DrawingScratch`).
     pub scratch: crate::scene::scratch_store::DrawingScratch,
@@ -178,20 +178,20 @@ pub struct Drawing {
 pub struct Objects {
     /// The object slots (`OBJECT_SLOTS`): written between frames, read by the drawing parts
     /// through their reads (`scene::workers::DrawReads`).
-    pub slots: DrawShared<SlotShapes>,
+    pub slots: DrawPlain<SlotShapes>,
     /// The object tables (`OBJECT_TABLES`): written between frames, read by the drawing parts
     /// through their reads (`scene::workers::DrawReads`).
-    pub tables: DrawShared<ObjectKinds>,
+    pub tables: DrawPlain<ObjectKinds>,
 }
 
 /// The texture places the drawing reads and the kinds' texture tables.
 pub struct Textures {
     /// Each place's slot and the video textures' count: written between frames, read by the
     /// drawing parts through their reads (`scene::workers::DrawReads`).
-    pub place_slots: DrawShared<PlaceSlots>,
+    pub place_slots: DrawPlain<PlaceSlots>,
     /// The kinds' texture tables: written between frames, read by the drawing
     /// parts through their reads (`scene::workers::DrawReads`).
-    pub kinds: DrawShared<KindSlots>,
+    pub kinds: DrawPlain<KindSlots>,
     /// Each kind's first texture: borrowed for one statement at a time (`Textures::first_textures`).
     first_textures: GameThread<RefCell<KindTextures>>,
 }
@@ -212,18 +212,18 @@ impl Scene {
     /// The state at start-up: every store in its first state.
     pub const fn new() -> Self {
         Self {
-            light_tables: DrawShared::new(LightTables::new()),
+            light_tables: DrawPlain::new(LightTables::new()),
             scratch: crate::scene::scratch_store::DrawingScratch::new(),
             drawing: Drawing {
                 scene: DrawShared::new(SceneDraw::new()),
             },
             objects: Objects {
-                slots: DrawShared::new(SlotShapes::new()),
-                tables: DrawShared::new(ObjectKinds::new()),
+                slots: DrawPlain::new(SlotShapes::new()),
+                tables: DrawPlain::new(ObjectKinds::new()),
             },
             textures: Textures {
-                place_slots: DrawShared::new(PlaceSlots::new()),
-                kinds: DrawShared::new(KindSlots::new()),
+                place_slots: DrawPlain::new(PlaceSlots::new()),
+                kinds: DrawPlain::new(KindSlots::new()),
                 first_textures: GameThread::new(RefCell::new([0; 1024])),
             },
             main: GameThread::new(SceneMain {

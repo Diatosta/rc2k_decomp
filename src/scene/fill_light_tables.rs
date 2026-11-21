@@ -29,7 +29,7 @@ pub fn fill_light_tables(
 ) -> Result<(), crate::errors::BadInput> {
     use crate::race::prefs_store::StagePrefs;
     let course = &race.course;
-    let t = scene.light_tables.get();
+    let mut t = scene.light_tables.borrow_mut();
     use core::mem::offset_of;
     let plain =
         rc2k_core::scene::lamps::plain_light(race.shared.switches.get().scene_set_up.get(), || {
@@ -43,14 +43,18 @@ pub fn fill_light_tables(
     } else {
         prefs_dwords(course, offset_of!(StagePrefs, dark_colour))?
     };
-    fill_light_ramp(ramp, &t.light_table);
+    fill_light_ramp(ramp, &mut t.light_table);
     // The four lamp tables and, the other way, their colours.
-    let lamps = [
-        (&t.lamp_table_a, offset_of!(StagePrefs, lamp_table_a)),
-        (&t.lamp_table_b, offset_of!(StagePrefs, lamp_table_b)),
-        (&t.car_light_table, offset_of!(StagePrefs, car_light_table)),
-    ];
-    for (table, colour) in lamps {
+    for (which, colour) in [
+        (0, offset_of!(StagePrefs, lamp_table_a)),
+        (1, offset_of!(StagePrefs, lamp_table_b)),
+        (2, offset_of!(StagePrefs, car_light_table)),
+    ] {
+        let table = match which {
+            0 => &mut t.lamp_table_a,
+            1 => &mut t.lamp_table_b,
+            _ => &mut t.car_light_table,
+        };
         let colour = if plain {
             [p[0], p[1], p[2]]
         } else {

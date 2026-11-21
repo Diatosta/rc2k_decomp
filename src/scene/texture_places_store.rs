@@ -1,33 +1,64 @@
 //! The texture places: which texture each slot shows, the pictures wanted and loaded, the counters,
 //! the car icon sheets and the shapes' marks. `TexturePlaces` is plain fields only the game's thread
 //! reaches (`scene::owner::Scene::texture_places`); the part the drawing parts read, `PlaceSlots`,
-//! stays a lent store.
+//! is a plain record lent to them as a copy.
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::PlainDword;
+use crate::memory::session::{DrawPlain, PlainRead};
 
 /// What the drawing parts read of the places: each place's slot, and how many textures the
-/// video memory holds. Written between frames (`scene::map_texture_places`,
-/// `scene::count_texture_needs`), read by the parts through their reads
-/// (`scene::workers::DrawReads`).
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// video memory holds. A plain record (`session::DrawPlain`) written between frames
+/// (`scene::map_texture_places`, `scene::count_texture_needs`), read there and, as a copy made when
+/// a drawing scope opens, by the parts through their reads (`scene::workers::DrawReads`).
+#[derive(Clone)]
 pub struct PlaceSlots {
     /// Each place's slot (`scene::look_up_texture`, `scene::map_texture_places`,
     /// `scene::draw_polygon`, `race::frame_draw`). [1999] is the windscreen drops' texture
     /// (`effects::windscreen_drops_setup`).
-    pub place_slot: [PlainDword; 4000],
+    pub place_slot: [u32; 4000],
     /// The textures in video memory (`scene::count_texture_needs`; `scene::look_up_texture`,
     /// `scene::draw_polygon`, `scene::load_slot_textures`).
-    pub video_textures: PlainDword,
+    pub video_textures: u32,
 }
-
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
 
 impl PlaceSlots {
     /// The store with its first values (everything starts at zero).
     pub const fn new() -> Self {
-        <Self as ZeroCells>::ZERO
+        Self {
+            place_slot: [0; 4000],
+            video_textures: 0,
+        }
+    }
+}
+
+/// The places' slots as one reader finds them: the game's thread's own (read through the store when
+/// used), or a drawing part's copy.
+#[derive(Clone, Copy)]
+pub enum PlaceSlotsRef<'a> {
+    Store(&'a DrawPlain<PlaceSlots>),
+    Copy(&'a PlaceSlots),
+}
+
+impl PlaceSlotsRef<'_> {
+    /// Place `place`'s slot; a place past the table is `None`.
+    pub fn place_slot(self, place: usize) -> Option<u32> {
+        match self {
+            Self::Store(store) => store.borrow().place_slot.get(place).copied(),
+            Self::Copy(slots) => slots.place_slot.get(place).copied(),
+        }
+    }
+
+    /// How many textures the video memory holds.
+    pub fn video_textures(self) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().video_textures,
+            Self::Copy(slots) => slots.video_textures,
+        }
+    }
+}
+
+impl<'a> From<&'a PlainRead<PlaceSlots>> for PlaceSlotsRef<'a> {
+    fn from(copy: &'a PlainRead<PlaceSlots>) -> Self {
+        Self::Copy(copy)
     }
 }
 

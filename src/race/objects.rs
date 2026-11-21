@@ -83,7 +83,7 @@ pub fn set_up_car_points(
 ) -> Result<(), Refused> {
     let slot = 11 + slot as usize;
     {
-        let count = scene.objects.slots.get().point_counts[slot].get();
+        let count = scene.objects.slots.borrow().point_counts[slot];
         if count != 0 {
             if count > MOST_CONVERTED {
                 return Err(BadInput("more than 0x40 collision points").into());
@@ -93,7 +93,7 @@ pub fn set_up_car_points(
                     BadInput("one collision point: the original returns through edi").into(),
                 );
             }
-            let first = scene.objects.slots.get().first_point[slot].get();
+            let first = scene.objects.slots.borrow().first_point[slot];
             let points = first
                 .wrapping_mul(12)
                 .wrapping_add(race.course.lists.get().object_points.get());
@@ -232,7 +232,7 @@ pub(super) fn reload_objects(
     log(c"LOAD OBJECTS - START", true);
     set_object_kinds(race, scene)?;
     log(c"total points", false);
-    log_number(scene.objects.tables.get().point_count.get(), false);
+    log_number(scene.objects.tables.borrow().point_count, false);
     log(c"total polys", false);
     log_number(scene.texture_levels().face_count, false);
     log(c"facemem used", false);

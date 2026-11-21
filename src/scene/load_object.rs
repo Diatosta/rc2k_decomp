@@ -90,7 +90,7 @@ pub fn load_object(
     if slot >= SLOTS {
         return Err(crate::errors::BadInput("an object's slot past the tables").into());
     }
-    scene.objects.tables.get().object_kinds[slot as usize].set(kind);
+    scene.objects.tables.borrow_mut().object_kinds[slot as usize] = kind;
     set_object_file_names(scene, kind)?;
     let name = scene.file_numbers().object_ro3_number;
     // The file read is the `.ro3` one, whatever the name's last character was.
@@ -220,13 +220,7 @@ fn check(
     if scene.object_work().face_cursor > course.lists.get().face_memory_room.get() {
         return Err(NO_FACE_MEMORY.into());
     }
-    if scene
-        .objects
-        .tables
-        .get()
-        .point_count
-        .get()
-        .wrapping_mul(12)
+    if scene.objects.tables.borrow().point_count.wrapping_mul(12)
         > course.lists.get().object_points_room.get()
     {
         return Err(NO_POINT_MEMORY.into());

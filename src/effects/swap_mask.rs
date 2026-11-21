@@ -63,7 +63,7 @@ pub fn swap_mask(
     }
     lock(gfx, scene.textures.first_textures()[202], false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        scene.textures.kinds.get().kind_first_slots[202].get(),
+        scene.textures.kinds.borrow().kind_first_slots[202],
         scene,
     )?;
     Ok(())

@@ -14,9 +14,8 @@ pub fn load_slot_textures(
     frame: &Frame,
     scene: &crate::scene::owner::Scene,
 ) -> Result<u32, BadInput> {
-    let count = rc2k_core::scene::textures::slots_in_use(
-        scene.textures.place_slots.get().video_textures.get(),
-    )?;
+    let video_textures = scene.textures.place_slots.borrow().video_textures;
+    let count = rc2k_core::scene::textures::slots_in_use(video_textures)?;
     for slot in 0..count {
         load_slot_texture(frame, slot, scene)?;
     }

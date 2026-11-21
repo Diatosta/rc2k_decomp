@@ -195,10 +195,10 @@ pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     {
         let mut tyre = shared.tyre_change_mut();
         tyre.texture = textures.first_textures()[599];
-        tyre.device_texture = textures.kinds.get().kind_first_slots[599].get();
+        tyre.device_texture = textures.kinds.borrow().kind_first_slots[599];
         tyre.title_texture = textures.first_textures()[TYRE_TITLE_TEXTURE as usize];
         tyre.title_device_texture =
-            textures.kinds.get().kind_first_slots[TYRE_TITLE_TEXTURE as usize].get();
+            textures.kinds.borrow().kind_first_slots[TYRE_TITLE_TEXTURE as usize];
     }
     if car.parts_present.get() & 0x1E != 0x1E
         && car.tyre_change_state.get() == 0

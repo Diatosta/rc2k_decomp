@@ -313,14 +313,18 @@ fn choose_texture(
     let smooth = poly.smooth.get() == 1;
     outside.state(3, if smooth { 3 } else { 1 });
     let number: u32 = poly.texture_page.get();
-    let loaded: u32 = reads.place_slots.video_textures.get();
+    let loaded: u32 = reads.place_slots.video_textures();
     let texture = match number {
         u32::MAX => None,
         0x8000_0000.. => {
             let number = number & 0x7FFF_FFFF;
-            (number < 0xFA0).then(|| reads.place_slots.place_slot[number as usize].get())
+            if number < 0xFA0 {
+                reads.place_slots.place_slot(number as usize)
+            } else {
+                None
+            }
         }
-        _ => (number < 0x400).then(|| reads.kind_textures.kind_first_slots[number as usize].get()),
+        _ => (number < 0x400).then(|| reads.kind_textures.first_slot(number as usize)),
     };
     let texture = texture.filter(|&texture: &u32| texture < loaded);
     poly.polygon_texture.set(texture.unwrap_or(NO_TEXTURE));
@@ -461,7 +465,7 @@ pub fn draw_polygon(
             poly,
             buffer,
             outside,
-            reads.object_tables.d3d_drawing_on.get() != 0,
+            reads.object_tables.d3d_drawing_on() != 0,
             screen,
         );
         poly.texture_page.set(texture);
@@ -510,7 +514,7 @@ pub fn draw_polygon(
                 poly,
                 buffer,
                 outside,
-                reads.object_tables.d3d_drawing_on.get() != 0,
+                reads.object_tables.d3d_drawing_on() != 0,
                 screen,
             );
             if pass.as_mode.is_some() {

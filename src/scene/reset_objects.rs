@@ -22,23 +22,23 @@ pub fn reset_objects(
         if room >> 2 != 0 {
             course.stage.object_points.clear((room >> 2) as usize * 4)?;
         }
-        for table in [
-            &scene.objects.slots.get().first_point,
-            &scene.objects.slots.get().point_counts,
-            &scene.objects.slots.get().normal_counts,
-            &scene.objects.slots.get().first_face,
-            &scene.objects.slots.get().face_counts,
-        ] {
-            for cell in table {
-                cell.set(0);
-            }
+        {
+            let mut slots = scene.objects.slots.borrow_mut();
+            slots.first_point.fill(0);
+            slots.point_counts.fill(0);
+            slots.normal_counts.fill(0);
+            slots.first_face.fill(0);
+            slots.face_counts.fill(0);
         }
-        scene.objects.tables.get().point_count.set(1);
+        scene.objects.tables.borrow_mut().point_count = 1;
         scene.texture_levels_mut().face_count = 0;
         scene.object_work_mut().face_cursor = 0u32;
-        for kind in &scene.objects.tables.get().object_kinds {
-            kind.set(u32::MAX);
-        }
+        scene
+            .objects
+            .tables
+            .borrow_mut()
+            .object_kinds
+            .fill(u32::MAX);
         Ok(())
     }
 }

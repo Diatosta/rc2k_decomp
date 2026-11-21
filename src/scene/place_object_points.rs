@@ -84,7 +84,7 @@ struct Object {
 
 fn object(
     lists: &crate::race::course_lists_store::CourseLists,
-    object_slots: &crate::scene::object_slots_store::SlotShapes,
+    object_slots: crate::scene::object_slots_store::SlotShapesRef<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<Object, BadInput> {
     let number: u32 = cars.object_number.get();
@@ -92,9 +92,9 @@ fn object(
         return Err(BadInput("an object's number past the tables"));
     }
     let object = Object {
-        first: object_slots.first_point[number as usize].get(),
-        points: object_slots.point_counts[number as usize].get() as i32,
-        normals: object_slots.normal_counts[number as usize].get() as i32,
+        first: object_slots.first_point(number as usize),
+        points: object_slots.point_count(number as usize) as i32,
+        normals: object_slots.normal_count(number as usize) as i32,
         table: lists.object_points.get(),
     };
     if object.points <= 0 && object.normals > 0 {

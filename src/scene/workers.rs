@@ -92,21 +92,17 @@ impl<'a> LentOwners<'a> {
 pub struct Lent<'s> {
     /// The scratch the drawing works on (`Scene::scratch`).
     scratch: &'s DrawingScratch,
-    light_tables:
-        crate::memory::session::PhaseRead<'s, crate::scene::light_tables_store::LightTables>,
+    light_tables: crate::memory::session::PlainRead<crate::scene::light_tables_store::LightTables>,
     // The scene's other drawing stores.
     /// The lights' work variables as the scope opened.
     light_work: crate::scene::light_work_store::LightWork,
     /// The draw switches as the scope opened.
     draw_switches: crate::scene::draw_switches_store::DrawSwitches,
     object_tables:
-        crate::memory::session::PhaseRead<'s, crate::scene::object_tables_store::ObjectKinds>,
-    object_slots:
-        crate::memory::session::PhaseRead<'s, crate::scene::object_slots_store::SlotShapes>,
-    kind_textures:
-        crate::memory::session::PhaseRead<'s, crate::scene::kind_texture_store::KindSlots>,
-    place_slots:
-        crate::memory::session::PhaseRead<'s, crate::scene::texture_places_store::PlaceSlots>,
+        crate::memory::session::PlainRead<crate::scene::object_tables_store::ObjectKinds>,
+    object_slots: crate::memory::session::PlainRead<crate::scene::object_slots_store::SlotShapes>,
+    kind_textures: crate::memory::session::PlainRead<crate::scene::kind_texture_store::KindSlots>,
+    place_slots: crate::memory::session::PlainRead<crate::scene::texture_places_store::PlaceSlots>,
     // The scene's draw variables.
     scene_draw: crate::memory::session::PhaseRead<'s, crate::scene::draw_store::SceneDraw>,
     // The race's stores.
@@ -164,14 +160,17 @@ impl<'s> Lent<'s> {
         } = owners;
         Self {
             scratch: &scene.scratch,
-            light_tables: PhaseRead::lend(&scene.light_tables, scope),
+            light_tables: crate::memory::session::PlainRead::lend(&scene.light_tables, scope),
             // The scene's other drawing stores.
             light_work: *scene.light_work(),
             draw_switches: *scene.draw_switches(),
-            object_tables: PhaseRead::lend(&scene.objects.tables, scope),
-            object_slots: PhaseRead::lend(&scene.objects.slots, scope),
-            kind_textures: PhaseRead::lend(&scene.textures.kinds, scope),
-            place_slots: PhaseRead::lend(&scene.textures.place_slots, scope),
+            object_tables: crate::memory::session::PlainRead::lend(&scene.objects.tables, scope),
+            object_slots: crate::memory::session::PlainRead::lend(&scene.objects.slots, scope),
+            kind_textures: crate::memory::session::PlainRead::lend(&scene.textures.kinds, scope),
+            place_slots: crate::memory::session::PlainRead::lend(
+                &scene.textures.place_slots,
+                scope,
+            ),
             // The scene's draw variables.
             scene_draw: PhaseRead::lend(&scene.drawing.scene, scope),
             // The race's stores.
@@ -216,14 +215,14 @@ impl<'s> Lent<'s> {
     /// The stores as the part on the calling thread reads them.
     fn reads(&self) -> DrawReads<'_> {
         DrawReads {
-            light_tables: &self.light_tables,
+            light_tables: (&self.light_tables).into(),
             // The scene's other drawing stores.
             light_work: self.light_work,
             draw_switches: self.draw_switches,
-            object_tables: &self.object_tables,
-            object_slots: &self.object_slots,
-            kind_textures: &self.kind_textures,
-            place_slots: &self.place_slots,
+            object_tables: (&self.object_tables).into(),
+            object_slots: (&self.object_slots).into(),
+            kind_textures: (&self.kind_textures).into(),
+            place_slots: (&self.place_slots).into(),
             // The scene's draw variables.
             scene_draw: &self.scene_draw,
             // The race's stores.
@@ -269,20 +268,20 @@ impl<'s> Lent<'s> {
 #[derive(Clone, Copy)]
 pub struct DrawReads<'a> {
     /// The lighting's colour tables (`scene::owner::Scene::light_tables`).
-    pub light_tables: &'a crate::scene::light_tables_store::LightTables,
+    pub light_tables: crate::scene::light_tables_store::LightTablesRef<'a>,
     // The scene's other drawing stores.
     /// The lights' work variables (`scene::owner::Scene::light_work`).
     pub light_work: crate::scene::light_work_store::LightWork,
     /// The draw switches (`scene::owner::Scene::draw_switches`), as they were when the reads were made.
     pub draw_switches: crate::scene::draw_switches_store::DrawSwitches,
     /// The object tables (`scene::owner::Objects::tables`).
-    pub object_tables: &'a crate::scene::object_tables_store::ObjectKinds,
+    pub object_tables: crate::scene::object_tables_store::ObjectKindsRef<'a>,
     /// The object slots (`scene::owner::Objects::slots`).
-    pub object_slots: &'a crate::scene::object_slots_store::SlotShapes,
+    pub object_slots: crate::scene::object_slots_store::SlotShapesRef<'a>,
     /// The kinds' texture tables (`scene::owner::Textures::kinds`).
-    pub kind_textures: &'a crate::scene::kind_texture_store::KindSlots,
+    pub kind_textures: crate::scene::kind_texture_store::KindSlotsRef<'a>,
     /// Each place's slot and the video textures' count (`scene::owner::Textures::place_slots`).
-    pub place_slots: &'a crate::scene::texture_places_store::PlaceSlots,
+    pub place_slots: crate::scene::texture_places_store::PlaceSlotsRef<'a>,
     // The scene's draw variables.
     /// The scene's draw variables (`scene::owner::Drawing::scene`): the polygons' alpha, the
     /// fade and clip factors, the mirror picture's texture, the `v3driverfix` setting.
@@ -386,14 +385,24 @@ impl<'a> DrawReads<'a> {
             net,
         } = owners;
         Self {
-            light_tables: scene.light_tables.get(),
+            light_tables: crate::scene::light_tables_store::LightTablesRef::Store(
+                &scene.light_tables,
+            ),
             // The scene's other drawing stores.
             light_work: *scene.light_work(),
             draw_switches: *scene.draw_switches(),
-            object_tables: scene.objects.tables.get(),
-            object_slots: scene.objects.slots.get(),
-            kind_textures: scene.textures.kinds.get(),
-            place_slots: scene.textures.place_slots.get(),
+            object_tables: crate::scene::object_tables_store::ObjectKindsRef::Store(
+                &scene.objects.tables,
+            ),
+            object_slots: crate::scene::object_slots_store::SlotShapesRef::Store(
+                &scene.objects.slots,
+            ),
+            kind_textures: crate::scene::kind_texture_store::KindSlotsRef::Store(
+                &scene.textures.kinds,
+            ),
+            place_slots: crate::scene::texture_places_store::PlaceSlotsRef::Store(
+                &scene.textures.place_slots,
+            ),
             // The scene's draw variables.
             scene_draw: scene.drawing.scene.get(),
             // The race's stores.

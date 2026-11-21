@@ -16,7 +16,7 @@ pub fn set_batch_texture(
     crate::scene::set_texture::set_texture(
         part,
         scene,
-        scene.textures.kinds.get().kind_first_slots[n].get(),
+        scene.textures.kinds.borrow().kind_first_slots[n],
     );
     Ok(())
 }

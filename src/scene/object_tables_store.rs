@@ -1,34 +1,35 @@
 //! The object slots' kinds and the texture level tables. `ObjectKinds` (the loaded objects' kinds,
-//! the points loaded so far and the 3D switch) is what the drawing parts read, a lent store;
+//! the points loaded so far and the 3D switch) is what the drawing parts read, a plain record lent as a copy;
 //! `TextureLevels` (the slots' kinds, the faces loaded, the level sizes and the three 0x400-entry
 //! tables of texture tags and levels) is plain fields only the game's thread reaches
 //! (`scene::owner::Scene::texture_levels`). The kind texture tables follow
 //! (`scene::kind_texture_store`).
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::PlainDword;
+use crate::memory::session::{DrawPlain, PlainRead};
 
-/// What the drawing parts read of the objects' tables (`scene::workers::DrawReads`).
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// What the drawing parts read of the objects' tables: a plain record (`session::DrawPlain`)
+/// written on the game's thread, read there and, as a copy made when a drawing scope opens, by the
+/// parts through their reads (`scene::workers::DrawReads`).
+#[derive(Clone)]
 pub struct ObjectKinds {
     /// Each loaded object's kind (`scene::load_object`, `scene::objects`,
     /// `scene::list_object_face`, `physics::face_contact`, `drive::animate_lit_faces`).
-    pub object_kinds: [PlainDword; 256],
+    pub object_kinds: [u32; 256],
     /// The points loaded so far (`scene::add_object_shape`, `scene::project_point`,
     /// `scene::place_object_points`).
-    pub point_count: PlainDword,
+    pub point_count: u32,
     /// Whether the Direct3D device is drawing: 0 until `race::draw_race_scene` first sets it to
     /// 1 (nothing sets it back); while 0 the texture, depth-clear and polygon functions skip
     /// the device (`scene::clear_depth_buffer`, `scene::submit_polygon`, `race::draw_race_scene`,
     /// `race::frame_views`).
-    pub d3d_drawing_on: PlainDword,
+    pub d3d_drawing_on: u32,
 }
 
 impl ObjectKinds {
     /// The kind of `object` (an object number past the table ends the program).
     pub fn object_kind(&self, object: u32) -> u32 {
         match self.object_kinds.get(object as usize) {
-            Some(kind) => kind.get(),
+            Some(&kind) => kind,
             None => crate::memory::host_hooks::end(
                 "an object's kind",
                 crate::errors::BadInput("an object number past the kinds' table"),
@@ -39,9 +40,58 @@ impl ObjectKinds {
     /// The store with its first values (every field not named here starts at zero).
     pub const fn new() -> Self {
         Self {
-            d3d_drawing_on: PlainDword::new(1),
-            ..ZeroCells::ZERO
+            object_kinds: [0; 256],
+            point_count: 0,
+            d3d_drawing_on: 1,
         }
+    }
+}
+
+/// The tables as one reader finds them: the game's thread's own (read through the store when used),
+/// or a drawing part's copy.
+#[derive(Clone, Copy)]
+pub enum ObjectKindsRef<'a> {
+    Store(&'a DrawPlain<ObjectKinds>),
+    Copy(&'a ObjectKinds),
+}
+
+impl ObjectKindsRef<'_> {
+    /// The kind of `object` (an object number past the table ends the program).
+    pub fn object_kind(self, object: u32) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().object_kind(object),
+            Self::Copy(tables) => tables.object_kind(object),
+        }
+    }
+
+    /// Every object's kind.
+    pub fn object_kinds(self) -> [u32; 256] {
+        match self {
+            Self::Store(store) => store.borrow().object_kinds,
+            Self::Copy(tables) => tables.object_kinds,
+        }
+    }
+
+    /// The points loaded so far.
+    pub fn point_count(self) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().point_count,
+            Self::Copy(tables) => tables.point_count,
+        }
+    }
+
+    /// Whether the device is drawing (not 0).
+    pub fn d3d_drawing_on(self) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().d3d_drawing_on,
+            Self::Copy(tables) => tables.d3d_drawing_on,
+        }
+    }
+}
+
+impl<'a> From<&'a PlainRead<ObjectKinds>> for ObjectKindsRef<'a> {
+    fn from(copy: &'a PlainRead<ObjectKinds>) -> Self {
+        Self::Copy(copy)
     }
 }
 
@@ -96,7 +146,7 @@ mod tests {
         assert_eq!(levels.level_sizes, [0x80, 0x20, 8, 2]);
         assert_eq!(levels.level_mips, [2, 1, 0, 0, 0, 0, 0, 0]);
         let kinds = ObjectKinds::new();
-        assert_eq!(kinds.d3d_drawing_on.get(), 1);
+        assert_eq!(kinds.d3d_drawing_on, 1);
         assert_eq!(kinds.object_kind(255), 0);
     }
 }

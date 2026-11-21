@@ -120,7 +120,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             scene.draw_work_mut().scratch = dz;
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
             let step = pace(d);
-            let kind_of: u32 = scene.objects.tables.get().object_kind(object as u32);
+            let kind_of: u32 = scene.objects.tables.borrow().object_kind(object as u32);
             // The material's kind byte: the low byte of its eighth word.
             let kind =
                 crate::scene::polygon::material_run_byte(race.polygon_tables(), kind_of, 0x1C)?;

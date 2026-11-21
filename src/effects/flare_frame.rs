@@ -24,7 +24,7 @@ pub(super) fn flare_frame(
         crate::scene::set_texture::set_texture(
             part,
             scene,
-            scene.textures.kinds.get().kind_first_slots[202].get(),
+            scene.textures.kinds.borrow().kind_first_slots[202],
         );
         crate::scene::depth_test_off::depth_test_off(part);
         let marks = effects.settings()?;
