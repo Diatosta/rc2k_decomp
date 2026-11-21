@@ -15,7 +15,7 @@ use crate::math::cell_x87::CellX87;
 use crate::math::matrix3::rounded_value;
 use crate::math::x87_float::X;
 use crate::math::x87_float::int;
-use crate::math::x87_float::to_int;
+use crate::math::x87_float::{ld, st, to_int};
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::step_families::ContactInputs;
@@ -32,37 +32,44 @@ pub(super) fn point_hits_car(
     point: [u32; 3],
     face: u32,
 ) -> Result<bool, Refused> {
-    let contact = c.contact;
     let rd =
         |offset: u32| crate::race::course_places::face_field::<u32>(c.course.reads(), face, offset);
     let mut y = 0;
     for k in 0..3u32 {
+        let offset = c.contact.borrow().object_offset[k as usize];
         let v = contacts::point_part(
             point[k as usize],
             rd(0x30 + 4 * k)?,
-            contact.object_offset[k as usize].get(),
+            offset,
             c.car.position[k as usize].get(),
         );
-        contact.object_point_offset[k as usize].set(v);
+        c.contact.borrow_mut().object_point_offset[k as usize] = v;
         if k == 1 {
             y = v;
         }
     }
-    x87_1(c.contact, c.numbers);
-    for k in 0..3 {
-        contact.object_point_turned[k].set(contact.object_point_scaled[k].get());
-    }
-    turn_by_heading(
+    let scaled = {
+        let mut work = c.contact.borrow_mut();
+        x87_1(&mut work, c.numbers);
+        work.object_point_turned = work.object_point_scaled;
+        work.object_point_turned
+    };
+    let turned = turn_by_heading(
         &c.shared.buffers.reads.get().engine_tables,
         c.car,
-        &contact.object_point_turned,
+        scaled,
         y,
     );
-    x87_2(c.contact, c.numbers);
-    let (x, z) = (
-        contact.contact_point[0].bits(),
-        contact.contact_point[2].bits(),
-    );
+    let (x, z, kind) = {
+        let mut work = c.contact.borrow_mut();
+        work.object_point_turned = turned;
+        x87_2(&mut work, c.numbers);
+        (
+            work.contact_point[0],
+            work.contact_point[2],
+            work.contact_kind,
+        )
+    };
     if !contacts::inside_box(
         x,
         z,
@@ -72,15 +79,13 @@ pub(super) fn point_hits_car(
     ) {
         return Ok(false);
     }
-    if contacts::kind_hits(contact.contact_kind.get()) {
-        x87_3(c.contact, c.numbers, c.car);
-        contact
-            .contact_speed_length
-            .set(rounded_value(vector_length(&c.car.velocity)));
-        if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-            contact.contact_speed_length.get(),
-            c.car.contact_depth.get(),
-        ) {
+    if contacts::kind_hits(kind) {
+        x87_3(&c.contact.borrow(), c.numbers, c.car);
+        let speed_length = rounded_value(vector_length(&c.car.velocity));
+        c.contact.borrow_mut().contact_speed_length = speed_length.to_bits();
+        if let Some(hit) =
+            rc2k_core::physics::walls::raised_hit(speed_length, c.car.contact_depth.get())
+        {
             c.car.contact_depth.set(hit);
         }
         c.car.contact_flag.set(1);
@@ -92,46 +97,34 @@ pub(super) fn point_hits_car(
 // ---- the x87 arithmetic ----
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_1(contact: &ContactWork, numbers: &Numbers) {
-    let t0 = int(contact.object_point_offset[0].get() as i32);
-    let t1 = numbers.k65536.ld();
-    let t2 = t0 / t1;
-    contact.object_point_scaled[0].st(t2);
-    let t3 = int(contact.object_point_offset[1].get() as i32);
-    let t4 = numbers.k65536.ld();
-    let t5 = t3 / t4;
-    contact.object_point_scaled[1].st(t5);
-    let t6 = int(contact.object_point_offset[2].get() as i32);
-    let t7 = numbers.k65536.ld();
-    let t8 = t6 / t7;
-    contact.object_point_scaled[2].st(t8);
+fn x87_1(contact: &mut ContactWork, numbers: &Numbers) {
+    for k in 0..3 {
+        let t0 = int(contact.object_point_offset[k] as i32);
+        let t1 = numbers.k65536.ld();
+        let t2 = t0 / t1;
+        contact.object_point_scaled[k] = st(t2);
+    }
 }
 
-/// One straight x87 run as plain Rust over `X`.
-fn x87_2(contact: &ContactWork, numbers: &Numbers) {
-    let t0 = contact.object_point_turned[0].ld();
-    let t1 = numbers.k65536.ld();
-    let t2 = t0 * t1;
-    crate::physics::flow::set_whole(&contact.contact_point[0], to_int(t2));
-    let t3 = contact.object_point_turned[1].ld();
-    let t4 = numbers.k65536.ld();
-    let t5 = t3 * t4;
-    crate::physics::flow::set_whole(&contact.contact_point[1], to_int(t5));
-    let t6 = contact.object_point_turned[2].ld();
-    let t7 = numbers.k65536.ld();
-    let t8 = t6 * t7;
-    crate::physics::flow::set_whole(&contact.contact_point[2], to_int(t8));
+/// One straight x87 run as plain Rust over `X`: the turned point times 65536 as whole numbers.
+fn x87_2(contact: &mut ContactWork, numbers: &Numbers) {
+    for k in 0..3 {
+        let t0 = ld(contact.object_point_turned[k]);
+        let t1 = numbers.k65536.ld();
+        let t2 = t0 * t1;
+        contact.contact_point[k] = to_int(t2) as u32;
+    }
 }
 
 /// One straight x87 run as plain Rust over `X`.
 fn x87_3(contact: &ContactWork, numbers: &Numbers, car: &Car) {
-    let t0 = int(crate::physics::flow::whole(&contact.contact_point[0]));
+    let t0 = int(contact.contact_point[0] as i32);
     let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
     car.contact_point[0].st(t2);
     let t3 = X(0.0);
     car.contact_point[1].st(t3);
-    let t4 = int(crate::physics::flow::whole(&contact.contact_point[2]));
+    let t4 = int(contact.contact_point[2] as i32);
     let t5 = numbers.k65536.ld();
     let t6 = t4 / t5;
     car.contact_point[2].st(t6);

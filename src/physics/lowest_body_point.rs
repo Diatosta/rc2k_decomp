@@ -10,33 +10,32 @@ use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::{ContactWork, ProbeLists};
 use crate::race::numbers_store::Numbers;
+use std::cell::RefCell;
 
 /// The lowest of the probe points past the first four (its depth and number), and the
 /// wheels' share from its depth.
 pub(super) fn lowest_body_point(
     car: &Car,
     numbers: &Numbers,
-    contact: &ContactWork,
+    contact: &RefCell<ContactWork>,
     probes: &ProbeLists,
 ) -> Result<(), Refused> {
     let n = car.probe_count.get();
     if n > 0x40 {
         return Err(BadInput("more than 0x40 probe points (the depths' room)").into());
     }
-    let (lowest, number) = (&contact.lowest_depth, &contact.lowest_point);
+    let mut work = contact.borrow_mut();
     if n > 4 {
-        lowest.set(0x64_0000);
-        number.set(u32::MAX);
+        work.lowest_depth = 0x64_0000;
+        work.lowest_point = u32::MAX;
         for k in 4..n {
             let depth = probes.probe_height[k as usize];
-            if (depth.wrapping_sub(lowest.get()) as i32) < 0 {
-                lowest.set(depth);
-                number.set(k);
+            if (depth.wrapping_sub(work.lowest_depth) as i32) < 0 {
+                work.lowest_depth = depth;
+                work.lowest_point = k;
             }
         }
     }
-    contact
-        .wheel_share
-        .set(x87::int_over(lowest.get() as i32, &numbers.k65536));
+    work.wheel_share = x87::int_over(work.lowest_depth as i32, &numbers.k65536).to_bits();
     Ok(())
 }

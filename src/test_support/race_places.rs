@@ -6,7 +6,7 @@
 
 use crate::drive::finish_store::Finish;
 use crate::physics::camera_store::CameraWork;
-use crate::physics::contact_store::ProbeLists;
+use crate::physics::contact_store::{ContactWork, ProbeLists};
 use crate::physics::ground_query::GroundSearch;
 use std::sync::OnceLock;
 
@@ -607,8 +607,39 @@ fn probes_field(path: &str) -> Option<ProbeBits> {
     }
 }
 
+/// The contact work (plain fields, not cells): its registry name.
+const CONTACT: &str = "owners.race.physics.contact";
+
+/// The word of the contact work at `path` (`.name` or `.name[index]`).
+fn contact_word<'a>(work: &'a mut ContactWork, path: &str) -> Option<&'a mut u32> {
+    let (name, index) = match path.strip_suffix(']') {
+        Some(head) => {
+            let (name, index) = head.rsplit_once('[')?;
+            (name, index.parse::<usize>().ok()?)
+        }
+        None => (path, 0),
+    };
+    let array = match name {
+        ".contact_normal" => &mut work.contact_normal,
+        ".contact_point" => &mut work.contact_point,
+        ".contact_car_speed" => &mut work.contact_car_speed,
+        ".object_point_offset" => &mut work.object_point_offset,
+        ".object_point_turned" => &mut work.object_point_turned,
+        ".object_point_scaled" => &mut work.object_point_scaled,
+        ".contact_slide_limit" => return Some(&mut work.contact_slide_limit),
+        ".face_angle" => return Some(&mut work.face_angle),
+        ".face_speed" => return Some(&mut work.face_speed),
+        _ => return None,
+    };
+    array.get_mut(index)
+}
+
 /// The bytes of the field at `path` in the store `name` (the registry's, or a plain one).
 fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
+    if name == CONTACT {
+        let mut work = super::own::race().physics.contact().borrow().clone();
+        return Some(contact_word(&mut work, path)?.to_le_bytes().to_vec());
+    }
     if name == FINISH {
         let (get, _) = finish_field(path)?;
         return Some(
@@ -658,6 +689,17 @@ fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
 
 /// `bytes` put into the field at `path` in the store `name`; false when it is not there.
 fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
+    if name == CONTACT {
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        let mut work = super::own::race().physics.contact().borrow_mut();
+        let Some(slot) = contact_word(&mut work, path) else {
+            return false;
+        };
+        *slot = u32::from_le_bytes(word);
+        return true;
+    }
     if name == FINISH {
         let (Some((_, set)), Ok(word)) = (finish_field(path), <[u8; 4]>::try_from(bytes)) else {
             return false;

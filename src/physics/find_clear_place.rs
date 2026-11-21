@@ -54,7 +54,7 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
             &c.reset.ground.probes.borrow(),
         )
     }?;
-    tables.clear_place_face.set(contact.lowest_depth.get());
+    tables.clear_place_face.set(contact.borrow().lowest_depth);
     let found = clear_place::tries(clear_place::first_try(car.step_clock.get()), |n| {
         tables.clear_place_count.set(0);
         let m = clear_place::try_move(n);
@@ -79,14 +79,14 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
             &c.reset.ground.probes.borrow(),
         )
     }?;
-    let depth = contact.lowest_depth.get();
+    let depth = contact.borrow().lowest_depth;
     if let Some(height) = clear_place::lifted(car.position[1].get(), depth) {
         car.position[1].set(height);
     }
     crate::logfile::log_write::log_nul(&PORKY, false, 1);
     crate::logfile::log_int::log_int(n as i32, false, 1);
     crate::logfile::log_hex8::log_hex8(tables.clear_place_face.get(), false, 1);
-    crate::logfile::log_hex8::log_hex8(contact.lowest_depth.get(), true, 1);
+    crate::logfile::log_hex8::log_hex8(contact.borrow().lowest_depth, true, 1);
     crate::physics::limit_motion::limit_motion(car, tables);
     Ok(())
 }

@@ -122,7 +122,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::set_wheel_weights::set_wheel_weights(
         race.shared.car(),
         race.shared.physics_tables.get(),
-        race.physics.contact.get(),
+        race.physics.contact(),
         race.course.numbers.get(),
     );
     ph::set_downforce::set_downforce(race.shared.car(), race.shared.physics_tables.get());
@@ -186,7 +186,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     )?;
     ph::apply_wheel_torques::apply_wheel_torques(
         race.shared.physics_tables.get(),
-        race.physics.contact.get(),
+        race.physics.contact(),
         race.shared.car(),
     )?;
     motion(
@@ -222,7 +222,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         )?;
         ph::apply_contact_torques::apply_contact_torques(
             race.shared.physics_tables.get(),
-            race.physics.contact.get(),
+            race.physics.contact(),
             race.shared.car(),
         )?;
 

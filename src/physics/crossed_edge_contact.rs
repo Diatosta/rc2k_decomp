@@ -10,19 +10,12 @@
 
 use crate::errors::Refused;
 use crate::math::x87::mul;
-use crate::memory::session::FloatLike;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ProbeLists;
 use crate::physics::step_families::ContactInputs;
+use crate::physics::vector_bits::bits_of;
 use crate::physics::wall_edge_contact::edge_normal;
 use rc2k_core::physics::walls;
-
-/// Three floats copied as bits, in order.
-fn copy3(to: &[impl FloatLike], from: &[impl FloatLike]) {
-    for k in 0..3 {
-        to[k].set(from[k].get());
-    }
-}
 
 /// The probe's path: its x, z before and now.
 struct Path {
@@ -83,13 +76,23 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
         from,
         to,
     )?;
-    copy3(&c.contact.contact_car_speed, &c.car.velocity);
-    copy3(&c.contact.contact_turn_speed, &c.car.spin);
-    c.contact.contact_point[0].set(probes.probe_turned_x[k]);
-    c.contact.contact_point[1].set(probes.probe_turned_y[k]);
-    c.contact.contact_point[2].set(probes.probe_turned_z[k]);
-    c.contact.contact_point[1].set(mul(&c.contact.contact_point[1], &c.numbers.tenth));
-    c.contact.contact_slide_limit.set(0.0);
+    let point = [
+        probes.probe_turned_x[k].to_bits(),
+        probes.probe_turned_y[k].to_bits(),
+        probes.probe_turned_z[k].to_bits(),
+    ];
+    let point = [
+        point[0],
+        mul(point[1], &c.numbers.tenth).to_bits(),
+        point[2],
+    ];
+    {
+        let mut work = c.contact.borrow_mut();
+        work.contact_car_speed = bits_of(&c.car.velocity);
+        work.contact_turn_speed = bits_of(&c.car.spin);
+        work.contact_point = point;
+        work.contact_slide_limit = 0;
+    }
     contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[1]);
     { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
     Ok(())

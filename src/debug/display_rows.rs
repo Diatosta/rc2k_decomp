@@ -2600,7 +2600,10 @@ pub static GROUPS: &[Group] = &[
                 "Body hit ground",
                 "hitbody",
                 Shown::Whole,
-                indexed_cell!(|o| o.race.physics.contact.get(), ground_contact_started),
+                indexed_cell!(
+                    |o| o.race.physics.contact().borrow(),
+                    ground_contact_started
+                ),
                 false,
                 (468, 136),
             ),
@@ -2608,7 +2611,7 @@ pub static GROUPS: &[Group] = &[
                 "Wheel share",
                 "deepbody",
                 Shown::Float,
-                indexed_cell!(|o| o.race.physics.contact.get(), wheel_share),
+                indexed_cell!(|o| o.race.physics.contact().borrow(), wheel_share),
                 false,
                 (468, 142),
             ),

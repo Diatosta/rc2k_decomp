@@ -19,11 +19,12 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
-use crate::physics::flow::copy_cells;
 use crate::physics::step_families::ContactInputs;
+use crate::physics::vector_bits::bits_of;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use rc2k_core::physics::walls;
+use std::cell::RefCell;
 
 /// The four corners (scene point numbers) of face `face`.
 fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
@@ -38,7 +39,7 @@ fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
 /// (`math::rotate_float_point_about_y`) into `contact_normal`.
 pub(super) fn edge_normal(
     engine_tables: &crate::math::engine_tables::EngineTables,
-    contact: &ContactWork,
+    contact: &RefCell<ContactWork>,
     course: &Course,
     first: u32,
     second: u32,
@@ -65,9 +66,7 @@ pub(super) fn edge_normal(
         course.numbers.get().one.get(),
         heading,
     );
-    contact.contact_normal[0].set(out[0]);
-    contact.contact_normal[1].set(out[1]);
-    contact.contact_normal[2].set(out[2]);
+    contact.borrow_mut().contact_normal = out.map(f32::to_bits);
     Ok(())
 }
 
@@ -102,17 +101,22 @@ pub fn steps(
         to,
         from,
     )?;
-    copy_cells(&c.contact.contact_car_speed, &c.car.velocity);
-    copy_cells(&c.contact.contact_turn_speed, &c.car.spin);
     let n = n as usize;
+    let probes = c.ground.probes.borrow();
+    let mut point = [
+        probes.probe_turned_x[n].to_bits(),
+        probes.probe_turned_y[n].to_bits(),
+        probes.probe_turned_z[n].to_bits(),
+    ];
+    drop(probes);
+    point[1] = mul(point[1], &c.numbers.tenth).to_bits();
     {
-        let probes = c.ground.probes.borrow();
-        c.contact.contact_point[0].set(probes.probe_turned_x[n]);
-        c.contact.contact_point[1].set(probes.probe_turned_y[n]);
-        c.contact.contact_point[2].set(probes.probe_turned_z[n]);
+        let mut work = c.contact.borrow_mut();
+        work.contact_car_speed = bits_of(&c.car.velocity);
+        work.contact_turn_speed = bits_of(&c.car.spin);
+        work.contact_point = point;
+        work.contact_slide_limit = 0;
     }
-    c.contact.contact_point[1].set(mul(&c.contact.contact_point[1], &c.numbers.tenth));
-    c.contact.contact_slide_limit.set(0.0);
     contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[4]);
     { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
     Ok(())

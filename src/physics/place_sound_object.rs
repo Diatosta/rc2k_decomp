@@ -23,13 +23,13 @@ pub fn place_sound_object(
     c: &SoundInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let contact = c.contact;
     if !listed(c.frame_work, c.work.current_car.get())? {
         return Ok(());
     }
+    let face_object = c.contact.borrow().face_object;
     let trap = crate::physics::cells::Trap::new();
     let sound = object_sound(
-        contact.face_object.get(),
+        face_object,
         |thing| scene.objects.tables.get().object_kind(thing),
         |kind| {
             // The material's kind byte (the low byte of its tenth word).
@@ -46,12 +46,7 @@ pub fn place_sound_object(
     if b == 0 {
         return Ok(());
     }
-    let offset = Some(
-        contact
-            .object_point_offset
-            .each_ref()
-            .map(crate::memory::session::PlainDword::bits),
-    );
+    let offset = Some(c.contact.borrow().object_point_offset);
     cue_plain(c, object(c), FIRST, sound, b, offset)?;
     Ok(())
 }

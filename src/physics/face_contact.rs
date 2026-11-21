@@ -22,14 +22,15 @@ use crate::math::cell_x87::CellX87;
 use crate::math::x87::compare_80;
 use crate::math::x87::int_hypot;
 use crate::math::x87::length_80;
-use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
+use crate::math::x87_float::{int, st};
 use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
-use crate::physics::flow::{FloatView, ZERO_BITS as ZERO, copy_cells, negated_velocity};
+use crate::physics::flow::{ZERO_BITS as ZERO, negated_velocity};
 use crate::physics::step_families::ContactInputs;
 use crate::physics::touch_face::touch_face;
+use crate::physics::vector_bits::bits_of;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
@@ -46,7 +47,7 @@ pub fn steps(
     number: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    c.contact.face_number.set(number);
+    c.contact.borrow_mut().face_number = number;
     let face = number;
     let face_byte = |offset| -> Result<u32, Refused> {
         Ok(u32::from(crate::race::course_places::face_field::<u8>(
@@ -78,12 +79,12 @@ pub fn steps(
     let object = match found {
         FaceObject::NotObject => return Ok(()),
         FaceObject::TouchOnly => {
-            c.contact.contact_kind.set(0xFF);
+            c.contact.borrow_mut().contact_kind = 0xFF;
             return touch(c, scene);
         }
         FaceObject::Object(object) => object,
     };
-    c.contact.face_object.set(object);
+    c.contact.borrow_mut().face_object = object;
     let kind = scene.objects.tables.get().object_kind(object);
     if let Err(e) = contacts::check_material(kind) {
         crate::program_log::log(&format!(
@@ -99,14 +100,13 @@ pub fn steps(
         return Err(e.into());
     }
     // An unset kind wraps to the record before the first.
-    c.contact.contact_kind.set(
-        crate::scene::polygon::material_run_byte(
-            &c.shared.buffers.reads.get().polygon_tables,
-            kind,
-            0x1C,
-        )?
-        .into(),
-    );
+    let material_kind: u32 = crate::scene::polygon::material_run_byte(
+        &c.shared.buffers.reads.get().polygon_tables,
+        kind,
+        0x1C,
+    )?
+    .into();
+    c.contact.borrow_mut().contact_kind = material_kind;
     if contacts::object_tried(face_byte(0x25)?, c.work.stage_direction.get(), object).is_err() {
         return Ok(());
     }
@@ -117,7 +117,8 @@ pub fn steps(
     // The face is both the record and the object here.
     let (inside, point) = { crate::physics::scene_point_hits_car::scene_point_hits_car(c, face) }?;
     if !inside {
-        if !contacts::tries_points(c.contact.contact_kind.get()) {
+        let contact_kind = c.contact.borrow().contact_kind;
+        if !contacts::tries_points(contact_kind) {
             return Ok(());
         }
         let dx = crate::race::scene_points::point_word(
@@ -137,8 +138,9 @@ pub fn steps(
         .wrapping_add(face_dword(0x38)?)
         .wrapping_sub(c.car.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
+        let face_object = c.contact.borrow().face_object;
         let (reach, _) = contacts::reach(
-            scene.loaded_slots().radii[c.contact.face_object.get() as usize],
+            scene.loaded_slots().radii[face_object as usize],
             scene.object_work().size,
         );
         if contacts::out_of_reach(reach, distance) {
@@ -150,12 +152,14 @@ pub fn steps(
         }
     }
     // Inside.
-    x87_1(c.contact, c.numbers);
-    c.contact
-        .face_angle
-        .set(c.contact.face_angle.get().wrapping_add(0x80) & 0xFF);
-    x87_2(c.contact, c.car, c.numbers);
-    match contacts::inside(c.contact.contact_kind.get()) {
+    let contact_kind = {
+        let mut work = c.contact.borrow_mut();
+        x87_1(&mut work, c.numbers);
+        work.face_angle = work.face_angle.wrapping_add(0x80) & 0xFF;
+        x87_2(&mut work, c.car, c.numbers);
+        work.contact_kind
+    };
+    match contacts::inside(contact_kind) {
         Inside::PushBack => {}
         Inside::Touch => return touch(c, scene),
         Inside::Nothing => return Ok(()),
@@ -177,15 +181,17 @@ pub fn steps(
     }
     scratch.work_vector[1] = 0;
     normalise_work_vector(c.numbers, &mut scratch, scene);
-    for (to, bits) in c.contact.contact_normal.iter().zip(scratch.work_vector) {
-        to.set_float(f32::from_bits(bits));
-    }
+    let normal = scratch.work_vector;
     drop(scratch);
-    copy_cells(&c.contact.contact_car_speed, &c.car.velocity);
-    copy_cells(&c.contact.contact_turn_speed, &c.car.spin);
-    copy_cells(&c.contact.contact_point, &c.contact.object_point_scaled);
-    c.contact.contact_point[1].set(0.0);
-    c.contact.contact_slide_limit.set(0.0);
+    {
+        let mut work = c.contact.borrow_mut();
+        work.contact_normal = normal;
+        work.contact_car_speed = bits_of(&c.car.velocity);
+        work.contact_turn_speed = bits_of(&c.car.spin);
+        work.contact_point = work.object_point_scaled;
+        work.contact_point[1] = 0;
+        work.contact_slide_limit = 0;
+    }
     contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[0]);
     Ok(())
 }
@@ -193,19 +199,19 @@ pub fn steps(
 // ---- the x87 arithmetic ----
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_1(contact: &ContactWork, numbers: &Numbers) {
-    let t0 = int(contact.object_point_offset[0].get() as i32);
-    let t1 = int(contact.object_point_offset[2].get() as i32);
+fn x87_1(contact: &mut ContactWork, numbers: &Numbers) {
+    let t0 = int(contact.object_point_offset[0] as i32);
+    let t1 = int(contact.object_point_offset[2] as i32);
     let t2 = t0.atan2(t1);
     let t3 = numbers.k256.ld();
     let t4 = t2 * t3;
     let t5 = numbers.one_over_two_pi.ld();
     let t6 = t4 * t5;
-    contact.face_angle.set(to_int(t6) as u32);
+    contact.face_angle = to_int(t6) as u32;
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_2(contact: &ContactWork, car: &Car, numbers: &Numbers) {
+fn x87_2(contact: &mut ContactWork, car: &Car, numbers: &Numbers) {
     let t0 = car.velocity[0].ld();
     let t1 = t0 * t0;
     let t2 = car.velocity[2].ld();
@@ -217,19 +223,19 @@ fn x87_2(contact: &ContactWork, car: &Car, numbers: &Numbers) {
     let t8 = t7.sqrt();
     let t9 = numbers.k65536.ld();
     let t10 = t8 * t9;
-    contact.face_speed.set(to_int(t10) as u32);
-    let t11 = int(crate::physics::flow::whole(&contact.contact_point[0]));
+    contact.face_speed = to_int(t10) as u32;
+    let t11 = int(contact.contact_point[0] as i32);
     let t12 = numbers.k65536.ld();
     let t13 = t11 / t12;
-    contact.object_point_turned[0].st(t13);
-    let t14 = int(crate::physics::flow::whole(&contact.contact_point[1]));
+    contact.object_point_turned[0] = st(t13);
+    let t14 = int(contact.contact_point[1] as i32);
     let t15 = numbers.k65536.ld();
     let t16 = t14 / t15;
-    contact.object_point_turned[1].st(t16);
-    let t17 = int(crate::physics::flow::whole(&contact.contact_point[2]));
+    contact.object_point_turned[1] = st(t16);
+    let t17 = int(contact.contact_point[2] as i32);
     let t18 = numbers.k65536.ld();
     let t19 = t17 / t18;
-    contact.object_point_turned[2].st(t19);
+    contact.object_point_turned[2] = st(t19);
 }
 
 #[cfg(test)]

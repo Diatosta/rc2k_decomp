@@ -14,6 +14,23 @@ fn one(base: usize, off: usize) -> &'static PlainFloat {
     view::<PlainFloat>(base, off)
 }
 
+/// The three floats' bits.
+fn bits(cells: &[PlainFloat; 3]) -> [u32; 3] {
+    crate::math::cells::load(cells)
+}
+
+/// Three buffer floats set to the bits `v`.
+fn set(cells: &[PlainFloat; 3], v: [u32; 3]) {
+    for k in 0..3 {
+        cells[k].set_bits(v[k]);
+    }
+}
+
+/// `out = a + b`, as the vector sum steps.
+fn add_into(a: &[PlainFloat; 3], b: [u32; 3], out: &[PlainFloat; 3]) {
+    set(out, add(bits(a), b));
+}
+
 fn blocks() -> Vec<Block> {
     vec![
         Block {
@@ -30,9 +47,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                x87_1(
+                add_into(
                     three(a[1], 0),
-                    &race().physics.contact.get().contact_car_speed,
+                    race().physics.contact().borrow().contact_car_speed,
                     three(a[1], 12),
                 );
             },
@@ -45,11 +62,9 @@ fn blocks() -> Vec<Block> {
             }],
             ulps: 0,
             plain: |_| {
-                x87_2(
-                    crate::test_support::own::race().physics.contact.get(),
-                    crate::test_support::own::race().course.numbers.get(),
-                    &crate::test_support::own::scene().scratch_cell(),
-                );
+                let normal_y = race().physics.contact().borrow().contact_normal[1];
+                let depth = x87_2(normal_y, race().course.numbers.get());
+                crate::test_support::own::scene().draw_work_mut().scratch = depth;
             },
         },
         Block {
@@ -66,14 +81,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                x87_3(
+                let (share, factor) = x87_3(
                     one(a[1], 0).ld(),
                     race().course.numbers.get(),
-                    one(a[1], 4),
-                    one(a[1], 8),
-                    one(a[1], 12),
-                    one(a[1], 16),
+                    one(a[1], 4).bits(),
+                    one(a[1], 8).bits(),
                 );
+                one(a[1], 12).set_bits(share);
+                one(a[1], 16).set_bits(factor);
             },
         },
         Block {
@@ -90,7 +105,10 @@ fn blocks() -> Vec<Block> {
                 writes: &[(12, Out::F), (16, Out::F), (20, Out::F)],
             }],
             ulps: 0,
-            plain: |a| x87_4(three(a[0], 12), three(a[0], 0)),
+            plain: |a| {
+                let side = x87_4(bits(three(a[0], 12)), bits(three(a[0], 0)));
+                set(three(a[0], 12), side);
+            },
         },
         Block {
             name: "contact_force line 126",
@@ -130,7 +148,7 @@ fn blocks() -> Vec<Block> {
                 writes: &[(0, Out::F), (4, Out::F), (8, Out::F)],
             }],
             ulps: 0,
-            plain: |a| x87_1(three(a[0], 0), three(a[0], 12), three(a[0], 0)),
+            plain: |a| add_into(three(a[0], 0), bits(three(a[0], 12)), three(a[0], 0)),
         },
         Block {
             name: "contact_force line 160",
@@ -146,10 +164,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                a[1].set_word(
-                    0,
-                    x87_6(three(a[0], 4), one(a[0], 0), view::<PlainDword>(a[0], 16)),
-                );
+                let (length, status) = x87_6(bits(three(a[0], 4)), one(a[0], 0).bits());
+                view::<PlainDword>(a[0], 16).set(length);
+                a[1].set_word(0, status);
             },
         },
         Block {
@@ -160,7 +177,13 @@ fn blocks() -> Vec<Block> {
             }],
             ulps: 0,
             plain: |a| {
-                x87_7(one(a[0], 4), three(a[0], 8), view::<PlainDword>(a[0], 0));
+                let (slide, held) = x87_7(
+                    one(a[0], 4).bits(),
+                    bits(three(a[0], 8)),
+                    view::<PlainDword>(a[0], 0).get(),
+                );
+                set(three(a[0], 8), slide);
+                view::<PlainDword>(a[0], 0).set(held);
             },
         },
         Block {
@@ -177,7 +200,7 @@ fn blocks() -> Vec<Block> {
                 writes: &[(24, Out::F), (28, Out::F), (32, Out::F)],
             }],
             ulps: 0,
-            plain: |a| x87_1(three(a[0], 12), three(a[0], 0), three(a[0], 24)),
+            plain: |a| add_into(three(a[0], 12), bits(three(a[0], 0)), three(a[0], 24)),
         },
         Block {
             name: "contact_force line 207",
@@ -198,7 +221,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 x87_8(
-                    three(a[1], 0),
+                    bits(three(a[1], 0)),
                     race().shared.physics_tables.get(),
                     three(a[2], 0),
                 );

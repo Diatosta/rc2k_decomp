@@ -21,17 +21,18 @@ use crate::race::owner_course::Course;
 use crate::physics::flow::c0;
 use crate::physics::place_sound_object::place_sound_object;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
+use std::cell::RefCell;
 
 /// The usual marks on the face (`Face::touch`): the mark = `mark`, byte 0x13 = 0 and the angle
 /// byte = `face_angle`'s low byte; `clear_9` also clears byte 9.
 fn mark(
     course: &Course,
-    contact: &ContactWork,
+    contact: &RefCell<ContactWork>,
     face: u32,
     mark: u32,
     clear_9: bool,
 ) -> Result<(), BadInput> {
-    let angle = contact.face_angle.get() as u8;
+    let angle = contact.borrow().face_angle as u8;
     crate::race::course_places::update_face_number(course, face, |f| {
         f.touch(mark as u8, angle, clear_9);
     })
@@ -42,7 +43,10 @@ pub fn touch_face(
     c: &ContactInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let number = c.contact.face_number.get();
+    let (number, kind, speed) = {
+        let work = c.contact.borrow();
+        (work.face_number, work.contact_kind, work.face_speed)
+    };
     let face = number;
     if crate::race::course_places::face_number(c.course.reads(), face)?.mark() != 0 {
         return Ok(());
@@ -56,7 +60,6 @@ pub fn touch_face(
     }
     (|| -> Result<(), crate::errors::Refused> {
         c.lit_faces.faces[count as usize].set(number);
-        let kind = c.contact.contact_kind.get();
         match touch(kind) {
             Touch::MarkIfFast => {
                 if c0(&c.car.speed, &c.numbers.eight) {
@@ -65,13 +68,7 @@ pub fn touch_face(
                 mark(c.course, c.contact, face, 1, true)?;
             }
             Touch::Mark => mark(c.course, c.contact, face, 1, true)?,
-            Touch::Fall => mark(
-                c.course,
-                c.contact,
-                face,
-                fall_mark(c.contact.face_speed.get()),
-                false,
-            )?,
+            Touch::Fall => mark(c.course, c.contact, face, fall_mark(speed), false)?,
             Touch::Chance => {
                 let (_, lucky) = lucky(c.shared.random.next_random());
                 if lucky {

@@ -25,7 +25,7 @@ pub fn object_hits_car(
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     let objects = &scene.objects;
-    let number = c.contact.face_object.get();
+    let number = c.contact.borrow().face_object;
     contacts::check_object(number)?;
     {
         object_turn_matrix(
@@ -69,7 +69,7 @@ pub fn object_hits_car(
             };
             let turned = rotate_point(&c.sound.matrices.object_turn_matrix, [x, y, z]);
             for (k, e) in turned.iter().enumerate() {
-                c.contact.object_offset[k].set(ext_to_int(*e) as u32);
+                c.contact.borrow_mut().object_offset[k] = ext_to_int(*e) as u32;
             }
             // `point` is the scene point's number (from `face_contact`).
             let place = match crate::race::scene_points::point_number(

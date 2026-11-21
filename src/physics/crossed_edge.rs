@@ -14,7 +14,6 @@ use crate::physics::step_families::ContactInputs;
 /// The steps, not guarded (the probe checked before).
 // Core: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
 pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
-    let contact = c.contact;
     let n = c.ground.probes.borrow().crossed_probe;
     if n == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
@@ -32,7 +31,7 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     }?;
     crate::physics::crossed_edge_contact::steps(c)?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-        contact.contact_speed_length.get(),
+        f32::from_bits(c.contact.borrow().contact_speed_length),
         c.car.contact_depth.get(),
     ) {
         c.car.contact_depth.set(hit);

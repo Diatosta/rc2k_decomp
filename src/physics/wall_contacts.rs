@@ -43,7 +43,6 @@ fn after(c: &ContactInputs<'_>) -> Result<(), Refused> {
 /// The steps, not guarded (`check` before).
 // Core: `rc2k_core::physics::walls::walk`.
 pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let contact = c.contact;
     // The faces of the probe point looked at last: the met one's when a wall is met.
     let faces = std::cell::Cell::new(WallFaces { before: 0, now: 0 });
     let walked = walls::walk(c.car.probe_count.get(), |k| {
@@ -72,7 +71,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
             c.car.contact_point[2].set(c.car.probe_point_z[k].get());
             crate::physics::wall_edge_contact::steps(c, scene, faces.get(), probe)?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-                contact.contact_speed_length.get(),
+                f32::from_bits(c.contact.borrow().contact_speed_length),
                 c.car.contact_depth.get(),
             ) {
                 c.car.contact_depth.set(hit);

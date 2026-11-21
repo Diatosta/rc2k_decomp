@@ -23,6 +23,7 @@ struct PhysicsMain {
     pub ground: GroundWork,
     pub ground_search: RefCell<GroundSearch>,
     pub probes: RefCell<ProbeLists>,
+    pub contact: RefCell<ContactWork>,
     pub pace: RefCell<PaceNotes>,
     pub split_tables: RefCell<SplitTables>,
     pub damage: RefCell<DamageModel>,
@@ -39,6 +40,7 @@ impl PhysicsMain {
             ground: GroundWork::new(),
             ground_search: RefCell::new(GroundSearch::new()),
             probes: RefCell::new(ProbeLists::new()),
+            contact: RefCell::new(ContactWork::new()),
             pace: RefCell::new(PaceNotes::new()),
             split_tables: RefCell::new(SplitTables::new()),
             damage: RefCell::new(DamageModel::new()),
@@ -50,8 +52,6 @@ impl PhysicsMain {
 
 /// The race's physics state.
 pub struct Physics {
-    /// The contact and probe work: the game's thread alone reaches it.
-    pub contact: GameThread<ContactWork>,
     /// The lit faces, lent to the drawing parts (`scene::workers::DrawReads`) for the lamps.
     pub lit_faces: DrawShared<LitFaces>,
     main: GameThread<PhysicsMain>,
@@ -60,7 +60,6 @@ pub struct Physics {
 impl Physics {
     pub const fn new() -> Self {
         Physics {
-            contact: GameThread::new(ContactWork::new()),
             lit_faces: DrawShared::new(LitFaces::new()),
             main: GameThread::new(PhysicsMain::new()),
         }
@@ -95,6 +94,12 @@ impl Physics {
     /// borrows them again.
     pub fn probes(&self) -> &RefCell<ProbeLists> {
         &self.main.get().probes
+    }
+
+    /// The contact work: one routine borrows it at a time, none across a call that borrows it
+    /// again (`contact_force` borrows it only to read its inputs and to write its results).
+    pub fn contact(&self) -> &RefCell<ContactWork> {
+        &self.main.get().contact
     }
 
     /// The pace notes, read: no write borrow may be held.

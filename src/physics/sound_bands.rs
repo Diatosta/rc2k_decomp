@@ -21,7 +21,7 @@ pub struct Band {
 
 /// The wall and ground contacts' band: the contact's speed.
 pub const CONTACT_BAND: Band = Band {
-    value: |c| c.contact.contact_speed_length.get(),
+    value: |c| f32::from_bits(c.contact.borrow().contact_speed_length),
     factor: |_| CONTACT_BAND_SCALE,
     step: 1,
 };

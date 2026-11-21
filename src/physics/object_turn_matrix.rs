@@ -13,15 +13,16 @@ use crate::math::x87::{ext_div2, int_80};
 use crate::physics::contact_store::ContactWork;
 use crate::race::matrices_store::SceneMatrices;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
+use std::cell::RefCell;
 
 pub fn object_turn_matrix(
     engine_tables: &crate::math::engine_tables::EngineTables,
-    contact: &ContactWork,
+    contact: &RefCell<ContactWork>,
     matrices: &SceneMatrices,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let work = scene.object_work();
-    let object = contact.face_object.get();
+    let object = contact.borrow().face_object;
     if object > 0xFF {
         return Err(BadInput("an object past 0xFF").into());
     }

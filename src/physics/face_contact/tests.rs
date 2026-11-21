@@ -17,7 +17,10 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 x87_1(
-                    crate::test_support::own::race().physics.contact.get(),
+                    &mut crate::test_support::own::race()
+                        .physics
+                        .contact()
+                        .borrow_mut(),
                     crate::test_support::own::race().course.numbers.get(),
                 );
             },
@@ -44,7 +47,10 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 x87_2(
-                    crate::test_support::own::race().physics.contact.get(),
+                    &mut crate::test_support::own::race()
+                        .physics
+                        .contact()
+                        .borrow_mut(),
                     crate::test_support::own::race().shared.car(),
                     crate::test_support::own::race().course.numbers.get(),
                 );

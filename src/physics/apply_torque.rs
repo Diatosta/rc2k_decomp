@@ -8,30 +8,29 @@ use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::ForceRecord;
 use crate::physics::tables_store::PhysicsTables;
-use crate::physics::turn_by_car_matrix::turn_cells;
+use crate::physics::vector_bits::{bits_of, turn};
 use crate::scene::view_matrix::cross_product;
+use std::cell::RefCell;
 
 /// The exact version, for `physics::apply_torques`: the force record at `rec` (a record of the
 /// wheels' or the contacts' table) on the car block `car`.
-pub fn apply_torque(tables: &PhysicsTables, contact: &ContactWork, rec: &ForceRecord, car: &Car) {
-    let work = &contact.contact_turn_speed;
+pub fn apply_torque(
+    tables: &PhysicsTables,
+    contact: &RefCell<ContactWork>,
+    rec: &ForceRecord,
+    car: &Car,
+) {
     let cross = &tables.torque_cross;
-    for (w, s) in work.iter().zip(&car.spin) {
-        w.set(s.get());
-    }
-    turn_cells(&car.car_inverse_matrix, work);
+    let mut work = turn(&car.car_inverse_matrix, bits_of(&car.spin));
     cross_product(&rec.force, &rec.point, cross);
     let step = tables.step_time.get();
     for k in 0..3 {
-        work[k].set(neg_product2_plus(
-            &cross[k],
-            step,
-            &tables.inertia[k],
-            &work[k],
-        ));
+        work[k] = neg_product2_plus(&cross[k], step, &tables.inertia[k], work[k]).to_bits();
     }
-    turn_cells(&car.crash_matrix, work);
+    work = turn(&car.crash_matrix, work);
     for (s, w) in car.spin.iter().zip(work) {
-        s.set(w.get());
+        s.set_bits(w);
     }
+    // The turn speed is the step's work place: it ends as the car's new spin.
+    contact.borrow_mut().contact_turn_speed = work;
 }

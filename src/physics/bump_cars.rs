@@ -54,8 +54,9 @@ fn steps(
     // The relative speed and the push: each is made before it is read, within this bump.
     let relative: [PlainFloat; 3] = PlainFloat::array([0.0; 3]);
     let push: [PlainFloat; 3] = PlainFloat::array([0.0; 3]);
-    for k in 0..3 {
-        c.contact.contact_point[k].set(loaded(&corner_turned[k]));
+    {
+        let turned = [0, 1, 2].map(|k| loaded(&corner_turned[k]).to_bits());
+        c.contact.borrow_mut().contact_point = turned;
     }
     for v in &c.tables.contacts[6].force {
         v.set(0.0);

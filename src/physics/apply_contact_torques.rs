@@ -7,6 +7,7 @@ use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::ForceRecord;
 use crate::physics::tables_store::PhysicsTables;
+use std::cell::RefCell;
 const COUNT: usize = 7;
 
 /// The Rust core, the switch given, `run` doing the records (`apply_torques`).
@@ -23,7 +24,7 @@ fn apply_contact_torques_with<'a>(
 
 pub(super) fn apply_contact_torques(
     tables: &PhysicsTables,
-    contact: &ContactWork,
+    contact: &RefCell<ContactWork>,
     car: &Car,
 ) -> Result<(), Refused> {
     apply_contact_torques_with(

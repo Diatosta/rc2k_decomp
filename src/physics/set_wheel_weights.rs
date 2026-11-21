@@ -11,17 +11,18 @@ use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::race::numbers_store::Numbers;
+use std::cell::RefCell;
 
 pub(super) fn set_wheel_weights(
     car: &Car,
     tables: &PhysicsTables,
-    contact: &ContactWork,
+    contact: &RefCell<ContactWork>,
     numbers: &Numbers,
 ) {
     let one = numbers.one.get();
     let high = numbers.five.get();
     let k = numbers.quarter.get();
-    let mut share = x87::loaded(&contact.wheel_share).to_bits();
+    let mut share = x87::loaded(contact.borrow().wheel_share).to_bits();
     if compare_full(share, one) & 0x100 != 0 {
         share = x87::loaded(one).to_bits();
     }

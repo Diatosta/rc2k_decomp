@@ -37,7 +37,7 @@ pub struct SoundInputs<'a> {
     pub matrices: &'a SceneMatrices,
     pub heard_turn: &'a crate::race::heard_turn::HeardTurn,
     pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
-    pub contact: &'a ContactWork,
+    pub contact: &'a RefCell<ContactWork>,
     /// The sound owner, whose objects the cues are placed on.
     pub owner: &'a crate::sound::owner::Sound,
 }
@@ -49,7 +49,7 @@ pub struct GroundInputs<'a> {
     pub numbers: &'a Numbers,
     pub tables: &'a PhysicsTables,
     pub course: &'a Course,
-    pub contact: &'a ContactWork,
+    pub contact: &'a RefCell<ContactWork>,
     pub probes: &'a RefCell<ProbeLists>,
     pub search: &'a RefCell<GroundSearch>,
     pub probe: &'a RefCell<GroundProbe>,
@@ -97,7 +97,7 @@ pub struct ContactInputs<'a> {
     pub numbers: &'a Numbers,
     pub tables: &'a PhysicsTables,
     pub course: &'a Course,
-    pub contact: &'a ContactWork,
+    pub contact: &'a RefCell<ContactWork>,
     pub lit_faces: &'a crate::physics::lit_faces_store::LitFaces,
     pub work: &'a RaceWork,
     pub frame: &'a crate::race::owner_frame::Frame,
@@ -245,7 +245,7 @@ impl<'a> StepInputs<'a> {
             matrices: self.frame.matrices.get(),
             heard_turn: self.shared.heard_turn.get(),
             polygon_tables: &self.shared.buffers.reads.get().polygon_tables,
-            contact: self.physics.contact.get(),
+            contact: self.physics.contact(),
             owner,
         }
     }
@@ -256,7 +256,7 @@ impl<'a> StepInputs<'a> {
             numbers: self.numbers,
             tables: self.tables,
             course: self.course,
-            contact: self.physics.contact.get(),
+            contact: self.physics.contact(),
             probes: self.physics.probes(),
             search: self.physics.ground_search(),
             probe: self.physics.ground_probe(),
@@ -270,7 +270,7 @@ impl<'a> StepInputs<'a> {
             numbers: self.numbers,
             tables: self.tables,
             course: self.course,
-            contact: self.physics.contact.get(),
+            contact: self.physics.contact(),
             lit_faces: self.physics.lit_faces.get(),
             work: self.work,
             frame: self.frame,

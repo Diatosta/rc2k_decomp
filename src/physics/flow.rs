@@ -70,19 +70,9 @@ pub fn g(x: &impl crate::memory::session::Cell32) -> u32 {
     x.bits()
 }
 
-/// Writes the dword `v` into the cell `x`.
-pub fn p(x: &impl crate::memory::session::Cell32, v: u32) {
-    x.set_bits(v);
-}
-
 /// The whole number held in the cell `x` (a float variable that holds a count).
 pub fn whole(x: &impl crate::memory::session::Cell32) -> i32 {
     x.bits() as i32
-}
-
-/// Stores the whole number `v` into the cell `x`.
-pub fn set_whole(x: &impl crate::memory::session::Cell32, v: i32) {
-    x.set_bits(v as u32);
 }
 
 /// The float `a` is below `b`, or one of them is not a number (the x87's C0 after
@@ -214,20 +204,6 @@ fn x87_2(x: f32, t: [u32; 4]) -> f32 {
     let t11 = bh::ld(t[1]);
     let t12 = t10 + t11;
     stf(t12)
-}
-
-/// The first three cells of `from` copied into the first three of `to` (three dword moves).
-pub fn copy_cells(to: &[impl FloatView], from: &[impl FloatView]) {
-    for k in 0..3 {
-        to[k].set_float(from[k].float());
-    }
-}
-
-/// The first three cells of `to` set to `v` (three dword moves).
-pub(super) fn fill_cells(to: &[impl FloatView], v: f32) {
-    for cell in &to[..3] {
-        cell.set_float(v);
-    }
 }
 
 #[cfg(test)]
