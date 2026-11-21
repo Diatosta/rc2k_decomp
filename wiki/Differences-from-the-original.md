@@ -382,7 +382,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
 - Windows (32 and 64 bits), Linux, macOS and the Anbernic RG34XXSP handheld; see
   [Platforms](Platforms). The program carries the project's icon on every system.
 - On macOS the installer makes a self-contained "Rally Championship.app" in Applications.
-- Builds: `./build.sh <target>`, and `build.ps1` on Windows itself ([Building from
+- Builds: `./build.sh <target>`, and `build.cmd` on Windows itself ([Building from
   source](Building-from-source)).
 - The web build is experimental: it draws the 3D on WebGL 2 where the browser has it, takes
   gamepads and plays the sound; it has no network play. Its resolution list offers the browser window's size, its full-screen setting takes the whole page, and it loads faster (the folders' file names are listed once).

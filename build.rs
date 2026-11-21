@@ -1,5 +1,5 @@
 // The program links SDL3. On Windows its ready-made library comes from `tools/fetch_sdl3.sh`
-// (or build.ps1) into `third_party/sdl3` (not in git), and SDL3.dll is copied next to what is
+// (or tools/windows/build.ps1) into `third_party/sdl3` (not in git), and SDL3.dll is copied next to what is
 // built (the program and the test binaries in `deps`): Windows, and Wine running the tests,
 // look for a program's DLLs in its own folder, not on the build's search path. On Linux and
 // macOS SDL is built from its source and linked into the program (`sdl3-sys`'s

@@ -83,7 +83,7 @@ renderer has to combine that with its 3D; `gpu.rs` and `gles/layer2d.rs` show ho
 | `src/install/folders/` | The installer's rules for naming and checking folders and its default folder. One implementation per system. |
 | `src/install/shortcuts.rs` | The menu entries the installer makes. |
 | `src/files/` | Reading the game's paths (written the Windows way, without regard to case) on a system whose file names are case-sensitive. Already done for Unix. |
-| `build.sh`, `build.ps1`, `tools/` | Building and copying for the target. |
+| `build.sh`, `build.cmd`, `tools/` | Building and copying for the target. |
 
 ## Example: the Anbernic RG34XXSP
 

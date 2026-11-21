@@ -1,10 +1,10 @@
 <#
-build.ps1: builds rc2k.exe on Windows itself (without cargo-xwin) into dist\<target>\, and
+tools\windows\build.ps1: builds rc2k.exe on Windows itself (without cargo-xwin) into dist\<target>\, and
 with -Deploy copies that folder into the game's folder. The Windows side of build.sh.
 
     build [windows|windows-x64] [-Deploy] [-GameDir <folder>] [-DebugBuild]
-    (build.cmd runs this script whatever the machine's script policy is; or
-    powershell -ExecutionPolicy Bypass -File build.ps1 [-Target windows|windows-x64] ...)
+    (build.cmd, in the repository's top folder, runs this script whatever the machine's script
+    policy is; or powershell -ExecutionPolicy Bypass -File tools\windows\build.ps1 [-Target ...])
 
     windows-x64           64 bits (the default)       dist\windows-x64\
     windows               32 bits                     dist\windows\
@@ -37,7 +37,8 @@ param(
     [switch]$DebugBuild
 )
 $ErrorActionPreference = 'Stop'
-$Repo = $PSScriptRoot
+# This script is tools\windows\build.ps1: the repository is two folders up.
+$Repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 
 function Fail($message) { Write-Host "build.ps1: $message" -ForegroundColor Red; exit 1 }
 
@@ -112,7 +113,7 @@ function Get-Sdl {
         try { Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing }
         catch { Fail "could not download $url ($($_.Exception.Message))" }
         $got = (Get-FileHash -Algorithm SHA256 $zip).Hash
-        if ($got -ne $sha256) { Fail "SDL's download has SHA-256 $got, not the pinned $sha256: not used" }
+        if ($got -ne $sha256) { Fail "SDL's download has SHA-256 $got, not the pinned ${sha256}: not used" }
         Expand-Archive -Path $zip -DestinationPath $work
         $from = Join-Path $work "SDL3-$version"
         if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }

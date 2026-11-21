@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # build.sh: builds the program for one target into dist/<target>/, and with --deploy copies
-# that folder where deploy.local says. Run on Linux or macOS; on Windows itself use build.ps1.
+# that folder where deploy.local says. Run on Linux or macOS; on Windows itself use build.cmd.
 #
 #     ./build.sh <target> [--deploy] [--release|--debug] [--pgo] [--arch x64|a64]
 #     ./build.sh                    lists the targets

@@ -63,7 +63,7 @@ needed:
 | --- | --- | --- |
 | SDL3 | window, input, sound output, GPU drawing | Windows: `tools/fetch_sdl3.sh` downloads SDL's ready-made library (a pinned version, checked by its hash). Other systems: built from source by cargo, with no script. On Linux this needs the development packages of the system's video and sound; the list for Ubuntu is in `.github/workflows/build.yml`. |
 
-`build.sh` and `build.ps1` fetch it themselves.
+`build.sh` and `build.cmd` fetch it themselves.
 
 ## Linux
 
@@ -153,9 +153,9 @@ build windows -GameDir C:\Games\Rally
 ```
 
 In PowerShell type `.\build` (it does not run programs from the current folder by name).
-`build` is `build.cmd`, which runs `build.ps1` for that one run whatever the machine's script
+`build` is `build.cmd`, which runs `tools\windows\build.ps1` for that one run whatever the machine's script
 policy is (Windows forbids running PowerShell scripts by default). With that policy lifted
-(`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`), `.\build.ps1 -Target windows-x64`
+(`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`), `tools\windows\build.ps1 -Target windows-x64`
 does the same.
 
 | Switch | Meaning |
