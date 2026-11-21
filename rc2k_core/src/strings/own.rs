@@ -207,6 +207,8 @@ pub mod id {
     pub const RENDER_PERCENT: u32 = FIRST + 0x101;
     pub const RENDER_FRAMES: u32 = FIRST + 0x102;
     pub const RENDER_STARTING: u32 = FIRST + 0x103;
+    /// The render panel once every frame is written: the picture checked, the sound joined.
+    pub const RENDER_FINISHING: u32 = FIRST + 0x1BA;
     pub const RENDER_DONE: u32 = FIRST + 0x104;
     pub const RENDER_FAILED: u32 = FIRST + 0x105;
     /// The speed of the render ("{}" the frames a second) and the time it has left ("{}" as
@@ -390,6 +392,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("viewer.render_percent", id::RENDER_PERCENT),
     ("viewer.render_frames", id::RENDER_FRAMES),
     ("viewer.render_starting", id::RENDER_STARTING),
+    ("viewer.render_finishing", id::RENDER_FINISHING),
     ("viewer.render_done", id::RENDER_DONE),
     ("viewer.render_failed", id::RENDER_FAILED),
     ("viewer.render_speed", id::RENDER_SPEED),

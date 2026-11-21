@@ -90,14 +90,16 @@ fn steps(race: &Race) -> Result<(), Refused> {
     }
     // The split-screen layout shows every player's HUD as the race did, the recording's own bits
     // (the viewer's other layouts show the first two cars' as the viewer's switches say).
+    // A render takes the viewer's pieces it was given: its own replay was not set up from the
+    // menus, which is where the players' settings are taken in.
     let split = head_byte(race, 5) == rc2k_core::race::replay_v2::SPLIT_LAYOUT;
     if !split {
-        race.car_blocks().cars[0]
-            .option_bits
-            .set(shared.view.get().player_options[0].get());
-        race.car_blocks().cars[1]
-            .option_bits
-            .set(shared.view.get().player_options[1].get());
+        let options = crate::video::hud_bits().unwrap_or([
+            shared.view.get().player_options[0].get(),
+            shared.view.get().player_options[1].get(),
+        ]);
+        race.car_blocks().cars[0].option_bits.set(options[0]);
+        race.car_blocks().cars[1].option_bits.set(options[1]);
     }
     // The head's bytes 2 .. 5 into the view switches.
     for (k, to) in [

@@ -124,7 +124,7 @@ fn quantiser(quality: Quality) -> u32 {
         Quality::Low => 32,
         Quality::Medium => 27,
         Quality::High => 22,
-        Quality::Best => 17,
+        Quality::Best => 20,
     }
 }
 
@@ -401,7 +401,7 @@ mod tests {
         let vaapi = Encoder::Hardware(CANDIDATES[2]);
         let args = encode_args(vaapi, Quality::Best);
         assert_eq!(flag(&args, "-c:v"), Some("h264_vaapi"));
-        assert_eq!(flag(&args, "-qp"), Some("17"));
+        assert_eq!(flag(&args, "-qp"), Some("20"));
         assert!(
             flag(&args, "-vf")
                 .unwrap()

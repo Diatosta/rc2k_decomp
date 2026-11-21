@@ -3,7 +3,7 @@
 //! (`--allow-another`), or runs as a numbered instance with its own saved state (`--instance`). The words after the program's own name, as `menu::launch` takes them.
 
 /// The switches that take a value (the next word, or after `=`).
-pub(crate) const VALUED: [&str; 11] = [
+pub(crate) const VALUED: [&str; 12] = [
     "renderer",
     "instance",
     "game-data",
@@ -15,6 +15,7 @@ pub(crate) const VALUED: [&str; 11] = [
     "encoder",
     "from",
     "to",
+    "hud",
 ];
 
 /// The switches that take none.
@@ -52,6 +53,10 @@ pub struct Switches {
     /// start (the end of the replay when `--to` is not given).
     pub from_cs: Option<u32>,
     pub to_cs: Option<u32>,
+    /// `--hud`: the first two cars' HUD pieces in the render (the viewer's own, which the
+    /// render's replay has no other way to know: the players' settings are taken in by a race
+    /// started from the menus).
+    pub hud_bits: Option<[u32; 2]>,
 }
 
 /// The video sizes taken: each side from this many pixels up to that many (even sides are
@@ -160,6 +165,11 @@ impl Switches {
                 } else {
                     found.to_cs = Some(cs);
                 }
+            } else if key == "hud" {
+                found.hud_bits =
+                    Some(parse_hud(&value).ok_or_else(|| {
+                        format!("--hud {value}: two numbers, like 31,0, are wanted")
+                    })?);
             } else if key == "encoder" {
                 found.encoder = Some(
                     crate::race::render_dialog::VideoEncoder::of(&value).ok_or_else(|| {
@@ -176,6 +186,12 @@ impl Switches {
         }
         Ok(found)
     }
+}
+
+/// `--hud`'s value: two numbers parted by a comma.
+fn parse_hud(value: &str) -> Option<[u32; 2]> {
+    let (first, second) = value.split_once(',')?;
+    Some([first.trim().parse().ok()?, second.trim().parse().ok()?])
 }
 
 #[cfg(test)]
@@ -242,6 +258,9 @@ mod tests {
         assert_eq!((s.from_cs, s.to_cs), (Some(1250), Some(9000)));
         assert!(Switches::from_args(&["--from", "-1"]).is_err());
         assert!(Switches::from_args(&["--to", "soon"]).is_err());
+        let s = Switches::from_args(&["--hud", "31,0"]).unwrap();
+        assert_eq!(s.hud_bits, Some([31, 0]));
+        assert!(Switches::from_args(&["--hud", "31"]).is_err());
     }
 
     #[test]

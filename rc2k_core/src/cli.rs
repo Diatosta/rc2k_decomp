@@ -233,6 +233,12 @@ pub const SWITCHES: &[Switch] = &[
         Group::Replay,
     ),
     switch(
+        "--hud",
+        Some("<first,second>"),
+        "the HUD pieces of the first two cars in the render of --render-replay, as bits (the replay viewer passes its own)",
+        Group::Replay,
+    ),
+    switch(
         "--no-sound",
         None,
         "a video of --render-replay without sound",

@@ -20,7 +20,8 @@ pub(super) fn draw_frame_rate(
     // Logic in `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
     let rate = shown_rate(race.shared.switches.borrow().frame_rate);
-    if rate == 0 || frame.counter().show == 0 {
+    // A rendered video shows the replay, not the speed it was drawn at.
+    if rate == 0 || frame.counter().show == 0 || crate::video::active() {
         return Ok(());
     }
     let t = crate::strings::text_from_ids::text_at(strings);

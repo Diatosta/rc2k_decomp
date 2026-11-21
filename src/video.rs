@@ -66,6 +66,7 @@ pub fn begin(switches: &Switches) -> Result<(), String> {
             ("--encoder", switches.encoder.is_some()),
             ("--from", switches.from_cs.is_some()),
             ("--to", switches.to_cs.is_some()),
+            ("--hud", switches.hud_bits.is_some()),
         ] {
             if given {
                 return Err(format!("{name} goes with --render-replay"));
@@ -86,6 +87,11 @@ pub fn begin(switches: &Switches) -> Result<(), String> {
         encoder: switches.encoder.unwrap_or_default(),
     }));
     RANGE.store(pack_range(switches.from_cs, switches.to_cs), Relaxed);
+    if let Some([first, second]) = switches.hud_bits {
+        HUD_BITS[0].store(first, Relaxed);
+        HUD_BITS[1].store(second, Relaxed);
+        HUD_GIVEN.store(true, Relaxed);
+    }
     ACTIVE.store(true, Relaxed);
     CLOCK_BASE.store(CLOCK_START, Relaxed);
     // No window on the screen and no sound for a run that makes a file.
@@ -109,6 +115,17 @@ fn job() -> Option<Arc<Job>> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone()
 }
+
+/// The first two cars' HUD pieces `--hud` gave, if it did.
+pub fn hud_bits() -> Option<[u32; 2]> {
+    HUD_GIVEN
+        .load(Relaxed)
+        .then(|| [HUD_BITS[0].load(Relaxed), HUD_BITS[1].load(Relaxed)])
+}
+
+static HUD_BITS: [std::sync::atomic::AtomicU32; 2] =
+    [const { std::sync::atomic::AtomicU32::new(0) }; 2];
+static HUD_GIVEN: AtomicBool = AtomicBool::new(false);
 
 /// A replay is being rendered.
 pub fn active() -> bool {
@@ -226,6 +243,23 @@ pub(super) fn note_progress(fraction: f64) {
         let _ = std::fs::rename(&temp, &path);
     }
 }
+
+/// The frames are all written: the progress file says the video is being finished (its picture
+/// checked and its sound joined), a step with no percent of its own.
+fn note_finishing(frames: u32) {
+    let Some(path) = std::env::var_os("RC2K_RENDER_PROGRESS") else {
+        return;
+    };
+    let line = format!("100.0 {frames} {FINISHING}\n");
+    let mut temp = path.clone();
+    temp.push(".new");
+    if std::fs::write(&temp, line).is_ok() {
+        let _ = std::fs::rename(&temp, &path);
+    }
+}
+
+/// The progress file's third word while the video is being finished.
+pub(crate) const FINISHING: &str = "finishing";
 
 // ---- the file ----
 
@@ -540,9 +574,24 @@ pub fn finish() -> Option<u32> {
     let count = thread.join().unwrap_or(0);
     crate::program_log::log(&format!("video: {count} frames written"));
     log_times(count, looped, started.elapsed());
-    if let Some(picture) = checked
-        && let Err(why) = picture_is_whole(&picture)
-    {
+    note_finishing(count);
+    // A hardware encoder's picture is checked while the sound is joined to a copy of it: both only
+    // read the picture, and each takes about as long as reading it through.
+    let check = checked.map(|picture| std::thread::spawn(move || picture_is_whole(&picture)));
+    let wav = sound.and_then(|wav| {
+        let seconds = wav.frames as f64 / f64::from(SOUND_RATE);
+        wav.close()
+            .inspect(|path| log(&format!("{}: {seconds:.2} s of sound", path.display())))
+            .ok()
+    });
+    let joined = match (silent, wav, tools, job()) {
+        (Some(silent), Some(wav), Some(tools), Some(job)) => {
+            let made = join_sound(&silent, &wav, &job.out, tools);
+            Some((silent, wav, job, made))
+        }
+        _ => None,
+    };
+    if let Some(Ok(Err(why))) = check.map(std::thread::JoinHandle::join) {
         log(&format!(
             "the hardware encoder's picture is damaged ({why}); the video is removed"
         ));
@@ -557,14 +606,17 @@ pub fn finish() -> Option<u32> {
         }
         return Some(DAMAGED);
     }
-    let wav = sound.and_then(|wav| {
-        let seconds = wav.frames as f64 / f64::from(SOUND_RATE);
-        wav.close()
-            .inspect(|path| log(&format!("{}: {seconds:.2} s of sound", path.display())))
-            .ok()
-    });
-    if let (Some(silent), Some(wav), Some(tools), Some(job)) = (silent, wav, tools, job()) {
-        join_sound(&silent, &wav, &job.out, tools);
+    // The parts are put away only now: the check may have been reading the picture.
+    if let Some((silent, wav, job, made)) = joined {
+        if made {
+            let _ = std::fs::remove_file(&silent);
+            log(&format!("{}: picture and sound joined", job.out.display()));
+        } else {
+            log("the sound could not be joined; the video has no sound");
+            note_problem("sound", "");
+            let _ = std::fs::rename(&silent, &job.out);
+        }
+        let _ = std::fs::remove_file(&wav);
     }
     None
 }
@@ -619,25 +671,21 @@ fn log_times(frames: u32, looped: std::time::Duration, total: std::time::Duratio
     ));
 }
 
-/// The picture and the sound joined into the video file; the two parts removed when it is made.
-/// If the join fails the picture alone becomes the video.
-fn join_sound(silent: &Path, wav: &Path, out: &Path, tools: Tools) {
+/// Whether the picture and the sound were joined into the video file (the two parts are left
+/// where they are, for the caller to put away).
+fn join_sound(silent: &Path, wav: &Path, out: &Path, tools: Tools) -> bool {
     let args = join_args(silent, wav, out, tools);
+    let began = std::time::Instant::now();
     let made = Command::new("ffmpeg")
         .args(&args)
         .stdin(Stdio::null())
         .status()
         .is_ok_and(|status| status.success());
-    if made {
-        let _ = std::fs::remove_file(silent);
-        let _ = std::fs::remove_file(wav);
-        log(&format!("{}: picture and sound joined", out.display()));
-    } else {
-        log("the sound could not be joined; the video has no sound");
-        note_problem("sound", "");
-        let _ = std::fs::rename(silent, out);
-        let _ = std::fs::remove_file(wav);
-    }
+    log(&format!(
+        "the sound joined in {} ms",
+        began.elapsed().as_millis()
+    ));
+    made
 }
 
 /// The arguments that join a picture file and a WAV file: the picture copied, the sound AAC (Opus
