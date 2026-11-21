@@ -187,7 +187,6 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 lean_force(
                     race().shared.car(),
-                    race().shared.physics_tables.get(),
                     &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[2],
@@ -220,7 +219,6 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 lean_force(
                     race().shared.car(),
-                    race().shared.physics_tables.get(),
                     &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[2],
@@ -253,7 +251,6 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 lean_force(
                     race().shared.car(),
-                    race().shared.physics_tables.get(),
                     &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[2],
@@ -333,7 +330,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 yaw_share_from_limit(
-                    race().shared.physics_tables.get(),
+                    &crate::test_support::race_places::numbers(),
                     crate::test_support::own::scene(),
                 );
             },
@@ -349,10 +346,7 @@ fn blocks() -> Vec<Block> {
                 let scratch = scene().scratch_cell();
                 divide_into_scratch(
                     &*scratch,
-                    crate::test_support::own::race()
-                        .shared
-                        .physics_tables
-                        .get()
+                    crate::test_support::race_places::numbers()
                         .grip_force_limit
                         .get(),
                     &scratch,

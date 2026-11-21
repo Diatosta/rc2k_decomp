@@ -51,7 +51,7 @@ pub fn touch_face(
     if crate::race::course_places::face_number(c.course.reads(), face)?.mark() != 0 {
         return Ok(());
     }
-    let count = c.lit_faces.count.get();
+    let count = c.lit_faces.borrow().count;
     if count == LIST_ROOM {
         return Ok(());
     }
@@ -59,7 +59,7 @@ pub fn touch_face(
         return Err(BadInput("g_litFaceCount past 0x100 (the list's room)").into());
     }
     (|| -> Result<(), crate::errors::Refused> {
-        c.lit_faces.faces[count as usize].set(number);
+        c.lit_faces.borrow_mut().faces[count as usize] = number;
         match touch(kind) {
             Touch::MarkIfFast => {
                 if c0(&c.car.speed, c.numbers.eight) {
@@ -75,14 +75,14 @@ pub fn touch_face(
                     crate::race::course_places::update_face_number(c.course, face, |f| {
                         f.set_mark(0xF);
                     })?;
-                    c.lit_faces.count.set(count + 1);
+                    c.lit_faces.borrow_mut().count = count + 1;
                 }
                 return Ok(());
             }
             Touch::Sound => {}
         }
         { place_sound_object(&c.sound, scene) }?;
-        c.lit_faces.count.set(count + 1);
+        c.lit_faces.borrow_mut().count = count + 1;
         Ok(())
     })()
 }

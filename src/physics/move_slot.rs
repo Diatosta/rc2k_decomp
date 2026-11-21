@@ -72,7 +72,7 @@ fn spin_axis(work: &RaceWork, number: usize) -> SpinAxis {
 
 /// The slot `s`, number `number` of the table.
 pub fn move_slot(c: &SlotInputs<'_>, s: &RaceSlot, number: usize) -> Result<(), Refused> {
-    let dt = c.tables.step_time.get();
+    let dt = c.numbers.step_time.get();
     let k65536 = c.numbers.k65536.get();
     copy_place(&s.place, &c.work.slot_place);
     s.spin_length

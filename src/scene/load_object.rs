@@ -129,9 +129,9 @@ pub fn load_object(
     // after the 34 records, which reads on into the gear figures (`group_at`).
     let mut groups = [u32::MAX; PARTS];
     for (group, &offset) in groups.iter_mut().zip(&GROUPS) {
-        *group =
-            race.light_records()
-                .group_at(&race.frame.lights_and_gear.get().gear, known, offset)?;
+        *group = race
+            .light_records()
+            .group_at(race.physics.gear(), known, offset)?;
     }
     let masks = car_masks(groups, known);
     let (car, part) = (

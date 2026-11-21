@@ -6,8 +6,8 @@
 //! `lamps_mask`, bit 6 of the first view's flags into `flat`; `mirror_wanted` is the first view
 //! block's `camera_mode_is_2_or_3` flag when `precipitation_range` is not 0, else 0;
 //! `d3d_drawing_on` is 1. Then the sound tick 0xA, `shine` from `shine_from`, the filters and five
-//! render states (0x15 = 4, 0x1C = 1, 0x13 = 5, 0x14 = 6, 0x1B = 1). Then the sound tick 0xB, one
-//! more `frames_drawn`, the clock restarted into `clock_base`, the full view's window, the cars'
+//! render states (0x15 = 4, 0x1C = 1, 0x13 = 5, 0x14 = 6, 0x1B = 1). Then the sound tick 0xB, the
+//! clock restarted into `clock_base`, the full view's window, the cars'
 //! parts readied, the maps scrolled; `texture_changes` 0, the views' textures forgotten, the mud's
 //! frame; the kinds' textures assigned (`kind_textures_done` 0), the two textures of the panel's
 //! `lights` entries (unless -1) wanted in kind 0xDC's first slot and the next; the places mapped,
@@ -540,10 +540,6 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
         set_render_state(part, value, state);
     }
-    race.physics
-        .ground()
-        .frames_drawn
-        .set(race.physics.ground().frames_drawn.get().wrapping_add(1));
     race.shared
         .view
         .get()

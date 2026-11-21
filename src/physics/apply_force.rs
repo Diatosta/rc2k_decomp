@@ -4,24 +4,26 @@
 
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::physics::flow::FloatView;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::ForceRecord;
-use crate::physics::tables_store::PhysicsTables;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
+use crate::race::numbers_store::Numbers;
 use crate::scene::rotate_point::rotate_point;
 
 /// The exact version, for `physics::apply_forces`: `rec` on the car block `car`.
-pub fn apply_force(car: &Car, tables: &PhysicsTables, rec: &ForceRecord) {
-    let work = &tables.push_record;
+pub fn apply_force(car: &Car, numbers: &Numbers, rec: &ForceRecord) {
+    // The push in the car's frame, worked out on the spot (the fourth dword stays 0).
+    let work = [const { PlainDword::new(0) }; 4];
     for (k, w) in work[..3].iter().enumerate() {
         w.set_float(rec.force[k].get());
     }
-    let dt = extended(tables.step_time.get());
-    scale_vector(work, dt);
+    let dt = extended(numbers.step_time.get());
+    scale_vector(&work, dt);
     // The work car's crash matrix, whichever block it is.
-    turn_by_car_matrix(car, work);
+    turn_by_car_matrix(car, &work);
     for (v, w) in car.velocity.iter().zip(work) {
         v.set(x87::add(w, v));
     }

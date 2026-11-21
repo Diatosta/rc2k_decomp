@@ -112,11 +112,11 @@ fn load_figures_and_shift_points(
     gear_figures.figures[3].st(t3);
     let t4 = int(s.engine_top as i32);
     car.engine_speed_limit.st(t4);
-    let t5 = tables.spec_scale_1b8.ld();
+    let t5 = numbers.spec_scale_1b8.ld();
     car.spec_scale_copy.st(t5);
     let t6 = ld(s.shift_points[0]);
     gear_figures.shift_up_point.st(t6);
-    let t7 = tables.spec_scale_a4.ld();
+    let t7 = numbers.spec_scale_a4.ld();
     let t8 = t6 * t7;
     gear_figures.shift_ratio_figure.st(t8);
     let t9 = ld(s.shift_points[1]);
@@ -128,13 +128,13 @@ fn load_figures_and_shift_points(
     let t14 = t12 + t13;
     gear_figures.shift_down_clutch_point.st(t14);
     let t15 = int(s.over_top as i32);
-    let t16 = tables.rev_limit_scale.ld();
+    let t16 = numbers.rev_limit_scale.ld();
     let t17 = t15 * t16;
     let t18 = car.engine_speed_limit.ld();
     let t19 = t17 / t18;
     gear_figures.drive_torque_figure.st(t19);
     let t20 = car.engine_speed_limit.ld();
-    let t21 = tables.rev_top_scale.ld();
+    let t21 = numbers.rev_top_scale.ld();
     let t22 = t20 * t21;
     tables.rev_limit.st(t22);
 }

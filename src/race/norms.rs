@@ -35,8 +35,6 @@ pub fn normalise_work_vector(
 
 /// A triangle's normal worked out from its points.
 struct TriangleNormal {
-    /// The three points and the two edges from the first, as the physics reads them back.
-    plane_work: [u32; 15],
     /// The normalised normal's bits.
     normal: [u32; 3],
     /// The normal's length before it was made one long, bits.
@@ -63,11 +61,6 @@ fn triangle_normal(race: &Race, [a, b, c]: [u32; 3]) -> Result<TriangleNormal, B
         b[2].wrapping_sub(a[2]),
         c[2].wrapping_sub(a[2]),
     ];
-    let mut work = [0i32; 15];
-    work[..3].copy_from_slice(&a);
-    work[3..6].copy_from_slice(&b);
-    work[6..9].copy_from_slice(&c);
-    work[9..].copy_from_slice(&d);
     let cross = [
         x87::int_product_difference(d[5], d[2], d[3], d[4]),
         x87::int_product_difference(d[1], d[4], d[5], d[0]),
@@ -75,11 +68,7 @@ fn triangle_normal(race: &Race, [a, b, c]: [u32; 3]) -> Result<TriangleNormal, B
     ]
     .map(f32::to_bits);
     let (normal, length) = normalised(&race.course.numbers, cross);
-    Ok(TriangleNormal {
-        plane_work: work.map(|v| v as u32),
-        normal,
-        length,
-    })
+    Ok(TriangleNormal { normal, length })
 }
 
 /// One face's results.
@@ -100,8 +89,6 @@ pub struct Normals {
     pub faces: Vec<FaceNormals>,
     /// The work vector at the end.
     pub work_vector: [u32; 3],
-    /// The last triangle's plane work, if any was made.
-    pub plane_work: Option<[u32; 15]>,
     /// The last length the work left in the scene's scratch word, if any.
     pub scratch: Option<u32>,
 }
@@ -126,7 +113,6 @@ fn face_normals(
     let mut out = Normals {
         faces: Vec::new(),
         work_vector,
-        plane_work: None,
         scratch: None,
     };
     for face in 0..count {
@@ -141,7 +127,6 @@ fn face_normals(
             let [a, b, c] = triangle.map(|k| corners[k]);
             if normal_made([a, b, c], points) {
                 let made = triangle_normal(race, [a, b, c])?;
-                out.plane_work = Some(made.plane_work);
                 out.work_vector = made.normal;
                 out.scratch = Some(made.length);
             }
@@ -182,9 +167,6 @@ pub(super) fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Re
             }
         }
     }
-    if let Some(plane_work) = normals.plane_work {
-        crate::memory::session::write_bits(&race.physics.ground().normal_work, plane_work);
-    }
     race.frame.scratch_mut().work_vector = normals.work_vector;
     if let Some(length) = normals.scratch {
         scene.draw_work_mut().scratch = length;
@@ -217,7 +199,6 @@ mod tests {
         assert_eq!(normals.faces.len(), 1);
         assert_eq!(normals.faces[0].normals, [up, up]);
         assert_eq!(normals.work_vector, up);
-        assert!(normals.plane_work.is_some());
     }
 
     #[test]
@@ -227,6 +208,6 @@ mod tests {
             face_normals(race, &crate::owners::Owners::the().scene.scratch, [7, 8, 9]).unwrap()
         });
         assert_eq!(normals.faces[0].normals, [[7, 8, 9]; 2]);
-        assert_eq!((normals.plane_work, normals.scratch), (None, None));
+        assert_eq!(normals.scratch, None);
     }
 }

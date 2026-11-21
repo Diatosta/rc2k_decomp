@@ -222,7 +222,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_8(
                     bits(three(a[1], 0)),
-                    race().shared.physics_tables.get(),
+                    &crate::test_support::race_places::numbers(),
                     three(a[2], 0),
                 );
             },

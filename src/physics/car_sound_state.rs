@@ -24,7 +24,7 @@ use crate::scene::rotate_point::rotate_point_by;
 
 /// The shares into the voices; the integer steps between are in Rust.
 fn shares(numbers: &Numbers, shared: &RaceShared, so: &crate::sound::store::SoundObjectCell) {
-    x87_1(shared);
+    x87_1(numbers, shared);
     if shared.car().all_wheels_off.get() != 0 {
         shared.car().sound_slip_share.set(0.0);
         shared.car().sound_level.set(0.0);
@@ -103,9 +103,9 @@ pub fn car_sound_state(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[sound_slip_share] = [slip_speed] / [sound_speed_scale]`
 /// `[sound_level] = 1`
-fn x87_1(shared: &RaceShared) {
+fn x87_1(numbers: &Numbers, shared: &RaceShared) {
     let t0 = shared.car().slip_speed.ld();
-    let t1 = shared.physics_tables.get().sound_speed_scale.ld();
+    let t1 = numbers.sound_speed_scale.ld();
     let t2 = t0 / t1;
     shared.car().sound_slip_share.st(t2);
     let t3 = X(1.0);

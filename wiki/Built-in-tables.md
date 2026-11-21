@@ -44,7 +44,7 @@ changed in place; where they must outlast the program they are saved in one of t
 | The 34 cars' descriptions for the menus (names, classes, which pictures) | `src/menu/cars_store.rs` |
 | The lists of cars each game mode offers | `src/menu/car_lists_store.rs` |
 | The 180 computer drivers and their names | `src/menu/drivers_store.rs` |
-| The physics' constants: ground kinds, handling figures, gearbox | `src/physics/tables_store.rs` |
+| The physics' constants: ground kinds, handling figures, gearbox | `src/physics/tables_store.rs`, `src/race/numbers_store.rs` |
 
 ### Menus and screens
 

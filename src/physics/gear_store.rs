@@ -3,11 +3,9 @@
 //! (`physics::acceleration_run`, `physics::acceleration_figures`). Names are readings unless taken from the
 //! game's own.
 
-use crate::memory::cells::ZeroCells;
 use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 
-#[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// The figures, held by the game's thread (`race::owner_physics::Physics::gear`).
 pub struct GearFigures {
     /// The engine figure above which the gearbox shifts up (`physics::auto_gearbox`,
     /// `physics::manual_gearbox`, `physics::pick_start_gear`).
@@ -44,9 +42,17 @@ impl GearFigures {
     /// The gear figures at the start: the test drive's speed limits and power factor.
     pub const fn new() -> Self {
         GearFigures {
+            shift_up_point: PlainFloat::new(0.0),
+            shift_down_point: PlainFloat::new(0.0),
+            shift_down_clutch_point: PlainFloat::new(0.0),
+            shift_ratio_figure: PlainFloat::new(0.0),
+            drive_torque_figure: PlainFloat::new(0.0),
+            figures: [const { PlainFloat::new(0.0) }; 4],
+            test_marks: [const { PlainDword::new(0) }; 3],
             test_limits: [PlainFloat::new(26.822428), PlainFloat::new(44.70405)],
+            test_speeds: [const { PlainFloat::new(0.0) }; 256],
+            test_gears: [const { PlainInt::new(0) }; 256],
             test_power_factor: PlainFloat::new(1.0),
-            ..ZeroCells::ZERO
         }
     }
 }

@@ -64,7 +64,7 @@ pub(super) fn contact_force(
     depth = hold_low(depth, x87_2(normal[1], numbers));
     // The push the turn would give.
     let lever = turn(&car.car_inverse_matrix, cross(point, normal));
-    let inertia = crate::math::cells::load::<3>(&physics_tables.inertia);
+    let inertia = numbers.inertia.map(|c| c.bits());
     let lever_inertia = turn(&car.crash_matrix, multiply(lever, inertia));
     let lever = cross(point, lever_inertia);
     let turn_push = neg_rounded(dot(lever, normal)).to_bits();
@@ -96,7 +96,7 @@ pub(super) fn contact_force(
     }
     // The sum into the record.
     let total = turn(&car.car_inverse_matrix, add(slide, normal_push));
-    x87_8(total, physics_tables, &record.force);
+    x87_8(total, numbers, &record.force);
     let turned_point = turn(&car.car_inverse_matrix, point);
     for k in 0..3 {
         record.point[k].set_bits(turned_point[k]);
@@ -177,9 +177,9 @@ fn x87_7(slide_limit_held: u32, slide: [u32; 3], scratch: u32) -> ([u32; 3], u32
 }
 
 /// One straight x87 run as plain Rust over `X`: the total over the step time.
-fn x87_8(total: [u32; 3], tables: &PhysicsTables, d: &[PlainFloat; 3]) {
+fn x87_8(total: [u32; 3], numbers: &Numbers, d: &[PlainFloat; 3]) {
     for k in 0..3 {
-        let t2 = ld(total[k]) / tables.step_time.ld();
+        let t2 = ld(total[k]) / numbers.step_time.ld();
         d[k].st(t2);
     }
 }

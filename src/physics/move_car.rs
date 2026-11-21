@@ -5,14 +5,13 @@
 
 use crate::math::x87::mul2_to_int;
 use crate::physics::car_store::Car;
-use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 
 /// The exact version, for `physics::car_physics_step` and `physics::apply_wheel_torques`: the last
 /// move.
-pub(super) fn move_car(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> u32 {
+pub(super) fn move_car(car: &Car, numbers: &Numbers) -> u32 {
     let k65536 = numbers.k65536.get();
-    let dt = tables.step_time.get();
+    let dt = numbers.step_time.get();
     let mut last = 0;
     // x, then z, then y.
     for k in [0, 2, 1] {

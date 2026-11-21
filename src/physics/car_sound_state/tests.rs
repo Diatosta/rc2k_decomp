@@ -12,7 +12,7 @@ fn blocks() -> Vec<Block> {
                 writes: &[(0x31A264, Out::F), (0x31A268, Out::F)],
             }],
             ulps: 0,
-            plain: |_| x87_1(&race().shared),
+            plain: |_| x87_1(&crate::test_support::race_places::numbers(), &race().shared),
         },
         Block {
             name: "car_sound_state line 64",

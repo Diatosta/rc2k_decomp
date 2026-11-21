@@ -7,12 +7,13 @@
 use crate::math::x87::sum_over;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::wheel_work::WheelWork;
+use crate::race::numbers_store::Numbers;
 use std::cell::RefCell;
 
 /// The exact x87 version, for `physics::car_physics_step`.
-pub fn sum_forces(tables: &PhysicsTables, work: &RefCell<WheelWork>) {
+pub fn sum_forces(numbers: &Numbers, tables: &PhysicsTables, work: &RefCell<WheelWork>) {
     let g = tables.gravity.get();
-    let dt = tables.step_time.get();
+    let dt = numbers.step_time.get();
     let up = |k: usize| tables.forces[k].force[1].get();
     let (drive_slip, axle_slips) = {
         let work = work.borrow();

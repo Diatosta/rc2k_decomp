@@ -5,15 +5,14 @@
 //! - `ViewerAndKinds`: the viewer's panel, the bytes after it, the kinds' tables. The effects read
 //!   the marks' settings as one record from `ViewerAndKinds.marks_settings.settings_text` (in the
 //!   panel) to its end (in the kinds' tables: `effects::init_marks`).
-//! - `LightsAndGear`: the light records, a dword, the gear figures. `scene::load_object` reads a
-//!   kind's record past the 34 (an unbounded kind) into the gear figures.
+//! - `LightsAndGear`: the light records. `scene::load_object` reads a kind's record past the 34
+//!   (an unbounded kind) on into the gear figures (`LightRecords::group_at`).
 //! - `ViewAndRecords`: the view variables and the 52 view records of 0x5C after them
 //!   (`ViewAndRecords.view_vars.view_records[0]`'s targets). The records are one array: with the
 //!   variables overrunning onto the first records' fields, the third chase view read half of
 //!   record 6 from the wrong memory.
 
-use crate::memory::session::{GameThread, PlainCells, PlainDword};
-use crate::physics::gear_store::GearFigures;
+use crate::memory::session::{GameThread, PlainCells};
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::kind_store::KindTables;
 use crate::race::light_records_store::LightRecords;
@@ -31,17 +30,11 @@ pub struct ViewerAndKinds {
     pub kind_tables: KindTables,
 }
 
-/// The light records, a dword and the gear figures. A drawing store (`session::DrawShared`): the
-/// light records and the dword between on plain cells; the gear figures, which the drawing reaches
-/// only by reading on past the records, on the physics' cells.
+/// The light records. A drawing store (`session::DrawShared`) on plain cells.
 #[derive(rc2k_derive::Cells)]
 pub struct LightsAndGear {
     /// `race::light_records_store`.
     pub light_records: LightRecords,
-    /// A dword between them, by game address.
-    pub between: PlainDword,
-    /// `physics::gear_store`.
-    pub gear: GearFigures,
 }
 
 /// The view variables and the 52 view records after them.
@@ -67,13 +60,11 @@ impl ViewerAndKinds {
     }
 }
 
-/// The light records and the gear figures as the game starts.
+/// The light records as the game starts.
 impl LightsAndGear {
     pub const fn new() -> Self {
         LightsAndGear {
             light_records: LightRecords::new(),
-            between: PlainDword::new(0),
-            gear: GearFigures::new(),
         }
     }
 }

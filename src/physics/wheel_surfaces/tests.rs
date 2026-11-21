@@ -477,7 +477,7 @@ fn blocks() -> Vec<Block> {
                 writes: &[(0x214268, Out::F)],
             }],
             ulps: 0,
-            plain: |_| x87_6(&race().shared),
+            plain: |_| x87_6(&crate::test_support::race_places::numbers(), &race().shared),
         },
         Block {
             name: "wheel_surfaces line 299",

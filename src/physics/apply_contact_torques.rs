@@ -7,6 +7,7 @@ use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::ForceRecord;
 use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use std::cell::RefCell;
 const COUNT: usize = 7;
 
@@ -23,6 +24,7 @@ fn apply_contact_torques_with<'a>(
 }
 
 pub(super) fn apply_contact_torques(
+    numbers: &Numbers,
     tables: &PhysicsTables,
     contact: &RefCell<ContactWork>,
     car: &Car,
@@ -30,6 +32,6 @@ pub(super) fn apply_contact_torques(
     apply_contact_torques_with(
         tables.contact_step.get(),
         &tables.contacts[..COUNT],
-        |records| apply_torques(tables, contact, car, records),
+        |records| apply_torques(numbers, contact, car, records),
     )
 }

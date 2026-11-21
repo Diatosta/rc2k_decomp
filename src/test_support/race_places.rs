@@ -38,18 +38,18 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x1C5E34, "owners.race.course.numbers", ".k10000"),
     (0x1C5E40, "owners.race.course.numbers", ".half"),
     (0x1C5E48, "owners.race.course.number_vars", ".grip_change"),
-    (0x1CB958, "owners.race.frame.lights_and_gear", ".gear.shift_up_point"),
-    (0x1CB95C, "owners.race.frame.lights_and_gear", ".gear.shift_down_point"),
-    (0x1CB960, "owners.race.frame.lights_and_gear", ".gear.shift_down_clutch_point"),
-    (0x1CB964, "owners.race.frame.lights_and_gear", ".gear.shift_ratio_figure"),
-    (0x1CB968, "owners.race.frame.lights_and_gear", ".gear.drive_torque_figure"),
-    (0x1CB96C, "owners.race.frame.lights_and_gear", ".gear.figures[0]"),
-    (0x1CB970, "owners.race.frame.lights_and_gear", ".gear.figures[1]"),
-    (0x1CB974, "owners.race.frame.lights_and_gear", ".gear.figures[2]"),
-    (0x1CB978, "owners.race.frame.lights_and_gear", ".gear.figures[3]"),
-    (0x1CB97C, "owners.race.frame.lights_and_gear", ".gear.test_marks[0]"),
-    (0x1CB980, "owners.race.frame.lights_and_gear", ".gear.test_marks[1]"),
-    (0x1CB984, "owners.race.frame.lights_and_gear", ".gear.test_marks[2]"),
+    (0x1CB958, "owners.race.physics.gear", ".shift_up_point"),
+    (0x1CB95C, "owners.race.physics.gear", ".shift_down_point"),
+    (0x1CB960, "owners.race.physics.gear", ".shift_down_clutch_point"),
+    (0x1CB964, "owners.race.physics.gear", ".shift_ratio_figure"),
+    (0x1CB968, "owners.race.physics.gear", ".drive_torque_figure"),
+    (0x1CB96C, "owners.race.physics.gear", ".figures[0]"),
+    (0x1CB970, "owners.race.physics.gear", ".figures[1]"),
+    (0x1CB974, "owners.race.physics.gear", ".figures[2]"),
+    (0x1CB978, "owners.race.physics.gear", ".figures[3]"),
+    (0x1CB97C, "owners.race.physics.gear", ".test_marks[0]"),
+    (0x1CB980, "owners.race.physics.gear", ".test_marks[1]"),
+    (0x1CB984, "owners.race.physics.gear", ".test_marks[2]"),
     (0x1CCD80, "owners.race.course.course", ".flat_depth"),
     (0x205260, "owners.race.shared.tables", ".view_share"),
     (0x20628C, "owners.race.frame.view_and_records", ".view_vars.camera_bias_scale"),
@@ -93,41 +93,41 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x208BB4, "owners.race.physics.camera", ".view_b_offset[1]"),
     (0x208BB8, "owners.race.physics.camera", ".view_b_offset[2]"),
     (0x208BF0, "owners.race.physics.camera", ".view_blend_aux_2"),
-    (0x21388C, "owners.race.shared.physics_tables", ".step_time"),
-    (0x213E78, "owners.race.shared.physics_tables", ".grip_slide_scale"),
-    (0x213E7C, "owners.race.shared.physics_tables", ".grip_slip_limit"),
-    (0x213E80, "owners.race.shared.physics_tables", ".grip_force_limit"),
-    (0x213E88, "owners.race.shared.physics_tables", ".spec_scale_a4"),
-    (0x213EB8, "owners.race.shared.physics_tables", ".rev_limit_scale"),
-    (0x213EC4, "owners.race.shared.physics_tables", ".drive_speed_scale"),
-    (0x213ECC, "owners.race.shared.physics_tables", ".side_force_scale"),
-    (0x213ED0, "owners.race.shared.physics_tables", ".slip_blend"),
-    (0x213ED4, "owners.race.shared.physics_tables", ".slip_share"),
-    (0x213ED8, "owners.race.shared.physics_tables", ".wheel_speed_margin"),
-    (0x213EDC, "owners.race.shared.physics_tables", ".wheel_speed_gap"),
-    (0x213EE0, "owners.race.shared.physics_tables", ".sound_speed_scale"),
+    (0x21388C, "owners.race.course.numbers", ".step_time"),
+    (0x213E78, "owners.race.course.numbers", ".grip_slide_scale"),
+    (0x213E7C, "owners.race.course.numbers", ".grip_slip_limit"),
+    (0x213E80, "owners.race.course.numbers", ".grip_force_limit"),
+    (0x213E88, "owners.race.course.numbers", ".spec_scale_a4"),
+    (0x213EB8, "owners.race.course.numbers", ".rev_limit_scale"),
+    (0x213EC4, "owners.race.course.numbers", ".drive_speed_scale"),
+    (0x213ECC, "owners.race.course.numbers", ".side_force_scale"),
+    (0x213ED0, "owners.race.course.numbers", ".slip_blend"),
+    (0x213ED4, "owners.race.course.numbers", ".slip_share"),
+    (0x213ED8, "owners.race.course.numbers", ".wheel_speed_margin"),
+    (0x213EDC, "owners.race.course.numbers", ".wheel_speed_gap"),
+    (0x213EE0, "owners.race.course.numbers", ".sound_speed_scale"),
     (0x213F04, "owners.race.shared.physics_tables", ".spec_default_bc0[0]"),
     (0x213F08, "owners.race.shared.physics_tables", ".spec_default_bc0[1]"),
     (0x213F0C, "owners.race.shared.physics_tables", ".spec_default_bc0[2]"),
-    (0x213F10, "owners.race.shared.physics_tables", ".spec_scale_1b8"),
-    (0x213F34, "owners.race.shared.physics_tables", ".grip_ramp"),
-    (0x213F38, "owners.race.shared.physics_tables", ".grip_ramp_share"),
-    (0x213F5C, "owners.race.shared.physics_tables", ".surface_blend[0]"),
-    (0x213F60, "owners.race.shared.physics_tables", ".surface_blend[1]"),
-    (0x213F64, "owners.race.shared.physics_tables", ".surface_blend[2]"),
-    (0x213F68, "owners.race.shared.physics_tables", ".surface_blend[3]"),
-    (0x213FAC, "owners.race.shared.physics_tables", ".inertia[1]"),
+    (0x213F10, "owners.race.course.numbers", ".spec_scale_1b8"),
+    (0x213F34, "owners.race.course.numbers", ".grip_ramp"),
+    (0x213F38, "owners.race.course.numbers", ".grip_ramp_share"),
+    (0x213F5C, "owners.race.course.numbers", ".surface_blend[0]"),
+    (0x213F60, "owners.race.course.numbers", ".surface_blend[1]"),
+    (0x213F64, "owners.race.course.numbers", ".surface_blend[2]"),
+    (0x213F68, "owners.race.course.numbers", ".surface_blend[3]"),
+    (0x213FAC, "owners.race.course.numbers", ".inertia[1]"),
     (0x213FB8, "owners.race.shared.physics_tables", ".rev_limits[0]"),
     (0x213FBC, "owners.race.shared.physics_tables", ".rev_limits[1]"),
     (0x213FC0, "owners.race.shared.physics_tables", ".camera_drop"),
     (0x213FC8, "owners.race.shared.physics_tables", ".gravity"),
-    (0x213FCC, "owners.race.shared.physics_tables", ".air_drag"),
-    (0x213FD0, "owners.race.shared.physics_tables", ".rolling_drag"),
-    (0x213FD4, "owners.race.shared.physics_tables", ".free_rev_add"),
-    (0x213FD8, "owners.race.shared.physics_tables", ".free_rev_scale"),
-    (0x213FE4, "owners.race.shared.physics_tables", ".rev_top_scale"),
-    (0x213FEC, "owners.race.shared.physics_tables", ".wheel_load_scale"),
-    (0x214098, "owners.race.shared.physics_tables", ".camera_frame_scale"),
+    (0x213FCC, "owners.race.course.numbers", ".air_drag"),
+    (0x213FD0, "owners.race.course.numbers", ".rolling_drag"),
+    (0x213FD4, "owners.race.course.numbers", ".free_rev_add"),
+    (0x213FD8, "owners.race.course.numbers", ".free_rev_scale"),
+    (0x213FE4, "owners.race.course.numbers", ".rev_top_scale"),
+    (0x213FEC, "owners.race.course.numbers", ".wheel_load_scale"),
+    (0x214098, "owners.race.course.numbers", ".camera_frame_scale"),
     (0x2140B0, "owners.race.shared.physics_tables", ".drive_shares[0]"),
     (0x2140B4, "owners.race.shared.physics_tables", ".drive_shares[1]"),
     (0x2140B8, "owners.race.shared.physics_tables", ".drive_shares[2]"),
@@ -664,6 +664,31 @@ fn wheel_word<'a>(work: &'a mut WheelWork, path: &str) -> Option<&'a mut u32> {
     array.get_mut(index.parse::<usize>().ok()?)
 }
 
+/// The gearbox figures (plain cells, not walked): their registry name.
+const GEAR: &str = "owners.race.physics.gear";
+
+/// The gearbox figures' cell at `path`.
+fn gear_cell<'a>(
+    gear: &'a crate::physics::gear_store::GearFigures,
+    path: &str,
+) -> Option<&'a dyn crate::memory::session::Cell32> {
+    Some(match path {
+        ".shift_up_point" => &gear.shift_up_point,
+        ".shift_down_point" => &gear.shift_down_point,
+        ".shift_down_clutch_point" => &gear.shift_down_clutch_point,
+        ".shift_ratio_figure" => &gear.shift_ratio_figure,
+        ".drive_torque_figure" => &gear.drive_torque_figure,
+        ".figures[0]" => &gear.figures[0],
+        ".figures[1]" => &gear.figures[1],
+        ".figures[2]" => &gear.figures[2],
+        ".figures[3]" => &gear.figures[3],
+        ".test_marks[0]" => &gear.test_marks[0],
+        ".test_marks[1]" => &gear.test_marks[1],
+        ".test_marks[2]" => &gear.test_marks[2],
+        _ => return None,
+    })
+}
+
 /// The registry name the game's float constants are read under.
 const NUMBERS: &str = "owners.race.course.numbers";
 
@@ -705,6 +730,34 @@ fn number_field<'a>(
         ".k256" => &mut n.k256,
         ".k10000" => &mut n.k10000,
         ".half" => &mut n.half,
+        ".inertia[1]" => &mut n.inertia[1],
+        ".surface_blend[0]" => &mut n.surface_blend[0],
+        ".surface_blend[1]" => &mut n.surface_blend[1],
+        ".surface_blend[2]" => &mut n.surface_blend[2],
+        ".surface_blend[3]" => &mut n.surface_blend[3],
+        ".grip_slide_scale" => &mut n.grip_slide_scale,
+        ".grip_slip_limit" => &mut n.grip_slip_limit,
+        ".grip_force_limit" => &mut n.grip_force_limit,
+        ".spec_scale_a4" => &mut n.spec_scale_a4,
+        ".rev_limit_scale" => &mut n.rev_limit_scale,
+        ".drive_speed_scale" => &mut n.drive_speed_scale,
+        ".side_force_scale" => &mut n.side_force_scale,
+        ".slip_blend" => &mut n.slip_blend,
+        ".slip_share" => &mut n.slip_share,
+        ".wheel_speed_margin" => &mut n.wheel_speed_margin,
+        ".wheel_speed_gap" => &mut n.wheel_speed_gap,
+        ".sound_speed_scale" => &mut n.sound_speed_scale,
+        ".spec_scale_1b8" => &mut n.spec_scale_1b8,
+        ".grip_ramp" => &mut n.grip_ramp,
+        ".grip_ramp_share" => &mut n.grip_ramp_share,
+        ".air_drag" => &mut n.air_drag,
+        ".rolling_drag" => &mut n.rolling_drag,
+        ".free_rev_add" => &mut n.free_rev_add,
+        ".free_rev_scale" => &mut n.free_rev_scale,
+        ".rev_top_scale" => &mut n.rev_top_scale,
+        ".wheel_load_scale" => &mut n.wheel_load_scale,
+        ".camera_frame_scale" => &mut n.camera_frame_scale,
+        ".step_time" => &mut n.step_time,
         _ => return None,
     })
 }
@@ -747,6 +800,10 @@ fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
     if name == WHEEL_WORK {
         let mut work = super::own::race().physics.wheel_work().borrow().clone();
         return Some(wheel_word(&mut work, path)?.to_le_bytes().to_vec());
+    }
+    if name == GEAR {
+        let cell = gear_cell(super::own::race().physics.gear(), path)?;
+        return Some(cell.bits().to_le_bytes().to_vec());
     }
     if name == FINISH {
         let (get, _) = finish_field(path)?;
@@ -842,6 +899,16 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
             return false;
         };
         *slot = u32::from_le_bytes(word);
+        return true;
+    }
+    if name == GEAR {
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        let Some(cell) = gear_cell(super::own::race().physics.gear(), path) else {
+            return false;
+        };
+        cell.set_bits(u32::from_le_bytes(word));
         return true;
     }
     if name == FINISH {

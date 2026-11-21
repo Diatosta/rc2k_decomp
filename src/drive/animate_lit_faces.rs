@@ -62,18 +62,18 @@ fn store(course: &Course, f: u32, b: &FaceBytes) -> Result<(), BadInput> {
 }
 
 /// The lit face list's entry `k` (0x100 of them; the count is checked below).
-fn list(physics: &Physics, k: u32) -> &crate::memory::session::PlainDword {
-    &physics.lit_faces.get().faces[k as usize]
+fn listed(physics: &Physics, k: u32) -> u32 {
+    physics.lit_faces.borrow().faces[k as usize]
 }
 
 fn refusal(race: &Race) -> Option<&'static str> {
-    let count: u32 = race.physics.lit_faces.get().count.get();
+    let count: u32 = race.physics.lit_faces.borrow().count;
     if count > MOST {
         return Some("more than 0x100 lit faces (past g_litFaces)");
     }
     let faces: u32 = race.course.course.borrow().course_face_count;
     for k in 0..count {
-        if list(&race.physics, k).get() >= faces {
+        if listed(&race.physics, k) >= faces {
             return Some("a lit face past g_courseFaceCount");
         }
     }
@@ -84,7 +84,7 @@ fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Ref
     if let Some(why) = refusal(race) {
         return Err(BadInput(why).into());
     }
-    if race.physics.lit_faces.get().count.get() == 0 {
+    if race.physics.lit_faces.borrow().count == 0 {
         return Ok(());
     }
 
@@ -94,7 +94,7 @@ fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Ref
 fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let mut k = 0;
     loop {
-        let f = list(&race.physics, k).get();
+        let f = listed(&race.physics, k);
         let mut bytes = load(&race.course, f)?;
         let leave = 'face: {
             let object = byte(&race.course, f, 1)?;
@@ -210,12 +210,14 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
         };
         store(&race.course, f, &bytes)?;
         if leave {
-            let last = race.physics.lit_faces.get().count.get().wrapping_sub(1);
-            list(&race.physics, k).set(list(&race.physics, last).get());
-            race.physics.lit_faces.get().count.set(last);
+            let last = race.physics.lit_faces.borrow().count.wrapping_sub(1);
+            let moved_in = listed(&race.physics, last);
+            let mut lit = race.physics.lit_faces.borrow_mut();
+            lit.faces[k as usize] = moved_in;
+            lit.count = last;
         }
         k += 1;
-        if k >= race.physics.lit_faces.get().count.get() {
+        if k >= race.physics.lit_faces.borrow().count {
             return Ok(());
         }
     }

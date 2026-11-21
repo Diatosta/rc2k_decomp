@@ -1,6 +1,7 @@
 //! The physics figures nothing writes, as constants: the values the car physics reads. Floats
-//! are loaded as the x87 loads a float from memory (`x87_float::ld`). The figures the recorded
-//! vectors vary stay cells in `physics::tables_store::PhysicsTables` (initialised from these).
+//! are loaded as the x87 loads a float from memory (`x87_float::ld`). The fixed float constants the
+//! x87 steps read are `race::numbers_store::Numbers` fields (initialised from these); the figures
+//! the car file or a patch writes stay cells in `physics::tables_store::PhysicsTables`.
 
 /// 5.0: a reset is allowed below this speed (`drive::reset_request`).
 pub const RESET_SPEED_LIMIT: f32 = 5.0;

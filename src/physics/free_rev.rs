@@ -72,7 +72,7 @@ fn x87_1(numbers: &Numbers, physics_tables: &PhysicsTables, car: &Car, gear: &Ge
     let t10 = t8 / t9;
     physics_tables.drive_torque.st(t10);
     let t11 = physics_tables.drive_torque.ld();
-    let t12 = physics_tables.step_time.ld();
+    let t12 = numbers.step_time.ld();
     let t13 = t11 * t12;
     let t14 = physics_tables.gear_ratios[1].ld();
     let t15 = t13 / t14;
@@ -80,9 +80,9 @@ fn x87_1(numbers: &Numbers, physics_tables: &PhysicsTables, car: &Car, gear: &Ge
     let t17 = t15 + t16;
     car.engine_speed.st(t17);
     let t18 = car.engine_speed.ld();
-    let t19 = physics_tables.free_rev_scale.ld();
+    let t19 = numbers.free_rev_scale.ld();
     let t20 = t18 * t19;
-    let t21 = physics_tables.free_rev_add.ld();
+    let t21 = numbers.free_rev_add.ld();
     let t22 = t20 + t21;
     crate::math::x87_float::st(t22)
 }

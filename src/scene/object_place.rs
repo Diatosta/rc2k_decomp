@@ -3,9 +3,8 @@
 //! out and the reflections kept, one in each view's slot (`race::view_scratch`, `ctx.view.object`)
 //! and one for the front end.
 //!
-//! They stand for two stores shared by every view in turn: the object work (`ObjectWork`) and the
-//! ground work (`GroundWork`). Their fields stay there (the stores keep their layout); the ones
-//! listed under each field's name below are now these.
+//! They stand for the work every view used in turn: the object work (`ObjectWork`) and the
+//! drawing's own variables. The fields listed under each field's name below are now these.
 //!
 //! Left in `ObjectWork` because a drawing reads them before the same view has written them:
 //! `object_place` and `only_object` (the first shown object of a view reads what the last described
@@ -59,22 +58,21 @@ pub struct ObjectPlaceValues {
     pub first_face: u32,
     /// `ObjectWork.object_face_count`.
     pub face_count: u32,
-    /// `GroundWork.normal_work`: `face_normal`'s work: three points and six
-    /// differences.
+    /// A face normal's work: three points and six differences.
     pub normal_work: [u32; 15],
-    /// `GroundWork.object_fading`: the object fades.
+    /// The object fades.
     pub fading: u32,
-    /// `GroundWork.object_see_through`.
+    /// Faces of the object are see-through.
     pub see_through: u32,
-    /// `GroundWork.object_fade`: the fade value (0x100 = none), twice.
+    /// the fade value (0x100 = none), twice.
     pub fade: [u32; 2],
-    /// `GroundWork.reflection_normal_number`: the normal's number asked for.
+    /// the normal's number asked for.
     pub reflection_normal_number: u32,
-    /// `GroundWork.reflection_point_number`: the point's number asked for.
+    /// the point's number asked for.
     pub reflection_point_number: u32,
-    /// `GroundWork.reflection_coordinates`: the two coordinates worked out.
+    /// the two coordinates worked out.
     pub reflection_coordinates: [u32; 2],
-    /// `GroundWork.kept_reflections`: four caches of 1024 by point number: the
+    /// Four caches of 1024 by point number: the
     /// normals (cleared to -999 by `race::start_kept_reflections`), the points, u and v.
     pub kept_reflections: [u32; KEPT_REFLECTIONS],
     /// `LightWork.drawing_object`: 1 while an object is drawn
@@ -85,7 +83,7 @@ pub struct ObjectPlaceValues {
     pub move_by: u32,
     /// `RaceVars.move_fraction`: how far the moving object has gone (a float).
     pub move_fraction: u32,
-    /// `GroundWork.object_texture_set`: added to the
+    /// Added to the
     /// object's face texture numbers (`scene::draw_scene_object`, `scene::draw_object_faces`).
     pub texture_set: u32,
     /// `ObjectWork.view_cleared`: 0 at each race view's scene's start
@@ -218,28 +216,17 @@ mod tests {
     fn begins_as_the_stores_did() {
         let o = ObjectPlaceValues::new();
         let work = crate::scene::object_store::ObjectWork::new();
-        let ground = crate::physics::ground_store::GroundWork::new();
-        fn bits<D: crate::memory::session::DwordLike>(c: &[D]) -> Vec<u32> {
-            c.iter().map(D::get).collect()
-        }
         assert_eq!(o.position.to_vec(), work.object_position.to_vec());
         assert_eq!(o.face_depth, 0);
         assert_eq!(o.car_switches, 0);
         assert_eq!(o.turned_place, [0, 0, 0]);
         assert_eq!(o.first_face, 0);
         assert_eq!(o.face_count, 0);
-        assert_eq!(o.normal_work.to_vec(), bits(&ground.normal_work));
-        assert_eq!(o.fading, ground.object_fading.get());
-        assert_eq!(o.see_through, ground.object_see_through.get());
-        assert_eq!(o.fade.to_vec(), bits(&ground.object_fade));
-        assert_eq!(o.kept_reflections.to_vec(), bits(&ground.kept_reflections));
-        assert_eq!(
-            o.reflection_normal_number,
-            ground.reflection_normal_number.get()
-        );
-        assert_eq!(
-            o.reflection_coordinates.to_vec(),
-            bits(&ground.reflection_coordinates)
-        );
+        assert!(o.normal_work.iter().all(|&v| v == 0));
+        assert_eq!((o.fading, o.see_through), (0, 0));
+        assert_eq!(o.fade, [0, 0]);
+        assert!(o.kept_reflections.iter().all(|&v| v == 0));
+        assert_eq!(o.reflection_normal_number, 0);
+        assert_eq!(o.reflection_coordinates, [0, 0]);
     }
 }

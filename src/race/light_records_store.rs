@@ -528,9 +528,9 @@ impl LightRecords {
                 .map(crate::memory::session::PlainDword::get)
                 .ok_or(crate::errors::BadInput(PAST)),
             Some(0) => {
-                // The offset counts from the start of the record's groups; the one dword between
-                // the records and the gear figures is skipped, and the figures' samples start
-                // 0x38 bytes before the groups.
+                // The offset counts from the start of the record's groups; the dword that
+                // followed the records is skipped, and the figures' samples start 0x38 bytes
+                // before the groups.
                 let sample = (0x58 + offset - 4)
                     .checked_sub(0x38)
                     .ok_or(crate::errors::BadInput(PAST))?;
@@ -566,24 +566,11 @@ mod tests {
     #[test]
     fn a_record_past_the_last_reads_on_into_the_gear_figures_and_no_further() {
         // The longest read: a group number of the kind past the 34 (`scene::load_object`).
-        let gear = &crate::test_support::own::race()
-            .frame
-            .lights_and_gear
-            .get()
-            .gear;
+        let gear = crate::test_support::own::race().physics.gear();
         assert!(LIGHT_RECORDS.group_at(gear, 34, 0x3C).is_ok());
         assert_eq!(
             LIGHT_RECORDS.group_at(gear, 34, 0).ok(),
-            Some(
-                crate::test_support::own::race()
-                    .frame
-                    .lights_and_gear
-                    .get()
-                    .gear
-                    .test_speeds[7]
-                    .get()
-                    .to_bits()
-            )
+            Some(gear.test_speeds[7].get().to_bits())
         );
         assert!(LIGHT_RECORDS.group_at(gear, 35, 0).is_err());
         assert!(LIGHT_RECORDS.group_at(gear, 1, 0x1000).is_err());

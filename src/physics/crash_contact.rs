@@ -89,7 +89,7 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     let depth = c.contact.borrow().lowest_depth;
     if !contacts::touches(
         depth,
-        c.tables.crash_depth.get(),
+        crate::physics::figures::CRASH_DEPTH,
         c.car.all_wheels_off.get() != 0,
     ) {
         { sound_cue_e5(c.sound.frame_work, c.work, c.sound.owner) }?;
@@ -155,7 +155,7 @@ fn x87_1(up_dot: &PlainFloat, tables: &PhysicsTables, numbers: &Numbers) -> u32 
     let t6 = t4 + t5;
     let t7 = tables.gravity.ld();
     let t8 = t6 * t7;
-    let t9 = tables.step_time.ld();
+    let t9 = numbers.step_time.ld();
     let t10 = t8 * t9;
     let t11 = tables.wheel_loads[4].ld();
     let t12 = t10 * t11;

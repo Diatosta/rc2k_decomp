@@ -15,7 +15,7 @@ rounded, because replays only play back correctly if every step gives the same r
 No owner of its own; its state is the `physics` group of the race's owner (`Race::physics`,
 `src/race/owner_physics.rs`). A car's record is `Car` in `src/physics/car_store.rs`; the
 surface and force tables are `PhysicsTables` in `src/physics/tables_store.rs`; other parts are
-the `*_store.rs` files (camera, contacts, gears, ground).
+the `*_store.rs` files (camera, contacts, gears, lit faces, ground search).
 
 ## Main entry points
 

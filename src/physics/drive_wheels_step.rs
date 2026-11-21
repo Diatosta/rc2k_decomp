@@ -147,7 +147,7 @@ fn steps(
         if car.brake.get() != 0 {
             grips = &physics_tables.wheel_grips_b;
         }
-        drive_forces_from_grips(car, physics_tables, work, grips);
+        drive_forces_from_grips(car, &course.numbers, physics_tables, work, grips);
         scratch.set(car.throttle.get().wrapping_add(0x100));
         throttle_drive_limit(car, physics_tables, &course.numbers, &scratch);
         hold_high(&physics_tables.drive_limits[1], &scratch);
@@ -165,7 +165,7 @@ fn steps(
             push_both_drive_speeds(car, physics_tables, &course.numbers);
         }
         if kind == 0 {
-            push_drive_speed_a(car, physics_tables);
+            push_drive_speed_a(car, &course.numbers, physics_tables);
         }
         revs(car, physics_tables, &course.numbers)?;
         // The wheels' drag on each drive speed.
@@ -238,9 +238,9 @@ fn steps(
         let drive_slip = work.borrow().drive_slip[0];
         let status = abs_compare(drive_slip, &physics_tables.slip_limit);
         if status_above(status) {
-            slip_side_share(physics_tables, work);
+            slip_side_share(&course.numbers, physics_tables, work);
         }
-        spin_push_b(physics_tables);
+        spin_push_b(&course.numbers, physics_tables);
         physics_tables.forces[10].force[0].set(0.0);
         physics_tables.forces[10].force[2].set(0.0);
         // The rolling drag against the motion.
@@ -257,9 +257,9 @@ fn steps(
         physics_tables.forces[20].force[0].set(0.0);
     }
     // The wheels' slip figures.
-    slip_figure_a(car, physics_tables, scene);
+    slip_figure_a(car, &course.numbers, scene);
     hold_work_float(scene, |work| &mut work.work_float_a);
-    slip_figure_b(car, physics_tables, scene);
+    slip_figure_b(car, &course.numbers, scene);
     hold_work_float(scene, |work| &mut work.work_float_b);
     slip_lengths(car, scene);
     Ok(())
@@ -355,7 +355,7 @@ fn apply_slip_to_drive(
     let t6 = t0 - t5;
     d.st(t6);
     let t7 = ld(s);
-    let t8 = tables.step_time.ld();
+    let t8 = numbers.step_time.ld();
     let t9 = t7 / t8;
     let t10 = numbers.half.ld();
     let t11 = t9 * t10;
@@ -388,6 +388,7 @@ fn signed_share(tables: &PhysicsTables, numbers: &Numbers) {
 /// A long formula, covered by the tests.
 fn drive_forces_from_grips(
     car: &Car,
+    numbers: &Numbers,
     tables: &PhysicsTables,
     work: &RefCell<WheelWork>,
     grips: &[PlainFloat; 5],
@@ -400,7 +401,7 @@ fn drive_forces_from_grips(
     let t5 = t3 * t4;
     let t6 = t2 + t5;
     let t7 = -t6;
-    let t8 = tables.step_time.ld();
+    let t8 = numbers.step_time.ld();
     let t9 = t7 * t8;
     let t10 = tables.weight.ld();
     let t11 = t9 * t10;
@@ -415,7 +416,7 @@ fn drive_forces_from_grips(
     let t19 = t17 * t18;
     let t20 = t16 + t19;
     let t21 = -t20;
-    let t22 = tables.step_time.ld();
+    let t22 = numbers.step_time.ld();
     let t23 = t21 * t22;
     let t24 = tables.weight.ld();
     let t25 = t23 * t24;
@@ -432,7 +433,7 @@ fn drive_forces_from_grips(
     let t35 = tables.forces[0].force[1].ld();
     let t36 = t34 * t35;
     let t37 = -t36;
-    let t38 = tables.step_time.ld();
+    let t38 = numbers.step_time.ld();
     let t39 = t37 * t38;
     let t40 = tables.weight.ld();
     let t41 = t39 * t40;
@@ -458,7 +459,7 @@ fn throttle_drive_limit(
     let t9 = t7 * t8;
     tables.drive_limits[1].st(t9);
     let t10 = tables.drive_limits[0].ld();
-    let t11 = tables.drive_speed_scale.ld();
+    let t11 = numbers.drive_speed_scale.ld();
     let t12 = t10 * t11;
     scratch.st(t12);
 }
@@ -471,7 +472,7 @@ fn push_both_drive_speeds(car: &Car, tables: &PhysicsTables, numbers: &Numbers) 
     let t0 = tables.drive_torque.ld();
     let t1 = numbers.half.ld();
     let t2 = t0 * t1;
-    let t3 = tables.step_time.ld();
+    let t3 = numbers.step_time.ld();
     let t4 = t2 * t3;
     let t5 = tables.spec_wheel.ld();
     let t6 = t4 * t5;
@@ -481,7 +482,7 @@ fn push_both_drive_speeds(car: &Car, tables: &PhysicsTables, numbers: &Numbers) 
     let t9 = tables.drive_torque.ld();
     let t10 = numbers.half.ld();
     let t11 = t9 * t10;
-    let t12 = tables.step_time.ld();
+    let t12 = numbers.step_time.ld();
     let t13 = t11 * t12;
     let t14 = tables.spec_wheel.ld();
     let t15 = t13 * t14;
@@ -493,9 +494,9 @@ fn push_both_drive_speeds(car: &Car, tables: &PhysicsTables, numbers: &Numbers) 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[drive_speed_a] = (([drive_torque] * [step_time]) * [spec_wheel]) + [drive_speed_a]`
-fn push_drive_speed_a(car: &Car, tables: &PhysicsTables) {
+fn push_drive_speed_a(car: &Car, numbers: &Numbers, tables: &PhysicsTables) {
     let t0 = tables.drive_torque.ld();
-    let t1 = tables.step_time.ld();
+    let t1 = numbers.step_time.ld();
     let t2 = t0 * t1;
     let t3 = tables.spec_wheel.ld();
     let t4 = t2 * t3;
@@ -517,7 +518,7 @@ fn brake_step_for_a(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t6 = t4 * t5;
     let t7 = numbers.k256.ld();
     let t8 = t6 / t7;
-    let t9 = tables.step_time.ld();
+    let t9 = numbers.step_time.ld();
     let t10 = t8 * t9;
     let t11 = car.brake_efficiency[0].ld();
     let t12 = t10 * t11;
@@ -537,7 +538,7 @@ fn brake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t4 = t2 * t3;
     let t5 = numbers.k256.ld();
     let t6 = t4 / t5;
-    let t7 = tables.step_time.ld();
+    let t7 = numbers.step_time.ld();
     let t8 = t6 * t7;
     let t9 = car.brake_efficiency[1].ld();
     let t10 = t8 * t9;
@@ -556,7 +557,7 @@ fn handbrake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t2 = t0 * t1;
     let t3 = numbers.k256.ld();
     let t4 = t2 / t3;
-    let t5 = tables.step_time.ld();
+    let t5 = numbers.step_time.ld();
     let t6 = t4 * t5;
     let t7 = tables.spec_wheel.ld();
     let t8 = t6 * t7;
@@ -621,7 +622,7 @@ fn side_slip_forces(
     let t1 = car.local_velocity[0].ld();
     let t2 = t0 - t1;
     work.borrow_mut().drive_slip[0] = st(t2);
-    let t3 = tables.step_time.ld();
+    let t3 = numbers.step_time.ld();
     let t4 = t2 / t3;
     let t5 = numbers.quarter.ld();
     let t6 = t4 * t5;
@@ -632,13 +633,13 @@ fn side_slip_forces(
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn slip_side_share(tables: &PhysicsTables, work: &RefCell<WheelWork>) {
+fn slip_side_share(numbers: &Numbers, tables: &PhysicsTables, work: &RefCell<WheelWork>) {
     let mut work = work.borrow_mut();
     let t0 = ld(work.drive_slip[0]);
     let t1 = t0.abs();
     let t2 = tables.slip_limit.ld();
     let t3 = t1 - t2;
-    let t4 = tables.slip_blend.ld();
+    let t4 = numbers.slip_blend.ld();
     let t5 = t3 * t4;
     let t6 = tables.slip_limit.ld();
     let t7 = t5 + t6;
@@ -653,9 +654,9 @@ fn slip_side_share(tables: &PhysicsTables, work: &RefCell<WheelWork>) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn spin_push_b(tables: &PhysicsTables) {
+fn spin_push_b(numbers: &Numbers, tables: &PhysicsTables) {
     let t0 = tables.handling[4].ld();
-    let t1 = tables.slip_share.ld();
+    let t1 = numbers.slip_share.ld();
     let t2 = t0 * t1;
     tables.wheel_spin_push[1].st(t2);
 }
@@ -728,13 +729,13 @@ fn share_wheel_forces(tables: &PhysicsTables, numbers: &Numbers) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn slip_figure_a(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
+fn slip_figure_a(car: &Car, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = car.drive_speed_a.ld();
     let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
     car.drive_slip_speed.st(t2);
     let t3 = t2.abs();
-    let t4 = tables.wheel_speed_gap.ld();
+    let t4 = numbers.wheel_speed_gap.ld();
     let t5 = t3 - t4;
     scene.draw_work_mut().work_float_a = stf(t5);
 }
@@ -742,10 +743,10 @@ fn slip_figure_a(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner:
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[work_float_b] = |[local_velocity]| - [wheel_speed_margin]`
-fn slip_figure_b(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
+fn slip_figure_b(car: &Car, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = car.local_velocity[0].ld();
     let t1 = t0.abs();
-    let t2 = tables.wheel_speed_margin.ld();
+    let t2 = numbers.wheel_speed_margin.ld();
     let t3 = t1 - t2;
     scene.draw_work_mut().work_float_b = stf(t3);
 }

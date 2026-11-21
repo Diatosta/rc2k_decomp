@@ -98,6 +98,57 @@ pub struct Numbers {
     pub half: ConstFloat,
     /// 98304.0.
     pub k98304: ConstFloat,
+    /// 0.85, 0.75, 2.5: the car's turning inertia by axis (`physics::apply_torque`).
+    pub inertia: [ConstFloat; 3],
+    /// 1.0, 0.9, 0.85, 1.0 (`physics::wheel_surfaces`).
+    pub surface_blend: [ConstFloat; 4],
+    /// 7.5 (`physics::drive_grip_forces`).
+    pub grip_slide_scale: ConstFloat,
+    /// 5.0 (`physics::drive_grip_forces`).
+    pub grip_slip_limit: ConstFloat,
+    /// 10.0, held both ways (`physics::drive_grip_forces`).
+    pub grip_force_limit: ConstFloat,
+    /// 0.9 (`physics::load_car_specs`).
+    pub spec_scale_a4: ConstFloat,
+    /// 8500.0 (`physics::load_car_specs`).
+    pub rev_limit_scale: ConstFloat,
+    /// 2.5 (`physics::drive_wheels_step`).
+    pub drive_speed_scale: ConstFloat,
+    /// 0.05 (`physics::drive_grip_forces`).
+    pub side_force_scale: ConstFloat,
+    /// 0.5 (`physics::drive_wheels_step`).
+    pub slip_blend: ConstFloat,
+    /// 0.5 (`physics::drive_wheels_step`).
+    pub slip_share: ConstFloat,
+    /// 1.5 (`physics::drive_wheels_step`).
+    pub wheel_speed_margin: ConstFloat,
+    /// 0.1 (`physics::drive_wheels_step`).
+    pub wheel_speed_gap: ConstFloat,
+    /// 1.0 (`physics::car_sound_state`).
+    pub sound_speed_scale: ConstFloat,
+    /// 0.85 (`physics::load_car_specs`).
+    pub spec_scale_1b8: ConstFloat,
+    /// 2.0 (`physics::drive_grip_forces`).
+    pub grip_ramp: ConstFloat,
+    /// 0.25 (`physics::drive_grip_forces`).
+    pub grip_ramp_share: ConstFloat,
+    /// 5.0 (`physics::air_drag`, the test drive).
+    pub air_drag: ConstFloat,
+    /// 0.75 (the test drive).
+    pub rolling_drag: ConstFloat,
+    /// 5.0 (`physics::free_rev`).
+    pub free_rev_add: ConstFloat,
+    /// 0.005 (`physics::free_rev`).
+    pub free_rev_scale: ConstFloat,
+    /// 1.2 (`physics::load_car_specs`).
+    pub rev_top_scale: ConstFloat,
+    /// 0.0025 (`physics::wheel_surfaces`).
+    pub wheel_load_scale: ConstFloat,
+    /// 0.05 (`physics::camera_frame`).
+    pub camera_frame_scale: ConstFloat,
+    /// 0.01: the physics step's length in seconds (`figures::STEP_TIME`, the same value; the
+    /// contact routines still read the cell).
+    pub step_time: ConstFloat,
 }
 
 /// The three variables among the game's numbers, read by the drawing parts and written on the
@@ -180,6 +231,40 @@ impl Numbers {
             k10000: ConstFloat::new(10000.0),
             half: ConstFloat::new(0.5),
             k98304: ConstFloat::new(98304.0),
+            inertia: [
+                ConstFloat::new(0.85),
+                ConstFloat::new(0.75),
+                ConstFloat::new(2.5),
+            ],
+            surface_blend: [
+                ConstFloat::new(1.0),
+                ConstFloat::new(0.9),
+                ConstFloat::new(0.85),
+                ConstFloat::new(1.0),
+            ],
+            grip_slide_scale: ConstFloat::new(crate::physics::figures::GRIP_SLIDE_SCALE),
+            grip_slip_limit: ConstFloat::new(crate::physics::figures::GRIP_SLIP_LIMIT),
+            grip_force_limit: ConstFloat::new(crate::physics::figures::GRIP_FORCE_LIMIT),
+            spec_scale_a4: ConstFloat::new(crate::physics::figures::SPEC_SCALE_A4),
+            rev_limit_scale: ConstFloat::new(crate::physics::figures::REV_LIMIT_SCALE),
+            drive_speed_scale: ConstFloat::new(crate::physics::figures::DRIVE_SPEED_SCALE),
+            side_force_scale: ConstFloat::new(crate::physics::figures::SIDE_FORCE_SCALE),
+            slip_blend: ConstFloat::new(crate::physics::figures::SLIP_BLEND),
+            slip_share: ConstFloat::new(crate::physics::figures::SLIP_SHARE),
+            wheel_speed_margin: ConstFloat::new(crate::physics::figures::WHEEL_SPEED_MARGIN),
+            wheel_speed_gap: ConstFloat::new(crate::physics::figures::WHEEL_SPEED_GAP),
+            sound_speed_scale: ConstFloat::new(crate::physics::figures::SOUND_SPEED_SCALE),
+            spec_scale_1b8: ConstFloat::new(crate::physics::figures::SPEC_SCALE_1B8),
+            grip_ramp: ConstFloat::new(crate::physics::figures::GRIP_RAMP),
+            grip_ramp_share: ConstFloat::new(crate::physics::figures::GRIP_RAMP_SHARE),
+            air_drag: ConstFloat::new(crate::physics::figures::AIR_DRAG),
+            rolling_drag: ConstFloat::new(crate::physics::figures::ROLLING_DRAG),
+            free_rev_add: ConstFloat::new(crate::physics::figures::FREE_REV_ADD),
+            free_rev_scale: ConstFloat::new(crate::physics::figures::FREE_REV_SCALE),
+            rev_top_scale: ConstFloat::new(crate::physics::figures::REV_TOP_SCALE),
+            wheel_load_scale: ConstFloat::new(crate::physics::figures::WHEEL_LOAD_SCALE),
+            camera_frame_scale: ConstFloat::new(crate::physics::figures::CAMERA_FRAME_SCALE),
+            step_time: ConstFloat::new(crate::physics::figures::STEP_TIME),
         }
     }
 }

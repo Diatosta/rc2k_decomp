@@ -111,10 +111,9 @@ pub fn drive_grip_forces(
     car.grip_forces[3].set(0.0);
     if kind == 0 {
         ground_speed_into_scratch(car, &scratch);
-        hold_high_to(&scratch, tables.grip_ramp.get());
+        hold_high_to(&scratch, numbers.grip_ramp.get());
         lean_force(
             car,
-            tables,
             numbers,
             engine_tables,
             steer_index(car) as usize,
@@ -152,14 +151,14 @@ pub fn drive_grip_forces(
     if kind == 1 {
         abs_speed_into_work(car, scene);
         let work_float = crate::memory::session::PlainFloat::new(scene.draw_work().work_float_a);
-        hold_high_to(&work_float, tables.grip_slip_limit.get());
+        hold_high_to(&work_float, numbers.grip_slip_limit.get());
         scene.draw_work_mut().work_float_a = work_float.get();
-        yaw_share_from_limit(tables, scene);
+        yaw_share_from_limit(numbers, scene);
         scratch.set(x87::loaded(&car.drive_slip_speed).to_bits());
         // Held to ±`GRIP_FORCE_LIMIT`.
-        hold_high_to(&scratch, tables.grip_force_limit.get());
-        hold_low_to(&scratch, negated(tables.grip_force_limit.get()));
-        divide_into_scratch(&scratch, tables.grip_force_limit.get(), &scratch);
+        hold_high_to(&scratch, numbers.grip_force_limit.get());
+        hold_low_to(&scratch, negated(numbers.grip_force_limit.get()));
+        divide_into_scratch(&scratch, numbers.grip_force_limit.get(), &scratch);
         yaw_force(
             car,
             tables,
@@ -265,16 +264,15 @@ fn ground_speed_into_scratch(car: &Car, scratch: &crate::memory::session::PlainD
 /// A long formula, covered by the tests.
 fn lean_force(
     car: &Car,
-    tables: &PhysicsTables,
     numbers: &Numbers,
     engine_tables: &EngineTables,
     e: usize,
     scratch: &crate::memory::session::PlainDword,
 ) {
-    let t0 = tables.grip_ramp.ld();
+    let t0 = numbers.grip_ramp.ld();
     let t1 = scratch.ld();
     let t2 = t0 - t1;
-    let t3 = tables.grip_ramp.ld();
+    let t3 = numbers.grip_ramp.ld();
     let t4 = t2 / t3;
     let t5 = engine_tables.sines[e].ld();
     let t6 = t4 * t5;
@@ -284,7 +282,7 @@ fn lean_force(
     let t10 = t8 / t9;
     let t11 = car.drive_speed_a.ld();
     let t12 = t10 * t11;
-    let t13 = tables.grip_ramp_share.ld();
+    let t13 = numbers.grip_ramp_share.ld();
     let t14 = t12 * t13;
     let t15 = int(car.throttle.get() as i32);
     let t16 = t14 * t15;
@@ -329,7 +327,7 @@ fn engine_braking_force(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t3 = car.side_speed_held.ld();
     let t4 = t2 * t3;
     let t5 = -t4;
-    let t6 = tables.side_force_scale.ld();
+    let t6 = numbers.side_force_scale.ld();
     let t7 = t5 * t6;
     let t8 = tables.side_grip_scale.ld();
     let t9 = t7 * t8;
@@ -346,11 +344,11 @@ fn abs_speed_into_work(car: &Car, scene: &crate::scene::owner::Scene) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[work_float_a] = ([grip_slip_limit] - [work_float_a]) / [grip_slip_limit]`
-fn yaw_share_from_limit(tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
-    let t0 = tables.grip_slip_limit.ld();
+fn yaw_share_from_limit(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
+    let t0 = numbers.grip_slip_limit.ld();
     let t1 = ld(scene.draw_work().work_float_a);
     let t2 = t0 - t1;
-    let t3 = tables.grip_slip_limit.ld();
+    let t3 = numbers.grip_slip_limit.ld();
     let t4 = t2 / t3;
     scene.draw_work_mut().work_float_a = stf(t4);
 }
@@ -378,7 +376,7 @@ fn yaw_force(
     let t8 = t6 * t7;
     let t9 = ld(scene.draw_work().work_float_a);
     let t10 = t8 * t9;
-    let t11 = tables.grip_slide_scale.ld();
+    let t11 = numbers.grip_slide_scale.ld();
     let t12 = t10 * t11;
     car.grip_forces[2].st(t12);
 }
@@ -414,11 +412,11 @@ fn ease_yaw_twist(
     let t6 = -t5;
     scratch.st(t6);
     let t7 = scratch.ld();
-    let t8 = tables.step_time.ld();
+    let t8 = numbers.step_time.ld();
     let t9 = t7 / t8;
     let t10 = numbers.half.ld();
     let t11 = t9 * t10;
-    let t12 = tables.inertia[1].ld();
+    let t12 = numbers.inertia[1].ld();
     let t13 = t11 / t12;
     tables.forces[19].force[0].st(t13);
     let t14 = -t13;

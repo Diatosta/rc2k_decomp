@@ -144,7 +144,7 @@ pub struct Lent<'s> {
         crate::memory::session::PhaseRead<'s, crate::physics::tables_store::PhysicsTables>,
     // The frame's matrices and the physics' contact work.
     matrices: crate::memory::session::PlainRead<crate::race::matrices_store::SceneMatrices>,
-    lit_faces: crate::memory::session::PhaseRead<'s, crate::physics::lit_faces_store::LitFaces>,
+    lit_faces: crate::memory::session::PlainRead<crate::physics::lit_faces_store::LitFaces>,
     // The race's buffers the parts read.
     buffers: crate::memory::session::PhaseRead<'s, crate::race::buffers_store::BufferReads>,
 }
@@ -207,7 +207,7 @@ impl<'s> Lent<'s> {
             physics_tables: PhaseRead::lend(&race.shared.physics_tables, scope),
             // The frame's matrices and the physics' contact work.
             matrices: crate::memory::session::PlainRead::lend(&race.frame.matrices, scope),
-            lit_faces: PhaseRead::lend(&race.physics.lit_faces, scope),
+            lit_faces: crate::memory::session::PlainRead::lend(&race.physics.lit_faces, scope),
             // The race's buffers the parts read.
             buffers: PhaseRead::lend(&race.shared.buffers.reads, scope),
         }
@@ -257,7 +257,7 @@ impl<'s> Lent<'s> {
             physics_tables: &self.physics_tables,
             // The frame's matrices and the physics' contact work.
             matrices: (&self.matrices).into(),
-            lit_faces: &self.lit_faces,
+            lit_faces: (&self.lit_faces).into(),
             // The race's buffers the parts read.
             buffers: &self.buffers,
         }
@@ -359,7 +359,7 @@ pub struct DrawReads<'a> {
     pub matrices: crate::race::matrices_store::SceneMatricesRef<'a>,
     /// The physics' lit faces (`race::owner_physics::Physics::lit_faces`): the lamps are gathered
     /// from them.
-    pub lit_faces: &'a crate::physics::lit_faces_store::LitFaces,
+    pub lit_faces: crate::physics::lit_faces_store::LitFacesRef<'a>,
     // The race's buffers the parts read.
     /// The polygon tables (the textures' records, the objects' materials), the faces, the
     /// checkpoints and the engine tables (`race::buffers_store::Buffers::reads`).
@@ -443,7 +443,7 @@ impl<'a> DrawReads<'a> {
             physics_tables: race.shared.physics_tables.get(),
             // The frame's matrices and the physics' contact work.
             matrices: (&race.frame.matrices).into(),
-            lit_faces: race.physics.lit_faces.get(),
+            lit_faces: (&race.physics.lit_faces).into(),
             // The race's buffers the parts read.
             buffers: race.shared.buffers.reads.get(),
         }

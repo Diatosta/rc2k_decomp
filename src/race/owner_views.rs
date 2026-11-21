@@ -54,7 +54,7 @@ impl Race {
 
     /// The gear figures.
     pub fn gear(&self) -> &GearFigures {
-        &self.frame.lights_and_gear.get().gear
+        self.physics.gear()
     }
 
     /// The replay's work area.

@@ -1,7 +1,7 @@
 //! `scene::draw_scene_object`: chooses the set of textures for the current object and draws it the
 //! way the scene's mode asks for.
 //!
-//! An object's number of 0x100 or more is fatal error 0x80600A01. `GroundWork.object_texture_set`
+//! An object's number of 0x100 or more is fatal error 0x80600A01. `ObjectPlace::texture_set`
 //! (added to every face's texture number) = 0; then 0x108 for, outside a race, an object of kind
 //! 0x23A, and in a race for objects 0x50 .. 0xEF (the cars, 0x14 objects each) whose car's block
 //! has the value 0x21 in its car-kind field. Nothing more for an object without faces (the slots'

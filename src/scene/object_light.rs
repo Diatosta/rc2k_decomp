@@ -73,7 +73,7 @@ pub struct ObjectLightValues {
     pub light_level: u32,
     /// The light direction's two turns (`ObjectWork.light_turns[0]`, `ObjectWork.light_turns[1]`).
     pub light_turns: [u32; 2],
-    /// `GroundWork.drawn_car_light`: the car whose object is being lit, or -1
+    /// The car whose object is being lit, or -1
     /// (`scene::set_object_light`); `scene::add_car_lights` skips its lights.
     pub drawn_car_light: u32,
 }

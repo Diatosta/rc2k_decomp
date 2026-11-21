@@ -19,8 +19,8 @@ how a value is used. Where a file's comment says a meaning "is a reading", take 
 The simulation keeps each car in a **car block** (`Car`, `src/physics/car_store.rs`; the blocks
 are in `src/race/blocks_store.rs`). A physics step does not run on a block. The step copies
 the current car's block into one working copy, the **work car**, runs on that, and copies it
-back (`drive::load_car`, `drive::store_car`). The physics' own constants and scratch values
-are in `PhysicsTables` (`src/physics/tables_store.rs`).
+back (`drive::load_car`, `drive::store_car`). The physics' fixed constants are in `Numbers` (`src/race/numbers_store.rs`); its scratch
+values are in `PhysicsTables` (`src/physics/tables_store.rs`).
 
 The first part of a car block, about 170 fields, is everything needed to carry the car on from
 one moment to the next. That part is what a replay stores once a second
@@ -182,7 +182,7 @@ plays, so a replay still plays back correctly after the player has changed them.
 | --- | --- |
 | The order of a step | `src/physics/car_physics_step.rs` |
 | A car's fields | `src/physics/car_store.rs` |
-| The model's constants | `src/physics/tables_store.rs`, `src/race/car_specs_store.rs` |
+| The model's constants | `src/race/numbers_store.rs`, `src/physics/tables_store.rs`, `src/race/car_specs_store.rs` |
 | Grip and sliding | `wheel_surfaces.rs`, `drive_grip_forces.rs` |
 | Engine and gears | `engine_torque.rs`, `drive_force.rs`, `gearbox_step.rs` |
 | Suspension | `wheel_springs.rs`, `set_handling.rs` |

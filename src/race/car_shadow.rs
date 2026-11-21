@@ -1075,7 +1075,7 @@ mod vector_tests {
     #[test]
     fn inside_edge_is_the_originals() {
         let kept_course = *crate::test_support::own::race().course.course.borrow();
-        let kept = Snapshot::of(&["owners.race.physics.ground", "owners.race.frame.frame_work"]);
+        let kept = Snapshot::of(&["owners.race.frame.frame_work"]);
         let mut vectors = Vectors::open("race.car_shadow.inside_edge", Kind::Exact, 3);
         let mut r = Rng(24);
         let mut points = [0u32; 12];
@@ -1130,11 +1130,7 @@ mod vector_tests {
 
     #[test]
     fn crossing_block_is_the_originals() {
-        let kept = Snapshot::of(&[
-            "owners.scene.draw_work",
-            "owners.race.frame.frame_work",
-            "owners.race.physics.ground",
-        ]);
+        let kept = Snapshot::of(&["owners.scene.draw_work", "owners.race.frame.frame_work"]);
         let mut vectors = Vectors::open("race.car_shadow.crossing_block", Kind::Exact, 13);
         let mut r = Rng(25);
         at_each_control_word(|| {

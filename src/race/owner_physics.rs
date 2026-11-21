@@ -1,14 +1,14 @@
 //! The race owner's physics group (`race::owner::Race::physics`): the physics work: camera,
-//! contact, gear, ground, pace, split tables, damage, car specs, checkpoints. The gear figures and
-//! the checkpoints stay views over their group statics (`groups_store::LightsAndGear`, `BUFFERS`).
+//! contact, gear, pace, split tables, damage, car specs, checkpoints. The checkpoints stay a view
+//! over their group static (`BUFFERS`).
 
-use crate::memory::session::{DrawShared, GameThread};
+use crate::memory::session::GameThread;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::contact_store::{ContactWork, ProbeLists};
+use crate::physics::gear_store::GearFigures;
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_query::GroundSearch;
-use crate::physics::ground_store::GroundWork;
-use crate::physics::lit_faces_store::LitFaces;
+use crate::physics::lit_faces_store::{LitFaces, LitFacesStore};
 use crate::physics::pace_store::PaceNotes;
 use crate::physics::split_tables_store::SplitTables;
 use crate::physics::store::DamageModel;
@@ -21,7 +21,7 @@ use std::cell::{Ref, RefCell, RefMut};
 /// touches them; the drawing's searches have their own copies).
 struct PhysicsMain {
     pub camera: RefCell<CameraWork>,
-    pub ground: GroundWork,
+    pub gear: GearFigures,
     pub ground_search: RefCell<GroundSearch>,
     pub probes: RefCell<ProbeLists>,
     pub contact: RefCell<ContactWork>,
@@ -39,7 +39,7 @@ impl PhysicsMain {
     pub const fn new() -> Self {
         PhysicsMain {
             camera: RefCell::new(CameraWork::new()),
-            ground: GroundWork::new(),
+            gear: GearFigures::new(),
             ground_search: RefCell::new(GroundSearch::new()),
             probes: RefCell::new(ProbeLists::new()),
             contact: RefCell::new(ContactWork::new()),
@@ -56,14 +56,14 @@ impl PhysicsMain {
 /// The race's physics state.
 pub struct Physics {
     /// The lit faces, lent to the drawing parts (`scene::workers::DrawReads`) for the lamps.
-    pub lit_faces: DrawShared<LitFaces>,
+    pub lit_faces: LitFacesStore,
     main: GameThread<PhysicsMain>,
 }
 
 impl Physics {
     pub const fn new() -> Self {
         Physics {
-            lit_faces: DrawShared::new(LitFaces::new()),
+            lit_faces: LitFacesStore::new(LitFaces::new()),
             main: GameThread::new(PhysicsMain::new()),
         }
     }
@@ -83,8 +83,9 @@ impl Physics {
         &self.main.get().camera
     }
 
-    pub fn ground(&self) -> &GroundWork {
-        &self.main.get().ground
+    /// The gearbox figures and the test drive's results.
+    pub fn gear(&self) -> &GearFigures {
+        &self.main.get().gear
     }
 
     /// The ground search's record: the place asked for, the face found, its shares and height. The

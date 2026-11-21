@@ -8,18 +8,18 @@ use crate::physics::apply_torque::apply_torque;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::ForceRecord;
-use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 use std::cell::RefCell;
 
 /// `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the work car.
 pub(super) fn apply_torques(
-    tables: &PhysicsTables,
+    numbers: &Numbers,
     contact: &RefCell<ContactWork>,
     car: &Car,
     records: &[ForceRecord],
 ) -> Result<(), Refused> {
     for rec in records {
-        apply_torque(tables, contact, rec, car);
+        apply_torque(numbers, contact, rec, car);
     }
     Ok(())
 }

@@ -1,6 +1,7 @@
-//! The physics' tables and work variables: the ground kinds' records, the
-//! handling constants, the car's working figures, the force and contact records, the gearbox and
-//! the spec's figures (the race clock and the recorded input words are in `physics::run_store`). Most names are readings from the code's uses.
+//! The physics' tables and work variables: the ground kinds' records, the handling figures, the
+//! car's working figures, the force and contact records and the spec's figures (the fixed
+//! constants are `race::numbers_store::Numbers`; the race clock and the recorded input words are
+//! in `physics::run_store`). Most names are readings from the code's uses.
 
 use crate::memory::cells::ZeroCells;
 use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
@@ -53,57 +54,8 @@ pub struct ForceRecord {
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PhysicsTables {
-    /// 7.5 (`physics::drive_grip_forces`).
-    pub grip_slide_scale: PlainFloat,
-    /// 5.0 (`physics::drive_grip_forces`).
-    pub grip_slip_limit: PlainFloat,
-    /// 10.0, held both ways (`physics::drive_grip_forces`).
-    pub grip_force_limit: PlainFloat,
-    /// 0.9 (`physics::load_car_specs`).
-    pub spec_scale_a4: PlainFloat,
-    /// 8500.0 (`physics::load_car_specs`).
-    pub rev_limit_scale: PlainFloat,
-    /// 2.5 (`physics::drive_wheels_step`).
-    pub drive_speed_scale: PlainFloat,
-    /// 0.05 (`physics::drive_grip_forces`).
-    pub side_force_scale: PlainFloat,
-    /// 0.5 (`physics::drive_wheels_step`).
-    pub slip_blend: PlainFloat,
-    /// 0.5 (`physics::drive_wheels_step`).
-    pub slip_share: PlainFloat,
-    /// 1.5 (`physics::drive_wheels_step`).
-    pub wheel_speed_margin: PlainFloat,
-    /// 0.1 (`physics::drive_wheels_step`).
-    pub wheel_speed_gap: PlainFloat,
-    /// 1.0 (`physics::car_sound_state`).
-    pub sound_speed_scale: PlainFloat,
-    /// 0.85 (`physics::load_car_specs`).
-    pub spec_scale_1b8: PlainFloat,
-    /// 2.0 (`physics::drive_grip_forces`).
-    pub grip_ramp: PlainFloat,
-    /// 0.25 (`physics::drive_grip_forces`).
-    pub grip_ramp_share: PlainFloat,
     /// 0.7 (`physics::update_camera`, the car's shadow).
     pub camera_drop: PlainFloat,
-    /// 5.0 (`physics::air_drag`, the test drive).
-    pub air_drag: PlainFloat,
-    /// 0.75 (the test drive).
-    pub rolling_drag: PlainFloat,
-    /// 5.0 (`physics::free_rev`).
-    pub free_rev_add: PlainFloat,
-    /// 0.005 (`physics::free_rev`).
-    pub free_rev_scale: PlainFloat,
-    /// 1.2 (`physics::load_car_specs`).
-    pub rev_top_scale: PlainFloat,
-    /// 0.0025 (`physics::wheel_surfaces`).
-    pub wheel_load_scale: PlainFloat,
-    /// 0.05 (`physics::camera_frame`).
-    pub camera_frame_scale: PlainFloat,
-    /// 0.01: the physics step's length in seconds (`figures::STEP_TIME`, the same value; the
-    /// contact routines still read the cell).
-    pub step_time: PlainFloat,
-    /// 0x1000 (`physics::crash_contact`; `figures::CRASH_DEPTH`, the same value).
-    pub crash_depth: PlainDword,
     /// 10: the contact steps' limit (`figures::CONTACT_STEPS`, the same value).
     pub contact_steps: PlainDword,
     /// The ground kinds' records (`physics::wheel_surfaces`; twelve patched by
@@ -113,10 +65,6 @@ pub struct PhysicsTables {
     pub ground_spin_limit: PlainFloat,
     /// 0x76C, 0x640, 0x384, scaled into `spec_ints` (`physics::load_car_specs`).
     pub spec_default_bc0: [PlainDword; 3],
-    /// 1.0, 0.9, 0.85, 1.0 (`physics::wheel_surfaces`).
-    pub surface_blend: [PlainFloat; 4],
-    /// 0.85, 0.75, 2.5: the car's turning inertia by axis (`physics::apply_torque`).
-    pub inertia: [PlainFloat; 3],
     /// 3000.0 then one more, by spec (`physics::load_car_specs`, by drive kind 0 .. 2: kind 2 reads
     /// the next field, `camera_drop`: a slip kept as is).
     pub rev_limits: [PlainFloat; 2],
@@ -220,8 +168,6 @@ pub struct PhysicsTables {
     pub forces: [ForceRecord; 23],
     /// The contacts' force records (`physics::clear_contacts`).
     pub contacts: [ForceRecord; 7],
-    /// The push `physics::apply_force` takes.
-    pub push_record: [PlainDword; 4],
     /// (`physics::drive_grip_forces`).
     pub grip_scale: PlainFloat,
     /// (`physics::drive_grip_forces`).
@@ -269,18 +215,6 @@ pub struct PhysicsTables {
 #[rustfmt::skip]
 const SPEC_DEFAULT_BC0: [u32; 3] = [
     0x76C, 0x640, 0x384,
-];
-
-/// The starting values of `surface_blend`.
-#[rustfmt::skip]
-const SURFACE_BLEND: [f32; 4] = [
-    1.0, 0.9, 0.85, 1.0,
-];
-
-/// The starting values of `inertia`.
-#[rustfmt::skip]
-const INERTIA: [f32; 3] = [
-    0.85, 0.75, 2.5,
 ];
 
 /// The starting values of `rev_limits`.
@@ -348,37 +282,11 @@ impl PhysicsTables {
     /// The piece, with the image's first values.
     pub const fn new() -> Self {
         Self {
-            grip_slide_scale: PlainFloat::new(figures::GRIP_SLIDE_SCALE),
-            grip_slip_limit: PlainFloat::new(figures::GRIP_SLIP_LIMIT),
-            grip_force_limit: PlainFloat::new(figures::GRIP_FORCE_LIMIT),
-            spec_scale_a4: PlainFloat::new(figures::SPEC_SCALE_A4),
-            rev_limit_scale: PlainFloat::new(figures::REV_LIMIT_SCALE),
-            drive_speed_scale: PlainFloat::new(figures::DRIVE_SPEED_SCALE),
-            side_force_scale: PlainFloat::new(figures::SIDE_FORCE_SCALE),
-            slip_blend: PlainFloat::new(figures::SLIP_BLEND),
-            slip_share: PlainFloat::new(figures::SLIP_SHARE),
-            wheel_speed_margin: PlainFloat::new(figures::WHEEL_SPEED_MARGIN),
-            wheel_speed_gap: PlainFloat::new(figures::WHEEL_SPEED_GAP),
-            sound_speed_scale: PlainFloat::new(figures::SOUND_SPEED_SCALE),
-            spec_scale_1b8: PlainFloat::new(figures::SPEC_SCALE_1B8),
-            grip_ramp: PlainFloat::new(figures::GRIP_RAMP),
-            grip_ramp_share: PlainFloat::new(figures::GRIP_RAMP_SHARE),
             camera_drop: PlainFloat::new(figures::CAMERA_DROP),
-            air_drag: PlainFloat::new(figures::AIR_DRAG),
-            rolling_drag: PlainFloat::new(figures::ROLLING_DRAG),
-            free_rev_add: PlainFloat::new(figures::FREE_REV_ADD),
-            free_rev_scale: PlainFloat::new(figures::FREE_REV_SCALE),
-            rev_top_scale: PlainFloat::new(figures::REV_TOP_SCALE),
-            wheel_load_scale: PlainFloat::new(figures::WHEEL_LOAD_SCALE),
-            camera_frame_scale: PlainFloat::new(figures::CAMERA_FRAME_SCALE),
-            step_time: PlainFloat::new(figures::STEP_TIME),
-            crash_depth: PlainDword::new(figures::CRASH_DEPTH),
             contact_steps: PlainDword::new(figures::CONTACT_STEPS),
             surfaces: Surface::rows(&SURFACE_ROWS),
             ground_spin_limit: PlainFloat::new(2.0),
             spec_default_bc0: PlainDword::array(SPEC_DEFAULT_BC0),
-            surface_blend: PlainFloat::array(SURFACE_BLEND),
-            inertia: PlainFloat::array(INERTIA),
             rev_limits: PlainFloat::array(REV_LIMITS),
             gravity: PlainFloat::new(9.8),
             ..ZeroCells::ZERO
@@ -417,22 +325,8 @@ mod tests {
         for byte in &bytes {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
         }
-        assert_eq!(bytes.len(), 2376);
-        assert_eq!(hash, 9_046_352_354_328_914_456);
-    }
-
-    #[test]
-    fn the_cells_kept_for_the_contact_routines_hold_the_figures_constants() {
-        let tables = super::PhysicsTables::new();
-        assert_eq!(tables.step_time.get(), crate::physics::figures::STEP_TIME);
-        assert_eq!(
-            tables.crash_depth.get(),
-            crate::physics::figures::CRASH_DEPTH
-        );
-        assert_eq!(
-            tables.contact_steps.get(),
-            crate::physics::figures::CONTACT_STEPS
-        );
+        assert_eq!(bytes.len(), 2236);
+        assert_eq!(hash, 4_048_912_719_414_518_593);
     }
 
     #[test]

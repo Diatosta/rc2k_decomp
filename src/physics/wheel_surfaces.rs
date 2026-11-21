@@ -189,7 +189,7 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             }
         }
     }
-    x87_6(c.shared);
+    x87_6(c.numbers, c.shared);
     for point in 0..5usize {
         let hard = |s: u32| matches!(s, 1 | 2 | 3 | 0xC);
         let on =
@@ -389,7 +389,7 @@ fn x87_5_blends(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_6(shared: &RaceShared) {
+fn x87_6(numbers: &Numbers, shared: &RaceShared) {
     let t0 = shared.physics_tables.get().wheel_loads[0].ld();
     let t1 = shared.physics_tables.get().wheel_loads[1].ld();
     let t2 = t0 + t1;
@@ -397,7 +397,7 @@ fn x87_6(shared: &RaceShared) {
     let t4 = t2 + t3;
     let t5 = shared.physics_tables.get().wheel_loads[3].ld();
     let t6 = t4 + t5;
-    let t7 = shared.physics_tables.get().wheel_load_scale.ld();
+    let t7 = numbers.wheel_load_scale.ld();
     let t8 = t6 * t7;
     shared.physics_tables.get().wheel_load.st(t8);
 }
@@ -408,20 +408,20 @@ fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
     let t1 = c.tables.handling[6].ld();
     let t2 = t0 * t1;
     c.car.ground_bump_scale.st(t2);
-    let t3 = c.tables.surface_blend[0].ld();
-    let t4 = c.tables.surface_blend[2].ld();
+    let t3 = c.numbers.surface_blend[0].ld();
+    let t4 = c.numbers.surface_blend[2].ld();
     let t5 = t3 - t4;
     let t6 = c.car.surface_blend.ld();
     let t7 = t5 * t6;
-    let t8 = c.tables.surface_blend[2].ld();
+    let t8 = c.numbers.surface_blend[2].ld();
     let t9 = t7 + t8;
     scene.draw_work_mut().surface_point[0] = st(t9);
-    let t10 = c.tables.surface_blend[1].ld();
-    let t11 = c.tables.surface_blend[3].ld();
+    let t10 = c.numbers.surface_blend[1].ld();
+    let t11 = c.numbers.surface_blend[3].ld();
     let t12 = t10 - t11;
     let t13 = c.car.surface_blend.ld();
     let t14 = t12 * t13;
-    let t15 = c.tables.surface_blend[3].ld();
+    let t15 = c.numbers.surface_blend[3].ld();
     let t16 = t14 + t15;
     scene.draw_work_mut().surface_point[1] = st(t16);
     let t17 = ld(scene.draw_work().surface_point[1]);

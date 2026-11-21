@@ -182,6 +182,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 drive_forces_from_grips(
                     race().shared.car(),
+                    &crate::test_support::race_places::numbers(),
                     race().shared.physics_tables.get(),
                     race().physics.wheel_work(),
                     if a[1] == 0 {
@@ -230,6 +231,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 drive_forces_from_grips(
                     race().shared.car(),
+                    &crate::test_support::race_places::numbers(),
                     race().shared.physics_tables.get(),
                     race().physics.wheel_work(),
                     if a[1] == 0 {
@@ -307,7 +309,11 @@ fn blocks() -> Vec<Block> {
             }],
             ulps: 0,
             plain: |_| {
-                push_drive_speed_a(race().shared.car(), race().shared.physics_tables.get());
+                push_drive_speed_a(
+                    race().shared.car(),
+                    &crate::test_support::race_places::numbers(),
+                    race().shared.physics_tables.get(),
+                );
             },
         },
         Block {
@@ -468,6 +474,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 slip_side_share(
+                    &crate::test_support::race_places::numbers(),
                     race().shared.physics_tables.get(),
                     race().physics.wheel_work(),
                 );
@@ -480,7 +487,12 @@ fn blocks() -> Vec<Block> {
                 writes: &[(0x2141D8, Out::F)],
             }],
             ulps: 0,
-            plain: |_| spin_push_b(race().shared.physics_tables.get()),
+            plain: |_| {
+                spin_push_b(
+                    &crate::test_support::race_places::numbers(),
+                    race().shared.physics_tables.get(),
+                );
+            },
         },
         Block {
             name: "drive_wheels_step line 372",
@@ -563,7 +575,7 @@ fn blocks() -> Vec<Block> {
             plain: |_| {
                 slip_figure_a(
                     race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &crate::test_support::race_places::numbers(),
                     crate::test_support::own::scene(),
                 );
             },
@@ -578,7 +590,7 @@ fn blocks() -> Vec<Block> {
             plain: |_| {
                 slip_figure_b(
                     race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &crate::test_support::race_places::numbers(),
                     crate::test_support::own::scene(),
                 );
             },

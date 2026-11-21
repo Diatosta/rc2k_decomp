@@ -136,16 +136,16 @@ fn x87_1(tables: &PhysicsTables, figures: &GearFigures, numbers: &Numbers, r: &P
 fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> crate::math::x87_float::X {
     let t0 = car.drive_speed_a.ld();
     let t1 = t0 * t0;
-    let t2 = tables.air_drag.ld();
+    let t2 = numbers.air_drag.ld();
     let t3 = t1 * t2;
     let t4 = numbers.k10000.ld();
     let t5 = t3 / t4;
-    let t6 = tables.rolling_drag.ld();
+    let t6 = numbers.rolling_drag.ld();
     let t7 = t5 + t6;
     let t8 = -t7;
     let t9 = tables.drive_torque.ld();
     let t10 = t8 + t9;
-    let t11 = tables.step_time.ld();
+    let t11 = numbers.step_time.ld();
     let t12 = t10 * t11;
     let t13 = car.drive_speed_a.ld();
     let t14 = t12 + t13;

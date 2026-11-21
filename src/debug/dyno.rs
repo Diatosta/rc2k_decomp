@@ -166,8 +166,8 @@ fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
     let clutch = figure(&race.gear().shift_down_clutch_point);
     let down = figure(&race.gear().shift_down_point);
     let (air, rolling) = (
-        shared.physics_tables.get().air_drag.get(),
-        shared.physics_tables.get().rolling_drag.get(),
+        course.numbers.air_drag.get(),
+        course.numbers.rolling_drag.get(),
     );
     let k = course.numbers.k10000.get();
     Some(kept(shared, scene, || {

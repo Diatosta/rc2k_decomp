@@ -36,7 +36,7 @@ fn store_course_header(course: &Course, header: &[u32; HEADER_WORDS]) {
 
 /// Sets the lit faces' count to 0.
 fn clear_lit_faces(physics: &Physics) {
-    physics.lit_faces.get().count.set(0u32);
+    physics.lit_faces.borrow_mut().count = 0;
 }
 
 /// Gives each face of the lit kind (0xFF) its lit normals and light marks 0
