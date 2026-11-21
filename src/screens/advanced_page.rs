@@ -35,9 +35,8 @@ fn row_name(row: usize) -> u32 {
             "screensnapshot" => first(4),
             "nonlinearsteering" => first(5),
             "noautoneutral" => first(6),
-            "nomusic" => first(8),
-            "noforcefeedback" => first(9),
             "usesavegamekeys" => id::SAVE_CONTROLS,
+            "sensiblesaving" => id::SAVE_EVERY_STAGE,
             _ => id::BLANK,
         },
     }

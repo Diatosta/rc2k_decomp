@@ -113,6 +113,8 @@ pub mod id {
     pub const SMOOTH_FRAMES: u32 = FIRST + 0xB9;
     /// The advanced page's row for the controls a loaded saved game brings.
     pub const SAVE_CONTROLS: u32 = FIRST + 0xBB;
+    /// The advanced page's row for saving after every stage.
+    pub const SAVE_EVERY_STAGE: u32 = FIRST + 0x1B9;
     /// The advanced page's button to its second part, and the second part's to the first.
     pub const ADVANCED_MORE: u32 = FIRST + 0xBC;
     pub const ADVANCED_FIRST: u32 = FIRST + 0xBD;
@@ -337,6 +339,7 @@ pub const KEYS: &[(&str, u32)] = &[
     ("graphics.frames_a_second", id::FRAMES_A_SECOND),
     ("advanced.smooth_frames", id::SMOOTH_FRAMES),
     ("advanced.saved_game_controls", id::SAVE_CONTROLS),
+    ("advanced.save_every_stage", id::SAVE_EVERY_STAGE),
     ("advanced.more", id::ADVANCED_MORE),
     ("advanced.first", id::ADVANCED_FIRST),
     ("split_screen.three", id::SPLIT_THREE),
@@ -422,8 +425,6 @@ pub const KEYS: &[(&str, u32)] = &[
     ("advanced.nonlinear_steering", id::ADVANCED_ROWS + 5),
     ("advanced.automatic_neutral", id::ADVANCED_ROWS + 6),
     ("advanced.rain_and_snow", id::ADVANCED_ROWS + 7),
-    ("advanced.music", id::ADVANCED_ROWS + 8),
-    ("advanced.force_feedback", id::ADVANCED_ROWS + 9),
     ("advanced.quit_pictures", id::ADVANCED_ROWS + 10),
     ("advanced.gpu", id::RENDERER_GPU),
     ("advanced.software", id::RENDERER_SOFTWARE),

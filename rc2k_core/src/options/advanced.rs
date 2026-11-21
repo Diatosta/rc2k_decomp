@@ -54,7 +54,7 @@ const fn flag(key: &'static str, inverted: bool, when: When) -> Row {
 
 /// The rows in the order the page shows them: the first part the drawing and the screen, the
 /// second driving, sound and controls.
-pub const ROWS: [Row; 14] = [
+pub const ROWS: [Row; 13] = [
     Row {
         kind: Kind::Threads,
         when: When::Now,
@@ -74,8 +74,9 @@ pub const ROWS: [Row; 14] = [
     flag("screensnapshot", false, When::Now),
     flag("nonlinearsteering", false, When::Now),
     flag("noautoneutral", true, When::Now),
-    flag("noforcefeedback", true, When::NextStart),
-    flag("nomusic", true, When::NextStart),
+    // Read after each stage's results: on, every stage's review screen offers saving, not only
+    // the one before a service.
+    flag("sensiblesaving", false, When::Now),
     Row {
         kind: Kind::QuitPictures,
         when: When::Now,

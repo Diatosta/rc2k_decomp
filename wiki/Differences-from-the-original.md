@@ -146,8 +146,9 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 - **Advanced** (an item after the original's on the options page, and on the in-race options):
   rows for the renderer, the number of drawing threads, "smooth frames", "buttons in the quit
   question", and the switches that lived in `var/ral.cfg` shown as the feature they control:
-  frame counter, films, screenshots, non-linear steering, automatic neutral, music
-  and force feedback, and, on a second part of the page reached by its "more" button ("first page" comes back), "controls from saved games" (whether a loaded championship brings its own
+  frame counter, films, screenshots, non-linear steering, automatic neutral,
+  "saving after every stage" (`sensiblesaving`: every
+  stage's review screen offers saving, not only the one before a service), and, on a second part of the page reached by its "more" button ("first page" comes back), "controls from saved games" (whether a loaded championship brings its own
   keys, controller set-up and gearing, or keeps the players' current ones) (some take effect at the next race or start, and the row says so). "Apply"
   writes them ([Running and options](Running-and-options), [Settings files](Settings-files)).
 - **Delete all saved data** (the last row on the advanced page's second part): for starting

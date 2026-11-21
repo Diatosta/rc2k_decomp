@@ -36,7 +36,7 @@ next `"` instead and may hold tabs.
 
 ## `var/ral.cfg`
 
-The "advanced" page of the options menu shows eight of these switches (`framecounter`, `nofmv`, `screensnapshot`, `nonlinearsteering`, `noautoneutral`, `nomusic`, `noforcefeedback`, `usesavegamekeys`; `noprecipitation`, rain and snow, is on the graphics page instead, and written back the same way; `nojoy` is read but not shown; its other rows, the drawing threads, the renderer, the quit question's pictures, the smooth frames and the split screen for three and four players, are kept in `rc2k.toml`) and writes a changed one back: its first line is replaced by `key=number` (the line's ending and every other line stay), a key that was not there is added at the end. See [Differences from the original](Differences-from-the-original).
+The "advanced" page of the options menu shows seven of these switches (`framecounter`, `nofmv`, `screensnapshot`, `nonlinearsteering`, `noautoneutral`, `sensiblesaving`, `usesavegamekeys`; `noprecipitation`, rain and snow, is on the graphics page instead, and written back the same way; `nojoy`, `nomusic` and `noforcefeedback` are read but not shown (the sound page's music sliders at 0 do what `nomusic` does, the controller page's force feedback strength at 0 what `noforcefeedback` does); its other rows, the drawing threads, the renderer, the quit question's pictures, the smooth frames and the split screen for three and four players, are kept in `rc2k.toml`) and writes a changed one back: its first line is replaced by `key=number` (the line's ending and every other line stay), a key that was not there is added at the end. See [Differences from the original](Differences-from-the-original).
 
 
 Every value is a number. Most switches are 0 (off, the default) or 1 (on).
@@ -87,7 +87,7 @@ each key in this table was not tried one by one for this page.
 | `nomusic` | 1 turns the music off. |
 | `noprecipitation` | 1 turns rain and snow off. |
 | `allsecretcars`, `secretcar` | 1 makes every car available (two names for one switch). |
-| `sensiblesaving` | Changes how the screens between stages offer saving. |
+| `sensiblesaving` | 1 offers saving after every stage of a championship, not only before a service. Shown on the advanced page as "saving after every stage" (on = 1), which writes it here; it counts from the next stage's end. |
 | `noautoneutral`, `nonlinearsteering` | Driving aids: the automatic neutral, and steering that is finer near the centre. |
 | `nojoy`, `noforcefeedback`, `joyffgain`, `joylowerdz`, `joyupperdz`, `mergejoy`, `joymode`, `joycode`, `alt2axcode` | Controllers: off altogether, force feedback off and its strength, the sticks' dead zones, one player on two devices, axis layouts. |
 | `nonetwork`, `inetport` | Network play off, and its port. |
