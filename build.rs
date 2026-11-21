@@ -51,6 +51,14 @@ fn main() {
     if !handheld && matches!(os.as_str(), "windows" | "linux" | "macos") {
         println!("cargo:rustc-cfg=steam_support");
     }
+    // SDL's `@available` checks call `__isPlatformVersionAtLeast`, in clang's runtime library,
+    // which Rust's link leaves out. Built on a Mac, the runtime of the compiler there is added;
+    // crossed from Linux, `tools/mac/cross/cc.sh` and `tools/ios/cc.sh` add it themselves.
+    if matches!(os.as_str(), "macos" | "ios")
+        && std::env::var("HOST").is_ok_and(|host| host.contains("apple-darwin"))
+    {
+        link_clang_runtime(if os == "ios" { "ios" } else { "osx" });
+    }
     if os == "android" {
         // SDL's shared library, built by `tools/android/build.sh` (its Java glue must match it);
         // the system log's library for `platform::ffi::android`.
@@ -162,4 +170,23 @@ fn icon_resource(dir: &str) {
     let out = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("icon.res");
     std::fs::write(&out, res).unwrap();
     println!("cargo:rustc-link-arg-bin=rc2k={}", out.display());
+}
+
+/// Links clang's runtime library for `system` (`osx` or `ios`), found in the resource folder of
+/// the Mac's own compiler; a warning when it is not there (the link then names what is missing).
+fn link_clang_runtime(system: &str) {
+    let resource_dir = std::process::Command::new("xcrun")
+        .args(["clang", "-print-resource-dir"])
+        .output()
+        .ok()
+        .filter(|out| out.status.success())
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned());
+    let library = resource_dir
+        .map(|dir| std::path::Path::new(&dir).join(format!("lib/darwin/libclang_rt.{system}.a")));
+    match library {
+        Some(path) if path.is_file() => println!("cargo:rustc-link-arg={}", path.display()),
+        _ => println!(
+            "cargo:warning=clang's runtime (libclang_rt.{system}.a) not found: the link may miss __isPlatformVersionAtLeast"
+        ),
+    }
 }
