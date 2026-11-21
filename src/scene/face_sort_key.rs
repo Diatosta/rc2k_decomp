@@ -22,7 +22,7 @@ pub fn face_sort_key(
     count: u32,
     points: &[u32],
 ) -> Result<(), Refused> {
-    let vertices: u32 = poly.polygon_vertex_count.get();
+    let vertices: u32 = poly.scalars.borrow().polygon_vertex_count;
     if face == 0
         || !crate::scene::point_records::held(lists)
         || count == 0
@@ -40,6 +40,6 @@ pub fn face_sort_key(
         }
     });
     let factor = lists.face_key_factors[vertices as usize].get();
-    poly.face_sort_key.set(x87::mul_to_int(sum, factor) as u32);
+    poly.scalars.borrow_mut().face_sort_key = x87::mul_to_int(sum, factor) as u32;
     Ok(())
 }

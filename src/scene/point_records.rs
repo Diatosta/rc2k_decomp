@@ -6,12 +6,13 @@
 //!
 //! A record is named by its number + 1 (1 .. 0x2000), in the polygon entries' record field. The two
 //! other kinds of record the entries name follow: the four quad vertices
-//! (`PolygonWork::quad_vertices`, the view's own, `of_quad`) and the clipper's pool (the part's
+//! (`PolygonWork::quads`, the view's own, `of_quad`) and the clipper's pool (the part's
 //! `PolygonWork::record_pool`, `of_pool`; `polygon_next_record` holds the next one's number).
 //! `point_records` is `HELD` while the records are taken, 0 otherwise.
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::PlainDword;
+use crate::scene::polygon_work_store::QuadSlot;
 
 /// The records.
 pub const COUNT: u32 = 0x2000;
@@ -168,7 +169,7 @@ pub fn of_object_point(n: u32) -> u32 {
 
 /// The quad vertices' first record.
 pub const QUAD_FIRST: u32 = COUNT + 1;
-/// The quad vertices (`PolygonWork::quad_vertices`, 8 dwords each).
+/// The quad vertices (`PolygonWork::quads`, 8 dwords each).
 pub const QUADS: u32 = 4;
 /// The clipper's pool's first record.
 pub const POOL_FIRST: u32 = QUAD_FIRST + QUADS;
@@ -185,17 +186,75 @@ pub fn of_pool(k: u32) -> u32 {
     POOL_FIRST + k
 }
 
-/// The cells of record `r` in `part`'s records, of whichever kind; `quad` is the view's quad
-/// vertices (`PolygonWork::quad_vertices`), `None` outside a view's drawing (a quad record is
-/// then refused).
+/// Where record `r` is, of whichever kind: cells of `part`'s records or pool, or one of the
+/// view's quad vertices.
+enum Place<'a> {
+    Cells(&'a [PlainDword; 8]),
+    Quad(&'a QuadSlot, usize),
+}
+
+impl Place<'_> {
+    fn record(&self) -> Record {
+        match self {
+            Place::Cells(cells) => std::array::from_fn(|k| cells[k].get()),
+            Place::Quad(quad, first) => {
+                let quad = quad.borrow();
+                std::array::from_fn(|k| quad.words[first + k])
+            }
+        }
+    }
+
+    fn put_record(&self, record: Record) {
+        match self {
+            Place::Cells(cells) => {
+                for (cell, v) in cells.iter().zip(record) {
+                    cell.set(v);
+                }
+            }
+            Place::Quad(quad, first) => {
+                quad.borrow_mut().words[*first..*first + 8].copy_from_slice(&record);
+            }
+        }
+    }
+
+    /// The dword at `offset`; refused for an offset past the record.
+    fn field(&self, offset: u32) -> Result<u32, BadInput> {
+        let k = word_of(offset)?;
+        Ok(match self {
+            Place::Cells(cells) => cells[k].get(),
+            Place::Quad(quad, first) => quad.borrow().words[first + k],
+        })
+    }
+
+    fn put_field(&self, offset: u32, v: u32) -> Result<(), BadInput> {
+        let k = word_of(offset)?;
+        match self {
+            Place::Cells(cells) => cells[k].set(v),
+            Place::Quad(quad, first) => quad.borrow_mut().words[first + k] = v,
+        }
+        Ok(())
+    }
+}
+
+/// The index of the dword at byte `offset` of a record; refused for an offset past the record.
 #[inline]
-fn cells<'a>(
+fn word_of(offset: u32) -> Result<usize, BadInput> {
+    if offset.is_multiple_of(4) && offset < 32 {
+        return Ok(offset as usize / 4);
+    }
+    Err(BadInput("a field past a point record"))
+}
+
+/// Record `r` in `part`'s records, of whichever kind; `quad` is the view's quad vertices,
+/// `None` outside a view's drawing (a quad record is then refused).
+#[inline]
+fn place<'a>(
     part: &'a crate::scene::scratch_store::PartScratch,
     r: u32,
-    quad: Option<&'a [PlainDword; 32]>,
-) -> Result<&'a [PlainDword; 8], BadInput> {
+    quad: Option<&'a QuadSlot>,
+) -> Result<Place<'a>, BadInput> {
     if r > COUNT {
-        return far_cells(part, r, quad);
+        return far_place(part, r, quad);
     }
     if !part.records_taken.is_set() {
         return Err(BadInput("no point records"));
@@ -203,39 +262,28 @@ fn cells<'a>(
     (r as usize)
         .checked_sub(1)
         .and_then(|k| part.records.get(k))
+        .map(Place::Cells)
         .ok_or(BadInput("a point record past the block"))
 }
 
-/// The cells of a quad vertex's or a pool record (`part`'s pool).
-fn far_cells<'a>(
+/// A quad vertex's or a pool record's place (`part`'s pool).
+fn far_place<'a>(
     part: &'a crate::scene::scratch_store::PartScratch,
     r: u32,
-    quad: Option<&'a [PlainDword; 32]>,
-) -> Result<&'a [PlainDword; 8], BadInput> {
-    let (all, k): (&'a [PlainDword], u32) = match r {
-        _ if (QUAD_FIRST..POOL_FIRST).contains(&r) => (
-            quad.ok_or(BadInput("a quad vertex outside a view's drawing"))?,
-            r - QUAD_FIRST,
-        ),
-        _ if (POOL_FIRST..POOL_FIRST + POOL).contains(&r) => {
-            (&part.polygon.record_pool, r - POOL_FIRST)
-        }
-        _ => return Err(BadInput("a point record past the records")),
-    };
-    all.get(8 * k as usize..8 * k as usize + 8)
-        .and_then(|cells| cells.try_into().ok())
-        .ok_or(BadInput("a point record past the records"))
-}
-
-/// PlainDword `offset` of a record's cells; refused for an offset past the record.
-#[inline]
-fn cell(cells: &[PlainDword; 8], offset: u32) -> Result<&PlainDword, BadInput> {
-    if offset.is_multiple_of(4)
-        && let Some(cell) = cells.get(offset as usize / 4)
-    {
-        return Ok(cell);
+    quad: Option<&'a QuadSlot>,
+) -> Result<Place<'a>, BadInput> {
+    if (QUAD_FIRST..POOL_FIRST).contains(&r) {
+        let quad = quad.ok_or(BadInput("a quad vertex outside a view's drawing"))?;
+        return Ok(Place::Quad(quad, 8 * (r - QUAD_FIRST) as usize));
     }
-    Err(BadInput("a field past a point record"))
+    if (POOL_FIRST..POOL_FIRST + POOL).contains(&r) {
+        let first = 8 * (r - POOL_FIRST) as usize;
+        return part.polygon.record_pool[first..first + 8]
+            .try_into()
+            .map(Place::Cells)
+            .map_err(|_| BadInput("a point record past the records"));
+    }
+    Err(BadInput("a point record past the records"))
 }
 
 /// Record `r` of `part`'s records; refused for none or one past the records.
@@ -244,15 +292,14 @@ pub fn get(part: &crate::scene::scratch_store::PartScratch, r: u32) -> Result<Re
     get_in(part, None, r)
 }
 
-/// `get` with the view's quad vertices (`PolygonWork::quad_vertices`).
+/// `get` with the view's quad vertices (`PolygonWork::quads`).
 #[inline]
 pub fn get_in(
     part: &crate::scene::scratch_store::PartScratch,
-    quad: Option<&[PlainDword; 32]>,
+    quad: Option<&QuadSlot>,
     r: u32,
 ) -> Result<Record, BadInput> {
-    let cells = cells(part, r, quad)?;
-    Ok(std::array::from_fn(|k| cells[k].get()))
+    Ok(place(part, r, quad)?.record())
 }
 
 /// Record `r` set to `record`; refused as `get`.
@@ -269,13 +316,11 @@ pub fn set(
 #[inline]
 pub fn set_in(
     part: &crate::scene::scratch_store::PartScratch,
-    quad: Option<&[PlainDword; 32]>,
+    quad: Option<&QuadSlot>,
     r: u32,
     record: Record,
 ) -> Result<(), BadInput> {
-    for (cell, v) in cells(part, r, quad)?.iter().zip(record) {
-        cell.set(v);
-    }
+    place(part, r, quad)?.put_record(record);
     note_written(part, r);
     Ok(())
 }
@@ -294,11 +339,11 @@ pub fn field(
 #[inline]
 pub fn field_in(
     part: &crate::scene::scratch_store::PartScratch,
-    quad: Option<&[PlainDword; 32]>,
+    quad: Option<&QuadSlot>,
     r: u32,
     offset: u32,
 ) -> Result<u32, BadInput> {
-    Ok(cell(cells(part, r, quad)?, offset)?.get())
+    place(part, r, quad)?.field(offset)
 }
 
 /// The dword at `offset` of record `r` set to `v`; refused as `field`.
@@ -316,12 +361,12 @@ pub fn put_field(
 #[inline]
 pub fn put_field_in(
     part: &crate::scene::scratch_store::PartScratch,
-    quad: Option<&[PlainDword; 32]>,
+    quad: Option<&QuadSlot>,
     r: u32,
     offset: u32,
     v: u32,
 ) -> Result<(), BadInput> {
-    cell(cells(part, r, quad)?, offset)?.set(v);
+    place(part, r, quad)?.put_field(offset, v)?;
     note_written(part, r);
     Ok(())
 }
@@ -331,7 +376,7 @@ pub fn put_field_in(
 #[inline]
 pub fn vertex(
     part: &crate::scene::scratch_store::PartScratch,
-    quad: &[PlainDword; 32],
+    quad: &QuadSlot,
     v: u32,
     offset: u32,
 ) -> u32 {
@@ -342,7 +387,7 @@ pub fn vertex(
 /// A polygon vertex's whole record (as `vertex`), its bytes.
 pub fn vertex_bytes(
     part: &crate::scene::scratch_store::PartScratch,
-    quad: &[PlainDword; 32],
+    quad: &QuadSlot,
     v: u32,
 ) -> Result<[u8; 32], BadInput> {
     let record = get_in(part, Some(quad), v)?;
@@ -364,7 +409,7 @@ mod tests {
         assert_eq!(memory.get().total, BYTES);
         assert_eq!(at_offset(0x20 * 5), of_scene_point(0x1005));
         assert_eq!(of_object_point(3), at_offset(0x20 * 0x1003));
-        let quad = [const { PlainDword::new(0) }; 32];
+        let quad = QuadSlot::new(crate::scene::polygon_work_store::QuadVertices::new());
         let part = crate::owners::Owners::the().scene.scratch.game_scratch();
         put_field(part, of_scene_point(7), 0x18, 42).unwrap();
         assert_eq!(vertex(part, &quad, of_scene_point(7), 0x18), 42);
@@ -380,7 +425,7 @@ mod tests {
         );
         put_field_in(part, Some(&quad), of_quad(3), 0x1C, 7).unwrap();
         put_field(part, of_pool(POOL - 1), 0, 9).unwrap();
-        assert_eq!((quad[31].get(), pool[0x800].get()), (7, 9));
+        assert_eq!((quad.borrow().words[31], pool[0x800].get()), (7, 9));
         set_in(part, Some(&quad), of_quad(3), kept_quad).unwrap();
         assert!(get(part, of_quad(0)).is_err());
         set(part, of_pool(POOL - 1), kept_pool).unwrap();

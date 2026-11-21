@@ -94,8 +94,9 @@ pub fn run_snow(
         scene
             .scratch
             .front_end_polygon()
-            .polygon_vertex_count
-            .set(4);
+            .scalars
+            .borrow_mut()
+            .polygon_vertex_count = 4;
         let inverse = x87::reciprocal(scene.scratch.front_end_polygon().window.borrow().farthest);
         snow.borrow_mut().inverses = [inverse; 4];
         snow.borrow_mut().inverse = inverse;

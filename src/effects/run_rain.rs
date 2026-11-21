@@ -106,8 +106,9 @@ pub fn run_rain(
         scene
             .scratch
             .front_end_polygon()
-            .polygon_vertex_count
-            .set(4);
+            .scalars
+            .borrow_mut()
+            .polygon_vertex_count = 4;
         if setup.kind_floats.borrow().running != 0 {
             crate::effects::drift_offsets::drift_offsets(race, weather, effects);
         }

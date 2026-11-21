@@ -84,9 +84,10 @@ pub(super) fn draw_with_car_aside<'a, R>(
     {
         let copy = ctx.scene.scratch.car_view();
         copy.copy_drawing_from(ctx.view);
-        for cell in filter_switches(&copy) {
-            cell.set(0);
-        }
+        let mut scalars = copy.polygon.scalars.borrow_mut();
+        scalars.smooth = 0;
+        scalars.plain_first = 0;
+        scalars.plain_second = 0;
     }
     ctx.scene.scratch.taken().copy_drawing_from(ctx.view);
     let DrawCtx {
@@ -116,15 +117,6 @@ pub(super) fn draw_with_car_aside<'a, R>(
     crate::scene::workers::draw_aside(helper, ctx.part, point_count, piece, |aside| {
         rest(&CarAside { aside, number })
     })
-}
-
-/// The texture filter's switches (`scene::choose_texture`).
-fn filter_switches(view: &ViewScratch) -> [&crate::memory::session::PlainDword; 3] {
-    [
-        &view.polygon.smooth,
-        &view.polygon.plain_first,
-        &view.polygon.plain_second,
-    ]
 }
 
 /// The count a piece of the view's drawing adds to (cars drawn): its own added to what the view

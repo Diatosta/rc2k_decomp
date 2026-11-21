@@ -205,8 +205,8 @@ pub fn list_object_face(
     if count as i32 <= 0 {
         return Ok(());
     }
-    ctx.view.polygon.polygon_vertex_count.set(count);
-    ctx.view.polygon.face_sort_key.set(0u32);
+    ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = count;
+    ctx.view.polygon.scalars.borrow_mut().face_sort_key = 0u32;
     face_sort_key(
         &ctx.view.polygon,
         ctx.part,
@@ -217,11 +217,11 @@ pub fn list_object_face(
     )?;
     // The list has room for all 0x1000 entries the check allows (fixed: "An object with many
     // faces writes over the object tables" in `wiki/Fixed-bugs.md`).
-    let key = listed_key(bytes, ctx.view.polygon.face_sort_key.get());
+    let key = listed_key(bytes, ctx.view.polygon.scalars.borrow().face_sort_key);
     list.push([
         ctx.view.face.face_number.get(),
         key,
-        ctx.view.polygon.entry_third.get(),
+        ctx.view.polygon.scalars.borrow().entry_third,
         ctx.view.object.borrow().see_through,
     ]);
     Ok(())

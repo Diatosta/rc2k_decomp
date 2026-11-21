@@ -66,6 +66,6 @@ pub fn project_entries(
             outside += 1;
         }
     }
-    poly.polygon_outside_count.set(outside);
+    poly.scalars.borrow_mut().polygon_outside_count = outside;
     Ok(())
 }

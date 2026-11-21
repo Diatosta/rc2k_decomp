@@ -7,7 +7,7 @@ pub fn set_fog_colour(
     poly: &crate::scene::polygon_work_store::PolygonWork,
     part: &crate::scene::scratch_store::PartScratch,
 ) {
-    poly.fade_from.set(colour);
+    poly.scalars.borrow_mut().fade_from = colour;
     let s = rc2k_core::scene::render_states::fog_colour(colour);
     crate::d3d::set_render_state::set_render_state(part, s.value, s.state);
 }

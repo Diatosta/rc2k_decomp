@@ -87,7 +87,7 @@ pub fn face_faces_away(
         return Err(BadInput("no face or no records").into());
     }
     points.clear();
-    ctx.view.polygon.polygon_vertex_count.set(count);
+    ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = count;
     if count < 3 {
         return Ok(true);
     }

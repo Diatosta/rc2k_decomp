@@ -46,6 +46,6 @@ pub fn draw_icon(
         // The scratch cell keeps the last value stored.
         hud.block.fistp_scratch = y;
     }
-    pen.polygons.polygon_vertex_count.set(4u32);
+    pen.polygons.scalars.borrow_mut().polygon_vertex_count = 4u32;
     crate::hud::add_polygon::add_polygon(frame, hud, pen)
 }

@@ -229,7 +229,8 @@ impl ViewScratch {
         // begins.
         let fresh = crate::scene::polygon_work_store::PolygonWork::new();
         fresh.window.copy_from(&self.polygon.window);
-        fresh.view_mirrored.set(self.polygon.view_mirrored.get());
+        let mirrored = self.polygon.scalars.borrow().view_mirrored;
+        fresh.scalars.borrow_mut().view_mirrored = mirrored;
         fresh.sun.borrow_mut().view_out = self.polygon.sun.borrow().view_out;
         self.polygon.copy_from(&fresh);
         // The course grid is kept: it is made again only when the view's corner moves, and a
@@ -372,9 +373,9 @@ pub fn filter_input(
     if slot == 0 {
         let from = &scratch.front_end().polygon;
         [
-            from.smooth.get(),
-            from.plain_first.get(),
-            from.plain_second.get(),
+            from.scalars.borrow().smooth,
+            from.scalars.borrow().plain_first,
+            from.scalars.borrow().plain_second,
         ]
     } else {
         [0; 3]

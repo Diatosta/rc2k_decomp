@@ -58,8 +58,9 @@ pub(super) fn setup_with(
         scene
             .scratch
             .front_end_polygon()
-            .polygon_vertex_count
-            .set(4);
+            .scalars
+            .borrow_mut()
+            .polygon_vertex_count = 4;
         fl.tables.borrow_mut().inverse =
             x87::reciprocal(scene.scratch.front_end_polygon().window.borrow().farthest);
     }

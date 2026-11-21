@@ -311,7 +311,7 @@ pub fn view_matrices(
         m,
         *view.state.borrow(),
         &view.car,
-        view.polygon.view_mirrored.get() != 0,
+        view.polygon.scalars.borrow().view_mirrored != 0,
     )
 }
 
@@ -460,7 +460,7 @@ pub fn camera_view(
         view_matrices(reads.course(), m, view)?;
         return Ok(());
     }
-    let place: [u32; 3] = if view.polygon.view_mirrored.get() == 0 {
+    let place: [u32; 3] = if view.polygon.scalars.borrow().view_mirrored == 0 {
         view.vars.view_scale.set(view.car.camera_zoom.get());
         for (from, to) in [
             (&view.car.camera_heading, 0usize),

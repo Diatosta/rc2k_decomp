@@ -67,8 +67,9 @@ pub(super) fn draw_rain_streak(
         scene
             .scratch
             .front_end_polygon()
-            .polygon_vertex_count
-            .set(4);
+            .scalars
+            .borrow_mut()
+            .polygon_vertex_count = 4;
     }
     Ok(())
 }

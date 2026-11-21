@@ -530,7 +530,13 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         // A view slot that was a mirror in an earlier race keeps its mirror flag: the players'
         // views are never mirrors, or the camera looks back from the car.
         for view in 0..views as usize {
-            o.scene.scratch.main_view(view).polygon.view_mirrored.set(0);
+            o.scene
+                .scratch
+                .main_view(view)
+                .polygon
+                .scalars
+                .borrow_mut()
+                .view_mirrored = 0;
         }
     }
     set_hud_flags(race, &blocks, views)?;

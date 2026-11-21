@@ -152,36 +152,36 @@ pub fn draw_screen_quad(
         view.quad.borrow().corners[5] as i32,
     );
     for (k, (x, y)) in corners.into_iter().enumerate() {
-        let v = &poly.quad_vertices[8 * k..8 * k + 8];
-        v[3].set(x.to_bits());
-        v[7].set(y.to_bits());
-        v[6].set(reads.numbers.k4096_b.get().to_bits());
+        let mut quads = poly.quads.borrow_mut();
+        let v = &mut quads.words[8 * k..8 * k + 8];
+        v[3] = x.to_bits();
+        v[7] = y.to_bits();
+        v[6] = reads.numbers.k4096_b.get().to_bits();
     }
     for e in entries {
         e.point.set(u32::MAX);
         e.light.set(0u32);
     }
-    poly.polygon_colour.set(view.quad.borrow().colour[0]);
-    poly.polygon_vertex_count.set(4u32);
-    poly.polygon_next_record
-        .set(crate::scene::polygon::pool_start());
+    poly.scalars.borrow_mut().polygon_colour = view.quad.borrow().colour[0];
+    poly.scalars.borrow_mut().polygon_vertex_count = 4u32;
+    poly.scalars.borrow_mut().polygon_next_record = crate::scene::polygon::pool_start();
     for k in 0..4u32 {
         part.polygon.list[k as usize].set(k);
     }
     part.polygon.list[4].set(0u32);
-    poly.polygon_next_entry.set(4u32);
+    poly.scalars.borrow_mut().polygon_next_entry = 4u32;
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part, poly, reads.course())?;
-    if poly.polygon_vertex_count.get() >= 3 {
+    if poly.scalars.borrow().polygon_vertex_count >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(part, false);
-        poly.polygon_textures[0].set(u32::MAX);
+        poly.scalars.borrow_mut().polygon_textures[0] = u32::MAX;
         face.polygon_mode.set(0u32);
-        poly.polygon_sides[0].set(1u32);
-        poly.polygon_sides[1].set(0u32);
+        poly.scalars.borrow_mut().polygon_sides[0] = 1u32;
+        poly.scalars.borrow_mut().polygon_sides[1] = 0u32;
         crate::scene::draw_polygon::draw_polygon_in_game(view, part, reads, screen)?;
         face.polygon_mode.set(0u32);
         crate::scene::depth_buffer_on::depth_buffer(part, true);
     }
-    poly.polygon_colour.set(0x00FF_FFFFu32);
+    poly.scalars.borrow_mut().polygon_colour = 0x00FF_FFFFu32;
     Ok(())
 }
 
@@ -200,9 +200,9 @@ pub fn draw_view_tint(
     view.quad.borrow_mut().corners[4] = 0u32;
     view.quad.borrow_mut().corners[5] = view.polygon.window.borrow().view_size[1];
     view.quad.borrow_mut().colour[0] = 0x20_4080u32;
-    poly.polygon_textures[0].set(u32::MAX);
-    poly.polygon_sides[0].set(1u32);
-    poly.polygon_sides[1].set(0u32);
+    poly.scalars.borrow_mut().polygon_textures[0] = u32::MAX;
+    poly.scalars.borrow_mut().polygon_sides[0] = 1u32;
+    poly.scalars.borrow_mut().polygon_sides[1] = 0u32;
     draw_screen_quad(poly, part, face, reads, screen, view)
 }
 
@@ -736,18 +736,18 @@ fn draw_face_entry(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> R
     ctx.view.face.course_face.set(face);
     let kind = crate::race::course_places::face_field::<u8>(ctx.reads.course(), face, 0)?;
     if kind == 0xFF || kind < 0x10 {
-        ctx.view.polygon.smooth.set(1);
-        ctx.view.polygon.plain_first.set(1);
-        ctx.view.polygon.plain_second.set(1);
+        ctx.view.polygon.scalars.borrow_mut().smooth = 1;
+        ctx.view.polygon.scalars.borrow_mut().plain_first = 1;
+        ctx.view.polygon.scalars.borrow_mut().plain_second = 1;
         if kind == 0xFF {
             // The description is the face.
             crate::scene::draw_described_object::draw_described_face(ctx, face)?;
         } else {
             crate::race::course_faces::draw_tinted_face(ctx, face)?;
         }
-        ctx.view.polygon.smooth.set(0);
-        ctx.view.polygon.plain_first.set(0);
-        ctx.view.polygon.plain_second.set(0);
+        ctx.view.polygon.scalars.borrow_mut().smooth = 0;
+        ctx.view.polygon.scalars.borrow_mut().plain_first = 0;
+        ctx.view.polygon.scalars.borrow_mut().plain_second = 0;
     }
     Ok(())
 }

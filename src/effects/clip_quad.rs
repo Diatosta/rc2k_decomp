@@ -199,8 +199,9 @@ fn clip_to_part(
     scene
         .scratch
         .front_end_polygon()
-        .polygon_vertex_count
-        .set(cut.len() as u32);
+        .scalars
+        .borrow_mut()
+        .polygon_vertex_count = cut.len() as u32;
     effects.clipping.glow.borrow_mut().clip_count = cut.len() as u32;
     false
 }
@@ -308,8 +309,9 @@ pub fn clip_quad(
         scene
             .scratch
             .front_end_polygon()
-            .polygon_vertex_count
-            .set(count);
+            .scalars
+            .borrow_mut()
+            .polygon_vertex_count = count;
         effects.clipping.glow.borrow_mut().clip_count = count;
     }
     Ok(false)

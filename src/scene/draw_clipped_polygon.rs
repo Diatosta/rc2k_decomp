@@ -38,34 +38,33 @@ pub fn draw_clipped_polygon(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     {
-        let count: u32 = poly.polygon_vertex_count.get();
+        let count: u32 = poly.scalars.borrow().polygon_vertex_count;
         if count == 0 || count > MOST {
             return Err(BadInput("a polygon of no vertices, or of more than 256").into());
         }
-        poly.screen_clipped.set(0u32);
-        poly.depth_clipped.set(0u32);
-        poly.polygon_next_record
-            .set(crate::scene::polygon::pool_start());
+        poly.scalars.borrow_mut().screen_clipped = 0u32;
+        poly.scalars.borrow_mut().depth_clipped = 0u32;
+        poly.scalars.borrow_mut().polygon_next_record = crate::scene::polygon::pool_start();
         for n in 0..count {
             crate::scene::polygon::list_cell(polygon_work, n as usize).set(n);
         }
         crate::scene::polygon::list_cell(polygon_work, count as usize).set(0u32);
-        poly.polygon_next_entry.set(count);
+        poly.scalars.borrow_mut().polygon_next_entry = count;
         step(Step::Project)?;
-        let outside: u32 = poly.polygon_outside_count.get();
-        if outside == poly.polygon_vertex_count.get() {
+        let outside: u32 = poly.scalars.borrow().polygon_outside_count;
+        if outside == poly.scalars.borrow().polygon_vertex_count {
             return Ok(());
         }
         step(Step::ScaleTextureCoordinates)?;
         step(Step::Fog)?;
-        if poly.polygon_outside_count.get() != 0 {
+        if poly.scalars.borrow().polygon_outside_count != 0 {
             step(Step::ClipByDepth)?;
-            if poly.polygon_vertex_count.get() < 3 {
+            if poly.scalars.borrow().polygon_vertex_count < 3 {
                 return Ok(());
             }
         }
         step(Step::ClipToScreen)?;
-        if poly.polygon_vertex_count.get() < 3 {
+        if poly.scalars.borrow().polygon_vertex_count < 3 {
             return Ok(());
         }
         step(Step::Draw)?;

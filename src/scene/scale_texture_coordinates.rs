@@ -15,7 +15,7 @@ pub fn scale_texture_coordinates(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work_store::PolygonWork,
 ) -> Result<(), Refused> {
-    if (poly.polygon_vertex_count.get() as i32) <= 0 {
+    if (poly.scalars.borrow().polygon_vertex_count as i32) <= 0 {
         return Ok(());
     }
     scale_entries(poly, &listed(polygon_work, poly)?)
@@ -27,7 +27,10 @@ pub fn scale_entries(
     entries: &Listed,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::texture_coordinates as coordinates;
-    let switches: [u32; 2] = [poly.polygon_sides[0].get(), poly.polygon_sides[1].get()];
+    let switches: [u32; 2] = [
+        poly.scalars.borrow().polygon_sides[0],
+        poly.scalars.borrow().polygon_sides[1],
+    ];
     for entry in entries {
         for (pair, switch) in switches.into_iter().enumerate() {
             if switch == 0 {

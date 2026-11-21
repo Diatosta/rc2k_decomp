@@ -144,7 +144,7 @@ pub struct RaceVars {
     /// (`race::quad_work::QuadWork`); unused.
     pub quad_corners: [PlainDword; 8],
     /// Four vertices of 0x20 (`scene::draw_flat_quad`, `race::course_faces`).
-    /// No longer used by the drawing: each view's are `PolygonWork::quad_vertices`.
+    /// No longer used by the drawing: each view's are `PolygonWork::quads`.
     pub quad_vertices: [PlainDword; 32],
 }
 

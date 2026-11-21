@@ -52,7 +52,7 @@ pub fn submit_polygon(
     device_on: bool,
     screen: &Screen,
 ) {
-    let texture: u32 = poly.polygon_texture.get();
+    let texture: u32 = poly.scalars.borrow().polygon_texture;
     if texture == NO_TEXTURE {
         if device_on {
             outside.set_texture(NO_TEXTURE);

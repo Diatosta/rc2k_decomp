@@ -62,14 +62,14 @@ fn skid_vertex(
     v: u32,
 ) -> Result<Turned, BadInput> {
     let turned = turn_skid_point(ctx, matrix, n)?;
-    put_turned(ctx.part, &ctx.view.polygon.quad_vertices, v, turned)?;
+    put_turned(ctx.part, &ctx.view.polygon.quads, v, turned)?;
     Ok(turned)
 }
 
 /// A point as `skid_vertex` turned it, put into the vertex record `v`.
 fn put_turned(
     part: &crate::scene::scratch_store::PartScratch,
-    quad: &[crate::memory::session::PlainDword; 32],
+    quad: &crate::scene::polygon_work_store::QuadSlot,
     v: u32,
     turned: Turned,
 ) -> Result<(), BadInput> {
@@ -149,8 +149,8 @@ fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Re
         e.amount.set(0x60);
         e.fog.set(0);
     }
-    ctx.view.polygon.polygon_textures[0].set(0xC0u32);
-    ctx.view.polygon.polygon_textures[1].set(0xC0u32);
+    ctx.view.polygon.scalars.borrow_mut().polygon_textures[0] = 0xC0u32;
+    ctx.view.polygon.scalars.borrow_mut().polygon_textures[1] = 0xC0u32;
     let matrix: [u32; 15] = crate::math::cells::load(&ctx.view.matrices.view_matrix);
     // The last quad's two points (its link's number and the points as turned): the next quad of
     // the skidmark has them as its two before, and nothing it is drawn with changes what they
@@ -182,8 +182,8 @@ fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Re
         let second = skid_vertex(ctx, &matrix, 2 * n + 1, of_quad(2))?;
         match last {
             Some((m, a, b)) if m == before => {
-                put_turned(ctx.part, &ctx.view.polygon.quad_vertices, of_quad(0), a)?;
-                put_turned(ctx.part, &ctx.view.polygon.quad_vertices, of_quad(1), b)?;
+                put_turned(ctx.part, &ctx.view.polygon.quads, of_quad(0), a)?;
+                put_turned(ctx.part, &ctx.view.polygon.quads, of_quad(1), b)?;
             }
             _ => {
                 skid_vertex(ctx, &matrix, before.wrapping_mul(2), of_quad(0))?;
@@ -196,17 +196,15 @@ fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Re
             }
         }
         last = Some((n, first, second));
-        ctx.view.polygon.polygon_vertex_count.set(4u32);
-        ctx.view
-            .polygon
-            .polygon_next_record
-            .set(crate::scene::polygon::pool_start());
+        ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = 4u32;
+        ctx.view.polygon.scalars.borrow_mut().polygon_next_record =
+            crate::scene::polygon::pool_start();
         let list = &ctx.part.polygon.list;
         for k in 0..4u32 {
             list[k as usize].set(k);
         }
         list[4].set(0);
-        ctx.view.polygon.polygon_next_entry.set(4u32);
+        ctx.view.polygon.scalars.borrow_mut().polygon_next_entry = 4u32;
         crate::scene::fog_polygon::fog_polygon(ctx.part, ctx.view)?;
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
             ctx.part,
@@ -216,7 +214,7 @@ fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Re
             ctx.far_clip,
             ctx.view,
         )?;
-        if ctx.view.polygon.polygon_vertex_count.get() < 3 {
+        if ctx.view.polygon.scalars.borrow().polygon_vertex_count < 3 {
             continue;
         }
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
@@ -224,12 +222,12 @@ fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Re
             &ctx.view.polygon,
             ctx.reads.course(),
         )?;
-        if ctx.view.polygon.polygon_vertex_count.get() >= 3 {
-            ctx.view.polygon.polygon_colour.set(0u32);
+        if ctx.view.polygon.scalars.borrow().polygon_vertex_count >= 3 {
+            ctx.view.polygon.scalars.borrow_mut().polygon_colour = 0u32;
             crate::scene::depth_test_off::depth_test_off(ctx.part);
             ctx.view.face.polygon_mode.set(3u32);
-            ctx.view.polygon.polygon_sides[0].set(0u32);
-            ctx.view.polygon.polygon_sides[1].set(1u32);
+            ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0u32;
+            ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1u32;
             crate::scene::draw_polygon::draw_polygon_in_game(
                 ctx.view,
                 ctx.part,
@@ -239,7 +237,7 @@ fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Re
             ctx.view.face.polygon_mode.set(0u32);
             crate::scene::depth_test_on::depth_test_on(ctx.part);
         }
-        ctx.view.polygon.polygon_colour.set(0x00FF_FFFFu32);
+        ctx.view.polygon.scalars.borrow_mut().polygon_colour = 0x00FF_FFFFu32;
     }
     Ok(())
 }

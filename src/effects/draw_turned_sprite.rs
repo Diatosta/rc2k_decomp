@@ -77,8 +77,9 @@ pub fn draw_turned_sprite(
         scene
             .scratch
             .front_end_polygon()
-            .polygon_vertex_count
-            .set(4);
+            .scalars
+            .borrow_mut()
+            .polygon_vertex_count = 4;
     }
     Ok(())
 }

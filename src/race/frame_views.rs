@@ -102,10 +102,10 @@ pub fn mirror_view_window(
     poly.window.borrow_mut().view_offset[1] = y;
     poly.window.borrow_mut().view_size[0] = sx;
     poly.window.borrow_mut().view_size[1] = sy;
-    poly.cleared_rectangle[0].set(x);
-    poly.cleared_rectangle[1].set(y);
-    poly.cleared_rectangle[2].set(x.wrapping_add(sx));
-    poly.cleared_rectangle[3].set(y.wrapping_add(sy));
+    poly.scalars.borrow_mut().cleared_rectangle[0] = x;
+    poly.scalars.borrow_mut().cleared_rectangle[1] = y;
+    poly.scalars.borrow_mut().cleared_rectangle[2] = x.wrapping_add(sx);
+    poly.scalars.borrow_mut().cleared_rectangle[3] = y.wrapping_add(sy);
     poly.window.borrow_mut().view_zoom = 0x100;
     crate::scene::set_view_window::set_view_window_reaching(
         reads.course(),
@@ -125,7 +125,7 @@ pub fn mirror_view_window(
         part,
     )?;
     // `draw_mode` is not written here either: see `full_view_window`.
-    poly.view_mirrored.set(1);
+    poly.scalars.borrow_mut().view_mirrored = 1;
     Ok(())
 }
 
@@ -150,8 +150,9 @@ pub(super) fn draw_flat_triangle(
     scene
         .scratch
         .front_end_polygon()
-        .polygon_vertex_count
-        .set(3);
+        .scalars
+        .borrow_mut()
+        .polygon_vertex_count = 3;
     crate::scene::draw_fan::draw_fan(part, scene, scene.scratch.front_end_polygon(), buffer);
 }
 
@@ -470,15 +471,12 @@ fn clear_view_depth(
     if scene.objects.tables.borrow().d3d_drawing_on == 0 {
         return;
     }
-    poly.cleared_rectangle[0].set(0);
-    poly.cleared_rectangle[1].set(0);
-    poly.cleared_rectangle[2].set(session.screen.get().width.get());
-    poly.cleared_rectangle[3].set(session.screen.get().height.get());
-    clear_viewport_unless_held(
-        scene.drawing.v3_driver_fix.get().get(),
-        part,
-        &poly.cleared_rectangle,
-    );
+    poly.scalars.borrow_mut().cleared_rectangle[0] = 0;
+    poly.scalars.borrow_mut().cleared_rectangle[1] = 0;
+    poly.scalars.borrow_mut().cleared_rectangle[2] = session.screen.get().width.get();
+    poly.scalars.borrow_mut().cleared_rectangle[3] = session.screen.get().height.get();
+    let rectangle = poly.scalars.borrow().cleared_rectangle;
+    clear_viewport_unless_held(scene.drawing.v3_driver_fix.get().get(), part, rectangle);
 }
 
 /// In a race, when the drawn view's car (`drawn_car`) is seen from inside: sets `view_light_base`
@@ -534,8 +532,9 @@ pub fn draw_own_car(
     ctx.scene
         .scratch
         .front_end_polygon()
-        .polygon_vertex_count
-        .set(4);
+        .scalars
+        .borrow_mut()
+        .polygon_vertex_count = 4;
     draw_marks_overlays(ctx, gfx, cheats, effects)
 }
 
@@ -682,7 +681,7 @@ pub fn run_view_marks(
 fn clear_viewport_unless_held(
     v3_driver_fix: u32,
     part: &crate::scene::scratch_store::PartScratch,
-    own: &[crate::memory::session::PlainDword; 4],
+    own: [u32; 4],
 ) {
     if v3_driver_fix == 0 {
         crate::d3d::device::clear_viewport(part, own);

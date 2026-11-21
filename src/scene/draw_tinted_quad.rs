@@ -25,7 +25,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         [corners[0], corners[1], corners[4], corners[5]].map(float)
     };
     let v = |n: usize, o: usize, x: f32| {
-        ctx.view.polygon.quad_vertices[8 * n + o / 4].set(x.to_bits());
+        ctx.view.polygon.quads.borrow_mut().words[8 * n + o / 4] = x.to_bits();
     };
     for (n, x, y) in [
         (0, left, top),
@@ -41,10 +41,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         v(n, 0x18, depth);
     }
     let see = ctx.view.quad.borrow().colour[1] as u8;
-    ctx.view
-        .polygon
-        .polygon_colour
-        .set(ctx.view.quad.borrow().colour[0]);
+    ctx.view.polygon.scalars.borrow_mut().polygon_colour = ctx.view.quad.borrow().colour[0];
     for item in ctx.part.polygon.entries.iter().take(4) {
         let rec = &item;
         rec.point.set(0xFFFF_FFFF);
@@ -53,28 +50,25 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         rec.lamp_light.set(0);
         rec.fog.set(0xFF);
     }
-    ctx.view.polygon.polygon_vertex_count.set(4);
-    ctx.view
-        .polygon
-        .polygon_next_record
-        .set(crate::scene::polygon::pool_start());
+    ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = 4;
+    ctx.view.polygon.scalars.borrow_mut().polygon_next_record = crate::scene::polygon::pool_start();
     for n in 0..4u32 {
         crate::scene::polygon::list_cell(&ctx.part.polygon, n as usize).set(n);
     }
     crate::scene::polygon::list_cell(&ctx.part.polygon, 4).set(0);
-    ctx.view.polygon.polygon_next_entry.set(4);
+    ctx.view.polygon.scalars.borrow_mut().polygon_next_entry = 4;
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
         ctx.part,
         &ctx.view.polygon,
         ctx.reads.course(),
     )?;
-    if ctx.view.polygon.polygon_vertex_count.get() >= 3 {
+    if ctx.view.polygon.scalars.borrow().polygon_vertex_count >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(ctx.part, false);
         ctx.view.face.polygon_mode.set(3);
-        ctx.view.polygon.polygon_textures[0].set(0xFFFF_FFFF);
-        ctx.view.polygon.polygon_textures[1].set(0xFFFF_FFFF);
-        ctx.view.polygon.polygon_sides[0].set(0);
-        ctx.view.polygon.polygon_sides[1].set(1);
+        ctx.view.polygon.scalars.borrow_mut().polygon_textures[0] = 0xFFFF_FFFF;
+        ctx.view.polygon.scalars.borrow_mut().polygon_textures[1] = 0xFFFF_FFFF;
+        ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0;
+        ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1;
         crate::scene::draw_polygon::draw_polygon_in_game(
             ctx.view,
             ctx.part,
@@ -84,6 +78,6 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         ctx.view.face.polygon_mode.set(0);
         crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
     }
-    ctx.view.polygon.polygon_colour.set(0xFF_FFFF);
+    ctx.view.polygon.scalars.borrow_mut().polygon_colour = 0xFF_FFFF;
     Ok(())
 }

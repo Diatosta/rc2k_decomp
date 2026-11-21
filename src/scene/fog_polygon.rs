@@ -66,7 +66,7 @@ fn byte(
 ) -> u8 {
     let depth = x87::to_int(crate::scene::point_records::vertex(
         part,
-        &view.polygon.quad_vertices,
+        &view.polygon.quads,
         record,
         0x18,
     ));

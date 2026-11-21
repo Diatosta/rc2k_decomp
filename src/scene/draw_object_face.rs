@@ -79,7 +79,7 @@ pub fn draw_object_face(
         && view_kind != 4
         && face_shine != 0;
     ctx.view.face.reflects.set(reflects as u32);
-    ctx.view.polygon.polygon_vertex_count.set(count);
+    ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = count;
 
     if ctx.reads.switches.scene_set_up.get() != 0 && ctx.view.cars.other_way_kind.get() == 2 {
         for (entry, vertex) in vertices {
@@ -89,9 +89,12 @@ pub fn draw_object_face(
             entry.amount.set(0xFF);
             entry.light.set(light.borrow().other_light);
         }
-        ctx.view.polygon.polygon_textures[1].set(ctx.view.polygon.polygon_textures[0].get());
-        ctx.view.polygon.polygon_sides[0].set(0u32);
-        ctx.view.polygon.polygon_sides[1].set(1u32);
+        {
+            let first = ctx.view.polygon.scalars.borrow().polygon_textures[0];
+            ctx.view.polygon.scalars.borrow_mut().polygon_textures[1] = first;
+        }
+        ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0u32;
+        ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1u32;
         work.polygon_mode.set(4u32);
         step(Step::DepthTestOff)?;
         step(Step::Draw)?;
@@ -152,15 +155,15 @@ pub fn draw_object_face(
             }
             entry.amount.set(amount as u8);
         }
-        ctx.view.polygon.polygon_textures[1].set(REFLECTION_TEXTURE);
+        ctx.view.polygon.scalars.borrow_mut().polygon_textures[1] = REFLECTION_TEXTURE;
     }
     let faded = work.fade_alpha.get() != 0 && light.borrow().face_bits == work.faded_bits.get();
     work.faded.set(faded as u32);
     if ctx.view.face.face_any_shine.get() == 0 {
         ctx.view.face.reflects.set(0u32);
     }
-    ctx.view.polygon.polygon_sides[0].set(1u32);
-    ctx.view.polygon.polygon_sides[1].set(ctx.view.face.reflects.get());
+    ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 1u32;
+    ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = ctx.view.face.reflects.get();
     let see_through: u32 = object.borrow().see_through;
     if see_through != 0x100 {
         for entry in &entries[..0x10] {
@@ -168,10 +171,13 @@ pub fn draw_object_face(
             entry.u2.set(entry.u.get());
             entry.v2.set(entry.v.get());
         }
-        ctx.view.polygon.polygon_sides[0].set(0u32);
-        ctx.view.polygon.polygon_sides[1].set(1u32);
+        ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0u32;
+        ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1u32;
         work.polygon_mode.set(3u32);
-        ctx.view.polygon.polygon_textures[1].set(ctx.view.polygon.polygon_textures[0].get());
+        {
+            let first = ctx.view.polygon.scalars.borrow().polygon_textures[0];
+            ctx.view.polygon.scalars.borrow_mut().polygon_textures[1] = first;
+        }
     } else {
         work.polygon_mode.set(4u32);
     }

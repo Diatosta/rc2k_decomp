@@ -124,7 +124,7 @@ pub fn listed<'w>(
     work: &'w PolygonWork,
     poly: &crate::scene::polygon_work_store::PolygonWork,
 ) -> Result<Listed<'w>, BadInput> {
-    let count: u32 = poly.polygon_vertex_count.get();
+    let count: u32 = poly.scalars.borrow().polygon_vertex_count;
     if count > MOST {
         return Err(BadInput("a polygon of more than 256 vertices"));
     }

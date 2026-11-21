@@ -98,7 +98,7 @@ pub(super) fn draw_view_backdrop(
         vertex.specular.set(0);
     }
     // The count in the view's own polygon work.
-    view.polygon.polygon_vertex_count.set(4);
+    view.polygon.scalars.borrow_mut().polygon_vertex_count = 4;
     crate::scene::glow_render_states::glow_render_states(part);
     crate::scene::set_texture::set_texture_with(
         part,

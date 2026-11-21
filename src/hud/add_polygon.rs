@@ -18,7 +18,7 @@ pub fn add_polygon(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::place::{Place, Placement};
     {
-        let count: u32 = pen.polygons.polygon_vertex_count.get();
+        let count: u32 = pen.polygons.scalars.borrow().polygon_vertex_count;
         let texture = hud.block.texture;
         let vertices = hud.block.vertex_count;
         let flushes = if count == 0 || count > MOST_VERTICES {

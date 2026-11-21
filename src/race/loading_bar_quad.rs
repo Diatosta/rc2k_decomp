@@ -28,7 +28,7 @@ pub(super) fn loading_bar_quad(
     scratch.quad.borrow_mut().corners[4] = bar.top;
     scratch.quad.borrow_mut().corners[5] = bar.bottom;
     scratch.quad.borrow_mut().corners[1] = bar.right;
-    polygon.texture_page.set(0xFFFF_FFFFu32);
+    polygon.scalars.borrow_mut().texture_page = 0xFFFF_FFFFu32;
     crate::race::frame_draw::draw_screen_quad(
         polygon,
         scene.scratch.game_scratch(),

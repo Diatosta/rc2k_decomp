@@ -33,13 +33,13 @@ fn outside_mask<'p>(
         let record = entry.record.get();
         let x = f32::from_bits(crate::scene::point_records::vertex(
             part,
-            &poly.quad_vertices,
+            &poly.quads,
             record,
             0xC,
         )) as f64;
         let y = f32::from_bits(crate::scene::point_records::vertex(
             part,
-            &poly.quad_vertices,
+            &poly.quads,
             record,
             0x1C,
         )) as f64;
@@ -63,11 +63,11 @@ pub fn clip_polygon_to_screen(
     course: crate::race::owner_course::CourseReads<'_>,
 ) -> Result<(), BadInput> {
     let (entries, mask) = outside_mask(part, poly)?;
-    poly.screen_clipped.set(1u32);
+    poly.scalars.borrow_mut().screen_clipped = 1u32;
     if mask == 0 {
         return Ok(());
     }
-    poly.polygon_clip_mask.set(mask);
+    poly.scalars.borrow_mut().polygon_clip_mask = mask;
     or_undone(|| {
         let mut listed = Some(entries);
         for (bit, edge, inside_past) in [
@@ -78,7 +78,7 @@ pub fn clip_polygon_to_screen(
         ] {
             if mask & bit != 0 {
                 listed = clip_pass(part, poly, course, listed, edge, inside_past)?;
-                if poly.polygon_vertex_count.get() < 3 {
+                if poly.scalars.borrow().polygon_vertex_count < 3 {
                     break;
                 }
             }

@@ -320,9 +320,9 @@ fn inside_edge(
 /// `edge_crossing`'s arithmetic: the share of the edge's crossing (-(`work.crossing[8]` x
 /// `work.crossing[11]` - `work.crossing[10]` x `work.crossing[9]`) over the difference of the two
 /// cross products, rounded to a float, returned, and used as read back), the
-/// crossing's place (x and z whole numbers into `clip_work[2]` / `clip_work[4]`) and the
-/// entry's texture floats (`clip_work[10]`, `clip_work[11]`) and two bytes
-/// (`crossing_amount`, `clip_out_words`), shared the same way between the scene points
+/// crossing's place (x and z whole numbers into `clip.work[2]` / `clip.work[4]`) and the
+/// entry's texture floats (`clip.work[10]`, `clip.work[11]`) and two bytes
+/// (`crossing_amount`, `clip.out_words`), shared the same way between the scene points
 /// numbered `pa`, `pb` and the entries `ea`, `eb`. The share's bits are not stored to `scratch`:
 /// nothing reads them.
 fn crossing_block(
@@ -350,27 +350,27 @@ fn crossing_block(
             int(a as i32) + (int(b as i32) - int(a as i32)) * share,
         ))
     };
-    poly.clip_work[2].set_bits(whole(0)? as u32);
-    poly.clip_work[4].set_bits(whole(2)? as u32);
+    poly.clip.borrow_mut().work[2] = whole(0)? as u32;
+    poly.clip.borrow_mut().work[4] = whole(2)? as u32;
     let float = |a: &dyn crate::memory::session::DwordLike,
                  b: &dyn crate::memory::session::DwordLike| {
         stf(ld(a.get()) + (ld(b.get()) - ld(a.get())) * share)
     };
-    poly.clip_work[10].set(float(&ea.u2, &eb.u2));
-    poly.clip_work[11].set(float(&ea.v2, &eb.v2));
+    poly.clip.borrow_mut().work[10] = float(&ea.u2, &eb.u2).to_bits();
+    poly.clip.borrow_mut().work[11] = float(&ea.v2, &eb.v2).to_bits();
     let byte = |a: &PlainByte, b: &PlainByte| {
         let (a, b) = (int(a.get().into()), int(b.get().into()));
         to_int(a + (b - a) * share) as u32
     };
-    poly.crossing_amount.set(byte(&ea.amount, &eb.amount));
-    poly.clip_out_words[0].set(byte(&ea.fog, &eb.fog));
+    poly.scalars.borrow_mut().crossing_amount = byte(&ea.amount, &eb.amount);
+    poly.clip.borrow_mut().out_words[0] = byte(&ea.fog, &eb.fog);
     Ok(stored_share)
 }
 
 /// The edge's crossing between work entries `ea` and `eb` as a new scene point (`work.next_point`,
 /// then counted on: x and z from the share `plane_f`, y 0) and the new work entry `ed`
 /// (its point, texture places `u2` / `v2` and the two bytes `fog` / `amount` shared the same way).
-/// The work dwords (`clip_work[2]` ..) are left as `edge_crossing` leaves them.
+/// The work dwords (`clip.work[2]` ..) are left as `edge_crossing` leaves them.
 fn edge_crossing(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
@@ -411,27 +411,18 @@ fn edge_crossing(
         eb,
     )?;
     let n = rd(&work.next_point);
-    put_point_word(
-        ctx.reads.course(),
-        points,
-        n,
-        0,
-        ctx.view.polygon.clip_work[2].bits(),
-    )?;
+    let crossing = ctx.view.polygon.clip.borrow().work;
+    put_point_word(ctx.reads.course(), points, n, 0, crossing[2])?;
     put_point_word(ctx.reads.course(), points, n, 1, 0)?;
-    put_point_word(
-        ctx.reads.course(),
-        points,
-        n,
-        2,
-        ctx.view.polygon.clip_work[4].bits(),
-    )?;
+    put_point_word(ctx.reads.course(), points, n, 2, crossing[4])?;
     ed.point.set(n);
     work.next_point.set(n.wrapping_add(1));
-    ed.u2.set(ctx.view.polygon.clip_work[10].get().to_bits());
-    ed.v2.set(ctx.view.polygon.clip_work[11].get().to_bits());
-    ed.amount.set(rd(&ctx.view.polygon.crossing_amount) as u8);
-    ed.fog.set(rd(&ctx.view.polygon.clip_out_words[0]) as u8);
+    ed.u2.set(crossing[10]);
+    ed.v2.set(crossing[11]);
+    let amount = ctx.view.polygon.scalars.borrow().crossing_amount;
+    ed.amount.set(amount as u8);
+    let fog = ctx.view.polygon.clip.borrow().out_words[0];
+    ed.fog.set(fog as u8);
     Ok(())
 }
 
@@ -443,7 +434,7 @@ fn clip_to_edge(
     from: u32,
     to: u32,
 ) -> Result<(), BadInput> {
-    let count: u32 = ctx.view.polygon.polygon_vertex_count.get();
+    let count: u32 = ctx.view.polygon.scalars.borrow().polygon_vertex_count;
     if count < 3 {
         return Ok(());
     }
@@ -485,7 +476,7 @@ fn clip_to_edge(
             })
         },
         |a, b| {
-            let next: u32 = ctx.view.polygon.polygon_next_entry.get();
+            let next: u32 = ctx.view.polygon.scalars.borrow().polygon_next_entry;
             let crossing = (|| {
                 edge_crossing(
                     ctx,
@@ -498,10 +489,7 @@ fn clip_to_edge(
             if let Err(err) = crossing {
                 trap.keep(err);
             }
-            ctx.view
-                .polygon
-                .polygon_next_entry
-                .set(next.wrapping_add(1));
+            ctx.view.polygon.scalars.borrow_mut().polygon_next_entry = next.wrapping_add(1);
             next
         },
         |e| {
@@ -510,7 +498,7 @@ fn clip_to_edge(
         },
     );
     trap.finish()?;
-    ctx.view.polygon.polygon_vertex_count.set(added);
+    ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = added;
     Ok(())
 }
 
@@ -554,11 +542,11 @@ fn clip_shadow_to_face(
         work.face_corners[2].get(),
     ];
     if !face_is_near(ctx, work, car)? {
-        ctx.view.polygon.polygon_vertex_count.set(0u32);
+        ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = 0u32;
         return Ok(());
     }
     for (a, b) in [(0usize, 1usize), (1, 2), (2, 0)] {
-        if ctx.view.polygon.polygon_vertex_count.get() < 3 {
+        if ctx.view.polygon.scalars.borrow().polygon_vertex_count < 3 {
             return Ok(());
         }
         clip_to_edge(ctx, work, corners[a], corners[b])?;
@@ -623,25 +611,25 @@ fn shadow_on_face(
     if !face_is_near(ctx, work, car)? {
         // The face is cut away whole (`clip_shadow_to_face`), whatever the polygon holds: the
         // polygon's list and the point marks are made afresh by the next face that is near.
-        ctx.view.polygon.polygon_vertex_count.set(0u32);
-        ctx.view.polygon.polygon_next_entry.set(0x20u32);
+        ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = 0u32;
+        ctx.view.polygon.scalars.borrow_mut().polygon_next_entry = 0x20u32;
         let scene_points: u32 = ctx.reads.course_work.get().scene_point_count;
         work.next_point.set(scene_points.wrapping_add(0x30));
-        ctx.view.polygon.polygon_sides[0].set(0u32);
-        ctx.view.polygon.polygon_sides[1].set(1u32);
+        ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0u32;
+        ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1u32;
         return Ok(());
     }
     let polygon = &ctx.part.polygon;
     for (k, cell) in work.list.iter().enumerate().take(count as usize) {
         list_cell(polygon, k).set(cell.get());
     }
-    ctx.view.polygon.polygon_vertex_count.set(count);
+    ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = count;
     list_cell(polygon, count as usize).set(work.list[0].get());
-    ctx.view.polygon.polygon_next_entry.set(0x20u32);
+    ctx.view.polygon.scalars.borrow_mut().polygon_next_entry = 0x20u32;
     let scene_points: u32 = ctx.reads.course_work.get().scene_point_count;
     work.next_point.set(scene_points.wrapping_add(0x30));
-    ctx.view.polygon.polygon_sides[0].set(0u32);
-    ctx.view.polygon.polygon_sides[1].set(1u32);
+    ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0u32;
+    ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1u32;
     let mut at = (scene_points & 0xFFF) * 0x20;
     for _ in 0..0x40 {
         crate::scene::point_records::put_field(
@@ -653,10 +641,10 @@ fn shadow_on_face(
         at = (at + 0x20) & 0x1FFE0;
     }
     clip_shadow_to_face(ctx, work, car)?;
-    if ctx.view.polygon.polygon_vertex_count.get() < 3 {
+    if ctx.view.polygon.scalars.borrow().polygon_vertex_count < 3 {
         return Ok(());
     }
-    let n: u32 = ctx.view.polygon.polygon_vertex_count.get();
+    let n: u32 = ctx.view.polygon.scalars.borrow().polygon_vertex_count;
     for k in 0..n {
         raise_onto_face(
             &ctx.part.polygon,
@@ -673,13 +661,10 @@ fn shadow_on_face(
         ctx.view,
     )?;
     crate::scene::fog_polygon::fog_polygon(ctx.part, ctx.view)?;
-    ctx.view
-        .polygon
-        .polygon_next_record
-        .set(crate::scene::polygon::pool_start());
-    let outside: u32 = ctx.view.polygon.polygon_outside_count.get();
+    ctx.view.polygon.scalars.borrow_mut().polygon_next_record = crate::scene::polygon::pool_start();
+    let outside: u32 = ctx.view.polygon.scalars.borrow().polygon_outside_count;
     if outside != 0 {
-        if outside == ctx.view.polygon.polygon_vertex_count.get() {
+        if outside == ctx.view.polygon.scalars.borrow().polygon_vertex_count {
             return Ok(());
         }
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
@@ -690,7 +675,7 @@ fn shadow_on_face(
             ctx.far_clip,
             ctx.view,
         )?;
-        if ctx.view.polygon.polygon_vertex_count.get() < 3 {
+        if ctx.view.polygon.scalars.borrow().polygon_vertex_count < 3 {
             return Ok(());
         }
     }
@@ -699,13 +684,13 @@ fn shadow_on_face(
         &ctx.view.polygon,
         ctx.reads.course(),
     )?;
-    if ctx.view.polygon.polygon_vertex_count.get() < 3 {
+    if ctx.view.polygon.scalars.borrow().polygon_vertex_count < 3 {
         return Ok(());
     }
-    ctx.view.polygon.polygon_textures[0].set(u32::MAX);
-    ctx.view.polygon.polygon_textures[1].set(work.texture.get());
-    ctx.view.polygon.polygon_sides[0].set(0u32);
-    ctx.view.polygon.polygon_sides[1].set(1u32);
+    ctx.view.polygon.scalars.borrow_mut().polygon_textures[0] = u32::MAX;
+    ctx.view.polygon.scalars.borrow_mut().polygon_textures[1] = work.texture.get();
+    ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0u32;
+    ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1u32;
     ctx.view.face.polygon_mode.set(5u32);
     crate::scene::draw_polygon::draw_polygon_in_game(
         ctx.view,
@@ -1207,10 +1192,10 @@ mod vector_tests {
                 let mut got = inputs.to_vec();
                 got.push(stored_share.to_bits());
                 for k in [2, 4, 10, 11] {
-                    got.push(poly.clip_work[k].bits());
+                    got.push(poly.clip.borrow().work[k]);
                 }
-                got.push(poly.crossing_amount.get());
-                got.push(poly.clip_out_words[0].get());
+                got.push(poly.scalars.borrow().crossing_amount);
+                got.push(poly.clip.borrow().out_words[0]);
                 vectors.check(&got, same, || format!("inputs {inputs:x?}"));
             }
         });

@@ -22,7 +22,7 @@ pub fn clear_depth_buffer(
         session.screen.get().width.get(),
         session.screen.get().height.get(),
     );
-    let own = &polygons.cleared_rectangle;
-    crate::memory::session::write_bits(own, [0, 0, width, height]);
+    let own = [0, 0, width, height];
+    polygons.scalars.borrow_mut().cleared_rectangle = own;
     crate::d3d::device::clear_viewport(part, own);
 }

@@ -92,34 +92,32 @@ fn cut(
     b: &PolygonEntry,
 ) -> Result<u32, BadInput> {
     let polygon_work = &part.polygon;
-    let number: u32 = poly.polygon_next_entry.get();
+    let number: u32 = poly.scalars.borrow().polygon_next_entry;
     if number >= ENTRIES {
         return Err(BadInput("no entry left for a new vertex"));
     }
     // the pool's next record (its number: `scene::point_records::of_pool`)
-    let record: u32 = poly.polygon_next_record.get();
+    let record: u32 = poly.scalars.borrow().polygon_next_record;
     if record == 0 {
         return Err(BadInput("no pool of records"));
     }
-    let mut made_record =
-        crate::scene::point_records::get_in(part, Some(&poly.quad_vertices), record)?;
+    let mut made_record = crate::scene::point_records::get_in(part, Some(&poly.quads), record)?;
     let new = crate::scene::polygon::entry(polygon_work, number as usize)?;
     let mut ends = [CutPoint::default(); 2];
     for (end, entry) in ends.iter_mut().zip([a, b]) {
-        let from = crate::scene::point_records::vertex_bytes(
-            part,
-            &poly.quad_vertices,
-            entry.record.get(),
-        )?;
+        let from =
+            crate::scene::point_records::vertex_bytes(part, &poly.quads, entry.record.get())?;
         *end = cut_point(&from[..RECORD_LEN], entry);
     }
-    let out_1 = crate::memory::session::read_bits(&poly.clip_work);
-    let out_2 = crate::memory::session::read_bits(&poly.clip_out_words);
+    let (out_1, out_2) = {
+        let clip = poly.clip.borrow();
+        (clip.work, clip.out_words)
+    };
     let mut cut = Cut {
         first: ends[0],
         second: ends[1],
         made: CutPoint::from_out_words(out_1, out_2),
-        plane: poly.clip_plane.get() as i32,
+        plane: poly.scalars.borrow().clip_plane as i32,
         scratch: 0,
     };
     match edge {
@@ -154,10 +152,13 @@ fn cut(
     }
     let made = cut.made;
     let (out_1, out_2) = made.out_words();
-    crate::memory::session::write_bits(&poly.clip_work, out_1);
-    crate::memory::session::write_bits(&poly.clip_out_words, out_2);
+    {
+        let mut clip = poly.clip.borrow_mut();
+        clip.work = out_1;
+        clip.out_words = out_2;
+    }
 
-    poly.polygon_next_record.set(record.wrapping_add(1));
+    poly.scalars.borrow_mut().polygon_next_record = record.wrapping_add(1);
     new.record.set(record);
     if !matches!(edge, Edge::Depth(_)) {
         for (word, whole) in made_record.iter_mut().zip(made.whole) {
@@ -167,7 +168,7 @@ fn cut(
     made_record[4..7].copy_from_slice(&made.view.map(f32::to_bits));
     made_record[3] = made.screen_x.to_bits();
     made_record[7] = made.screen_y.to_bits();
-    crate::scene::point_records::set_in(part, Some(&poly.quad_vertices), record, made_record)?;
+    crate::scene::point_records::set_in(part, Some(&poly.quads), record, made_record)?;
     for (k, texture) in made.texture.into_iter().enumerate() {
         new.set_word(8 + k * 4, texture.to_bits());
     }
@@ -212,7 +213,7 @@ pub fn clip_pass<'p>(
     let inside = |entry: &PolygonEntry| {
         let value = f32::from_bits(crate::scene::point_records::vertex(
             part,
-            &poly.quad_vertices,
+            &poly.quads,
             entry.record.get(),
             coordinate,
         ));
@@ -234,11 +235,11 @@ pub fn clip_pass<'p>(
         if a_inside != b_inside {
             let number = cut(part, poly, course, edge, a, b)?;
             crate::scene::polygon::list_cell(polygon_work, out).set(number);
-            poly.polygon_next_entry.set(number + 1);
+            poly.scalars.borrow_mut().polygon_next_entry = number + 1;
             out += 1;
         }
     }
-    poly.polygon_vertex_count.set(out as u32);
+    poly.scalars.borrow_mut().polygon_vertex_count = out as u32;
     Ok(None)
 }
 

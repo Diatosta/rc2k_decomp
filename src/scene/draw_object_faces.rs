@@ -42,18 +42,18 @@ pub fn draw_object_faces(
         work.face_number.set(listed[0]);
         let head: [u8; 0xC] = object_faces.array(face as u32)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
-        poly.polygon_textures[0]
-            .set(texture.wrapping_add(object.borrow().texture_set) | 0x8000_0000);
+        poly.scalars.borrow_mut().polygon_textures[0] =
+            texture.wrapping_add(object.borrow().texture_set) | 0x8000_0000;
         work.face_kind.set(head[6] as u32);
         work.face_unlit.set(head[0xB] as u32);
         let shade = head[0xA] as u32;
-        poly.polygon_colour.set(if shade == 0 {
+        poly.scalars.borrow_mut().polygon_colour = if shade == 0 {
             0x00FF_FFFF
         } else {
             0x0001_0101 * shade
-        });
+        };
         draw(face)?;
-        poly.polygon_colour.set(0x00FF_FFFFu32);
+        poly.scalars.borrow_mut().polygon_colour = 0x00FF_FFFFu32;
     }
     Ok(())
 }

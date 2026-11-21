@@ -58,9 +58,9 @@ pub fn draw_view_scene(
     view.course.shine.set(reads.stage_prefs.shine_from.get());
     let input = filter;
     view.light.borrow_mut().car_light = view.car.light_colour.get();
-    view.polygon.smooth.set(input[0]);
-    view.polygon.plain_first.set(input[1]);
-    view.polygon.plain_second.set(input[2]);
+    view.polygon.scalars.borrow_mut().smooth = input[0];
+    view.polygon.scalars.borrow_mut().plain_first = input[1];
+    view.polygon.scalars.borrow_mut().plain_second = input[2];
     let lists = &view.lists;
     if view.car.view_covered.get() != 0 {
         draw_view_tint(&view.polygon, part, &view.face, reads, reads.screen, view)?;
@@ -74,7 +74,7 @@ pub fn draw_view_scene(
         reads.work,
         reads.vars,
         reads.view,
-        view.polygon.view_mirrored.get() != 0,
+        view.polygon.scalars.borrow().view_mirrored != 0,
         view.drawn_view(race),
     )?;
     clear_point_records(&scene.scratch, part)?;

@@ -80,8 +80,8 @@ pub fn overlay_pass(
     crate::scene::full_view_window::full_view_window(race, scene, system);
     crate::scene::set_render_state::set_render_state(part, 3, 3);
     // Read by the next frame's first view (`view_scratch::filter_input`) and the menus.
-    polygons.plain_first.set(1);
-    polygons.plain_second.set(1);
+    polygons.scalars.borrow_mut().plain_first = 1;
+    polygons.scalars.borrow_mut().plain_second = 1;
     crate::hud::draw_view_strips::draw_view_strips(&crate::hud::draw_view_strip::Overlay {
         race,
         scratch,

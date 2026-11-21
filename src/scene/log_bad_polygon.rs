@@ -50,21 +50,21 @@ const HEAD: [(&std::ffi::CStr, Value); 10] = [
         Shown::Float(view.polygon.window.borrow().clip_screen[0])
     }),
     (c"donezcut", |view, _| {
-        Shown::Int(view.polygon.depth_clipped.get() as i32)
+        Shown::Int(view.polygon.scalars.borrow().depth_clipped as i32)
     }),
     (c"donesuth", |view, _| {
-        Shown::Int(view.polygon.screen_clipped.get() as i32)
+        Shown::Int(view.polygon.scalars.borrow().screen_clipped as i32)
     }),
     (c"cuttest", |view, _| {
-        Shown::IntNewline(view.polygon.polygon_clip_mask.get() as i32)
+        Shown::IntNewline(view.polygon.scalars.borrow().polygon_clip_mask as i32)
     }),
 ];
 const AFTER: [(&std::ffi::CStr, Value); 2] = [
     (c"tpage", |view, _| {
-        Shown::Hex8(view.polygon.texture_page.get())
+        Shown::Hex8(view.polygon.scalars.borrow().texture_page)
     }),
     (c"points", |view, _| {
-        Shown::Int(view.polygon.polygon_vertex_count.get() as i32)
+        Shown::Int(view.polygon.scalars.borrow().polygon_vertex_count as i32)
     }),
 ];
 const POLYGON_NUMBER: [(&std::ffi::CStr, Value); 1] = [(c"polynum", |view, _| {
@@ -106,7 +106,7 @@ pub fn log_bad_polygon(
     screen: &crate::memory::session::Screen,
     vertices: &dyn Store,
 ) -> Result<(), BadInput> {
-    let count: u32 = view.polygon.polygon_vertex_count.get();
+    let count: u32 = view.polygon.scalars.borrow().polygon_vertex_count;
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
     }
@@ -114,7 +114,7 @@ pub fn log_bad_polygon(
         write(label);
         log(at(view, screen));
     }
-    view.polygon.polygon_clip_mask.set(0u32);
+    view.polygon.scalars.borrow_mut().polygon_clip_mask = 0u32;
     let object = view.object.borrow().drawing_object == 1;
     let tail: &[(&std::ffi::CStr, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
     for &(label, at) in AFTER.iter().chain(tail) {

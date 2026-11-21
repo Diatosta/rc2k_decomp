@@ -205,7 +205,7 @@ fn entries(
 /// The sun's hit test.
 fn hit_test(
     part: &crate::scene::scratch_store::PartScratch,
-    quad: &[crate::memory::session::PlainDword; 32],
+    quad: &crate::scene::polygon_work_store::QuadSlot,
     sun: &crate::scene::polygon_work_store::ViewSun,
     entries: &[Listed],
 ) {
@@ -246,7 +246,7 @@ fn hit_test(
 /// The positions into the vertex buffer, mirrored for a mirrored view.
 fn place(
     part: &crate::scene::scratch_store::PartScratch,
-    quad: &[crate::memory::session::PlainDword; 32],
+    quad: &crate::scene::polygon_work_store::QuadSlot,
     reads: crate::scene::workers::DrawReads<'_>,
     entries: &[Listed],
     mirrored: bool,
@@ -259,7 +259,7 @@ fn place(
 fn place_with<R: x87_float::Rounds>(
     r: R,
     part: &crate::scene::scratch_store::PartScratch,
-    quad: &[crate::memory::session::PlainDword; 32],
+    quad: &crate::scene::polygon_work_store::QuadSlot,
     reads: crate::scene::workers::DrawReads<'_>,
     entries: &[Listed],
     mirrored: bool,
@@ -314,9 +314,9 @@ fn choose_texture(
     outside: &mut dyn Outside,
     reads: crate::scene::workers::DrawReads<'_>,
 ) {
-    let smooth = poly.smooth.get() == 1;
+    let smooth = poly.scalars.borrow().smooth == 1;
     outside.state(3, if smooth { 3 } else { 1 });
-    let number: u32 = poly.texture_page.get();
+    let number: u32 = poly.scalars.borrow().texture_page;
     let loaded: u32 = reads.place_slots.video_textures();
     let texture = match number {
         u32::MAX => None,
@@ -331,7 +331,7 @@ fn choose_texture(
         _ => (number < 0x400).then(|| reads.kind_textures.first_slot(number as usize)),
     };
     let texture = texture.filter(|&texture: &u32| texture < loaded);
-    poly.polygon_texture.set(texture.unwrap_or(NO_TEXTURE));
+    poly.scalars.borrow_mut().polygon_texture = texture.unwrap_or(NO_TEXTURE);
 }
 
 /// Clears a switch by what the entries' `amount` bytes hold.
@@ -341,7 +341,7 @@ fn clear_a_switch(
     face: &crate::race::face_work::FaceWork,
     entries: &[Listed],
 ) -> Result<(), BadInput> {
-    if poly.polygon_sides[0].get() == 0 || poly.polygon_sides[1].get() == 0 {
+    if poly.scalars.borrow().polygon_sides[0] == 0 || poly.scalars.borrow().polygon_sides[1] == 0 {
         return Ok(());
     }
     let bytes = entries.iter().map(|&(_, entry)| entry.amount.get());
@@ -353,10 +353,10 @@ fn clear_a_switch(
             .ok_or(BadInput("a texture past the records"))?;
         // the third byte of the record's word 0xB
         if info.words[0xB].get().to_le_bytes()[2] == 0 {
-            poly.polygon_sides[0].set(0u32);
+            poly.scalars.borrow_mut().polygon_sides[0] = 0u32;
         }
     } else if any == 0 {
-        poly.polygon_sides[1].set(0u32);
+        poly.scalars.borrow_mut().polygon_sides[1] = 0u32;
     }
     Ok(())
 }
@@ -367,7 +367,7 @@ fn shade(
     entries: &[Listed],
     how: Shade,
 ) {
-    let colour: u32 = poly.polygon_colour.get();
+    let colour: u32 = poly.scalars.borrow().polygon_colour;
     for &(_, entry) in entries {
         let (fog, other) = (entry.fog.get() as u32, entry.amount.get() as u32);
         let put = |offset: usize, value: u32| entry.set_word(offset, value);
@@ -409,7 +409,7 @@ pub fn draw_polygon(
     reads: crate::scene::workers::DrawReads<'_>,
     screen: &crate::memory::session::Screen,
 ) -> Result<(), BadInput> {
-    let count: u32 = poly.polygon_vertex_count.get();
+    let count: u32 = poly.scalars.borrow().polygon_vertex_count;
     if count == 0 || count > MOST {
         return Err(BadInput("a polygon of no vertices, or of too many"));
     }
@@ -421,14 +421,14 @@ pub fn draw_polygon(
     }
     let mut entries = entries(&part.polygon, count)?;
     // Nothing has been written up to here.
-    hit_test(part, &poly.quad_vertices, &poly.sun, &entries);
+    hit_test(part, &poly.quads, &poly.sun, &entries);
     let kept: [u32; 3] = [
-        poly.polygon_sides[0].get(),
-        poly.polygon_sides[1].get(),
+        poly.scalars.borrow().polygon_sides[0],
+        poly.scalars.borrow().polygon_sides[1],
         face.polygon_mode.get(),
     ];
-    crate::memory::session::write_bits(&poly.polygon_kept, kept);
-    let mirrored = poly.view_mirrored.get() != 0;
+    poly.scalars.borrow_mut().polygon_kept = kept;
+    let mirrored = poly.scalars.borrow().view_mirrored != 0;
     if mirrored && count > 2 {
         // The list's entries after the first, turned round.
         entries[1..].reverse();
@@ -436,19 +436,13 @@ pub fn draw_polygon(
             crate::scene::polygon::list_cell(&part.polygon, n).set(number);
         }
     }
-    place(
-        part,
-        &poly.quad_vertices,
-        reads,
-        &entries,
-        mirrored,
-        &poly.window,
-    );
+    place(part, &poly.quads, reads, &entries, mirrored, &poly.window);
 
     if face.faded.get() != 0 {
-        let (mode, texture): (u32, u32) = (face.polygon_mode.get(), poly.texture_page.get());
+        let (mode, texture): (u32, u32) =
+            (face.polygon_mode.get(), poly.scalars.borrow().texture_page);
         // The faded first pass: each vertex fades by its own fog byte.
-        let (from, alpha): (u32, u32) = (poly.fade_from.get(), face.fade_alpha.get());
+        let (from, alpha): (u32, u32) = (poly.scalars.borrow().fade_from, face.fade_alpha.get());
         let uv = crate::memory::session::read_bits(&reads.vars.fade_uv);
         for (n, &(_, entry)) in entries.iter().enumerate() {
             let out = out(buffer, n);
@@ -459,7 +453,7 @@ pub fn draw_polygon(
             out.u.set(f32::from_bits(uv[0]));
             out.v.set(f32::from_bits(uv[1]));
         }
-        poly.texture_page.set(FADE_TEXTURE);
+        poly.scalars.borrow_mut().texture_page = FADE_TEXTURE;
         face.polygon_mode.set(7u32);
         choose_texture(poly, outside, reads);
         for (state, value) in [(0x15, 4), (0x13, 5), (0x14, 6), (0x1B, 1), (0x1C, 0)] {
@@ -472,7 +466,7 @@ pub fn draw_polygon(
             reads.object_tables.d3d_drawing_on() != 0,
             screen,
         );
-        poly.texture_page.set(texture);
+        poly.scalars.borrow_mut().texture_page = texture;
         face.polygon_mode.set(mode);
     }
 
@@ -482,9 +476,9 @@ pub fn draw_polygon(
         clear_a_switch(&reads.buffers.polygon_tables, poly, face, &entries)?;
     }
     if matches!(mode, 3..=5) {
-        let fallback = if poly.polygon_sides[1].get() == 0 {
+        let fallback = if poly.scalars.borrow().polygon_sides[1] == 0 {
             Some(2)
-        } else if poly.polygon_sides[0].get() == 0 {
+        } else if poly.scalars.borrow().polygon_sides[0] == 0 {
             Some([8, 9, 0xA][mode as usize - 3])
         } else {
             None
@@ -497,12 +491,15 @@ pub fn draw_polygon(
     if let Some((how, passes)) = passes(mode) {
         shade(poly, &reads.scene_draw, &entries, how);
         for pass in passes {
-            let (texture, smooth) = match pass.set {
-                Set::A => (&poly.polygon_textures[0], &poly.plain_first),
-                Set::B => (&poly.polygon_textures[1], &poly.plain_second),
-            };
-            poly.texture_page.set(texture.get());
-            poly.smooth.set(smooth.get());
+            {
+                let mut scalars = poly.scalars.borrow_mut();
+                let (texture, smooth) = match pass.set {
+                    Set::A => (scalars.polygon_textures[0], scalars.plain_first),
+                    Set::B => (scalars.polygon_textures[1], scalars.plain_second),
+                };
+                scalars.texture_page = texture;
+                scalars.smooth = smooth;
+            }
             copy_set(buffer, &entries, pass.set);
             if let Some(as_mode) = pass.as_mode {
                 face.polygon_mode.set(as_mode);
@@ -533,8 +530,8 @@ pub fn draw_polygon(
         }
     }
     // The switches and the mode as they were.
-    poly.polygon_sides[0].set(kept[0]);
-    poly.polygon_sides[1].set(kept[1]);
+    poly.scalars.borrow_mut().polygon_sides[0] = kept[0];
+    poly.scalars.borrow_mut().polygon_sides[1] = kept[1];
     face.polygon_mode.set(kept[2]);
     Ok(())
 }

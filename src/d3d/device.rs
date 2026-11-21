@@ -1057,12 +1057,9 @@ pub fn end_layer(d3d: &crate::d3d::owner::D3d) -> bool {
 // ---- d3d::clear_viewport ----
 
 /// `d3d::clear_viewport` for Rust callers: the depth buffer cleared over the rectangle
-/// `DRAW.cleared_rectangle` holds, noted in drawing part `part`'s drawing.
-pub fn clear_viewport(
-    part: &crate::scene::scratch_store::PartScratch,
-    own: &[crate::memory::session::PlainDword; 4],
-) {
-    let [left, top, right, bottom] = crate::memory::session::read_bits(own).map(|v| v as i32);
+/// `own` (left, top, right, bottom), noted in drawing part `part`'s drawing.
+pub fn clear_viewport(part: &crate::scene::scratch_store::PartScratch, own: [u32; 4]) {
+    let [left, top, right, bottom] = own.map(|v| v as i32);
     let c = |v: i32| v.max(0) as usize;
     note(part, |pending| {
         pending

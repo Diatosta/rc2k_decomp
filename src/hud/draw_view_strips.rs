@@ -34,13 +34,13 @@ pub fn draw_view_strips(overlay: &Overlay) -> Result<(), Refused> {
     {
         if race.shared.replay_file().hold_car_revs.get() == 0 {
             if flashing(&race.shared, race.shared.view.get().view_blocks[0].get())? {
-                scratch.polygon.polygon_textures[0].set(TEXTURES[0]);
+                scratch.polygon.scalars.borrow_mut().polygon_textures[0] = TEXTURES[0];
                 draw_view_strip(overlay, shown_layout(&race.shared))?;
             }
             if shown_layout(&race.shared) != 0
                 && flashing(&race.shared, race.shared.view.get().view_blocks[1].get())?
             {
-                scratch.polygon.polygon_textures[0].set(TEXTURES[1]);
+                scratch.polygon.scalars.borrow_mut().polygon_textures[0] = TEXTURES[1];
                 draw_view_strip(
                     overlay,
                     shown_layout(&race.shared).wrapping_add(SECOND_VIEW),

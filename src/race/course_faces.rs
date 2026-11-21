@@ -218,8 +218,8 @@ fn draw_marked_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 fn face_switches(poly: &crate::scene::polygon_work_store::PolygonWork, work: &FaceWork) {
     let [first, second] =
         rc2k_core::race::faces::switches([work.texture_a.get(), work.texture_b.get()]);
-    poly.polygon_sides[0].set(first);
-    poly.polygon_sides[1].set(second);
+    poly.scalars.borrow_mut().polygon_sides[0] = first;
+    poly.scalars.borrow_mut().polygon_sides[1] = second;
 }
 
 /// The light at scene point `n` (`light_colour_at`), 0 for -1.
@@ -282,7 +282,7 @@ fn face_lights(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// `polygon_drawn` 1.
 fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     use rc2k_core::race::face_drawing::draws_polygon;
-    if ctx.view.polygon.polygon_outside_count.get() != 0 {
+    if ctx.view.polygon.scalars.borrow().polygon_outside_count != 0 {
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
             ctx.part,
             &ctx.view.polygon,
@@ -291,7 +291,7 @@ fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             ctx.far_clip,
             ctx.view,
         )?;
-        if !draws_polygon(ctx.view.polygon.polygon_vertex_count.get()) {
+        if !draws_polygon(ctx.view.polygon.scalars.borrow().polygon_vertex_count) {
             return Ok(());
         }
     }
@@ -300,7 +300,7 @@ fn clip_and_draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         &ctx.view.polygon,
         ctx.reads.course(),
     )?;
-    if !draws_polygon(ctx.view.polygon.polygon_vertex_count.get()) {
+    if !draws_polygon(ctx.view.polygon.scalars.borrow().polygon_vertex_count) {
         return Ok(());
     }
     crate::scene::draw_polygon::draw_polygon_in_game(
@@ -392,12 +392,11 @@ pub struct TextureSet<'a> {
     pub texture: &'a PlainDword,
     /// The kind's low bits, the corner order (`order_a` / `order_b`).
     pub order: &'a PlainDword,
-    /// The texture's size word with bit 31 (`polygon_textures` / `polygon_textures[1]`).
-    pub size: &'a PlainDword,
+    /// 0 for the first set, 1 for the second: the set's size word (`polygon_textures[index]`,
+    /// bit 31 set) and its `plain` switch (`plain_first` / `plain_second`) are the polygon's.
+    pub index: usize,
     /// The texture's mapping mode, its signed mapping byte (`mapping_a` / `mapping_b`).
     pub mapping: &'a PlainDword,
-    /// 1 when the mapping is 0 (`plain_first` / the next flag).
-    pub plain: &'a PlainDword,
     /// The four corners' u, v (`corner_uv` .. / `corner_uv_b` ..).
     pub uv: &'a [PlainDword; 8],
 }
@@ -408,9 +407,8 @@ pub fn first_set<'a>(ctx: &DrawCtx<'a>) -> TextureSet<'a> {
     TextureSet {
         texture: &work.texture_a,
         order: &work.order_a,
-        size: &ctx.view.polygon.polygon_textures[0],
+        index: 0,
         mapping: &work.mapping_a[0],
-        plain: &ctx.view.polygon.plain_first,
         uv: &work.uv_a,
     }
 }
@@ -421,9 +419,8 @@ pub fn second_set<'a>(ctx: &DrawCtx<'a>) -> TextureSet<'a> {
     TextureSet {
         texture: &work.texture_b,
         order: &work.order_b,
-        size: &ctx.view.polygon.polygon_textures[1],
+        index: 1,
         mapping: &work.mapping_b[0],
-        plain: &ctx.view.polygon.plain_second,
         uv: &work.uv_b,
     }
 }
@@ -462,6 +459,7 @@ pub(super) fn face_texture_coordinates(
     buffers: &crate::race::buffers_store::BufferReads,
     race_view: &crate::race::view_store::RaceView,
     work: &FaceWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     set: &TextureSet<'_>,
 ) -> Result<(), BadInput> {
     use rc2k_core::race::faces::{TextureInfo, texture_coordinates};
@@ -492,9 +490,16 @@ pub(super) fn face_texture_coordinates(
         })
     });
     trap.finish()?;
-    set.size.set(c.size);
+    {
+        let mut scalars = poly.scalars.borrow_mut();
+        scalars.polygon_textures[set.index] = c.size;
+        if set.index == 0 {
+            scalars.plain_first = c.plain;
+        } else {
+            scalars.plain_second = c.plain;
+        }
+    }
     set.mapping.set(c.mapping);
-    set.plain.set(c.plain);
     crate::memory::session::write_bits(set.uv, c.uv);
     Ok(())
 }
@@ -567,12 +572,12 @@ fn plain_list(
     count: u32,
     next: u32,
 ) {
-    poly.polygon_vertex_count.set(count);
+    poly.scalars.borrow_mut().polygon_vertex_count = count;
     for k in 0..count {
         crate::scene::polygon::list_cell(polygon_work, k as usize).set(k);
     }
     crate::scene::polygon::list_cell(polygon_work, count as usize).set(0);
-    poly.polygon_next_entry.set(next);
+    poly.scalars.borrow_mut().polygon_next_entry = next;
 }
 
 /// Draws the face as one quad when it can be: the entries 1, 2, 3, 0 from corners 0, 1, 3, 2. It
@@ -598,7 +603,8 @@ fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
         ctx.reads,
         ctx.view,
     )?;
-    if let Some(triangles) = quad_by_outside(ctx.view.polygon.polygon_outside_count.get()) {
+    let outside = ctx.view.polygon.scalars.borrow().polygon_outside_count;
+    if let Some(triangles) = quad_by_outside(outside) {
         return Ok(triangles);
     }
     let [left, right, top, bottom] = screen_inside(
@@ -614,18 +620,18 @@ fn draw_whole_quad(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     for slot in 0..4 {
         let v = entry(&ctx.part.polygon, slot).record.get();
         if !inside(
-            crate::scene::point_records::vertex(ctx.part, &ctx.view.polygon.quad_vertices, v, 0xC),
+            crate::scene::point_records::vertex(ctx.part, &ctx.view.polygon.quads, v, 0xC),
             left,
             right,
         ) || !inside(
-            crate::scene::point_records::vertex(ctx.part, &ctx.view.polygon.quad_vertices, v, 0x1C),
+            crate::scene::point_records::vertex(ctx.part, &ctx.view.polygon.quads, v, 0x1C),
             top,
             bottom,
         ) {
             return Ok(true);
         }
     }
-    ctx.view.polygon.polygon_vertex_count.set(4u32);
+    ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = 4u32;
     draw_marked_face(ctx)?;
     Ok(false)
 }
@@ -640,7 +646,7 @@ fn draw_face_triangles(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         for (slot, corner) in FIRST_TRIANGLE {
             fill_entry(&ctx.part.polygon, &ctx.view.face, slot, corner)?;
         }
-        ctx.view.polygon.polygon_vertex_count.set(3u32);
+        ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = 3u32;
         draw_lit_triangle(ctx)?;
     }
     let fourth: u32 = ctx.view.face.corners[3].get();
@@ -648,7 +654,7 @@ fn draw_face_triangles(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         for (slot, corner) in SECOND_TRIANGLE {
             fill_entry(&ctx.part.polygon, &ctx.view.face, slot, corner)?;
         }
-        ctx.view.polygon.polygon_vertex_count.set(3u32);
+        ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = 3u32;
         draw_lit_triangle(ctx)?;
     }
     Ok(())
@@ -716,6 +722,7 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             ctx.reads.buffers,
             ctx.reads.view,
             &ctx.view.face,
+            &ctx.view.polygon,
             &first_set(ctx),
         )?;
     }
@@ -729,6 +736,7 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             ctx.reads.buffers,
             ctx.reads.view,
             &ctx.view.face,
+            &ctx.view.polygon,
             &second_set(ctx),
         )?;
     }
@@ -746,7 +754,7 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 fn halfway_vertex(
     course: CourseReads<'_>,
     part: &crate::scene::scratch_store::PartScratch,
-    quad: &[crate::memory::session::PlainDword; 32],
+    quad: &crate::scene::polygon_work_store::QuadSlot,
     a: u32,
     b: u32,
     v: u32,
@@ -836,23 +844,18 @@ fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     }
     crate::race::frame_draw::points_there(ctx)?;
     crate::race::frame_draw::check_light_colour(ctx.reads.work, ctx.reads.view, &ctx.view.lamps)?;
-    ctx.view
-        .polygon
-        .polygon_next_record
-        .set(crate::scene::polygon::pool_start());
-    plain_list(
-        &ctx.part.polygon,
-        &ctx.view.polygon,
-        ctx.view.polygon.polygon_vertex_count.get(),
-        6,
-    );
+    ctx.view.polygon.scalars.borrow_mut().polygon_next_record = crate::scene::polygon::pool_start();
+    let vertex_count = ctx.view.polygon.scalars.borrow().polygon_vertex_count;
+    plain_list(&ctx.part.polygon, &ctx.view.polygon, vertex_count, 6);
     crate::scene::project_polygon::project_polygon(
         ctx.part,
         &ctx.view.polygon,
         ctx.reads,
         ctx.view,
     )?;
-    if ctx.view.polygon.polygon_outside_count.get() == ctx.view.polygon.polygon_vertex_count.get() {
+    if ctx.view.polygon.scalars.borrow().polygon_outside_count
+        == ctx.view.polygon.scalars.borrow().polygon_vertex_count
+    {
         return Ok(());
     }
     crate::scene::scale_texture_coordinates::scale_texture_coordinates(
@@ -880,7 +883,7 @@ fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             let m = m.wrapping_add(a);
             crate::scene::point_records::put_field_in(
                 ctx.part,
-                Some(&ctx.view.polygon.quad_vertices),
+                Some(&ctx.view.polygon.quads),
                 v,
                 o,
                 m,
@@ -890,7 +893,7 @@ fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         halfway_vertex(
             ctx.reads.course(),
             ctx.part,
-            &ctx.view.polygon.quad_vertices,
+            &ctx.view.polygon.quads,
             entry(&ctx.part.polygon, first).record.get(),
             entry(&ctx.part.polygon, second).record.get(),
             v,
@@ -928,8 +931,8 @@ fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             crate::scene::polygon::list_cell(&ctx.part.polygon, k).set(*n);
         }
         ctx.part.polygon.list[3].set(list[0]);
-        ctx.view.polygon.polygon_vertex_count.set(3u32);
-        ctx.view.polygon.polygon_next_entry.set(6u32);
+        ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = 3u32;
+        ctx.view.polygon.scalars.borrow_mut().polygon_next_entry = 6u32;
         clip_and_draw_face(ctx)?;
     }
     Ok(())
@@ -1074,15 +1077,15 @@ fn draw_course_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
 /// (`object_tints[object]`, when not 0; byte by byte (a x b) >> 8); the colour is put back after.
 pub(super) fn draw_tinted_face(ctx: &DrawCtx<'_>, face: u32) -> Result<(), Refused> {
     use rc2k_core::race::face_drawing::{tinted, tints};
-    let colour: u32 = ctx.view.polygon.polygon_colour.get();
+    let colour: u32 = ctx.view.polygon.scalars.borrow().polygon_colour;
     let object = crate::race::course_places::face_field::<u8>(ctx.reads.course(), face, 1)? as u32;
     // `object` is a byte: inside the 256 tints.
     let tint = ctx.reads.stage_prefs.object_tints[object as usize].get();
     if tints(tint) {
-        ctx.view.polygon.polygon_colour.set(tinted(tint, colour));
+        ctx.view.polygon.scalars.borrow_mut().polygon_colour = tinted(tint, colour);
     }
     let done = draw_course_face(ctx, face);
-    ctx.view.polygon.polygon_colour.set(colour);
+    ctx.view.polygon.scalars.borrow_mut().polygon_colour = colour;
     done
 }
 

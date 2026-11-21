@@ -22,6 +22,6 @@ pub fn add_quad(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
         at.u.set(v.u);
         at.v.set(v.v);
     }
-    pen.polygons.polygon_vertex_count.set(4u32);
+    pen.polygons.scalars.borrow_mut().polygon_vertex_count = 4u32;
     crate::hud::add_polygon::add_polygon(frame, hud, pen)
 }

@@ -87,12 +87,12 @@ fn quad(
         set_quad_input(scratch, o, v);
     }
     if let Some(t) = texture {
-        polygon.polygon_textures[0].set(t);
+        polygon.scalars.borrow_mut().polygon_textures[0] = t;
     }
     scene.drawing.scene.borrow_mut().polygon_alpha = 0xFF;
     set_quad_input(scratch, 0, 0xFFFF_FFFF);
-    polygon.polygon_sides[0].set(1);
-    polygon.polygon_sides[1].set(0);
+    polygon.scalars.borrow_mut().polygon_sides[0] = 1;
+    polygon.scalars.borrow_mut().polygon_sides[1] = 0;
     crate::scene::draw_flat_quad::draw_flat_quad(
         polygon,
         part,

@@ -1,5 +1,5 @@
 //! `scene::draw_flat_quad`: a flat quad on the screen through the polygon pipeline: the
-//! polygon-drawn flag 0; the four polygon records' vertex pointers (`quad_vertices`, 0x20
+//! polygon-drawn flag 0; the four polygon records' vertex pointers (`quads`, 0x20
 //! apart), texture places (`quad_uv`), the corners' x (left, right) and y (top, bottom) from
 //! `quad_corners` as floats, the fixed depth; the entries -1, colour `quad_colour`'s low 24
 //! bits, the entries' `light` 0; four vertices, the record pool, the list 0 .. 3; then
@@ -41,7 +41,7 @@ pub fn draw_flat_quad(
         [corners[0], corners[1], corners[4], corners[5]].map(float)
     };
     let v = |n: usize, o: usize, x: f32| {
-        poly.quad_vertices[8 * n + o / 4].set(x.to_bits());
+        poly.quads.borrow_mut().words[8 * n + o / 4] = x.to_bits();
     };
     for (n, x, y) in [
         (0, left, top),
@@ -59,29 +59,27 @@ pub fn draw_flat_quad(
     for item in part.polygon.entries.iter().take(4) {
         item.point.set(0xFFFF_FFFF);
     }
-    poly.polygon_colour
-        .set(view.quad.borrow().colour[0] & 0xFF_FFFF);
+    poly.scalars.borrow_mut().polygon_colour = view.quad.borrow().colour[0] & 0xFF_FFFF;
     for item in part.polygon.entries.iter().take(4) {
         item.light.set(0);
     }
-    poly.polygon_vertex_count.set(4);
-    poly.polygon_next_record
-        .set(crate::scene::polygon::pool_start());
+    poly.scalars.borrow_mut().polygon_vertex_count = 4;
+    poly.scalars.borrow_mut().polygon_next_record = crate::scene::polygon::pool_start();
     for n in 0..4u32 {
         crate::scene::polygon::list_cell(&part.polygon, n as usize).set(n);
     }
     crate::scene::polygon::list_cell(&part.polygon, 4).set(0);
-    poly.polygon_next_entry.set(4);
+    poly.scalars.borrow_mut().polygon_next_entry = 4;
     crate::scene::scale_texture_coordinates::scale_texture_coordinates(&part.polygon, poly)?;
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(part, poly, course)?;
-    if poly.polygon_vertex_count.get() >= 3 {
+    if poly.scalars.borrow().polygon_vertex_count >= 3 {
         face.polygon_mode.set(6);
-        poly.polygon_sides[0].set(1);
-        poly.polygon_sides[1].set(0);
+        poly.scalars.borrow_mut().polygon_sides[0] = 1;
+        poly.scalars.borrow_mut().polygon_sides[1] = 0;
         crate::scene::depth_buffer_on::depth_buffer(part, false);
         crate::scene::draw_polygon::draw_polygon_in_game(view, part, reads, screen)?;
         crate::scene::depth_buffer_on::depth_buffer(part, true);
     }
-    poly.polygon_colour.set(0xFF_FFFF);
+    poly.scalars.borrow_mut().polygon_colour = 0xFF_FFFF;
     Ok(())
 }
