@@ -33,7 +33,7 @@ use std::cell::Cell;
 pub const KEYS: usize = 0x80;
 
 /// The input thread's and the settings' variables.
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
 pub struct Devices {
     /// The input thread's last tick (ms).
     pub last_tick: Dword,

@@ -3,13 +3,13 @@
 //! the two file handles of `race::save_viewed_replay`.
 
 use crate::errors::BadInput;
-use crate::memory::session::{PlainBytes, PlainDword, PlainFlag};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::{PlainDword, PlainFlag};
 #[cfg(test)]
 use crate::test_support::own::race;
 use rc2k_core::drive::replay_frames::{EXTENDED_FRAME_BYTES, EXTRA_TAPE_DWORDS, block_bytes};
 use rc2k_core::race::replay_v2::{BLOCK_BYTES as V2_BLOCK_BYTES, MOST_BLOCKS, TAIL_DWORDS};
 
-#[derive(rc2k_derive::Cells)]
 pub struct ViewerBuffers {
     /// 256 colours the panel fonts' palettes point at (`race::viewer_palettes`).
     pub colours: [PlainDword; 256],
@@ -21,7 +21,7 @@ pub struct ViewerBuffers {
     pub block: [PlainDword; 0xA04],
     /// 8 bytes a block, 0x708 blocks (`drive::replay_frame_marks`, `race::edit_camera`,
     /// `race::viewer`).
-    pub block_cameras: PlainBytes<{ 8 * MOST_BLOCKS as usize }>,
+    pub block_cameras: PlainBuffer<{ 8 * MOST_BLOCKS as usize }>,
     /// Blocks to undo, 0 = nothing (`race::viewer`).
     pub undo_blocks: PlainDword,
     /// The block places of the undo, 0x3840 bytes (`race::keep_undo`, `race::undo_edit`).
@@ -80,7 +80,27 @@ pub const BLOCK_BYTES: usize = 4 * 0xA04;
 impl ViewerBuffers {
     /// All bytes zero.
     pub const fn new() -> Self {
-        crate::memory::cells::zeroed_cells()
+        Self {
+            colours: [const { PlainDword::new(0) }; 256],
+            block_used: PlainDword::new(0),
+            block: [const { PlainDword::new(0) }; 0xA04],
+            block_cameras: PlainBuffer::new([0; 8 * MOST_BLOCKS as usize]),
+            undo_blocks: PlainDword::new(0),
+            undo_places: [const { PlainDword::new(0) }; 2 * MOST_BLOCKS as usize],
+            undo_cameras: [const { PlainDword::new(0) }; 2 * MOST_BLOCKS as usize],
+            mark_in: PlainDword::new(0),
+            mark_out: PlainDword::new(0),
+            camera_edit: PlainDword::new(0),
+            clip_blocks: PlainDword::new(0),
+            clip_places: [const { PlainDword::new(0) }; 2 * MOST_BLOCKS as usize],
+            clip_cameras: [const { PlainDword::new(0) }; 2 * MOST_BLOCKS as usize],
+            from_file: PlainDword::new(0),
+            to_file: PlainDword::new(0),
+            block_extra: [const { PlainDword::new(0) }; EXTRA_TAPE_DWORDS],
+            extra_tape: PlainFlag::new(false),
+            block_tail: [const { PlainDword::new(0) }; TAIL_DWORDS],
+            v2: PlainFlag::new(false),
+        }
     }
 
     /// The bytes the block holds: with the extra tape, the plain frame and the tape.

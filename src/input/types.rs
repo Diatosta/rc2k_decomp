@@ -8,7 +8,7 @@ use std::mem::{offset_of, size_of};
 pub type Guid = [u8; 16];
 
 /// A listed joystick, one of 16 (`input::joystick_found`).
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
 pub struct Controller {
     /// DIDEVCAPS' flags: 1 attached, 0x100 force feedback.
     pub caps_flags: Dword,
@@ -57,7 +57,7 @@ fn put_dwords<'a>(out: &mut [u8], at: usize, ds: impl IntoIterator<Item = &'a Dw
 
 /// DirectInput's `DIENVELOPE`.
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
 pub struct DiEnvelope {
     pub size: Dword,
     pub attack_level: Dword,
@@ -100,7 +100,7 @@ impl DiEnvelope {
 /// DirectInput stand-in is given the parts (`effect_objects::parameters_of`) and takes only
 /// whether each pointer is set.
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
 pub struct DiEffect {
     pub size: Dword,
     pub flags: Dword,
@@ -177,7 +177,7 @@ impl DiEffect {
 }
 
 /// One of a device record's six force-feedback effects (`input::make_effect`).
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
 pub struct ForceEffect {
     /// Which of the six change functions is its own (`effect_changes::effect_change`'s number).
     pub change: Dword,
@@ -267,7 +267,7 @@ impl ForceEffect {
 }
 
 /// A control's binding: its key, the axis's place in the record, its sign, a button's bit.
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
 pub struct Binding {
     pub key: Dword,
     /// The axis's place in the record (0x2C, 0x30, 0x34; 0 none).
@@ -294,7 +294,7 @@ impl Binding {
 }
 
 /// A player's input device, one of two (`input/devices.rs`).
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
 pub struct InputDevice {
     /// The controller's number in the controllers' table.
     pub controller: Dword,

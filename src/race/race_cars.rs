@@ -5,7 +5,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::plain_floats::FloatRef;
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 #[cfg(test)]
 use crate::race::blocks_store::CAR_BLOCKS;
@@ -26,7 +27,7 @@ pub const TEXT_LEN: usize = 0x708;
 #[derive(Clone, Copy)]
 enum Field {
     Word(fn(&Car) -> &PlainDword),
-    Float(fn(&Car) -> &PlainFloat),
+    Float(for<'a> fn(&'a Car) -> FloatRef<'a>),
 }
 
 impl Field {
@@ -49,12 +50,12 @@ const CLEARED: [Field; 22] = [
     Field::Word(|c| &c.started_stand_timer),
     Field::Word(|c| &c.damage_failed),
     Field::Word(|c| &c.checkpoint),
-    Field::Float(|c| &c.brake_heat[0]),
-    Field::Float(|c| &c.brake_heat[1]),
-    Field::Float(|c| &c.damper_wear[0]),
-    Field::Float(|c| &c.damper_wear[1]),
-    Field::Float(|c| &c.engine_heat),
-    Field::Float(|c| &c.brake_fade),
+    Field::Float(|c| c.brake_heat.float_at(0).into()),
+    Field::Float(|c| c.brake_heat.float_at(1).into()),
+    Field::Float(|c| c.damper_wear.float_at(0).into()),
+    Field::Float(|c| c.damper_wear.float_at(1).into()),
+    Field::Float(|c| (&c.engine_heat).into()),
+    Field::Float(|c| (&c.brake_fade).into()),
     Field::Word(|c| &c.handbrake_failed),
     Field::Word(|c| &c.electrical_failures[0]),
     Field::Word(|c| &c.electrical_failures[1]),
@@ -618,7 +619,7 @@ pub(super) fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
 
 /// What `race::set_up_cars` writes into both players' blocks first (field, value).
 const PLAYER_RESETS: [(Field, u32); 6] = [
-    (Field::Float(|c| &c.top_speed), 0),
+    (Field::Float(|c| (&c.top_speed).into()), 0),
     (Field::Word(|c| &c.split_gaps[0]), u32::MAX),
     (Field::Word(|c| &c.split_gaps[2]), u32::MAX),
     (Field::Word(|c| &c.split_gaps[1]), u32::MAX),
@@ -767,7 +768,7 @@ mod tests {
         let car = &CAR_BLOCKS.cars[0];
         let at = match field {
             Field::Word(field) => core::ptr::from_ref(field(car)).cast::<u8>(),
-            Field::Float(field) => core::ptr::from_ref(field(car)).cast::<u8>(),
+            Field::Float(field) => field(car).addr() as *const u8,
         };
         crate::physics::car_offsets_1999::offset_1999(car, at as usize)
     }

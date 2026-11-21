@@ -228,7 +228,7 @@ fn share_car_state_at(
             .size
             .set(f32::from_bits(car.contact_value.get()));
     }
-    for (cell, mark) in o.factors.iter().zip(&car.impact_octant_marks) {
+    for (cell, mark) in o.factors.iter().zip(car.impact_octant_marks.floats()) {
         cell.set(mark.get());
     }
     let kept_from = o.face_sums.each_ref().map(PlainDword::get);

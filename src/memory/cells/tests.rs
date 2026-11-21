@@ -117,16 +117,13 @@ macro_rules! cells_stores {
 
 #[test]
 fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
-    let audio = crate::test_support::own::audio();
     let menus = crate::test_support::own::menus();
     let race = crate::test_support::own::race();
     let _lock = crate::test_support::test_lock();
     cells_stores! {
         *race.shared.car(),
-        audio.state,
         menus.play.slots.pointers,
         *race.shared.physics_tables.get(),
-        *race.shared.viewer_buffers(),
         *race.shared.car_blocks.get(),
         *race.shared.car_parts.get(),
         *race.frame.view_and_records.get(),

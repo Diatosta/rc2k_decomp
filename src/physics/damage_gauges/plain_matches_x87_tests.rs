@@ -27,7 +27,11 @@ fn products_and_triples() {
         ));
     });
     prove("gear_wear_from_speed", |s| {
-        gear_wear_from_speed(&s.damage, s.damage.gear_factors[2], &s.car.gear_wear[2]);
+        gear_wear_from_speed(
+            &s.damage,
+            s.damage.gear_factors[2],
+            &s.car.gear_wear.float_at(2),
+        );
     });
     prove("brake_wear_step", |s| {
         brake_wear_step(&s.car, &mut s.damage);
@@ -48,11 +52,11 @@ fn tyre_and_hit_figures() {
         add_rate_to_clutch(&s.car, s.damage.figures[5]);
     });
     prove("add_rate_to_gauge", |s| {
-        add_rate_to_gauge(&s.car.tyre_wears[1], s.damage.figures[6]);
+        add_rate_to_gauge(&s.car.tyre_wears.float_at(1), s.damage.figures[6]);
     });
     prove("scale_hit_size", |s| scale_hit_size(&s.work, &mut s.damage));
     prove("add_hit_to_gear_gauge", |s| {
-        add_hit_to_gear_gauge(&s.damage, &s.car.gear_wear[4]);
+        add_hit_to_gear_gauge(&s.damage, &s.car.gear_wear.float_at(4));
     });
 }
 

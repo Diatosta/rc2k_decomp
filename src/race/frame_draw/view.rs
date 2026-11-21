@@ -475,7 +475,9 @@ pub fn camera_view(
         kept[0].set(view.car.position.bits_at(0));
         kept[1].set(view.car.position.bits_at(1).wrapping_add(0x8000));
         kept[2].set(view.car.position.bits_at(2));
-        view.vars.view_scale.set(view.vars.view_scale_kept.get());
+        view.vars
+            .view_scale
+            .set(crate::race::view_vars_store::VIEW_SCALE_FIRST.get());
         [kept[0].get(), kept[1].get(), kept[2].get()]
     };
     for (k, &p) in place.iter().enumerate() {

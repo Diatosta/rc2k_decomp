@@ -621,7 +621,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.replay.snapshot",
             on_buffer(o.race.replay.snapshot()),
         ),
-        listed!("owners.gfx.card.texture_tables", &o.gfx.card.texture_tables,),
         listed!(
             "owners.system.session.screen",
             on_game(o.system.session.screen.get()),
@@ -635,12 +634,10 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.system.window_loop", on_game(o.system.window_loop()),),
         listed!("owners.system.machine", on_game(o.system.machine()),),
         listed!("owners.system.clocks", on_game(o.system.clocks()),),
-        listed!("owners.audio.state", &o.audio.state,),
         listed!(
             "owners.saves.files.options_kept",
             on_game(&o.saves.files.options_kept),
         ),
-        listed!("owners.input.devices", &o.input.devices,),
         listed!(
             "owners.input.keyboard.silent_keys",
             on_game(&o.input.keyboard().silent_keys),
@@ -678,10 +675,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.menus.play.slots.pointers),
         ),
         listed!(
-            "owners.system.records.stage_tables",
-            on_game(&o.system.records().stage_tables),
-        ),
-        listed!(
             "owners.saves.best_times.list",
             on_list(&o.saves.best_times.memory),
         ),
@@ -701,14 +694,9 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.system.start.texts.copyright",
             on_buffer(&o.system.start().texts.copyright),
         ),
-        listed!("owners.sound.race.sets", &o.sound.threads.sets, 0x9ac,),
         listed!(
             "owners.system.work.files",
             on_buffer(&o.system.work().files.buffer),
-        ),
-        listed!(
-            "owners.race.shared.viewer",
-            on_game(o.race.shared.viewer_buffers()),
         ),
         listed!(
             "race.viewer_state_store.RECTANGLES",

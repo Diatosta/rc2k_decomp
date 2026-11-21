@@ -931,11 +931,10 @@ mod vector_tests {
     ];
 
     /// The stores the test writes.
-    const STORES: [&str; 4] = [
+    const STORES: [&str; 3] = [
         "owners.menus.play.slots.pointers",
         "owners.race.replay.marks_settings",
         "owners.race.shared.state",
-        "owners.system.records.stage_tables",
     ];
 
     struct Rng(u64);
@@ -1260,6 +1259,15 @@ mod vector_tests {
     #[test]
     fn single_rally_is_the_originals() {
         let kept = Snapshot::of(&STORES);
+        let kept_tracks: Vec<(u32, u32)> = Owners::the()
+            .system
+            .records()
+            .stage_tables
+            .trak_pak
+            .tracks
+            .iter()
+            .map(|track| (track.stage.get(), track.name.get()))
+            .collect();
         let kept_records = Owners::the()
             .menus
             .play
@@ -1292,6 +1300,11 @@ mod vector_tests {
             results += (places.contains(&7) && c.result == Some(u32::MAX)) as u32;
         }
         kept.restore();
+        let tracks = &Owners::the().system.records().stage_tables.trak_pak.tracks;
+        for (track, &(stage, name)) in tracks.iter().zip(&kept_tracks) {
+            track.stage.set(stage);
+            track.name.set(name);
+        }
         for (record, saved) in Owners::the()
             .menus
             .play

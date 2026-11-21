@@ -102,7 +102,6 @@ impl TextureRecord {
 /// A texture record kept as dwords (a pool's cell): read and written whole as
 /// `Shared<TextureRecord>` was, through its cells.
 #[repr(transparent)]
-#[derive(rc2k_derive::Cells)]
 pub struct RecordCell([Dword; 30]);
 
 /// A record's dwords as a run.
@@ -205,7 +204,6 @@ impl TextureFormat {
 
 /// A pixel kind's description kept as dwords (as `RecordCell`).
 #[repr(transparent)]
-#[derive(rc2k_derive::Cells)]
 pub struct FormatCell([Dword; 16]);
 
 /// A description's dwords as a run.
@@ -243,7 +241,6 @@ impl FormatCell {
 
 /// A pool of texture records (the system's or the video's) and how many are made.
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
 pub struct Pool {
     /// The textures made (`Textures.system.count` / `Textures.video.count`), at most `TEXTURES`.
     pub count: Dword,
@@ -253,7 +250,6 @@ pub struct Pool {
 
 /// The 3D card's tables and the textures' records.
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
 pub struct Textures {
     /// 1 while the textures being made are of the alpha kind.
     pub alpha_kind: Dword,

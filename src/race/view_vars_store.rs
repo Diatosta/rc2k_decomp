@@ -1,10 +1,10 @@
-//! The view and camera variables of the race block: the drawn car, face group mask, fade alpha,
-//! view place and angles (int and float), the 52 view-record names (as handles) and the per-view
-//! hide table; then the 52 view records (`ViewRecord`). Gaps are unknown bytes. The record fields'
-//! short names are the ones on the kstar camera page: `xoff`, `xfoc`, `xang`, `mspx`, `fish`.
+//! The view and camera variables of the race: the drawn car, the camera's figures, the view
+//! place and angles (int and float) and the view kind, the per-view hide table (`VIEW_HIDES`); then
+//! the 52 view records (`ViewRecord`). The record fields' short names are the ones on the kstar
+//! camera page: `xoff`, `xfoc`, `xang`, `mspx`, `fish`.
 
 use crate::memory::cells::ZeroCells;
-use crate::memory::session::{CellKind, PlainCells, PlainDword, PlainFloat};
+use crate::memory::session::{CellKind, ConstFloat, PlainCells, PlainDword, PlainFloat};
 use crate::race::groups_store::ViewAndRecords;
 
 /// The view variables, on the cells of kind `K`: plain for the shared ones
@@ -21,16 +21,9 @@ pub struct ViewVars<K: CellKind = PlainCells> {
     /// The car block's `camera_mode_is_2_or_3` copied at the frame start
     /// (`race::frame_draw`); read by `camera_view` and written by `race::car_light_modes`.
     pub view_car_flag_b: K::Dword,
-    /// Copied to `view_scale` by `race::frame_draw` (the view's size scale).
-    pub view_scale_kept: K::Float,
     /// The car being drawn (`race::car_draw`, `scene::set_object_light`,
     /// `scene::list_object_face`).
     pub drawn_car: K::Dword,
-    /// Face group mask for the drawn car; the drawing's is the view's
-    /// (`race::car_draw_state`), this one not used.
-    pub group_mask: K::Dword,
-    /// The car's fade alpha, now the view's (`race::face_work`); no longer reached.
-    pub fade_alpha_moved: K::Dword,
     /// Camera height bias (`physics::camera_height_bias`).
     pub camera_height_bias: K::Dword,
     /// The camera height bias's scale (`physics::camera_height_bias`).
@@ -54,28 +47,16 @@ pub struct ViewVars<K: CellKind = PlainCells> {
     pub view_angles: [K::Dword; 6],
     /// The camera's zoom hold (`physics::update_camera`).
     pub camera_zoom_hold: K::Float,
-    /// Unused; it only keeps the layout.
-    pub reserved_68: K::Dword,
     /// The camera vector (three floats) whose length `physics::update_camera` takes.
     pub camera_vector: [K::Float; 3],
-    /// Unused.
-    pub reserved_78: [K::Dword; 14],
     /// Held to 0 ..= 1 (`physics::camera_height_bias`, `physics::update_camera`).
     pub camera_distance: K::Float,
-    /// 0x34 pointers to view records (`physics::camera_view`, `drive::pick_replay_camera`,
-    /// `effects::stage_record`, `race::car_draw`).
-    pub view_records: [K::Dword; 52],
     /// The view kind, the camera mode number (`drive::set_camera_view`;
     /// `race::frame_draw::scene_objects` and `car_draw` branch on it).
     pub view_kind: K::Dword,
-    /// Unused; it only keeps the layout.
-    pub reserved_188: [K::Dword; 33],
-    /// The table of which views hide what, by camera view (`race::frame_draw`): 0 for
-    /// the views near the car (the faces its ground marks are hidden), 1 for the others.
-    pub view_hides: [K::Dword; 52],
 }
 
-/// A view record (0x5C bytes; 52 of them, named by `ViewAndRecords.view_vars.view_records[0]`): one
+/// A view record (0x5C bytes; 52 of them, `ViewAndRecords::records`): one
 /// camera mode's figures. The three-letter names are the developers' (the kstar camera page).
 /// Records 1 .. 3 are refilled from the car's light record (`physics::update_camera`), 4 .. 6
 /// placed by `physics::place_camera`, 6 by the finish camera too.
@@ -146,48 +127,41 @@ impl ViewVars {
         &view_records.records[n]
     }
 
-    /// View record `n`. A view past the 52, or a value that is no handle, is refused.
+    /// View record `n`. A view past the 52 is refused.
     pub fn record_of(
         view_records: &ViewAndRecords,
         n: usize,
     ) -> Result<&ViewRecord, crate::errors::BadInput> {
-        let cell = view_records
-            .view_vars
-            .view_records
-            .get(n)
-            .ok_or(crate::errors::BadInput("a view past the 52 records"))?;
-        let k = cell
-            .get()
-            .checked_sub(VIEW_TAG)
-            .ok_or(crate::errors::BadInput(
-                "a view record's name that is no handle",
-            ))?;
         view_records
             .records
-            .get(k as usize)
-            .ok_or(crate::errors::BadInput(
-                "a view record's name off the records",
-            ))
+            .get(n)
+            .ok_or(crate::errors::BadInput("a view past the 52 records"))
     }
 }
+
+/// Which camera views hide the faces the ground's marks hide, by camera view
+/// (`race::frame_draw`): 0 for the views near the car, 1 for the others.
+pub const VIEW_HIDES: [u32; 52] = [
+    0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+];
+
+/// The size scale `view_scale` takes at a view's start (`race::frame_draw`).
+pub const VIEW_SCALE_FIRST: ConstFloat = ConstFloat::new(256.0);
 
 /// A view's copy of the view variables (`race::view_scratch::ViewScratch::vars`): the same
 /// fields, which only the view's drawing part reaches.
 pub type ViewVarsCopy = ViewVars;
 
-/// The view variables at the start, on the cells `$dword` and `$float`: the view size
-/// scales, the camera's bias figures, the 52 names of the view records (as handles), the first view
-/// kind and the table of which views hide what.
+/// The view variables at the start, on the cells `$dword` and `$float`: the camera's bias
+/// figures and the first view kind.
 macro_rules! first_view_vars {
     ($dword:ident, $float:ident) => {
         Self {
             view_car_flag_a: ZeroCells::ZERO,
             view_car_stage: ZeroCells::ZERO,
             view_car_flag_b: ZeroCells::ZERO,
-            view_scale_kept: $float::new(256.0),
             drawn_car: ZeroCells::ZERO,
-            group_mask: ZeroCells::ZERO,
-            fade_alpha_moved: ZeroCells::ZERO,
             camera_height_bias: ZeroCells::ZERO,
             camera_bias_scale: $float::new(8.0),
             camera_bias_limit: $float::new(64.0),
@@ -198,109 +172,9 @@ macro_rules! first_view_vars {
             view_z: ZeroCells::ZERO,
             view_angles: ZeroCells::ZERO,
             camera_zoom_hold: $float::new(128.0),
-            reserved_68: $dword::new(0x40A00000),
             camera_vector: ZeroCells::ZERO,
-            reserved_78: ZeroCells::ZERO,
             camera_distance: ZeroCells::ZERO,
-            view_records: {
-                let mut a: [$dword; 52] = ZeroCells::ZERO;
-                let mut k = 0;
-                while k < 52 {
-                    a[k] = $dword::new(VIEW_TAG | k as u32);
-                    k += 1;
-                }
-                a
-            },
             view_kind: $dword::new(1),
-            reserved_188: [
-                $dword::new(1),
-                $dword::new(2),
-                $dword::new(2),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(3),
-                $dword::new(4),
-                $dword::new(5),
-                $dword::new(6),
-                $dword::new(0xA),
-                $dword::new(0xB),
-                $dword::new(0xC),
-                $dword::new(0xD),
-                $dword::new(0xE),
-                $dword::new(0x10),
-                $dword::new(0x11),
-                $dword::new(0x12),
-                $dword::new(0x13),
-                $dword::new(0x14),
-                $dword::new(0x15),
-                $dword::new(0x16),
-                $dword::new(0x17),
-                $dword::new(0x18),
-                $dword::new(0x19),
-                $dword::new(0x1A),
-                $dword::new(0x1B),
-                $dword::new(0x1C),
-                $dword::new(0x1D),
-                $dword::new(0x1E),
-                $dword::new(0x1F),
-                $dword::new(0x20),
-                $dword::new(0x21),
-            ],
-            view_hides: [
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(0),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(1),
-                $dword::new(0),
-                $dword::new(0),
-            ],
         }
     };
 }
@@ -311,9 +185,6 @@ impl ViewVars<PlainCells> {
         first_view_vars!(PlainDword, PlainFloat)
     }
 }
-
-/// A view record's handle in `view_records` is `VIEW_TAG | k` for the record `k` of the 52.
-const VIEW_TAG: u32 = 0xC300_0000;
 
 /// The 52 view records at the start, each as its 23 dwords (floats as their bits).
 const FIRST_RECORDS: [[u32; 23]; 52] = [
@@ -584,61 +455,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_view_table_names_its_records() {
-        for n in 0..52usize {
-            assert_eq!(
-                crate::test_support::own::race()
-                    .frame
-                    .view_and_records
-                    .get()
-                    .view_vars
-                    .view_records[n]
-                    .get(),
-                VIEW_TAG | n as u32
-            );
-            assert!(core::ptr::eq(
-                ViewVars::record_of(
-                    crate::test_support::own::race()
-                        .frame
-                        .view_and_records
-                        .get(),
-                    n
-                )
-                .unwrap(),
-                ViewVars::record(
-                    crate::test_support::own::race()
-                        .frame
-                        .view_and_records
-                        .get(),
-                    n
-                )
-            ));
-        }
-        assert!(
-            ViewVars::record_of(
-                crate::test_support::own::race()
-                    .frame
-                    .view_and_records
-                    .get(),
-                52
-            )
-            .is_err()
-        );
-    }
-
-    #[test]
-    fn every_camera_view_has_its_own_hide_entry() {
+    fn a_view_record_is_found_by_its_place_and_one_past_the_52_is_refused() {
         let places = crate::test_support::own::race()
             .frame
             .view_and_records
             .get();
-        let hides: Vec<u32> = places
-            .view_vars
-            .view_hides
-            .iter()
-            .map(crate::memory::session::PlainDword::get)
-            .collect();
-        assert_eq!(hides.len(), 52);
+        for n in 0..52usize {
+            assert!(core::ptr::eq(
+                ViewVars::record_of(places, n).unwrap(),
+                ViewVars::record(places, n)
+            ));
+        }
+        assert!(ViewVars::record_of(places, 52).is_err());
+    }
+
+    #[test]
+    fn every_camera_view_has_its_own_hide_entry() {
+        let hides = VIEW_HIDES;
         // Near the car (views 0 .. 6) the ground's marks hide faces; the other views show them.
         assert!(hides[..7].iter().all(|&shows| shows == 0));
         assert!(hides[7..0x23].iter().all(|&shows| shows == 1));

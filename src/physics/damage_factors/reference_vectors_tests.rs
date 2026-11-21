@@ -64,7 +64,8 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_stiffness[0],
+                        .wheel_stiffness
+                        .float_at(0),
                 );
             },
         },
@@ -87,7 +88,8 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_ride_height[0],
+                        .wheel_ride_height
+                        .float_at(0),
                 );
             },
         },
@@ -110,11 +112,13 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_stiffness[0],
+                        .wheel_stiffness
+                        .float_at(0),
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_ride_height[0],
+                        .wheel_ride_height
+                        .float_at(0),
                 );
             },
         },
@@ -142,7 +146,8 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_stiffness[1],
+                        .wheel_stiffness
+                        .float_at(1),
                 );
             },
         },
@@ -165,7 +170,8 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_ride_height[1],
+                        .wheel_ride_height
+                        .float_at(1),
                 );
             },
         },
@@ -188,11 +194,13 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_stiffness[1],
+                        .wheel_stiffness
+                        .float_at(1),
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_ride_height[1],
+                        .wheel_ride_height
+                        .float_at(1),
                 );
             },
         },
@@ -220,7 +228,8 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_stiffness[2],
+                        .wheel_stiffness
+                        .float_at(2),
                 );
             },
         },
@@ -243,7 +252,8 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_ride_height[2],
+                        .wheel_ride_height
+                        .float_at(2),
                 );
             },
         },
@@ -266,11 +276,13 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_stiffness[2],
+                        .wheel_stiffness
+                        .float_at(2),
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_ride_height[2],
+                        .wheel_ride_height
+                        .float_at(2),
                 );
             },
         },
@@ -298,7 +310,8 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_stiffness[3],
+                        .wheel_stiffness
+                        .float_at(3),
                 );
             },
         },
@@ -321,7 +334,8 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_ride_height[3],
+                        .wheel_ride_height
+                        .float_at(3),
                 );
             },
         },
@@ -344,11 +358,13 @@ fn blocks() -> Vec<Block> {
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_stiffness[3],
+                        .wheel_stiffness
+                        .float_at(3),
                     &crate::test_support::own::race()
                         .shared
                         .car()
-                        .wheel_ride_height[3],
+                        .wheel_ride_height
+                        .float_at(3),
                 );
             },
         },

@@ -18,60 +18,120 @@ use rc2k_core::audio::streams::AudioStream;
 use rc2k_core::audio::voices::{MixerChannel, VOICES, Voice};
 
 /// The audio variables both the game's thread and the audio thread touch.
-#[derive(rc2k_derive::Cells)]
 pub struct AudioShared {
     /// The sound mode of each quality (0x212, 0x222, 0x221, 0x220), the advanced page's first
     /// choice picks one.
+    ///
+    /// Threads: the mode choice (`choose_modes`) reads it, on the audio thread at start and
+    /// from the advanced page.
     pub quality_modes: [Dword; 4],
     /// 1 = no sound (the `noaudio` / `nosound` settings; the audio thread sets it when it ends).
+    ///
+    /// Threads: the game thread sets it (settings, command line, start-up checks); the audio
+    /// thread reads it and sets it when it ends; the command queue reads it.
     pub no_audio: Dword,
     /// The mode's bits (0x10000 own buffers, 0x40000 the game's mixer, 0x100000 3D ..) the thread
     /// works in.
+    ///
+    /// Threads: the audio thread sets it and reads it everywhere in the sound code; the game
+    /// thread reads it (sounds, debug pages).
     pub sound_mode: Dword,
     /// The mode for the menus (saved in `var\ral.dat`).
+    ///
+    /// Threads: the game thread sets it (settings, saves); the audio thread reads it at start
+    /// and per turn.
     pub menu_sound_mode: Dword,
     /// The mode for the races (saved in `var\ral.dat`).
+    ///
+    /// Threads: the game thread sets and reads it (settings, saves, race sound set-up); the
+    /// audio thread reads it at start.
     pub race_sound_mode: Dword,
     /// The mixing rate (`audiobasefreq`, 0xAC44 = 44100).
+    ///
+    /// Threads: the game thread sets it (settings); the audio thread reads it at start and in
+    /// the device set-up.
     pub mix_rate_setting: Dword,
     /// The master volume, 0 ..= 0x40 (saved in `var\ral.dat`).
+    ///
+    /// Threads: the game thread sets it (menus, race, saves); the audio thread reads it for the
+    /// master volume command.
     pub master_volume: Dword,
     /// The voices made so far.
+    ///
+    /// Threads: the audio thread; the game thread reads it for the debug page.
     pub voice_count: Dword,
     /// The pool of voices (`audio::voices::Voice`).
+    ///
+    /// Threads: the audio thread (mixing, commands); the game thread reaches them only through
+    /// the commands it queues.
     pub voices: [Shared<Voice>; VOICES as usize],
     /// The channels held by voices.
+    ///
+    /// Threads: the audio thread sets it; the debug page and the remote driver read it.
     pub channels_used: Dword,
     /// The work buffer's KB (`wavheapsize`).
+    ///
+    /// Threads: the game thread sets it (settings); the audio thread reads it when it starts.
     pub sample_buffer_kb: Dword,
     /// The sound stream's player (command 9).
+    ///
+    /// Threads: the audio thread plays it; the game thread reads whether it plays.
     pub sound_stream: Shared<AudioStream>,
     /// The music's player (command 0xB).
+    ///
+    /// Threads: the audio thread plays it; the game thread reads and sets its volume.
     pub music_stream: Shared<AudioStream>,
     /// 1 = no music (`nomusic`).
+    ///
+    /// Threads: the game thread sets it (settings); the audio thread reads it in the stream
+    /// commands.
     pub no_music: Dword,
     /// DirectSound's `DSCAPS` (flags, free hardware buffers, free 3D ones).
+    ///
+    /// Threads: the audio thread (device set-up and mode choice).
     pub sound_caps: Bytes<96>,
     /// The `ignoredsv` setting.
+    ///
+    /// Threads: the game thread sets it (settings); the audio thread reads it for the property
+    /// sets.
     pub ignore_dsv_setting: Dword,
     /// The voice manager is open.
+    ///
+    /// Threads: the audio thread.
     pub voice_manager_on: Dword,
     /// The settings file's `ignorea3d`: still read so that old files load; nothing uses it.
+    ///
+    /// Threads: the game thread (settings); nothing reads it.
     pub ignore_a3d_setting: Dword,
     /// The `ignoreeax` setting.
+    ///
+    /// Threads: the game thread sets it (settings); the audio thread reads it for the property
+    /// sets.
     pub ignore_eax_setting: Dword,
     /// EAX is open.
+    ///
+    /// Threads: the audio thread sets it; the game thread reads it (sound settings page).
     pub has_eax: Dword,
     /// Sounds held back.
+    ///
+    /// Threads: the game thread.
     pub sounds_held_back: Dword,
     /// The advanced page's choices.
+    ///
+    /// Threads: the game thread edits it (menus, settings page); the audio thread reads it when
+    /// it chooses modes.
     pub audio_options: Shared<AudioOptions>,
     /// Which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept in `var\ral.dat`; the audio
     /// thread's music command steps it, the game's thread loads and saves it.
     pub tune_turn: Dword,
     /// `ignoreds3d`: 1 = no 3D listener.
+    ///
+    /// Threads: the game thread sets it (settings); the audio thread reads it for the primary
+    /// buffer.
     pub no_listener: Dword,
     /// 3D is there.
+    ///
+    /// Threads: the audio thread sets it; the game thread reads it (sound settings page).
     pub has_3d: Dword,
 }
 

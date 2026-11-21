@@ -2,7 +2,7 @@
 //! `Cell`, read and written whole or by element, only by the game's thread.
 
 use crate::memory::cells::{SameShape, ZeroCells};
-use crate::memory::session::plain_written;
+use crate::memory::session::{Cell32, plain_written};
 use std::cell::Cell;
 
 /// `N` floats held by their bits in one cell.
@@ -75,6 +75,17 @@ impl<const N: usize> PlainFloats<N> {
         PlainWord(&self.cells()[n])
     }
 
+    /// The elements as float places, in order: what the loops over a gauge row and the
+    /// destructuring of one take.
+    pub fn floats(&self) -> [FloatAt<'_>; N] {
+        std::array::from_fn(|n| self.float_at(n))
+    }
+
+    /// Element `n` as a float place.
+    pub fn float_at(&self, n: usize) -> FloatAt<'_> {
+        FloatAt(self.cell_at(n))
+    }
+
     /// The elements as cells (the runs of the records' copies).
     pub(crate) fn cells(&self) -> &[Cell<u32>] {
         self.0.as_array_of_cells()
@@ -113,6 +124,46 @@ impl crate::memory::session::Cell32 for PlainWord<'_> {
     fn set_bits(&self, bits: u32) {
         plain_written(self.0);
         self.0.set(bits);
+    }
+}
+
+/// One element of a row of floats as a float cell; writing it is as checked as writing the row.
+#[derive(Clone, Copy)]
+pub struct FloatAt<'a>(PlainWord<'a>);
+
+impl crate::memory::session::Cell32 for FloatAt<'_> {
+    fn bits(&self) -> u32 {
+        self.0.bits()
+    }
+    fn set_bits(&self, bits: u32) {
+        self.0.set_bits(bits);
+    }
+}
+
+impl FloatAt<'_> {
+    /// The element's float.
+    pub fn get(&self) -> f32 {
+        f32::from_bits(self.0.bits())
+    }
+
+    /// Puts the float in.
+    pub fn set(&self, value: f32) {
+        self.0.set_bits(value.to_bits());
+    }
+
+    /// The element's place in memory.
+    #[cfg(test)]
+    pub fn addr(&self) -> usize {
+        self.0.addr()
+    }
+}
+
+impl crate::memory::session::FloatLike for FloatAt<'_> {
+    fn get(&self) -> f32 {
+        f32::from_bits(self.0.bits())
+    }
+    fn set(&self, value: f32) {
+        self.0.set_bits(value.to_bits());
     }
 }
 
@@ -196,5 +247,70 @@ impl<C: crate::memory::session::Cell32, const N: usize> SameShape<[C; N]> for Pl
                 to[n].set_bits(now[n]);
             }
         }
+    }
+}
+
+/// A float cell of a record, a whole cell or one element of a row: what a table of float fields
+/// holds.
+#[derive(Clone, Copy)]
+pub enum FloatRef<'a> {
+    Cell(&'a crate::memory::session::PlainFloat),
+    Element(FloatAt<'a>),
+}
+
+impl<'a> From<&'a crate::memory::session::PlainFloat> for FloatRef<'a> {
+    fn from(cell: &'a crate::memory::session::PlainFloat) -> Self {
+        Self::Cell(cell)
+    }
+}
+
+impl<'a> From<FloatAt<'a>> for FloatRef<'a> {
+    fn from(at: FloatAt<'a>) -> Self {
+        Self::Element(at)
+    }
+}
+
+impl FloatRef<'_> {
+    /// The float.
+    pub fn get(&self) -> f32 {
+        f32::from_bits(self.bits())
+    }
+
+    /// Puts the float in.
+    pub fn set(&self, value: f32) {
+        self.set_bits(value.to_bits());
+    }
+
+    /// The place in memory.
+    #[cfg(test)]
+    pub fn addr(&self) -> usize {
+        match self {
+            Self::Cell(cell) => core::ptr::from_ref(*cell).addr(),
+            Self::Element(at) => at.addr(),
+        }
+    }
+}
+
+impl Cell32 for FloatRef<'_> {
+    fn bits(&self) -> u32 {
+        match self {
+            Self::Cell(cell) => cell.bits(),
+            Self::Element(at) => at.bits(),
+        }
+    }
+    fn set_bits(&self, bits: u32) {
+        match self {
+            Self::Cell(cell) => cell.set_bits(bits),
+            Self::Element(at) => at.set_bits(bits),
+        }
+    }
+}
+
+impl crate::memory::session::FloatLike for FloatRef<'_> {
+    fn get(&self) -> f32 {
+        f32::from_bits(self.bits())
+    }
+    fn set(&self, value: f32) {
+        self.set_bits(value.to_bits());
     }
 }

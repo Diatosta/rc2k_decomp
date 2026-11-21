@@ -24,12 +24,12 @@ pub fn steps(car: &Car, damage: &mut DamageModel) -> Result<(), BadInput> {
         &damage.lerp_tables[0],
         damage.gauge_low,
     );
-    for item in car.brake_heat.iter().take(2) {
+    for item in car.brake_heat.floats().iter().take(2) {
         raise(damage, item, |g| {
             add_wear(damage, damage.wear_rates[3], damage.brake_share, g)
         });
     }
-    for item in car.brake_heat.iter().take(2) {
+    for item in car.brake_heat.floats().iter().take(2) {
         raise(damage, item, |g| {
             subtract_rate(damage, damage.wear_rates[4], g)
         });
@@ -38,12 +38,12 @@ pub fn steps(car: &Car, damage: &mut DamageModel) -> Result<(), BadInput> {
         damage.drive_a_extrapolated_share,
         damage.drive_b_extrapolated_share,
     ];
-    for (damper, share) in car.damper_wear.iter().zip(extrapolated) {
+    for (damper, share) in car.damper_wear.floats().iter().zip(extrapolated) {
         raise(damage, damper, |g| {
             add_wear(damage, damage.wear_rates[5], share, g)
         });
     }
-    for item in car.damper_wear.iter().take(2) {
+    for item in car.damper_wear.floats().iter().take(2) {
         raise(damage, item, |g| {
             subtract_rate(damage, damage.wear_rates[6], g)
         });

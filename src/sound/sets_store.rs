@@ -65,7 +65,6 @@ impl MenuSounds {
 /// The named lists of sounds a race loads (`sound::load_race_sounds`). Lists end in -1; one that
 /// runs past its field reads on into the next in `RaceField` order (`list_entry` is the only
 /// reader that knows that order).
-#[derive(rc2k_derive::Cells)]
 pub struct SoundSets {
     /// The first car's sets by kind of car, three dwords each (two sounds, -1).
     pub kind_sets_first: [Dword; 102],
@@ -910,10 +909,29 @@ impl SpotVoices {
 mod tests {
     use super::*;
 
+    /// The sets' dwords in field order, as little-endian bytes.
+    fn sets_bytes(sets: &SoundSets) -> Vec<u8> {
+        [
+            &sets.kind_sets_first[..],
+            &sets.first_set_a,
+            &sets.first_set_c,
+            &sets.kind_sets_second,
+            &sets.second_set_a,
+            &sets.second_set_b,
+            &sets.last_set,
+            &sets.first_set_b,
+            &sets.replay_set,
+            &sets.kinds,
+        ]
+        .into_iter()
+        .flatten()
+        .flat_map(|word| word.get().to_le_bytes())
+        .collect()
+    }
+
     /// Every starting table's whole bytes, as a checksum: a wrong dword in a row shows here.
     #[test]
     fn the_sound_tables_keep_the_bytes_of_the_image() {
-        use crate::memory::cells::flatten;
         let fnv = |bytes: Vec<u8>| {
             let mut hash = 0xcbf2_9ce4_8422_2325_u64;
             for byte in &bytes {
@@ -930,7 +948,7 @@ mod tests {
             (40, 0xea1e_8bf9_7ac9_6646)
         );
         assert_eq!(
-            fnv(flatten(&SoundSets::new())),
+            fnv(sets_bytes(&SoundSets::new())),
             (2476, 0xd0a0_f5d7_dfd4_e733)
         );
         let cues = CueLists::new();

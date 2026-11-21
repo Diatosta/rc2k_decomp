@@ -8,7 +8,7 @@
 //! past its limit); the copies of the gear, tyre kind and surface; the side hit
 //! (`DamageModel.hit_side`, 1 .. 4) and its size; the four wheels' loads; and the hit time.
 
-use crate::memory::session::PlainFloat;
+use crate::memory::session::{FloatLike, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::damage_model::{
     figure, figure_is_set, held_high, held_low, is_set, lerp_table, store, value, whole,
@@ -25,9 +25,9 @@ pub fn steps(car: &Car, damage: &mut DamageModel) {
     // Per wheel: the stiffness and ride height follow the suspension damage; at the top
     // of the gauge the wheel is worn out.
     for wheel in 0..4 {
-        let suspension = &car.suspension_damage[wheel];
-        let stiffness = &car.wheel_stiffness[wheel];
-        let ride_height = &car.wheel_ride_height[wheel];
+        let suspension = &car.suspension_damage.float_at(wheel);
+        let stiffness = &car.wheel_stiffness.float_at(wheel);
+        let ride_height = &car.wheel_ride_height.float_at(wheel);
         let lerp = lerp_table(suspension.get(), &damage.lerp_tables[2], damage.gauge_low);
         damage.wheel_stiffness_lerp[wheel] = lerp;
         wheel_stiffness_from_share(damage, lerp, stiffness);
@@ -128,7 +128,7 @@ fn scale_car_figures(car: &Car, m: &mut DamageModel) {
 
 /// A wheel's stiffness: the stiffness share times the top of the gauge, less the lerp of its
 /// suspension damage.
-fn wheel_stiffness_from_share(m: &DamageModel, lerp: f32, stiffness: &PlainFloat) {
+fn wheel_stiffness_from_share(m: &DamageModel, lerp: f32, stiffness: &impl FloatLike) {
     store(
         stiffness,
         figure(m.stiffness_share) * figure(m.gauge_top) - figure(lerp),
@@ -136,7 +136,7 @@ fn wheel_stiffness_from_share(m: &DamageModel, lerp: f32, stiffness: &PlainFloat
 }
 
 /// A wheel's ride height: the ride height share times the top of the gauge.
-fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &PlainFloat) {
+fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &impl FloatLike) {
     store(
         ride_height,
         figure(m.ride_height_share) * figure(m.gauge_top),
@@ -144,7 +144,7 @@ fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &PlainFloat) {
 }
 
 /// A worn-out wheel: full stiffness, no ride height.
-fn fail_wheel(m: &DamageModel, stiffness: &PlainFloat, ride_height: &PlainFloat) {
+fn fail_wheel(m: &DamageModel, stiffness: &impl FloatLike, ride_height: &impl FloatLike) {
     store(stiffness, figure(m.gauge_top));
     store(ride_height, figure(m.gauge_low));
 }
@@ -153,12 +153,12 @@ fn fail_wheel(m: &DamageModel, stiffness: &PlainFloat, ride_height: &PlainFloat)
 /// speed made positive (into `scratch`).
 fn means_and_engine_speed(car: &Car, m: &mut DamageModel) {
     let quarter = figure(m.quarter);
-    let [h0, h1, h2, h3] = &car.wheel_ride_height;
+    let [h0, h1, h2, h3] = &car.wheel_ride_height.floats();
     store(
         &car.ride_height_mean,
         (value(h0) + value(h1) + value(h2) + value(h3)) * quarter,
     );
-    let [s0, s1, s2, s3] = &car.wheel_stiffness;
+    let [s0, s1, s2, s3] = &car.wheel_stiffness.floats();
     store(
         &car.stiffness_mean,
         (value(s0) + value(s1) + value(s2) + value(s3)) * quarter,

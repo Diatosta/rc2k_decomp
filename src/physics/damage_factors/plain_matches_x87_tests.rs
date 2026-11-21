@@ -8,16 +8,16 @@ fn shares_and_wheels() {
     });
     prove("wheel_stiffness_from_share", |s| {
         let (d, c) = (&s.damage, &s.car);
-        wheel_stiffness_from_share(d, d.wheel_stiffness_lerp[1], &c.wheel_stiffness[1]);
+        wheel_stiffness_from_share(d, d.wheel_stiffness_lerp[1], &c.wheel_stiffness.float_at(1));
     });
     prove("wheel_ride_height_from_share", |s| {
-        wheel_ride_height_from_share(&s.damage, &s.car.wheel_ride_height[2]);
+        wheel_ride_height_from_share(&s.damage, &s.car.wheel_ride_height.float_at(2));
     });
     prove("fail_wheel", |s| {
         fail_wheel(
             &s.damage,
-            &s.car.wheel_stiffness[3],
-            &s.car.wheel_ride_height[3],
+            &s.car.wheel_stiffness.float_at(3),
+            &s.car.wheel_ride_height.float_at(3),
         );
     });
     prove("means_and_engine_speed", |s| {

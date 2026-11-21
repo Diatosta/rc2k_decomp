@@ -12,13 +12,13 @@
 //! addresses are kept only in the tests, as the oracle of the chain's order.
 
 use crate::errors::BadInput;
-use crate::memory::session::{PlainBytes, PlainDword, PlainInt, Run};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::{PlainDword, PlainInt, Run};
 use crate::menu::champ_store::TimesVariable;
 use crate::screens::game_screen::Held;
 
 /// A record (0xA4 bytes in the options file): a stage, a service area, a rally's end or a
 /// welcome (`tag`), with its two record holders.
-#[derive(rc2k_derive::Cells)]
 pub struct Record {
     /// 0 a stage, 1 a service area, 3 or 4 a rally's end, 5 a welcome, -1 a table's end.
     pub tag: PlainDword,
@@ -53,13 +53,13 @@ pub struct Record {
     /// (`gfx::blit_marker_pair`).
     pub markers: [[PlainInt; 2]; 2],
     /// The fastest record holder's name (no NUL when it fills its bytes).
-    pub fastest_name: PlainBytes<HOLDER_NAME_LEN>,
+    pub fastest_name: PlainBuffer<HOLDER_NAME_LEN>,
     /// The fastest record holder's nationality.
     pub fastest_nation: PlainDword,
     /// The fastest record holder's car.
     pub fastest_car: PlainDword,
     /// The time trial's record holder's name (set by `menu::keep_stage_best`).
-    pub time_trial_name: PlainBytes<HOLDER_NAME_LEN>,
+    pub time_trial_name: PlainBuffer<HOLDER_NAME_LEN>,
     /// The time trial's record holder's nationality.
     pub time_trial_nation: PlainDword,
     /// The time trial's record holder's car.
@@ -100,7 +100,7 @@ pub struct HolderRow {
 enum RecordWord<'a> {
     Dword(&'a PlainDword),
     Int(&'a PlainInt),
-    Name(&'a PlainBytes<HOLDER_NAME_LEN>, usize),
+    Name(&'a PlainBuffer<HOLDER_NAME_LEN>, usize),
 }
 
 impl RecordWord<'_> {
@@ -178,7 +178,7 @@ impl Record {
         &PlainDword,
         &PlainDword,
         &PlainDword,
-        &PlainBytes<HOLDER_NAME_LEN>,
+        &PlainBuffer<HOLDER_NAME_LEN>,
     ) {
         match h {
             Holder::Fastest => (
@@ -301,14 +301,14 @@ impl Record {
 
     /// The record of the options file's dwords `v`.
     const fn new(v: [u32; Record::WORDS]) -> Self {
-        const fn name(v: &[u32; Record::WORDS], first: usize) -> PlainBytes<HOLDER_NAME_LEN> {
+        const fn name(v: &[u32; Record::WORDS], first: usize) -> PlainBuffer<HOLDER_NAME_LEN> {
             let mut bytes = [0; HOLDER_NAME_LEN];
             let mut k = 0;
             while k < HOLDER_NAME_LEN {
                 bytes[k] = v[first + k / 4].to_le_bytes()[k % 4];
                 k += 1;
             }
-            PlainBytes::new(bytes)
+            PlainBuffer::new(bytes)
         }
         const fn d(v: &[u32; Record::WORDS], k: usize) -> PlainDword {
             PlainDword::new(v[k])
@@ -361,7 +361,6 @@ pub const RECORD_LEN: u32 = 0xA4;
 const _: () = assert!(Record::WORDS * 4 == RECORD_LEN as usize);
 
 /// An event's table: seven records and the -1 that ends them.
-#[derive(rc2k_derive::Cells)]
 pub struct EventRecords {
     pub records: [Record; 7],
     pub end: PlainDword,
@@ -389,7 +388,6 @@ impl Run for EventRecords {
 /// A track's entry in the track pack (0x40 bytes in the old layout; fields read from
 /// `screens::stage_panel`, `menu::calc_cpu_times`, `menu::run_event_races` and
 /// `race::single_rally`).
-#[derive(rc2k_derive::Cells)]
 pub struct TrackEntry {
     /// The track's name (a string id; also the first word `race::single_rally`
     /// checks for the pack's closing -1).
@@ -540,19 +538,17 @@ const fn track(v: [u32; 16]) -> TrackEntry {
 
 /// The track pack: the link, the pack's id, its name, the count, the entries
 /// (`records::trakpak_entry`, `race::single_rally`) and a -1.
-#[derive(rc2k_derive::Cells)]
 pub struct TrakPak {
     pub link: PlainDword,
     pub pack_id: PlainDword,
     /// "Track Pack 1".
-    pub name: PlainBytes<0x28>,
+    pub name: PlainBuffer<0x28>,
     pub count: PlainDword,
     pub tracks: [TrackEntry; 36],
     pub end: PlainDword,
 }
 
 /// The stages' tables' cells (the lists are constants: `GROUP_LISTS` and the others).
-#[derive(rc2k_derive::Cells)]
 pub struct StageTables {
     /// The track pack.
     pub trak_pak: TrakPak,
@@ -562,7 +558,7 @@ pub struct StageTables {
     /// The events' tables.
     pub events: [EventRecords; 12],
     /// Bytes nothing names.
-    pub tail: PlainBytes<TAIL_LEN>,
+    pub tail: PlainBuffer<TAIL_LEN>,
 }
 
 /// The tail's bytes.
@@ -858,7 +854,7 @@ impl StageTables {
             trak_pak: TrakPak {
                 link: PlainDword::new(0x0),
                 pack_id: PlainDword::new(0x0),
-                name: PlainBytes::new(PACK_NAME),
+                name: PlainBuffer::new(PACK_NAME),
                 count: PlainDword::new(0x24),
                 tracks,
                 end: PlainDword::new(0xffffffff),
@@ -866,7 +862,7 @@ impl StageTables {
             championship,
             championship_end: PlainDword::new(0xffffffff),
             events,
-            tail: PlainBytes::new(TAIL_BYTES),
+            tail: PlainBuffer::new(TAIL_BYTES),
         }
     }
 }

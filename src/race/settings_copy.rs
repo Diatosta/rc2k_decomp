@@ -40,7 +40,7 @@ pub enum StepOperand {
     /// A dword of car block n, by field (`car!`).
     CarCell(usize, fn(&Car) -> &PlainDword),
     /// A float of car block n, by its bits (`car_bits!`).
-    CarBits(usize, fn(&Car) -> &PlainFloat),
+    CarBits(usize, for<'a> fn(&'a Car) -> FloatRef<'a>),
     /// A dword of one of the owners (`var!(@o menus.options.lens_flare)`).
     Owned(for<'a> fn(&'a Owners<'a>) -> &'a dyn DwordLike),
     /// A dword of the race's (`var!(@race shared.vars.direction)`).
@@ -52,7 +52,8 @@ pub enum StepOperand {
         set: fn(&Owners<'static>, u32),
     },
 }
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::plain_floats::FloatRef;
+use crate::memory::session::{Cell32, PlainDword};
 use StepOperand::{CarBits, CarCell, Owned, Plain, RaceVar};
 #[cfg(test)]
 use StepOperand::{Cell, ResultMark, ResultSecs, Setting};
@@ -122,12 +123,25 @@ macro_rules! car {
     };
 }
 
-/// `car_bits!(n, field)`: car block n's float `field`, by its bits.
+/// `car_bits!(n, field)`: car block n's float `field`, by its bits; `car_bits!(n, row[i])` one
+/// element of a row of floats.
 macro_rules! car_bits {
-    ($n:literal, $($f:tt)+) => {
+    ($n:literal, $f:ident[$i:literal]) => {
         $crate::race::settings_copy::StepOperand::CarBits($n, {
-            fn f(c: &$crate::physics::car_store::Car) -> &$crate::memory::session::PlainFloat {
-                &c.$($f)+
+            fn f(
+                c: &$crate::physics::car_store::Car,
+            ) -> $crate::memory::plain_floats::FloatRef<'_> {
+                c.$f.float_at($i).into()
+            }
+            f
+        })
+    };
+    ($n:literal, $f:ident) => {
+        $crate::race::settings_copy::StepOperand::CarBits($n, {
+            fn f(
+                c: &$crate::physics::car_store::Car,
+            ) -> $crate::memory::plain_floats::FloatRef<'_> {
+                (&c.$f).into()
             }
             f
         })
@@ -267,7 +281,7 @@ fn log_cars(race: &Race, fx: &mut impl Effects) {
             fx.text(&label(name), false);
             fx.float(gauge(c).get());
         }
-        for (n, mark) in c.impact_octant_marks.iter().enumerate() {
+        for (n, mark) in c.impact_octant_marks.floats().iter().enumerate() {
             fx.text(&label(&format!("caroctdamage{n}")), false);
             fx.float(mark.get());
         }
@@ -432,7 +446,12 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
         for (gauge, setting) in GAUGES {
             gauge(c).set(x87::from_int(setting(s).get() as i32));
         }
-        for (mark, saved) in c.impact_octant_marks.iter().zip(result_marks(shared, car)) {
+        for (mark, saved) in c
+            .impact_octant_marks
+            .floats()
+            .iter()
+            .zip(result_marks(shared, car))
+        {
             mark.set(f32::from_bits(saved.get()));
         }
     }
@@ -481,7 +500,12 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
             for (gauge, setting) in GAUGES {
                 setting(s).set(x87::to_int(gauge(c)) as u32);
             }
-            for (mark, saved) in c.impact_octant_marks.iter().zip(result_marks(shared, car)) {
+            for (mark, saved) in c
+                .impact_octant_marks
+                .floats()
+                .iter()
+                .zip(result_marks(shared, car))
+            {
                 saved.set(mark.get().to_bits());
             }
         }
@@ -512,7 +536,7 @@ fn result_marks(shared: &RaceShared, car: usize) -> &[PlainDword; 8] {
 }
 
 /// A float of a car block, picked by field.
-type CarFloat = fn(&Car) -> &PlainFloat;
+type CarFloat = for<'a> fn(&'a Car) -> FloatRef<'a>;
 /// A dword of a car block, picked by field.
 type CarWord = fn(&Car) -> &PlainDword;
 /// A word of a player's settings record in the race's variables, picked by field.
@@ -521,49 +545,49 @@ type SettingWord = fn(&RaceCar) -> &PlainDword;
 /// The race's car blocks and the front end's per-car settings records: the 43 gauges of a
 /// car (damage and wear), each with the settings word it is kept in.
 const GAUGES: [(CarFloat, SettingWord); 43] = [
-    (|c| &c.engine_damage, |r| &r.damage[0]),
-    (|c| &c.exhaust_damage, |r| &r.damage[2]),
-    (|c| &c.electrics_damage, |r| &r.damage[3]),
-    (|c| &c.turbo_damage, |r| &r.damage[4]),
-    (|c| &c.cooling_damage, |r| &r.damage[6]),
-    (|c| &c.steering_damage, |r| &r.damage[7]),
-    (|c| &c.clutch_damage, |r| &r.damage[8]),
-    (|c| &c.differential_damage, |r| &r.damage[10]),
-    (|c| &c.overall_suspension_damage, |r| &r.wear[27]),
-    (|c| &c.tyre_wear, |r| &r.wear[35]),
-    (|c| &c.brake_damage, |r| &r.wear[30]),
-    (|c| &c.lights_damage, |r| &r.wear[22]),
-    (|c| &c.gearbox_damage, |r| &r.wear[9]),
-    (|c| &c.body_damage, |r| &r.damage[1]),
-    (|c| &c.gear_wear[0], |r| &r.wear[0]),
-    (|c| &c.gear_wear[2], |r| &r.wear[2]),
-    (|c| &c.gear_wear[3], |r| &r.wear[3]),
-    (|c| &c.gear_wear[4], |r| &r.wear[4]),
-    (|c| &c.gear_wear[5], |r| &r.wear[5]),
-    (|c| &c.gear_wear[6], |r| &r.wear[6]),
-    (|c| &c.gear_wear[7], |r| &r.wear[7]),
-    (|c| &c.gear_wear[8], |r| &r.wear[8]),
-    (|c| &c.wheel_hit_damage[0], |r| &r.wear[10]),
-    (|c| &c.wheel_hit_damage[1], |r| &r.wear[11]),
-    (|c| &c.wheel_hit_damage[2], |r| &r.wear[12]),
-    (|c| &c.wheel_hit_damage[3], |r| &r.wear[13]),
-    (|c| &c.body_hit_damage, |r| &r.wear[14]),
-    (|c| &c.light_damage[0], |r| &r.wear[16]),
-    (|c| &c.light_damage[1], |r| &r.wear[17]),
-    (|c| &c.light_damage[2], |r| &r.wear[18]),
-    (|c| &c.light_damage[3], |r| &r.wear[19]),
-    (|c| &c.light_damage[4], |r| &r.wear[20]),
-    (|c| &c.light_damage[5], |r| &r.wear[21]),
-    (|c| &c.suspension_damage[0], |r| &r.wear[23]),
-    (|c| &c.suspension_damage[1], |r| &r.wear[24]),
-    (|c| &c.suspension_damage[2], |r| &r.wear[25]),
-    (|c| &c.suspension_damage[3], |r| &r.wear[26]),
-    (|c| &c.brake_wear_a, |r| &r.wear[28]),
-    (|c| &c.brake_wear_b, |r| &r.wear[29]),
-    (|c| &c.tyre_wears[0], |r| &r.wear[31]),
-    (|c| &c.tyre_wears[1], |r| &r.wear[32]),
-    (|c| &c.tyre_wears[2], |r| &r.wear[33]),
-    (|c| &c.tyre_wears[3], |r| &r.wear[34]),
+    (|c| (&c.engine_damage).into(), |r| &r.damage[0]),
+    (|c| (&c.exhaust_damage).into(), |r| &r.damage[2]),
+    (|c| (&c.electrics_damage).into(), |r| &r.damage[3]),
+    (|c| (&c.turbo_damage).into(), |r| &r.damage[4]),
+    (|c| (&c.cooling_damage).into(), |r| &r.damage[6]),
+    (|c| (&c.steering_damage).into(), |r| &r.damage[7]),
+    (|c| (&c.clutch_damage).into(), |r| &r.damage[8]),
+    (|c| (&c.differential_damage).into(), |r| &r.damage[10]),
+    (|c| (&c.overall_suspension_damage).into(), |r| &r.wear[27]),
+    (|c| (&c.tyre_wear).into(), |r| &r.wear[35]),
+    (|c| (&c.brake_damage).into(), |r| &r.wear[30]),
+    (|c| (&c.lights_damage).into(), |r| &r.wear[22]),
+    (|c| (&c.gearbox_damage).into(), |r| &r.wear[9]),
+    (|c| (&c.body_damage).into(), |r| &r.damage[1]),
+    (|c| c.gear_wear.float_at(0).into(), |r| &r.wear[0]),
+    (|c| c.gear_wear.float_at(2).into(), |r| &r.wear[2]),
+    (|c| c.gear_wear.float_at(3).into(), |r| &r.wear[3]),
+    (|c| c.gear_wear.float_at(4).into(), |r| &r.wear[4]),
+    (|c| c.gear_wear.float_at(5).into(), |r| &r.wear[5]),
+    (|c| c.gear_wear.float_at(6).into(), |r| &r.wear[6]),
+    (|c| c.gear_wear.float_at(7).into(), |r| &r.wear[7]),
+    (|c| c.gear_wear.float_at(8).into(), |r| &r.wear[8]),
+    (|c| c.wheel_hit_damage.float_at(0).into(), |r| &r.wear[10]),
+    (|c| c.wheel_hit_damage.float_at(1).into(), |r| &r.wear[11]),
+    (|c| c.wheel_hit_damage.float_at(2).into(), |r| &r.wear[12]),
+    (|c| c.wheel_hit_damage.float_at(3).into(), |r| &r.wear[13]),
+    (|c| (&c.body_hit_damage).into(), |r| &r.wear[14]),
+    (|c| c.light_damage.float_at(0).into(), |r| &r.wear[16]),
+    (|c| c.light_damage.float_at(1).into(), |r| &r.wear[17]),
+    (|c| c.light_damage.float_at(2).into(), |r| &r.wear[18]),
+    (|c| c.light_damage.float_at(3).into(), |r| &r.wear[19]),
+    (|c| c.light_damage.float_at(4).into(), |r| &r.wear[20]),
+    (|c| c.light_damage.float_at(5).into(), |r| &r.wear[21]),
+    (|c| c.suspension_damage.float_at(0).into(), |r| &r.wear[23]),
+    (|c| c.suspension_damage.float_at(1).into(), |r| &r.wear[24]),
+    (|c| c.suspension_damage.float_at(2).into(), |r| &r.wear[25]),
+    (|c| c.suspension_damage.float_at(3).into(), |r| &r.wear[26]),
+    (|c| (&c.brake_wear_a).into(), |r| &r.wear[28]),
+    (|c| (&c.brake_wear_b).into(), |r| &r.wear[29]),
+    (|c| c.tyre_wears.float_at(0).into(), |r| &r.wear[31]),
+    (|c| c.tyre_wears.float_at(1).into(), |r| &r.wear[32]),
+    (|c| c.tyre_wears.float_at(2).into(), |r| &r.wear[33]),
+    (|c| c.tyre_wears.float_at(3).into(), |r| &r.wear[34]),
 ];
 
 /// The log names of the gauges in `GAUGES` (`[carN.name]`).

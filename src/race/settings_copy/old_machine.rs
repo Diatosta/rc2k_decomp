@@ -277,14 +277,14 @@ pub fn run(race: &Race, fx: &mut impl Effects, steps: &[Step<StepOperand>]) -> R
 
 /// A car block's eight impact marks.
 const IMPACT_MARKS: [CarFloat; 8] = [
-    |c| &c.impact_octant_marks[0],
-    |c| &c.impact_octant_marks[1],
-    |c| &c.impact_octant_marks[2],
-    |c| &c.impact_octant_marks[3],
-    |c| &c.impact_octant_marks[4],
-    |c| &c.impact_octant_marks[5],
-    |c| &c.impact_octant_marks[6],
-    |c| &c.impact_octant_marks[7],
+    |c| c.impact_octant_marks.float_at(0).into(),
+    |c| c.impact_octant_marks.float_at(1).into(),
+    |c| c.impact_octant_marks.float_at(2).into(),
+    |c| c.impact_octant_marks.float_at(3).into(),
+    |c| c.impact_octant_marks.float_at(4).into(),
+    |c| c.impact_octant_marks.float_at(5).into(),
+    |c| c.impact_octant_marks.float_at(6).into(),
+    |c| c.impact_octant_marks.float_at(7).into(),
 ];
 
 /// The race's settings that are logged after the copy: the log text and the variable.
@@ -641,7 +641,10 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
         }));
     }
     for car in 0..2 {
-        b.push(FloatCopy(ResultSecs(car), CarBits(car, |c| &c.top_speed)));
+        b.push(FloatCopy(
+            ResultSecs(car),
+            CarBits(car, |c| (&c.top_speed).into()),
+        ));
     }
     b.push(Copy(
         var!(@race shared.state.results.flags_current),

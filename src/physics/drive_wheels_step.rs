@@ -404,7 +404,7 @@ fn drive_forces_from_grips(
     let t9 = t7 * t8;
     let t10 = tables.weight.ld();
     let t11 = t9 * t10;
-    let t12 = car.drive_efficiency[0].ld();
+    let t12 = car.drive_efficiency.ld(0);
     let t13 = t11 * t12;
     work.borrow_mut().drive_forces[0] = st(t13);
     let t14 = grips[2].ld();
@@ -419,7 +419,7 @@ fn drive_forces_from_grips(
     let t23 = t21 * t22;
     let t24 = tables.weight.ld();
     let t25 = t23 * t24;
-    let t26 = car.drive_efficiency[1].ld();
+    let t26 = car.drive_efficiency.ld(1);
     let t27 = t25 * t26;
     work.borrow_mut().drive_forces[1] = st(t27);
     let t28 = tables.wheel_loads[0].ld();
@@ -519,7 +519,7 @@ fn brake_step_for_a(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t8 = t6 / t7;
     let t9 = numbers.step_time.ld();
     let t10 = t8 * t9;
-    let t11 = car.brake_efficiency[0].ld();
+    let t11 = car.brake_efficiency.ld(0);
     let t12 = t10 * t11;
     let t13 = tables.spec_wheel.ld();
     let t14 = t12 * t13;
@@ -539,7 +539,7 @@ fn brake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t6 = t4 / t5;
     let t7 = numbers.step_time.ld();
     let t8 = t6 * t7;
-    let t9 = car.brake_efficiency[1].ld();
+    let t9 = car.brake_efficiency.ld(1);
     let t10 = t8 * t9;
     let t11 = tables.spec_wheel.ld();
     let t12 = t10 * t11;

@@ -103,13 +103,9 @@ fn face_hidden(
     // The depths' roundings are the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
     let view: u32 = ctx.view.car.camera_view.get();
-    let places = &ctx.reads.view_and_records;
-    let shows: u32 = places
-        .view_vars
-        .view_hides
+    let shows: u32 = *crate::race::view_vars_store::VIEW_HIDES
         .get(view as usize)
-        .ok_or(BadInput("the view hides: a camera view past the table"))?
-        .get();
+        .ok_or(BadInput("the view hides: a camera view past the table"))?;
     let hiding = if shows == 0 {
         ctx.reads.switches.scene_set_up()
     } else {

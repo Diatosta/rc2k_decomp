@@ -15,7 +15,7 @@ use crate::race::work_store::RaceWork;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 
 /// The four tests' timers.
-type Timers = [crate::memory::session::PlainFloat; 4];
+type Timers = crate::memory::plain_floats::PlainFloats<4>;
 
 /// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (given the bit).
 pub fn hit_tests(
@@ -29,13 +29,13 @@ pub fn hit_tests(
     let (_, hit) = parts::hit_tests(
         tests,
         word,
-        |k| timers[k].get(),
+        |k| timers.at(k),
         || numbers.hundred.get(),
         || car.parts_present.get(),
     );
     if let Hit::Act(k) = hit {
         act(tests[k].1)?;
-        timers[k].set(x87::loaded(numbers.k256));
+        timers.float_at(k).set(x87::loaded(numbers.k256));
     }
     Ok(())
 }

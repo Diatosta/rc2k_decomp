@@ -51,7 +51,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Least wheel grip scaled; scales the ground's bumps.
     pub ground_bump_scale: K::Float,
     /// Eight 0 .. 1 gauges, one per octant of a hit's direction.
-    pub impact_octant_marks: [K::Float; 8],
+    pub impact_octant_marks: PlainFloats<8>,
     /// The lights switched on.
     pub lights_on: K::Dword,
     /// Stage time in steps after the start.
@@ -202,9 +202,9 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Brake fade gauge (reading).
     pub brake_fade: K::Float,
     /// Two damper wear gauges.
-    pub damper_wear: [K::Float; 2],
+    pub damper_wear: PlainFloats<2>,
     /// Brake temperature gauges.
-    pub brake_heat: [K::Float; 2],
+    pub brake_heat: PlainFloats<2>,
     /// Engine temperature gauge.
     pub engine_heat: K::Float,
     /// Engine damage gauge.
@@ -220,11 +220,11 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Differential damage gauge.
     pub differential_damage: K::Float,
     /// Per-gear wear, index gear + 1 (reverse, neutral, 1 .. 7).
-    pub gear_wear: [K::Float; 9],
+    pub gear_wear: PlainFloats<9>,
     /// Gearbox damage gauge.
     pub gearbox_damage: K::Float,
     /// Per-wheel hit gauges FL, FR, RL, RR.
-    pub wheel_hit_damage: [K::Float; 4],
+    pub wheel_hit_damage: PlainFloats<4>,
     /// General body-hit gauge.
     pub body_hit_damage: K::Float,
     /// Body damage gauge.
@@ -232,13 +232,13 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Electrics damage gauge.
     pub electrics_damage: K::Float,
     /// Lights' failure gauges (FL, FR, RL, RR, spots, brake light).
-    pub light_damage: [K::Float; 6],
+    pub light_damage: PlainFloats<6>,
     /// The lights' damage gauge.
     pub lights_damage: K::Float,
     /// Steering damage gauge.
     pub steering_damage: K::Float,
     /// Per-wheel suspension damage gauges.
-    pub suspension_damage: [K::Float; 4],
+    pub suspension_damage: PlainFloats<4>,
     /// The suspension's overall gauge.
     pub overall_suspension_damage: K::Float,
     /// Brake wear gauge (axle not settled).
@@ -249,7 +249,7 @@ pub struct Car<K: CellKind = PlainCells> {
     pub brake_damage: K::Float,
     /// The four tyres' wear, FL, FR, RL, RR, 0 ..= 100 (the developers' wear
     /// page's "tyre1" .. "tyre4"); `tyre_wear` is their overall figure.
-    pub tyre_wears: [K::Float; 4],
+    pub tyre_wears: PlainFloats<4>,
     /// Tyre wear gauge.
     pub tyre_wear: K::Float,
     /// Warning levels 0 .. 4, one per gauge group.
@@ -257,9 +257,9 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Engine health factor on the torque.
     pub engine_power_factor: K::Float,
     /// Braking factors (a, b).
-    pub brake_efficiency: [K::Float; 2],
+    pub brake_efficiency: PlainFloats<2>,
     /// Factors on the two drive-force outputs.
-    pub drive_efficiency: [K::Float; 2],
+    pub drive_efficiency: PlainFloats<2>,
     /// Steering factor from the steering damage.
     pub steering_efficiency: K::Float,
     /// Intermittent failures: electrics, then lights FL, FR, RL, RR, spots, brake.
@@ -273,9 +273,9 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Bit n: gear n - 1 barred.
     pub lost_gear_bits: K::Dword,
     /// Per-wheel ride height %.
-    pub wheel_ride_height: [K::Float; 4],
+    pub wheel_ride_height: PlainFloats<4>,
     /// Per-wheel suspension stiffness %.
-    pub wheel_stiffness: [K::Float; 4],
+    pub wheel_stiffness: PlainFloats<4>,
     /// Mean of wheel_stiffness.
     pub stiffness_mean: K::Float,
     /// Mean of wheel_ride_height.

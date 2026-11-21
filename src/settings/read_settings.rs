@@ -391,40 +391,15 @@ mod tests {
 
     /// Where each setting's variable is: its store (a registry name) and the field in it, by
     /// path. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, &str); 50] = [
+    const PLACES: [(&str, &str, &str); 31] = [
         (
             "notaskswitch",
             "owners.system.window_loop",
             ".no_task_switch",
         ),
-        ("noaudio", "owners.audio.state", ".no_audio"),
-        ("nosound", "owners.audio.state", ".no_audio"),
-        ("nomusic", "owners.audio.state", ".no_music"),
-        ("audiobasefreq", "owners.audio.state", ".mix_rate_setting"),
-        ("ignoreds3d", "owners.audio.state", ".no_listener"),
-        ("ignoredsv", "owners.audio.state", ".ignore_dsv_setting"),
-        ("ignoreeax", "owners.audio.state", ".ignore_eax_setting"),
-        ("ignorea3d", "owners.audio.state", ".ignore_a3d_setting"),
-        ("wavheapsize", "owners.audio.state", ".sample_buffer_kb"),
         ("imageheapsize", "owners.strings.lexicon.kilobytes", ""),
         ("textflashmode", "owners.strings.text.blend_mode", ""),
         ("nopngdecode", "owners.gfx.png.setting", ""),
-        ("nojoy", "owners.input.devices", ".no_joysticks"),
-        ("joymode", "owners.input.devices", ".joy_mode"),
-        ("joycode", "owners.input.devices", ".joy_code"),
-        ("joylowerdz", "owners.input.devices", ".joy_dead_zone"),
-        ("joyupperdz", "owners.input.devices", ".joy_end_zone"),
-        (
-            "noforcefeedback",
-            "owners.input.devices",
-            ".no_force_feedback",
-        ),
-        ("joyffgain", "owners.input.devices", ".ff_gain"),
-        (
-            "mergejoy",
-            "owners.input.devices",
-            ".two_devices_one_player",
-        ),
         ("nonetwork", "owners.net.vars.receive_done", ""),
         ("inetport", "owners.net.main.setup.port", ""),
         (
@@ -460,11 +435,6 @@ mod tests {
             ".no_auto_neutral",
         ),
         (
-            "nonlinearsteering",
-            "owners.input.devices",
-            ".nonlinear_steering",
-        ),
-        (
             "wrreplayenable",
             "owners.race.replay.viewer_panel.untyped_tail",
             "",
@@ -474,7 +444,6 @@ mod tests {
             "owners.race.replay.viewer_panel.untyped_tail",
             "",
         ),
-        ("alt2axcode", "owners.input.devices", ".alt_axes_code"),
         ("fizpatch", "owners.race.shared.work", ".patches[0]"),
         (
             "patchmaxdrawdistance",
@@ -496,6 +465,30 @@ mod tests {
         ("sparksmode", "owners.menus.screens.event", ".sparks_mode"),
     ];
 
+    /// The settings whose variables are atomic fields of the audio and input threads' shared
+    /// records, which no registry store lists: the table's functions are their only places.
+    const THREAD_SHARED: [&str; 19] = [
+        "noaudio",
+        "nosound",
+        "nomusic",
+        "audiobasefreq",
+        "ignoreds3d",
+        "ignoredsv",
+        "ignoreeax",
+        "ignorea3d",
+        "wavheapsize",
+        "nojoy",
+        "joymode",
+        "joycode",
+        "joylowerdz",
+        "joyupperdz",
+        "noforcefeedback",
+        "joyffgain",
+        "mergejoy",
+        "nonlinearsteering",
+        "alt2axcode",
+    ];
+
     #[test]
     fn targets_are_the_variables_the_games_table_names() {
         for (key, target) in ENTRIES {
@@ -507,6 +500,9 @@ mod tests {
                 // Their cells are bytes of a tail: checked by writing, in the test below.
                 Target::Unaligned(_) | Target::Ignored => continue,
             };
+            if THREAD_SHARED.contains(&&*name) {
+                continue;
+            }
             let (_, store, path) = PLACES
                 .iter()
                 .find(|(k, _, _)| k.as_bytes() == key)

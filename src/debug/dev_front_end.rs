@@ -90,7 +90,7 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
     // (the neutral gear's wear too, which the network race's clearing leaves).
     for block in &race.car_blocks().cars[..2] {
         crate::net::clear_car_state::clear_car_state(block)?;
-        block.gear_wear[1].set(0.0);
+        block.gear_wear.float_at(1).set(0.0);
     }
     Ok(())
 }

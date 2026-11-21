@@ -28,7 +28,11 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().brake_heat[0];
+                let g = &crate::test_support::own::race()
+                    .shared
+                    .car()
+                    .brake_heat
+                    .float_at(0);
                 g.set(add_wear(
                     dm(a[0]),
                     dm(a[0]).wear_rates[3],
@@ -55,7 +59,11 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().brake_heat[1];
+                let g = &crate::test_support::own::race()
+                    .shared
+                    .car()
+                    .brake_heat
+                    .float_at(1);
                 g.set(add_wear(
                     dm(a[0]),
                     dm(a[0]).wear_rates[3],
@@ -78,7 +86,11 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().brake_heat[0];
+                let g = &crate::test_support::own::race()
+                    .shared
+                    .car()
+                    .brake_heat
+                    .float_at(0);
                 g.set(subtract_rate(dm(a[0]), dm(a[0]).wear_rates[4], g.get()));
             },
         },
@@ -96,7 +108,11 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().brake_heat[1];
+                let g = &crate::test_support::own::race()
+                    .shared
+                    .car()
+                    .brake_heat
+                    .float_at(1);
                 g.set(subtract_rate(dm(a[0]), dm(a[0]).wear_rates[4], g.get()));
             },
         },
@@ -118,7 +134,11 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().damper_wear[0];
+                let g = &crate::test_support::own::race()
+                    .shared
+                    .car()
+                    .damper_wear
+                    .float_at(0);
                 g.set(add_wear(
                     dm(a[0]),
                     dm(a[0]).wear_rates[5],
@@ -145,7 +165,11 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().damper_wear[1];
+                let g = &crate::test_support::own::race()
+                    .shared
+                    .car()
+                    .damper_wear
+                    .float_at(1);
                 g.set(add_wear(
                     dm(a[0]),
                     dm(a[0]).wear_rates[5],
@@ -168,7 +192,11 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().damper_wear[0];
+                let g = &crate::test_support::own::race()
+                    .shared
+                    .car()
+                    .damper_wear
+                    .float_at(0);
                 g.set(subtract_rate(dm(a[0]), dm(a[0]).wear_rates[6], g.get()));
             },
         },
@@ -186,7 +214,11 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().damper_wear[1];
+                let g = &crate::test_support::own::race()
+                    .shared
+                    .car()
+                    .damper_wear
+                    .float_at(1);
                 g.set(subtract_rate(dm(a[0]), dm(a[0]).wear_rates[6], g.get()));
             },
         },

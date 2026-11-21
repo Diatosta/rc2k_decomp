@@ -4,7 +4,7 @@ use crate::physics::damage_model::proof::prove;
 #[test]
 fn wear_additions_and_subtractions() {
     prove("add_wear", |s| {
-        let (d, g) = (&s.damage, &s.car.brake_heat[0]);
+        let (d, g) = (&s.damage, &s.car.brake_heat.float_at(0));
         g.set(add_wear(d, d.wear_rates[3], d.brake_share, g.get()));
     });
     prove("add_wear into another cell", |s| {

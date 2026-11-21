@@ -31,6 +31,6 @@ pub(super) fn blend_wheel_load(car: &Car, numbers: &Numbers) {
     if !less(share, one) {
         share = x87::loaded(one);
     }
-    let mark = &car.impact_octant_marks[slot];
+    let mark = car.impact_octant_marks.float_at(slot);
     mark.set(toward_one(mark.get(), share));
 }

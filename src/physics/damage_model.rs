@@ -8,16 +8,16 @@
 //!
 //! This file holds the regions and the shared test.
 
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::{FloatLike, PlainDword};
 
 /// The value of a float cell as the model's arithmetic holds it: a float loaded and worked at
 /// double precision.
-pub fn value(cell: &PlainFloat) -> f64 {
+pub fn value(cell: &impl FloatLike) -> f64 {
     f64::from(cell.get())
 }
 
 /// A result of that arithmetic stored into a float cell, rounded to a float.
-pub fn store(cell: &PlainFloat, result: f64) {
+pub fn store(cell: &impl FloatLike, result: f64) {
     cell.set(result as f32);
 }
 
@@ -52,7 +52,7 @@ pub fn lerp_table(x: f32, table: &[f32; 4], zero: f32) -> f32 {
 
 /// A word test on a float cell: true unless every bit is zero, so a -0.0 counts as set and a
 /// NaN as set, as a compare of the float would not.
-pub fn is_set(cell: &PlainFloat) -> bool {
+pub fn is_set(cell: &impl FloatLike) -> bool {
     cell.bits() != 0
 }
 

@@ -6,6 +6,7 @@
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
+use crate::memory::plain_floats::WordRef;
 use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
@@ -49,16 +50,16 @@ fn set_var(race: &Race, v: Var, value: u32) {
     }
 }
 
-fn lead_cell(car: &Car, field: Lead) -> &dyn Cell32 {
+fn lead_cell(car: &Car, field: Lead) -> WordRef<'_> {
     match field {
-        Lead::CameraView => &car.camera_view,
-        Lead::GearRatioSetting => &car.gear_ratio_setting,
-        Lead::SuspensionStiffness => &car.suspension_stiffness,
-        Lead::RideHeight => &car.ride_height,
-        Lead::BrakeBalance => &car.brake_balance,
-        Lead::SteeringSensitivity => &car.steering_sensitivity,
-        Lead::PartsPresent => &car.parts_present,
-        Lead::ImpactMark(k) => &car.impact_octant_marks[k as usize],
+        Lead::CameraView => WordRef::Cell(&car.camera_view),
+        Lead::GearRatioSetting => WordRef::Cell(&car.gear_ratio_setting),
+        Lead::SuspensionStiffness => WordRef::Cell(&car.suspension_stiffness),
+        Lead::RideHeight => WordRef::Cell(&car.ride_height),
+        Lead::BrakeBalance => WordRef::Cell(&car.brake_balance),
+        Lead::SteeringSensitivity => WordRef::Cell(&car.steering_sensitivity),
+        Lead::PartsPresent => WordRef::Cell(&car.parts_present),
+        Lead::ImpactMark(k) => WordRef::Element(car.impact_octant_marks.cell_at(k as usize)),
     }
 }
 

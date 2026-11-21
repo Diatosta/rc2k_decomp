@@ -94,14 +94,38 @@ const POSITION_FIELDS: [Field; 40] = [
 
 /// The eight gauges and the lights.
 const EXTRA_FIELDS: [Field; 9] = [
-    (|c| WordRef::Cell(&c.impact_octant_marks[0]), Gauge),
-    (|c| WordRef::Cell(&c.impact_octant_marks[1]), Gauge),
-    (|c| WordRef::Cell(&c.impact_octant_marks[2]), Gauge),
-    (|c| WordRef::Cell(&c.impact_octant_marks[3]), Gauge),
-    (|c| WordRef::Cell(&c.impact_octant_marks[4]), Gauge),
-    (|c| WordRef::Cell(&c.impact_octant_marks[5]), Gauge),
-    (|c| WordRef::Cell(&c.impact_octant_marks[6]), Gauge),
-    (|c| WordRef::Cell(&c.impact_octant_marks[7]), Gauge),
+    (
+        |c| WordRef::Element(c.impact_octant_marks.cell_at(0)),
+        Gauge,
+    ),
+    (
+        |c| WordRef::Element(c.impact_octant_marks.cell_at(1)),
+        Gauge,
+    ),
+    (
+        |c| WordRef::Element(c.impact_octant_marks.cell_at(2)),
+        Gauge,
+    ),
+    (
+        |c| WordRef::Element(c.impact_octant_marks.cell_at(3)),
+        Gauge,
+    ),
+    (
+        |c| WordRef::Element(c.impact_octant_marks.cell_at(4)),
+        Gauge,
+    ),
+    (
+        |c| WordRef::Element(c.impact_octant_marks.cell_at(5)),
+        Gauge,
+    ),
+    (
+        |c| WordRef::Element(c.impact_octant_marks.cell_at(6)),
+        Gauge,
+    ),
+    (
+        |c| WordRef::Element(c.impact_octant_marks.cell_at(7)),
+        Gauge,
+    ),
     (|c| WordRef::Cell(&c.lights_on), Free),
 ];
 

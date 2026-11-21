@@ -25,7 +25,7 @@ use crate::math::matrix3::rounded_value;
 use crate::math::x87;
 use crate::math::x87::{Flt, compare_full, ext_times, one_less_products, ramp};
 use crate::math::x87_float as bh;
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::{FloatLike, PlainDword};
 use crate::physics::car_store::Car;
 use crate::physics::store::DamageModel;
 
@@ -34,7 +34,7 @@ use crate::physics::store::DamageModel;
 /// electrics' and six lights' recoveries.
 fn chance_ramps(car: &Car, damage: &DamageModel) -> [f32; 18] {
     let ramp_of = |x: f32, table: usize| ramp(x, damage.lerp_tables[table], damage.gauge_low);
-    let light = |n: usize| car.light_damage[n].get();
+    let light = |n: usize| car.light_damage.float_at(n).get();
     [
         ramp_of(car.clutch_damage.get(), 7),
         ramp_of(car.gearbox_damage.get(), 8),
@@ -118,17 +118,20 @@ fn less(a: impl Flt, b: impl Flt) -> bool {
     compare_full(a, b) & 0x100 != 0
 }
 
+/// A figure held between the gauge's low end and the grade's high end.
+fn hold(v: &impl FloatLike, d: &DamageModel) {
+    if less(v, d.gauge_low) {
+        v.set(x87::loaded(d.gauge_low));
+    }
+    if !less(v, d.grade_high) {
+        v.set(x87::loaded(d.grade_high));
+    }
+}
+
 /// The exact version, for `physics::grade_or_reset`.
 pub fn rate_damage(car: &Car, d: &mut DamageModel) {
     let c = &car;
-    let hold = |v: &PlainFloat, d: &DamageModel| {
-        if less(v, d.gauge_low) {
-            v.set(x87::loaded(d.gauge_low));
-        }
-        if !less(v, d.grade_high) {
-            v.set(x87::loaded(d.grade_high));
-        }
-    };
+
     let k = d.grade_k;
     let mut e = one_less_products(&[
         [c.engine_damage.get(), k, d.figures[7]],
@@ -140,8 +143,16 @@ pub fn rate_damage(car: &Car, d: &mut DamageModel) {
     c.engine_power_factor.set(rounded_value(e));
     hold(&c.engine_power_factor, d);
     for (out, a, b) in [
-        (&c.brake_efficiency[0], &c.brake_heat[0], &c.brake_wear_a),
-        (&c.brake_efficiency[1], &c.brake_heat[1], &c.brake_wear_b),
+        (
+            &c.brake_efficiency.float_at(0),
+            &c.brake_heat.float_at(0),
+            &c.brake_wear_a,
+        ),
+        (
+            &c.brake_efficiency.float_at(1),
+            &c.brake_heat.float_at(1),
+            &c.brake_wear_b,
+        ),
     ] {
         let e = one_less_products(&[
             [a.get(), k, d.figures[10]],
@@ -153,14 +164,20 @@ pub fn rate_damage(car: &Car, d: &mut DamageModel) {
         hold(out, d);
     }
     for (out, x) in [
-        (&c.drive_efficiency[0], c.damper_wear[0].get()),
-        (&c.drive_efficiency[1], c.damper_wear[1].get()),
+        (
+            &c.drive_efficiency.float_at(0),
+            c.damper_wear.float_at(0).get(),
+        ),
+        (
+            &c.drive_efficiency.float_at(1),
+            c.damper_wear.float_at(1).get(),
+        ),
     ] {
         out.set(ramp(x, d.lerp_tables[4], d.gauge_low));
     }
     for (out, x) in [
-        (&c.drive_efficiency[0], d.front_tyre_wear),
-        (&c.drive_efficiency[1], d.rear_tyre_wear),
+        (&c.drive_efficiency.float_at(0), d.front_tyre_wear),
+        (&c.drive_efficiency.float_at(1), d.rear_tyre_wear),
     ] {
         d.brake_balance_complement = ramp(x, d.lerp_tables[5], d.gauge_low);
         out.st(bh::ld(d.brake_balance_complement) * bh::ld(k) * bh::ld(k) * out.ld());
@@ -257,9 +274,9 @@ pub fn rate_damage(car: &Car, d: &mut DamageModel) {
     ) {
         c.forced_neutral.set(1);
     }
-    c.gear_wear[1].set(0.0);
+    c.gear_wear.float_at(1).set(0.0);
     let mut bits = 0u32;
-    for (n, wear) in c.gear_wear.iter().enumerate() {
+    for (n, wear) in c.gear_wear.floats().iter().enumerate() {
         if compare_full(wear, d.gauge_top) & 0x4000 != 0 {
             bits |= 1 << n;
         }

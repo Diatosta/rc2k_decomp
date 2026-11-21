@@ -38,6 +38,15 @@ impl FloatView for PlainFloat {
 
 /// A dword cell used for a float as well as for whole numbers (the scratch
 /// cells, the work vectors): its bits read and written as the float.
+impl FloatView for crate::memory::plain_floats::FloatAt<'_> {
+    fn float(&self) -> f32 {
+        self.get()
+    }
+    fn set_float(&self, x: f32) {
+        self.set(x);
+    }
+}
+
 impl FloatView for Dword {
     fn float(&self) -> f32 {
         f32::from_bits(self.get())
