@@ -215,7 +215,7 @@ pub(super) fn scroll_maps(
     if !third_only && crate::race::overview_map::wanted(race) {
         crate::race::overview_map::update(race, gfx)?;
     } else {
-        race.frame.panel_and_overlay.get().panel.overview_on.set(0);
+        race.frame.panel.borrow_mut().overview_on = 0;
     }
     Ok(())
 }

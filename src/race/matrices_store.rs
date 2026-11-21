@@ -5,8 +5,7 @@
 //! work matrix are functions, and the turn and placed matrices, whose unset floats never change,
 //! are the bases the turns start from (`scene::matrix::TURN_X_BASE` ..).
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::{DrawPlain, PlainFloat, PlainRead};
+use crate::memory::session::{DrawPlain, PlainRead};
 use crate::scene::matrix::Matrix;
 
 /// The matrices the physics and the car's parts work in, as plain values. A plain record
@@ -105,21 +104,21 @@ impl ViewKept {
 }
 
 /// The 4x4 identity.
-pub fn identity_matrix() -> [PlainFloat; 16] {
-    let mut a: [PlainFloat; 16] = ZeroCells::ZERO;
-    a[0] = PlainFloat::new(1.0);
-    a[5] = PlainFloat::new(1.0);
-    a[10] = PlainFloat::new(1.0);
-    a[15] = PlainFloat::new(1.0);
+pub fn identity_matrix() -> Matrix {
+    let mut a: Matrix = [0.0; 16];
+    a[0] = 1.0;
+    a[5] = 1.0;
+    a[10] = 1.0;
+    a[15] = 1.0;
     a
 }
 
 /// The constant matrix the frame draw turns a mirrored view's car by: the diagonal (-1, 1, -1, 1).
-pub fn mirror_work_matrix() -> [PlainFloat; 16] {
-    let mut a: [PlainFloat; 16] = ZeroCells::ZERO;
-    a[0] = PlainFloat::new(-1.0);
-    a[5] = PlainFloat::new(1.0);
-    a[10] = PlainFloat::new(-1.0);
-    a[15] = PlainFloat::new(1.0);
+pub fn mirror_work_matrix() -> Matrix {
+    let mut a: Matrix = [0.0; 16];
+    a[0] = -1.0;
+    a[5] = 1.0;
+    a[10] = -1.0;
+    a[15] = 1.0;
     a
 }

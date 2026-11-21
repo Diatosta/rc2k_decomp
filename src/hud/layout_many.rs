@@ -12,6 +12,7 @@ use crate::hud::layout_common::{Keep, black_divider, keep, start_keep};
 use crate::hud::owner::Hud;
 use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
+use crate::race::panel_store::{Lights, Marks, Panel, ViewA};
 use rc2k_core::race::view::{PlayerPart, Split};
 
 /// The thickness of the dividers between parts, in pixels.
@@ -44,7 +45,10 @@ fn overview(
     free: PlayerPart,
     views: u32,
 ) -> Result<(), Refused> {
-    let panel = &frame.panel_and_overlay.get().panel;
+    let (overview_fit, overview_cars) = {
+        let panel = frame.panel.borrow();
+        (panel.overview_fit, panel.overview_cars)
+    };
     let side = free.width.min(free.height) * 9 / 10;
     let (left, top) = (
         free.x + (free.width - side) / 2,
@@ -87,14 +91,14 @@ fn overview(
         )?;
     }
     let fit = rc2k_core::race::overview::Fit {
-        origin: (panel.overview_fit[0].get(), panel.overview_fit[1].get()),
-        ratio: panel.overview_fit[2].get(),
+        origin: (overview_fit[0], overview_fit[1]),
+        ratio: overview_fit[2],
     };
     let mark = (side / 32).max(4);
     let side = side as f32;
     for player in 0..views.min(4) as usize {
-        let cell = &panel.overview_cars[player];
-        let (x, y) = fit.in_picture((cell[0].get(), cell[1].get()));
+        let cell = overview_cars[player];
+        let (x, y) = fit.in_picture((cell[0], cell[1]));
         let to_screen = |v: f32, from: u32| {
             from + (v.clamp(0.0, OVERVIEW_SIDE as f32) / OVERVIEW_SIDE as f32 * side) as u32
         };
@@ -125,71 +129,40 @@ fn overview(
 /// The panel's first-view slots (what the one-player HUD reads), kept while a part's player
 /// takes them.
 struct Slots {
-    view: crate::race::panel_store::ViewA,
+    view: ViewA,
     flags: u32,
     start: u32,
     distance: u32,
-    lights: [u32; 4],
-    marks: [u32; 5],
+    lights: Lights,
+    marks: Marks,
 }
 
 impl Slots {
-    fn keep(panel: &crate::race::panel_store::Panel) -> Self {
-        let view = <crate::race::panel_store::ViewA as crate::memory::cells::ZeroCells>::ZERO;
-        crate::race::frame_draw::copy_view(&panel.view_a, &view);
+    fn keep(panel: &Panel) -> Self {
         Slots {
-            view,
-            flags: panel.hud_flags[0].get(),
-            start: panel.start_values[0].get(),
-            distance: panel.distance[0].get(),
-            lights: lights_of(&panel.lights[0]),
-            marks: marks_of(&panel.marks[0]),
+            view: panel.view_a,
+            flags: panel.hud_flags[0],
+            start: panel.start_values[0],
+            distance: panel.distance[0],
+            lights: panel.lights[0],
+            marks: panel.marks[0],
         }
     }
 
-    fn put_back(&self, panel: &crate::race::panel_store::Panel) {
-        crate::race::frame_draw::copy_view(&self.view, &panel.view_a);
-        panel.hud_flags[0].set(self.flags);
-        panel.start_values[0].set(self.start);
-        panel.distance[0].set(self.distance);
-        set_lights(&panel.lights[0], self.lights);
-        set_marks(&panel.marks[0], self.marks);
+    fn put_back(&self, panel: &mut Panel) {
+        panel.view_a = self.view;
+        panel.hud_flags[0] = self.flags;
+        panel.start_values[0] = self.start;
+        panel.distance[0] = self.distance;
+        panel.lights[0] = self.lights;
+        panel.marks[0] = self.marks;
     }
-}
-
-fn marks_of(m: &crate::race::panel_store::Marks) -> [u32; 5] {
-    [
-        m.marks[0].get(),
-        m.marks[1].get(),
-        m.marks[2].get(),
-        m.marks[3].get(),
-        m.base.get(),
-    ]
-}
-
-fn set_marks(m: &crate::race::panel_store::Marks, v: [u32; 5]) {
-    for (cell, value) in m.marks.iter().zip(v) {
-        cell.set(value);
-    }
-    m.base.set(v[4]);
-}
-
-fn lights_of(l: &crate::race::panel_store::Lights) -> [u32; 4] {
-    [l.lit.get(), l.width.get(), l.alpha.get(), l.drop.get()]
-}
-
-fn set_lights(l: &crate::race::panel_store::Lights, v: [u32; 4]) {
-    l.lit.set(v[0]);
-    l.width.set(v[1]);
-    l.alpha.set(v[2]);
-    l.drop.set(v[3]);
 }
 
 /// The HUD of `views` players on their layout's parts: each part gets the one-player HUD, laid out
 /// by the part's own shape. Each player's map disc has a texture of its own, and the map of the
 /// first goes when the overview map has its picture.
 pub fn layout_many(frame: &Frame, hud: &mut Hud, pen: Pen, views: u32) -> Result<(), Refused> {
-    let panel = &frame.panel_and_overlay.get().panel;
     let screen = pen.system.session.screen.get();
     let size = (screen.width.get(), screen.height.get());
     let Some(split) = Split::many(views, crate::race::split_layout::index()) else {
@@ -205,30 +178,23 @@ pub fn layout_many(frame: &Frame, hud: &mut Hud, pen: Pen, views: u32) -> Result
             pen,
             [free.x, free.y, free.x + free.width, free.y + free.height],
         )?;
-        if panel.overview_on.get() != 0 {
+        if frame.panel.borrow().overview_on != 0 {
             overview(frame, hud, pen, free, views)?;
         }
     }
-    let kept = Slots::keep(panel);
-    let live_motion = [
-        panel
-            .view_a
-            .motion
-            .each_ref()
-            .map(crate::memory::session::PlainDword::get),
-        panel
-            .view_b
-            .motion
-            .each_ref()
-            .map(crate::memory::session::PlainDword::get),
-    ];
+    let (kept, live_motion) = {
+        let panel = frame.panel.borrow();
+        (
+            Slots::keep(&panel),
+            [panel.view_a.motion, panel.view_b.motion],
+        )
+    };
     let mut result = Ok(());
     for player in 0..views.min(4) {
         let Some(part) = split.part_of(views, player, size) else {
             continue;
         };
         let n = player as usize;
-        crate::race::frame_draw::copy_view(&panel.parts[n], &panel.view_a);
         // Every player's map moves with the player's car and has a texture of its own.
         let map = [
             texture::DIAL_FIRST,
@@ -236,17 +202,19 @@ pub fn layout_many(frame: &Frame, hud: &mut Hud, pen: Pen, views: u32) -> Result
             texture::DIAL_THIRD,
             texture::DIAL_FOURTH,
         ][n];
-        if n < 2 {
-            for (cell, value) in panel.view_a.motion.iter().zip(live_motion[n]) {
-                cell.set(value);
+        {
+            let mut panel = frame.panel.borrow_mut();
+            panel.view_a = panel.parts[n];
+            if n < 2 {
+                panel.view_a.motion = live_motion[n];
             }
+            let flags = panel.hud_flags[n];
+            panel.hud_flags[0] = flags;
+            panel.start_values[0] = kept_start(&panel, n, kept.start);
+            panel.distance[0] = panel.car_distances[n];
+            panel.lights[0] = panel.lights[n.min(1)];
+            panel.marks[0] = *panel.marks_of_view(n);
         }
-        let flags = panel.hud_flags[n].get();
-        panel.hud_flags[0].set(flags);
-        panel.start_values[0].set(kept_start(panel, n, kept.start));
-        panel.distance[0].set(panel.car_distances[n].get());
-        set_lights(&panel.lights[0], lights_of(&panel.lights[n.min(1)]));
-        set_marks(&panel.marks[0], marks_of(panel.marks_of_view(n)));
         crate::hud::tenths::tenths(frame, hud);
         start_keep(hud, Keep::Thirds);
         let part_pen = Pen {
@@ -262,7 +230,7 @@ pub fn layout_many(frame: &Frame, hud: &mut Hud, pen: Pen, views: u32) -> Result
             break;
         }
     }
-    kept.put_back(panel);
+    kept.put_back(&mut frame.panel.borrow_mut());
     crate::hud::tenths::tenths(frame, hud);
     result?;
     // The dividers between the parts, over the HUDs, in screen pixels.
@@ -304,10 +272,10 @@ pub fn layout_many(frame: &Frame, hud: &mut Hud, pen: Pen, views: u32) -> Result
 }
 
 /// The start value of player `n`'s needle sign: the first two players' own, the others' the first's.
-fn kept_start(panel: &crate::race::panel_store::Panel, n: usize, first: u32) -> u32 {
+fn kept_start(panel: &Panel, n: usize, first: u32) -> u32 {
     match n {
         0 => first,
-        1 => panel.start_values[1].get(),
+        1 => panel.start_values[1],
         _ => first,
     }
 }

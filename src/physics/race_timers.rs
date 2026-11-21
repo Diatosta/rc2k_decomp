@@ -23,8 +23,7 @@ pub(super) fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Res
         &race.course.numbers,
         &mut race.course.league_mut(),
     );
-    let (frame_work, panel_and_overlay) =
-        (&race.frame.frame_work, &race.frame.panel_and_overlay.get());
+    let (frame_work, overlay) = (&race.frame.frame_work, race.frame.overlay.get());
     let (shared, car_blocks) = (&race.shared, race.car_blocks());
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
     shared.physics_tables.get().weight.set(1.0f32);
@@ -46,15 +45,7 @@ pub(super) fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Res
     count_start_second(shared.car());
     if run == TimerRun::Start {
         count_down_start(frame_work, shared.work.get(), shared.car(), sound)?;
-        take_split_counted(
-            o,
-            physics,
-            league,
-            frame_work,
-            panel_and_overlay,
-            shared,
-            car_blocks,
-        )?;
+        take_split_counted(o, physics, league, frame_work, overlay, shared, car_blocks)?;
         start_go_notice(
             frame_work,
             shared.work.get(),
@@ -67,7 +58,7 @@ pub(super) fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Res
             o,
             &mut physics.split_tables_mut(),
             league,
-            panel_and_overlay,
+            overlay,
             shared,
             car_blocks,
         )?;

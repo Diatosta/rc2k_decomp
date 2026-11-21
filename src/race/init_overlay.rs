@@ -21,12 +21,7 @@ const ONE: u32 = 0x3F80_0000;
 /// Sets up the overlay's stage parts (see the module header).
 pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::hud::layout_common::start_gear_log(&mut race.hud.get().borrow_mut());
-    race.frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .overview_drawn
-        .set(0);
+    race.frame.panel.borrow_mut().overview_drawn = 0;
     {
         // Logic in `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
         // OVERLAY_CLEARED}`; the miles the x87's.
@@ -35,21 +30,11 @@ pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> R
             race.physics.split_tables().split_colour_count
         })?;
         if let Some(count) = found {
-            race.frame
-                .panel_and_overlay
-                .get()
-                .panel
-                .overlay_parts
-                .set(count);
+            race.frame.panel.borrow_mut().overlay_parts = count;
         }
         match parts {
             Some(count) => {
-                race.frame
-                    .panel_and_overlay
-                    .get()
-                    .panel
-                    .overlay_miles
-                    .set(0);
+                race.frame.panel.borrow_mut().overlay_miles = 0;
                 let (scale, mile) = (
                     race.course.numbers.k65536.get(),
                     race.course.numbers.metres_in_mile.get(),
@@ -76,87 +61,44 @@ pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> R
                     let half = half_length(end, start);
                     scene.draw_work_mut().scratch = half;
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
-                    race.frame
-                        .panel_and_overlay
-                        .get()
-                        .overlay
-                        .overlay_part_miles[n as usize]
-                        .set(miles);
-                    race.frame.panel_and_overlay.get().panel.overlay_miles.set(
-                        x87::add(
-                            miles,
-                            race.frame.panel_and_overlay.get().panel.overlay_miles.get(),
-                        )
-                        .to_bits(),
-                    );
-                    race.frame
-                        .panel_and_overlay
-                        .get()
-                        .overlay
-                        .overlay_part_kinds_a[n as usize]
-                        .set(0);
-                    race.frame
-                        .panel_and_overlay
-                        .get()
-                        .overlay
-                        .overlay_part_kinds_b[n as usize]
-                        .set(0);
+                    race.frame.overlay.get().overlay_part_miles[n as usize].set(miles);
+                    let value = x87::add(miles, race.frame.panel.borrow().overlay_miles).to_bits();
+                    race.frame.panel.borrow_mut().overlay_miles = value;
+                    race.frame.overlay.get().overlay_part_kinds_a[n as usize].set(0);
+                    race.frame.overlay.get().overlay_part_kinds_b[n as usize].set(0);
                 }
             }
             None => {
-                race.frame
-                    .panel_and_overlay
-                    .get()
-                    .panel
-                    .overlay_parts
-                    .set(1);
-                race.frame
-                    .panel_and_overlay
-                    .get()
-                    .overlay
-                    .overlay_part_miles[0]
-                    .set(1.0);
-                race.frame
-                    .panel_and_overlay
-                    .get()
-                    .panel
-                    .overlay_miles
-                    .set(ONE);
-                race.frame
-                    .panel_and_overlay
-                    .get()
-                    .overlay
-                    .overlay_part_kinds_a[0]
-                    .set(0);
-                race.frame
-                    .panel_and_overlay
-                    .get()
-                    .overlay
-                    .overlay_part_kinds_b[0]
-                    .set(0);
+                race.frame.panel.borrow_mut().overlay_parts = 1;
+                race.frame.overlay.get().overlay_part_miles[0].set(1.0);
+                race.frame.panel.borrow_mut().overlay_miles = ONE;
+                race.frame.overlay.get().overlay_part_kinds_a[0].set(0);
+                race.frame.overlay.get().overlay_part_kinds_b[0].set(0);
             }
         }
         // The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`).
-        let sizes = [
-            &race.frame.panel_and_overlay.get().panel.lights[0].width,
-            &race.frame.panel_and_overlay.get().panel.lights[0].alpha,
-            &race.frame.panel_and_overlay.get().panel.lights[0].drop,
-            &race.frame.panel_and_overlay.get().panel.lights[1].width,
-            &race.frame.panel_and_overlay.get().panel.lights[1].alpha,
-            &race.frame.panel_and_overlay.get().panel.lights[1].drop,
-        ];
-        for (cell, value) in sizes.into_iter().zip(OVERLAY_SIZES) {
-            cell.set(value);
+        {
+            let mut panel = race.frame.panel.borrow_mut();
+            let [first, second] = &mut panel.lights;
+            let sizes = [
+                &mut first.width,
+                &mut first.alpha,
+                &mut first.drop,
+                &mut second.width,
+                &mut second.alpha,
+                &mut second.drop,
+            ];
+            for (cell, value) in sizes.into_iter().zip(OVERLAY_SIZES) {
+                *cell = value;
+            }
         }
         for car in 0..race.shared.work.get().car_blocks.len() {
             for word in OVERLAY_CLEARED {
                 crate::race::race_init::block_word(race.shared.race_car(car)?, word)?.set(0);
             }
         }
-        for distance in &race.frame.panel_and_overlay.get().panel.distance {
-            distance.set(0);
-        }
-        race.frame.panel_and_overlay.get().panel.network_cars.set(0);
+        race.frame.panel.borrow_mut().distance = [0; 2];
+        race.frame.panel.borrow_mut().network_cars = 0;
     }
     Ok(())
 }

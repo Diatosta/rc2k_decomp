@@ -40,8 +40,8 @@ pub(super) fn layout_0(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Ref
 /// The HUD of one player whose map picture is the texture `map`.
 pub(super) fn layout_0_on(frame: &Frame, hud: &mut Hud, pen: Pen, map: u32) -> Result<(), Refused> {
     use crate::hud::*;
-    let panel = &frame.panel_and_overlay.get().panel;
-    let flags = panel.hud_flags[0].get();
+    let panel = *frame.panel.borrow();
+    let flags = panel.hud_flags[0];
     begin_dials(hud);
     hud.block.texture = map;
     if flags & 0x10 != 0 {
@@ -60,10 +60,10 @@ pub(super) fn layout_0_on(frame: &Frame, hud: &mut Hud, pen: Pen, map: u32) -> R
     white_opaque(hud, texture::NEEDLES_AND_DIGITS);
     if flags & 0x20 != 0 {
         sprite(frame, hud, pen, 0x49, 9, 0x215)?;
-        let gear = gear_rect(hud, frame.panel_and_overlay.get().panel.view_a.gear.get());
+        let gear = gear_rect(hud, panel.view_a.gear);
         sprite(frame, hud, pen, gear, 0x11, 0x21D)?;
     }
-    let pick = needle_sign(hud, panel.start_values[0].get());
+    let pick = needle_sign(hud, panel.start_values[0]);
     if flags & 1 != 0 {
         sprite(frame, hud, pen, pick, 0x21, 0x1B8)?;
     }
@@ -92,20 +92,20 @@ pub(super) fn layout_0_on(frame: &Frame, hud: &mut Hud, pen: Pen, map: u32) -> R
         keep(hud, Keep::Bar);
         let panels = [
             (
-                &panel.view_a.back,
+                panel.view_a.back,
                 0x4Cu32,
                 hud.block.times[0],
                 [0x14u32, 0x22, 0x2F, 0x36, 0x44, 0x51, 0x58, 0x66],
             ),
             (
-                &panel.view_a.front,
+                panel.view_a.front,
                 0x2F8,
                 hud.block.times[1],
                 [0x2BD, 0x2CB, 0x2D8, 0x2DF, 0x2ED, 0x2FA, 0x301, 0x30F],
             ),
         ];
         for (field, x, time, xs) in panels {
-            let Some(rect) = panels::stage_rect(field.get()) else {
+            let Some(rect) = panels::stage_rect(field) else {
                 continue;
             };
             sprite(frame, hud, pen, rect, x, 1)?;
@@ -115,7 +115,7 @@ pub(super) fn layout_0_on(frame: &Frame, hud: &mut Hud, pen: Pen, map: u32) -> R
         keep_layout(hud);
     }
     if flags & 2 != 0 {
-        let v = panel.view_a.place.get();
+        let v = panel.view_a.place;
         if v != 0xFFFF_FFFF {
             let d = time_digits(hud, v, 2);
             sign(hud, v, 0, 1);
@@ -129,7 +129,7 @@ pub(super) fn layout_0_on(frame: &Frame, hud: &mut Hud, pen: Pen, map: u32) -> R
         lap_panel(frame, hud, pen, t, xs, row(frame, 0x63))?;
     }
     if flags & 0x20 != 0 {
-        let v = panel.view_a.speed.get();
+        let v = panel.view_a.speed;
         leading_time(frame, hud, pen, v, [0x43, 0x57, 0x6B], 0x23F)?;
     }
     Ok(())

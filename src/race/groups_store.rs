@@ -7,21 +7,16 @@
 //!   panel) to its end (in the kinds' tables: `effects::init_marks`).
 //! - `LightsAndGear`: the light records, a dword, the gear figures. `scene::load_object` reads a
 //!   kind's record past the 34 (an unbounded kind) into the gear figures.
-//! - `PanelAndOverlay`: the hud's panel and the race's overlay. The hud reads its records from
-//!   `PANEL.split_6` on (the last 0xF4 bytes of the panel: `hud::draw_hud`'s layouts).
-//!   Two lead bytes come before the panel.
 //! - `ViewAndRecords`: the view variables and the 52 view records of 0x5C after them
 //!   (`ViewAndRecords.view_vars.view_records[0]`'s targets). The records are one array: with the
 //!   variables overrunning onto the first records' fields, the third chase view read half of
 //!   record 6 from the wrong memory.
 
-use crate::memory::session::{GameThread, PlainBytes, PlainCells, PlainDword};
+use crate::memory::session::{GameThread, PlainCells, PlainDword};
 use crate::physics::gear_store::GearFigures;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::kind_store::KindTables;
 use crate::race::light_records_store::LightRecords;
-use crate::race::overlay_store::OverlayBlock;
-use crate::race::panel_store::Panel;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
 
@@ -47,17 +42,6 @@ pub struct LightsAndGear {
     pub between: PlainDword,
     /// `physics::gear_store`.
     pub gear: GearFigures,
-}
-
-/// The hud's panel and the race's overlay.
-#[derive(rc2k_derive::Cells)]
-pub struct PanelAndOverlay {
-    /// Two lead bytes before the panel.
-    pub lead: PlainBytes<2>,
-    /// `race::panel_store`.
-    pub panel: Panel,
-    /// `race::overlay_store`.
-    pub overlay: OverlayBlock,
 }
 
 /// The view variables and the 52 view records after them.
@@ -94,17 +78,6 @@ impl LightsAndGear {
     }
 }
 
-/// The hud's panel and the race's overlay as the game starts.
-impl PanelAndOverlay {
-    pub const fn new() -> Self {
-        PanelAndOverlay {
-            lead: PlainBytes::new([0; 2]),
-            panel: Panel::new(),
-            overlay: OverlayBlock::new(),
-        }
-    }
-}
-
 /// The view variables and the 52 view records as the game starts.
 impl ViewAndRecords {
     pub const fn new() -> Self {
@@ -124,7 +97,6 @@ mod tests {
         for home in [
             core::ptr::from_ref(&race.replay.viewer_and_kinds).addr(),
             core::ptr::from_ref(race.frame.lights_and_gear.get()).addr(),
-            core::ptr::from_ref(&race.frame.panel_and_overlay.get().panel).addr(),
             core::ptr::from_ref(race.frame.view_and_records.get()).addr(),
         ] {
             assert_eq!(home % 4, 0);

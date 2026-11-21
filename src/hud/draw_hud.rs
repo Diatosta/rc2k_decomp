@@ -17,7 +17,8 @@ pub fn draw_hud(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
         hud.block.index_count = 0;
         tenths::tenths(frame, hud);
         use crate::hud::layout_common::{Keep, start_keep};
-        match batch::Layout::of(frame.panel_and_overlay.get().panel.players.get()) {
+        let layout = batch::Layout::of(frame.panel.borrow().players);
+        match layout {
             batch::Layout::Single => {
                 start_keep(hud, Keep::Thirds);
                 layout_0::layout_0(frame, hud, pen)?;

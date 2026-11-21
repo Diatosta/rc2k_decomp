@@ -116,11 +116,10 @@ pub struct Lent<'s> {
         crate::memory::session::PhaseRead<'s, crate::race::groups_store::LightsAndGear>,
     /// The finish state's "no place" switch as the frame began.
     no_place: u32,
-    // The frame's work and the panel and overlay.
+    // The frame's work and the panel.
     frame_work: crate::memory::session::PlainRead<crate::race::frame_store::FrameWork>,
     frame_cars: &'s crate::race::frame_view::FrameCars,
-    panel_and_overlay:
-        crate::memory::session::PhaseRead<'s, crate::race::groups_store::PanelAndOverlay>,
+    panel: crate::memory::session::PlainRead<crate::race::panel_store::Panel>,
     // The cars' blocks and the view variables.
     car_blocks: crate::memory::session::PhaseRead<'s, crate::race::blocks_store::CarBlocks>,
     view_and_records:
@@ -180,10 +179,10 @@ impl<'s> Lent<'s> {
             shadow_skids: PhaseRead::lend(&race.frame.shadow_skids, scope),
             lights_and_gear: PhaseRead::lend(&race.frame.lights_and_gear, scope),
             no_place: race.replay.no_place(),
-            // The frame's work and the panel and overlay.
+            // The frame's work and the panel.
             frame_work: crate::memory::session::PlainRead::lend(&race.frame.frame_work, scope),
             frame_cars: &race.frame.cars,
-            panel_and_overlay: PhaseRead::lend(&race.frame.panel_and_overlay, scope),
+            panel: crate::memory::session::PlainRead::lend(&race.frame.panel, scope),
             // The cars' blocks and the view variables.
             car_blocks: PhaseRead::lend(&race.shared.car_blocks, scope),
             view_and_records: PhaseRead::lend(&race.frame.view_and_records, scope),
@@ -233,10 +232,10 @@ impl<'s> Lent<'s> {
             shadow_skids: &self.shadow_skids,
             lights_and_gear: &self.lights_and_gear,
             no_place: self.no_place,
-            // The frame's work and the panel and overlay.
+            // The frame's work and the panel.
             frame_work: (&self.frame_work).into(),
             frame_cars: self.frame_cars,
-            panel_and_overlay: &self.panel_and_overlay,
+            panel: (&self.panel).into(),
             // The cars' blocks and the view variables.
             car_blocks: &self.car_blocks,
             view_and_records: &self.view_and_records,
@@ -301,13 +300,13 @@ pub struct DrawReads<'a> {
     pub lights_and_gear: &'a crate::race::groups_store::LightsAndGear,
     /// The finish state's "no place" switch (`race::owner_replay::Replay::no_place`).
     pub no_place: u32,
-    // The frame's work and the panel and overlay.
+    // The frame's work and the panel.
     /// The frame's draw work (`race::owner_frame::Frame::frame_work`).
     pub frame_work: crate::race::frame_store::FrameWorkRef<'a>,
     /// The cars' snapshot for this frame's drawing (`race::frame_view`).
     pub frame_cars: &'a crate::race::frame_view::FrameCars,
-    /// The hud's panel and the race's overlay (`race::owner_frame::Frame::panel_and_overlay`).
-    pub panel_and_overlay: &'a crate::race::groups_store::PanelAndOverlay,
+    /// The hud's panel (`race::owner_frame::Frame::panel`).
+    pub panel: crate::race::panel_store::PanelRef<'a>,
     // The cars' blocks and the view variables.
     /// The cars' blocks (`race::owner_replay::Replay::car_blocks`).
     pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
@@ -417,10 +416,10 @@ impl<'a> DrawReads<'a> {
             shadow_skids: race.frame.shadow_skids.get(),
             lights_and_gear: race.frame.lights_and_gear.get(),
             no_place: race.replay.no_place(),
-            // The frame's work and the panel and overlay.
+            // The frame's work and the panel.
             frame_work: (&race.frame.frame_work).into(),
             frame_cars: &race.frame.cars,
-            panel_and_overlay: race.frame.panel_and_overlay.get(),
+            panel: (&race.frame.panel).into(),
             // The cars' blocks and the view variables.
             car_blocks: race.shared.car_blocks.get(),
             view_and_records: race.frame.view_and_records.get(),

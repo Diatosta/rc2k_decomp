@@ -119,7 +119,7 @@ pub(super) fn overlay_tail(overlay: &Overlay) -> Result<(), Refused> {
     } = *overlay;
     let frame = &race.frame;
     let (shown, players) = (
-        frame.panel_and_overlay.get().panel.hud_flags[0].get(),
+        frame.panel.borrow().hud_flags[0],
         crate::hud::overlay_pass::shown_layout(&race.shared),
     );
     if !strips::tail_shown(shown, players) {
@@ -153,7 +153,7 @@ pub fn draw_view_strip(overlay: &Overlay, view: u32) -> Result<(), Refused> {
         return Err(BadInput("a view past the overlay's tables").into());
     }
     {
-        let top = strips::top_entry(view, frame.panel_and_overlay.get().panel.flat.get());
+        let top = strips::top_entry(view, frame.panel.borrow().flat);
         let top: u32 = strips.tops[top as usize];
         let left: u32 = strips.lefts[view as usize];
         // Two players side by side each keep to their own half.

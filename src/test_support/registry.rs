@@ -469,8 +469,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.shared.car_blocks.get()),
         ),
         listed!(
-            "race.groups_store.PANEL_TAIL",
-            on_game_from(o.race.frame.panel_and_overlay.get(), ".panel.split_6",),
+            "owners.race.frame.overlay",
+            on_game(o.race.frame.overlay.get()),
         ),
         listed!(
             "owners.race.frame.shadow_skids",

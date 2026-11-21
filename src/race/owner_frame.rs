@@ -10,8 +10,10 @@ use crate::race::frame_counter_store::FrameCounter;
 use crate::race::frame_store::FrameWork;
 use crate::race::frame_text::Credits;
 use crate::race::game_map_store::MapVars;
-use crate::race::groups_store::{LightsAndGear, PanelAndOverlay, ViewAndRecords};
+use crate::race::groups_store::{LightsAndGear, ViewAndRecords};
 use crate::race::matrices_store::{SceneMatrices, ViewKept};
+use crate::race::overlay_store::OverlayBlock;
+use crate::race::panel_store::Panel;
 use crate::race::scratch_store::FrameScratch;
 use crate::race::shadow_skids_store::ShadowSkids;
 use crate::race::sound_spots_store::SoundSpots;
@@ -26,8 +28,7 @@ const NO_LIST: MemoryList = MemoryList {
 };
 
 /// The race's frame state. The view
-/// variables, the panel and the overlay are fields of `view_and_records` and
-/// `panel_and_overlay` (`view_vars_store`, `panel_store`, `overlay_store` read them there).
+/// variables are a field of `view_and_records` (`view_vars_store` reads them there).
 pub struct Frame {
     /// Whether the race is a split screen of three or four players: then the view slots are the
     /// players' views (slot `n` player `n`) and there are no mirrors, where with one or two
@@ -52,9 +53,11 @@ pub struct Frame {
     pub view_kept: DrawPlain<ViewKept>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing only reads it.
     pub shadow_skids: DrawShared<ShadowSkids>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the mirror's window and the
-    /// polygon drawing read it; the hud and the race write it on the game's thread.
-    pub panel_and_overlay: DrawShared<PanelAndOverlay>,
+    /// A plain record, lent to the drawing parts as a copy (`scene::workers::DrawReads`): the mirror's
+    /// window reads one field; the hud and the race write it on the game's thread (short borrows).
+    pub panel: DrawPlain<Panel>,
+    /// The stage bar's parts, the start lights and the position labels: the game's thread's.
+    pub overlay: GameThread<OverlayBlock>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it. Each
     /// view draws on its own view variables (`ViewScratch::vars`).
     pub view_and_records: DrawShared<ViewAndRecords>,
@@ -92,7 +95,8 @@ impl Frame {
             matrices: DrawPlain::new(SceneMatrices::new()),
             view_kept: DrawPlain::new(ViewKept::new()),
             shadow_skids: DrawShared::new(ShadowSkids::new()),
-            panel_and_overlay: DrawShared::new(PanelAndOverlay::new()),
+            panel: DrawPlain::new(Panel::new()),
+            overlay: GameThread::new(OverlayBlock::new()),
             view_and_records: DrawShared::new(ViewAndRecords::new()),
             lights_and_gear: DrawShared::new(LightsAndGear::new()),
             cars: crate::race::frame_view::FrameCars::new(),

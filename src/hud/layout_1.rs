@@ -17,8 +17,8 @@ use crate::race::owner_frame::Frame;
 /// The HUD of two players side by side.
 pub(super) fn layout_1(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
     use crate::hud::*;
-    let panel = &frame.panel_and_overlay.get().panel;
-    let [f1, f2] = [panel.hud_flags[0].get(), panel.hud_flags[1].get()];
+    let panel = *frame.panel.borrow();
+    let [f1, f2] = [panel.hud_flags[0], panel.hud_flags[1]];
     begin_dials(hud);
     if f1 & 0x10 != 0 {
         dials::disc(frame, hud, pen, &dials::DISC_1A)?;
@@ -40,15 +40,15 @@ pub(super) fn layout_1(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Ref
     white_opaque(hud, texture::NEEDLES_AND_DIGITS);
     if f1 & 0x20 != 0 {
         scaled(frame, hud, pen, 0x49, 7, 0x223)?;
-        let gear = gear_rect(hud, frame.panel_and_overlay.get().panel.view_a.gear.get());
+        let gear = gear_rect(hud, panel.view_a.gear);
         scaled(frame, hud, pen, gear, 0xD, 0x22A)?;
     }
     if f2 & 0x20 != 0 {
         scaled(frame, hud, pen, 0x49, 0x198, 0x223)?;
-        let gear = gear_rect(hud, frame.panel_and_overlay.get().panel.view_b.gear.get());
+        let gear = gear_rect(hud, panel.view_b.gear);
         scaled(frame, hud, pen, gear, 0x19E, 0x22A)?;
     }
-    let p = needle_sign(hud, panel.start_values[0].get());
+    let p = needle_sign(hud, panel.start_values[0]);
     if f1 & 1 != 0 {
         scaled(frame, hud, pen, p, 0x19, 0x1DE)?;
     }
@@ -57,7 +57,7 @@ pub(super) fn layout_1(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Ref
         dials::map_cars(frame, hud, pen, &dials::DISC_1A, 0)?;
         scaled(frame, hud, pen, 0x5F, 0x116, 0x1DE)?;
     }
-    let p = needle_sign(hud, panel.start_values[1].get());
+    let p = needle_sign(hud, panel.start_values[1]);
     if f2 & 1 != 0 {
         scaled(frame, hud, pen, p, 0x1AA, 0x1DE)?;
     }
@@ -89,11 +89,11 @@ pub(super) fn layout_1(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Ref
         dials::needle(frame, hud, pen, &dials::NEEDLE_1B)?;
     }
     for (flags, field, xs) in [
-        (f1, &panel.view_a.speed, [0x43, 0x57, 0x6B]),
-        (f2, &panel.view_b.speed, [0x1D4, 0x1E8, 0x1FC]),
+        (f1, panel.view_a.speed, [0x43, 0x57, 0x6B]),
+        (f2, panel.view_b.speed, [0x1D4, 0x1E8, 0x1FC]),
     ] {
         if flags & 0x20 != 0 {
-            leading_time(frame, hud, pen, field.get(), xs, 0x245)?;
+            leading_time(frame, hud, pen, field, xs, 0x245)?;
         }
     }
     let left = [8, 0x16, 0x23, 0x2A, 0x38, 0x45, 0x4C, 0x5A];
@@ -103,7 +103,7 @@ pub(super) fn layout_1(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Ref
         ([hud.block.times[0], hud.block.times[1]], 2u32),
         ([hud.block.times[3], hud.block.times[4]], 0x11),
     ] {
-        if f1 & 0x40 != 0 && panel.view_a.back.get() != 0xFFFF_FFFF {
+        if f1 & 0x40 != 0 && panel.view_a.back != 0xFFFF_FFFF {
             for (time, xs) in [(times[0], left), (times[1], right)] {
                 let t = time;
                 clock_panel(frame, hud, pen, t, xs, y)?;
@@ -114,7 +114,7 @@ pub(super) fn layout_1(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Ref
     let laps = [
         (
             f1,
-            &panel.view_a.place,
+            panel.view_a.place,
             [0x55, 0x81],
             0u32,
             [3, 0x21, 4, 0x46],
@@ -123,7 +123,7 @@ pub(super) fn layout_1(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Ref
         ),
         (
             f2,
-            &panel.view_b.place,
+            panel.view_b.place,
             [0x1E6, 0x212],
             1,
             [0x194, 0x21, 0x195, 0x46],
@@ -135,7 +135,7 @@ pub(super) fn layout_1(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Ref
         if flags & 2 == 0 {
             continue;
         }
-        let v = field.get();
+        let v = field;
         if v != 0xFFFF_FFFF {
             let d = time_digits(hud, v, 2);
             sign(hud, v, 0, 1);

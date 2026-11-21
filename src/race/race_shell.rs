@@ -161,9 +161,9 @@ pub fn set_start_states(
             shared.vars.get().race_car_kinds[0].get()
         };
         let v = start_value(physics, first_kind);
-        frame.panel_and_overlay.get().panel.start_values[0].set(v);
+        frame.panel.borrow_mut().start_values[0] = v;
         let v = start_value(physics, shared.vars.get().race_car_kinds[1].get());
-        frame.panel_and_overlay.get().panel.start_values[1].set(v);
+        frame.panel.borrow_mut().start_values[1] = v;
         if one {
             shared.vars.get().split.set(0u32);
             let block = shared.race_car(chosen as usize)?;

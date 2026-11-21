@@ -9,8 +9,8 @@ use crate::errors::Refused;
 use crate::physics::split_by_mode::split_by_mode;
 use crate::physics::split_tables_store::SplitTables;
 use crate::physics::splits::put_split_time;
-use crate::race::groups_store::PanelAndOverlay;
 use crate::race::league_store::League;
+use crate::race::overlay_store::OverlayBlock;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::progress::{FINISH_NOTICE, finished_at, split_due};
 
@@ -19,7 +19,7 @@ pub(super) fn take_split(
     o: crate::owners::Owners<'static>,
     split_tables: &mut SplitTables,
     league: &mut League,
-    panel_and_overlay: &PanelAndOverlay,
+    overlay: &OverlayBlock,
     shared: &RaceShared,
     car_blocks: &crate::race::blocks_store::CarBlocks,
 ) -> Result<(), Refused> {
@@ -32,14 +32,7 @@ pub(super) fn take_split(
     )? {
         return Ok(());
     }
-    split_by_mode(
-        o,
-        split_tables,
-        league,
-        panel_and_overlay,
-        shared,
-        car_blocks,
-    )?;
+    split_by_mode(o, split_tables, league, overlay, shared, car_blocks)?;
     put_split_time(
         shared.car(),
         shared.car().splits_recorded.get() as usize,

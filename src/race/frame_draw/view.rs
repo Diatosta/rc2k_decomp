@@ -360,8 +360,7 @@ fn view_own_matrices(
     if view <= 3 {
         m.borrow_mut().view_turn_matrix = inverted_turn(course, &matrix_of(&car.crash_matrix));
     } else {
-        m.borrow_mut().view_turn_matrix =
-            matrix_of(&crate::race::matrices_store::identity_matrix());
+        m.borrow_mut().view_turn_matrix = crate::race::matrices_store::identity_matrix();
         for angles in [[0usize, 1, 2], [3, 4, 5]] {
             set_fine_turn(
                 course,
@@ -485,7 +484,7 @@ pub fn camera_view(
     } else {
         let mut kept = m.borrow_mut();
         kept.turned_matrix = crate::scene::matrix::product(
-            &crate::scene::matrix::matrix_of(&crate::race::matrices_store::mirror_work_matrix()),
+            &crate::race::matrices_store::mirror_work_matrix(),
             &crate::scene::matrix::matrix_of(&view.car.crash_matrix),
             kept.turned_matrix,
         );

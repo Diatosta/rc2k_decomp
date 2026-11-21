@@ -13,7 +13,7 @@ use crate::errors::{BadInput, Refused};
 use crate::memory::session::PlainDword;
 use crate::physics::fill_rival_table::fill_rival_table;
 use crate::physics::split_tables_store::SplitTables;
-use crate::race::groups_store::PanelAndOverlay;
+use crate::race::overlay_store::OverlayBlock;
 use crate::race::owner_shared::RaceShared;
 use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
@@ -50,7 +50,7 @@ fn name(
 pub fn rank_split_time(
     o: crate::owners::Owners<'static>,
     split_tables: &mut SplitTables,
-    panel_and_overlay: &PanelAndOverlay,
+    overlay: &OverlayBlock,
     shared: &RaceShared,
 ) -> Result<(), Refused> {
     let (split, count) = (
@@ -64,10 +64,7 @@ pub fn rank_split_time(
     for k in 0..5 {
         shared.car().split_gaps[k].set(u32::MAX);
     }
-    for label in [
-        &panel_and_overlay.overlay.label_behind,
-        &panel_and_overlay.overlay.label_ahead,
-    ] {
+    for label in [&overlay.label_behind, &overlay.label_ahead] {
         label[0].set(0x2020_2020);
         label[1].set(0x2020_2020);
     }
@@ -90,7 +87,7 @@ pub fn rank_split_time(
         shared.car().split_gaps[3].set(split_tables.rival_cars[c - 2]);
         let id = split_tables.rival_names[c - 2];
         shared.car().split_gaps[5].set(id.to_file());
-        name(o, id, &panel_and_overlay.overlay.label_ahead)?;
+        name(o, id, &overlay.label_ahead)?;
     }
     if c != RIVALS {
         // The one behind: rival c - 1.
@@ -98,7 +95,7 @@ pub fn rank_split_time(
         shared.car().split_gaps[4].set(split_tables.rival_cars[c - 1]);
         let id = split_tables.rival_names[c - 1];
         shared.car().split_gaps[6].set(id.to_file());
-        name(o, id, &panel_and_overlay.overlay.label_behind)?;
+        name(o, id, &overlay.label_behind)?;
     }
     Ok(())
 }

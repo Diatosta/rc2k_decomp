@@ -78,8 +78,7 @@ fn mirrored(race: &Race, flags: usize) -> bool {
     {
         return false;
     }
-    race.frame.panel_and_overlay.get().panel.hud_flags[flags].get() & 8 != 0
-        || crate::race::draw_mirror_view::always()
+    race.frame.panel.borrow().hud_flags[flags] & 8 != 0 || crate::race::draw_mirror_view::always()
 }
 
 /// View `car`'s car loaded into its own state (`frame::load_view_car`).
@@ -410,19 +409,9 @@ fn draw_players_beside(
 
 /// The slots the panel's extra light textures are wanted in must exist.
 fn check_light_texture_slots(race: &Race, scene: &Scene) -> Result<(), Refused> {
-    for (k, extra) in race
-        .frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .lights
-        .iter()
-        .map(|l| &l.lit)
-        .enumerate()
-    {
-        if extra.get() != u32::MAX
-            && scene.textures.kinds.borrow().kind_first_slots[220 + k] >= SLOTS
-        {
+    let lights = race.frame.panel.borrow().lights;
+    for (k, extra) in lights.iter().map(|l| l.lit).enumerate() {
+        if extra != u32::MAX && scene.textures.kinds.borrow().kind_first_slots[220 + k] >= SLOTS {
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
     }
@@ -433,39 +422,24 @@ fn check_light_texture_slots(race: &Race, scene: &Scene) -> Result<(), Refused> 
 /// further views of a split screen their own player's car's (none past the views shown), and a
 /// view that is off has none.
 fn set_hud_flags(race: &Race, blocks: &[usize], views: u32) -> Result<(), Refused> {
-    for (flags, block) in race
-        .frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .hud_flags
-        .iter()
-        .zip(blocks.iter().copied())
-    {
-        flags.set(race.frame.cars.car(block)?.option_bits.get());
+    for (n, block) in blocks.iter().copied().enumerate().take(4) {
+        let bits = race.frame.cars.car(block)?.option_bits.get();
+        race.frame.panel.borrow_mut().hud_flags[n] = bits;
     }
     {
-        let panel = &race.frame.panel_and_overlay.get().panel;
-        for (n, flags) in panel.hud_flags.iter().enumerate().skip(2) {
+        for n in 2..4 {
             if (n as u32) < views {
                 let block = race.shared.view.get().view_number(n)?;
-                flags.set(race.frame.cars.car(block)?.option_bits.get());
+                let bits = race.frame.cars.car(block)?.option_bits.get();
+                race.frame.panel.borrow_mut().hud_flags[n] = bits;
             } else {
-                flags.set(0);
+                race.frame.panel.borrow_mut().hud_flags[n] = 0;
             }
         }
     }
-    for (flags, on) in race
-        .frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .hud_flags
-        .iter()
-        .zip(&race.shared.view.get().view_on)
-    {
+    for (n, on) in race.shared.view.get().view_on.iter().enumerate().take(4) {
         if on.get() == 0 {
-            flags.set(0);
+            race.frame.panel.borrow_mut().hud_flags[n] = 0;
         }
     }
     Ok(())
@@ -473,17 +447,9 @@ fn set_hud_flags(race: &Race, blocks: &[usize], views: u32) -> Result<(), Refuse
 
 /// Each panel light's texture put in its wanted slot.
 fn assign_light_textures(race: &Race, scene: &Scene) -> Result<(), Refused> {
-    for (k, extra) in race
-        .frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .lights
-        .iter()
-        .map(|l| &l.lit)
-        .enumerate()
-    {
-        let texture = extra.get();
+    let lights = race.frame.panel.borrow().lights;
+    for (k, extra) in lights.iter().map(|l| l.lit).enumerate() {
+        let texture = extra;
         if texture != u32::MAX {
             let slot = scene.textures.kinds.borrow().kind_first_slots[220 + k];
             *scene
@@ -552,12 +518,8 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     scene.light_work_mut().marks_mask =
         (race.course.stage_prefs.get().refresh_flags_a.get() & 2) >> 1;
     scene.light_work_mut().lamps_mask = race.course.stage_prefs.get().refresh_flags_b.get() & 1;
-    race.frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .flat
-        .set(race.frame.panel_and_overlay.get().panel.hud_flags[0].get() & 0x40);
+    let value = race.frame.panel.borrow().hud_flags[0] & 0x40;
+    race.frame.panel.borrow_mut().flat = value;
     race.frame.frame_work.borrow_mut().mirror_wanted = false;
     if race.course.stage_prefs.get().precipitation_range[0].get()
         | race.course.stage_prefs.get().precipitation_range[1].get()
@@ -616,12 +578,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     blended.at_the_tick(|| {
         crate::race::map_scroll::scroll_maps(race, scene, o.gfx, &o.net.race_slot)
     })?;
-    race.frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .texture_changes
-        .set(0);
+    race.frame.panel.borrow_mut().texture_changes = 0;
     crate::race::frame_views::forget_view_textures(race, scene, system, o.gfx)?;
     crate::race::mud_frame::mud_frame(race, scene, o.gfx, o.system)?;
     race.frame.frame_work.borrow_mut().kind_textures_done = 0;

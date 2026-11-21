@@ -37,27 +37,20 @@ pub fn overlay_pass(
     net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     use crate::scene::depth_buffer_on::depth_buffer;
-    race.frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .players
-        .set(shown_layout(&race.shared));
+    race.frame.panel.borrow_mut().players = shown_layout(&race.shared);
     let part = scene.scratch.game_scratch();
     depth_buffer(part, false);
     crate::hud::overlay_states::overlay_states(part);
     let kept: [u32; 2] = [
-        race.frame.panel_and_overlay.get().panel.hud_flags[0].get(),
-        race.frame.panel_and_overlay.get().panel.hud_flags[1].get(),
+        race.frame.panel.borrow().hud_flags[0],
+        race.frame.panel.borrow().hud_flags[1],
     ];
     if race.shared.view.get().views.get() == 2 {
         for n in 0..2 {
             if race.frame.cars.car(n)?.view_covered.get() != 0 {
-                race.frame.panel_and_overlay.get().panel.hud_flags[n]
-                    .set(race.frame.panel_and_overlay.get().panel.hud_flags[n].get() & 0x40);
-                race.frame.panel_and_overlay.get().panel.lights[n]
-                    .width
-                    .set(0);
+                let value = race.frame.panel.borrow().hud_flags[n] & 0x40;
+                race.frame.panel.borrow_mut().hud_flags[n] = value;
+                race.frame.panel.borrow_mut().lights[n].width = 0;
             }
         }
     }
@@ -73,8 +66,8 @@ pub fn overlay_pass(
         scope: crate::hud::pen::PartScope::default(),
     };
     let done = crate::hud::draw_hud::draw_hud(&race.frame, hud, pen);
-    race.frame.panel_and_overlay.get().panel.hud_flags[1].set(kept[1]);
-    race.frame.panel_and_overlay.get().panel.hud_flags[0].set(kept[0]);
+    race.frame.panel.borrow_mut().hud_flags[1] = kept[1];
+    race.frame.panel.borrow_mut().hud_flags[0] = kept[0];
     done?;
     depth_buffer(part, true);
     crate::scene::full_view_window::full_view_window(race, scene, system);

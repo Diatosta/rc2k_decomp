@@ -2919,10 +2919,7 @@ pub static GROUPS: &[Group] = &[
                 "Texture changes",
                 "amtu",
                 Shown::Whole,
-                indexed_cell!(
-                    |o| o.race.frame.panel_and_overlay.get().panel,
-                    texture_changes
-                ),
+                indexed_cell!(|o| o.race.frame.panel.borrow(), texture_changes),
                 false,
                 (468, 328),
             ),

@@ -57,27 +57,22 @@ fn map_pixel(map: &GameMap, wide: usize, black: u32, (x, y): (u32, u32)) -> Opti
 /// Puts every car's place on the map into the panel and, the first time in a stage, makes the
 /// overview picture; with two checkpoints at least.
 pub fn update(race: &Race, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
-    let panel = &race.frame.panel_and_overlay.get().panel;
     crate::race::map_scroll::scroll_refuses(race)?;
     if race.shared.vars.get().checkpoint_count.get() < 2 {
-        panel.overview_on.set(0);
+        race.frame.panel.borrow_mut().overview_on = 0;
         return Ok(());
     }
-    for (n, cells) in panel
-        .overview_cars
-        .iter()
-        .enumerate()
-        .take(PLAYERS as usize)
-    {
+    for n in 0..(PLAYERS as usize).min(4) {
         let car = race
             .shared
             .race_car_or(n, "an overview map's car without its block")?;
         crate::race::map_scroll::place_on_map(race, car)?;
-        for (cell, place) in cells.iter().zip(&car.map_place) {
-            cell.set(place.get() as i32 as f32 / 65536.0);
+        let mut panel = race.frame.panel.borrow_mut();
+        for (cell, place) in panel.overview_cars[n].iter_mut().zip(&car.map_place) {
+            *cell = place.get() as i32 as f32 / 65536.0;
         }
     }
-    if panel.overview_drawn.get() == 0 {
+    if race.frame.panel.borrow().overview_drawn == 0 {
         let wide = pixel_width(race.frame.map().pixel_bytes) as usize;
         let black = race.frame.map().black;
         let (_, format) = crate::race::game_map::take_format(gfx)?;
@@ -113,20 +108,18 @@ pub fn update(race: &Race, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> 
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         match made {
             Some((fit, picture)) => {
-                panel.overview_fit[0].set(fit.origin.0);
-                panel.overview_fit[1].set(fit.origin.1);
-                panel.overview_fit[2].set(fit.ratio);
+                race.frame.panel.borrow_mut().overview_fit =
+                    [fit.origin.0, fit.origin.1, fit.ratio];
                 *kept = Some(picture);
             }
             None => {
-                panel.overview_fit[2].set(0.0);
+                race.frame.panel.borrow_mut().overview_fit[2] = 0.0;
                 *kept = None;
             }
         }
-        panel.overview_drawn.set(1);
+        race.frame.panel.borrow_mut().overview_drawn = 1;
     }
-    panel
-        .overview_on
-        .set(u32::from(panel.overview_fit[2].get() > 0.0));
+    let on = u32::from(race.frame.panel.borrow().overview_fit[2] > 0.0);
+    race.frame.panel.borrow_mut().overview_on = on;
     Ok(())
 }

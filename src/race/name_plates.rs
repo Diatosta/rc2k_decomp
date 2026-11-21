@@ -73,7 +73,7 @@ fn draw_time_plate(frame: &Frame, slot: u32, gfx: &'static Gfx) -> Result<(), Re
     crate::gfx::rows::clear_surface_rows(start, time_rows(line), gfx)?;
     // A label is eight bytes (spaces after each split, no NUL): its text runs on into the
     // dword after it, which ends it.
-    let overlay = &frame.panel_and_overlay.get().overlay;
+    let overlay = &frame.overlay.get();
     for ((label, after), (x, y)) in [
         (&overlay.label_behind, &overlay.reserved_334),
         (&overlay.label_ahead, &overlay.reserved_340),
@@ -120,35 +120,35 @@ pub(super) fn update_name_plates(
     // Logic in `rc2k_core::race::plates::{times_changed, NameAsk}`.
     use rc2k_core::race::plates::{NameAsk, times_changed};
     let now = [
-        frame.panel_and_overlay.get().overlay.label_behind[0].get(),
-        frame.panel_and_overlay.get().overlay.label_behind[1].get(),
-        frame.panel_and_overlay.get().overlay.label_ahead[0].get(),
-        frame.panel_and_overlay.get().overlay.label_ahead[1].get(),
+        frame.overlay.get().label_behind[0].get(),
+        frame.overlay.get().label_behind[1].get(),
+        frame.overlay.get().label_ahead[0].get(),
+        frame.overlay.get().label_ahead[1].get(),
     ];
     let kept = [
-        frame.panel_and_overlay.get().overlay.kept_behind[0].get(),
-        frame.panel_and_overlay.get().overlay.kept_behind[1].get(),
-        frame.panel_and_overlay.get().overlay.kept_ahead[0].get(),
-        frame.panel_and_overlay.get().overlay.kept_ahead[1].get(),
+        frame.overlay.get().kept_behind[0].get(),
+        frame.overlay.get().kept_behind[1].get(),
+        frame.overlay.get().kept_ahead[0].get(),
+        frame.overlay.get().kept_ahead[1].get(),
     ];
     if times_changed(now, kept) {
         draw_time_plate(frame, textures.first_textures()[196], gfx)?;
         for (from, to) in [
             (
-                &frame.panel_and_overlay.get().overlay.label_behind[0],
-                &frame.panel_and_overlay.get().overlay.kept_behind[0],
+                &frame.overlay.get().label_behind[0],
+                &frame.overlay.get().kept_behind[0],
             ),
             (
-                &frame.panel_and_overlay.get().overlay.label_behind[1],
-                &frame.panel_and_overlay.get().overlay.kept_behind[1],
+                &frame.overlay.get().label_behind[1],
+                &frame.overlay.get().kept_behind[1],
             ),
             (
-                &frame.panel_and_overlay.get().overlay.label_ahead[0],
-                &frame.panel_and_overlay.get().overlay.kept_ahead[0],
+                &frame.overlay.get().label_ahead[0],
+                &frame.overlay.get().kept_ahead[0],
             ),
             (
-                &frame.panel_and_overlay.get().overlay.label_ahead[1],
-                &frame.panel_and_overlay.get().overlay.kept_ahead[1],
+                &frame.overlay.get().label_ahead[1],
+                &frame.overlay.get().kept_ahead[1],
             ),
         ] {
             to.set(from.get());

@@ -12,8 +12,8 @@ use crate::physics::flag_current_car_listed::flag_current_car_listed;
 use crate::physics::split_by_mode::split_by_mode;
 use crate::physics::splits::put_split_time;
 use crate::race::frame_store::FrameWorkStore;
-use crate::race::groups_store::PanelAndOverlay;
 use crate::race::league_store::League;
+use crate::race::overlay_store::OverlayBlock;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::progress::{
@@ -26,7 +26,7 @@ pub(super) fn take_split_counted(
     physics: &Physics,
     league: &mut League,
     frame_work: &FrameWorkStore,
-    panel_and_overlay: &PanelAndOverlay,
+    overlay: &OverlayBlock,
     shared: &RaceShared,
     car_blocks: &crate::race::blocks_store::CarBlocks,
 ) -> Result<(), Refused> {
@@ -46,7 +46,7 @@ pub(super) fn take_split_counted(
         o,
         &mut physics.split_tables_mut(),
         league,
-        panel_and_overlay,
+        overlay,
         shared,
         car_blocks,
     )?;

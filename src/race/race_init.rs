@@ -89,19 +89,19 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
     }
     // `label_behind` and `label_ahead`: four dwords of spaces.
     for cell in [
-        &frame.panel_and_overlay.get().overlay.label_behind[0],
-        &frame.panel_and_overlay.get().overlay.label_behind[1],
-        &frame.panel_and_overlay.get().overlay.label_ahead[0],
-        &frame.panel_and_overlay.get().overlay.label_ahead[1],
+        &frame.overlay.get().label_behind[0],
+        &frame.overlay.get().label_behind[1],
+        &frame.overlay.get().label_ahead[0],
+        &frame.overlay.get().label_ahead[1],
     ] {
         cell.set(BLANK_TEXT);
     }
     // `kept_behind` and `kept_ahead`: four dwords of -1.
     for cell in [
-        &frame.panel_and_overlay.get().overlay.kept_behind[0],
-        &frame.panel_and_overlay.get().overlay.kept_behind[1],
-        &frame.panel_and_overlay.get().overlay.kept_ahead[0],
-        &frame.panel_and_overlay.get().overlay.kept_ahead[1],
+        &frame.overlay.get().kept_behind[0],
+        &frame.overlay.get().kept_behind[1],
+        &frame.overlay.get().kept_ahead[0],
+        &frame.overlay.get().kept_ahead[1],
     ] {
         cell.set(UNSET_TEXT);
     }

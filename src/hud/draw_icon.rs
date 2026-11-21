@@ -16,20 +16,20 @@ pub fn draw_icon(
     frame: &Frame,
     hud: &mut Hud,
     pen: Pen,
-    lights: &Lights,
+    lights: Lights,
     bottom: u32,
 ) -> Result<(), Refused> {
-    if !icons::shown(lights.lit.get()) {
+    if !icons::shown(lights.lit) {
         return Ok(());
     }
     let scale = hud.block.icon_scale;
-    let width = lights.width.get();
+    let width = lights.width;
     hud.block.icon_size[0] = icons::scaled(width, scale);
-    let drop = lights.drop.get();
+    let drop = lights.drop;
     hud.block.icon_size[1] = icons::scaled(drop, scale);
     let i = icons::icon(
         width,
-        lights.alpha.get(),
+        lights.alpha,
         drop,
         scale,
         hud.block.icon_shift,

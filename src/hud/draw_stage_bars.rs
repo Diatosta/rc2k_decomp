@@ -20,8 +20,8 @@ pub fn draw_stage_bars(frame: &Frame, hud: &mut Hud, pen: Pen, dy: u32) -> Resul
         hud,
         pen,
         &[
-            &frame.panel_and_overlay.get().overlay.overlay_part_kinds_a,
-            &frame.panel_and_overlay.get().overlay.overlay_part_kinds_b,
+            &frame.overlay.get().overlay_part_kinds_a,
+            &frame.overlay.get().overlay_part_kinds_b,
         ],
         dy,
     )

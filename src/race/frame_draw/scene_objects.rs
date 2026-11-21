@@ -517,7 +517,7 @@ pub(super) fn scale_object_turn(ctx: &DrawCtx) -> Result<(), BadInput> {
 /// `size` / 16.
 pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     use crate::scene::matrix::{
-        matrix_of, multiply_matrices, set_light_direction, set_turn_x, set_turn_y, set_turn_z_16,
+        multiply_matrices, set_light_direction, set_turn_x, set_turn_y, set_turn_z_16,
     };
     use crate::scene::view_matrix::{Axis, set_fine_turn};
     let tables = &ctx.reads.buffers.engine_tables;
@@ -574,7 +574,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         }
         5 => {
             ctx.view.matrices.borrow_mut().object_turn_matrix =
-                matrix_of(&crate::race::matrices_store::identity_matrix());
+                crate::race::matrices_store::identity_matrix();
             set_fine_turn(
                 ctx.reads.course(),
                 &ctx.view.matrices,

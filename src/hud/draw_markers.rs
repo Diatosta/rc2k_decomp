@@ -42,19 +42,13 @@ pub(super) fn draw_markers(
 ) -> Result<(), Refused> {
     {
         let k = hud.block.uv_scale_x;
-        for (n, distance) in frame
-            .panel_and_overlay
-            .get()
-            .panel
-            .distance
-            .iter()
-            .enumerate()
-        {
+        let distances = frame.panel.borrow().distance;
+        for (n, &distance) in distances.iter().enumerate() {
             hud.block.quad.colour = hud.block.marker_colours[n];
             let f = f32::from_bits;
             let x = quads::marker_x(
-                f(distance.get()),
-                f(frame.panel_and_overlay.get().panel.overlay_miles.get()),
+                f(distance),
+                f(frame.panel.borrow().overlay_miles),
                 hud.block.marker_k[0],
                 hud.block.marker_k[1],
             );

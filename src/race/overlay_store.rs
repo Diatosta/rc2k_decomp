@@ -11,6 +11,9 @@ pub const COUNTDOWN_START: u32 = 0x12C;
 /// The sound of each countdown second (`drive::countdown_beep`).
 pub const COUNTDOWN_SOUNDS: [u32; 6] = [0xF5, 0xF3, 0xF1, 0xEF, 0xED, 0xF7];
 
+/// The polygon w factor (`scene::draw_polygon`).
+pub const W_FACTOR: f32 = 0.01;
+
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct OverlayBlock {
     /// The overlay parts' distances (`race::init_overlay`, `hud::draw_stage_bar`).
@@ -20,8 +23,6 @@ pub struct OverlayBlock {
     pub overlay_part_kinds_a: [PlainDword; 64],
     /// The same, second view (`race::init_overlay`, `hud::draw_stage_bars`).
     pub overlay_part_kinds_b: [PlainDword; 64],
-    /// The polygon w factor (`scene::draw_polygon`).
-    pub w_factor: PlainFloat,
     /// The lights lit, 0 .. 5 (`race::frame_draw`, `race::stage_loading`).
     pub start_lights_lit: PlainDword,
     /// View 0 forget flag (`race::frame_views`, `race::frame_draw`).
@@ -48,7 +49,6 @@ impl OverlayBlock {
     /// labels.
     pub const fn new() -> Self {
         OverlayBlock {
-            w_factor: PlainFloat::new(0.01),
             label_behind: plain_dwords_of_text::<2>(b"car 64  "),
             label_ahead: plain_dwords_of_text::<2>(b"car 32  "),
             kept_behind: plain_dwords_of_text::<2>(b"car 64  "),

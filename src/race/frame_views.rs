@@ -56,11 +56,7 @@ pub fn mirror_view_window(
     let drawn_view = view.drawn_view(race);
     // Logic in `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{MirrorRect, mirror_entry, mirror_window};
-    let n = mirror_entry(
-        reads.vars.split.get(),
-        drawn_view,
-        reads.panel_and_overlay.panel.flat.get() == 0,
-    );
+    let n = mirror_entry(reads.vars.split.get(), drawn_view, reads.panel.flat() == 0);
     // mirror_places: 12 entries of two dwords. The entry is the split (0 for one player, 1 or 2 for
     // two: `race_shell::set_start_states` holds it there and the split key turns 1 and 2 round)
     // plus 3 for the second view (0 or 1) plus 6 for the second set: at most 11.
@@ -346,8 +342,8 @@ pub(super) fn forget_view_textures(
         ),
         Forget::Extra(n) => (
             [
-                &frame.panel_and_overlay.get().overlay.forget_flag_0,
-                &frame.panel_and_overlay.get().overlay.forget_flag_1,
+                &frame.overlay.get().forget_flag_0,
+                &frame.overlay.get().forget_flag_1,
             ][n]
                 .get(),
             slot_of(220 + n),
@@ -375,15 +371,12 @@ pub(super) fn forget_view_textures(
             continue;
         }
         forget_slot_texture(slot, scene)?;
-        frame.panel_and_overlay.get().panel.texture_changes.set(
-            frame
-                .panel_and_overlay
-                .get()
-                .panel
-                .texture_changes
-                .get()
-                .wrapping_add(FORGET_COST),
-        );
+        let value = frame
+            .panel
+            .borrow()
+            .texture_changes
+            .wrapping_add(FORGET_COST);
+        frame.panel.borrow_mut().texture_changes = value;
         frame.frame_work.borrow_mut().view_textures_forgotten |= bit;
         if let Forget::Counted(v) = f {
             let counter = &race.car_blocks().cars[blocks[v]].notice_counter;
@@ -396,15 +389,12 @@ pub(super) fn forget_view_textures(
     frame.frame_work.borrow_mut().view_textures_forgotten |= MIRROR_BIT;
     copy_mirror_picture(frame, scene, system, gfx)?;
     forget_slot_texture(textures.first_textures()[200], scene)?;
-    frame.panel_and_overlay.get().panel.texture_changes.set(
-        frame
-            .panel_and_overlay
-            .get()
-            .panel
-            .texture_changes
-            .get()
-            .wrapping_add(MIRROR_COST),
-    );
+    let value = frame
+        .panel
+        .borrow()
+        .texture_changes
+        .wrapping_add(MIRROR_COST);
+    frame.panel.borrow_mut().texture_changes = value;
     Ok(())
 }
 

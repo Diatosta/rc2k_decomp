@@ -47,7 +47,7 @@ pub fn bars(
     dy: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;
-    let count = frame.panel_and_overlay.get().panel.overlay_parts.get();
+    let count = frame.panel.borrow().overlay_parts;
     sb::check(count, kinds.len() as u32, |p, n| {
         kinds[p as usize][n as usize].get()
     })?;
@@ -61,7 +61,7 @@ pub fn bars(
     hud.block.bar_width = sb::WIDTH;
     hud.block.ends[0] = 0.0;
     hud.block.ends[1] = 0.0;
-    let total = f32::from_bits(frame.panel_and_overlay.get().panel.overlay_miles.get());
+    let total = f32::from_bits(frame.panel.borrow().overlay_miles);
     for n in 0..count {
         let left = count - n;
         // `kind` is a byte offset into the colours, held to 0xC by `check` (so four bytes of the
@@ -71,7 +71,7 @@ pub fn bars(
             .map(|&k| stage_colour_at(&hud.block.stage_colours, k[n as usize].get() as usize))
             .collect::<Result<_, crate::errors::BadInput>>()?;
         let end = sb::part_end(
-            frame.panel_and_overlay.get().overlay.overlay_part_miles[n as usize].get(),
+            frame.overlay.get().overlay_part_miles[n as usize].get(),
             hud.block.ends[1],
             left == 1,
             total,
@@ -97,7 +97,7 @@ pub fn draw_stage_bar(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refu
         frame,
         hud,
         pen,
-        &[&frame.panel_and_overlay.get().overlay.overlay_part_kinds_a],
+        &[&frame.overlay.get().overlay_part_kinds_a],
         0,
     )
 }

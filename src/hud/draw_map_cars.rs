@@ -22,16 +22,18 @@ pub(super) fn draw_map_cars(
     slot: usize,
     scaled: bool,
 ) -> Result<(), Refused> {
-    let panel = &frame.panel_and_overlay.get().panel;
-    let (cars, offsets) = if slot == 0 {
-        (&panel.disc_cars, &panel.disc_offsets)
-    } else {
-        (
-            &panel.disc_cars_more[slot - 1],
-            &panel.disc_offsets_more[slot - 1],
-        )
+    let (shown, offsets, network) = {
+        let panel = frame.panel.borrow();
+        let (cars, offsets) = if slot == 0 {
+            (panel.disc_cars, panel.disc_offsets)
+        } else {
+            (
+                panel.disc_cars_more[slot - 1],
+                panel.disc_offsets_more[slot - 1],
+            )
+        };
+        (cars, offsets, panel.network_cars > 0)
     };
-    let shown = cars.get();
     if shown == 0 {
         return Ok(());
     }
@@ -51,10 +53,9 @@ pub(super) fn draw_map_cars(
         rc2k_core::hud::quads::scaled_size(height, factor),
     );
     let reach = size - width.max(height) as f32 / 2.0;
-    let network = panel.network_cars.get() > 0;
     let kept = hud.block.quad.colour;
     for n in (0..offsets.len()).filter(|&n| shown >> n & 1 != 0) {
-        let offset = [offsets[n][0].get(), offsets[n][1].get()];
+        let offset = offsets[n];
         let [dx, dy] = rc2k_core::hud::disc::map_marker(offset, turn, hud.block.disc_texture_scale);
         if dx * dx + dy * dy > reach * reach {
             continue;

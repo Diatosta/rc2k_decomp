@@ -247,12 +247,11 @@ fn hit_test(
 fn place(
     part: &crate::scene::scratch_store::PartScratch,
     quad: &crate::scene::polygon_work_store::QuadSlot,
-    reads: crate::scene::workers::DrawReads<'_>,
     entries: &[Listed],
     mirrored: bool,
     window: &crate::scene::view_window::ViewWindow,
 ) {
-    x87_float::at_rounding!(|r| place_with(r, part, quad, reads, entries, mirrored, window));
+    x87_float::at_rounding!(|r| place_with(r, part, quad, entries, mirrored, window));
 }
 
 /// `place` at the rounding `r`.
@@ -260,7 +259,6 @@ fn place_with<R: x87_float::Rounds>(
     r: R,
     part: &crate::scene::scratch_store::PartScratch,
     quad: &crate::scene::polygon_work_store::QuadSlot,
-    reads: crate::scene::workers::DrawReads<'_>,
     entries: &[Listed],
     mirrored: bool,
     window: &crate::scene::view_window::ViewWindow,
@@ -283,7 +281,7 @@ fn place_with<R: x87_float::Rounds>(
         out.rhw.set(x87::reciprocal_times_with(
             r,
             depth,
-            reads.panel_and_overlay.overlay.w_factor.get(),
+            crate::race::overlay_store::W_FACTOR,
         ));
         if mirrored && entries.len() > 2 {
             x = x87::mirrored_with(r, x, mirror_at, x_offset);
@@ -436,7 +434,7 @@ pub fn draw_polygon(
             crate::scene::polygon::list_cell(&part.polygon, n).set(number);
         }
     }
-    place(part, &poly.quads, reads, &entries, mirrored, &poly.window);
+    place(part, &poly.quads, &entries, mirrored, &poly.window);
 
     if face.faded.get() != 0 {
         let (mode, texture): (u32, u32) =

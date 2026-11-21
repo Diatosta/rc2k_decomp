@@ -180,7 +180,7 @@ pub fn set_view_matrices(
         let view_turn = matrix::product(
             &v.lit_matrix,
             &v.turn_z_matrix,
-            matrix::matrix_of(&crate::race::matrices_store::identity_matrix()),
+            crate::race::matrices_store::identity_matrix(),
         );
         matrix::set_place(&mut v.placed_matrix, place);
         let view_place_matrix = v.placed_matrix;

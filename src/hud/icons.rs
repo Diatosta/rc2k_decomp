@@ -69,7 +69,7 @@ pub fn icons(frame: &Frame, hud: &mut Hud, pen: Pen, style: &IconStyle) -> Resul
             hud.block.texture = hud.block.texture.wrapping_add(1);
         }
         hud.block.icon_shift = d.shift;
-        let lights = &frame.panel_and_overlay.get().panel.lights[d.view];
+        let lights = frame.panel.borrow().lights[d.view];
         draw_icon(frame, hud, pen, lights, d.row)?;
     }
     Ok(())

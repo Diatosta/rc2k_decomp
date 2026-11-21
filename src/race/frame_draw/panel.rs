@@ -5,6 +5,7 @@ use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::RaceShared;
+use crate::race::panel_store::{Marks, Panel};
 use crate::race::tables_store::Listed;
 
 /// The panel's seven-byte label " CAR nn" for the neighbouring car: `car_number`'s two digits (tens
@@ -52,7 +53,7 @@ pub fn split_colours(
     Ok(())
 }
 
-/// Unless `run_kind` is set, sets `race().frame.panel_and_overlay.panel.view_a.place` and
+/// Unless `run_kind` is set, sets `race().frame.panel.view_a.place` and
 /// `view_b.place` to -1; with more than one player also `view_a.back` and `view_a.front` to -1, and
 /// `view_a.place` / `view_b.place` to the two view blocks' `two_car_place`.
 pub fn panel_players(race: &Race) -> Result<(), BadInput> {
@@ -66,37 +67,13 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
         if step == PanelPlayers::Kept {
             return Ok(());
         }
-        frame
-            .panel_and_overlay
-            .get()
-            .panel
-            .view_a
-            .place
-            .set(u32::MAX);
-        frame
-            .panel_and_overlay
-            .get()
-            .panel
-            .view_b
-            .place
-            .set(u32::MAX);
+        frame.panel.borrow_mut().view_a.place = u32::MAX;
+        frame.panel.borrow_mut().view_b.place = u32::MAX;
         if step == PanelPlayers::One {
             return Ok(());
         }
-        frame
-            .panel_and_overlay
-            .get()
-            .panel
-            .view_a
-            .back
-            .set(u32::MAX);
-        frame
-            .panel_and_overlay
-            .get()
-            .panel
-            .view_a
-            .front
-            .set(u32::MAX);
+        frame.panel.borrow_mut().view_a.back = u32::MAX;
+        frame.panel.borrow_mut().view_a.front = u32::MAX;
         // Each view block's `two_car_place`.
         let field = |n: usize| -> Result<u32, BadInput> {
             Ok(shared
@@ -105,20 +82,8 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
                 .two_car_place
                 .get())
         };
-        frame
-            .panel_and_overlay
-            .get()
-            .panel
-            .view_a
-            .place
-            .set(field(0)?);
-        frame
-            .panel_and_overlay
-            .get()
-            .panel
-            .view_b
-            .place
-            .set(field(1)?);
+        frame.panel.borrow_mut().view_a.place = field(0)?;
+        frame.panel.borrow_mut().view_b.place = field(1)?;
     }
     Ok(())
 }
@@ -276,32 +241,15 @@ pub fn object_bytes(
 /// ones).
 pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), BadInput> {
     use rc2k_core::race::panel::{distance_shown, shown_whole, travelled};
-    let panel = &race.frame.panel_and_overlay.get().panel;
-    // The two views' records have the same fields in two types.
-    macro_rules! shown_cells {
-        ($v:expr) => {
-            [
-                &$v.whole,
-                &$v.speed,
-                &$v.gear,
-                &$v.place,
-                &$v.time,
-                &$v.split2,
-                &$v.negated,
-            ]
-        };
-    }
-    let (cells, distance) = if first {
-        (shown_cells!(panel.view_a), &panel.distance[0])
-    } else {
-        (shown_cells!(panel.view_b), &panel.distance[1])
-    };
+    let view = if first { 0 } else { 1 };
+    // Each write is its own short borrow: the network helpers below borrow the panel too.
+    let put = |k: usize, value: u32| put_shown(&mut race.frame.panel.borrow_mut(), first, k, value);
     // The shown engine speed is the drawing's own (`race::car_parts`), in the block.
     let whole = shown_whole(race.car_blocks().cars[car].shown_engine_speed.get());
     let car = race.frame.cars.car(car)?;
-    cells[0].set(whole as u32);
-    cells[1].set(car.engine_sound_speed_int.get());
-    cells[2].set(car.gear.get());
+    put(0, whole as u32);
+    put(1, car.engine_sound_speed_int.get());
+    put(2, car.gear.get());
     let at = |n: u32| {
         crate::race::checkpoints_store::distance_run_on(race.checkpoints(), n as usize).get()
     };
@@ -312,32 +260,55 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
         race.course.numbers.metres_in_mile.get(),
     );
     let shown = distance_shown(d as i32, unit, miles).to_bits();
-    distance.set(shown);
+    race.frame.panel.borrow_mut().distance[view] = shown;
     if first {
         network_car_distances(race, unit, miles, from)?;
         network_disc_cars(race);
     }
-    cells[4].set(car.stage_time.get().wrapping_mul(10));
-    cells[3].set(car.split_gaps[0].get());
+    put(4, car.stage_time.get().wrapping_mul(10));
+    put(3, car.split_gaps[0].get());
     // The negated gap: `-(split_gaps[1])`.
-    cells[6].set(car.split_gaps[1].get().wrapping_neg());
-    cells[5].set(car.split_gaps[2].get());
+    put(6, car.split_gaps[1].get().wrapping_neg());
+    put(5, car.split_gaps[2].get());
     if first {
-        panel.view_a.front.set(car.split_gaps[3].get());
-        panel.view_a.back.set(car.split_gaps[4].get());
-        panel.split_6.set(car.split_gaps[6].get());
+        let mut panel = race.frame.panel.borrow_mut();
+        panel.view_a.front = car.split_gaps[3].get();
+        panel.view_a.back = car.split_gaps[4].get();
+        panel.split_6 = car.split_gaps[6].get();
     }
     Ok(())
+}
+
+/// Sets the `k`th of a view's seven shown values (the two views' records have the same fields in
+/// two types): whole, speed, gear, place, time, split 2, negated gap.
+fn put_shown(panel: &mut Panel, first: bool, k: usize, value: u32) {
+    macro_rules! shown_fields {
+        ($v:expr) => {
+            [
+                &mut $v.whole,
+                &mut $v.speed,
+                &mut $v.gear,
+                &mut $v.place,
+                &mut $v.time,
+                &mut $v.split2,
+                &mut $v.negated,
+            ]
+        };
+    }
+    let fields = if first {
+        shown_fields!(panel.view_a)
+    } else {
+        shown_fields!(panel.view_b)
+    };
+    *fields[k] = value;
 }
 
 /// A network race's cars' distances shown, for the stage bar's markers of the other cars (the
 /// same figure as the first view's distance).
 fn network_car_distances(race: &Race, unit: f32, miles: f32, from: u32) -> Result<(), BadInput> {
-    let panel = &race.frame.panel_and_overlay.get().panel;
-    let count = panel.network_cars.get().min(8) as usize;
-    panel
-        .network_own
-        .set(race.shared.view.get().view_number(0)? as u32);
+    let count = race.frame.panel.borrow().network_cars.min(8) as usize;
+    let own = race.shared.view.get().view_number(0)? as u32;
+    race.frame.panel.borrow_mut().network_own = own;
     car_distances(race, count, unit, miles, from)
 }
 
@@ -345,9 +316,14 @@ fn network_car_distances(race: &Race, unit: f32, miles: f32, from: u32) -> Resul
 /// on the map from the first view's car, in map pixels. A car that is out of the race (a player
 /// who left) or whose place on the map cannot be worked out is left out.
 fn network_disc_cars(race: &Race) {
-    let panel = &race.frame.panel_and_overlay.get().panel;
-    let count = panel.network_cars.get().min(8) as usize;
-    let own = panel.network_own.get() as usize;
+    let (count, own, mut offsets) = {
+        let panel = race.frame.panel.borrow();
+        (
+            panel.network_cars.min(8) as usize,
+            panel.network_own as usize,
+            panel.disc_offsets,
+        )
+    };
     let mut shown = 0u32;
     if count > 1 && race.shared.vars.get().checkpoint_count.get() >= 2 {
         let at = |n: usize| {
@@ -365,24 +341,21 @@ fn network_disc_cars(race: &Race) {
                 };
                 for k in 0..2 {
                     let away = place[k].wrapping_sub(from[k]) as i32;
-                    panel.disc_offsets[n][k].set(away as f32 / 65536.0);
+                    offsets[n][k] = away as f32 / 65536.0;
                 }
                 shown |= 1 << n;
             }
         }
     }
-    panel.disc_cars.set(shown);
+    let mut panel = race.frame.panel.borrow_mut();
+    panel.disc_offsets = offsets;
+    panel.disc_cars = shown;
 }
 
 /// The players a split screen of three or four shows on every part's stage bar.
 fn panel_split_players(race: &Race, players: usize) {
     let shown = if players > 2 { players.min(4) } else { 0 };
-    race.frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .split_players
-        .set(shown as u32);
+    race.frame.panel.borrow_mut().split_players = shown as u32;
 }
 
 /// A split screen's other players as the map discs show them: for each view, the players' cars
@@ -390,13 +363,10 @@ fn panel_split_players(race: &Race, players: usize) {
 /// Computer cars are not shown. With one player the discs keep what `network_disc_cars` made (the
 /// first) or show nothing (the others).
 fn split_disc_cars(race: &Race) -> Result<(), BadInput> {
-    let panel = &race.frame.panel_and_overlay.get().panel;
     let view = race.shared.view.get();
     let players = (view.players.get() as usize).min(4);
     if players < 2 {
-        for cars in &panel.disc_cars_more {
-            cars.set(0);
-        }
+        race.frame.panel.borrow_mut().disc_cars_more = [0; 3];
         return Ok(());
     }
     let at = |car: usize| {
@@ -407,30 +377,41 @@ fn split_disc_cars(race: &Race) -> Result<(), BadInput> {
     let cars = (0..players)
         .map(|p| view.view_number(p))
         .collect::<Result<Vec<_>, _>>()?;
+    // The first view's disc and the three others', worked on as copies and put back at the end.
+    let (mut discs, mut all_offsets) = {
+        let panel = race.frame.panel.borrow();
+        let [second, third, fourth] = panel.disc_cars_more;
+        let [more_a, more_b, more_c] = panel.disc_offsets_more;
+        (
+            [panel.disc_cars, second, third, fourth],
+            [panel.disc_offsets, more_a, more_b, more_c],
+        )
+    };
     for slot in 0..4 {
-        let (shown_cell, offsets) = if slot == 0 {
-            (&panel.disc_cars, &panel.disc_offsets)
-        } else {
-            (
-                &panel.disc_cars_more[slot - 1],
-                &panel.disc_offsets_more[slot - 1],
-            )
-        };
+        let offsets = &mut all_offsets[slot];
+        let places = offsets.len();
         let mut shown = 0u32;
         if let Some(own) = cars.get(slot)
             && let Some(from) = enough.then(|| at(*own)).flatten()
         {
-            for &n in cars.iter().filter(|&n| n != own && *n < offsets.len()) {
+            for &n in cars.iter().filter(|&n| n != own && *n < places) {
                 let Some(place) = at(n) else { continue };
                 for k in 0..2 {
                     let away = place[k].wrapping_sub(from[k]) as i32;
-                    offsets[n][k].set(away as f32 / 65536.0);
+                    offsets[n][k] = away as f32 / 65536.0;
                 }
                 shown |= 1 << n;
             }
         }
-        shown_cell.set(shown);
+        discs[slot] = shown;
     }
+    let mut panel = race.frame.panel.borrow_mut();
+    let [first, second, third, fourth] = discs;
+    panel.disc_cars = first;
+    panel.disc_cars_more = [second, third, fourth];
+    let [first, second, third, fourth] = all_offsets;
+    panel.disc_offsets = first;
+    panel.disc_offsets_more = [second, third, fourth];
     Ok(())
 }
 
@@ -443,32 +424,16 @@ fn car_distances(
     from: u32,
 ) -> Result<(), BadInput> {
     use rc2k_core::race::panel::{distance_shown, travelled};
-    let panel = &race.frame.panel_and_overlay.get().panel;
-    for (n, shown) in panel.car_distances.iter().enumerate().take(count) {
+    for n in 0..count.min(8) {
         let car = race.frame.cars.car(n)?;
         let at = |n: u32| {
             crate::race::checkpoints_store::distance_run_on(race.checkpoints(), n as usize).get()
         };
         let d = travelled(at(car.checkpoint.get()), at(from));
-        shown.set(distance_shown(d as i32, unit, miles).to_bits());
+        race.frame.panel.borrow_mut().car_distances[n] =
+            distance_shown(d as i32, unit, miles).to_bits();
     }
     Ok(())
-}
-
-/// The first view's values copied to `to`.
-pub fn copy_view(from: &crate::race::panel_store::ViewA, to: &crate::race::panel_store::ViewA) {
-    to.whole.set(from.whole.get());
-    to.speed.set(from.speed.get());
-    to.gear.set(from.gear.get());
-    to.place.set(from.place.get());
-    to.time.set(from.time.get());
-    to.split2.set(from.split2.get());
-    to.back.set(from.back.get());
-    to.negated.set(from.negated.get());
-    to.front.set(from.front.get());
-    for (a, b) in from.motion.iter().zip(&to.motion) {
-        b.set(a.get());
-    }
 }
 
 /// Both view blocks' values into the panel (see `panel_half`).
@@ -478,12 +443,12 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
         // player's part, taken the way the first view's are, before the two views' own.
         let players = race.shared.view.get().players.get() as usize;
         if players > 2 {
-            let panel = &race.frame.panel_and_overlay.get().panel;
-            for (n, part) in panel.parts.iter().enumerate().take(players.min(4)) {
+            for n in 0..players.min(4) {
                 panel_half(race, n, true)?;
                 let place = race.frame.cars.car(n)?.two_car_place.get();
-                copy_view(&panel.view_a, part);
-                part.place.set(place);
+                let mut panel = race.frame.panel.borrow_mut();
+                panel.parts[n] = panel.view_a;
+                panel.parts[n].place = place;
             }
         }
         panel_half(race, race.shared.view.get().view_number(0)?, true)?;
@@ -570,7 +535,7 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
 /// `car_kind` (-1 at the last place), its label (`car_label` of `arcade_car_numbers[place]`),
 /// `view_a.split2` `pace_gaps_eased[1]`, `view_a.front` the car ahead's `car_kind` (-1 at place 1),
 /// its label (`number_before_first[place]`), `view_a.negated` -`pace_gaps_eased[0]`; all fields of
-/// `race().frame.panel_and_overlay.panel`. Refused (before anything): a neighbour's car number past
+/// `race().frame.panel`. Refused (before anything): a neighbour's car number past
 /// 7 or a null block.
 pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
@@ -598,50 +563,32 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     };
     let behind = block_of(on(Listed::ComputerEaseSpeed, place.wrapping_add(1))?)?;
     let ahead = block_of(on(Listed::ComputerEaseSpeed, place)?)?;
-    frame.panel_and_overlay.get().panel.view_a.place.set(place);
-    frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .view_a
-        .time
-        .set(a.time_left.get().wrapping_mul(10));
+    frame.panel.borrow_mut().view_a.place = place;
+    frame.panel.borrow_mut().view_a.time = a.time_left.get().wrapping_mul(10);
     use rc2k_core::race::frame::neighbour_number;
     let number = behind.car_kind.get();
     let back = neighbour_number(place == shared.tables().arcade_cars.get(), number);
-    frame.panel_and_overlay.get().panel.view_a.back.set(back);
+    frame.panel.borrow_mut().view_a.back = back;
     car_label(
-        &frame.panel_and_overlay.get().overlay.label_behind,
+        &frame.overlay.get().label_behind,
         on(Listed::ArcadeCarNumbers, place)?,
         back,
     );
-    frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .view_a
-        .split2
-        .set(a.pace_gaps_eased[1].get());
+    frame.panel.borrow_mut().view_a.split2 = a.pace_gaps_eased[1].get();
     let front = neighbour_number(place == 1, ahead.car_kind.get());
-    frame.panel_and_overlay.get().panel.view_a.front.set(front);
+    frame.panel.borrow_mut().view_a.front = front;
     car_label(
-        &frame.panel_and_overlay.get().overlay.label_ahead,
+        &frame.overlay.get().label_ahead,
         on(Listed::NumberBeforeFirst, place)?,
         front,
     );
-    frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .view_a
-        .negated
-        .set(a.pace_gaps_eased[0].get().wrapping_neg());
+    frame.panel.borrow_mut().view_a.negated = a.pace_gaps_eased[0].get().wrapping_neg();
     Ok(())
 }
 
 /// For each view block, stores `map_picture_place[0]` and `[1]` x 0.5 / 65536 (floats) and the
 /// heading, (-`car_heading`) >> 14 x pi x 0.5 / 65536, into the panel
-/// (`race().frame.panel_and_overlay.panel.view_a.motion[0]`.. for the first, `view_b.motion[0]`..
+/// (`race().frame.panel.view_a.motion[0]`.. for the first, `view_b.motion[0]`..
 /// for the second). The heading turn and `scene_clock` less the shown-since clock and 800 are not
 /// stored: nothing reads them.
 pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
@@ -653,48 +600,52 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
             race.course.numbers.one_over_65536.get(),
             race.course.numbers.k65536.get(),
         );
-        for (view, out) in [
-            (0, &race.frame.panel_and_overlay.get().panel.view_a.motion),
-            (1, &race.frame.panel_and_overlay.get().panel.view_b.motion),
-        ] {
+        for view in 0..2 {
             let b = race.shared.view.get().view_number(view)?;
             let car = &race.car_blocks().cars[b];
-            out[0].set(motion(car.map_picture_place[0].get() as i32, half, small).to_bits());
-            out[1].set(motion(car.map_picture_place[1].get() as i32, half, small).to_bits());
+            let mut out = [0; 3];
+            out[0] = motion(car.map_picture_place[0].get() as i32, half, small).to_bits();
+            out[1] = motion(car.map_picture_place[1].get() as i32, half, small).to_bits();
             let turn = heading_turn(race.frame.cars.car(b)?.car_heading.get());
-            out[2].set(heading(turn as i32, half, big).to_bits());
+            out[2] = heading(turn as i32, half, big).to_bits();
+            let mut panel = race.frame.panel.borrow_mut();
+            if view == 0 {
+                panel.view_a.motion = out;
+            } else {
+                panel.view_b.motion = out;
+            }
         }
         // A split screen of three or four: the further players' maps move with their cars too.
-        let panel = &race.frame.panel_and_overlay.get().panel;
         let players = race.shared.view.get().players.get() as usize;
-        for (n, part) in panel.parts.iter().enumerate().take(players.min(4)).skip(2) {
+        for n in 2..players.min(4) {
             let car = &race.car_blocks().cars[race.shared.view.get().view_number(n)?];
-            let out = &part.motion;
-            out[0].set(motion(car.map_picture_place[0].get() as i32, half, small).to_bits());
-            out[1].set(motion(car.map_picture_place[1].get() as i32, half, small).to_bits());
+            let mut out = [0; 3];
+            out[0] = motion(car.map_picture_place[0].get() as i32, half, small).to_bits();
+            out[1] = motion(car.map_picture_place[1].get() as i32, half, small).to_bits();
             let turn = heading_turn(race.frame.cars.car(n)?.car_heading.get());
-            out[2].set(heading(turn as i32, half, big).to_bits());
+            out[2] = heading(turn as i32, half, big).to_bits();
+            race.frame.panel.borrow_mut().parts[n].motion = out;
         }
     }
     Ok(())
 }
 
 /// Sets the mark dwords 0; for each view block (the third and fourth of a split screen too),
-/// `race().frame.panel_and_overlay.panel.marks[0].base` / `marks[1].base` = 400 +
+/// `race().frame.panel.marks[0].base` / `marks[1].base` = 400 +
 /// `car_event_position`, and its first `car_event_count` (at most 4) `car_event_codes`, each + 1.
 pub fn panel_marks(race: &Race) -> Result<(), BadInput> {
     let frame = &race.frame;
     {
-        let panel = &frame.panel_and_overlay.get().panel;
-        for view in panel.marks.iter().chain(&panel.marks_more) {
-            for mark in &view.marks {
-                mark.set(0);
+        {
+            let mut panel = frame.panel.borrow_mut();
+            let panel = &mut *panel;
+            for view in panel.marks.iter_mut().chain(&mut panel.marks_more) {
+                view.marks = [0; 4];
             }
         }
         // The split screen's third and fourth views have signs of their own, when they are shown.
         let views = race.shared.view.get().views.get().clamp(2, 4) as usize;
         for view in 0..views {
-            let shown = panel.marks_of_view(view);
             let b = race.shared.view.get().view_number(view)?;
             let offset = race.frame.cars.car(b)?.car_event_position.get();
             let count = race.frame.cars.car(b)?.car_event_count.get();
@@ -712,10 +663,12 @@ pub fn panel_marks(race: &Race) -> Result<(), BadInput> {
             if past.get() {
                 return Err(BadInput("a view block's mark past its eight"));
             }
-            shown.base.set(m.base);
+            let mut panel = frame.panel.borrow_mut();
+            let shown = marks_of_view_mut(&mut panel, view);
+            shown.base = m.base;
             if count != 0 {
                 for k in 0..m.shown {
-                    shown.marks[k as usize].set(m.marks[k as usize]);
+                    shown.marks[k as usize] = m.marks[k as usize];
                 }
             }
         }
@@ -723,18 +676,28 @@ pub fn panel_marks(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
+/// View `view`'s marks to write (as `Panel::marks_of_view`).
+fn marks_of_view_mut(panel: &mut Panel, view: usize) -> &mut Marks {
+    match view {
+        0 | 1 => &mut panel.marks[view],
+        _ => &mut panel.marks_more[(view - 2).min(1)],
+    }
+}
+
 /// One view's start lights: `view` the view's light fields, `block` the view's car block, `flag`
 /// where a "step" flag goes.
 pub fn countdown_lights(
     frame: &Frame,
-    view: &crate::race::panel_store::Lights,
+    view: usize,
     block: usize,
     flag: &PlainDword,
 ) -> Result<(), BadInput> {
     {
-        let (lit, width, alpha, drop) = (&view.lit, &view.width, &view.alpha, &view.drop);
-        width.set(0);
-        drop.set(0);
+        {
+            let mut panel = frame.panel.borrow_mut();
+            panel.lights[view].width = 0;
+            panel.lights[view].drop = 0;
+        }
         flag.set(0);
         if frame.cars.car(block)?.false_start_count.get() != 0 {
             return Ok(());
@@ -750,50 +713,42 @@ pub fn countdown_lights(
         ) else {
             return Ok(());
         };
-        frame
-            .panel_and_overlay
-            .get()
-            .overlay
-            .start_lights_lit
-            .set(l.shown);
-        lit.set(l.lit);
+        frame.overlay.get().start_lights_lit.set(l.shown);
+        let mut panel = frame.panel.borrow_mut();
+        let lights = &mut panel.lights[view];
+        lights.lit = l.lit;
         if l.whole {
             flag.set(1);
         }
-        alpha.set(l.alpha);
-        width.set(l.width);
-        drop.set(l.drop);
+        lights.alpha = l.alpha;
+        lights.width = l.width;
+        lights.drop = l.drop;
     }
     Ok(())
 }
 
 /// Runs `countdown_lights` for the first view and the second (fields 0x10,
-/// `race().frame.panel_and_overlay.overlay.forget_flag_1`).
+/// `race().frame.overlay.forget_flag_1`).
 fn both_countdown_lights(race: &Race) -> Result<(), BadInput> {
     let frame = &race.frame;
     {
         for (view, flag) in [
-            (0, &frame.panel_and_overlay.get().overlay.forget_flag_0),
-            (1, &frame.panel_and_overlay.get().overlay.forget_flag_1),
+            (0, &frame.overlay.get().forget_flag_0),
+            (1, &frame.overlay.get().forget_flag_1),
         ] {
-            countdown_lights(
-                frame,
-                &frame.panel_and_overlay.get().panel.lights[view],
-                race.shared.view.get().view_number(view)?,
-                flag,
-            )?;
+            countdown_lights(frame, view, race.shared.view.get().view_number(view)?, flag)?;
         }
     }
     Ok(())
 }
 
 /// The two views' colour buffers for `split_colours`:
-/// `race().frame.panel_and_overlay.overlay.overlay_part_kinds_a`,
-/// `race().frame.panel_and_overlay.overlay.overlay_part_kinds_b`.
+/// `race().frame.overlay.overlay_part_kinds_a`,
+/// `race().frame.overlay.overlay_part_kinds_b`.
 fn colour_buffers(frame: &Frame) -> [&'_ [PlainDword; 64]; 2] {
     [
-        &frame.panel_and_overlay.get().overlay.overlay_part_kinds_a,
-        &frame.panel_and_overlay.get().overlay.overlay_part_kinds_b,
+        &frame.overlay.get().overlay_part_kinds_a,
+        &frame.overlay.get().overlay_part_kinds_b,
     ]
 }
 
@@ -813,7 +768,7 @@ pub fn check_split_colours(race: &Race) -> Result<(), Refused> {
 }
 
 /// Runs `split_colours` for the first view's block into
-/// `race().frame.panel_and_overlay.overlay.overlay_part_kinds_a`, then the second's into
+/// `race().frame.overlay.overlay_part_kinds_a`, then the second's into
 /// `overlay_part_kinds_b`. Refused (before anything) as `split_colours` would for either.
 fn both_split_colours(race: &Race) -> Result<(), Refused> {
     check_split_colours(race)?;

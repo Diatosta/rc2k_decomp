@@ -85,12 +85,7 @@ pub fn add_polygon(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused
         }
         if flushes {
             crate::hud::flush_batch::flush_batch(pen.part, hud);
-            frame
-                .panel_and_overlay
-                .get()
-                .panel
-                .shown_texture
-                .set(texture);
+            frame.panel.borrow_mut().shown_texture = texture;
             hud.block.batch_texture = texture;
             crate::hud::set_batch_texture::set_batch_texture(pen.part, frame, pen.scene)?;
         }

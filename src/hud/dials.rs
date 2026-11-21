@@ -7,7 +7,6 @@ use crate::errors::Refused;
 use crate::hud::block_store::HudBlock;
 use crate::hud::owner::Hud;
 use crate::hud::pen::Pen;
-use crate::memory::session::PlainDword;
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::Panel;
 
@@ -16,7 +15,7 @@ type Vars = fn(&HudBlock) -> &[f32];
 
 pub struct DiscStyle {
     /// The texture shift (two dwords) and turn: a view's `motion`.
-    shift: fn(&Panel) -> &[PlainDword; 3],
+    shift: fn(&Panel) -> [u32; 3],
     /// The layout's variables: size, texture scale, centre x, centre y; then, when
     /// `lifted_centre`, a second centre y.
     vars: Vars,
@@ -26,7 +25,7 @@ pub struct DiscStyle {
 
 pub struct NeedleStyle {
     /// The needle's value: a view's `whole`.
-    value: fn(&Panel) -> &PlainDword,
+    value: fn(&Panel) -> u32,
     /// The layout's variables: centre x, centre y; then, when `lifted_centre`, a second
     /// centre y; then the size.
     vars: Vars,
@@ -35,53 +34,53 @@ pub struct NeedleStyle {
 }
 
 pub(super) static DISC_0: DiscStyle = DiscStyle {
-    shift: |p| &p.view_a.motion,
+    shift: |p| p.view_a.motion,
     vars: |h| &h.disc_setup_layout0,
     lifted_centre: false,
 };
 pub(super) static DISC_1A: DiscStyle = DiscStyle {
-    shift: |p| &p.view_a.motion,
+    shift: |p| p.view_a.motion,
     vars: |h| &h.disc_setup_layout1_first,
     lifted_centre: false,
 };
 pub(super) static DISC_1B: DiscStyle = DiscStyle {
-    shift: |p| &p.view_b.motion,
+    shift: |p| p.view_b.motion,
     vars: |h| &h.disc_setup_layout1_second,
     lifted_centre: false,
 };
 pub(super) static DISC_2A: DiscStyle = DiscStyle {
-    shift: |p| &p.view_a.motion,
+    shift: |p| p.view_a.motion,
     vars: |h| &h.disc_setup_layout2_first,
     lifted_centre: true,
 };
 pub(super) static DISC_2B: DiscStyle = DiscStyle {
-    shift: |p| &p.view_b.motion,
+    shift: |p| p.view_b.motion,
     vars: |h| &h.disc_setup_layout2_second,
     lifted_centre: false,
 };
 
 pub(super) static NEEDLE_0: NeedleStyle = NeedleStyle {
-    value: |p| &p.view_a.whole,
+    value: |p| p.view_a.whole,
     vars: |h| &h.needle_setup_layout0,
     lifted_centre: false,
 };
 pub(super) static NEEDLE_1A: NeedleStyle = NeedleStyle {
-    value: |p| &p.view_a.whole,
+    value: |p| p.view_a.whole,
     vars: |h| &h.needle_setup_layout1_first,
     lifted_centre: false,
 };
 pub(super) static NEEDLE_1B: NeedleStyle = NeedleStyle {
-    value: |p| &p.view_b.whole,
+    value: |p| p.view_b.whole,
     vars: |h| &h.needle_setup_layout1_second,
     lifted_centre: false,
 };
 pub(super) static NEEDLE_2A: NeedleStyle = NeedleStyle {
-    value: |p| &p.view_a.whole,
+    value: |p| p.view_a.whole,
     vars: |h| &h.needle_setup_layout2_first,
     lifted_centre: true,
 };
 pub(super) static NEEDLE_2B: NeedleStyle = NeedleStyle {
-    value: |p| &p.view_b.whole,
+    value: |p| p.view_b.whole,
     vars: |h| &h.needle_setup_layout2_second,
     lifted_centre: false,
 };
@@ -95,15 +94,16 @@ fn own_vars<const N: usize>(style_vars: Vars, hud: &Hud) -> [f32; N] {
 /// The disc's set-up: the shape's variables filled from the panel and the style.
 fn set_up_disc(frame: &Frame, hud: &mut Hud, style: &DiscStyle) {
     let own: [f32; 5] = own_vars(style.vars, hud);
-    let [u, v, turn] = (style.shift)(&frame.panel_and_overlay.get().panel);
-    hud.block.disc_texture_shift[0] = f32::from_bits(u.get());
-    hud.block.disc_texture_shift[1] = f32::from_bits(v.get());
-    hud.block.disc_turn = f32::from_bits(turn.get());
+    let panel = *frame.panel.borrow();
+    let [u, v, turn] = (style.shift)(&panel);
+    hud.block.disc_texture_shift[0] = f32::from_bits(u);
+    hud.block.disc_texture_shift[1] = f32::from_bits(v);
+    hud.block.disc_turn = f32::from_bits(turn);
     hud.block.disc_size = own[0];
     hud.block.disc_texture_scale = own[1];
     hud.block.disc_centre[0] = own[2];
     hud.block.disc_centre[1] = own[3];
-    if style.lifted_centre && frame.panel_and_overlay.get().panel.flat.get() == 0 {
+    if style.lifted_centre && frame.panel.borrow().flat == 0 {
         hud.block.disc_centre[1] = own[4];
     }
 }
@@ -111,12 +111,12 @@ fn set_up_disc(frame: &Frame, hud: &mut Hud, style: &DiscStyle) {
 /// The needle's set-up: the shape's variables filled from the panel and the style.
 fn set_up_needle(frame: &Frame, hud: &mut Hud, style: &NeedleStyle) {
     let own: [f32; 4] = own_vars(style.vars, hud);
-    let value = (style.value)(&frame.panel_and_overlay.get().panel);
-    hud.block.needle_value = value.get();
+    let panel = *frame.panel.borrow();
+    hud.block.needle_value = (style.value)(&panel);
     hud.block.needle_centre[0] = own[0];
     hud.block.needle_centre[1] = own[1];
     let size = if style.lifted_centre {
-        if frame.panel_and_overlay.get().panel.flat.get() == 0 {
+        if frame.panel.borrow().flat == 0 {
             hud.block.needle_centre[1] = own[2];
         }
         3

@@ -21,8 +21,8 @@ pub fn draw_marker(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused
     {
         let f = f32::from_bits;
         let x = marker_x(
-            f(frame.panel_and_overlay.get().panel.distance[0].get()),
-            f(frame.panel_and_overlay.get().panel.overlay_miles.get()),
+            f(frame.panel.borrow().distance[0]),
+            f(frame.panel.borrow().overlay_miles),
             hud.block.marker_k[0],
             hud.block.marker_k[1],
         );
@@ -35,12 +35,12 @@ pub fn draw_marker(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused
 /// after the first), the own car's marker is drawn after them; in a split screen of three or four
 /// each part's bar shows the other players, each in their own colour. Nothing in other races.
 pub(super) fn draw_other_markers(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
-    let panel = &frame.panel_and_overlay.get().panel;
-    let split = panel.split_players.get().min(4) as usize;
+    let panel = *frame.panel.borrow();
+    let split = panel.split_players.min(4) as usize;
     let count = if split > 0 {
         split
     } else {
-        panel.network_cars.get().min(8) as usize
+        panel.network_cars.min(8) as usize
     };
     if count == 0 {
         return Ok(());
@@ -48,7 +48,7 @@ pub(super) fn draw_other_markers(frame: &Frame, hud: &mut Hud, pen: Pen) -> Resu
     let own = if split > 0 {
         pen.scope.icon.unwrap_or(0)
     } else {
-        panel.network_own.get() as usize
+        panel.network_own as usize
     };
     let f = f32::from_bits;
     for n in (0..count).filter(|&n| n != own) {
@@ -59,8 +59,8 @@ pub(super) fn draw_other_markers(frame: &Frame, hud: &mut Hud, pen: Pen) -> Resu
         };
         hud.block.quad.colour = hud.block.marker_colours[colour];
         let x = marker_x(
-            f(panel.car_distances[n].get()),
-            f(panel.overlay_miles.get()),
+            f(panel.car_distances[n]),
+            f(panel.overlay_miles),
             hud.block.marker_k[0],
             hud.block.marker_k[1],
         );
