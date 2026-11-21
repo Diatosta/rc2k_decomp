@@ -217,15 +217,15 @@ fn a_received_message_is_put_into_the_senders_car() {
 /// slice sets only its part).
 #[test]
 fn the_player_record_is_sixteen_bytes() {
-    let record = PlayerRecord::zero();
+    let mut record = PlayerRecord::zero();
     let bytes: [u8; 16] = [
         0x10, 0x0B, 0x22, 0x33, 0x14, 1, 0x0C, 0x5A, 0x78, 0x56, 0x34, 0x12, 0xEF, 0xCD, 0xAB, 0x90,
     ];
     record.set_bytes(&bytes);
     assert_eq!(record.bytes(), bytes);
     assert_eq!(record.state(), 0x10);
-    assert_eq!(record.race_time.get(), 0x1234_5678);
-    assert_eq!(record.total.get(), 0x90AB_CDEF);
+    assert_eq!(record.race_time(), 0x1234_5678);
+    assert_eq!(record.total(), 0x90AB_CDEF);
     record.set_bytes(&[0, 0xFF]);
     assert_eq!(record.bytes()[..3], [0, 0xFF, 0x22]);
     assert_eq!(record.bytes()[8..], bytes[8..]);

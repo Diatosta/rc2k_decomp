@@ -16,9 +16,9 @@ pub(super) fn blit_glyph_list(
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     for (record, _) in table.iter().zip(layout::list_records(table.len() as u32)?) {
-        let (x, y) = layout::list_place(record.dx.get(), record.dy.get(), x, y);
+        let (x, y) = layout::list_place(record.dx, record.dy, x, y);
         crate::gfx::blit_glyph::blit_glyph_on_surface(
-            record.glyph.get(),
+            record.glyph,
             glyphs,
             x as i32,
             y as i32,

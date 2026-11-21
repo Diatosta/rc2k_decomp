@@ -36,7 +36,7 @@ pub(super) fn list_drives(
         }
     }
     install.run.drive_count.set(0);
-    let rows = &install.drive_rows.drive_rows;
+    let rows = &install.drive_rows;
     let mut next_row = 0usize;
     // 'a' .. 'y': the loop's bound leaves 'z' out (the game's slip, section 16)
     let found: Vec<u8> = drives::LISTED

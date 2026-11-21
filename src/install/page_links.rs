@@ -25,18 +25,13 @@ impl PageLink {
         Self((FONT << KIND_SHIFT) | font.number())
     }
 
+    /// No link.
+    pub(super) const fn none() -> Self {
+        Self(0)
+    }
+
     pub const fn blended_palette() -> Self {
         Self(BLENDED_PALETTE << KIND_SHIFT)
-    }
-
-    /// A link as the pages' data holds it.
-    pub const fn from_raw(raw: u32) -> Self {
-        Self(raw)
-    }
-
-    /// The pages' dword for this link.
-    pub const fn raw(self) -> u32 {
-        self.0
     }
 
     fn kind(self) -> u32 {
@@ -60,22 +55,6 @@ impl PageLink {
     }
 }
 
-/// A dword of the pages' data that holds a link (a drawing list record's font or palette):
-/// the link's raw dword is its value.
-#[repr(transparent)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
-pub struct LinkCell(crate::memory::session::PlainDword);
-
-impl LinkCell {
-    pub const fn new(link: PageLink) -> Self {
-        Self(crate::memory::session::PlainDword::new(link.raw()))
-    }
-
-    pub fn get(&self) -> PageLink {
-        PageLink::from_raw(self.0.get())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,7 +69,7 @@ mod tests {
         );
         assert!(PageLink::blended_palette().is_blended_palette());
         assert!(PageLink::blended_palette().font().is_err());
-        assert!(PageLink::from_raw(0).font().is_err());
+        assert!(PageLink(0).font().is_err());
         assert!(!PageLink::of_font(crate::gfx::typefaces::fonts::TITLE).is_blended_palette());
     }
 }

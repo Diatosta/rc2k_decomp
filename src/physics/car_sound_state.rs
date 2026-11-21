@@ -86,9 +86,9 @@ pub fn car_sound_state(
     let out = rotate_point_by(
         &m,
         [
-            extended(shared.car().crash_matrix[8].get()),
-            extended(shared.car().crash_matrix[9].get()),
-            extended(shared.car().crash_matrix[10].get()),
+            extended(shared.car().crash_matrix.at(8)),
+            extended(shared.car().crash_matrix.at(9)),
+            extended(shared.car().crash_matrix.at(10)),
         ],
     );
     for (i, e) in out.iter().enumerate() {

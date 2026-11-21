@@ -23,12 +23,11 @@ pub fn choose_car(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused> {
     { run_screen(ScreenId::SelectCar, &entry) }?;
     if !draw_work.read().escape_pressed {
         crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
-        vars.own
-            .head
-            .set(record::CAR, play.slots.records[0].get().car_number as u8);
-        vars.own
-            .head
-            .set(record::COLOURS, play.slots.records[0].get().gearing as u8);
+        let chosen = play.slots.records[0].get();
+        vars.own.update(|r| {
+            r.set_byte(record::CAR, chosen.car_number as u8);
+            r.set_byte(record::COLOURS, chosen.gearing as u8);
+        });
     }
     crate::net::show_background::show_background(o)?;
     Ok(())

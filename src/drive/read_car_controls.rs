@@ -46,7 +46,7 @@ pub fn read_car_controls(
     {
         // `drive_computer_car`'s refusal, before anything here is written.
         let reaches = crate::math::x87::compare_full(
-            &race_owner.shared.car().crash_matrix[5],
+            race_owner.shared.car().crash_matrix.at(5),
             &race_owner.shared.work.get().driver_tilt_limit,
         ) & 0x100
             == 0;

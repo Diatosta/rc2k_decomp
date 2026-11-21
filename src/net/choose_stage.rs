@@ -16,17 +16,15 @@ pub fn choose_stage(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused>
     draw_work.write().escape_pressed = false;
     { run_screen(ScreenId::SelectStage, &Entry::new(o)) }?;
     if !draw_work.read().escape_pressed {
-        vars.own
-            .head
-            .set(record::STAGE, race.shared.state.settings.stage.get() as u8);
+        let stage = race.shared.state.settings.stage.get() as u8;
+        vars.own.update(|r| r.set_byte(record::STAGE, stage));
         // The direction is bit 0 of the byte; the bots' setting in the others stays.
-        vars.own.head.set(
-            record::DIRECTION,
-            rc2k_core::net::bots::with_direction(
-                vars.own.head.get(record::DIRECTION),
-                race.shared.state.settings.direction.get() as u8,
-            ),
+        let direction = rc2k_core::net::bots::with_direction(
+            vars.own.get().byte(record::DIRECTION),
+            race.shared.state.settings.direction.get() as u8,
         );
+        vars.own
+            .update(|r| r.set_byte(record::DIRECTION, direction));
     }
     crate::net::show_background::show_background(o)?;
     Ok(())

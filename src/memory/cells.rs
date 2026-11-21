@@ -362,6 +362,8 @@ pub enum CellRun<'a> {
     PlainBytes(&'a [std::cell::Cell<u8>]),
     PlainByte(&'a [crate::memory::session::PlainByte]),
     PlainWord(&'a [crate::memory::session::PlainWord]),
+    /// The words of a `PlainFloats`.
+    PlainWords(&'a [std::cell::Cell<u32>]),
 }
 
 impl<'a> CellRun<'a> {
@@ -381,7 +383,8 @@ impl<'a> CellRun<'a> {
             | CellRun::PlainDword(_)
             | CellRun::PlainFloat(_)
             | CellRun::PlainFlag(_)
-            | CellRun::PlainInt(_) => 4,
+            | CellRun::PlainInt(_)
+            | CellRun::PlainWords(_) => 4,
         }
     }
 
@@ -403,6 +406,7 @@ impl<'a> CellRun<'a> {
             CellRun::PlainBytes(r) => r.len(),
             CellRun::PlainByte(r) => r.len(),
             CellRun::PlainWord(r) => r.len(),
+            CellRun::PlainWords(r) => r.len(),
         };
         cells * self.width()
     }
@@ -426,6 +430,7 @@ impl<'a> CellRun<'a> {
             CellRun::PlainBytes(r) => r.as_ptr() as usize,
             CellRun::PlainByte(r) => r.as_ptr() as usize,
             CellRun::PlainWord(r) => r.as_ptr() as usize,
+            CellRun::PlainWords(r) => r.as_ptr() as usize,
         }
     }
 
@@ -451,6 +456,7 @@ impl<'a> CellRun<'a> {
             CellRun::PlainBytes(r) => CellRun::PlainBytes(&r[i..]),
             CellRun::PlainByte(r) => CellRun::PlainByte(&r[i..]),
             CellRun::PlainWord(r) => CellRun::PlainWord(&r[i..]),
+            CellRun::PlainWords(r) => CellRun::PlainWords(&r[i..]),
         })
     }
 
@@ -472,6 +478,7 @@ impl<'a> CellRun<'a> {
             CellRun::PlainBytes(r) => CellRef::Plain8(&r[i]),
             CellRun::PlainByte(r) => CellRef::Plain8(r[i].cell()),
             CellRun::PlainWord(r) => CellRef::Plain16(r[i].cell()),
+            CellRun::PlainWords(r) => CellRef::Plain32(&r[i]),
         }
     }
 
@@ -1057,6 +1064,39 @@ unsafe impl<const N: usize> Cells for crate::memory::session::PlainBytes<N> {
 unsafe impl<const N: usize> ByteView for crate::memory::session::PlainBytes<N> {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainBytes(self.cells()))
+    }
+}
+// SAFETY: `repr(transparent)` over one `Cell<[u32; N]>`: every byte is inside the cell, and
+// zero is a valid value.
+unsafe impl<const N: usize> Cells for crate::memory::plain_floats::PlainFloats<N> {
+    fn copy_from(&self, other: &Self) {
+        self.set_bits(other.bits());
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        let (now, start) = (now.bits(), start.bits());
+        for n in 0..N {
+            if now[n] != start[n] {
+                self.set_bits_at(n, now[n]);
+            }
+        }
+    }
+
+    /// The row as an array of one kind of cell is visited: one run, element 0.
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visitor.index(0);
+        if N > 0 {
+            visitor.run(CellRun::PlainWords(self.cells()));
+        }
+        visitor.leave();
+    }
+}
+
+// SAFETY: `repr(transparent)` over a `Cell<[u32; N]>`: no padding, any bits a value; all of it one
+// run of word cells.
+unsafe impl<const N: usize> ByteView for crate::memory::plain_floats::PlainFloats<N> {
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::PlainWords(self.cells()))
     }
 }
 // SAFETY: `N` of a type of cells one after another (an array has no padding between

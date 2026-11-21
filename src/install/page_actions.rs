@@ -18,7 +18,7 @@ use rc2k_core::install::pages;
 
 /// The byte of the drives' texts at `offset` (the first byte of a text is its letter).
 fn drive_letter(install: &Install, offset: u32) -> u8 {
-    let rows = &install.drive_rows.drive_rows;
+    let rows = &install.drive_rows;
     let at = offset as usize;
     if at >= 400 {
         refuse(BadInput("a drive text past the drive rows"));

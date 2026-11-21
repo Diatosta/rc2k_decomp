@@ -221,11 +221,6 @@ fn pixel(
     }
 }
 
-/// A rectangle (x, y, width, height) kept in the first 16 bytes of a buffer.
-pub fn rect_in(bytes: &impl crate::memory::session::ByteBuffer) -> [i32; 4] {
-    std::array::from_fn(|n| bytes.get_u32_at(4 * n) as i32)
-}
-
 /// `gfx::fill_rect`: the rectangle (x, y, width, height) filled, clipped, with `palette[colour]`
 /// on a 16- or 32-bit surface and with the byte itself on an 8-bit one. Refuses (before anything)
 /// any other depth.

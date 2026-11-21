@@ -70,9 +70,8 @@ pub(super) fn restore_saved_car(
     for (to, from) in car.position.iter().zip(&tables.saved_place) {
         to.set(from.get());
     }
-    for (to, from) in car.crash_matrix.iter().zip(&tables.saved_matrix) {
-        to.set(from.get());
-    }
+    car.crash_matrix
+        .set_bits(crate::memory::session::read_bits(&tables.saved_matrix));
     // Up to 0x7C dwords from the saved faces (0x40), on into the face-flip list after them, into
     // the car's faces (0x40), on through the fields after them to the record's end (0x7C in all).
     put_dwords(

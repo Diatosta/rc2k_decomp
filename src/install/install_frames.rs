@@ -35,12 +35,12 @@ pub(super) fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, 
         }
         // gfx::fill_rect: colour 0
         crate::gfx::rect::fill_rect(
-            crate::gfx::rect::rect_in(&install.pages.bar),
+            install.pages.bar,
             0,
             crate::gfx::rect::Palette::Of(&gfx.fonts.blended_palette),
             gfx,
         )?;
-        let x = install.pages.bar.get_u32(0);
+        let x = install.pages.bar[0] as u32;
         let kept_clip: u32 = drawing.blit.clip.right.get();
         drawing
             .blit
@@ -66,7 +66,7 @@ pub(super) fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, 
             FONT,
             &text,
             x.wrapping_add(0xC8),
-            install.pages.bar.get_u32(4).wrapping_add(2),
+            (install.pages.bar[1] as u32).wrapping_add(2),
             gfx,
         )?;
         unlock(gfx);
@@ -94,7 +94,7 @@ pub(super) fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, R
         )?;
         // gfx::frame_rect: colour 0x2A
         crate::gfx::rect::frame_rect(
-            crate::gfx::rect::rect_in(&install.pages.frame),
+            install.pages.frame,
             0,
             0,
             0x2A,

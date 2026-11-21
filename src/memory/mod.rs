@@ -11,6 +11,7 @@ pub(crate) mod owned;
 pub(crate) mod part_cell;
 pub(crate) mod place;
 pub(crate) mod plain_buffer;
+pub(crate) mod plain_floats;
 pub(crate) mod session;
 pub(crate) mod shared_memory;
 pub(crate) mod shared_table;

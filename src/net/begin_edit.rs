@@ -27,28 +27,20 @@ impl EditedText {
     }
 }
 
-/// Which text an edit works on, kept in a record of cells (none: nothing is edited).
-#[repr(transparent)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
-pub struct EditedTextCell(crate::memory::session::Dword);
+/// Which text an edit works on (none: nothing is edited).
+pub struct EditedTextCell(crate::memory::session::Plain<Option<EditedText>>);
 
 impl EditedTextCell {
     pub const fn new() -> Self {
-        Self(crate::memory::session::Dword::new(0))
+        Self(crate::memory::session::Plain::new(None))
     }
 
     pub fn get(&self) -> Option<EditedText> {
-        match self.0.get() {
-            1 => Some(EditedText::MachineName),
-            2 => Some(EditedText::HostAddress),
-            3 => Some(EditedText::MostPlayers),
-            4 => Some(EditedText::ChatInput),
-            _ => None,
-        }
+        self.0.get()
     }
 
     pub fn set(&self, text: EditedText) {
-        self.0.set(text as u32);
+        self.0.set(Some(text));
     }
 }
 

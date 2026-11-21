@@ -50,8 +50,8 @@ pub fn fill_race_slot(
     }
     slot.car_word.set(car.probe_point_face[4].get());
     slot.age.set(car.step_clock.get());
-    for k in 0..16 {
-        slot.matrix[k].set(car.crash_matrix[k].get());
+    for (to, value) in slot.matrix.iter().zip(car.crash_matrix.get()) {
+        to.set(value);
     }
     let k = &work.part_fling;
     slot.motion[0].set(int_mul_add(

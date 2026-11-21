@@ -123,6 +123,7 @@ mod settings_done;
 mod settings_frame;
 mod settings_link;
 pub(crate) mod settings_loop;
+mod shared_bytes;
 mod show_background;
 mod show_message;
 pub(crate) mod shut_down;

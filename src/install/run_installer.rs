@@ -10,6 +10,7 @@ use crate::install::installer::{
     copy_picture, draw_string, fatal, load_language, lock, normalise, pause, push_string_by_id,
     set_cd, show, unlock,
 };
+use crate::install::vars::fixed;
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
@@ -21,7 +22,7 @@ pub fn run_installer(
     use crate::install as i;
     crate::shell::events::keep_running_after_close();
     crate::files::state::set_directory_byte(0, 0);
-    i::read_languages::load_languages(install, system, &install.names.lang_cfg.text()[..])?;
+    i::read_languages::load_languages(install, system, fixed::LANG_CFG)?;
     crate::gfx::build_fonts::build_fonts_in(gfx, system, o.strings)?;
     i::open_installer::open_installer(install, o)?;
     let Some(game_dir) = normalise(&crate::files::state::SECOND_BASE.text())? else {

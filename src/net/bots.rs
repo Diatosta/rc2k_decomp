@@ -14,7 +14,7 @@ pub(super) fn host_setting(net: &Net) -> u32 {
         .map(|n| net.vars.player_block_or_end(n))
         .find(|block| block.record.state().is_host())
         .map_or(0, |block| {
-            bots::setting(block.record.head.get(record::DIRECTION))
+            bots::setting(block.record.get().byte(record::DIRECTION))
         })
 }
 
@@ -23,7 +23,7 @@ fn host_direction(net: &Net) -> u8 {
     (0..net.race_slot.players())
         .map(|n| net.vars.player_block_or_end(n))
         .find(|block| block.record.state().is_host())
-        .map_or(0, |block| block.record.head.get(record::DIRECTION))
+        .map_or(0, |block| block.record.get().byte(record::DIRECTION))
 }
 
 /// Whether the host has the bots start spread on the course like the arcade's opponents.
@@ -36,7 +36,7 @@ fn host_kind(net: &Net) -> u32 {
     (0..net.race_slot.players())
         .map(|n| net.vars.player_block_or_end(n))
         .find(|block| block.record.state().is_host())
-        .map_or(0, |block| u32::from(block.record.head.get(record::CAR)))
+        .map_or(0, |block| u32::from(block.record.get().byte(record::CAR)))
 }
 
 /// The bots a race of the listed players would have.
@@ -46,22 +46,23 @@ pub(super) fn listed_count(net: &Net) -> u32 {
 
 /// The host presses the bots' button: the next setting, published at once with the record.
 pub(super) fn cycle_own_setting(net: &Net) -> Result<(), Refused> {
-    let held = net.vars.own.head.get(record::DIRECTION);
+    let held = net.vars.own.get().byte(record::DIRECTION);
     let next = bots::next_setting(bots::setting(held));
     net.vars
         .own
-        .head
-        .set(record::DIRECTION, bots::with_setting(held, next));
+        .update(|r| r.set_byte(record::DIRECTION, bots::with_setting(held, next)));
     crate::net::list_players::refresh_players(net)
 }
 
 /// The host presses the way-to-start button: grid, then arcade, published with the record.
 pub(super) fn toggle_own_start(net: &Net) -> Result<(), Refused> {
-    let held = net.vars.own.head.get(record::DIRECTION);
-    net.vars.own.head.set(
-        record::DIRECTION,
-        bots::with_arcade_start(held, !bots::arcade_start(held)),
-    );
+    let held = net.vars.own.get().byte(record::DIRECTION);
+    net.vars.own.update(|r| {
+        r.set_byte(
+            record::DIRECTION,
+            bots::with_arcade_start(held, !bots::arcade_start(held)),
+        );
+    });
     crate::net::list_players::refresh_players(net)
 }
 

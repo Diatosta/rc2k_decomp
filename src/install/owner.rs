@@ -3,15 +3,17 @@
 use crate::install::installer::InstallTexts;
 use crate::install::name_tables::NameTable;
 use crate::install::run_flags::RunFlags;
-use crate::install::store::{DriveRows, InstallVars};
+use crate::install::store::{DRIVE_ROWS_LEN, InstallVars};
 use crate::install::vars::{InstallerNames, InstallerPages, InstallerPaths, InstallerRun};
 use crate::memory::owned::Owned;
+use crate::memory::plain_buffer::PlainBuffer;
 
 /// The installation's state.
 pub struct Install {
     pub texts: InstallTexts,
     pub vars: InstallVars,
-    pub drive_rows: DriveRows,
+    /// The drive page's rows (`install::store`).
+    pub drive_rows: PlainBuffer<DRIVE_ROWS_LEN>,
     pub run: InstallerRun,
     pub flags: RunFlags,
     pub names: InstallerNames,
@@ -31,7 +33,7 @@ impl Install {
         Self {
             texts: InstallTexts::new(),
             vars: InstallVars::new(),
-            drive_rows: DriveRows::new(),
+            drive_rows: crate::install::store::drive_rows(),
             run: InstallerRun::new(),
             flags: RunFlags::new(),
             names: InstallerNames::new(),

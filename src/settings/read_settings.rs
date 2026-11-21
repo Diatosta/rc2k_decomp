@@ -428,7 +428,7 @@ mod tests {
             "owners.input.devices",
             ".two_devices_one_player",
         ),
-        ("nonetwork", "owners.net.vars", ".receive_done"),
+        ("nonetwork", "owners.net.vars.receive_done", ""),
         ("inetport", "owners.net.main.setup.port", ""),
         (
             "noreplay",

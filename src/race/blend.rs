@@ -54,8 +54,8 @@ fn read(car: &Car) -> Snap {
     Snap {
         body: Body {
             position: read_all(&car.position),
-            crash_matrix: read_all(&car.crash_matrix),
-            inverse_matrix: read_all(&car.car_inverse_matrix),
+            crash_matrix: car.crash_matrix.bits(),
+            inverse_matrix: car.car_inverse_matrix.bits(),
             wheel_turns: read_all(&car.driven_wheel_turns),
             squeeze: read_all(&car.wheel_squeeze),
             spring_force: read_all(&car.wheel_spring_force),
@@ -83,8 +83,8 @@ fn read(car: &Car) -> Snap {
 fn write(car: &Car, snap: &Snap) {
     let (b, c) = (&snap.body, &snap.camera);
     write_all(&car.position, b.position);
-    write_all(&car.crash_matrix, b.crash_matrix);
-    write_all(&car.car_inverse_matrix, b.inverse_matrix);
+    car.crash_matrix.set_bits(b.crash_matrix);
+    car.car_inverse_matrix.set_bits(b.inverse_matrix);
     write_all(&car.driven_wheel_turns, b.wheel_turns);
     write_all(&car.wheel_squeeze, b.squeeze);
     write_all(&car.wheel_spring_force, b.spring_force);

@@ -383,9 +383,9 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         race.shared.run().gear_inputs.hold,
         race.shared.run().gear_inputs.gear_up,
         race.shared.run().gear_inputs.gear_down,
-        CAR.crash_matrix[..12]
+        CAR.crash_matrix.get()[..12]
             .iter()
-            .map(|cell| format!("{:.2}", cell.get()))
+            .map(|value| format!("{value:.2}"))
             .collect::<Vec<_>>()
             .join(","),
         // The players' cars and the car the car choice shows, for the menus' checks.

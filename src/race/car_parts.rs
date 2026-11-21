@@ -4,7 +4,6 @@
 //! in the car's drawing state (`race::car_parts_store`) for `draw_car`.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainFloat;
 use crate::physics::figures::GROUND_DROP;
 use crate::race::owner::Race;
 use crate::scene::matrix::{
@@ -188,7 +187,7 @@ pub(super) fn ready_car_parts(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
-    use rc2k_core::race::car_parts::{KEPT_MATRICES, check_part_cars, parts_shown};
+    use rc2k_core::race::car_parts::{check_part_cars, parts_shown};
     let count = race.shared.view.get().race_cars.get();
     check_part_cars(count, |n| {
         u32::from(race.shared.work.get().has_car_block(n as usize))
@@ -204,28 +203,12 @@ pub(super) fn ready_car_parts(
         let part = &race.car_parts().cars[block_number];
         if parts_shown(view.driver_kind.get()) {
             car_part_matrices(race, car, scene)?;
-            let wheels = &part.part_matrices;
-            let kept: [&[PlainFloat]; KEPT_MATRICES as usize] = [
-                &wheels[..16],
-                &wheels[16..32],
-                &wheels[32..48],
-                &wheels[48..],
-                &part.body_matrix,
-                &part.place_matrix,
-            ];
             let work = *frame.frame_work.borrow();
-            for (from, to) in work.part_matrices.iter().zip(&kept) {
-                for (to, value) in to.iter().zip(from) {
-                    to.set(*value);
-                }
-            }
+            part.part_matrices
+                .set(std::array::from_fn(|k| work.part_matrices[k / 16][k % 16]));
             let body_turn = frame.matrices.borrow().body_turn_matrix;
-            for (to, value) in kept[4].iter().zip(body_turn) {
-                to.set(value);
-            }
-            for (to, value) in kept[5].iter().zip(work.placed_matrix) {
-                to.set(value);
-            }
+            part.body_matrix.set(body_turn);
+            part.place_matrix.set(work.placed_matrix);
             let old_place = frame.view_kept.borrow().view_place;
             let whole = product(&body_turn, &work.placed_matrix, old_place);
             frame.view_kept.borrow_mut().view_place = whole;

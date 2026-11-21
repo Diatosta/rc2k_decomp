@@ -239,9 +239,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     let kept = &c.part_matrices;
     {
         let mut cars = ctx.view.cars.borrow_mut();
-        for k in [0, 16, 32, 48] {
-            cars.part_matrices[k..k + 16].copy_from_slice(&matrix_of(&kept[k..k + 16]));
-        }
+        cars.part_matrices = kept.get();
         cars.car_turn = matrix_of(&c.place_matrix);
     }
     ctx.view.matrices.borrow_mut().body_turn_matrix = matrix_of(&c.body_matrix);

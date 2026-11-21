@@ -25,7 +25,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 one_less_abs(
                     &crate::test_support::race_places::numbers(),
-                    view::<PlainFloat>(a[0], 0),
+                    view::<PlainFloat>(a[0], 0).ld(),
                     view::<PlainFloat>(a[2], 0),
                 );
             },

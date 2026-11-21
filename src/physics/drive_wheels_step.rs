@@ -122,14 +122,14 @@ fn steps(
     let gear = car.gear.get();
     one_less_abs(
         &course.numbers,
-        &car.crash_matrix[1],
+        car.crash_matrix.ld(1),
         &physics_tables.drive_shares[0],
     );
     hold_low(&physics_tables.drive_shares[0], &course.numbers.tenth);
     hold_high(&physics_tables.drive_shares[0], &course.numbers.one);
     one_less_abs(
         &course.numbers,
-        &car.crash_matrix[9],
+        car.crash_matrix.ld(9),
         &physics_tables.drive_shares[1],
     );
     hold_low(&physics_tables.drive_shares[1], &course.numbers.tenth);
@@ -303,8 +303,7 @@ pub fn drive_wheels_step(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[t + 0] = -(|[v + 0]| - [one])`
-fn one_less_abs(numbers: &Numbers, v: &impl FloatLike, t: &impl FloatLike) {
-    let t0 = v.ld();
+fn one_less_abs(numbers: &Numbers, t0: crate::math::x87_float::X, t: &impl FloatLike) {
     let t1 = t0.abs();
     let t2 = numbers.one.ld();
     let t3 = t1 - t2;

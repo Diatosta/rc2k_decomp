@@ -4,6 +4,7 @@
 //! blocks are read. They are kept apart from the physics' record so that no physics step touches
 //! them.
 
+use crate::memory::plain_floats::PlainFloats;
 use crate::memory::session::{PlainBytes, PlainDword, PlainFloat};
 use crate::race::blocks_store::{BLOCK_COUNT, block_number};
 
@@ -13,13 +14,13 @@ pub struct CarPartCells {
     /// The engine speed shown (not below the idle speed).
     pub shown_engine_speed: PlainFloat,
     /// The four parts' matrices (the wheels, placed and turned about their axles).
-    pub part_matrices: [PlainFloat; 64],
+    pub part_matrices: PlainFloats<64>,
     /// The body's turn.
-    pub body_matrix: [PlainFloat; 16],
+    pub body_matrix: PlainFloats<16>,
     /// The car's place.
-    pub place_matrix: [PlainFloat; 16],
+    pub place_matrix: PlainFloats<16>,
     /// The body's turn times the car's place.
-    pub whole_matrix: [PlainFloat; 16],
+    pub whole_matrix: PlainFloats<16>,
     /// 1 for the cars in a mode that shows the mode's parts.
     pub mode_on: PlainDword,
     /// The marks' count x 0x20 (0 with the lights off or the electrics damaged).

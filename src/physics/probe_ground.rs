@@ -179,7 +179,7 @@ fn probe_points(
         let d = work.probe_y[i].wrapping_sub(work.probe_ground_height[i]);
         work.probe_height[i] = d;
         if b < 4 {
-            scratch.set(x87::loaded(&car.crash_matrix[5]).to_bits());
+            scratch.set(x87::loaded(car.crash_matrix.at(5)).to_bits());
             if x87::compare_status(scratch.get(), ZERO) & 0x100 != 0 {
                 scratch.set(x87::loaded(ZERO).to_bits());
             }

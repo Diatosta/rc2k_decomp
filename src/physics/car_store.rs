@@ -4,6 +4,7 @@
 //! code names. Its layout is Rust's own: no code addresses it by byte (the replay file's layout
 //! is `drive::replay_state`'s, field by field).
 
+use crate::memory::plain_floats::PlainFloats;
 use crate::memory::session::{CellKind, PlainCells};
 
 /// The record, on the cells of kind `K`: plain for the work car and the cars' blocks (`Car`),
@@ -76,7 +77,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// -1 stood still too long, 2 stopped after the finish.
     pub stop_state: K::Dword,
     /// The 4 x 4 orientation matrix (the crash matrix); the translation row is its last.
-    pub crash_matrix: [K::Float; 16],
+    pub crash_matrix: PlainFloats<16>,
     /// World position x, y, z (x 65536).
     pub position: [K::Dword; 3],
     /// One figure per split taken.
@@ -437,7 +438,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Car roll (reading), units << 4.
     pub car_roll: K::Dword,
     /// The inverse of the crash matrix.
-    pub car_inverse_matrix: [K::Float; 16],
+    pub car_inverse_matrix: PlainFloats<16>,
     /// The split's figures (figure, gaps, names, two more).
     pub split_gaps: [K::Dword; 7],
     /// Crash contact point x.

@@ -92,7 +92,7 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     let course = &race.course;
     let reaches = race.shared.car().run_ticks.get() >= driver::FIRST_STEP
         && compare_full(
-            race.shared.car().crash_matrix[5].get(),
+            race.shared.car().crash_matrix.at(5),
             race.shared.work.get().driver_tilt_limit.get(),
         ) & 0x100
             == 0;
@@ -351,8 +351,8 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         &race.shared.work.get().driver_way,
         &race.shared.work.get().driver_way_unit,
     );
-    race.shared.work.get().driver_side[2].set(x87::loaded(&race.shared.car().crash_matrix[10]));
-    race.shared.work.get().driver_side[0].set(x87::negated(&race.shared.car().crash_matrix[2]));
+    race.shared.work.get().driver_side[2].set(x87::loaded(race.shared.car().crash_matrix.at(10)));
+    race.shared.work.get().driver_side[0].set(x87::negated(race.shared.car().crash_matrix.at(2)));
     race.shared.work.get().driver_side[1].set(0.0);
     cross_product(
         &race.shared.work.get().driver_side,

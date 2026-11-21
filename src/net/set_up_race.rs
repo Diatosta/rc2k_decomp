@@ -56,8 +56,8 @@ pub fn set_up_race(
         .local_car
         .set(o.net.race_slot.player());
     for n in 0..players {
-        let record = &vars.player_block(n)?.record;
-        let seat = record::seat(|n| record.head.get(n));
+        let record = vars.player_block(n)?.record.get();
+        let seat = record::seat(|n| record.byte(n));
         let v = race.shared.vars.get();
         v.race_car_kinds[n as usize].set(seat.car);
         v.car_colours[n as usize].set(seat.colours);

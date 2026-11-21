@@ -50,21 +50,44 @@ pub(super) fn take_entry(
     })
 }
 
+/// What the matrix readers take: the words of a matrix by number.
+pub(super) trait MatrixWords {
+    /// Word `n`'s bits, none past the end.
+    fn word(&self, n: usize) -> Option<u32>;
+}
+
+impl<C: crate::memory::session::Cell32> MatrixWords for [C] {
+    fn word(&self, n: usize) -> Option<u32> {
+        self.get(n).map(C::bits)
+    }
+}
+
+impl<C: crate::memory::session::Cell32, const N: usize> MatrixWords for [C; N] {
+    fn word(&self, n: usize) -> Option<u32> {
+        self.get(n).map(C::bits)
+    }
+}
+
+impl<const N: usize> MatrixWords for crate::memory::plain_floats::PlainFloats<N> {
+    fn word(&self, n: usize) -> Option<u32> {
+        (n < N).then(|| self.bits_at(n))
+    }
+}
+
 /// The dword at byte `offset` of a car's matrix (16 cells) or matrices; refused past the
 /// cells.
-pub(super) fn matrix_cell<C: crate::memory::session::Cell32>(
-    matrix: &[C],
+pub(super) fn matrix_cell(
+    matrix: &(impl MatrixWords + ?Sized),
     offset: u32,
 ) -> Result<u32, Refused> {
     matrix
-        .get(offset as usize / 4)
-        .map(C::bits)
+        .word(offset as usize / 4)
         .ok_or_else(|| BadInput("a car matrix's cell past its end").into())
 }
 
 /// As `matrix_cell`, the cell read as the float it holds.
-pub(super) fn matrix_float<C: crate::memory::session::Cell32>(
-    matrix: &[C],
+pub(super) fn matrix_float(
+    matrix: &(impl MatrixWords + ?Sized),
     offset: u32,
 ) -> Result<f32, Refused> {
     matrix_cell(matrix, offset).map(f32::from_bits)

@@ -7,8 +7,9 @@
 //! (`install::page_links`). The pages' items are `rc2k_core::install::model`.
 
 use crate::gfx::typefaces::{FontId, fonts};
-use crate::install::page_links::{LinkCell, PageLink};
-use crate::memory::session::{PlainBytes, PlainDword, with_runs};
+use crate::install::page_links::PageLink;
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::with_runs;
 use std::cell::{Cell, RefCell};
 
 /// What the folder page says is wrong with the folder typed.
@@ -132,6 +133,10 @@ pub mod fixed {
     /// The mark that goes on into the rest of the uninstall script (the save and settings
     /// folders removed too).
     pub const MARK_ALL: u8 = 1;
+    /// The languages file's name.
+    pub const LANG_CFG: &[u8] = b"lang.cfg";
+    /// KB needed by installation mode (the first of the four modes needs none).
+    pub const ROOM_BY_MODE: [u32; 4] = [0, 0x2800, 0x5_0000, 0xA_2800];
     /// The mark that ends the uninstall script before those folders.
     pub const MARK_KEEP_SAVES: u8 = 5;
 }
@@ -213,33 +218,19 @@ pub struct InstallerNames {
     pub script_mark: Cell<u8>,
     /// The languages found.
     pub language_count: Cell<u32>,
-    /// The languages found, 0x80 bytes each (eight).
-    pub languages: PlainBytes<1024>,
-    /// A gap of 128 byte(s): nothing reads it.
-    pub _gap_51c2ee: PlainBytes<128>,
-    /// "lang.cfg".
-    pub lang_cfg: PlainBytes<10>,
-    /// A gap of 127 byte(s): nothing reads it.
-    pub _gap_51c378: PlainBytes<127>,
-    /// KB needed by installation mode.
-    pub room_by_mode: PlainBytes<16>,
-    /// Up to the record's alignment.
-    pub _tail: PlainBytes<9>,
+    /// The languages found, 0x80 bytes each (eight), and the 128 bytes after them that the
+    /// ninth language's text reads (empty).
+    pub languages: PlainBuffer<1152>,
 }
 
 impl InstallerNames {
     pub const fn new() -> Self {
         InstallerNames {
-    status: Cell::new(0),
-    source: InstallPath::new(),
-    script_mark: Cell::new(fixed::MARK_ALL),
-    language_count: Cell::new(0),
-    languages: PlainBytes::new([0; 1024]),
-    _gap_51c2ee: PlainBytes::new([0; 128]),
-    lang_cfg: PlainBytes::new(with_runs::<10>(&[(0, b"lang.cfg")])),
-    _gap_51c378: PlainBytes::new(with_runs::<127>(&[(0, b"lang1\x00\xee\xbeQ\x00\x7f\x00\x00\x00lang2\x00n\xbfQ\x00\x7f\x00\x00\x00lang3\x00\xee\xbfQ\x00\x7f\x00\x00\x00lang4\x00n\xc0Q\x00\x7f\x00\x00\x00lang5\x00\xee\xc0Q\x00\x7f\x00\x00\x00lang6\x00n\xc1Q\x00\x7f\x00\x00\x00lang7\x00\xee\xc1Q\x00\x7f\x00\x00\x00lang8\x00n\xc2Q\x00\x7f\x00\x00\x00lang9\x00\xee\xc2Q\x00\x7f")])),
-    room_by_mode: PlainBytes::new(with_runs::<16>(&[(5, b"("), (10, b"\x05\x00\x00(\n")])),
-    _tail: PlainBytes::new([0; 9]),
+            status: Cell::new(0),
+            source: InstallPath::new(),
+            script_mark: Cell::new(fixed::MARK_ALL),
+            language_count: Cell::new(0),
+            languages: PlainBuffer::new([0; 1152]),
         }
     }
 
@@ -252,66 +243,61 @@ impl InstallerNames {
     }
 }
 
-/// A record of a drawing list on the pages (`install::draw_string_list`): 16 bytes, the
-/// offsets (dx, dy) from the list's place, the font's link and the text's string id (the dwords in this
-/// order are its bytes).
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+/// A record of a drawing list on the pages (`install::draw_string_list`): the offsets (dx, dy)
+/// from the list's place, the font and the text's string id.
+#[derive(Clone, Copy)]
 pub struct StringRecord {
-    pub dx: PlainDword,
-    pub dy: PlainDword,
-    pub font: LinkCell,
-    pub string: PlainDword,
+    pub dx: u32,
+    pub dy: u32,
+    font: PageLink,
+    pub string: u32,
 }
 
 impl StringRecord {
-    /// A record drawing text `string` in `font` at (dx, dy) from the list's place; the font is
-    /// kept as its link.
+    /// A record drawing text `string` in `font` at (dx, dy) from the list's place.
     pub const fn new(dx: u32, dy: u32, font: FontId, string: u32) -> Self {
         Self {
-            dx: PlainDword::new(dx),
-            dy: PlainDword::new(dy),
-            font: LinkCell::new(PageLink::of_font(font)),
-            string: PlainDword::new(string),
+            dx,
+            dy,
+            font: PageLink::of_font(font),
+            string,
         }
     }
 
     /// The link the record keeps for its font.
     pub(super) fn font_link(&self) -> PageLink {
-        self.font.get()
+        self.font
     }
 }
 
-/// A record of a glyph list on the pages (`install::blit_glyph_list`): 16 bytes, the offsets
-/// from the list's place, the glyph's number and the palette's link.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+/// A record of a glyph list on the pages (`install::blit_glyph_list`): the offsets from the
+/// list's place, the glyph's number and the palette's link.
+#[derive(Clone, Copy)]
 pub struct GlyphRecord {
-    pub dx: PlainDword,
-    pub dy: PlainDword,
-    pub glyph: PlainDword,
-    pub palette: LinkCell,
+    pub dx: u32,
+    pub dy: u32,
+    pub glyph: u32,
+    palette: PageLink,
 }
 
 impl GlyphRecord {
     /// A record blitting glyph `glyph` with `palette` at (dx, dy) from the list's place.
     pub const fn new(dx: u32, dy: u32, glyph: u32, palette: PageLink) -> Self {
         Self {
-            dx: PlainDword::new(dx),
-            dy: PlainDword::new(dy),
-            glyph: PlainDword::new(glyph),
-            palette: LinkCell::new(palette),
+            dx,
+            dy,
+            glyph,
+            palette,
         }
     }
 
     /// The link the record keeps for its palette.
     pub(super) fn palette_link(&self) -> PageLink {
-        self.palette.get()
+        self.palette
     }
 }
 
-/// The page: the fonts and the pages' tables.
-#[derive(rc2k_derive::Cells)]
+/// The pages' tables. Nothing writes them.
 pub struct InstallerPages {
     /// The copying page's two texts.
     pub texts: [StringRecord; 2],
@@ -324,56 +310,53 @@ pub struct InstallerPages {
     /// The bar's glyph list.
     pub bar_glyphs_list: [GlyphRecord; 2],
     /// The bar's x, y, width, height.
-    pub bar: PlainBytes<16>,
+    pub bar: [i32; 4],
     /// Its frame.
-    pub frame: PlainBytes<17>,
+    pub frame: [i32; 4],
     /// The page's fonts (links to the font objects).
-    pub fonts: [PlainDword; 25],
+    pub fonts: [PageLink; 25],
     /// Font by mark, 8 bytes a kind (`install::lay_out_pieces`, from the fifth byte).
-    pub kind_fonts: PlainBytes<108>,
-    /// The characters a folder name may not hold.
-    pub bad_folder_chars: PlainBytes<20>,
+    pub kind_fonts: [u8; 108],
 }
 
 impl InstallerPages {
     pub const fn new() -> Self {
         InstallerPages {
-    texts: [StringRecord::new(0x1A9, 0xAF, fonts::TITLE, 0xAF), StringRecord::new(0x1A9, 0xFA, fonts::CAPTION_A, 0xB0)],
-    msg_error: [StringRecord::new(0x1A9, 0x15E, fonts::TITLE, 0xB1)],
-    msg_cancel: [StringRecord::new(0x1A9, 0x190, fonts::TITLE, 0xB3)],
-    remove_strings: [StringRecord::new(0x1A9, 0x12C, fonts::TITLE, 0xBA)],
-    bar_glyphs_list: [GlyphRecord::new(0xE1, 0x12C, 0, PageLink::blended_palette()), GlyphRecord::new(0x1A9, 0x12C, 1, PageLink::blended_palette())],
-    bar: PlainBytes::new(with_runs::<16>(&[(0, b"\xe0\x00\x00\x00+\x01\x00\x00\x92\x01\x00\x00\x1f")])),
-    frame: PlainBytes::new(with_runs::<17>(&[(0, b"\xdf\x00\x00\x00*\x01\x00\x00\x94\x01\x00\x00!")])),
-    fonts: [
-        PlainDword::new(0x0),
-        PlainDword::new(PageLink::of_font(fonts::MEASURE_23).raw()),
-        PlainDword::new(PageLink::of_font(fonts::MEASURE).raw()),
-        PlainDword::new(PageLink::of_font(fonts::MEASURE).raw()),
-        PlainDword::new(PageLink::of_font(FontId::numbered(53)).raw()),
-        PlainDword::new(PageLink::of_font(FontId::numbered(54)).raw()),
-        PlainDword::new(PageLink::of_font(FontId::numbered(52)).raw()),
-        PlainDword::new(PageLink::of_font(FontId::numbered(50)).raw()),
-        PlainDword::new(PageLink::of_font(fonts::ITEM_GREY).raw()),
-        PlainDword::new(PageLink::of_font(FontId::numbered(49)).raw()),
-        PlainDword::new(PageLink::of_font(fonts::ARCADE_BUTTON_PULSE).raw()),
-        PlainDword::new(PageLink::of_font(fonts::STAGE_ITEM_B).raw()),
-        PlainDword::new(PageLink::of_font(fonts::CAPTION_B).raw()),
-        PlainDword::new(PageLink::of_font(fonts::VALUES).raw()),
-        PlainDword::new(PageLink::of_font(fonts::LABELS).raw()),
-        PlainDword::new(PageLink::of_font(fonts::HEADING_23).raw()),
-        PlainDword::new(PageLink::of_font(fonts::LIST).raw()),
-        PlainDword::new(PageLink::of_font(fonts::ITEM_PLAIN).raw()),
-        PlainDword::new(PageLink::of_font(fonts::TITLE).raw()),
-        PlainDword::new(PageLink::of_font(fonts::LIST).raw()),
-        PlainDword::new(PageLink::of_font(fonts::ITEM_PLAIN).raw()),
-        PlainDword::new(PageLink::of_font(fonts::TITLE).raw()),
-        PlainDword::new(PageLink::of_font(fonts::ARCADE_BUTTON).raw()),
-        PlainDword::new(PageLink::of_font(fonts::STAGE_TITLE).raw()),
-        PlainDword::new(PageLink::of_font(fonts::CAPTION_A).raw()),
-    ],
-    kind_fonts: PlainBytes::new(with_runs::<108>(&[(0, b"\x12\x00\t\x0c\x00\x02\x00\x1e\x17\x00\x08\x0b\x01\x02\x00\x1e\n\x00\x07\x10\x02\x02\x00\x1e"), (32, b"\x12\x00\t\x0c\x00\x02\x00\x1e"), (64, b"\x0c\x00\t\x12\x00\x02\x00\x1e\x15\x00\x15\x15\x00\x03\x00,\x0c\x00\x0c\x0c\x00\x02\x00\x1e\x12\x00\x12\x12\x00\x02\x00\x1e\x18\x00\x18\x18\x00\x02\x00\x1e\t")])),
-    bad_folder_chars: PlainBytes::new(with_runs::<20>(&[(0, b"\"+*,;=/:<>?\\{}[]|\x7f")])),
+            texts: [StringRecord::new(0x1A9, 0xAF, fonts::TITLE, 0xAF), StringRecord::new(0x1A9, 0xFA, fonts::CAPTION_A, 0xB0)],
+            msg_error: [StringRecord::new(0x1A9, 0x15E, fonts::TITLE, 0xB1)],
+            msg_cancel: [StringRecord::new(0x1A9, 0x190, fonts::TITLE, 0xB3)],
+            remove_strings: [StringRecord::new(0x1A9, 0x12C, fonts::TITLE, 0xBA)],
+            bar_glyphs_list: [GlyphRecord::new(0xE1, 0x12C, 0, PageLink::blended_palette()), GlyphRecord::new(0x1A9, 0x12C, 1, PageLink::blended_palette())],
+            bar: [0xE0, 0x12B, 0x192, 0x1F],
+            frame: [0xDF, 0x12A, 0x194, 0x21],
+            fonts: [
+                PageLink::none(),
+                PageLink::of_font(fonts::MEASURE_23),
+                PageLink::of_font(fonts::MEASURE),
+                PageLink::of_font(fonts::MEASURE),
+                PageLink::of_font(FontId::numbered(53)),
+                PageLink::of_font(FontId::numbered(54)),
+                PageLink::of_font(FontId::numbered(52)),
+                PageLink::of_font(FontId::numbered(50)),
+                PageLink::of_font(fonts::ITEM_GREY),
+                PageLink::of_font(FontId::numbered(49)),
+                PageLink::of_font(fonts::ARCADE_BUTTON_PULSE),
+                PageLink::of_font(fonts::STAGE_ITEM_B),
+                PageLink::of_font(fonts::CAPTION_B),
+                PageLink::of_font(fonts::VALUES),
+                PageLink::of_font(fonts::LABELS),
+                PageLink::of_font(fonts::HEADING_23),
+                PageLink::of_font(fonts::LIST),
+                PageLink::of_font(fonts::ITEM_PLAIN),
+                PageLink::of_font(fonts::TITLE),
+                PageLink::of_font(fonts::LIST),
+                PageLink::of_font(fonts::ITEM_PLAIN),
+                PageLink::of_font(fonts::TITLE),
+                PageLink::of_font(fonts::ARCADE_BUTTON),
+                PageLink::of_font(fonts::STAGE_TITLE),
+                PageLink::of_font(fonts::CAPTION_A),
+            ],
+            kind_fonts: with_runs::<108>(&[(0, b"\x12\x00\t\x0c\x00\x02\x00\x1e\x17\x00\x08\x0b\x01\x02\x00\x1e\n\x00\x07\x10\x02\x02\x00\x1e"), (32, b"\x12\x00\t\x0c\x00\x02\x00\x1e"), (64, b"\x0c\x00\t\x12\x00\x02\x00\x1e\x15\x00\x15\x15\x00\x03\x00,\x0c\x00\x0c\x0c\x00\x02\x00\x1e\x12\x00\x12\x12\x00\x02\x00\x1e\x18\x00\x18\x18\x00\x02\x00\x1e\t")]),
         }
     }
 }
@@ -387,7 +370,7 @@ impl InstallerPages {
                 "a font kind past the installer's table",
             ));
         }
-        install.pages.kind_fonts.get(index as usize)
+        install.pages.kind_fonts[index as usize]
     }
 
     /// Where font `index` of the page's fonts is (the table keeps links to the font objects). A
@@ -396,13 +379,12 @@ impl InstallerPages {
         install: &crate::install::owner::Install,
         index: u32,
     ) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
-        let cell = install
+        let link = install
             .pages
             .fonts
             .get(index as usize)
             .ok_or(crate::errors::BadInput("a page font past the table"))?;
-        PageLink::from_raw(cell.get())
-            .font()
+        link.font()
             .map_err(|_| crate::errors::BadInput("a page font that is no font object"))
     }
 }

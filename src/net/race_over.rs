@@ -6,11 +6,11 @@ use crate::net::owner::Net;
 pub fn race_over(net: &Net, time: u32) -> Result<(), Refused> {
     net.vars.all_raced.set(0);
     net.vars.race_over.set(0);
-    net.vars.own.race_time.set(time);
-    net.vars
-        .own
-        .total
-        .set(net.vars.own.total.get().wrapping_add(time));
+    let total = net.vars.own.get().total().wrapping_add(time);
+    net.vars.own.update(|r| {
+        r.set_race_time(time);
+        r.set_total(total);
+    });
     net.vars.own.set_state(net.vars.own.state().raced());
     net.lobby().after_race.set(1);
     crate::net::list_players::refresh_players(net)

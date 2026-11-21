@@ -454,18 +454,18 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.gfx.pictures.planes",
             on_game(&o.gfx.pictures.planes),
         ),
-        listed!(
-            "owners.install.vars",
-            on_game_from(&o.install.vars, "._gap_529dad"),
-            0x4b6,
-        ),
-        listed!("owners.install.drive_rows", on_game(&o.install.drive_rows),),
-        listed!("owners.net.vars", &o.net.vars,),
+        listed!("owners.net.vars.receive_done", &o.net.vars.receive_done,),
+        listed!("owners.net.vars.chat", &o.net.vars.chat,),
+        listed!("owners.net.vars.chat_line", &o.net.vars.chat_line,),
+        listed!("owners.net.vars.chat_text", &o.net.vars.chat_text,),
+        listed!("owners.net.vars.receiver", &o.net.vars.receiver,),
+        listed!("owners.net.vars.event", &o.net.vars.event,),
+        listed!("owners.net.vars.stage_item", &o.net.vars.stage_item,),
+        listed!("owners.net.vars.all_raced", &o.net.vars.all_raced,),
+        listed!("owners.net.vars.race_over", &o.net.vars.race_over,),
+        listed!("owners.net.vars.sync_first", &o.net.vars.sync_first,),
+        listed!("owners.net.vars.synced", &o.net.vars.synced,),
         listed!("owners.net.link", o.net.link.cells(),),
-        listed!(
-            "owners.net.main.settings.edit.edit_text",
-            on_game(&o.net.main.get().settings.edit.edit_text),
-        ),
         listed!(
             "owners.net.main.settings.edit.edited",
             on_game(&o.net.main.get().settings.edit.edited),
@@ -491,8 +491,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_buffer(&o.net.main.get().settings.saved_name),
         ),
         listed!(
-            "owners.net.main.sessions",
-            on_game(&o.net.main.get().sessions),
+            "owners.net.main.sessions.listed_at",
+            on_game(&o.net.main.get().sessions.listed_at),
         ),
         listed!(
             "owners.net.main.setup.player_name",
@@ -523,8 +523,16 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_buffer(&o.net.main.get().setup.saved_connection),
         ),
         listed!(
-            "owners.net.main.address",
-            on_game(&o.net.main.get().address),
+            "owners.net.main.address.elements",
+            on_game(&o.net.main.get().address.elements),
+        ),
+        listed!(
+            "owners.net.main.address.address",
+            on_game(&o.net.main.get().address.address),
+        ),
+        listed!(
+            "owners.net.main.address.address_size",
+            on_game(&o.net.main.get().address.address_size),
         ),
         listed!(
             "owners.net.main.joined.joined",
@@ -541,10 +549,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.net.main.joined.joined_user_values",
             on_buffer(&o.net.main.get().joined.joined_user_values),
-        ),
-        listed!(
-            "owners.net.main.lobby.edit.edit_text",
-            on_game(&o.net.main.get().lobby.edit.edit_text),
         ),
         listed!(
             "owners.net.main.lobby.edit.edited",
@@ -618,7 +622,22 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.net.main.lobby._pad_cells",
             on_buffer(&o.net.main.get().lobby._pad_cells),
         ),
-        listed!("owners.net.button", on_game(o.net.button.get()),),
+        listed!("owners.net.button.text", on_game(&o.net.button.get().text),),
+        listed!(
+            "owners.net.button.flags",
+            on_game(&o.net.button.get().flags),
+        ),
+        listed!("owners.net.button.x", on_game(&o.net.button.get().x),),
+        listed!("owners.net.button.y", on_game(&o.net.button.get().y),),
+        listed!(
+            "owners.net.button.width",
+            on_game(&o.net.button.get().width),
+        ),
+        listed!(
+            "owners.net.button.tiles",
+            on_game(&o.net.button.get().tiles),
+        ),
+        listed!("owners.net.button.item", on_game(&o.net.button.get().item),),
         listed!("owners.saves.save_games", on_game(&o.saves.save_games),),
         listed!(
             "owners.menus.service.set_ups",
@@ -741,11 +760,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             0x28,
         ),
         listed!("owners.sound.race.sets", &o.sound.threads.sets, 0x9ac,),
-        listed!(
-            "owners.install.pages",
-            on_game_from(&o.install.pages, ".texts[0].dx"),
-            0xa25,
-        ),
         listed!(
             "owners.system.work.files",
             on_buffer(&o.system.work().files.buffer),

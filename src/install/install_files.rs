@@ -94,13 +94,9 @@ pub(super) fn install_files(
     i::run_script::run_script(install, fixed::COUNT_SCRIPT)?;
     install.run.files_copied.set(0);
     install.run.files_to_copy.set(install.run.file_count.get());
-    let room = u32::from_le_bytes(
-        crate::memory::place::BytePlace::from(&install.names.room_by_mode)
-            .add(4 * crate::install::installer::FULL_INSTALLATION)
-            .read(4, "the room by installation")?
-            .try_into()
-            .map_err(|_| BadInput("a room that is not four bytes"))?,
-    );
+    let room = *fixed::ROOM_BY_MODE
+        .get(crate::install::installer::FULL_INSTALLATION as usize)
+        .ok_or(BadInput("the room by installation"))?;
     install.run.room_needed.set(room);
     // The folder cannot be used: the folder page says so.
     let bad_path = || {

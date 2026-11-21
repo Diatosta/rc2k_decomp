@@ -12,7 +12,7 @@ pub(super) fn race_wait(
 ) -> Result<u32, Refused> {
     let vars = &net.vars;
     vars.own.set_state(vars.own.state().waiting());
-    vars.own.race_time.set(u32::MAX);
+    vars.own.update(|r| r.set_race_time(u32::MAX));
     let now = crate::clock::tick_count::tick_count(clock);
     if (now
         .wrapping_sub(net.lobby().listed_at.get())

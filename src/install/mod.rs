@@ -63,4 +63,5 @@ mod show_backdrop;
 mod store;
 mod uninstall;
 mod vars;
+pub use vars::fixed::LANG_CFG;
 mod write_record;

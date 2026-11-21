@@ -485,7 +485,7 @@ fn read_command_line_and_install_state(o: Owners<'static>) {
     if let Err(e) = crate::install::read_languages::load_languages(
         o.install,
         o.system,
-        &o.install.names.lang_cfg.text(),
+        crate::install::LANG_CFG,
     )
     .map_err(Refused::from)
     {

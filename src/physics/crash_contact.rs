@@ -166,7 +166,7 @@ fn x87_1(up_dot: &PlainFloat, tables: &PhysicsTables, numbers: &Numbers) -> u32 
 
 /// One straight x87 run as plain Rust over `X`.
 fn x87_2(ground_scale: &PlainFloat, car: &Car, numbers: &Numbers) {
-    let t0 = car.crash_matrix[5].ld();
+    let t0 = car.crash_matrix.ld(5);
     let t1 = numbers.sixty_four.ld();
     let t2 = t0 + t1;
     let t3 = numbers.sixty_four.ld();

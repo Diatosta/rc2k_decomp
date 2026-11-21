@@ -15,12 +15,12 @@ pub(super) fn draw_string_list(
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     for (record, _) in table.iter().zip(layout::list_records(table.len() as u32)?) {
-        let (x, y) = layout::list_place(record.dx.get(), record.dy.get(), x, y);
+        let (x, y) = layout::list_place(record.dx, record.dy, x, y);
         let font = record
             .font_link()
             .font()
             .unwrap_or_else(|e| crate::install::installer::refuse(e));
-        draw_string(so, record.string.get(), font, x, y, gfx)?;
+        draw_string(so, record.string, font, x, y, gfx)?;
     }
     Ok(())
 }

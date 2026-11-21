@@ -9,7 +9,7 @@ pub fn find_clio(
     outside: &mut dyn Outside,
 ) -> Result<(), Refused> {
     let vars = &install.vars;
-    if outside.file_exists(&vars.clio_file.text())? {
+    if outside.file_exists(crate::install::store::CLIO_FILE)? {
         vars.has_clio.set(1);
     }
     Ok(())

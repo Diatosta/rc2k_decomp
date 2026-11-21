@@ -4,6 +4,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::fatal;
+use crate::install::vars::InstallerPages;
 use rc2k_core::install::model::{Item, Owner, PageDef};
 use rc2k_core::install::pieces::{self, LayoutError};
 
@@ -22,7 +23,7 @@ pub(super) fn lay_out_pieces(
     install: &'static crate::install::owner::Install,
     def: &PageDef,
 ) -> Result<Vec<Piece>, Refused> {
-    let made = match def.lay_out(|font| install.pages.kind_fonts.get(4 + 8 * font as usize)) {
+    let made = match def.lay_out(|font| InstallerPages::kind_font(install, 4 + 8 * font as u32)) {
         Ok(made) => made,
         Err(LayoutError::UnknownKind) => return Err(fatal(pieces::UNKNOWN_KIND)),
         Err(LayoutError::TooMany) => {

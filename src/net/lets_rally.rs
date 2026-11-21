@@ -20,7 +20,7 @@ pub(super) fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         2,
     );
     net.lobby().racing.set(1);
-    let own = &net.vars.player_block(net.race_slot.player())?.record;
+    let own = net.vars.player_block(net.race_slot.player())?.record.get();
     race.shared.state.settings.race_mode.set(1);
     race.shared.state.settings.run_kind.set(0);
     // The logic is in `rc2k_core::net::record` (`CAR`, `COLOURS`, `first_not_host`).
@@ -28,11 +28,11 @@ pub(super) fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         .state
         .settings
         .car_kind_current
-        .set(own.head.get(record::CAR) as u32);
+        .set(own.byte(record::CAR) as u32);
     race.shared.state.settings.cars[0]
         .controls
         .gearing
-        .set(own.head.get(record::COLOURS) as u32);
+        .set(own.byte(record::COLOURS) as u32);
     let state = |n: u32| net.vars.player_block_or_end(n).record.state();
     let Some(first) = record::first_not_host(net.race_slot.players(), state) else {
         return Ok(true);

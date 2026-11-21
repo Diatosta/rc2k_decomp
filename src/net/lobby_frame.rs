@@ -66,23 +66,20 @@ pub(super) fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refus
     if net.race_slot.players() != 0 {
         let sorted = crate::net::sort_players::sort_players(net)?;
         let gaps = net.lobby().show_gaps.get() == 1;
-        let (first_time, first_total) = (
-            sorted[0].record.race_time.get(),
-            sorted[0].record.total.get(),
-        );
+        let (first_time, first_total) = (sorted[0].record.race_time(), sorted[0].record.total());
         for n in 0..net.race_slot.players() {
             let block = &sorted[n as usize];
             let mut x = 0x18;
             blit(
-                screens::flag_sprite(block.record.head.get(3)),
+                screens::flag_sprite(block.record.byte(3)),
                 x,
                 y,
                 o.gfx,
                 o.menus,
             )?;
             x += 0x28;
-            let name = block.name.text();
-            if name.len() == block.name.read().len() {
+            let name = block.name_text().to_vec();
+            if name.len() == block.name.len() {
                 return Err(BadInput("a text without its end in its buffer").into());
             }
             let name = store_text(strings, name)?;
@@ -93,7 +90,7 @@ pub(super) fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refus
             };
             crate::text::draw_text::draw_text_at(font, &name, x as i32, y as i32, &mut canvas)?;
             // The ping to the host (its round trip in ms) at the end of the name's column.
-            if let Some(ping) = crate::net::dp_objects::ping_of(net.link.dplay(), block.id.get()) {
+            if let Some(ping) = crate::net::dp_objects::ping_of(net.link.dplay(), block.id) {
                 let text = store_text(strings, screens::ping_text(ping))?;
                 crate::text::draw_text::draw_text_at(
                     CHAT_FONT,
@@ -105,7 +102,7 @@ pub(super) fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refus
             }
             x += 0x14A;
             blit(
-                screens::car_sprite(block.record.head.get(1)),
+                screens::car_sprite(block.record.byte(1)),
                 x,
                 y + 1,
                 o.gfx,
@@ -115,14 +112,14 @@ pub(super) fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refus
             let show_hours = &o.strings.text.show_hours;
             let kept_hours = show_hours.get();
             show_hours.set(1);
-            let time = block.record.race_time.get();
+            let time = block.record.race_time();
             if time == players::NO_TIME {
                 // A player still racing shows how far through the stage it is, when that has
                 // been heard of; the others the text for no time.
                 let racing = block.record.state().has(players::State::WAITING)
                     && !block.record.state().has(players::State::LEFT_OUT);
                 let mut none = Vec::new();
-                match crate::net::progress::share_of(block.id.get()).filter(|_| racing) {
+                match crate::net::progress::share_of(block.id).filter(|_| racing) {
                     Some(share) => none.extend(crate::net::progress::text(share)),
                     None => push_id(o, &mut none, screens::NO_TIME)?,
                 }
@@ -150,12 +147,7 @@ pub(super) fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refus
             let timed = time != players::NO_TIME;
             store_text(
                 strings,
-                time_text(
-                    strings,
-                    block.record.total.get(),
-                    gaps && timed,
-                    first_total,
-                ),
+                time_text(strings, block.record.total(), gaps && timed, first_total),
             )?;
             {
                 crate::text::draw_time_text::draw_time_text(
@@ -283,7 +275,7 @@ fn draw_chosen_stage(
     let chosen = (0..net.race_slot.players())
         .map(|n| net.vars.player_block_or_end(n))
         .find(|block| block.record.state().is_host())
-        .map(|block| block.record.head.get(rc2k_core::net::record::STAGE) & 0x7F);
+        .map(|block| block.record.get().byte(rc2k_core::net::record::STAGE) & 0x7F);
     let Some(stage) = chosen else {
         return Ok(());
     };

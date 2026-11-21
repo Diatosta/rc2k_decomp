@@ -25,6 +25,7 @@
 
 use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{Byte, Bytes, Dword, Flag, PlainByte, PlainDword, Word, with_runs};
+use crate::net::shared_bytes::SharedBytes;
 use rc2k_core::net::inbox::Inbox;
 use rc2k_core::net::players::State;
 use rc2k_core::net::record::{self, Record};
@@ -102,94 +103,190 @@ pub(super) const AID_INET_PORT: [u8; 16] = with_runs::<16>(&[
 /// "susanivanovafanclub", the host's group's name; never written.
 pub(super) const GROUP_NAME: [u8; 20] = with_runs::<20>(&[(0, b"susanivanovafanclub")]);
 
-/// A player's 16 bytes of DirectPlay player data (`NetPlayerRecord`; this machine's own record
-/// is `own`).
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
-pub struct PlayerRecord {
-    /// +0 the state bits (1 ready, 2 waiting, 4 racing, 0x10 the host), +1 the car, +2 its
-    /// colours, +3 the nationality, +4 the stage, +5 its direction, +6 the race number, +7 a
-    /// random number.
-    pub head: Bytes<8>,
-    /// The race's time.
-    pub race_time: Dword,
-    /// The total.
-    pub total: Dword,
-}
+/// A player's 16 bytes of DirectPlay player data (`own` is this machine's record): +0 the state
+/// bits (1 ready, 2 waiting, 4 racing, 0x10 the host), +1 the car, +2 its colours, +3 the
+/// nationality, +4 the stage, +5 its direction, +6 the race number, +7 a random number, then the
+/// race's time and the total as little-endian dwords.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PlayerRecord([u8; 16]);
 
 impl PlayerRecord {
     pub const fn zero() -> Self {
-        Self {
-            head: Bytes::new([0; 8]),
-            race_time: Dword::new(0),
-            total: Dword::new(0),
-        }
+        Self([0; 16])
     }
 
     /// The player's state.
     pub fn state(&self) -> State {
-        State::from_byte(self.head.get(record::STATE))
+        State::from_byte(self.0[record::STATE])
     }
 
-    pub(super) fn set_state(&self, state: State) {
-        self.head.set(record::STATE, state.byte());
+    pub fn set_state(&mut self, state: State) {
+        self.0[record::STATE] = state.byte();
     }
 
     /// The record as a value.
     pub fn get(&self) -> Record {
-        Record::from_bytes(&self.bytes())
+        Record::from_bytes(&self.0)
     }
 
     /// The record's 16 bytes, as DirectPlay's player data.
     pub fn bytes(&self) -> [u8; 16] {
-        let mut b = [0u8; 16];
-        b[..8].copy_from_slice(&self.head.read());
-        b[8..12].copy_from_slice(&self.race_time.get().to_le_bytes());
-        b[12..].copy_from_slice(&self.total.get().to_le_bytes());
-        b
+        self.0
+    }
+
+    /// The record's first `data.len()` bytes (at most 16) set from `data`.
+    pub fn set_bytes(&mut self, data: &[u8]) {
+        let n = data.len().min(16);
+        self.0[..n].copy_from_slice(&data[..n]);
+    }
+
+    /// One of the first eight bytes (`record::CAR` ..).
+    pub fn byte(&self, index: usize) -> u8 {
+        self.0[index]
+    }
+
+    pub fn set_byte(&mut self, index: usize, value: u8) {
+        self.0[index] = value;
+    }
+
+    /// The race's time.
+    pub fn race_time(&self) -> u32 {
+        u32::from_le_bytes([self.0[8], self.0[9], self.0[10], self.0[11]])
+    }
+
+    pub fn set_race_time(&mut self, value: u32) {
+        self.0[8..12].copy_from_slice(&value.to_le_bytes());
+    }
+
+    /// The total.
+    pub fn total(&self) -> u32 {
+        u32::from_le_bytes([self.0[12], self.0[13], self.0[14], self.0[15]])
+    }
+
+    pub fn set_total(&mut self, value: u32) {
+        self.0[12..].copy_from_slice(&value.to_le_bytes());
+    }
+}
+
+/// A player's record where the game's thread and the receiving thread both reach it: behind a
+/// lock, taken for one call at a time (every method hands back a copy).
+pub struct SharedRecord(std::sync::Mutex<PlayerRecord>);
+
+impl SharedRecord {
+    pub const fn zero() -> Self {
+        Self(std::sync::Mutex::new(PlayerRecord::zero()))
+    }
+
+    /// A copy of the record.
+    pub fn get(&self) -> PlayerRecord {
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// The record replaced.
+    pub fn set(&self, value: PlayerRecord) {
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = value;
+    }
+
+    /// The record changed by `change`, under the lock: `change` must not reach this record.
+    pub fn update(&self, change: impl FnOnce(&mut PlayerRecord)) {
+        change(
+            &mut self
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+    }
+
+    /// The player's state.
+    pub fn state(&self) -> State {
+        self.get().state()
+    }
+
+    pub fn set_state(&self, state: State) {
+        self.update(|r| r.set_state(state));
+    }
+
+    /// The record's 16 bytes, as DirectPlay's player data.
+    pub fn bytes(&self) -> [u8; 16] {
+        self.get().bytes()
     }
 
     /// The record's first `data.len()` bytes (at most 16) set from `data`.
     pub fn set_bytes(&self, data: &[u8]) {
-        let mut b = self.bytes();
-        let n = data.len().min(16);
-        b[..n].copy_from_slice(&data[..n]);
-        for (k, &v) in b[..8].iter().enumerate() {
-            self.head.set(k, v);
-        }
-        self.race_time
-            .set(u32::from_le_bytes([b[8], b[9], b[10], b[11]]));
-        self.total
-            .set(u32::from_le_bytes([b[12], b[13], b[14], b[15]]));
+        self.update(|r| r.set_bytes(data));
     }
 }
 
 /// A player's block: name, id, record and the copy of the messages taken for the race. The
 /// messages themselves wait in the player's `Inbox`, behind the received messages' lock.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct PlayerBlock {
     /// The player's name.
-    pub name: Bytes<32>,
+    pub name: SharedBytes<32>,
     /// Its DirectPlay id.
     pub id: Dword,
     /// Its record.
-    pub record: PlayerRecord,
+    pub record: SharedRecord,
     /// The count of their copy for the race (`net::copy_received`).
     pub copied_count: Dword,
     /// Their copy (`net::apply_received`).
-    pub copied: Bytes<0x4000>,
+    pub copied: SharedBytes<0x4000>,
 }
 
 impl PlayerBlock {
     pub const fn zero() -> Self {
         Self {
-            name: Bytes::new([0; 32]),
+            name: SharedBytes::new([0; 32]),
             id: Dword::new(0),
-            record: PlayerRecord::zero(),
+            record: SharedRecord::zero(),
             copied_count: Dword::new(0),
-            copied: Bytes::new([0; 0x4000]),
+            copied: SharedBytes::new([0; 0x4000]),
         }
+    }
+
+    /// Everything but the copy of the messages, as a value.
+    pub fn view(&self) -> PlayerView {
+        PlayerView {
+            name: self.name.read(),
+            id: self.id.get(),
+            record: self.record.get(),
+        }
+    }
+
+    /// This block's contents and `other`'s exchanged, the copy of the messages with them.
+    pub fn swap_with(&self, other: &Self) {
+        self.name.swap_with(&other.name);
+        let id = self.id.get();
+        self.id.set(other.id.get());
+        other.id.set(id);
+        let record = self.record.get();
+        self.record.set(other.record.get());
+        other.record.set(record);
+        let count = self.copied_count.get();
+        self.copied_count.set(other.copied_count.get());
+        other.copied_count.set(count);
+        self.copied.swap_with(&other.copied);
+    }
+}
+
+/// A player's name, id and record as values (the lobby's sorted table).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PlayerView {
+    pub name: [u8; 32],
+    pub id: u32,
+    pub record: PlayerRecord,
+}
+
+impl PlayerView {
+    /// The name up to its first NUL (or all of it).
+    pub fn name_text(&self) -> &[u8] {
+        let n = self.name.iter().position(|&c| c == 0).unwrap_or(32);
+        &self.name[..n]
     }
 }
 
@@ -345,7 +442,6 @@ impl SettingsScreen {
 }
 
 /// The sessions list screen's state, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct SessionsScreen {
     /// The time of the sessions' last listing.
     pub listed_at: PlainDword,
@@ -395,7 +491,6 @@ impl SetupVars {
 }
 
 /// The address being built for a connection, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct AddressVars {
     /// The address elements added.
     pub elements: PlainDword,
@@ -578,7 +673,6 @@ impl ReceiverState {
 }
 
 /// The network's variables the receiving thread shares with the game thread (atomic cells).
-#[derive(rc2k_derive::Cells)]
 pub struct NetShared {
     /// Set when the receiving thread has ended; also the `nonetwork` setting's variable
     /// (`settings::read_settings`).
@@ -596,7 +690,7 @@ pub struct NetShared {
     /// The lobby's stage item can be chosen.
     pub stage_item: Dword,
     /// This machine's player record.
-    pub own: PlayerRecord,
+    pub own: SharedRecord,
     /// Every player is ready.
     pub all_raced: Dword,
     /// Every player has finished.
@@ -619,7 +713,7 @@ impl NetShared {
             receiver: ReceiverState::new(),
             event: Dword::new(0),
             stage_item: Dword::new(0x1),
-            own: PlayerRecord::zero(),
+            own: SharedRecord::zero(),
             all_raced: Dword::new(0),
             race_over: Dword::new(0),
             sync_first: Dword::new(0x1),
@@ -670,7 +764,6 @@ impl NetShared {
 }
 
 /// `net::draw_button`'s arguments and measurements, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct Button {
     /// `net::draw_button`'s string.
     pub text: PlainDword,
@@ -709,7 +802,7 @@ mod tests {
     /// A record kept in the cells reads back as the value it was set from, in every state.
     #[test]
     fn a_player_record_in_cells_round_trips_in_every_state() {
-        let cells = PlayerRecord::zero();
+        let mut cells = PlayerRecord::zero();
         for byte in [0u8, 1, 2, 4, 0x10, 0x11, 0x14, 0x82, 0xFF] {
             let record = Record {
                 state: State::from_byte(byte),

@@ -32,13 +32,13 @@ fn car_matrix(at: crate::effects::asm_test::Operand) -> CarEffects {
 
 /// A whole matrix whose translation (the last three of its 16 floats) is the buffer's at `at` + 0x30
 /// (`at` the matrix's place).
-fn whole_at(at: crate::effects::asm_test::Operand) -> [crate::memory::session::Float; 16] {
+fn whole_at(at: crate::effects::asm_test::Operand) -> [u32; 16] {
     std::array::from_fn(|i| {
-        crate::memory::session::Float::from_bits(if (12..15).contains(&i) {
+        if (12..15).contains(&i) {
             word(at + 4 * i)
         } else {
             0
-        })
+        }
     })
 }
 

@@ -805,7 +805,7 @@ pub(super) fn shadow_points(
     points: &OwnPoints,
     work: &ShadowWork,
     car: &Car,
-    body_matrix: &[crate::memory::session::PlainFloat; 16],
+    body_matrix: &crate::memory::plain_floats::PlainFloats<16>,
     sun: u32,
 ) -> Result<(), Refused> {
     use crate::math::x87::mul_to_int;
@@ -888,7 +888,7 @@ fn cast_car_shadow(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
-    body_matrix: &[crate::memory::session::PlainFloat; 16],
+    body_matrix: &crate::memory::plain_floats::PlainFloats<16>,
     sun: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::race::shadow::{SHADOW_TEXTURE, casts, hull_drawn, hull_list};
