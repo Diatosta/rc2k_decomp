@@ -236,21 +236,51 @@ mod tests {
         crate::memory::with_figures(|f| *f = figures);
     }
 
+    /// The picture records' values and the registry's picture stores, kept to be put back: the
+    /// records are plain fields, so the registry does not walk them.
+    struct KeptPictureState {
+        decoder: Vec<u32>,
+        pcx: Vec<u32>,
+        picture: Vec<u32>,
+        png_file: Vec<u32>,
+        png_header: Vec<u32>,
+        registry: crate::test_support::state::Snapshot,
+    }
+
+    impl KeptPictureState {
+        fn take() -> Self {
+            let gfx = crate::test_support::own::gfx();
+            KeptPictureState {
+                decoder: gfx.pictures.decoder.values(),
+                pcx: gfx.pictures.pcx.values(),
+                picture: gfx.pictures.picture.values(),
+                png_file: gfx.png.file.values(),
+                png_header: gfx.png.header.values(),
+                registry: crate::test_support::state::Snapshot::of(&[
+                    "owners.gfx.pictures.planes",
+                    "owners.gfx.pictures.showing",
+                    "owners.gfx.png.setting",
+                ]),
+            }
+        }
+
+        fn restore(&self) {
+            let gfx = crate::test_support::own::gfx();
+            gfx.pictures.decoder.set_values(&self.decoder);
+            gfx.pictures.pcx.set_values(&self.pcx);
+            gfx.pictures.picture.set_values(&self.picture);
+            gfx.png.file.set_values(&self.png_file);
+            gfx.png.header.set_values(&self.png_header);
+            self.registry.restore();
+        }
+    }
+
     #[test]
     fn a_pcx_file_is_decoded_into_the_picture_buffer() {
         let pictures = &crate::test_support::own::gfx().pictures;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let kept = crate::test_support::state::Snapshot::of(&[
-            "owners.gfx.pictures.decoder",
-            "owners.gfx.pictures.pcx",
-            "owners.gfx.pictures.picture",
-            "owners.gfx.pictures.planes",
-            "owners.gfx.pictures.showing",
-            "owners.gfx.png.file",
-            "owners.gfx.png.header",
-            "owners.gfx.png.setting",
-        ]);
+        let kept = KeptPictureState::take();
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
         pictures
@@ -367,16 +397,7 @@ mod tests {
         let pictures = &crate::test_support::own::gfx().pictures;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let kept = crate::test_support::state::Snapshot::of(&[
-            "owners.gfx.pictures.decoder",
-            "owners.gfx.pictures.pcx",
-            "owners.gfx.pictures.picture",
-            "owners.gfx.pictures.planes",
-            "owners.gfx.pictures.showing",
-            "owners.gfx.png.file",
-            "owners.gfx.png.header",
-            "owners.gfx.png.setting",
-        ]);
+        let kept = KeptPictureState::take();
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
         pictures
@@ -407,10 +428,7 @@ mod tests {
         let pictures = &crate::test_support::own::gfx().pictures;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let kept = crate::test_support::state::Snapshot::of(&[
-            "owners.gfx.pictures.picture",
-            "owners.gfx.png.header",
-        ]);
+        let kept = KeptPictureState::take();
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
         pictures

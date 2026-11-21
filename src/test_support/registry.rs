@@ -304,17 +304,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.gfx.drawing.thirds", on_game(&o.gfx.drawing.thirds),),
         listed!(
-            "owners.gfx.pictures.decoder",
-            on_game(&o.gfx.pictures.decoder),
-        ),
-        listed!("owners.gfx.pictures.pcx", on_game(&o.gfx.pictures.pcx),),
-        listed!(
-            "owners.gfx.pictures.picture",
-            on_game(&o.gfx.pictures.picture),
-        ),
-        listed!("owners.gfx.png.file", on_game(&o.gfx.png.file),),
-        listed!("owners.gfx.png.header", on_game(&o.gfx.png.header),),
-        listed!(
             "owners.gfx.pictures.planes",
             on_game(&o.gfx.pictures.planes),
         ),

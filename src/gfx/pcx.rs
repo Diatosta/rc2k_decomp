@@ -5,49 +5,42 @@
 //! palette, 0x300 bytes, is the end of the file.
 
 use crate::files::stream::Stream;
-use crate::memory::session::{PlainBytes, PlainDword, with_runs};
+use crate::memory::session::PlainBytes;
+use std::cell::Cell;
 
 pub const HEADER_LEN: usize = 0x80;
 pub(super) const HEADER_PLANES: usize = 0x41;
 pub(super) const FILE_PALETTE_LEN: usize = 0x300;
-/// The stream block's length (`files::stream::Stream`).
-const STREAM_LEN: usize = core::mem::size_of::<Stream>();
 
 /// The PCX file being decoded.
-#[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
 pub struct Pcx {
     /// The picture's width, as the header says.
-    pub file_width: PlainDword,
+    pub file_width: Cell<u32>,
     /// Its height.
-    pub file_height: PlainDword,
-    pub line_bytes: PlainDword,
-    pub planes: PlainDword,
-    /// The stream the readers opened the file as; not used (`files::stream::with_stream`), kept for
-    /// the block's layout.
-    pub stream: PlainBytes<STREAM_LEN>,
+    pub file_height: Cell<u32>,
+    pub line_bytes: Cell<u32>,
+    pub planes: Cell<u32>,
     /// The header as read from the file, 0x80 bytes.
     pub header: PlainBytes<HEADER_LEN>,
     /// The palette as read from the file, three bytes an entry.
     pub file_palette: PlainBytes<FILE_PALETTE_LEN>,
     /// The widest picture that is taken.
-    pub width_limit: PlainDword,
+    pub width_limit: Cell<u32>,
     /// The highest picture that is taken.
-    pub height_limit: PlainDword,
+    pub height_limit: Cell<u32>,
 }
 
 impl Pcx {
     pub const fn new() -> Self {
         Pcx {
-            file_width: PlainDword::new(0),
-            file_height: PlainDword::new(0),
-            line_bytes: PlainDword::new(0),
-            planes: PlainDword::new(0),
-            stream: PlainBytes::new(with_runs(&[(4, &[0xFF; 4])])),
+            file_width: Cell::new(0),
+            file_height: Cell::new(0),
+            line_bytes: Cell::new(0),
+            planes: Cell::new(0),
             header: PlainBytes::new([0; HEADER_LEN]),
             file_palette: PlainBytes::new([0; FILE_PALETTE_LEN]),
-            width_limit: PlainDword::new(0x320),
-            height_limit: PlainDword::new(0x258),
+            width_limit: Cell::new(0x320),
+            height_limit: Cell::new(0x258),
         }
     }
 }
@@ -92,4 +85,37 @@ pub(super) fn on_stream(
         let closed = close_stream(stream)?;
         Ok(rows? && closed)
     })
+}
+
+#[cfg(test)]
+impl Pcx {
+    /// Every value of the record, in field order: what a test keeps to put back.
+    pub fn values(&self) -> Vec<u32> {
+        let mut out = vec![
+            self.file_width.get(),
+            self.file_height.get(),
+            self.line_bytes.get(),
+            self.planes.get(),
+            self.width_limit.get(),
+            self.height_limit.get(),
+        ];
+        out.extend(self.header.read().iter().map(|&b| u32::from(b)));
+        out.extend(self.file_palette.read().iter().map(|&b| u32::from(b)));
+        out
+    }
+
+    /// The values `values` returned put back.
+    pub fn set_values(&self, values: &[u32]) {
+        let mut values = values.iter().copied();
+        let mut next = || values.next().expect("a value kept for every field");
+        self.file_width.set(next());
+        self.file_height.set(next());
+        self.line_bytes.set(next());
+        self.planes.set(next());
+        self.width_limit.set(next());
+        self.height_limit.set(next());
+        self.header.write(&std::array::from_fn(|_| next() as u8));
+        self.file_palette
+            .write(&std::array::from_fn(|_| next() as u8));
+    }
 }
