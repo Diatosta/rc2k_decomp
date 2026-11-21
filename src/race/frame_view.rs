@@ -20,15 +20,15 @@ macro_rules! car_view {
     ($($(#[$doc:meta])* $field:ident: $t:ty,)*) => {
         /// One car's physics-owned fields (named as in `physics::car_store::Car`, on atomics:
         /// the drawing parts read them).
-        #[derive(rc2k_derive::Cells)]
         pub struct CarView {
             $($(#[$doc])* pub $field: $t,)*
         }
 
         impl CarView {
             const fn new() -> Self {
-                // Every field a cell or an array of cells: zero bits.
-                crate::memory::cells::zeroed_cells()
+                CarView {
+                    $($field: crate::memory::cells::ZeroCells::ZERO,)*
+                }
             }
 
             /// Every field from `car`.

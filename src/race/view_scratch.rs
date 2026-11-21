@@ -35,7 +35,6 @@ const CELLS: usize = 4 * ENTRIES + 0x10;
 /// flares, cars, faces drawn by depth) and the sort entries (the course faces); then 0x10 dwords
 /// that a flare's entry is read on into as a description of 0x3C bytes
 /// (`scene::draw_described_object`), past the last sort entry.
-#[derive(rc2k_derive::Cells)]
 pub struct SortLists {
     cells: [PlainDword; CELLS],
     pub depth_entry_count: PlainDword,
